@@ -62,7 +62,7 @@ const MOD_QUEUE_CANDIDATES = MOD_QUEUE_SIZE * 4;
 // of 5 makes filling the queue cost five authors rather than one, and still
 // lets a genuinely prolific offender have their five worst judged now and
 // the rest next generation, once these settle and their flags clear.
-const MOD_QUEUE_PER_AUTHOR = 5;
+export const MOD_QUEUE_PER_AUTHOR = 5;
 // FALSE since D83 (2026-08-10): world takes shipped, and D78 made this
 // flip their hard prerequisite — at world scale, circle-scope trust can no
 // longer stand in for enforcement. The header note asked the flip to cite
@@ -169,7 +169,7 @@ async function clearFlagsFor(
  * crowding the queue, and refusing to queue a take because its author
  * cannot be read would hide content from moderation on a technicality.
  */
-function overAuthorCap(perAuthor: Map<string, number>, author: unknown): boolean {
+export function overAuthorCap(perAuthor: Map<string, number>, author: unknown): boolean {
   if (typeof author !== "string" || !author) return false;
   const held = perAuthor.get(author) || 0;
   if (held >= MOD_QUEUE_PER_AUTHOR) return true;

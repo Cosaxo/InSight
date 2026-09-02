@@ -126,7 +126,7 @@ const call = async (name, data) => {
     // /permission-denied/ and never fired: the wire carries
     // `{status: "PERMISSION_DENIED", message: "moderator-only"}` (the
     // HttpsError code is upper-snake by the time it is serialised, and
-    // moderation.ts:95 chose the message), so callOperator's line reads
+    // `assertModerator` chose the message), so callOperator's line reads
     // "submitModVerdict failed (403): PERMISSION_DENIED moderator-only" —
     // no lowercase-hyphen spelling anywhere in it. The hint that exists to
     // explain the single most likely refusal was unreachable.
@@ -163,7 +163,7 @@ if (!verdictKind) {
     console.log(`    ${marks.join(" · ")}`);
     // D178: an avatar's content IS the image, so what a reviewer needs is
     // the token and bucket to fetch it. The server sends `text: ""` on
-    // those entries deliberately (moderation.ts:334, "No text to copy") —
+    // those entries deliberately (moderation.ts, "No text to copy") —
     // so printing the text field would render an avatar as a take with an
     // empty body, which reads as a corrupt row rather than as an image.
     // (This comment said the field was ABSENT and that printing it would

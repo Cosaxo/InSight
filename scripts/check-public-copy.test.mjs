@@ -98,7 +98,15 @@ describe("the live corpus", () => {
     // Guards the silent-success failure: a collect() that stopped finding
     // files would report OK on nothing at all.
     expect(surfaces.length).toBeGreaterThan(10);
-  });
+    // AN EXPLICIT BUDGET, because this case reads the tree from disk and
+    // vitest's default is 5 s. It came in at 5,423 ms once on a cold
+    // cache and failed — in `test:scripts`, which runs in CI's LINT job,
+    // where a timeout reads as a copy violation rather than as a slow
+    // disk. 60 s is the same budget check-figures.test.mjs gives its own
+    // tree copy, and it is a ceiling rather than an expectation: the run
+    // takes about a second warm, and a case that genuinely started taking
+    // a minute would be a finding of its own.
+  }, 60_000);
 
   it("reads the store listing and every enumerated page", () => {
     const labels = scan().surfaces.map((s) => s.label).join("\n");

@@ -311,4 +311,21 @@ describe("the fresh list is woven, and `depth` keeps the cadences alive (D348)",
     expect(interleaveFeed([], { tests: [], lenses: [], know: ["k0", "k1"], knowEvery: 6, depth: 3 }))
       .toEqual(["k0", "k1"]);
   });
+
+  it("…and drops it once the walk is long enough to have served the cadence", () => {
+    // THE CASE ABOVE CANNOT SEE THE LINE IT IS NAMED FOR. D348 changed the
+    // drain's condition from `world.length < knowEvery` to
+    // `positions < knowEvery`, and at depth 3 with an empty world list both
+    // spellings say the same thing — so reverting the edit leaves the whole
+    // suite green.
+    //
+    // This is the pair that separates them: twelve positions walked, a
+    // cadence of six, so the stream fires k0 at 6 and k1 at 12 and the
+    // drain must NOT then dump k2 on the end. Under the old spelling
+    // `world.length` is 0, the drain fires, and a returning device whose
+    // fresh list is shorter than its Learn cadence gets the entire
+    // remaining Learn pool at the tail.
+    expect(interleaveFeed([], { tests: [], lenses: [], know: ["k0", "k1", "k2"], knowEvery: 6, depth: 12 }))
+      .toEqual(["k0", "k1"]);
+  });
 });

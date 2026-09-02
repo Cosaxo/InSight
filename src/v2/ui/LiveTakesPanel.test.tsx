@@ -53,6 +53,11 @@ const LIVE = vi.hoisted(() => ({
       void gid;
       return this.takeList.filter((t) => !qid || t.qid === qid);
     },
+    /** Settled by default: every case below is about a list that HAS been
+     *  read, and the reading arm is asserted by the two cases that set
+     *  this true. */
+    reading: false,
+    takesLoading(this: { reading: boolean }) { return this.reading; },
     loadTakes: vi.fn(async () => {}),
     postTake: vi.fn(async () => "t_new"),
     deleteTake: vi.fn(async () => {}),
@@ -81,6 +86,7 @@ beforeEach(() => {
   LIVE.loadVoters.mockClear();
   LIVE.loadNames.mockClear();
   LIVE.social.flags = {};
+  LIVE.social.reading = false;
   LIVE.social.loadTakes.mockClear();
   LIVE.social.postTake.mockClear();
   LIVE.social.deleteTake.mockClear();
@@ -415,6 +421,46 @@ describe("a take carries the side its author voted", () => {
     LIVE.voterList = [{ uid: "u_named", optionIdx: 0 }];
     sidePanel();
     expect(LIVE.loadNames).not.toHaveBeenCalled();
+  });
+});
+
+describe("a list still being read is not an empty room", () => {
+  // `takes()` answers [] for three different things — never fetched, in
+  // flight, and genuinely nothing written. The panel branched on length
+  // alone, so it printed "No takes yet. Say the first thing." over a query
+  // still running — and kept printing it for the life of that mount after
+  // a FAILED fetch, because loadTakes' catch deliberately leaves the key
+  // absent so a later open retries rather than caching an empty list.
+  //
+  // Same defect the Compare lens and the Near field were fixed for, on the
+  // surface where the sentence is an invitation: "say the first thing" to
+  // someone whose circle may already have said several.
+  it("says it is reading rather than that nobody has written", () => {
+    LIVE.social.takeList = [];
+    LIVE.social.reading = true;
+    panel();
+    expect(screen.getByText(/Reading the room/)).toBeTruthy();
+    expect(screen.queryByText(/Say the first thing/),
+      "an unread list was called an empty one").toBeNull();
+  });
+
+  it("says the room is empty once it really has been read", () => {
+    // The control: the reading arm must not swallow the true empty state,
+    // which is the one the composer's invitation belongs to.
+    LIVE.social.takeList = [];
+    LIVE.social.reading = false;
+    panel();
+    expect(screen.getByText(/Say the first thing/)).toBeTruthy();
+  });
+
+  it("keeps the paused sentence in front of the reading one", () => {
+    // The breaker's state is true whatever the query would have found, so
+    // it stays the outermost arm.
+    LIVE.social.takeList = [];
+    LIVE.social.reading = true;
+    LIVE.budgetPaused = true;
+    panel();
+    expect(screen.queryByText(/Reading the room/)).toBeNull();
   });
 });
 

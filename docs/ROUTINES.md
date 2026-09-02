@@ -24,14 +24,15 @@ session and it will never see yours"* — and the dispatcher-bound lanes
 run in a different environment (`env_013gTXHYYHNaKBiWe8c4gmtd`) from the
 account in §2 (`env_01Ri3fw8gD9Py3LmTQ9hTYCL`).
 
-**What this file does not replace.** Three per-program inventories
+**What this file does not replace.** Four per-program inventories
 already exist and each stays canonical for its own lanes' *contracts*:
 `QUESTION-FARM.md` § Scheduled runs (the content lanes), `AXES-RUNBOOK.md`
-§ The account-side inventory (the axes program), and `CHARTER.md` §10 on
-the `axiom-theory` branch (the theory lanes). This is the index across
-them plus the shared-resource map (§5) that none of them could hold
-alone — a per-program table cannot see a collision with another program,
-which is exactly what three subscriptions produce.
+§ The account-side inventory (the axes program), `CHARTER.md` §10 on the
+`axiom-theory` branch (the theory lanes), and `OPS-RUNBOOK.md` §5 (the
+ops lanes, every row still a dash). This is the index across them plus
+the shared-resource map (§5) that none of them could hold alone — a
+per-program table cannot see a collision with another program, which is
+exactly what three subscriptions produce.
 
 ---
 
@@ -67,17 +68,17 @@ which is exactly what three subscriptions produce.
 
 **Account** `014fdf19-504c-4a97-bdfb-e305156fcd9d` ·
 **environment** `env_01Ri3fw8gD9Py3LmTQ9hTYCL` ·
-**verified** 2026-09-02 09:46 UTC against `list_triggers`, nine
+**verified** 2026-09-02 11:07 UTC against `list_triggers`, nine
 Routines, all enabled.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
 | Nightly algorithm improvement | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |
-| InSight question farm (daily) | `trig_01XJqk3xyNicWH9uMG5kz8Lh` | `0 7 * * *` — daily 07:00 | dev session `session_01AvNkZgRvvMCu8zqhZtuMH5` | `claude/question-farm-<date>` — `content/daily-questions.json` | self-merge (D212) |
+| InSight question farm (daily) | `trig_015gV8je1wJ8yRsk2zAKp6oe` | `0 7 * * *` — daily 07:00 | dev session `session_01AvNkZgRvvMCu8zqhZtuMH5` | `claude/question-farm-<date>` — `content/daily-questions.json` | self-merge (D212) |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, a new domain catalogue Sunday | same dev session | `claude/catalog-question-<date>`, domains `claude/catalog-domain-<name>` — `src/v2/spec/pick-data.js`, `public/` | self-merge (D212) |
 | InSight DB scalability | `trig_01WSJVxHtUqioRRvSs6pc31E` | `0 8 * * 1-5` — weekdays, hard stop 12:00 (10:00–14:00 Oslo) | fresh session | `claude/daily-database-optimization-j03rdh` — Firestore schema, the aggregation pipeline, client read paths | no PR — the owner opens it |
-| InSight learn lane | `trig_015hWsQwfLz4evTeVkN3mtx8` | `0 9 * * 1,4` — Mon + Thu 09:00 | same dev session | `claude/learn-cards-<date>` — `content/learn-questions.json` | self-merge (D212) |
-| InSight feed lane | `trig_014BTtkCKwkJqjVmSdnUGGXC` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
+| InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 | same dev session | `claude/learn-cards-<date>` — `content/learn-questions.json` | self-merge (D212) |
+| InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — Wed 10:00 | same dev session | `claude/duel-questions-<date>` — `content/duel-questions.json` | self-merge (D212) |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
 | InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,22,0,2,4 * * *` — five flows; 20/22/00/02 audit at 95 min, 04:00 closing at 110 min | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
@@ -97,30 +98,38 @@ not just a free slot in the day.
 
 ### Observations, 2026-09-02
 
-- **`QUESTION-FARM.md` § Scheduled runs was stale in three of its five
-  rows.** The farm, learn and feed Routines were recreated 2026-09-02
-  09:23–09:24 UTC and carry new ids; the table still named the retired
-  ones (`trig_01STD1dK…`, `trig_01GtTNhR…`, `trig_011g1ZFh…`). Corrected
-  in the same commit that created this file — the ids above are the
-  verified ones. This is rule 2 in the act: nothing in the tree could see
-  the drift, because a trigger id is not a figure `check:figures` can
-  recompute.
-- **The same three prompts have moved ahead of their canonical blocks,
-  and that is NOT corrected here.** Diffing the live prompts against
-  `QUESTION-FARM.md`'s fenced blocks: all three now allocate against a
-  per-topic floor with no stock ceiling, citing a **D342** that on `main`
-  is a different record (the fake-account chain), and `scripts/feed-budget.mjs`
-  still implements the levelling the old blocks describe. So the swap is
-  ahead of both the manual and the scripts. Reconciling it is a change to
-  a lane's contract and belongs to whoever made the swap — flagged here
-  under rule 4, not edited.
-- **The now lane has no contract.** Its prompt sends it to
-  `docs/QUESTION-FARM.md § The now lane` on `origin/main` and tells it to
-  do nothing and report if that section is missing. The section does not
-  exist — not on `main`, not on any branch on `origin`. So the Routine
-  has fired daily at 11:00 UTC since 2026-09-01 and correctly no-ops
-  every time. It is registered here as live because it is live; writing
-  its contract is open work.
+Written over one morning, and every one of them moved while it was being
+written. That is the finding, so it is kept rather than tidied away.
+
+- **A verified trigger id went stale in twenty-nine minutes.** The farm,
+  learn and feed Routines were recreated at 09:23 UTC (ids read at
+  09:46, written into the first draft of this file) and recreated
+  **again** at 10:15. `QUESTION-FARM.md` carried the 10:15 ids before
+  this file did, because D350 merged in between. The ids in the table
+  above are the 10:15 ones, re-read at 11:07. There is no version of
+  this file that stays true by being written carefully — only one that
+  is re-read before it is trusted, which is rule 2 and the reason the
+  register cites `list_triggers` rather than itself.
+- **The three prompts that had moved ahead of their manual have landed.**
+  The live prompts allocate against a per-topic floor with no stock
+  ceiling and cited a `D342` that did not resolve on `main`; that record
+  merged as **D350** (the standing renumber-on-merge collision), with
+  `scripts/feed-budget.mjs` and the canonical blocks moved with it. Found
+  as drift at 09:46, closed by a merge at 10:27 — flagged under rule 4
+  rather than edited, which is why nothing here had to be un-done.
+- **The now lane's contract exists now.** It fired daily at 11:00 UTC
+  into a `§ The now lane` that was on no branch, and correctly no-opped
+  every time; **D351** wrote the section and gave the lane its budget
+  script. `QUESTION-FARM.md`'s inventory carries the lane as its sixth
+  row.
+- **Eight more Routines are chartered and none exists yet.**
+  `OPS-RUNBOOK.md` (merged today) contracts the platform probe, the roll
+  call, the two shepherds, the production reader, the release recorder,
+  the pulse responder and the list worker, with the account-side
+  inventory left as dashes. They belong in this register the day they
+  are created — under whichever account creates them, which is not
+  decided by the runbook and is exactly the question this file exists to
+  answer.
 
 ---
 
@@ -227,6 +236,14 @@ Three tiers, and they do not transfer between programs:
   both night shifts — they push a branch and stop.
 - **Never merges, a reviewer first**: the axes program (skeptic, then
   owner) and every theory lane (their branch is not `main` at all).
+
+There is one door through the second tier, and it is the owner's:
+a PR labelled **`merge-when-green`** is one the owner has decided to
+merge, and `OPS-RUNBOOK.md` § The PR shepherd is the lane that executes
+that decision — squash, only on green on the current head, only while
+the grant is intact. No lane applies the label and none creates it. That
+shepherd does not exist yet: its inventory row is a dash, so a labelled
+PR waits for the owner until the Routine is created.
 
 ### The three collision rules
 

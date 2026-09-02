@@ -253,6 +253,28 @@ function DifferRows({ testKey, R, cfg }) {
 export function ResultProfileCard({ testKey, archetype, tagline }) {
   const [typesOpen, setTypesOpen] = React.useState(false);
   const [explain, setExplain] = React.useState(false);
+  // THE CROWD HALF OF THIS CARD HAS TO FETCH ITS OWN CROWD.
+  //
+  // `axisRank`, `rarityAmong` and `testNorm` all count over
+  // `LIVE.kindredPeople()` (data/testNorms.ts, `sampleAxes`) — the
+  // session's cached voter sample. Until 2026-08-31 the pool arrived as a
+  // side effect: `loadSimilarity` awaited `loadKindred`, so ARRIVING at
+  // any place stop filled it. That fan-out then moved to the two surfaces
+  // that read it — the city field and the People lens — under the rule
+  // "the loader belongs to the surface that reads it", and this card was
+  // missed, because the comment recording the move said "Only City reads
+  // kindredPeople()" and testNorms is the other reader.
+  //
+  // The symptom was silent and honest, which is why nothing went red: a
+  // viewer who opened World but never City got `axisRank` returning null
+  // below NORM_MIN_PEOPLE, so the percentile line simply did not draw. A
+  // measured line that stops appearing looks exactly like a measured line
+  // that has nothing to say.
+  //
+  // Before the early return below: hooks may not be conditional. Free on
+  // repeat — loadKindred is session-cached — and skipped entirely on the
+  // demo build, where these numbers come from the authored curve instead.
+  React.useEffect(() => { if (LIVE.enabled) void LIVE.loadKindred(); }, []);
   const R = ownResult(testKey);
   const cfg = RP_TESTS[testKey];
   if (!R || !cfg || !R.dims || !R.dims.length) return null;

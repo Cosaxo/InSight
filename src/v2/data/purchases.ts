@@ -56,6 +56,14 @@ export interface Purchase {
 let uid: string | null = null;
 let authWired = false;
 let rows: Purchase[] | null = null;
+// Whether the last attempt to read them FAILED, which is a third state
+// and not the same as "not loaded yet". `rows` stays null on a throw, and
+// the room that reads it drew "Reading your contracts…" forever — a
+// spinner with nothing behind it, no error and no way back. Settling
+// `rows` to [] instead would trade the hang for a lie ("Nothing bought
+// from this account yet", to a buyer whose read simply failed), so the
+// distinction is kept rather than collapsed.
+let failed = false;
 let loading: Promise<Purchase[]> | null = null;
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((f) => f());
@@ -69,6 +77,7 @@ function wireAuth(): void {
       uid = next;
       // A different account's contracts must never render under this one.
       rows = null;
+      failed = false;
       notify();
     }
   });
@@ -116,6 +125,14 @@ export function mine(): Purchase[] | null {
   return rows;
 }
 
+/**
+ * Did the last read fail? Only meaningful while `mine()` is still null —
+ * a successful load clears it, and so does a change of account.
+ */
+export function mineFailed(): boolean {
+  return failed;
+}
+
 /** Load this account's purchases + each bought question's public counts. */
 export function loadMine(force = false): Promise<Purchase[]> {
   wireAuth();
@@ -150,8 +167,16 @@ export function loadMine(force = false): Promise<Purchase[]> {
       }));
       next.sort((a, b) => (b.win.start || "").localeCompare(a.win.start || ""));
       rows = next;
+      failed = false;
       notify();
       return next;
+    } catch (err) {
+      // Record the failure and tell the room, then rethrow: a caller that
+      // awaits this still learns the read did not happen, and the room
+      // stops claiming one is in flight.
+      failed = true;
+      notify();
+      throw err;
     } finally {
       loading = null;
     }

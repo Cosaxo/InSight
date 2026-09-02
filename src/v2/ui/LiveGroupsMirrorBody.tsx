@@ -164,7 +164,12 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   // draws nothing takes no space. Behind a tab somebody tapped, nothing at
   // all reads as a screen that broke.
   if (!rows.length) {
-    return <LgEmpty>Nothing revealed yet — answers stay sealed until the morning after.</LgEmpty>;
+    // READING IS NOT NOTHING. `revealHistory()` is empty for a history
+    // still arriving as much as for a group that has never played, and
+    // this stop opens on that fetch.
+    return LIVE.social.revealHistoryLoading(g.id)
+      ? <LgEmpty>Reading the days…</LgEmpty>
+      : <LgEmpty>Nothing revealed yet — answers stay sealed until the morning after.</LgEmpty>;
   }
   return (
     <div className="card">
@@ -408,7 +413,7 @@ function LiveGroupsMirrorBody() {
           {/* The stop's own state, above the row rather than inside a tab:
               "nothing has been revealed yet" is true of the whole group,
               not of one reading of it. */}
-          {P.days === 0 && (
+          {P.days === 0 && !LIVE.social.revealHistoryLoading(g.id) && (
             <div className="card" style={{ marginTop: 14, padding: "16px 15px" }}>
               <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
                 Nothing revealed yet — answers stay sealed until the morning after.

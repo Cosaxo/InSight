@@ -3547,6 +3547,117 @@
           "line": "The chat went quiet because you asked it to. So did the decade."
         }
       }
+    },
+    {
+      "id": "f132",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Teleport anywhere instantly — but you can never travel slowly again. Take it?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2600
+        },
+        {
+          "label": "Keep the journey",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f133",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "A cashless world: convenient future, or something lost?",
+      "options": [
+        {
+          "label": "Convenient future",
+          "count": 2200
+        },
+        {
+          "label": "Something lost",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f134",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Ketchup: fridge, or cupboard?",
+      "options": [
+        {
+          "label": "Fridge",
+          "count": 3600
+        },
+        {
+          "label": "Cupboard",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f135",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "One genre forever: comedy, thriller, drama, or documentary?",
+      "options": [
+        {
+          "label": "Comedy",
+          "count": 2400
+        },
+        {
+          "label": "Thriller",
+          "count": 1900
+        },
+        {
+          "label": "Drama",
+          "count": 1400
+        },
+        {
+          "label": "Documentary",
+          "count": 900
+        }
+      ]
+    },
+    {
+      "id": "dl19",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How many songs on a perfect album?",
+      "lo": 6,
+      "hi": 20,
+      "unit": "songs"
+    },
+    {
+      "id": "f136",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "One selfie with: Beyoncé, the Pope, Lionel Messi, or Taylor Swift?",
+      "options": [
+        {
+          "label": "Beyoncé",
+          "count": 1600
+        },
+        {
+          "label": "The Pope",
+          "count": 1400
+        },
+        {
+          "label": "Lionel Messi",
+          "count": 1700
+        },
+        {
+          "label": "Taylor Swift",
+          "count": 1500
+        }
+      ]
     }
   ]
 }

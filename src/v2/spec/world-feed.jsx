@@ -95,6 +95,8 @@ import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
   wfTileArt, wfTint,
+  wfVotesOf,
+  wfAnsweredOf,
 } from './world-feed-math.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
@@ -180,7 +182,7 @@ function wfLoadTakes() {
   try { const v = JSON.parse(localStorage.getItem(WF_TAKES_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
   catch (e) { return {}; }
 }
-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' || q.type === 'dial' || q.type === 'field' || q.type === 'path' ? (q.n || 0) : q.type === 'pick' ? (q.n || ((WF_CATALOGS[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
+function wfVotes(q) { return wfVotesOf(q, (WF_CATALOGS[q.catalog] || {}).picks || 0); }
 
 
 
@@ -2249,12 +2251,17 @@ class WorldFeed extends React.Component {
   // and rank question takes that branch, because the server-side answer has
   // no local raw value.
   answered(q, mine) {
-    const v = this.state.votes[q.id];
     // A Crossroads story (D341) is answered when its walk is finished. The
     // walk lives in PATHS (demo and live alike — the card writes each fork
     // there), and a live finish is ALSO a vote, which covers the returning
     // device whose localStorage is gone. An unfinished walk is not an
     // answer: the card stays in the fresh stream and resumes.
+    //
+    // BEFORE `wfAnsweredOf`, and that is the whole of the resolution here:
+    // D341 landed on main after this branch extracted the shared helper,
+    // so the helper has never heard of `path`. Handled early means it does
+    // not have to. (`const v` went with the extraction — the tail that
+    // read it is now inside the helper.)
     if (q.type === 'path') {
       if (PATHS.walkOf(q.id).length >= 3) return true;
       return !!(q.live && LIVE.myVotes && (mine || LIVE.myVotes())[q.id] != null);
@@ -2262,10 +2269,8 @@ class WorldFeed extends React.Component {
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
-    if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank') && v == null && q.live && LIVE.myVotes) {
-      return (mine || LIVE.myVotes())[q.id] != null;
-    }
-    return q.type === 'rank' ? !!(v && v.order) : v != null;
+    return wfAnsweredOf(q, this.state.votes,
+      LIVE.myVotes ? () => mine || LIVE.myVotes() : null);
   }
 
   // The feed's source pool, read in one place by the two callers that need
@@ -3227,7 +3232,7 @@ class WorldFeed extends React.Component {
     // fabrication with more of it: every row below is `wfKnowRate`, a hash
     // of (card, cohort) \u2014 a per-cohort knowledge rate nobody has measured,
     // drawn against a baseline nobody has measured either. So the cuts go
-    // the way MapStats' five null anchors went (D72): refused at the
+    // the way MapStats' null anchors went (D72): refused at the
     // source, returning when a per-cohort learn aggregate exists to rank.
     //
     // The headline stays, because it has a true version \u2014 LEARN_RATE hands

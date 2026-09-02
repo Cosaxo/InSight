@@ -260,8 +260,37 @@ export function writeMeta(key: string, value: unknown): Promise<void> {
 /** Empty every store. REJECTS on failure — the callers are the purge
  * paths, where a wipe that did not happen must never read as one. */
 export async function clearAll(): Promise<void> {
+  // No IndexedDB in this environment is the ONE honest early return: there
+  // is no database, so there is nothing that failed to be wiped. It is
+  // also the case cacheStore.test.ts pins — no count, no report.
+  if (typeof indexedDB === "undefined") return;
   const db = await open();
-  if (!db) return;
+  if (!db) {
+    // …but open() returns null for three other reasons, and they are not
+    // that one: the open request errored, it timed out, or the accessor
+    // threw (a browser set to block site data). In every one of those the
+    // database can exist and hold answers, and returning here reported a
+    // wipe that never happened — precisely what the contract above forbids,
+    // on precisely the paths where it matters (account delete, uid change).
+    //
+    // Deleting the database outright needs no usable connection, so it is
+    // the fallback that can still tell the truth. On a device that never
+    // wrote anything it succeeds quietly rather than inventing a failure.
+    return new Promise((resolve, reject) => {
+      try {
+        const req = indexedDB.deleteDatabase(CACHE_DB);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error ?? new Error("cacheStore deleteDatabase failed"));
+        // BLOCKED IS NOT SUCCESS. Another tab still holds a connection, so
+        // the delete is queued, not done — and this call cannot honestly
+        // say it happened. Loud, for the same reason the rest of this
+        // function is; the purge paths retry and deleteAccount awaits.
+        req.onblocked = () => reject(new Error("cacheStore deleteDatabase blocked"));
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    });
+  }
   return new Promise((resolve, reject) => {
     try {
       const t = db.transaction([...STORES], "readwrite");
