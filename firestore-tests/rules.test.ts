@@ -3324,6 +3324,26 @@ describe("people directory: found by name (D239)", () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Olaf T", nameKey: "olaf t" }));
   });
 
+  // THE FOLD IS THE RULES ENGINE'S, NOT JAVASCRIPT'S, and three client
+  // writers now depend on which — `foldName` in data/socialFetch.ts, the
+  // copy inside `LIVE.searchPeople` that has to run before that module's
+  // dynamic import, and `claimHandleV2`'s server-side one. All three
+  // replace A-Z and nothing else, because `.lower()` above does; JS
+  // `toLowerCase()` is full Unicode and disagrees on the first non-ASCII
+  // capital, at which point this rule REFUSES the write and the account
+  // gets no directory row at all — invisible rather than hard to find.
+  //
+  // The premise was measured against this emulator with a throwaway probe
+  // and then left unpinned, deliberately, because the other shift was
+  // rewriting this file the same night. This is that case. It fails the
+  // day the engine's `.lower()` learns Unicode — which is the day all
+  // three client folds have to change with it, and nothing else would say
+  // so.
+  it("folds A-Z only, which is why the client's fold is not toLowerCase()", async () => {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Ólaf", nameKey: "ólaf" }));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Ólaf", nameKey: "Ólaf" }));
+  });
+
   it("refuses an empty or oversized name", async () => {
     await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "", nameKey: "" }));
     const long = "x".repeat(61);
