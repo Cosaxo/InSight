@@ -872,6 +872,16 @@ button.card:active,
 /* Universal tactile press feedback */
 .press { transition: transform 0.22s var(--ease-spring); }
 .press:active { transform: scale(0.95); }
+
+/* The paid door's rate rows (2026-09-02): each row rises in, and its
+   day-strip ticks pop up one after another so the fortnight reads as a
+   measurement being taken rather than as a static bar. Reduced motion
+   turns both off — they carry no information the still frame lacks. */
+.sg-rise { animation: sgRise 0.44s var(--ease-out) both; }
+@keyframes sgRise { from { opacity: 0; transform: translateY(10px); } }
+.sg-tick { transform-origin: bottom; animation: sgTick 0.5s var(--ease-spring) both; }
+@keyframes sgTick { from { transform: scaleY(0.15); } }
+@media (prefers-reduced-motion: reduce) { .sg-rise, .sg-tick { animation: none !important; } }
 @media (hover: hover) { button.press:hover { transform: translateY(-1px); } button.press:active { transform: scale(0.95); } }
 
 /* Vote reveals — result settles in, bars grow, chips pop.
