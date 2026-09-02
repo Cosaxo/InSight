@@ -34900,10 +34900,13 @@ a run writes into and has no pen on `core`, so *"popularity must not
 tilt the corpus"* holds by construction; `now` out of the feed fold
 (D231); the batch-mix and form gates (D316: none is a volume cap); the
 operator's reseed step. The live Routine prompts for the farm, learn
-and feed lanes still carry the pre-D342 wording — per Governance the
-swap is made from the bound session, because `update_trigger` refuses
-a prompt edit from any other, and until then the manual outranks the
-prompt, as each prompt says every firing.
+and feed lanes were swapped for this record's blocks on 2026-09-02, by
+delete-and-recreate from a sibling session (`update_trigger` still
+refuses a prompt edit into a session that is not the caller's own —
+the D148 mechanism, re-measured); the Governance table carries the new
+ids. Until this record merges, the manual on `main` outranks the new
+prompts, as each prompt says every firing — so a run in between
+follows the old rules, which are the stricter ones.
 
 ### The inventory — every cap in the question pipeline, and which premise it stands on
 

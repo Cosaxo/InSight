@@ -1722,17 +1722,25 @@ re-paced, or retired.
 
 | Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
-| InSight question farm (daily) | `trig_01STD1dKsTRNGCnvLXtYLyLQ` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212) | this file, the sections above |
+| InSight question farm (daily) | `trig_01XJqk3xyNicWH9uMG5kz8Lh` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212, D342) | this file, the sections above |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D212) | § The daily catalog-question run |
-| InSight learn lane | `trig_01GtTNhRgSt1RMFWtR5K547Z` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212) | § The learn-card lane |
-| InSight feed lane | `trig_011g1ZFhvoy4sQYp9CEsigPB` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212) | § The feed lane |
+| InSight learn lane | `trig_015hWsQwfLz4evTeVkN3mtx8` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212, D342) | § The learn-card lane |
+| InSight feed lane | `trig_014BTtkCKwkJqjVmSdnUGGXC` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D342) | § The feed lane |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — weekly, Wednesday 10:00 (D213) | § The duel lane |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D343) | § The now lane |
 
-**All five live prompts match their canonical blocks below as of
-2026-08-19 (D212/D213); the sixth, the now lane's, was created
-2026-09-01 (D343) from a sibling session with its block below as the
-prompt.** All five carry new ids because the D212 prompt
+**All six live prompts match their canonical blocks below as of
+2026-09-02.** The farm, learn and feed Routines were swapped
+2026-09-02 for D342's blocks — delete-and-recreate from a sibling
+session, the D148/D212 mechanism for the D148 reason (`update_trigger`
+still refuses a prompt edit into a session that is not the caller's
+own, re-measured that morning), new Routines created and verified
+first, then the three originals deleted, then this table. The swap
+also closed a drift nobody had measured: the live farm prompt still
+named the suggestion board D288 retired, and the live feed prompt still
+said "2-4 options" where D281's block says give the story the sides it
+has. The now lane's was created 2026-09-01 (D343) with its block below
+as the prompt. All five carry new ids because the D212 prompt
 swap was done by delete-and-recreate — the D148 mechanism, for the D148
 reason: `update_trigger` still refuses a prompt edit into a session that
 is not the caller's own, and the old prompts hard-coded "never merge
