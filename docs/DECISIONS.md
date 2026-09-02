@@ -36235,3 +36235,147 @@ The 1-in-20 audit is where the source claims get read by a person. The
 prompt checks that its section exists on `origin/main` before doing
 anything, so a firing before this record merges is a logged no-op
 rather than an improvisation.
+
+## D352 · Build 29's pre-flight found nothing to do, and the app icon's provenance turned out to be readable after all
+
+**2026-09-02.** **Status:** binding as a PRE-FLIGHT VERDICT and a RELEASE
+RECORD. No number moved and no code changed. This is the release prep for
+build 29.
+
+### What the run list said
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 48 (`33425156532`, 2026-08-31T18:27:58Z) is still the highest run in
+  `ios-release.yml`'s list, 48 of 48 — nothing has been dispatched in the
+  two days since.
+- Its step 17, `Upload to App Store Connect`, is **`success`** (18:33:57Z
+  → 18:35:41Z, 1m 44s of transfer). **Build 28 is spent.**
+- Run 47 (`33424574013`, 18:21:42Z) is its dry run — same commit, six
+  minutes earlier, step 17 `skipped`.
+- `appBuild` at run 48's **own `head_sha`** — `8abb8e5`, D159's rule
+  rather than any commit someone merged — is **28**.
+- The tree at `ec2fd15` reads **29**.
+
+29 is greater than 28, so the answer is **run as-is** and no number moved.
+That is the fifth pre-flight to come out that way, after D153, D158, D191
+and D324, and it is build 28's bump — made off step 17's own step list
+while it was on screen (D339 amendment) — that made it come out that way.
+
+The tally is unchanged because nothing here could change it: nine bumps
+held (20, 21, 22, 28, 33, 36, 42, 44, 48) against eight skipped (18, 19,
+24, 26, 31, 38, 40, 46).
+
+**Per D198 this verdict has a shelf life of exactly one dispatch.** It is
+a report about a comparison made at 2026-09-02, never a statement about
+the tree: run 29 spends 29, and the next pre-flight makes the comparison
+again rather than reading this paragraph.
+
+### The finding: D324's app-icon gap is answerable for this build, and the reason generalises
+
+D324 recorded that `AppIcon-512@2x.png` reaches the binary from
+`ios/App/App/Assets.xcassets/` — which `cap sync` does not write and
+which neither release-path gate reads, because `check:web-firebase` and
+`check:bundle` both read `dist/`. `scripts/gen-icons.mjs` is the only
+thing that writes it, it has no `package.json` entry and no workflow, and
+D324 called the question *"verified for this build and unanswerable in
+general"*.
+
+For build 29 it is answerable, and not by re-rendering. D340 moved the
+icon to the paper tile in **one commit, `29b0e67`**, which changed
+`design/icon/mark.svg` **and** every rasterisation of it together — and
+nothing has touched the SVG since. So the generator's inputs and its
+outputs are in lockstep at a commit, which is a fact git can state.
+
+Two things follow. Build 29 is the **first build to carry the paper
+tile**; build 28 shipped D302's ink tile. And the shipped file has the
+properties Apple requires, measured rather than assumed: 1024×1024, PNG
+colour type 2 (RGB), chunks `IHDR IDAT IEND` with no `tRNS` — **no alpha
+channel at all**, which is what the marketing icon is rejected for
+carrying.
+
+**The general gate D324 could not have is one it did not consider**, and
+it is cheap. D324 refused *re-render and compare* because PNG
+rasterisation is not byte-reproducible across Chromium versions and a
+flaky red on this path costs ~150 minutes of macOS quota. But the
+question is not "do these bytes match a fresh render" — it is **"has the
+source moved since the outputs did"**, which is answered from history:
+if the newest commit touching `design/icon/mark.svg` is not an ancestor
+of (or equal to) the newest commit touching the generated icons, the
+icons are stale. Deterministic, no rasteriser, no flake. It is one
+`git log -1 --format=%H -- <path>` per side and a `merge-base
+--is-ancestor`.
+
+It is **recorded and not built**, per the deferral convention: this
+session was asked to prepare a release, and a new gate on the release
+path is a thing that can fail a release. The arithmetic is here so the
+next session does not have to re-derive it, and the owner decides whether
+it ships.
+
+### What is measured
+
+Every release-path gate, run at `ec2fd15`:
+
+- `check-store-copy --ios`, `check:public-copy`, `check:versions` — the
+  workflow's own pre-flight step. Version lockstep holds at 2.0.0 build
+  29 across `package.json`, `android/app/build.gradle` and both
+  `CURRENT_PROJECT_VERSION` settings.
+- The shipping bundle built as the workflow builds it
+  (`CAPACITOR_BUILD=1 VITE_V2_LIVE=true`, Sentry DSN present so the total
+  ceiling is graded rather than withheld): `check:web-firebase` OK, live
+  config inlined into 133 chunks; `check:bundle` OK — **2161 KB total /
+  764 KB eager against 2440 / 880**, with 68 KB blocking CSS, 86 KB CSS
+  and 64 KB fonts against 74 / 88 / 96.
+
+And the tree's own gates and every runner that does not need a Mac: all
+37 non-test `check:*` gates green (`check:fn-runtime` after
+`npm run build --prefix functions`, which is its documented precondition),
+`lint`, 2378 client tests in 164 files, 588 function tests in 26, 700
+script tests in 41, 163 rules tests in 2, and 172 assertions across the three e2e
+suites (the loop, erasure and moderation drivers, run in the order
+`backend-checks.yml` fixes them).
+
+**`check:web-firebase` needs its environment step-scoped, and scoping it
+to the build alone is a false red.** The script asks the question twice —
+once of the environment (were `VITE_FIREBASE_*` and `VITE_V2_LIVE` set)
+and once of `dist/` (did the build output actually receive them). The
+workflow puts the build and the check in one `run:` block, so a
+step-level `env:` reaches both halves. Prefixing only the build command
+fails the first half over a bundle the second half then passes. Not a
+defect in the script and not a finding — the invocation, written down so
+the next pre-flight does not report it as one.
+
+### The gap
+
+151 commits ride in the 28 → 29 gap, over two days — the second widest
+after build 26's 193, ahead of build 27's 130 and build 28's 42. What
+build 29 carries that 28 did not, by the records in it: D340's paper-tile
+icon, D341–D343 (the fake-account defence made live, the bridges, and the
+account requirement becoming a level), D344's gear-hidden account panel,
+D345 un-parking Play on an ENK, D346–D348 (the review lane, the Ties and
+Interests lanes, and the feed weaving fresh topics), D349's two-night
+review merged as one tree, D350's lane regulators losing their ceilings
+and D351's current-events lane.
+
+### What is prepared, and what is not
+
+Prepared: the comparison above, the record, and the gates.
+
+**Not done: the dispatch.** `ios-release.yml` is
+`workflow_dispatch`-only for two reasons a session does not get to
+overrule — it bills at 10x, so a run spends ~150 minutes of quota, and
+its upload is outward-facing in a way that cannot be withdrawn, only
+superseded by a higher number. The order stands: `upload = false` first,
+then `upload = true` against the same commit.
+
+### When to revisit
+
+**At the dispatch**, on three points. Read `appBuild` at the run's own
+`head_sha` rather than at whatever this record merges as — `main` gains
+pulse rows on a schedule and D159's trap has fired four times. Close the
+gap between the two dispatches the way D339's amendment did rather than
+the way D324 did: this verdict is *run as-is*, so nothing needs to reach
+`main` first and the record can stay unmerged to keep the gap empty. And
+make the bump to 30 **off step 17's own conclusion while the step list is
+on screen**, which is the only arrangement that has ever made it stick
+(D186, D198, D273) — a bump has a shelf life of exactly one upload.

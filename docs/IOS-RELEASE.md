@@ -722,6 +722,42 @@ last, which is the first time that has been true since run 21.
 
 42 commits rode in the 27 → 28 gap, over one day.
 
+**Build 29's pre-flight found nothing to do, and turned the app icon's
+provenance from a worry into a fact** (D352, 2026-09-02). Run 48 is still
+the highest run in this workflow's list — nothing dispatched for two days
+— its step 17 still `success`, and `appBuild` at run 48's own `head_sha`
+`8abb8e5` is still **28**, against a tree at `ec2fd15` reading **29**. So
+*run as-is*, and no number moved. Fifth pre-flight to come out that way
+after D153, D158, D191 and D324, and it is build 28's bump — read off step
+17 while the step list was on screen — that made it come out that way.
+
+What it found instead closes half of what D324 left open. D324 recorded
+that `AppIcon-512@2x.png` reaches the binary from
+`ios/App/App/Assets.xcassets/`, which `cap sync` does not write and which
+neither release-path gate reads (both read `dist/`), and called the
+question *"verified for this build and unanswerable in general"*. For
+build 29 it is answerable **from git rather than from a rasteriser**: D340
+moved the icon to the paper tile in one commit, `29b0e67`, which changed
+`design/icon/mark.svg` and every rasterisation of it together, and nothing
+has touched the SVG since. Build 29 is therefore the first build carrying
+the paper tile — build 28 shipped D302's ink tile — and the shipped file
+measures 1024×1024, PNG colour type 2, chunks `IHDR IDAT IEND`, **no
+alpha channel**, which is the property the marketing icon is rejected for
+lacking.
+
+**The general gate is cheaper than the one D324 refused.** That record
+ruled out *re-render and compare* because PNG rasterisation is not
+byte-reproducible across Chromium versions and a flaky red here costs
+~150 minutes of macOS quota. But the question is not whether the bytes
+match a fresh render — it is whether the SOURCE has moved since the
+outputs did, which history answers with no rasteriser and no flake: if the
+newest commit touching `design/icon/mark.svg` is not an ancestor of the
+newest commit touching the generated icons, the icons are stale. D352 has
+it recorded and deliberately not built.
+
+151 commits rode in the 28 → 29 gap, over two days — the second widest
+after build 26's 193, ahead of build 27's 130 and build 28's 42.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
