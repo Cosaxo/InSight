@@ -410,3 +410,42 @@ describe("when the list must be left alone", () => {
     expect(holdsTheList({ failed: [], actions: [], canApply: false })).toBe(false);
   });
 });
+
+// ── the console must not un-tick the owner ──────────────────────────
+//
+// The fold filters its candidates against what the owner has already said
+// BY HAND, and that haystack was built from the OPEN rows only. So a
+// generated row the owner TICKED was invisible to the filter: it was
+// regenerated as `- [ ]`, and since the fold replaces the whole marked
+// block, the `[x]` was overwritten. The owner ticked a decision and the
+// console un-ticked it on its next run, within two hours, with no trace.
+//
+// `foldOwnerList`'s own comment promised the opposite — "a generated row
+// the owner ticked disappears from the next fold (it is done)" — and
+// PROGRAM-PLAN's contract is "the owner ticks, and a ticked row names what
+// it unblocked".
+describe("the owner list's fold, against the owner's own ticks", () => {
+  const cand = [{ file: "docs/AXES-RUNBOOK.md", id: "2.0", title: "The custody decision" }];
+  const hand = (text) => Object.values(parseOwnerList(text))
+    .flatMap((s) => [...s.open, ...(s.doneRows || [])]);
+
+  it("does not regenerate a row the owner ticked in place", () => {
+    const ticked = "## Decisions\n\n<!-- console:begin -->\n"
+      + "- [x] **The custody decision** — *Source:* `docs/AXES-RUNBOOK.md` 2.0.\n"
+      + "<!-- console:end -->\n";
+    expect(notAlreadyListed(hand(ticked), cand)).toEqual([]);
+  });
+
+  it("…nor one the owner moved to Done, which is what the list says to do", () => {
+    const moved = "## Decisions\n\n<!-- console:begin -->\n<!-- console:end -->\n\n## Done\n\n"
+      + "- [x] **The custody decision** — *Source:* `docs/AXES-RUNBOOK.md` 2.0.\n";
+    expect(notAlreadyListed(hand(moved), cand)).toEqual([]);
+  });
+
+  it("still folds in a decision nobody has said yet — the control", () => {
+    // Both cases above assert an EMPTY result, which a filter that dropped
+    // everything would satisfy while silently emptying the owner's list.
+    const empty = "## Decisions\n\n<!-- console:begin -->\n<!-- console:end -->\n";
+    expect(notAlreadyListed(hand(empty), cand).map((c) => c.title)).toEqual(["The custody decision"]);
+  });
+});

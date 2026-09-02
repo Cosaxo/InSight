@@ -366,7 +366,10 @@ async function main() {
   // The owner list's folded blocks.
   const ownerText = read("docs/OWNER-LIST.md");
   if (ownerText) {
-    const hand = Object.values(state.owner).flatMap((s) => s.open);
+    // OPEN AND DONE. A row the owner ticked is still something they have
+    // said by hand — more so — and leaving it out meant the fold
+    // regenerated it unticked on the next run.
+    const hand = Object.values(state.owner).flatMap((s) => [...s.open, ...(s.doneRows || [])]);
     const decisions = notAlreadyListed(hand, state.ownerSteps).map((s) => `**${s.title}** — *Source:* \`${s.file}\` ${s.id}.`);
     const launch = notAlreadyListed(hand, state.launchOpen).map((s) => `**${s.id} ${s.title}** — *Source:* \`docs/LAUNCH-RUNBOOK.md\`.`);
     const approvals = state.github.ok

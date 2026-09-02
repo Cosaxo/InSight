@@ -399,7 +399,19 @@ export function parseOwnerList(text) {
   const out = {};
   for (const [name, body] of s) {
     if (/^(How|The shape)/.test(name)) continue;
-    out[name] = { open: items(body, " ").concat(items(body, " ")).slice(0, items(body, " ").length), done: items(body, "x").length };
+    // `doneRows` as well as the count, and that is not tidiness: the fold
+    // filters its candidates against what the owner has ALREADY SAID BY
+    // HAND, and a row the owner TICKED was invisible to that filter — so
+    // it was regenerated as `- [ ]` and the whole block replaced, which
+    // un-ticked the owner within two hours of them ticking. The comment on
+    // foldOwnerList promised the opposite: "a generated row the owner
+    // ticked disappears from the next fold (it is done)."
+    //
+    // (The expression here was `items(…).concat(items(…)).slice(0, len)`
+    // — a no-op that reads like this was half-intended once.)
+    const open = items(body, " ");
+    const doneRows = items(body, "x").concat(items(body, "X"));
+    out[name] = { open, doneRows, done: doneRows.length };
   }
   return out;
 }
