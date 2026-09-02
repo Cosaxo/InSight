@@ -35705,3 +35705,178 @@ feed — 180 answered puts ninety side cards after the ten fresh topics
 — which is the caught-up shape arriving one screen later rather than
 one screen earlier. Thinning that block is a cadence question, and
 D309 says whose numbers it waits on.
+
+## D349 · Two night shifts and a night nobody had read, merged as one tree — 81 commits kept, three added, and a standalone suite that could not stand alone
+
+**2026-09-02.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+eighty-one commits are kept as written; nothing was reverted and nothing
+amended. Three commits are added by this review, each closing something
+the night named and left.
+
+### What arrived, and why no branch's own green was enough
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260901` | 32 | **45 behind** | unreviewed since 09-01 |
+| `night-20260902` | 35 | 2 behind | shift A, 21:00–05:20 UTC |
+| `nightb-20260902` | 13 | 2 behind | shift B, first night |
+| `nightb-20260902-integration` | +1 | — | the night's own composition of 0901 + B |
+
+**There are two shifts now, and only one of them knew it.** The
+`.gitignore` entry naming `NIGHTB_TASKS.md`, `NIGHTB_SUMMARY.md` and
+`.nightb/` cites this record for its reason, so here it is: two
+containers audit this tree on the same nights, and a person opening
+either set of scratch notes has to be able to tell whose they are
+without reading them. The entries are load-bearing beyond tidiness —
+`doc-index` rule 5 asks that ORIENTATION.md name every root markdown
+document and reads its skip set from `.gitignore`, so an unlisted root
+note turns a gate red on the contents of somebody's working tree.
+
+Shift B's closing flow composed itself onto the unreviewed 09-01 branch
+and found D336's finding reproduced exactly: three figures that had
+moved on main while `night-20260901` was away, merged by git without a
+conflict — the numbers on one side, the bank on the other — and
+`check:figures` red on a tree neither branch produces alone. It fixed
+them. It did **not** compose shift A, whose last commit lands at 05:20
+UTC, twenty-four minutes after the integration branch's. So the
+composition this review ran is the first tree that has ever held all
+three, and the composed battery is what the verdict below is about.
+
+The three files both shifts touched (`functions/src/v2social.ts`,
+`scripts/check-figures.mjs`, `src/v2/test/world-feed-math.test.js`)
+merged clean and were read hunk by hunk rather than trusted;
+`LiveSimilarityField.tsx`, where the same defect was found on two
+successive nights, was read whole to confirm the fix is applied once.
+
+### Verified, not assumed
+
+Every runner and every gate, on the composed tip, in this environment:
+
+| Runner | Result |
+| --- | --- |
+| `test:unit` | 2,378 passed (164 files) |
+| `test --prefix functions` | 588 passed (26 files) |
+| `test:scripts` | 653 passed (39 files) |
+| `test:rules` | 163 passed (2 files) |
+| `test:e2e:all` | all three drivers — loop, erasure, moderation |
+| `test:e2e` · `:erasure` · `:moderation` | each standalone, after the fix below |
+| `tsc -b` · `tsc -p functions` · `npm run lint` | 0 · 0 · 0 |
+| 39 `check:*` gates | pass, including `check:figures` on the composed tree |
+| `check:bundle` | OK on a SHIPPING build — 2160 KB / 763 KB eager |
+
+Two gates did **not** run, and are named rather than claimed (D1):
+`check:web-firebase` needs the release Firebase secrets, which this
+environment does not hold; `check:store-copy` is red on `origin/main`
+too, on `REPLACE_WITH_PLAY_SIGNING_SHA256` in
+`web/.well-known/assetlinks.json` — an account-gated ID from the Play
+Console, not this tree's.
+
+### The changes read closest, and why they cleared
+
+- **`live.ts`, the answered watermark.** The strongest fix of the three
+  nights. The edit delta was folding with `raiseAnswered` on, so an edit
+  on a document created after the answered delta's cursor lifted that
+  cursor past every deferred create — and those answers are never
+  fetched on that device again, at which point the deck re-offers their
+  questions and the create-only rule refuses every re-vote. Each card
+  silently un-votes itself. Checked against the queries rather than the
+  comment: both deltas take their order from the inequality, ascending,
+  so each is a complete account of its own range and neither may speak
+  for the other's.
+- **The non-ASCII name chain, three hops.** `firestore.rules` forces
+  `nameKey == name.lower()` and the rules engine's `.lower()` is
+  ASCII-only, so a JS `toLowerCase()` writer is REFUSED and the account
+  gets no directory row at all. Shift B proved it against the emulator,
+  fixed all three writers — and its own next commit found that the one
+  caller had already destroyed the input before the fold could run.
+  Each half was correct alone; only reading the night as one diff shows
+  it. The premise now has a rules case (below).
+- **`v2social.ts`, `nearbyCountV2`'s blind `- 1`.** `countsSelf` admits
+  on `presenceExpiry`, which falls back to `at` + the linger for legacy
+  documents; the aggregation counts `until > now`, and a range filter
+  skips a document missing the field. So a legacy phone was admitted
+  while sitting outside `total`, and the subtraction removed a person
+  who was never in the number. Correct after the gate, because past it
+  `until` present implies counted.
+- **`q.liveId`, in both maps.** On a live build `MapStats` reads
+  `LIVE.aggFor`, keyed by the seeded bank id, while `daily-questions.js`
+  hands out its own demo-calendar id — disjoint spaces, so every
+  answered question returned null and the Map drew "isn't measured yet"
+  over aggregates already on the device. Fixed in `map-tab.jsx`, then in
+  `person-mindmap.jsx` by the commit that admits leaving the twin. The
+  third consumer, `map-bottom-card.jsx`, reads `node.qid` and is carried
+  by both. No fourth site: `daily-split`'s live panels take `S.id` on the
+  `S.live` branch, which is already the bank's.
+- **`patterns.ts`, publishing without a quality row.** The arm that used
+  to manufacture an empty-day score now omits the field — and the
+  `set` beneath it has no `merge`, so omitting deletes. Safe only
+  because `quality` is undefined in exactly the case where the document
+  has none to lose, which rests on `getModel`'s projection continuing to
+  name it. The commit says so and `store-projection.test.ts` holds both
+  ends.
+- **`paid.ts`, a hand refund closing a campaign as settled in full.** The
+  prior-refund lookup took `limit: 1` and recorded what was OWED. It now
+  sums every non-failed, non-canceled refund on the intent and writes
+  `refundedEur` beside `refundEur`, warning when the two differ. The
+  record is what a dispute is read against.
+
+### The three commits this review adds
+
+1. **The stolen docstring, committed twice in one night.** `143df93`
+   fixed exactly this in `socialFetch.ts` — a new export inserted after
+   the closing `*/` of the next function's docstring, so TypeScript
+   attaches that documentation to the wrong symbol — and the other
+   shift had done the same thing three hours earlier in
+   `world-feed-math.js`. Measured with the compiler API, not by eye:
+   `wfAnsweredOf` carried two blocks and `wfVotesOf` none. Moved, no
+   prose changed.
+2. **The rules case shift B promised.** Its own commit says the
+   regression case "belongs in firestore-tests/rules.test.ts" and was
+   left out because the other shift was rewriting that file the same
+   night. Both are composed now, so the reason is spent: the emulator
+   probe is pinned as a case, and it fails the day `.lower()` learns
+   Unicode — which is the day all three client folds become wrong at
+   once, with nothing else in the tree able to say so.
+3. **A standalone suite that could not stand alone.** `npm run
+   test:e2e:moderation` has exited 1 at step 9 since `a224c18`
+   (2026-08-28) added the question kill switch to the world-take create
+   rule; this driver never seeded a question, and `get()` on an absent
+   document is a null-value error four layers from its cause. It stayed
+   invisible because CI runs `test:e2e:all` — one emulator, three
+   drivers, and driver 1 seeds the bank before this one starts. The
+   composite was green on a dependency it does not declare, while
+   `backend-checks.yml`'s own comment calls the three scripts "the right
+   thing to run by hand". Two legs, the world leg and the avatar leg,
+   had not run by hand for five days.
+
+### Two things that are the owner's call, not this review's
+
+- **`rank.ts`'s landslide is not the scorecard's, and the night proved
+  it rather than papering over it.** The serving order sinks a question
+  at a raw top share ≥ `RANK_DEAD_SHARE` with ≥ `RANK_DEAD_MIN` answers;
+  the scorecard's retire proposal grades on EVENNESS, which normalises
+  by option count. Measured on the same aggregates, they disagree in
+  both directions — binary 90/10 sinks here and is not a scorecard
+  landslide; 4-option 88/4/4/4 is a scorecard landslide and does not
+  sink. An operator reading the nightly proposals and the published
+  serving order therefore gets two verdicts on one question. Making them
+  one predicate CHANGES WHAT THE FEED SERVES, so the night correctly
+  stopped at making the comment true. Which one is right is a product
+  decision.
+- **The iOS purpose string now describes Near.** "Used once, on this
+  device" was false while the presence loop re-reads location every four
+  minutes with Near on, and this is the prompt shown before anyone can
+  consent — so it moved, and `check:ios-location` now holds the two
+  sides together in both directions. It is store-facing: the next
+  submission carries a changed `NSLocationWhenInUseUsageDescription`,
+  which App Review reads.
+
+### One open question the night wrote down rather than settled
+
+`functions/vitest.config.ts` scopes its coverage report to `pure.ts` and
+`deviceBind.ts`, and the argument that picked those two was the pre-D98
+privacy floor — k-anonymity, complementary suppression, the publish
+cadence, all three retired. The night replaced the dead reasoning with
+the live one (these files decide what a published number SAYS) and said
+plainly that whether `paid.ts` or the moderation queue now belongs in
+scope is open. It is.
