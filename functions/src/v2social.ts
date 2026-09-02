@@ -1673,6 +1673,18 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)
     && ownExpiry > now.toMillis();
+  // …but ADMITTED is not the same as COUNTED, and the difference is one
+  // person. The aggregation above filters `until > now`, and Firestore's
+  // range filter skips a document missing the field entirely. The gate
+  // just above admits on `presenceExpiry`, which falls back to
+  // `at` + the linger for exactly those documents (D179's compatibility
+  // arm). So a legacy phone passes the gate while sitting outside
+  // `total` — and the blind `- 1` below then removes a person who was
+  // never in the number, reporting the room one emptier than it is.
+  // Captured HERE, before the backfill a few lines down writes the very
+  // field this tests: `own` is a snapshot and would not see that write,
+  // but a reader moving either statement should not have to know it.
+  const ownWasCounted = !!own.get("until");
   // YOU MAY ONLY ASK ABOUT A ROOM YOU ARE STANDING IN (D177).
   //
   // `cell` arrives from the client, and until now nothing checked that the
@@ -1708,7 +1720,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!own.get("until")) {
     await own.ref.set({ until: Timestamp.fromMillis(ownExpiry) }, { merge: true });
   }
-  const n = Math.max(0, total - 1);
+  const n = Math.max(0, total - (ownWasCounted ? 1 : 0));
   return { n, mix: await roomMixFor(cells, cell as string) };
 });
 
