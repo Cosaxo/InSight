@@ -1,16 +1,16 @@
 # The routine register — every scheduled run, across every subscription
 
 > **Status:** tree — every row below is a Routine that exists on
-> somebody's account right now. §2 and §3 were each verified against the
-> live account that owns them, both on 2026-09-02; §4 has no rows and no
-> owner yet. Nothing here is proposed.
+> somebody's account right now. All three blocks were verified against
+> the live account that owns them on 2026-09-02: §2 nine Routines, §3
+> seventeen, §4 none. Nothing here is proposed.
 
 **Why this file exists.** Three claude.ai subscriptions work on this one
 repository, two of them running scheduled Routines against it, and **no
 session can see another account's Routines.** `list_triggers` returns the calling account's and
 nothing else — measured, not assumed: run from the account in §2 on
-2026-09-02 it returned nine Routines and omitted every lane in §3 and §4,
-all of which demonstrably fired within the previous twenty-four hours
+2026-09-02 it returned nine Routines and omitted every lane in §3, all of
+which demonstrably fired within the previous twenty-four hours
 (`origin/axiom-theory` at 09:02 UTC that morning, `origin/night-20260902`
 at 05:20). Run from §3's account the same morning it returned seventeen
 and omitted all nine of §2's — the same measurement from the other side,
@@ -286,27 +286,81 @@ authorization can live in that session's history at all.
 
 ---
 
-## 4 · Session 3 — the block nobody has claimed
+## 4 · Session 3 — a third subscription, verified, owning nothing
 
-The night shift stood here as a third subscription's Routine. It is
-session 2's, measured against the account that owns it (§3's
-corrections), so this section has no rows.
+**Account** — not readable from here, see below · **environment**
+`env_01LseXT8H9h61eXWkaLZeXxD` · **session**
+`session_01TWU3ZeiowfWMqwwZo393Xo` · **verified** 2026-09-02 11:17 UTC
+against `list_triggers`: **zero Routines**, none paused, none one-shot,
+none ended.
 
-**That is not evidence the third subscription runs nothing.** No session
-can read another account's Routines, so a Routine on a third account is
-invisible to both verified blocks above exactly as §2's nine were
-invisible to §3's account and §3's seventeen to §2's. What is measured
-is narrower than it looks: every Routine either account can see belongs
-to one of those two. **Whoever owns a third: write this block** — §2 and §3 are the
-shape, and rule 2 is how you fill it.
+This block is written from inside the third account §3 left it for, and
+its answer is a measured null rather than an absence of evidence. Four
+readings, all from this session:
 
-**Not the same thing as unregistered work.** `docs/OPS-RUNBOOK.md`, on
-`main` since PR #361 merged, specifies eight ops lanes — a one-off platform probe, then roll call, PR shepherd,
-production reader, release recorder, pulse responder, dependency
-shepherd and list worker — and its own Status line says none of them
-exists yet. They get no rows here until they fire, because this file's
-Status is `tree`. Whichever account creates one registers it in that
-account's block, in the same PR that creates it (rule 6).
+- `list_triggers` returns `{"data":[],"has_more":false}`.
+- `list_sessions` with `mine: true` returns exactly one session — this
+  one, created 2026-09-02 11:15:04 UTC. Nothing has ever run here.
+- `list_environments` returns two, both named "Default", both created
+  2026-09-02 11:14 UTC: `env_01LseXT8H9h61eXWkaLZeXxD` (this session's)
+  and `env_012qd7jiY8GesRC3HRdD5TU3`. **Neither §2's
+  `env_01Ri3fw8gD9Py3LmTQ9hTYCL` nor §3's `env_013gTXHYYHNaKBiWe8c4gmtd`
+  is in that list**, which is what makes this a third *account* rather
+  than a third view of one of the two — an environment list is the
+  calling account's own, and this one contains neither registered
+  account's environment.
+- The rate-limit window this session reports is `five_hour`, not in
+  overage, resetting 16:10 UTC. A third bucket, unspent (§5).
+
+**That the zero is worth a block at all** is the file's own argument
+running the third way. §3 corrected §4's original premise from its own
+side — all seventeen of its triggers carry its account, the night shift
+among them. This is the same correction from the side that cannot be a
+partial view: an account with no Routines cannot be running the night
+shift, or anything else that has ever fired against this repository.
+Two accounts run Routines against this repository; the third is this
+one, and it runs none.
+
+**The account id is the one field this block cannot fill.** §2 and §3
+quote theirs off `list_triggers` rows — the creator account is a field on
+a trigger — and a zero-row response has no row to carry it; `get_session`
+does not return one either. It becomes quotable the moment this account
+owns a Routine, and rule 2 says quote it from the tool response then
+rather than assert it now.
+
+### Observations, 2026-09-02
+
+- **Four ops lanes exist as of today and are registered nowhere.** PR
+  [#364](https://github.com/Cosaxo/InSight/pull/364), open, records the
+  roll call (`trig_01PBouXe7Frg5FmrmPJQ2ZKj`), the production reader
+  (`trig_01TPdViy5b8ZunttN4RUuHbX`), the release recorder
+  (`trig_01Vr2QLmWAGBaBsnT6yTusnr`) and the list worker
+  (`trig_01USe4xEhJ57MRjgThykdRzM`), all created 2026-09-02 and bound to
+  an ops dispatcher `session_01RQvTPyNEFgX5yNUPqkDPnS`. **They are not on
+  this account** — zero rows, one session, ever — so under rule 1 they
+  are §2's or §3's to verify and register, in the block that owns them.
+  Named here under rule 4, not transcribed: a row nobody can read the
+  live state of is exactly what rule 2 forbids. It is also rule 6's first
+  live test — the Routines were created in a PR that registers them in
+  `OPS-RUNBOOK.md`'s own inventory and not here, so until that owner
+  writes their rows, the register is one program behind the account.
+- **The other four ops lanes could not be created from a session at
+  all.** Same PR: the permission classifier refused the probe, the PR
+  shepherd, the pulse responder and the dependency shepherd, and its
+  instruction is to create them in the web UI. That is an owner action
+  taken in some account's window, which makes *which account* a
+  cross-account question rather than a scheduling one — the first item on
+  this page that no single block can answer.
+- **This account's capacity is the thing it has that the other two do
+  not, and spending it is the owner's call (rule 5).** The arithmetic is
+  §5's: a bucket is per account, §3's carries seventeen Routines plus a
+  night worker at xhigh with ultracode on, §2's nine plus its own night
+  shift, and this one carries nothing. So a lane created here costs no
+  existing lane a slot, where the same lane created on §3's account
+  competes with the seventeen it would be reading. That is an argument
+  for where the four uncreated ops lanes go, not a decision: this file's
+  Status is `tree`, registering is not authority to create, and nothing
+  in this block creates a Routine.
 
 ---
 
@@ -365,6 +419,13 @@ the budget is the one thing on this page that cannot collide: two
 accounts firing into the same hour cost each other nothing but merge
 conflicts, so the clock above is about `main`, never about capacity.
 
+**The third bucket is unspent** (§4): session 3's account reports a
+window of its own — `five_hour`, not in overage — and owns no Routine to
+draw on it. An unspent bucket is not a saving, because it cannot be
+lent: it is the only capacity on this page that can take a new lane
+without slowing an existing one, which is why *which account* a lane is
+created on is a question this file has to answer and a schedule cannot.
+
 ### Branch namespaces
 
 | Prefix | Owner | Rule |
@@ -377,6 +438,7 @@ conflicts, so the clock above is about `main`, never about capacity.
 | `claude/doc-sweep-*` | session 2 doc sweep | one per run, dated UTC |
 | `claude/*-diag-<date>` | session 2 axes, doc sweep | the report fallback when a GitHub write is refused — `AXES-DIAG.md`, `DOC-SWEEP-DIAG.md` |
 | `axiom-theory` | session 2 theory lanes | orphan branch; never `main` |
+| `claude/<topic>-<slug>` | **any** account's interactive sessions | not a lane namespace and not owned: all three accounts' web sessions cut branches in this shape, and only the UI's random slug keeps them apart. A lane never uses it — a lane's branch says which lane and which day |
 
 `nightb-*` does not match the glob `night-*`, which is what keeps either
 shift's branch enumeration from sweeping in the other's. `night-YYYYMMDD-b`
