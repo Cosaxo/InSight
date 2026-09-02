@@ -148,6 +148,26 @@ What to bring when you ask: what would be exposed, to whom, which of
 those four it touches if any, the smallest shape that still gets the
 value (consent · coarsen · aggregate · defer), and what each costs.
 
+**Axiom power first (the owner, 2026-09-02 — D352).** What the axes
+can measure and connect is the project's first priority, and a
+limitation — privacy, the database, cost, a schema, a store form, a
+refusal already written down — is a design problem to be solved AROUND
+that power, never a reason to shrink it. The question to put to a
+constraint is *how is it made to work with the axiom*, not *how is the
+axiom cut to fit it*. **Nothing blocks axiom functionality on its own:
+where a limit would block something, the block goes to the owner first
+and needs their approval** — the owner's words: *"as long as they dont
+limit functionality then it has to be approved that it can be blocked
+because of a limit."* D334's ask is how the owner is told what a way
+through costs, and the ask is worded as a way through, never as a
+permission slip; a routine that meets such a block builds what does not
+depend on the answer and puts the block on `docs/OWNER-LIST.md`. What
+does not bend is met by building rather than by deciding away: a
+consent requirement in law is satisfied by BUILDING the consent (D8,
+D330, D331), D1's honesty holds, and the three denies above stand at
+their paths — none of them is about answers. The privacy page and the
+store forms move with the feature, page first (D183).
+
 Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
 and stay binding until an explicitly recorded reversal.
 
@@ -456,6 +476,29 @@ an emergency rules fix.
 - **A deferral on privacy grounds is the one you may not take alone.**
   Record the arithmetic as above, then ask the owner rather than writing
   it down as settled — D334, and the privacy section has what to bring.
+- **Visuals are designed in Claude Design before they are built** (the
+  owner's rule, 2026-09-02 — D352). A new screen, module, lens, card
+  family, overlay or visual language is a request in
+  [`docs/VISUAL-REQUESTS.md`](docs/VISUAL-REQUESTS.md) — written so
+  Claude Design understands it whole, planned, drafted by a routine
+  only after its plan, refined by the owner, extracted into `design/`,
+  and only then built. [`docs/VISUAL-VISION.md`](docs/VISUAL-VISION.md)
+  names the design the tree is built toward. A control added to a
+  surface that exists — a button, a toggle, a row — is not a visual in
+  this sense and needs no request.
+- **The lists are how the owner runs the program** (D352). Six files:
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) (tick a row to approve a
+  PR), [`docs/WORKLIST.md`](docs/WORKLIST.md) (items tagged by account),
+  [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md),
+  [`docs/OWNER-LIST.md`](docs/OWNER-LIST.md),
+  [`docs/AXIOMS.md`](docs/AXIOMS.md) (the status word licenses what may
+  be built) and [`docs/VISUAL-REQUESTS.md`](docs/VISUAL-REQUESTS.md). A
+  routine writes to them through the PR it is already opening, or a
+  run-log line the console folds in; it never edits a tick, a status
+  word or another account's tag — those are the owner's.
+  [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
+  [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
+  every program lane defers to.
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own

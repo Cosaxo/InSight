@@ -47,9 +47,14 @@ they live in one runbook and share one run log.
   here inherits the content lanes' D212 self-merge. **The one door is
   the owner's label**: a PR carrying `merge-when-green` is one the owner
   has decided to merge, and the PR shepherd executes that decision when
-  the PR is green (§ The PR shepherd). The label is the owner's act
-  alone — **no lane ever applies it**, to its own PR or any other, and
-  every prompt in §4 says so.
+  the PR is green (§ The PR shepherd). The label is the owner's act,
+  and since D352 (2026-09-02) it has two hands: the owner applies it
+  directly, or the **merge shift** (`PROGRAM-RUNBOOK.md` § The merge
+  shift) applies it to a PR the owner approved by ticking its row on
+  `MERGE-LIST.md` — the tick mirrored to the label `approved` — once
+  that PR is green on its current head and reviewed as one diff.
+  **No other lane applies it**, to its own PR or any other, and every
+  prompt in §4 says so.
 - **Provisioning is conditional, not assumed.** Every prompt opens with
   "if the repository is not already cloned with push access, provision
   it" — the `add_repo` step the axes lanes use — so the same prompt is
@@ -466,9 +471,28 @@ phone, or a sentence to any session. The lane's first step each run
 copies new labelled issues into the list, oldest first, tagged with
 the issue number; the PR that ships one says `Closes #N`.
 
-**Per run:** if a `claude/worklist-*` PR is open, the run is that PR —
-merge `main`, answer review comments, fix what CI flagged, stop.
-Otherwise take the topmost unchecked item in § Open that carries no
+**The tag (D352, 2026-09-02).** Every item carries `[claude-1]`,
+`[claude-2]` or `[claude-3]` — which subscription's list worker takes
+it; a worker takes the topmost open item carrying **its own account's
+tag** and nothing else. Untagged means `[claude-2]`. One item in flight
+per account, the § In flight row naming the account. The axiom builder
+tags what it files and tags untagged items on each planning run; the
+owner's tag is final. The guide: `[claude-1]` — content and the
+question pipeline, monitoring and pulse follow-ups, store and release
+paperwork, scripts and gates; `[claude-2]` — docs, ops, the axes
+program's build steps, what the night shift or the doc sweep raised;
+`[claude-3]` — product code toward the axioms, the visual builds, the
+merge shift's follow-ups. No account holds more than about half the
+open items; a tag moves with a one-line note, and a worker that finds
+an item belongs elsewhere moves the tag with its reason and takes the
+next one. The three workers are one lane on three accounts
+(`PROGRAM-RUNBOOK.md` § The to-do doers); this section is the contract
+for all of them.
+
+**Per run:** if a `claude/worklist-*` PR of this account's is open, the
+run is that PR — merge `main`, answer review comments, fix what CI
+flagged, stop. Otherwise take the topmost unchecked item in § Open that
+carries this account's tag (untagged means `[claude-2]`) and no
 `[owner]` tag and:
 
 1. **Plan before building.** In a scratch file: what done means in one
@@ -494,7 +518,8 @@ Otherwise take the topmost unchecked item in § Open that carries no
    items ticked by merged PRs to § Done, open the PR on
    `claude/worklist-<slug>`, request the owner, stop.
 
-**Never:** merge or approve; more than one item in flight; the content
+**Never:** merge or approve; more than one item in flight per account;
+another account's item; the content
 banks (the farm's domain — and question content is Fable's by the
 owner's rule, which this lane honours by not writing any);
 `firestore.rules` loosened; a lane contract; a store form; the privacy
