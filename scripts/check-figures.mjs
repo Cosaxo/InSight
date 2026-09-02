@@ -896,7 +896,7 @@ const FIGURES = [
     actual: budgetConst("PROMOTE_PACE"),
     fix: (n) => `"promotes up to **${n} pen questions per run**"`,
   },
-  // The daily lane's floor and its demand share's thresholds (D342) — the
+  // The daily lane's floor and its demand share's thresholds (D349) — the
   // allocation § Picking topics quotes, computed by farm-budget.mjs.
   {
     file: "docs/QUESTION-FARM.md",
@@ -948,7 +948,7 @@ const FIGURES = [
     actual: learnConst("MIN_CHUNK"),
     fix: (n) => `"at least **${n} cards into any field it touches**"`,
   },
-  // The learn demand share's two thresholds (D342), same shape as the feed's.
+  // The learn demand share's two thresholds (D349), same shape as the feed's.
   {
     file: "docs/QUESTION-FARM.md",
     what: "the learn demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
@@ -991,7 +991,7 @@ const FIGURES = [
     actual: feedConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on that PR"`,
   },
-  // The demand share's two thresholds (D342): the crowd it will not read a
+  // The demand share's two thresholds (D349): the crowd it will not read a
   // ranking off, and the scorecard age past which it goes blind. Quoted in
   // the same section, for the same reason as the caps above.
   {
@@ -1008,7 +1008,7 @@ const FIGURES = [
     actual: feedConst("DEMAND_STALE_DAYS"),
     fix: (n) => `"no older than **${n} days**"`,
   },
-  // The now lane's four figures (D343), quoted in § The now lane: the cap,
+  // The now lane's four figures (D350), quoted in § The now lane: the cap,
   // the open-PR ceiling, and the two halves of the source rule.
   {
     file: "docs/QUESTION-FARM.md",

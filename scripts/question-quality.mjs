@@ -397,7 +397,7 @@ const ALLOW = new Map([]);
 // a silently truncated bank fetch) are invisible at the moment they land.
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
-// Install headroom (D342 amendment, 2026-09-01). These guarded live.ts's
+// Install headroom (D349 amendment, 2026-09-01). These guarded live.ts's
 // `limit(1500)` until D161 paged that fetch, then the localStorage quota
 // (gone at D312), then "every cached row read into memory each boot" —
 // counted as the SEEDED bank, which after D320/D321 is the wrong quantity:
@@ -415,7 +415,7 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // core's curation, so years out). The paged surfaces — learn and the feed
 // tail — are not counted: a device fetches them a page at a time. What a
 // device ACCUMULATES over months of paging is a device-side design (an
-// eviction rule for unanswered pages — BANK-DELIVERY §4, D342 amendment),
+// eviction rule for unanswered pages — BANK-DELIVERY §4, D349 amendment),
 // not a number a content gate can hold, and never a reason to stop
 // writing questions. checkHeadroom() still derives bytes-per-document
 // from the seed itself so the message moves when the documents do.
@@ -1481,7 +1481,7 @@ export function checkHeadroom(corpus) {
     warn.push(
       `a fresh install is handed ${install} docs whole ≈ ${mb(install)} MB (the boot surfaces plus the feed's core) — `
       + "the first fetch wants re-arguing before this doubles (BANK-DELIVERY §4). The paged surfaces are not "
-      + "counted, and no bank size fails this gate (D342 amendment)",
+      + "counted, and no bank size fails this gate (D349 amendment)",
     );
   }
   return { errs, warn };

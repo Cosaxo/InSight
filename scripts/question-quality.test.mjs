@@ -425,7 +425,7 @@ describe("the corpus itself", () => {
     expect(checkHeadroom(corpus).errs).toEqual([]);
   });
 
-  it("no bank size can fail the gate — the install fetch only warns (D342 amendment)", () => {
+  it("no bank size can fail the gate — the install fetch only warns (D349 amendment)", () => {
     // "Does youtube have a limit to how many videos can exist?" A seeded
     // bank of any size is not a failure. What a fresh device is handed
     // WHOLE warns at INSTALL_WARN; the paged surfaces never count.

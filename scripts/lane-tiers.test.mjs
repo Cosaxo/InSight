@@ -1,4 +1,4 @@
-// lane-tiers.test.mjs — pins the three-tier allocator's shape (D342), the
+// lane-tiers.test.mjs — pins the three-tier allocator's shape (D349), the
 // arithmetic every content regulator now shares. The lanes' own tests pin
 // their budgets and their bank reads; this file pins what the tiers do with
 // a budget once they have one.

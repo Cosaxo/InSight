@@ -34787,7 +34787,7 @@ the demo's two stubs ever drift from paths-data.js ids, the card renders
 null and the demo smoke fails on the missing titles — that is the drift
 alarm, not a crash.
 
-## D342 · The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory
+## D349 · The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory
 
 **2026-09-01.** **Status:** binding. The owner's ask, in their words,
 over one session: *"Feed should be higher allow more in each category
@@ -34994,7 +34994,7 @@ the scorecard then shows — a threshold set before the crowd exists is a
 starting figure, and the record says so. And build the in-memory
 design before the `BANK_FAIL` date above.
 
-## D342 amendment (2026-09-01) · The bank-size failure was a question limit in everything but name
+## D349 amendment (2026-09-01) · The bank-size failure was a question limit in everything but name
 
 The inventory above named `BANK_WARN`/`BANK_FAIL` a real bound and put
 a date on the failure. The owner's reply: *"i dont understand this does
@@ -35024,7 +35024,7 @@ memory. That is a client change with its own record (BANK-DELIVERY §4
 names it), owed before heavy devices hold tens of thousands of rows;
 it is what to build, and it is not a reason to stop writing questions.
 
-## D343 · Current events get their lane: found by searching, never from memory
+## D350 · Current events get their lane: found by searching, never from memory
 
 **2026-09-01.** **Status:** binding. The owner, on the inventory's
 "editorial only" row for `now`: *"should be made by claude but should

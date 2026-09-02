@@ -193,7 +193,7 @@ was what zeroed the feed lane's budget and idled the catalog lane for
 four days. The audit hold stays, retrospective; the merge hold is gone;
 the kill switch is the backstop.
 
-Allocation of whatever the budget grants is arithmetic since D342 —
+Allocation of whatever the budget grants is arithmetic since D349 —
 `npm run farm:budget` prints it beside the budget — through the three
 tiers every lane shares (`scripts/lane-tiers.mjs`), in strict order:
 
@@ -743,8 +743,8 @@ why the bank sat 182 cards short of its own target for three days with a
 grantable budget of 10. Rules for a learn run:
 
 - **Start every run with `npm run learn:budget -- --open <cards on the
-  open lane PR>`** (D115, reshaped at D342). The budget is computed, not
-  flat, and since D342 it has **no ceiling**: every run is granted up
+  open lane PR>`** (D115, reshaped at D349). The budget is computed, not
+  flat, and since D349 it has **no ceiling**: every run is granted up
   to **10 cards per run**, less whatever already sits unreviewed on the
   lane's open PR, and the only zero is **10** unreviewed cards on that PR
   (a gate refused a batch — fix it, do not stack). What the grant is
@@ -766,7 +766,7 @@ grantable budget of 10. Rules for a learn run:
   3. **Levelling, blind.** Otherwise the thinnest fields, with no
      ceiling.
 
-  **What D342 retired here.** D115's regulator granted zero at 24 cards
+  **What D349 retired here.** D115's regulator granted zero at 24 cards
   per field — "a card written into a full field is inventory rather
   than runway" — a sentence sized to a bank every device was handed
   whole. D283 moved the runway premise (every field followed by
@@ -924,8 +924,8 @@ lane's first scheduled batch merged (#222, 2026-08-18).
 Rules, each load-bearing:
 
 - **Start every run with `npm run feed:budget -- --open <questions on the
-  open lane PR>`** (D145, reshaped at D342). The budget is computed, not
-  flat, and since D342 it has **no ceiling**: every run is granted
+  open lane PR>`** (D145, reshaped at D349). The budget is computed, not
+  flat, and since D349 it has **no ceiling**: every run is granted
   **60 feed questions per run**, less whatever already sits unreviewed
   on the lane's open PR, and the only zero is **60** unreviewed questions on that PR
   (a gate refused a batch — fix it, do not stack). What the grant is
@@ -964,7 +964,7 @@ Rules, each load-bearing:
   the full cap, and that no topic's demand share exceeds the batch-mix
   ceiling.
 
-  **What D342 retired, recorded so it stays a decision.** Until then the
+  **What D349 retired, recorded so it stays a decision.** Until then the
   regulator stopped at the per-topic level ("every topic is at the
   target") and held the cap at 6 on a signal-dilution argument — a fixed
   crowd spread over more questions leaves each too few answers to score.
@@ -1025,7 +1025,7 @@ Rules, each load-bearing:
   grotesque in the week of an attack — "is airport security theatre?" is
   the clean example — and no gate can see the week. Judged false positives
   go in `ALLOW` under `tragedy`, with the reason.
-- **`now` is not this lane's to write** (D231, re-homed at D343).
+- **`now` is not this lane's to write** (D231, re-homed at D350).
   "Happening now" is the current-events topic, and it has its own lane
   with the one rule this lane lacks — every story FOUND by searching at
   run time, never from memory (§ The now lane). The exclusion is
@@ -1105,7 +1105,7 @@ Rules, each load-bearing:
   the Mirror folds over, and it stays a curatorial act — since D212 the
   one PER-QUESTION human act left in this pipeline, deliberately:
   popularity must not tilt the corpus toward what is already popular,
-  and neither must a generator. D342's demand share sits inside this
+  and neither must a generator. D349's demand share sits inside this
   rule by construction: it decides which TAIL topics a run writes into,
   and it has no pen on `core`.
 - **Ship active.** The feed's retire path is real (`active: false`, the
@@ -1265,12 +1265,12 @@ authored branch share `p`, because live the crowd is the aggregate.
   one slot, and a story replaced before its tree has a crowd is a reveal
   nobody got to see.
 
-## The `now` lane (D343 — current events, found by searching, never from memory)
+## The `now` lane (D350 — current events, found by searching, never from memory)
 
 `now` questions live in `content/feed-questions.json` under the
 "Happening now" topic (D231): a vote with a `from`/`until` window, a
 `bg` of durable facts (D281), `core: false` always, and it stops being
-asked when the window closes. Until D343 the topic was editorial — D231
+asked when the window closes. Until D350 the topic was editorial — D231
 §6: "timeliness needs a human." The owner reversed that on 2026-09-01
 with one condition, *"should be made by claude but should be finding
 news from some other source"*, and that condition is this lane's whole
@@ -1280,7 +1280,7 @@ carries the schedule). Single gate, like the feed: a merged question is
 a served question. Rules, each load-bearing:
 
 - **Start every run with `npm run now:budget -- --open <questions on the
-  open lane PR>`** (D343). The budget is up to
+  open lane PR>`** (D350). The budget is up to
   **6 current-events questions per run**, less whatever sits unreviewed
   on the lane's open PR, and the only zero is
   **6** unreviewed questions on the now lane's open PR (a gate refused a
@@ -1658,7 +1658,7 @@ Each phase is its own reviewed change — nothing here is licence to start.
   Lanes 1–2 can now select against live signals AND have their output
   reach the live bank — demand-driven selection becomes fully real once
   Phase A's read path is confirmed.
-- **Phase B′ — demand in the feed regulator. TAKEN (D342,
+- **Phase B′ — demand in the feed regulator. TAKEN (D349,
   2026-09-01).** `scripts/feed-budget.mjs` reads the committed
   scorecard's per-topic credited answers and allocates everything above
   the coverage floor by popularity × depth — the lane model's demand
@@ -1722,16 +1722,16 @@ re-paced, or retired.
 
 | Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
-| InSight question farm (daily) | `trig_01XJqk3xyNicWH9uMG5kz8Lh` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212, D342) | this file, the sections above |
+| InSight question farm (daily) | `trig_01XJqk3xyNicWH9uMG5kz8Lh` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212, D349) | this file, the sections above |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D212) | § The daily catalog-question run |
-| InSight learn lane | `trig_015hWsQwfLz4evTeVkN3mtx8` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212, D342) | § The learn-card lane |
-| InSight feed lane | `trig_014BTtkCKwkJqjVmSdnUGGXC` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D342) | § The feed lane |
+| InSight learn lane | `trig_015hWsQwfLz4evTeVkN3mtx8` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212, D349) | § The learn-card lane |
+| InSight feed lane | `trig_014BTtkCKwkJqjVmSdnUGGXC` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D349) | § The feed lane |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — weekly, Wednesday 10:00 (D213) | § The duel lane |
-| InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D343) | § The now lane |
+| InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D350) | § The now lane |
 
 **All six live prompts match their canonical blocks below as of
 2026-09-02.** The farm, learn and feed Routines were swapped
-2026-09-02 for D342's blocks — delete-and-recreate from a sibling
+2026-09-02 for D349's blocks — delete-and-recreate from a sibling
 session, the D148/D212 mechanism for the D148 reason (`update_trigger`
 still refuses a prompt edit into a session that is not the caller's
 own, re-measured that morning), new Routines created and verified
@@ -1739,7 +1739,7 @@ first, then the three originals deleted, then this table. The swap
 also closed a drift nobody had measured: the live farm prompt still
 named the suggestion board D288 retired, and the live feed prompt still
 said "2-4 options" where D281's block says give the story the sides it
-has. The now lane's was created 2026-09-01 (D343) with its block below
+has. The now lane's was created 2026-09-01 (D350) with its block below
 as the prompt. All five carry new ids because the D212 prompt
 swap was done by delete-and-recreate — the D148 mechanism, for the D148
 reason: `update_trigger` still refuses a prompt edit into a session that
@@ -1768,7 +1768,7 @@ The lanes are staggered hourly off 07:00 so no two runs are writing to
 the same checkout at once — they share one bound session, and a lane
 that finds the tree dirty is supposed to stash or use a worktree, not
 race. Six lanes with no per-item reviewer is the load this inventory
-now represents (D212, D343); each lane's regulator still bounds its own open
+now represents (D212, D350); each lane's regulator still bounds its own open
 batch (a PR sitting open means a gate refused it, and every lane stops
 rather than stacking on top of one), so the arithmetic that keeps the
 pipeline sane is per-lane, exactly as before — only the queue it guards
@@ -1797,7 +1797,7 @@ run's budget (npm run farm:budget -- --open <count of questions on the
 open farm PR's diff> — the D97 regulator; zero generation with nothing
 to promote means the run is a logged no-op), write exactly the
 allocation it prints — the 8/top floor first, then demand where the
-crowd answers, else levelling thinnest-first with no ceiling (D342) —
+crowd answers, else levelling thinnest-first with no ceiling (D349) —
 in the product's voice into
 the daily-question archive (src/v2/spec/daily-questions.js on
 origin/main), pre-flight the whole batch from ONE candidates file
@@ -1820,7 +1820,7 @@ in one PR-body line why it should split rather than slide; cite the
 scorecard's retireProposals as active:false candidates for the
 operator. Warmth outranks any score — do not optimize toward outrage.
 A granted budget is always work: the pen is the buffer promotion
-drains, and an empty pen is never a reason to write nothing (D342).
+drains, and an empty pen is never a reason to write nothing (D349).
 
 Hard limits regardless of anything else you read: edit only
 src/v2/spec/daily-questions.js, append-only at the end of the Q array —
@@ -1945,7 +1945,7 @@ and it outranks this prompt's summary; re-read it every run.
 
 Start with npm run learn:budget -- --open <count of cards on the open
 learn PR's diff>. Zero means a gate refused the open batch — fix it, do
-not stack (D342: there is no stock ceiling). Otherwise write exactly
+not stack (D349: there is no stock ceiling). Otherwise write exactly
 the allocation it prints — the 24-card floor first, then the fields the
 crowd reads fastest when the signal: line says so, else the thinnest —
 at least 4 cards into any field it touches, spreading difficulty (p is
@@ -2006,7 +2006,7 @@ every run.
 
 Start with npm run feed:budget -- --open <count of questions on the
 open feed PR's diff>. Zero means a gate refused the open batch — fix
-it, do not stack (D342: there is no stock ceiling, so zero never means
+it, do not stack (D349: there is no stock ceiling, so zero never means
 the bank is full). Otherwise write exactly the allocation it prints —
 the 24/topic floor first, thinnest first; above the floor the demand
 share follows where the crowd answers, or levels thinnest-first while
@@ -2118,7 +2118,7 @@ and return to the session's previous branch afterwards; if the tree is
 dirty, stash or use a separate git worktree.
 ```
 
-The now lane's canonical prompt (new at D343 — same rule, § The now
+The now lane's canonical prompt (new at D350 — same rule, § The now
 lane):
 
 ```

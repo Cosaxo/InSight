@@ -1,5 +1,5 @@
 // lane-tiers.mjs — the three-tier allocation the content regulators share
-// (D342): a coverage FLOOR every row reaches first, a DEMAND share above it
+// (D349): a coverage FLOOR every row reaches first, a DEMAND share above it
 // that follows where the crowd answers, and LEVELLING with no ceiling when
 // there is no signal to follow.
 //
