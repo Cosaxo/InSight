@@ -2,8 +2,11 @@
 // else asks.
 //
 // WHAT THIS GATES, AND IT IS NOT THE CARDS. The visible half of "politics
-// in this app" is ten questions out of 278 that carry the political
-// marker, and they are ordinary public answers like every other. The half
+// in this app" is 12 questions carrying the political marker, out of the
+// 338 on the daily and the feed, and they are ordinary public answers
+// like every other. (It said "ten out of 278" — both numbers had moved,
+// and the second was already wrong when it was written. They are
+// check:figures' now, counted off the bank.) The half
 // that needed a decision is derived and invisible: `syncPassiveResults`
 // (data/live.ts) folds ordinary feed answers into `testResults.political`
 // and writes a six-axis political coordinate onto the WORLD-READABLE

@@ -619,6 +619,14 @@ export let DAILYQ;
     QUESTIONS.forEach((q) => {
       const b = byPrompt[q.prompt];
       if (!b) return;
+      // THE BANK ID, carried onto the question. Everything downstream that
+      // asks the live store about this question has to use it: `q.id` is
+      // this file's own demo id ("dq25"), and `LIVE.aggFor` is keyed by the
+      // seeded bank's ("daily-005"). The two spaces are disjoint, so a
+      // reader that passes `q.id` gets null for every question, forever —
+      // which is what the Map did, and it drew "isn't measured yet" over
+      // an aggregate already on the device.
+      q.liveId = b.id;
       const v = votes[b.id];
       if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
       const agg = L.aggFor(b.id);

@@ -144,6 +144,14 @@ const EXPORTS = {};
   function GroupPeopleCard({ g }) {
     const P = DUELS.groupPortrait(g.id);
     const ms = DUELS.groupMembers(g.id);
+    // A group can be emptied — group-daily's manage sheet has a Remove button per
+    // member — and every reducer below spreads `ms` bare: Math.min(...[]) is
+    // Infinity, so `lo` is Infinity, xOf() returns NaN for every dot, and
+    // Math.max(...[]) makes the band height -Infinity. The card draws an SVG with
+    // NaN coordinates rather than failing, which is the shape that survives a
+    // smoke test. Nothing below this line is meaningful without members, and the
+    // card's other two sections already self-hide on empty data.
+    if (!ms.length) return null;
     // beeswarm: one shared likeness axis — everyone as a dot, distance from the
     // "you" anchor = how unlike you they run; stagger only breaks collisions
     const lo = Math.min(...ms.map((p) => p.match)) - 8;

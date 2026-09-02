@@ -45,7 +45,7 @@
         ]
       },
       {
-        "source": "{/,/home.html,/privacy.html,/terms.html}",
+        "source": "{/,/home.html,/privacy.html,/terms.html,/delete-account.html,/paid-done.html,/paid-done-ad.html,/paid-cancel.html}",
         "headers": [
           {
             "key": "X-Content-Type-Options",

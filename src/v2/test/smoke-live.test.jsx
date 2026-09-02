@@ -2322,6 +2322,44 @@ describe("live mode never inherits the sample persona (D55)", () => {
       .toEqual([]);
   });
 
+  it("fetches the people its percentiles count over, on a live build only", async () => {
+    // The card's counted numbers — the percentile line, the rarity field —
+    // are folds over LIVE.kindredPeople(), and nothing else on this screen
+    // fills that pool. It arrived as a side effect of any place stop's
+    // loadSimilarity until 2026-08-31 scoped that fan-out to the surfaces
+    // that read it and missed this one, so a viewer who opened World but
+    // never City lost the numbers with nothing said.
+    live = installLive();
+    hydrateTestResults(BIG5_RESULT);
+    const asked = vi.fn(async () => {});
+    live.LIVE.loadKindred = asked;
+    render(<window.ResultProfileCard testKey="big5" />);
+    await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+    expect(asked, "the card counts over people it never asked for").toHaveBeenCalled();
+  });
+
+  it("asks for nobody in demo mode, where the numbers are authored", async () => {
+    // The control, and it is the half that keeps the case above honest: an
+    // effect with no gate would also satisfy that one. The demo build's
+    // rarity and percentile come from the authored curve, so a fetch here
+    // would be a bill for a number it does not use.
+    //
+    // THROUGH THE HANDLE, not through `window.LIVE`. Written as
+    // `window.LIVE = { ...window.LIVE, enabled: false }` this case passed
+    // with the gate deleted — result-card.jsx does `import LIVE from
+    // '../data/live'`, so replacing the global leaves the binding the
+    // component actually reads untouched. installLive redefines members on
+    // the REAL store, which is why setting them on `live.LIVE` reaches it.
+    live = installLive();
+    hydrateTestResults(BIG5_RESULT);
+    const asked = vi.fn(async () => {});
+    live.LIVE.loadKindred = asked;
+    live.LIVE.enabled = false;
+    render(<window.ResultProfileCard testKey="big5" />);
+    await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+    expect(asked, "the demo build paid for a crowd it does not count over").not.toHaveBeenCalled();
+  });
+
   it("keeps the persona's same-type friends in demo mode", () => {
     // The control again, and it is load-bearing: `sameType` returning [] for
     // everyone would satisfy the case above without a live gate existing.

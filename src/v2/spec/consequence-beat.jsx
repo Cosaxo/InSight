@@ -34,8 +34,13 @@ export function ConsequenceBeat({ seed, options, pcts, counts, mineIdx, height =
   // each would have made the beat contradict the line two seconds later.
   //
   // `counts` is optional so a caller that has none degrades exactly as
-  // before rather than throwing. Today world-feed's renderBeat is the
-  // only caller and it always has them.
+  // before rather than throwing. Both callers pass them — world-feed's
+  // renderBeat, and the daily's own beat. The daily did NOT until
+  // 2026-09-02: this paragraph said world-feed was "the only caller",
+  // which stopped being true without anyone noticing, and the daily beat
+  // — the app's front door, two seconds after today's answer — decided
+  // its verdict by index on tied percentages. On 449 against 451 it told
+  // the voter on 449 they were with the majority.
   const rank = counts && counts.length === pcts.length ? counts : pcts;
   // Not `maxR` — that name is a RADIUS further down and shadowing it here
   // would read as the same quantity.

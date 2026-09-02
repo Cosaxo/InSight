@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   744 questions land in `v2_questions`. Re-running is safe (idempotent,
+   750 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 744-read
+   alone, so a reseed no longer costs every returning device a 750-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -131,6 +131,25 @@ Both apps must be registered under `com.cosaxo.insight`:
   the file is a snapshot, not a live lookup. Nothing in this repo can see
   either omission: the file is gitignored and account-gated, so
   `check:store-copy` and CI are both blind to it.
+
+  **And register the app for App Check with the Play Integrity provider,
+  which this entry did not name until 2026-09-01.** Every callable in the
+  tree demands App Check attestation (D36, `check:appcheck` on the deploy
+  path). `src/lib/appcheck.ts` initialises the native plugin, which
+  auto-selects DeviceCheck on iOS and **Play Integrity on Android** — so
+  the Android half needs the Play Integrity API enabled on the linked
+  Cloud project, the Play Console account linked to it, and the Android
+  app registered in Firebase Console → App Check with that provider.
+
+  Miss it and the app installs, opens, renders, and **every callable is
+  rejected**. That is the same silent shape as the two traps above, and
+  the reason it was missing is worth keeping: on iOS this was satisfied as
+  a side effect of enrolling in the Apple Developer Program, so the
+  omission could not show up on the platform that shipped.
+  `docs/DEVICE-BIND.md` §1 already carries the Play Integrity console
+  steps for D29's purposes — the App Check registration is a different
+  switch on the same API, and doing one does not do the other.
+  `docs/PLAY-RELEASE.md` §2.3 has the rest of the Play path.
 - **iOS** — Add app → iOS → download `GoogleService-Info.plist` → add to
   `ios/App/App/` in Xcode (add to target), then copy that file's
   `REVERSED_CLIENT_ID` value over the `REPLACE_WITH_REVERSED_CLIENT_ID`

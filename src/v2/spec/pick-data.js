@@ -740,6 +740,28 @@ export let PICK_QS;
       117: 3,   // Norwegian — below the floor
       0: 10,    // Not listed — everyone's grandmother's dialect
     },
+    // daily catalog-question run, 2026-09-02 — the third athletes canon
+    // is the LIFE, not the sport: pk28 ranks achievement and pk30 ranks
+    // spectacle; this ranks the whole existence — wealth, adoration, the
+    // clean exit. Federer overtakes the GOATs, and Beckham charts high
+    // here without leading either other board.
+    pk34: {
+      1426: 24,   // Roger Federer — the envied life: grace, beloved, out on his own terms
+      10520: 19,  // David Beckham — the fame and the post-career empire
+      1189: 16,   // Usain Bolt — the joyful one, retired happy
+      36159: 13,  // LeBron James
+      615: 12,    // Lionel Messi
+      9673: 10,   // Lewis Hamilton — the Monaco life
+      11459: 9,   // Serena Williams
+      169452: 8,  // Shaquille O'Neal — the fun life
+      11571: 7,   // Cristiano Ronaldo
+      41421: 6,   // Michael Jordan — the greatness, minus the peace
+      352159: 5,  // Stephen Curry — clears the floor but not the top 10; folds
+      10132: 5,   // Rafael Nadal — same
+      10993: 3,   // Tiger Woods — below the floor; spectacle without the envy
+      39562: 2,   // Michael Phelps — below the floor
+      0: 11,      // Not listed — everyone's local hero
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1134,6 +1156,18 @@ export let PICK_QS;
         Men: { 72: 8, 39: 7, 135: 6, 8: 5, 30: 4 },
       },
     },
+    pk34: {
+      ageBand: {
+        // the young cell wants the still-playing lives; the older cell
+        // has watched enough exits to rank them
+        '18-24': { 1189: 8, 36159: 7, 1426: 6, 11571: 5, 9673: 4 },
+        '25-34': { 1426: 8, 10520: 7, 615: 6, 36159: 5, 11459: 4 },
+      },
+      gender: {
+        Women: { 1426: 8, 11459: 7, 10520: 6, 1189: 5, 9673: 4 },
+        Men: { 1426: 9, 1189: 7, 615: 6, 41421: 5, 169452: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1302,6 +1336,7 @@ export let PICK_QS;
     { id: 'pk31', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film that made you cry the most?', n: 158 },
     { id: 'pk32', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The language you wish you spoke?', n: 160 },
     { id: 'pk33', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The most beautiful language to hear?', n: 152 },
+    { id: 'pk34', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete whose life you’d want?', n: 150 },
   ];
   window.PICK_QS = PICK_QS;
 })();

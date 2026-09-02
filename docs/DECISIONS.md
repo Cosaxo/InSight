@@ -35191,6 +35191,7 @@ collection, no data-inventory row and no erasure phase. Filtering profiles
 is a `listUsers` scan by an operator, not a queryable field on a public
 profile document; `v2_users` is world-readable since D98, and "this account
 is unverified" is not a fact this app needs to publish about a person.
+---
 
 
 ## D344 · Account & privacy moves behind a gear in the profile's corner
@@ -35300,6 +35301,941 @@ so the default mount holds the nudge line and the absence of the dead
 "link Google below"; the linked case flips the flag, claims a handle,
 and asserts the swap. live.ts's observer comment and the fixture's
 `linked` note are updated to stop describing the defect as current.
+
+## D345 · Play is un-parked on an ENK, and the two code items that had no owner get built
+
+**Date:** 2026-09-01 · **Status:** Adopted (owner-confirmed: *"yes, do both
+and i will go for a ENK"*)
+
+**Decision.** Google Play is no longer deferred.
+[D42](#d42--insight-launches-on-ios-alone-play-is-deferred-and-the-path-to-it-gets-cheaper-while-it-waits)'s
+park is lifted, and it is lifted **onto D41's organization route**: an ENK,
+a D-U-N-S, and a Play Console organization account, which is exempt from
+the closed-testing gate. The two code items that blocked any Android
+artifact at all — release signing and a release workflow — are built here.
+
+**Why this is D41's branch and not the other one.** D42 made D41
+conditional rather than reversing it: organization is right *if Play opens
+before there is an installed base*, and after one the 12×14 gate may be
+satisfiable by asking existing users. The owner chose the ENK, which is the
+before-an-installed-base branch, so **D41 stands in full and nothing in it
+needs re-deriving.** What has moved since D41 was written moves in this
+choice's favour and is recorded because D41's own numbers are now stale:
+the gate is **12 testers, not the 20 it launched at** (Google reduced it in
+December 2024, the 14 continuous days unchanged), and reporting through
+2026 says tester *engagement* is now checked as well as tester count. That
+lowers the count and raises the bar on who counts — which makes the route
+this decision does not take slightly worse, not better.
+
+**D42's unverified link is still unverified, and it is still the one that
+costs money.** Whether Google's organization verification accepts an
+Enhetsregisteret-only ENK or wants what Foretaksregisteret provides. Free
+either way for the ENK itself; ~3,000 kr if it is the latter. **Check it in
+the Play Console account-type flow before paying for a D-U-N-S expedite.**
+Nothing in this record turns on it — the code below is the same either way.
+
+### What was built
+
+- **Release signing** (`android/app/build.gradle`). The release build type
+  had no `signingConfig` at all, so `bundleRelease` produced an unsigned
+  AAB. Invisible for as long as it was true, because CI only ever runs
+  `assembleDebug`, which signs with the debug keystore and says nothing
+  about this path. Values come from the environment first and an untracked
+  `android/keystore.properties` second; **with neither present the release
+  stays unsigned on purpose**, so a clean clone and the `android-build` job
+  D42 kept alive both keep working. `signingConfig` is left null rather
+  than defaulted to debug: a debug-signed AAB is worse than an unsigned
+  one, because it uploads, installs, and can never be updated by a
+  correctly-signed build.
+- **`.github/workflows/play-release.yml`**, the sibling of
+  `ios-release.yml` and much cheaper — ubuntu rather than macOS at 10×, no
+  cloud signing, no provisioning profiles. Dispatch-only for the second of
+  that file's two reasons: the billing one does not apply, the
+  irreversibility one applies harder, because `production` reaches every
+  user at full rollout the moment the edit commits.
+- **`scripts/play-upload.mjs`**, hand-rolled against the Play Developer API
+  v3 with **no dependency at all** — Node 22's `fetch` plus `node:crypto`
+  for the RS256 assertion. The obvious move is a marketplace action, and
+  this tree's bar for those is visible in `ci.yml`, which declined even
+  `gradle/actions/setup-gradle` for "one fewer third-party action to pin
+  and audit". An upload step holds the one credential that can publish to
+  real users; that is the last place to widen it.
+- **`check:store-copy --first-upload`**, for a genuine chicken-and-egg.
+  The assetlinks fingerprint is minted by Play Console → App signing, which
+  has nothing to show until something has been uploaded, so the first Play
+  upload cannot pass a bare check and every upload after it must. The flag
+  excuses that one run, loudly, and is deliberately **separate from
+  `--ios`**: the two excuse the same line for opposite reasons ("not my
+  store" versus "not yet mintable"), and collapsing them would make the two
+  indistinguishable in a log. It fails closed in both directions —
+  forgetting the flag is a red build, and so is forgetting to fill the
+  value afterwards.
+
+### What was measured rather than reasoned
+
+`PLAY-RELEASE.md` §2.6 flagged the 16 KB page-size requirement as the one
+item it could not measure, because neither the Android SDK nor
+`node_modules` was present when it was written. Both were installed and the
+build was run:
+
+- `assembleDebug` — **succeeds** with the signing change in place, so CI's
+  job is unaffected.
+- `bundleRelease` with nothing configured — **succeeds and is unsigned**,
+  which is the designed behaviour, and the configure-time warning prints.
+- `bundleRelease` with a throwaway keystore — **succeeds and carries a
+  signature block**.
+- The bundle carries **three native libraries × four ABIs**: `libsentry.so`
+  and `libsentry-android.so` (predicted) and
+  `libdatastore_shared_counter.so` (not predicted — androidx.datastore).
+  **Every LOAD segment on both 64-bit ABIs reports `0x4000` = 16384**, so
+  the app is 16 KB compliant with no work. That is now a **step in the
+  workflow** rather than a fact in a document, because what makes it true
+  is a dependency version and nothing else would notice it regressing.
+
+The workflow's three artifact assertions were each verified in both
+directions against real bundles — the signature check passes on the signed
+build and fails on the unsigned one; the `google_app_id` check correctly
+reports the config missing here, which is the true state and proves it is
+not a no-op. That last one is deliberately matched on the exact resource
+name: a looser grep for "firebase" passes on a config-less bundle, because
+the SDK ships `firebase_common_keep` in `resources.pb` regardless.
+
+### The follow-up this creates, and it is the owner's
+
+**If the ENK is registered under a business name, `web/terms.html` must be
+revisited.** D41 said this and SHIP-CHECKLIST repeats it: an ENK is not a
+separate legal person, so the operator is still Olaf Taule *unless* it
+trades under a registered name, in which case the operator line should name
+the entity a user is actually contracting with. `check:store-copy` cannot
+tell a correct name from a stale one — it only sees placeholders — so
+nothing in this repo will ever raise it.
+
+**The ENK is not registered yet (owner, 2026-09-01), so the operator line
+is CORRECT as it stands and was deliberately not changed.** Editing it now
+would make it wrong. What was done instead is to put the trigger at the
+line itself: `web/terms.html`'s contact block carries a comment saying why
+the line is right today, what changes when the ENK exists, and that no gate
+can raise either. A document nobody opens while editing HTML was not enough
+— that is the same reasoning as D41's warning, applied to where the warning
+has to be read.
+
+**And a second change nobody had written down, found while doing it.**
+Norway's **ehandelsloven § 8** obliges a provider of information society
+services to state the register it is entered in and its
+**organisasjonsnummer**; a registered ENK must carry that number on its
+website. There is no row for it on the page and there should not be one
+yet — there is no number. But it is not optional the day there is, and it
+is a second edit rather than a variant of the first, which is exactly the
+kind of thing that gets missed when only the name is on the checklist.
+
+### When to revisit
+
+At the first `play-release.yml` dispatch. Nothing in this record has been
+exercised against a real Play account, because there is not one yet — the
+workflow, the uploader's network half, and both secrets are written and
+untested, which is stated here rather than discovered later. Run it with
+`upload=false` first; that exercises everything except the four API calls.
+
+## D346 · The review lane: every second night, every axiom lane's work is scored and told how to be more useful
+
+**2026-09-01.** **Status:** binding — the owner's ask in their own
+words (*"lets also add a system that scores the different axiom work
+each 2 night and leaves feedback on how it could be even more useful,
+innovative, effective or other relevant score"*), recorded here
+because, as with D326, the account-side half lives nowhere else in this
+tree. Written on `claude/axioms-1v1-group-profiles-70lkd7`; main mints
+numbers while a branch is open, so the standing collision pattern
+(D289) may renumber it at merge.
+
+### What was built
+
+A tenth lane on `axiom-theory`, **review**, in the charter's own
+grammar rather than as a report bolted on — `CHARTER.md` §12, chartered
+2026-09-01:
+
+- **The instrument.** `theory/review/RUBRIC.md` v1: six dimensions,
+  each 0–10 with shared anchors (0 nothing landed · 4 the charter's
+  minimum met honestly · 6 an advance another lane could use · 8 one
+  another lane DID use, or `measured` on InSight's own numbers · 10
+  reserved for a bridge crossing or a sibling claim overturned by
+  evidence). The three the owner named — useful, innovative, effective
+  — plus the three the charter's own clauses add — rigorous, connected,
+  legible. Each is a charter clause turned into a count, and **a score
+  without its evidence line is not a score**.
+- **The spot-check.** At least two risen `cited` sources per lane
+  fetched and read each review; a source that does not exist or does
+  not say what the node claims is named by node id and lowers
+  Rigorous. The lanes verify their own citations already; a reviewing
+  pass that shares its generator's tilt cannot see what the generator
+  could not (D162), so this is the lane's highest-value act.
+- **The feedback contract.** Each review rewrites
+  `theory/<lane>/FEEDBACK.md`: the scores with their evidence, whether
+  the previous feedback was acted on, and at most three items, each
+  actionable within one run and naming the dimension it would move.
+  Charter §3 now reads it in Orient and answers it in the LOG row
+  (`feedback: took …; declined … (why)`); the next review scores the
+  response. A reasoned decline is never marked down, and three reviews
+  of reasoned declines are evidence against the rubric (§11's new
+  review-drift rule) — the reviewer's own falsifier. The optimizer's
+  own finding is why it is a file in the lane's directory rather than
+  a table elsewhere: across fresh-session lanes, nothing converges
+  without an active channel (go-10).
+- **The ledger.** `scores.json`, rendered as `SCORES.md` beside the
+  digest; central's weekly digest carries the latest table (§6). The
+  ratchet applies: a review that changes no score says so.
+- **Mechanics.** `graph/check.mjs` gains the lane and its one
+  cross-workspace write (every lane's `FEEDBACK.md`, nothing else);
+  `graph/SCHEMA.md` the `rev` prefix; the workspace its five files
+  plus the rubric and ledger; nine `FEEDBACK.md` files seeded; the
+  charter's §2, §3, §6, §7, §10 and §11 amended. `node graph/check.mjs
+  --all`: ten graphs, one hundred nodes, green.
+
+### Delivery state, recorded honestly
+
+- **The Routine is live**: `trig_01P1aDKgDhab3yLeCrYn3TAt`, schedule
+  `2 2 1-31/2 * *` (02:02 UTC on odd dates, six hours before the
+  earliest lane slot, so every lane's next run reads feedback that
+  already covers its latest landed run), bound to the dispatcher like
+  every lane, same tool grants, first firing 2026-09-03 02:02 UTC. The
+  prompt carries central's provisioning preamble and a guard: if the
+  charter does not list the lane or the rubric is missing, stop and
+  report — no improvised review.
+- **The charter amendment landed on the owner's word** (*"land it"*, the same evening): `fa2de8e` on `axiom-theory`, a fast-forward from `f759260`, pushed after the checker ran green on the rebased tip. It was staged first on `claude/axiom-theory-review-70lkd7` rather than pushed, because a change to a lane's contract passes the owner (D289 §4: *"no run ever merges a change to any lane's contract"*) — the staging branch was the vehicle; its one commit is now the branch tip, and the branch itself stays on origin only because this environment's git proxy refused the delete — identical to the tip, safe to remove from GitHub whenever. The first firing therefore finds the lane chartered; the prompt's guard is for a future charter that drops it, not for this one.
+- **Cost**: roughly half to one theory run per review (~$10–20), ≈ 15
+  a month, under the owner's standing call that budget is not this
+  program's constraint.
+
+**Not adopted here:** any change to the nine lanes' subjects; a rubric
+bump (the review lane's own graph is where one is argued); and the
+Ties and Interests lanes proposed in `docs/AXIOM-THEORY.md`'s
+2026-09-01 reflection, which wait on the owner's word.
+
+## D347 · Ties and Interests are chartered: the relational axis gets its row and its lane, and the interests axis gets the lane it never had
+
+**2026-09-01.** **Status:** binding — the owner's word (*"charter the
+ties and interests lanes too"*), adopting the same day's reflection in
+`docs/AXIOM-THEORY.md` (its §1 and §2 hold the arguments; this record
+holds what was done). Written on
+`claude/axioms-1v1-group-profiles-70lkd7`; the standing collision
+pattern (D289) may renumber it at merge.
+
+### The two lanes
+
+- **Ties** (`theory/ties/`, ids `tie-`): the relational axiom — the
+  data whose unit is a tie rather than a person: the 1v1 and group
+  duel record, the membership store, the follow graph. Seeded with
+  seven claims: the tie as unit; the guess as a key-scored
+  second-person measurement that decomposes into perceiver, target
+  and relationship variance; knowledge against projection; picks as
+  nominations, with the unbuilt `cast` (D204) read as a sociometric
+  status score awaiting its floor; homophily on chosen ties, which
+  subsumes central's own second-ranked candidate; and two conjectures
+  — tie type, and reading the crowd as the same family at crowd scale.
+  Slot 13:02 UTC on odd dates; Routine
+  `trig_01PjG2bW3zK3GTgnfaYTjQky`; first firing 2026-09-03.
+- **Interests** (`theory/interests/`, ids `int-`): the axis AXES-PLAN
+  §1 listed with no lane. Seeded with six claims: three custody
+  classes and which of them is the measurement; the missing
+  inventory-grade collection as a governed-process decision (the
+  bridge's 2026-08-28 not-yet located the gap); the genetic deepening
+  restated from gen-3 with the edge as its citation; fitted, never
+  authored, structure; and two conjectures — native occasions, and
+  declared against revealed. Slot 14:02 UTC on odd dates; Routine
+  `trig_01HUHXnMT6xAiEaurLxeBJNq`; first firing 2026-09-03.
+
+### The frame moves with them
+
+AXES-PLAN §1's table gains its seventh row — Ties, custody sealed-until
+then public — and the Questions row stops carrying duels. The paragraph
+beneath that table had named sealed-until as one of the app's four
+custody classes from the day the file was written, and no row owned it;
+the reflection's finding is now structural. Nothing in the app moves:
+the axis was already shipped, only unnamed.
+
+### Delivery
+
+- Landed on `axiom-theory` as `ffdf2ae`, a fast-forward from D346's
+  `fa2de8e`, on the owner's word — the posture D346's landing set;
+  checker green at twelve graphs. Charter §2 (twelve lanes, two rows),
+  §10 (slots, ids, five to six runs a day) and §12 (the review reads
+  every workspace) amended; `graph/check.mjs` and `graph/SCHEMA.md`
+  carry the lanes and the `tie`/`int` prefixes; both workspaces carry
+  the review lane's `FEEDBACK.md` seed, so D346's review covers them
+  from its first firing — it reads the charter's table, not a list of
+  its own.
+- Both Routines are dispatcher-bound like every lane, with the same
+  tool grants and central's provisioning preamble, the §3 run shape,
+  a first-hand reading list on `main` (this record, D204, D156, D40,
+  D224, D310 and `data/roles.ts` for Ties; D163, D101, D14–D17, D232,
+  D266 and the not-yet verdict for Interests), and the guard: stop if
+  the charter does not list the lane.
+- **One drift, recorded rather than hidden.** Both prompts cite this
+  record by the number it carried on the branch, D343 — which is now
+  main's account-requirement record. Prompt edits on a Routine that
+  fires into the dispatcher's session are refused by the tooling (the
+  D326 finding, met again), so the fix is D326's recreate-then-delete,
+  taken at the owner's go-ahead rather than by a run. Tolerable in the
+  meantime by the charter's own design: it outranks the prompt and is
+  re-read every run, the seeds on the branch cite this record by title
+  (`d509851`), and a lane that opens D343 finds a record about accounts
+  and moves on.
+- Cost: two more theory runs every other day, about $600 a month more;
+  twelve lanes, five to six runs a day plus the review at night. The
+  dispatcher backlog the 2026-09-01 digest reported is the thing to
+  watch, and charter §11's cadence dial is the fix.
+
+**Not adopted here:** time-use (stays inside central until its cheap
+test runs), the anchors and Learn (focus questions to the questions
+lane), and any product change — every product-side item the Ties lane
+is expected to ask for (the `cast` fold, a perceiver/target summary
+over public reveals, the romantic pool's activation, homophily over
+the follow graph) arrives through the bridge and its own record.
+
+---
+
+## D348 · The feed weaves its fresh topics, not its answered ones — the returning device stops opening on tests and learn
+
+**2026-09-01.** **Status:** binding. Corrects the mechanism D309 §1
+named; leaves D309's cadences standing. Recorded with the measurement,
+because the previous record reasoned about this feed and was wrong
+about it for every device but a new one.
+
+> *"the algorithem needs some work when you first open the app it never
+> seams to just add topics that are not tests or learn"*
+
+The same complaint reached D309 on 2026-08-26 ("it's mostly tests and
+learn") and was answered as depletion: the world bank is finite, answered
+cards leave the fresh feed, the side streams are deep, so once the world
+half is spent the side streams are what remain. Every sentence of that
+is true and none of it is what the owner was looking at. D309 also said
+"a fresh account sees mostly world questions", which is true, and is the
+reason nothing caught the rest: the demo build and every mount suite
+mount a fresh account.
+
+### 1 · The mechanism, measured this time
+
+`world-feed.jsx` wove the side streams against the FULL world list —
+answered cards included — and dropped the answered ones from the
+output afterwards. Its own comment gave the reason: the test and lens
+slots fire on world indices, the fresh half only ever shrinks, and at
+eight fresh cards a lens stream firing every ninth would strand its
+remaining questions forever. It described the cost as the slots
+"landing a little closer together on screen as the fresh half thins".
+
+They do not land closer together. They land in a block at the head.
+The world order is stable (`wfStreamMix` round-robins bank order, and
+a new card lands at the tail of its topic's round), the reader answers
+from the top, so a returning device's answered cards are a PREFIX of
+the list — and every slot that fired against that prefix survived the
+drop with nothing left between the cards it had been woven among.
+Through the shipped `interleaveFeed`, a 190-card world list (about the
+seeded feed's size), tests, lenses and Learn at its default cadence:
+
+| Answered world cards | Side cards before the first topic card |
+| ---: | ---: |
+| 0 | 0 |
+| 8 | 3 |
+| 16 | 7 — the first mounted page (`WF_PAGE` = 8) bar one card |
+| 40 | 19 |
+| 100 | 50 |
+| 180 | 90 |
+
+The head of the feed at sixteen answered was `t0 k0 t1 l0 t2 k1 t3 w16`.
+That is "when you first open the app it never seems to add topics":
+the topics were there, two screens down, behind every test the reader
+had not taken yet. The mount fixture reproduces it in miniature —
+twenty-four cards, twelve answered — with the head
+`test-political-99 lrn-fixlearn2 lq-moral-0 feed-fixture-12`.
+
+The paid slot had the same defect one size smaller: it fired after the
+sixth card of the full list, so with six answered it surfaced at the
+top of what the reader actually saw — the placement D195 wrote "never
+first" against, reached from the other side.
+
+### 2 · What moved
+
+- **`interleaveFeed` takes a `depth`** (`data/feed-interleave.ts`): it
+  walks `max(world.length, depth)` cadence positions, pushing world
+  cards while they last and side cards wherever the cadences say. Past
+  the end of the world list a position contributes nothing of its own.
+  The knowledge drain keys on the positions walked, not the list.
+- **The feed weaves the fresh list and passes the full length as the
+  depth** (`world-feed.jsx`). The same side cards are placed — the same
+  count per stream, each in its own order, the multiset unchanged — in
+  one order: fresh topics first at the designed rhythm, the surplus
+  after them in cadence order. At the fully caught-up end that surplus
+  is exactly what the full walk produced, so the "You're caught up"
+  state and the record behind the Answered expander are untouched. The
+  final answered-id filter stays for the one card that can still need
+  it, an already-answered sponsored question, which parks behind the
+  expander rather than spending the day's slot on a result.
+- **Nothing about the cadences moved.** `TEST_EVERY`, `LENS_EVERY` and
+  Learn's rate are what D309 left them; this reorders, it does not
+  retune, and the engagement rungs D309 named are still what would
+  justify a retune. The per-mount freeze of answered-ness (`sunk`)
+  stands too: the fresh list is sampled once per visit, so a card
+  answered mid-scroll keeps its place until the next one.
+
+### What proves it
+
+`feed-interleave.test.ts` reproduces the shipped shape through the
+shipped function — full list in, answered prefix dropped, seven side
+cards at the head — and pins the fix beside it: the fresh head at the
+designed rhythm, the same multiset placed, each stream in its own
+order, the default depth leaving a fresh account's feed byte-identical,
+the caught-up surplus in cadence order, the knowledge drain intact.
+`sponsored.test.ts` pins the slot's place on a returning device.
+`test/feed-fresh-head.test.jsx` mounts the real feed in live mode with
+twelve of twenty-four cards answered and asserts the mounted ORDER —
+the half no gate reads, which list the component hands the function;
+mutation-checked: weaving the full list again fails it with the
+fixture head above, and the arithmetic suite stays green, which is why
+the mount case exists. `lint`, `tsc -b`, `check:globals` (coupling
+unchanged at its baseline), `check:figures`, `check:docs`,
+`test:scripts` and `test:unit` green.
+
+### What this deliberately is not
+
+Not the depletion cure. D309 §1's production argument stands whole: a
+device that has answered every topic still meets the side streams
+alone, and only the lanes change that. What changed is the device that
+has NOT answered everything, which was being shown the caught-up feed
+with its fresh topics hidden underneath. Left alone, knowingly: on a
+heavily answered device the surplus is a long block at the END of the
+feed — 180 answered puts ninety side cards after the ten fresh topics
+— which is the caught-up shape arriving one screen later rather than
+one screen earlier. Thinning that block is a cadence question, and
+D309 says whose numbers it waits on.
+
+## D349 · Two night shifts and a night nobody had read, merged as one tree — 81 commits kept, four added, and a standalone suite that could not stand alone
+
+**2026-09-02.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+eighty-one commits are kept as written; nothing was reverted and nothing
+amended. Four commits are added by this review: three close something a
+night named and left, and the fourth reopens a runbook box the night's
+own figure sweep walked into.
+
+### What arrived, and why no branch's own green was enough
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260901` | 32 | **45 behind** | unreviewed since 09-01 |
+| `night-20260902` | 35 | 2 behind | shift A, 21:00–05:20 UTC |
+| `nightb-20260902` | 13 | 2 behind | shift B, first night |
+| `nightb-20260902-integration` | +1 | — | the night's own composition of 0901 + B |
+
+**There are two shifts now, and only one of them knew it.** The
+`.gitignore` entry naming `NIGHTB_TASKS.md`, `NIGHTB_SUMMARY.md` and
+`.nightb/` cites this record for its reason, so here it is: two
+containers audit this tree on the same nights, and a person opening
+either set of scratch notes has to be able to tell whose they are
+without reading them. The entries are load-bearing beyond tidiness —
+`doc-index` rule 5 asks that ORIENTATION.md name every root markdown
+document and reads its skip set from `.gitignore`, so an unlisted root
+note turns a gate red on the contents of somebody's working tree.
+
+Shift B's closing flow composed itself onto the unreviewed 09-01 branch
+and found D336's finding reproduced exactly: three figures that had
+moved on main while `night-20260901` was away, merged by git without a
+conflict — the numbers on one side, the bank on the other — and
+`check:figures` red on a tree neither branch produces alone. It fixed
+them. It did **not** compose shift A, whose last commit lands at 05:20
+UTC, twenty-four minutes after the integration branch's. So the
+composition this review ran is the first tree that has ever held all
+three, and the composed battery is what the verdict below is about.
+
+The three files both shifts touched (`functions/src/v2social.ts`,
+`scripts/check-figures.mjs`, `src/v2/test/world-feed-math.test.js`)
+merged clean and were read hunk by hunk rather than trusted;
+`LiveSimilarityField.tsx`, where the same defect was found on two
+successive nights, was read whole to confirm the fix is applied once.
+
+### Verified, not assumed
+
+Every runner and every gate, on the composed tip, in this environment:
+
+| Runner | Result |
+| --- | --- |
+| `test:unit` | 2,378 passed (164 files) |
+| `test --prefix functions` | 588 passed (26 files) |
+| `test:scripts` | 653 passed (39 files) |
+| `test:rules` | 163 passed (2 files) |
+| `test:e2e:all` | all three drivers — loop, erasure, moderation |
+| `test:e2e` · `:erasure` · `:moderation` | each standalone, after the fix below |
+| `tsc -b` · `tsc -p functions` · `npm run lint` | 0 · 0 · 0 |
+| `check:*` gates | 40 of 42 pass, `check:figures` among them on the composed tree |
+| `check:bundle` | OK on a SHIPPING build — 2160 KB / 763 KB eager |
+
+The two that did not pass are the two named rather than claimed (D1):
+`check:web-firebase` needs the release Firebase secrets, which this
+environment does not hold; `check:store-copy` is red on `origin/main`
+too, on `REPLACE_WITH_PLAY_SIGNING_SHA256` in
+`web/.well-known/assetlinks.json` — an account-gated ID from the Play
+Console, not this tree's.
+
+### The changes read closest, and why they cleared
+
+- **`live.ts`, the answered watermark.** The strongest fix of the three
+  nights. The edit delta was folding with `raiseAnswered` on, so an edit
+  on a document created after the answered delta's cursor lifted that
+  cursor past every deferred create — and those answers are never
+  fetched on that device again, at which point the deck re-offers their
+  questions and the create-only rule refuses every re-vote. Each card
+  silently un-votes itself. Checked against the queries rather than the
+  comment: both deltas take their order from the inequality, ascending,
+  so each is a complete account of its own range and neither may speak
+  for the other's.
+- **The non-ASCII name chain, three hops.** `firestore.rules` forces
+  `nameKey == name.lower()` and the rules engine's `.lower()` is
+  ASCII-only, so a JS `toLowerCase()` writer is REFUSED and the account
+  gets no directory row at all. Shift B proved it against the emulator,
+  fixed all three writers — and its own next commit found that the one
+  caller had already destroyed the input before the fold could run.
+  Each half was correct alone; only reading the night as one diff shows
+  it. The premise now has a rules case (below).
+- **`v2social.ts`, `nearbyCountV2`'s blind `- 1`.** `countsSelf` admits
+  on `presenceExpiry`, which falls back to `at` + the linger for legacy
+  documents; the aggregation counts `until > now`, and a range filter
+  skips a document missing the field. So a legacy phone was admitted
+  while sitting outside `total`, and the subtraction removed a person
+  who was never in the number. Correct after the gate, because past it
+  `until` present implies counted.
+- **`q.liveId`, in both maps.** On a live build `MapStats` reads
+  `LIVE.aggFor`, keyed by the seeded bank id, while `daily-questions.js`
+  hands out its own demo-calendar id — disjoint spaces, so every
+  answered question returned null and the Map drew "isn't measured yet"
+  over aggregates already on the device. Fixed in `map-tab.jsx`, then in
+  `person-mindmap.jsx` by the commit that admits leaving the twin. The
+  third consumer, `map-bottom-card.jsx`, reads `node.qid` and is carried
+  by both. No fourth site: `daily-split`'s live panels take `S.id` on the
+  `S.live` branch, which is already the bank's.
+- **`patterns.ts`, publishing without a quality row.** The arm that used
+  to manufacture an empty-day score now omits the field — and the
+  `set` beneath it has no `merge`, so omitting deletes. Safe only
+  because `quality` is undefined in exactly the case where the document
+  has none to lose, which rests on `getModel`'s projection continuing to
+  name it. The commit says so and `store-projection.test.ts` holds both
+  ends.
+- **`paid.ts`, a hand refund closing a campaign as settled in full.** The
+  prior-refund lookup took `limit: 1` and recorded what was OWED. It now
+  sums every non-failed, non-canceled refund on the intent and writes
+  `refundedEur` beside `refundEur`, warning when the two differ. The
+  record is what a dispute is read against.
+
+### The four commits this review adds
+
+1. **The stolen docstring, committed twice in one night.** `143df93`
+   fixed exactly this in `socialFetch.ts` — a new export inserted after
+   the closing `*/` of the next function's docstring, so TypeScript
+   attaches that documentation to the wrong symbol — and the other
+   shift had done the same thing three hours earlier in
+   `world-feed-math.js`. Measured with the compiler API, not by eye:
+   `wfAnsweredOf` carried two blocks and `wfVotesOf` none. Moved, no
+   prose changed.
+2. **The rules case shift B promised.** Its own commit says the
+   regression case "belongs in firestore-tests/rules.test.ts" and was
+   left out because the other shift was rewriting that file the same
+   night. Both are composed now, so the reason is spent: the emulator
+   probe is pinned as a case, and it fails the day `.lower()` learns
+   Unicode — which is the day all three client folds become wrong at
+   once, with nothing else in the tree able to say so.
+3. **A standalone suite that could not stand alone.** `npm run
+   test:e2e:moderation` has exited 1 at step 9 since `a224c18`
+   (2026-08-28) added the question kill switch to the world-take create
+   rule; this driver never seeded a question, and `get()` on an absent
+   document is a null-value error four layers from its cause. It stayed
+   invisible because CI runs `test:e2e:all` — one emulator, three
+   drivers, and driver 1 seeds the bank before this one starts. The
+   composite was green on a dependency it does not declare, while
+   `backend-checks.yml`'s own comment calls the three scripts "the right
+   thing to run by hand". Two legs, the world leg and the avatar leg,
+   had not run by hand for five days.
+4. **A checked box that had stopped being true.** The ninth alert
+   policy — `paid-refund-stuck`, the paid pipeline's first alert of any
+   kind — landed tonight, and the figure sweep that followed the count
+   from eight to nine walked straight through LAUNCH-RUNBOOK 5.5, whose
+   `[x]` reads "Apply the nine monitoring alerts — VERIFIED ARMED AND
+   WIRED 2026-08-27" over a body that verifies **eight**. Nothing in
+   this tree arms a policy, so the money alert is committed, gated and
+   silent. The box is reopened, the 2026-08-27 verification is left
+   saying exactly what it verified, and the heading keeps the count
+   `check:figures` holds it to. This is the sweep's own hazard pointed at
+   the sweep: a derived number is only safe where the sentence around it
+   is about the number.
+
+### Two things that are the owner's call, not this review's
+
+- **`rank.ts`'s landslide is not the scorecard's, and the night proved
+  it rather than papering over it.** The serving order sinks a question
+  at a raw top share ≥ `RANK_DEAD_SHARE` with ≥ `RANK_DEAD_MIN` answers;
+  the scorecard's retire proposal grades on EVENNESS, which normalises
+  by option count. Measured on the same aggregates, they disagree in
+  both directions — binary 90/10 sinks here and is not a scorecard
+  landslide; 4-option 88/4/4/4 is a scorecard landslide and does not
+  sink. An operator reading the nightly proposals and the published
+  serving order therefore gets two verdicts on one question. Making them
+  one predicate CHANGES WHAT THE FEED SERVES, so the night correctly
+  stopped at making the comment true. Which one is right is a product
+  decision.
+- **The iOS purpose string now describes Near.** "Used once, on this
+  device" was false while the presence loop re-reads location every four
+  minutes with Near on, and this is the prompt shown before anyone can
+  consent — so it moved, and `check:ios-location` now holds the two
+  sides together in both directions. It is store-facing: the next
+  submission carries a changed `NSLocationWhenInUseUsageDescription`,
+  which App Review reads.
+
+### One open question the night wrote down rather than settled
+
+`functions/vitest.config.ts` scopes its coverage report to `pure.ts` and
+`deviceBind.ts`, and the argument that picked those two was the pre-D98
+privacy floor — k-anonymity, complementary suppression, the publish
+cadence, all three retired. The night replaced the dead reasoning with
+the live one (these files decide what a published number SAYS) and said
+plainly that whether `paid.ts` or the moderation queue now belongs in
+scope is open. It is.
+
+## D349 amendment (2026-09-02) · The figure collision is not about composing branches; it is about two merges thirty seconds apart
+
+The record above says shift B's closing flow reproduced D336's finding —
+`night-20260901` quoting bank counts main had since moved, git merging
+both sides without a conflict because the numbers are on one side and
+the bank is on the other. It happened a third time within the hour, and
+by a mechanism neither record had named: not a composition at all.
+
+**#356 (six feed questions) merged at 10:04:29 and #357 at 10:04:59.**
+Both were green. Neither touched a file the other touched. GitHub
+computed `mergeable_state: clean` for #357 against the base #356 had
+already left, merged it without a conflict, and `main` came out red:
+
+    politicalConsent.ts   332 -> 338 on the daily and the feed
+    engagement.ts         744 -> 750 in the bank
+
+Both entries are ones the night ADDED that night, which is the part
+worth keeping. `check:figures` did not fail here; it worked. A figure
+that nothing derives cannot collide, because nothing notices — the two
+sentences would simply have gone on being wrong, which is the state the
+gate exists to end. What the third occurrence shows is that the window
+is not "a branch that sat unmerged for a day". It is any two pull
+requests where one moves a counted thing and the other quotes it, and it
+is as short as the time between two merges. No pre-merge check can close
+it: each PR is green against the base it was tested on, and the
+collision exists only in their sum.
+
+So the answer is not a gate. It is that `check:figures` red on `main`
+after a merge is a NORMAL outcome rather than an incident — one commit,
+prose only, computed by the gate's own `fix:` output — and that the
+person merging a figure-bearing branch should run it on the merged tree
+rather than trusting either PR's green. That is what happened here.
+
+### And the fix found the sentence the number was holding up
+
+`engagement.ts` read "The bank is 744 questions today, so the bank can
+double before this truncates anything real", against a fence of 1,500.
+At 750 doubling lands exactly ON the fence; the claim had been true by
+twelve questions and expired with this merge. The gate kept the number
+current underneath a sentence that was about a RATIO between that number
+and a constant, and nothing held the ratio — the same shape as the
+runbook box in the record above, where a swept count sat under an
+inspection it did not cover.
+
+Rewritten to state the condition rather than a multiple, and the
+headroom is deliberately not restated as one: a ratio between a gated
+figure and a constant is a claim nothing can hold. It also now names
+what the old sentence quietly omitted — a day's qids are bank questions
+PLUS any `paidq-` ones, so the bank is not the only way to the fence.
+
+## D350 · The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory
+
+**2026-09-01.** **Status:** binding. The owner's ask, in their words,
+over one session: *"Feed should be higher allow more in each category
+and have system for prioretizing popular categories"*; on the caps in
+general, *"they are mostly holdovers when this app wrongly stated that
+there was a limit to the amount of questions"*; then, on reading the
+inventory below in its first form, *"remove the learn and daily lane
+holdovers too, same shape. and feed cap can be much higher."* The
+second sentence is the finding this record checks against the tree,
+lane by lane, in § The inventory; the third is what it does about it.
+
+### What shipped
+
+**One allocator, three lanes.** `scripts/lane-tiers.mjs` holds the
+shape once — three copies of one allocator is how the bank parser
+drifted into an invented figure (D197) — and the daily, learn and feed
+regulators call it:
+
+1. **The floor first.** Rows under the lane's floor (a feed topic, a
+   learn field, a daily top) are filled thinnest first, one per row per
+   pass, never past their own room under it. Breadth's minimum, not a
+   target: nothing stops at it.
+2. **Demand takes everything the floor leaves.** Weight per row =
+   popularity × depth — the daily lane's demand lane (QUESTION-FARM.md
+   § Picking topics) made computable: popularity is the row's share of
+   credited answers (the scorecard's conserved shares, TAGS-PLAN §3, so
+   a door redistributes demand and never mints it); depth is answers
+   per unit of stock against the deepest row — the reading of "how far
+   its audience goes through the pool" that stays measurable while
+   D319's volume order keeps new questions at the tail (least ÷ most
+   reads 0 for any row holding one unanswered question, which is all
+   of them). Units go out D'Hondt-style, leaders first over a small
+   budget; no row may take more than ⌈0.75 × batch⌉, the batch-mix
+   gate's own ceiling, so a regulator never prints a batch the
+   pre-flight refuses. The share is READ only when it can be believed:
+   at or past 100 credited answers on the lane and a scorecard no older
+   than 30 days (the manual's staleness rule). Below either the lane is
+   blind. Every lane is blind today — the scorecard credits 28 feed, 25
+   learn and 8 daily answers — and each test pins that it says so.
+3. **Levelling, blind.** The rest spreads thinnest-first across every
+   row with no ceiling.
+
+**Per lane:**
+
+- **Feed** (`feed-budget.mjs`): `TOPIC_TARGET` → `TOPIC_FLOOR` (24,
+  unchanged); the stop at the level is gone; `RUN_CAP` 6 → **60** and
+  `OPEN_MAX` with it (single-gate shape: one unreviewed batch at a
+  time, the one stop left). Sixty is D316's own order of magnitude over
+  the original six — SCALE-PLAN's first owner decision, *"question
+  production scales up by an order of magnitude or more"* — and a
+  throughput figure at the writing bar: the batch gates score sixty
+  candidates and their 1,770 sibling pairs in one pass, and the PR body
+  carries one packet line and one argument per question as before.
+- **Learn** (`learn-budget.mjs`): `FIELD_TARGET` → `FIELD_FLOOR` (24,
+  unchanged); the stop at the level is gone; chunk mode keeps D115's
+  shape rule — at most ⌊budget ÷ 4⌋ fields per run, split evenly, one
+  subject per chunk — and the demand tier reads the scorecard's learn
+  section, where a field's answers per card is the rate it is being
+  read at, which is what runway always meant. `RUN_CAP` stays 10.
+- **Daily** (`farm-budget.mjs`): the budget arithmetic is untouched
+  (`PEN_TARGET` 56, `RUN_CAP` 8, `PROMOTE_PACE` 2 — see the inventory
+  for why those are not holdovers); what changed is where a granted
+  budget GOES. `TOP_FLOOR` 8 per `CAT_META` top, then demand off the
+  scorecard's capitalised daily rows (the old replenishment lane folds
+  into depth), then levelling — printed by `npm run farm:budget` as
+  the allocation, read off the archive by check:quality's own corpus
+  loader. The manual's three "lanes" of 2026-07-30 survive as tiers 2
+  and 1; the sentence under them — *"if no lane has work … the run is
+  a no-op"* — is gone, because it fired on an EMPTY pen: with the crowd
+  too small to give a signal and every top past the old floor of four,
+  the lane logged eighteen straight no-ops against a granted budget of
+  8 (run log #31, 2026-08-14 → 09-01), D33's "never generate into a
+  full review queue" firing on an empty one. A granted budget is
+  always work; the run is a no-op only when the budget script grants
+  zero.
+
+`check:figures` holds every number above to the manual (the two
+renamed floors, and per lane the two demand thresholds; the daily's
+floor besides); `lane-tiers.test.mjs` pins the shape (21 cases) and the
+three lane suites their budgets — the no-stop property on each, floor
+before demand, chunking, the batch-mix cap, staleness, the depth factor
+that lets a small devoted row outrank a big diluted one;
+QUESTION-FARM.md § Picking topics, § The learn-card lane and § The
+feed lane rewritten around the tiers with their canonical prompt
+blocks; FEATURE-COMPLETE.md's three lane lines corrected, including the
+one that still said the feed lane's output was nil.
+
+### What it reverses, and on what grounds
+
+D145's stop at the feed level and D213's *"the dilution bound is a RATE
+bound, so the cap stays 6"*; D115's stop at the learn level; the
+maintainer's 2026-07-30 no-op sentence for the daily. All four were
+sized to a bank every device was handed whole, and that premise ended
+at D316–D321: the install fetches the boot surfaces, the core and a
+page per topic, never the bank; D316's adoption sentence is *"there
+should be no question limit"*, and its phase 2 says what that does to
+the lanes — *"the lane's pace unbinds from consumption … cadence and
+RUN_CAP become throughput questions answered by the writing bar rather
+than the read path."* A target a lane stops at is production sized to
+consumption. What was true in the dilution argument survives where it
+belongs: the demand signal is not READ until the crowd is real, and
+D319's order sinks a question that measures badly — quality moved from
+pre-emptive caps to the serving order, which is D316's own sentence.
+
+### What stands
+
+`OPEN_MAX` on every lane (about the gate, not the bank); every farm
+hard rule; the tail rule — the demand share allocates which TAIL topics
+a run writes into and has no pen on `core`, so *"popularity must not
+tilt the corpus"* holds by construction; `now` out of the feed fold
+(D231); the batch-mix and form gates (D316: none is a volume cap); the
+operator's reseed step. The live Routine prompts for the farm, learn
+and feed lanes were swapped for this record's blocks on 2026-09-02, by
+delete-and-recreate from a sibling session (`update_trigger` still
+refuses a prompt edit into a session that is not the caller's own —
+the D148 mechanism, re-measured); the Governance table carries the new
+ids. Until this record merges, the manual on `main` outranks the new
+prompts, as each prompt says every firing — so a run in between
+follows the old rules, which are the stricter ones.
+
+### The inventory — every cap in the question pipeline, and which premise it stands on
+
+Read off the tree (`npm run feed:budget`, `farm:budget`,
+`learn:budget`, `duel:budget`, the gates' constant blocks).
+
+**Holdovers of the bounded bank, retired here:** the feed's per-topic
+stop and its 6-per-run dilution cap; the learn lane's per-field stop;
+the daily lane's "no lane has work" no-op.
+
+**Still standing, the owner's call, one constant:**
+
+- **Duel `POOL_TARGET` 48** grants zero at 48 per pool. Partly real: the
+  duel banks are bounded rosters a device still takes whole at boot
+  (D321's census), so every question above it costs every install one
+  document — small, and a number to raise deliberately rather than a
+  premise to retire.
+
+**Real bounds, not holdovers** — each is a shape, a cost, or the
+writing bar, and none says how many questions there may be:
+
+- **The daily pen and pace** (`PEN_TARGET` 56, `PROMOTE_PACE` 2): the
+  daily is positional and consumes one a day by design (D316 — cohort
+  comparison needs everyone on the same question), the archive ships
+  in the JavaScript bundle (BANK-DELIVERY's ceiling 1, the one learn
+  left at D284), and the seeded daily bank ships whole to every device.
+  The pen is a promotion buffer with a runway meaning, and the pace is
+  what grows runway a day per day. Raise the pace and the bundle and
+  the id space below move with it.
+- `BANK_WARN` 6000 / `BANK_FAIL` 10000 seeded docs (`check:quality`):
+  re-pointed three times as ceilings retired, now watching the one
+  thing left of BANK-DELIVERY §4 — a device reads every CACHED row into
+  memory each boot. **At the new pace this is the decision owed
+  next:** about 65 documents a day (feed 60, learn ~3, daily 2) against
+  a bank of 744 reaches the warning around late November 2026 and the
+  failure around late January 2027 — and the failure is a hard CI red
+  for every content PR, which would be a question limit in everything
+  but name. The alarm asks for the in-memory design (an eviction rule
+  for unanswered tail pages, or a measured figure that retires the
+  tripwire); that is a device change with its own record, and it is
+  what to build before the date, not a cap to put back.
+- `DAILY_ID_WARN` 900 / `FAIL` 970 of 999: the `daily-NNN` id shape,
+  an id-scheme decision due before it breaks. Bank 130, growing at the
+  promotion pace.
+- Options 2–10 per question (`check:content`) and `optionIdx` 0–19 (the
+  aggregate fold's cell ceiling, `functions/src/v2.ts`): per-question
+  shape, not stock.
+- The published order doc (`v2_rank/feed`) at ~150 KB per 10,000 feed
+  questions against Firestore's 1 MiB: one doc per topic when a surface
+  approaches it (D319 says where to shard).
+- The batch-mix rule (no topic or form past ⌈0.75 × batch⌉) and every
+  `check:quality` form bound (`PROMPT_MAX` 120, `OPTION_MAX` 32,
+  `ALSO_MAX` 2, the tragedy and place tripwires): the writing bar.
+  D316: *"the bar does not move with the volume."*
+- The editorial carve-outs: `now` (D231), `rates` (D187), hard rule 6's
+  place-scoped civic questions (paid inventory), tests and pulses
+  (frozen instruments, D213's census). These bound WHAT a lane may
+  write, never how many.
+- Serving-side numbers that read like limits and are not: `FEED_PAGE`
+  12 and `LEARN_PAGE` 24 per topic per boot (page sizes — the pager
+  keeps fetching), `TASTE_MIN_TOTAL` 10 / `TASTE_TOPIC_MIN` 3 (when a
+  profile shapes pages), `RANK_DEAD_MIN` 20 at 90% (the landslide sink),
+  `DECK_DAYS` 7 (the history pager).
+- Cadence: one fire per lane per day is the Governance table's, and it
+  is the lever that moves throughput next.
+
+### Cost, so raising further is arithmetic
+
+At sixty a day the feed grows 420 a week, ~22,000 a year. A device's
+install is O(core + pages) whatever the bank (D321); the nightly rank
+fold reads O(bank) aggregates in 300-chunks — a night's ordinary work
+at these sizes, and its order doc shards per topic past ~60,000 (above).
+The write side is the Routine's own run on the owner's subscription,
+which fired daily already; what changes is that a run is never idle,
+and that a feed run is a long one.
+
+### When to revisit
+
+Raise a `RUN_CAP` when runs finish with the bar met and time to spare;
+lower it the day a batch merges with a dupe the re-read should have
+caught. Raise a floor if a filtered topic or a followed field still
+reads thin at 24, or a daily top at 8. Move `DEMAND_MIN_ANSWERS` with
+what the first real demand allocations look like against the evenness
+the scorecard then shows — a threshold set before the crowd exists is a
+starting figure, and the record says so. And build the in-memory
+design before the `BANK_FAIL` date above.
+
+## D350 amendment (2026-09-01) · The bank-size failure was a question limit in everything but name
+
+The inventory above named `BANK_WARN`/`BANK_FAIL` a real bound and put
+a date on the failure. The owner's reply: *"i dont understand this does
+youtube have a limit to how many videos can exist or twitter how many
+tweets?"* No — and the tripwire's own comment agreed without noticing:
+it counted the SEEDED bank as a proxy for "every row a device's cache
+has accumulated", and after D320/D321 the bank is not what a device
+holds. A gate that turns CI red at 10,000 questions is a limit on
+questions, whatever it is named.
+
+Re-pointed a fourth time, and the last: `INSTALL_WARN` (4000) counts
+what a fresh device is handed WHOLE — the boot surfaces (daily, test,
+group, duo, pulse, call) plus the feed's core (D321) — and warns, never
+errors, at about 1 MB at the seed's measured bytes per document. That
+count is about 460 today and moves at the daily's promotion pace and
+the core's curation, so the line is years out. The paged surfaces are
+not counted: a device fetches learn and the feed tail a page at a time.
+`BANK_FAIL` is gone; `check:quality` has no error path on bank size,
+and its test pins that a bank of a hundred thousand rows does not fail
+it. The inventory's date for the failure is void with it.
+
+What the old count was reaching for is real and is a DEVICE design: a
+phone that boots daily for a year accumulates every page it was handed,
+and hydrate reads all of them into memory. YouTube's answer is eviction
+— keep what you answered and what is on screen, drop the rest from
+memory. That is a client change with its own record (BANK-DELIVERY §4
+names it), owed before heavy devices hold tens of thousands of rows;
+it is what to build, and it is not a reason to stop writing questions.
+
+## D351 · Current events get their lane: found by searching, never from memory
+
+**2026-09-01.** **Status:** binding. The owner, on the inventory's
+"editorial only" row for `now`: *"should be made by claude but should
+be finding news from some other source."* Reverses D231 §6 (the farm
+may not write this lane) and NEXT-FUNCTIONALITY §7's "not doing:
+farm-authored current events" — on the condition the owner named, which
+is the whole design.
+
+### What shipped
+
+- **`scripts/now-budget.mjs`** (`npm run now:budget`, tests in
+  `now-budget.test.mjs`): `NOW_CAP` 6 per run, `OPEN_MAX` 6 (single
+  gate), `SOURCES_MIN` 2, `FRESH_DAYS` 7. No stock to level — the topic
+  empties itself — so the script's other job is the windows: what is
+  live, which close dates the bank already uses, and the free closes
+  from the short end up, so a batch staggers against the bank and not
+  only against itself (check:quality's stagger rule holds within a
+  batch; this holds it against what is already there).
+- **The source rule, sized to what a run can actually reach.** Measured
+  from the session environment (`env_01Ri3fw8gD9Py3LmTQ9hTYCL`, the
+  one the bound dev session runs in): every news domain tried — BBC,
+  NRK, NYT, AP, Guardian, Al Jazeera, NPR, VG, Google News, Wikipedia's
+  current-events portal — is refused at CONNECT by the egress proxy
+  (403; `query.wikidata.org` and `registry.npmjs.org` still answer
+  200), and the session's page-fetch tool reports `EGRESS_BLOCKED` for
+  the same hosts. The session's SEARCH tool runs outside the sandbox
+  and returns outlets, headlines, URLs and a digest. So a run can FIND
+  and CITE a story, and cannot OPEN it — and the bar is set there: at
+  least two independent outlets, under a week old, every source in the
+  PR body for the audit. One result is a headline; two are an event. If
+  the environment's policy is widened to news domains, the bar tightens
+  to "opened, and quoted" — the manual's bullet and the prompt move
+  together.
+- **QUESTION-FARM.md § The now lane**, its canonical prompt block, the
+  Governance row (a daily Routine at 11:00 UTC, bound to the dev
+  session like the other five, created from this session at the
+  owner's direction — the D148/D212 path), and the feed lane's `now`
+  bullet re-homed. Every D231 and D281 rule binds unchanged: both
+  window ends, 3–21 days, most short, distinct closes, no prediction
+  shape, the options a story has, a `bg` of durable facts; D235's no
+  tragedies bites hardest here and is written into the prompt; the
+  angle is personal and the flag honest (EVENT-DISCUSSIONS §5, now
+  built for `now`); warmth over outrage.
+- `LANE_EXCLUDED` in the feed regulator stands, re-explained: `now` is
+  not editorial any more, it is a lane with a source rule the feed
+  regulator lacks.
+
+### What stands, and the one thing the prompt says to itself
+
+The 1-in-20 audit is where the source claims get read by a person. The
+prompt checks that its section exists on `origin/main` before doing
+anything, so a firing before this record merges is a logged no-op
+rather than an improvisation.
 
 ## D352 · The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32
 

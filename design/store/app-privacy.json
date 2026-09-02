@@ -179,7 +179,7 @@
   "advertising": false,
   "$advertising": "No ad SDK of any kind. The Facebook SDK arrives only as a transitive SwiftPM dependency of @capacitor-firebase/authentication and is stripped at postinstall (D16); check:ios-facebook asserts its absence on every CI run.",
   "lootBox": false,
-  "$lootBox": "No in-app purchases at all, so nothing randomised to sell. MONETIZATION.md records no consumer paid tier at launch.",
+  "$lootBox": "Nothing randomised is sold, and the answer is unchanged \u2014 but its old reason (\"no in-app purchases at all\") stopped being true at D313/D315 and is restated here rather than left standing. What the app now sells is a sponsored question or an ad slot, bought by a sponsor through Stripe in the system browser: no StoreKit product, no Google Play Billing product, a fixed thing at a stated price, and nothing drawn at random. The store-listing In-app purchases declaration is a separate question with the same answer, for the same reason \u2014 it asks about the platform billing products, of which there are none. Whether Play's Payments policy REQUIRES that sale to use its billing system is a third question, open, and not settled by either declaration (docs/PLAY-RELEASE.md \u00a73.4).",
   "parentalControls": false,
   "$parentalControls": "The app ships none. This asks what the app PROVIDES, not what it needs \u2014 answering yes without the feature is the over-declaration direction.",
   "ageAssurance": false,

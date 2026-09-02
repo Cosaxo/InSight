@@ -985,7 +985,7 @@ export class DailySplit extends React.Component {
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
               h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
-        ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
+        ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, counts, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(11), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
             S.type === 'rating'
             // The result as the Map's card draws the same number
