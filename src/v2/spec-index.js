@@ -8,7 +8,7 @@ import { rememberMirror } from './data/mirrorChunk';
 // Load order mirrors the standalone's script tags — order is semantic, do not sort.
 import './spec/sample-data.js';
 import './spec/archetype-data.js';
-// compare-pop.js stood here until D346: IS_COMPARE_POP's only readers are
+// compare-pop.js stood here until D353: IS_COMPARE_POP's only readers are
 // the Mirror's Compare lens and Groups portrait, so it rides loadMirrorTab()
 // (the Mirror block further down) rather than first paint.
 import './spec/daily-questions.js';
@@ -19,7 +19,7 @@ import './spec/daily-questions.js';
 // loads, which is safe: purgeLocalTrace removes the insight.* keys
 // itself, and a module that never loaded holds no in-memory state for
 // the listener to clear.
-// demographics.js stood here until D346 — DEMOGRAPHICS has one reader,
+// demographics.js stood here until D353 — DEMOGRAPHICS has one reader,
 // demographics.jsx, a Mirror module; both ride loadMirrorTab() now.
 import './spec/follows.js';
 import './spec/scenes.js';
@@ -54,7 +54,7 @@ import './spec/primitives.jsx';
 // it is a real dependency rather than a load-order relic.
 import './spec/explain-sheet.jsx';
 import './spec/viz-primitives.jsx';
-// compare-breakdown.jsx stood here until D346 — the Mirror block below.
+// compare-breakdown.jsx stood here until D353 — the Mirror block below.
 // The relmap group SPLIT at D200, and the split is by consumer rather than
 // by size. relmap-lenses.jsx stays eager because it has a LIVE consumer —
 // vote-cuts.js reads window.RMLenses for the who-voted sheet's Type cut
@@ -153,7 +153,7 @@ import './spec/daily-split.jsx';
 import './spec/test-definitions.js';
 import './spec/passive-progress.js';
 import './spec/test-feed-data.js';
-// lens-defs.js stood here until D346 (the Mirror block below). Its old
+// lens-defs.js stood here until D353 (the Mirror block below). Its old
 // note survives in one line: its feed pool (LENS_FEED_QS) is a lazy
 // builder, so nothing ever waited on a module-scope snapshot of it.
 import './spec/passive-meter.jsx';
@@ -164,7 +164,7 @@ import './spec/passive-meter.jsx';
 // person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
 // suggestions.jsx load after first paint too, from the same group.
 //
-// THE MIRROR'S THIRTEEN left this list at D346 for loadMirrorTab() at the
+// THE MIRROR'S THIRTEEN left this list at D353 for loadMirrorTab() at the
 // foot of this file — compare-pop.js, demographics.js and
 // compare-breakdown.jsx from higher up, then lens-defs.js, lens-cards.jsx,
 // demographics.jsx, mirror-answers.jsx, mirror-field.jsx,
@@ -200,7 +200,7 @@ import './spec/passive-meter.jsx';
 // window.GeneralPanel, so it could never be reached before that group had
 // resolved — yet it and its whole static tail sat in the modulepreload set
 // on every cold start. Measured: 20 KB of first paint.
-// ui/CityPicker and ui/PickSearch stood here until D345's sweep. Born in
+// ui/CityPicker and ui/PickSearch stood here until D352's sweep. Born in
 // this repo (never in design/), they self-registered on globalThis for
 // render-time lookups in profile-general and world-feed, and this listing
 // was what made them eager. Both consumers import them now, so each rides
@@ -429,7 +429,7 @@ export const loadMapTab = retryable(async () => {
   await import('./spec/map-tab.jsx');
 });
 
-// ── the Mirror, after first paint too (D346) ───────────────────────────
+// ── the Mirror, after first paint too (D353) ───────────────────────────
 //
 // One import, not thirteen: mirror-tab.jsx carries its twelve siblings as
 // static side-effect imports in the order the eager list used to hold, so
@@ -461,7 +461,7 @@ export const loadMirrorTab = retryable(async () => {
 });
 
 export const loadOverlays = retryable(async () => {
-  // The Mirror's family first (D346): three members of this group read
+  // The Mirror's family first (D353): three members of this group read
   // Mirror globals at render — profile-general's MirrorFieldBody and
   // LENSES, profile-overlay's LensesPanel, person-overlay's CompareCarousel
   // — so no overlay may be able to open before that chunk has landed.

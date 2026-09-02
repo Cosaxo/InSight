@@ -56,7 +56,7 @@ describe("check:figures and the drift figure", () => {
 
   // The live figure, read off the copy's CLAUDE.md rather than written here:
   // the first case proves the copy passes, so the prose equals the tree. This
-  // test used to hard-code 32 → 33, and D345's sweep took the tree to 53 in
+  // test used to hard-code 32 → 33, and D352's sweep took the tree to 53 in
   // one commit — a hand-kept figure inside the test of hand-kept figures.
   const bridgeFigure = () =>
     Number(/^(\d+) modules are already off the bridge/m.exec(readFileSync(join(tree, "CLAUDE.md"), "utf8"))[1]);

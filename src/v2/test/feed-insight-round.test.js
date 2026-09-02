@@ -20,7 +20,7 @@ import { wfPcts } from "../spec/world-feed-math.js";
 // aggregate — the shape `agg.by` publishes.
 //
 // Defined ONTO the imported singleton, not assigned to `window.LIVE`:
-// feed-read.js imports the binding (D345), and a second object on the
+// feed-read.js imports the binding (D352), and a second object on the
 // global would reach nobody — test/live-fixture.ts's header has the
 // failure that avoids. The un-booted store is inert, so flipping
 // `enabled` and swapping `aggFor` is the whole stand-in.

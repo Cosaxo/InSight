@@ -784,7 +784,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // far above records why — joined the graph. Merged: 869 KB eager, the
 // deferral still paying for most of the roster. Band stays ~11 KB.
 //
-// 880 → 645 (2026-09-01, D346): the Mirror tab left the eager graph — the
+// 880 → 645 (2026-09-01, D353): the Mirror tab left the eager graph — the
 // thirteen spec modules behind the app's second tab now ride
 // loadMirrorTab(), prewarmed right behind the feed and rendered through a
 // slot that hands the module across synchronously once it has landed
@@ -799,7 +799,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // guard. Band ~12 KB, the same posture as every entry above: the freed
 // room is not headroom for the next eager feature — a feature that wants
 // it raises this line with a measurement beside it.
-// 645 → 630 (2026-09-01, D345's sweep): ui/CityPicker and ui/PickSearch
+// 645 → 630 (2026-09-01, D352's sweep): ui/CityPicker and ui/PickSearch
 // left spec-index's eager list when their two consumers (profile-general,
 // world-feed — both lazy) started importing them, so each rides its
 // consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.

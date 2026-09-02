@@ -6,7 +6,7 @@
 import { FRIENDS } from './follows.js';
 import { LEARN } from './learn-progress.js';
 import { IS_DATA } from './sample-data.js';
-// The store (D345) — the two live gates below read `.enabled` at call time.
+// The store (D352) — the two live gates below read `.enabled` at call time.
 import LIVE from '../data/live';
 
 // learn-social.js — the friend layer for Learn. Deterministic per (friend, card)

@@ -369,6 +369,6 @@ const PLACES = {
   countryName,
 };
 
-// No publication since D345's sweep: feed-read.js, its last window reader,
+// No publication since D352's sweep: feed-read.js, its last window reader,
 // imports the default export like every typed consumer always has.
 export default PLACES;

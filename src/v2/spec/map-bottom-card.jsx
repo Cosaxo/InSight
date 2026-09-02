@@ -93,7 +93,7 @@ function MTGroupBars({ node, anchor }) {
   const n = mtNOpts(node);
   // Bound once, out of habit from when this was a bridge read that the
   // coupling ratchet counted per reference; the binding is an import now
-  // (D345's sweep) and the alias only keeps the lines short.
+  // (D352's sweep) and the alias only keeps the lines short.
   const MS = MapStats;
   const d = MS.dist(node.qid, anchor.id, n, node.aidx);
   const who = MS.groupLabel(anchor.id);

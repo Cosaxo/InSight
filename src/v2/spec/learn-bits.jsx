@@ -42,7 +42,7 @@ export function LMFriends({ card, col }) {
 }
 
 // lmAv alone stays on the bridge: world-feed.jsx calls it bare, a
-// cross-module call the scanner cannot see (D345 left it for that reason).
+// cross-module call the scanner cannot see (D352 left it for that reason).
 Object.assign(window, { lmAv });
 
 ;globalThis.lmAv = typeof lmAv === 'undefined' ? globalThis.lmAv : lmAv;

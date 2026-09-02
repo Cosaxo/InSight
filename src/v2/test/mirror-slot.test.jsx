@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Mirror tab arrives after first paint (D346), through a SLOT rather
+// The Mirror tab arrives after first paint (D353), through a SLOT rather
 // than a React.lazy — map-slot.test.jsx has the reason, and how the two
 // shapes behave under a failed chunk. What THIS file pins is the half the
 // Map does not have: the handoff. A slot's state starts empty, so the Map

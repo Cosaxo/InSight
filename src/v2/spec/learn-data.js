@@ -12,7 +12,7 @@
 // line above that one — reorder those two and the card bank is silently
 // empty, with no error anywhere. That ordering is now a module-graph
 // guarantee, which is the same fragility the `daily-questions.js` conversion
-// removed for `map-branches.js`. The store is an import too since D345 —
+// removed for `map-branches.js`. The store is an import too since D352 —
 // read at CALL time in learnLive()/LEARN_COUNTS, never while evaluating.
 import { sharePcts } from '../data/pct';
 import LIVE from '../data/live';

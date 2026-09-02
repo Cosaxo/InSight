@@ -26,7 +26,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
 // is typed and pinned. The General tab shows it as a fifth ring
 // in "Your tests".
 // ─────────────────────────────────────────────────────────────
-// The saved-result reader profile-general imports (D345's sweep);
+// The saved-result reader profile-general imports (D352's sweep);
 // assigned inside the IIFE below. LogicOverlay stays published: app-shell
 // mounts it by name after awaiting loadOverlays().
 export let LOGIC;

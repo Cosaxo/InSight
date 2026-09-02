@@ -67,7 +67,7 @@ beforeAll(async () => {
   // a tab that never rendered one — the vacuous pass this file's own
   // comments were written about.
   await specIndex.loadWorldFeed();
-  // The Mirror is lazy since D346 and rendered through a slot that is
+  // The Mirror is lazy since D353 and rendered through a slot that is
   // same-tick only once the prewarm has remembered its module — every
   // Mirror case below clicks the tab and asserts in the same breath.
   await specIndex.loadMirrorTab();

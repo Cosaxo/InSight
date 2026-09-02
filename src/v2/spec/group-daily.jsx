@@ -23,7 +23,7 @@ import NAV from '../data/nav';
 // reveal (with names) sits above today's question; answer, then swipe down.
 // The two names other modules read — GDAv (duo-daily, group-mirror,
 // group-role-map) and GroupDailyBody (daily-split) — leave the IIFE as
-// named exports (D345's sweep). The functions are declared inside it and
+// named exports (D352's sweep). The functions are declared inside it and
 // close over its state, so they are handed out through this object rather
 // than re-declared; the IIFE runs before the export line below does.
 const EXPORTS = {};

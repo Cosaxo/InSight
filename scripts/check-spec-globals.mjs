@@ -445,7 +445,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/mirror-field-pops.jsx": 1,
   "src/v2/spec/search-overlay.jsx": 3,
   "src/v2/spec/segment-explorer.jsx": 1,
-  // test-definitions.js is the one reader of `window.LIVE` left after D345,
+  // test-definitions.js is the one reader of `window.LIVE` left after D352,
   // and its four sites stay on purpose: the module also loads under plain
   // node (scripts/report-lib.mjs), where data/live.ts cannot follow it.
   "src/v2/spec/test-definitions.js": 4,

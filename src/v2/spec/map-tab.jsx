@@ -13,7 +13,7 @@ import { list as anchorList } from './map-anchors.js';
 // graph does — imports evaluate before this module's body — and one
 // dynamic import of THIS file (mirror-tab's lazy body, spec-index's
 // loadMapTab) brings the whole family in one deferred chunk. All six
-// arrive as named bindings since D345's sweep; the cards' `window.X ?`
+// arrive as named bindings since D352's sweep; the cards' `window.X ?`
 // guards went with the bridge reads.
 import { MTRootCard, MTAnchorCard, MTBranchCard, MTSubCard, MTAnswerCard } from './map-bottom-card.jsx';
 import { MTLearnCard, MTLearnSubCard } from './map-learn-card.jsx';

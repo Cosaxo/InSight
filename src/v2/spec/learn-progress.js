@@ -2,7 +2,7 @@
 // revision). THIS file is the live source now, hand-edits and all.
 // OFF THE GLOBAL BRIDGE (D109): `LEARN` is a named export, and the content
 // it folds arrives as imports rather than as globals this file hoped had
-// already been assigned. The store followed at D345 (`LIVE` below) — read
+// already been assigned. The store followed at D352 (`LIVE` below) — read
 // at call time in `answer`, and deliberately NOT for the module-scope seed,
 // which keys off the build flag (see LIVE_BUILD).
 import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-data.js';

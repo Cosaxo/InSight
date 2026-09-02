@@ -15,10 +15,10 @@ import { reportError } from '../../lib/sentry';
 // answers with the navigation, map-tab reads the where. ESM on all three
 // sides, so the coupling ratchet never counts it.
 import { onMapCue } from '../data/mapCue.ts';
-// The Mirror chunk's handoff (D346) — see MirrorSlot below.
+// The Mirror chunk's handoff (D353) — see MirrorSlot below.
 import { peekMirror, rememberMirror } from '../data/mirrorChunk';
 import LIVE from '../data/live';
-// D345's sweep: the shell's own eager neighbours as imports — the daily
+// D352's sweep: the shell's own eager neighbours as imports — the daily
 // tab, the device frame, the passive meter and the feed's memory. The
 // `window.X &&` beside the meter was a load-order guard on an eager module.
 import { DailySplit } from './daily-split.jsx';
@@ -51,7 +51,7 @@ import { useDialog } from './primitives.jsx';
 // is not in TABS, so nothing here ever renders and the chunk never loads.
 const PatternsTabLazy = React.lazy(() => import('../ui/PatternsTab.tsx'));
 
-// The Mirror tab, after first paint (D346) — a SLOT rather than a
+// The Mirror tab, after first paint (D353) — a SLOT rather than a
 // React.lazy, for the reason mirror-tab.jsx's MapSlot gives: React.lazy
 // caches a rejection, and the tab boundary below is keyed per tab, so one
 // failed chunk fetch would make the app's main tab "This view hit a snag"

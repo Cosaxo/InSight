@@ -35301,7 +35301,7 @@ so the default mount holds the nudge line and the absence of the dead
 and asserts the swap. live.ts's observer comment and the fixture's
 `linked` note are updated to stop describing the defect as current.
 
-## D345 · The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32
+## D352 · The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32
 
 **2026-09-01.** Owner: *"you know have full creative controll how do you
 optemize and improve this project, aim to have big improvment as
@@ -35309,7 +35309,7 @@ posible"*. Read as a mandate for the engineering work the tree already
 names as open and measures with its own gates, rather than for a new
 surface: `check:globals` rule 4 (the shared-global coupling ratchet, D39)
 and `check:bundle`'s `MAX_EAGER_KB` (first paint, D110/D144). This record
-is the ratchet's half; D346 is first paint's. Every number below is the
+is the ratchet's half; D353 is first paint's. Every number below is the
 gate's own output at the commit, not a hand count.
 
 ### The provider view said where a third of the meter was
@@ -35385,7 +35385,7 @@ account.
 **32 across 8 files**, each with its reason beside its baseline entry:
 the seven overlay tags `app-shell` mounts by name after awaiting
 `loadOverlays()`, plus that loader — the lazy-mount contract (D38/D223),
-which converts only by holding the overlay namespaces the way D346's slot
+which converts only by holding the overlay namespaces the way D353's slot
 holds the Mirror's; `WorldFeed`, `ConsequenceBeat` and `DuoBody` read
 from the eager side, where an import would drag a lazy module into first
 paint; `MAP_OPEN_GROUP` across two lazy groups; `registerBackHandler`, a
@@ -35400,9 +35400,9 @@ publish, which is how the two misses inside the sweep were found before
 the suite ran; the README's figure is held by `check:globals` itself.
 `check:figures` moved CLAUDE.md's off-the-bridge count 32 → 53 modules.
 
-## D346 · The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB
+## D353 · The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB
 
-**2026-09-01.** The other half of D345's mandate, measured by
+**2026-09-01.** The other half of D352's mandate, measured by
 `check:bundle`'s `MAX_EAGER_KB` — the number its own header says to quote
 for a first-paint claim. A sourcemap attribution of the shipping bundle's
 eager set (entry + every `modulepreload`, 761 KB) put the Mirror tab's
@@ -35455,7 +35455,7 @@ frame.
 | --- | --- | --- | --- | --- |
 | before | 761 KB | 243 KB | 2154 KB | 880 |
 | the Mirror behind `loadMirrorTab()` | 633 KB | 133 KB | 2157 KB | 645 |
-| + `ui/CityPicker`, `ui/PickSearch` off the eager list (D345's sweep) | 619 KB | — | 2157 KB | 630 |
+| + `ui/CityPicker`, `ui/PickSearch` off the eager list (D352's sweep) | 619 KB | — | 2157 KB | 630 |
 
 −142 KB from first paint, 19%, the largest drop since D110 took the
 Firestore SDK out; the total within 3 KB, which is the shape every honest
@@ -35476,6 +35476,6 @@ breath, no await — is the same-tick claim asserted on the whole app.
 importers including live fallbacks, so it is a design change rather than
 a move; `daily-questions.js` (34 KB) is the daily tab's spine; react-dom
 is the framework. The overlay mounts in `app-shell` are the next slot
-candidates and D345 records why they are structural. The attribution
+candidates and D352 records why they are structural. The attribution
 script that produced the table is the way to re-measure: by source file,
 off the sourcemap, not by chunk name.

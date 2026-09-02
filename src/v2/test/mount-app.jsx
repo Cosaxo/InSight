@@ -67,7 +67,7 @@ export function registerSmokeHooks() {
     // layer — the feed renders on the daily tab, so dropping it costs coverage
     // without failing anything.
     await specIndex.loadWorldFeed();
-    // …and the Mirror (D346), which app-shell mounts through a slot that
+    // …and the Mirror (D353), which app-shell mounts through a slot that
     // renders in the same tick ONLY once this has remembered the module on
     // data/mirrorChunk. Without it every Mirror case would click the tab
     // and assert against the empty frame before the slot's import lands.

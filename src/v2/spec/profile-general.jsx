@@ -7,7 +7,7 @@ import React from 'react';
 import NAV from '../data/nav';
 import { loadMine as loadPurchases, mine as myPurchases, subscribePurchases } from '../data/purchases';
 import LIVE from '../data/live';
-// D345's sweep: the lens store, the saved logic result, the demo Scenes
+// D352's sweep: the lens store, the saved logic result, the demo Scenes
 // field and the city picker as imports. This panel rides loadOverlays(),
 // which awaits the Mirror's chunk first, so mirror-field-pops is landed
 // before this can render; logic-test.jsx is pulled into this chunk by the

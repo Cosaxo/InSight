@@ -72,14 +72,14 @@ import ELEMENTS_CATALOG from '../data/elements.ts';
 import { COUNTRIES, DOGS, COLORS, LANGUAGES } from '../data/catalogs.ts';
 // Imported rather than read off window — same meter reasoning as the
 // imports above. Every LIVE read in this file goes through this binding
-// since D345. The `window.LIVE &&` existence guards it took with it were
+// since D352. The `window.LIVE &&` existence guards it took with it were
 // load-order guards an import makes unreachable; the member-existence
 // guards (`L.myVotes ? … : null`, `L.editVote && …`) guarded methods the
 // store's literal always defines (the surface pin in data/vote.test.ts).
 // The data conditions — `.enabled`, `.demoInProd` — stayed.
 import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
-// D345's sweep: the feed's own group members and the eager passive tag as
+// D352's sweep: the feed's own group members and the eager passive tag as
 // imports. learn-bits and learn-social ride this same chunk (loadWorldFeed
 // lists them ahead of this file), consequence-beat too; PickSearch is the
 // pick card's typed picker. Every `window.X ?` beside these was a
@@ -1595,7 +1595,7 @@ class WorldFeed extends React.Component {
   // LIVE and PICKS are the IMPORTED bindings, not `window.*`. This seam
   // landed on main while this file was coming off the bridge (D249), and
   // the header above is explicit that no window.LIVE read may join it
-  // (there are none left since D345). `return PICKS` for the same reason
+  // (there are none left since D352). `return PICKS` for the same reason
   // the `PK ?` guards below are gone: an imported binding cannot be unset,
   // so the fallbacks they guarded are unreachable (D108).
   pickSrc(q) {

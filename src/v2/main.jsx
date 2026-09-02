@@ -6,7 +6,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { loadWorldFeed, loadMirrorTab, loadMapTab, loadOverlays } from './spec-index.js';
-// The root, imported (D345's sweep) — spec-index above has already
+// The root, imported (D352's sweep) — spec-index above has already
 // evaluated app-shell by the time this binding is read, and the
 // `globalThis.App` publication stays for the mount suites.
 import { App } from './spec/app-shell.jsx';
@@ -61,7 +61,7 @@ initLive().finally(() => {
     (err) => reportError(err, { where: 'loadWorldFeed' }),
   );
 
-  // The Mirror (D346) — the second tab, one tap from first paint, so this
+  // The Mirror (D353) — the second tab, one tap from first paint, so this
   // is a prewarm on the feed's schedule rather than a defer-until-needed:
   // started right behind the feed's fetch, and by the time a thumb reaches
   // the tab bar the namespace is remembered on data/mirrorChunk and
@@ -94,7 +94,7 @@ initLive().finally(() => {
   // memoised promise before setting the state that mounts one — so the
   // await is the synchronisation and a re-render would buy nothing.
   //
-  // Started AFTER loadWorldFeed rather than alongside it — and since D346
+  // Started AFTER loadWorldFeed rather than alongside it — and since D353
   // after the Mirror and the Map too: all of these are pure parse-and-eval
   // off local disk in a native package, so they contend for the same main
   // thread, and the order is the order a thumb reaches them. The feed is

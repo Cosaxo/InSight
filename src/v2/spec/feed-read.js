@@ -4,7 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import { sharePcts } from '../data/pct';
-// The store (D345): `feedInsight` below reads the aggregate through it at
+// The store (D352): `feedInsight` below reads the aggregate through it at
 // call time. Imported rather than `window.LIVE` — the load-order guard
 // that read carried is unreachable on an import.
 import LIVE from '../data/live';
