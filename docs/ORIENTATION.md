@@ -225,6 +225,7 @@ everything else: the static gates, and where each one runs.
 | `check:ios-location` | ci | The iOS location declarations against what the app does. ITMS-90683 is why it exists |
 | `check:devicebind` | ci | D29's iOS and Android bridges are registered, not merely present — the failure it guards is silent (D342) |
 | `check:account-level` | deploy | firestore.rules' account bar equals `accountLevel.ts`'s `REQUIRED_LEVEL` — they disagree silently both ways (D343) |
+| `check:web-headers` | ci | Every page under `web/` is covered by a hosting headers rule — the enumerated `source` lists lost four pages in a week |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |
 | `check:store-copy` | release | No unfilled placeholders in the store-facing legal pages. Runs on every iOS archive (`ios-release.yml`) and is off CI on purpose |
