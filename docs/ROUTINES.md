@@ -125,6 +125,28 @@ not just a free slot in the day.
   every time. It is registered here as live because it is live; writing
   its contract is open work.
 
+### Appended by session 2, 2026-09-02 — rule 4, not an edit
+
+Three rows above were overtaken by `main` inside the hour after §2's
+09:46 UTC verification. Recorded here, left for their owner to
+re-verify; nothing in §2 is edited.
+
+- **The farm, learn and feed ids moved again.** `QUESTION-FARM.md` on
+  `main` (D350) names `trig_015gV8je1wJ8yRsk2zAKp6oe`,
+  `trig_01Qguc3PyigsW7RvQLvC6X5G` and `trig_01MXbzJvRuKgYpD1Hea9XE8o`,
+  the product of two further delete-and-recreate swaps the same day —
+  the last so the prompts cite the manual's sections instead of a
+  record number a renumber can move. §2's three were current when read
+  and stale within the hour: rule 2's own argument, arriving faster
+  than the file that states it. This branch took `main`'s side of that
+  file wholesale when the two collided, because the newer ids are the
+  ones a lane will answer to.
+- **Both open items in §2's observations are closed on `main`.** The
+  prompt drift it recorded and deliberately did not repair was repaired
+  by the same swap (D350), and the now lane's missing contract is
+  `QUESTION-FARM.md` § The now lane (D351) — the lane that had been
+  no-opping daily since 09-01 now has the block its prompt names.
+
 ---
 
 ## 3 · Session 2 — the axes program, the theory lanes, the doc sweep, the night shift
@@ -278,9 +300,8 @@ is narrower than it looks: every Routine either account can see belongs
 to one of those two. **Whoever owns a third: write this block** — §2 and §3 are the
 shape, and rule 2 is how you fill it.
 
-**Not the same thing as unregistered work.** `docs/OPS-RUNBOOK.md` on
-`claude/routines-planning-project-qqyave` (PR #361) specifies eight ops
-lanes — a one-off platform probe, then roll call, PR shepherd,
+**Not the same thing as unregistered work.** `docs/OPS-RUNBOOK.md`, on
+`main` since PR #361 merged, specifies eight ops lanes — a one-off platform probe, then roll call, PR shepherd,
 production reader, release recorder, pulse responder, dependency
 shepherd and list worker — and its own Status line says none of them
 exists yet. They get no rows here until they fire, because this file's

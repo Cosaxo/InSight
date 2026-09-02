@@ -59,6 +59,7 @@
     "learn:budget": "node scripts/learn-budget.mjs",
     "feed:budget": "node scripts/feed-budget.mjs",
     "duel:budget": "node scripts/duel-budget.mjs",
+    "now:budget": "node scripts/now-budget.mjs",
     "costs": "node scripts/cost-model.mjs",
     "costs:compare": "node scripts/cost-compare.mjs",
     "costs:levers": "node scripts/cost-levers.mjs",
