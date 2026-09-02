@@ -131,10 +131,15 @@ skeptic's verdict where one exists), and its **stage**:
 
     new → approved → in the shift → ready → merged
 
-**The owner's gesture: a label.** `approved` on the PR — one tap in
-the GitHub app — is the approval; the list mirrors the label within the
-hour. (Alternative, if the owner prefers the file: a tick on the row,
-which the shift reads as the same act. §9 Q2.)
+**The owner's gesture: a tick in the file** (the owner's answer,
+§10). Change `- [ ]` to `- [x]` on the row and commit to `main` from
+the GitHub app; the console workflow runs on that push and mirrors the
+tick to the label `approved` on the PR, which is what the merge shift
+reads. The same rows stand in the pinned Console issue with clickable
+boxes, and a tick there is the same act mirrored back into the file.
+Branches that never became a PR — the night shifts', the improvers' —
+are rows too, in a `no PR yet` stage; ticking one makes the workflow
+open the PR and label it (§10, answer 12).
 
 **What approval starts: the merge shift** (§4.2). The night shift's
 shape pointed at one PR instead of the tree: bring the branch current
@@ -156,7 +161,7 @@ application to the shift, for PRs the owner has already approved. The
 decision stays the owner's (the `approved` tap); the shift executes
 it; the shepherd's step 4 still holds, because the shift labels
 *after* its last push, so every commit after arming is the
-shepherd's own. §9 Q2 asks the owner to say this in words, and the
+shepherd's own. The owner said it in words on 2026-09-02 (§10, answer 2), and the
 record that adopts this plan amends §0 with the date.
 
 **Who writes the list.** The shift rewrites it each run; between
@@ -642,6 +647,9 @@ share a minute with a content lane's self-merge.
 
 ## 9 · The questions — each with the recommendation
 
+*Answered 2026-09-02 — §10 holds the answers. The questions stay as
+the record of what was asked.*
+
 1. **The theory lanes on this account** — a second set on the opposite
    parity (every lane daily; recommended), the existing set moved
    here, or something else?
@@ -689,3 +697,63 @@ share a minute with a content lane's self-merge.
     and stop, and the owner opens the PR. Should the console list those
     branches as merge-list rows in a `no PR yet` stage, so they stop
     depending on the owner remembering them?
+
+## 10 · The owner's answers, 2026-09-02 — what each one sets
+
+Quoted where the words carry the decision; the reading beside each is
+what the runbook builds from. Every one is binding on adoption
+(`PROGRAM-RUNBOOK.md` phase 1.4's record).
+
+1. **The theory lanes:** *"second set opposite days."* — Claude 3 runs
+   the subject lanes on even dates and the reader lanes on odd, the
+   review lane on even nights; every lane fires daily. Runbook phase 4.
+2. **Approval:** *"the ops runbook says … only you may put it on a PR,
+   never a routine — this is wrong, the shepherd can. a second label
+   called approved sounds like the way and it should be done by
+   ticking a box in the list file."* — The owner's act is the tick in
+   `MERGE-LIST.md`; the console workflow mirrors it to the label
+   `approved`; the merge shift applies `merge-when-green` when the PR
+   is green and reviewed; the shepherd merges. `OPS-RUNBOOK.md` §0's
+   "no lane ever applies it" is amended to *the owner's act, executed
+   by the owner or by the merge shift on a PR the owner approved*.
+3. **The doers:** *"i will add a to-do doer to claude 1 and 3 (or you
+   can add it to 3) and they have to work together the best they
+   can."* — One per subscription; the Claude 3 one is created from
+   here; they work together through the tag rule (§2.2): never one
+   another's items, one in flight per account, a tag moved with its
+   reason.
+4. **The rule's boundary:** *"as long as they dont limit functionality
+   then it has to be approved that it can be blocked because of a
+   limit."* — Nothing blocks axiom functionality on its own. The
+   exceptions in §3 stand only where they do not limit it; where a
+   limit would block something, the block is put to the owner first
+   and needs their approval. The `CLAUDE.md` paragraph says so.
+5. **The console:** *"its an artifact but we need a system that works
+   across all sessions."* — The data lives in the repository (the
+   pinned Console issue, the trail, the lists), every account writes
+   to it through the repository, and one account republishes the
+   charted artifact from it (§5, the keeper).
+6. **Visuals:** *"a routine can draft it for me as long as it first
+   makes the plan then uses claude design."* — A request goes
+   `requested → planned → drafted`: the routine writes the plan whole,
+   then drafts the canvas with the design skill, then the owner
+   refines it.
+7. **The name:** *"the axiom builder is fine."*
+8. **The axiom list:** *"yeah when status shifts it can start
+   building."* — The status word is the builder's licence (§2.5's
+   table). Moving a row is the owner's edit.
+9. **The builder's cadence:** *"yeah sounds correct."* — Three runs a
+   day, at most three open builder PRs, bridge verdicts first.
+10. **The register:** *"there should be a common file where all the
+    routines are listed and described; they are on claude 2 and the
+    ones that were not created are about to be."* — `ROUTINES.md` is
+    that file, and it gains a plain one-line description per routine
+    (runbook phase 5.3). The ops dispatcher and its four lanes are on
+    Claude 2, confirmed; the PR shepherd and the other three are being
+    created there.
+11. **The forgotten list:** *"a routine health panel and routine
+    overview list."* — The console's routine-health panel (§5) and the
+    register's overview section.
+12. **Branches without PRs:** *"agree with your suggestion."* — The
+    merge list carries them as `no PR yet` rows; a tick opens the PR.
+
