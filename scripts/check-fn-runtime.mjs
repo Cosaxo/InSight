@@ -92,7 +92,23 @@ if (!rows.length) {
   process.exit(1);
 }
 
-const bare = rows.filter((r) => r.mem == null || r.timeout == null || r.maxInst == null);
+// NUMBERS, not merely "not null" — and the difference is the whole gate.
+//
+// firebase-functions never leaves these three unset. An omitted `memory`
+// or `timeoutSeconds` is backfilled with the gen-2 defaults, and an
+// omitted `maxInstances` becomes a RESET SENTINEL — an object, so
+// `== null` is false for it however it prints. The old predicate was
+// therefore unreachable: deleting `memory: "512MiB"` from ops.ts's
+// setGlobalOptions puts deleteAccount back on 256 MiB (measured, not
+// argued) and this script printed "all with explicit memory, timeout and
+// maxInstances" and exited 0. The only trace was `mem=[object Object]MiB`
+// in a table nothing reads.
+//
+// That is the exact failure the header of this file exists for, on the
+// deploy path, wearing the shape CLAUDE.md warns about: a gate that
+// checks something and cannot fail.
+const isExplicit = (v) => typeof v === "number" && Number.isFinite(v);
+const bare = rows.filter((r) => !isExplicit(r.mem) || !isExplicit(r.timeout) || !isExplicit(r.maxInst));
 for (const r of rows) {
   console.log(
     `  ${r.name.padEnd(26)} mem=${String(r.mem).padStart(5)}MiB `
