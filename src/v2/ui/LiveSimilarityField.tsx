@@ -686,10 +686,15 @@ export function NearField() {
   const placed = placeable.slice(0, NEAR_FIELD_CAP);
   // Nobody is "untested" while their profile is still in flight — the same
   // conflation the empty arm below now guards against, in the caption
-  // instead. `placeable` is empty for the whole of the read, so without
-  // this the caption tells you "the rest have not taken it" about every
-  // person in the room. Found by the closing flow reading this night
-  // against night-20260901, which fixed both halves together.
+  // instead. The `!placed.length` arm below returns FIRST, so this number
+  // is only ever read in a PARTIALLY read room: some members' scores
+  // already in the profile cache, the rest still on the wire. Those in
+  // flight would be counted as people who have not taken it. (The first
+  // version of this comment said `placeable` is empty "for the whole of
+  // the read", which is the one case in which this line never renders at
+  // all — true about the field, wrong about this number.) Found by the
+  // closing flow reading this night against night-20260901, which fixed
+  // both halves together.
   const untested = reading ? 0 : roster.length - placeable.length;
   const capped = placeable.length > placed.length;
 
