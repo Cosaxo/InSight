@@ -131,6 +131,25 @@ Both apps must be registered under `com.cosaxo.insight`:
   the file is a snapshot, not a live lookup. Nothing in this repo can see
   either omission: the file is gitignored and account-gated, so
   `check:store-copy` and CI are both blind to it.
+
+  **And register the app for App Check with the Play Integrity provider,
+  which this entry did not name until 2026-09-01.** Every callable in the
+  tree demands App Check attestation (D36, `check:appcheck` on the deploy
+  path). `src/lib/appcheck.ts` initialises the native plugin, which
+  auto-selects DeviceCheck on iOS and **Play Integrity on Android** — so
+  the Android half needs the Play Integrity API enabled on the linked
+  Cloud project, the Play Console account linked to it, and the Android
+  app registered in Firebase Console → App Check with that provider.
+
+  Miss it and the app installs, opens, renders, and **every callable is
+  rejected**. That is the same silent shape as the two traps above, and
+  the reason it was missing is worth keeping: on iOS this was satisfied as
+  a side effect of enrolling in the Apple Developer Program, so the
+  omission could not show up on the platform that shipped.
+  `docs/DEVICE-BIND.md` §1 already carries the Play Integrity console
+  steps for D29's purposes — the App Check registration is a different
+  switch on the same API, and doing one does not do the other.
+  `docs/PLAY-RELEASE.md` §2.3 has the rest of the Play path.
 - **iOS** — Add app → iOS → download `GoogleService-Info.plist` → add to
   `ios/App/App/` in Xcode (add to target), then copy that file's
   `REVERSED_CLIENT_ID` value over the `REPLACE_WITH_REVERSED_CLIENT_ID`

@@ -46,14 +46,32 @@ const PAGES = ["web/terms.html", "web/privacy.html"];
 // covers them and a fourth costs one line here.
 const REPLACE_MARKER = /REPLACE_WITH_[A-Z0-9_]+/g;
 
-// `parked: true` means the placeholder cannot block the release currently
-// being made. Only D42's Play deferral sets it today: the assetlinks
-// fingerprint comes from Play Console → App signing, which does not exist
-// while Play is deferred, so an iOS release must be able to pass with it
-// still unfilled. It is still REPORTED in every mode — a parked
-// placeholder that goes quiet is one nobody remembers to fill.
+// Two kinds of excuse, and they are NOT the same kind of thing.
+//
+// `parked` means the placeholder belongs to a store this release is not
+// going to. The assetlinks fingerprint is the only one: an iOS build does
+// not care whether Android App Links verify, so `--ios` may pass with it
+// unfilled. That excuse is permanent and says nothing about whether the
+// value is obtainable.
+//
+// `bootstrap` means the placeholder cannot be filled YET, and the release
+// being made is what makes it fillable. Same file, different reason: the
+// Play signing fingerprint is minted by Play Console → App signing, which
+// has nothing to show until an artifact has been uploaded. So the FIRST
+// Play upload is a genuine chicken-and-egg and every upload after it is
+// not. `--first-upload` excuses exactly that one run, loudly, and bare
+// mode — which is what play-release.yml uses by default — fails on it
+// forever after. The excuse fails CLOSED: forgetting the flag is a red
+// build, forgetting to fill the value afterwards is also a red build.
+//
+// Both kinds are still REPORTED in every mode. An excused placeholder that
+// goes quiet is one nobody remembers to fill, which is the failure this
+// whole script exists for.
 const CONFIGS = [
-  ["web/.well-known/assetlinks.json", "Play Console → Setup → App signing", { parked: "Play deferred (D42)" }],
+  ["web/.well-known/assetlinks.json", "Play Console → Setup → App signing", {
+    parked: "not on the iOS path",
+    bootstrap: "minted by the first Play upload — fill it before the next run",
+  }],
   ["web/.well-known/apple-app-site-association", "Apple Developer → Membership → Team ID"],
   ["ios/App/App/Info.plist", "REVERSED_CLIENT_ID in GoogleService-Info.plist"],
 ];
@@ -64,6 +82,12 @@ const CONFIGS = [
 // design, and the first response to a gate that always fails is to delete
 // the gate. Default mode is unchanged and still reports everything.
 const IOS_ONLY = process.argv.includes("--ios");
+
+// --first-upload: the Play bootstrap above. Deliberately a different flag
+// rather than a widening of --ios, because they excuse the same line for
+// opposite reasons and collapsing them would make "not my store" and "not
+// yet mintable" indistinguishable in a log.
+const FIRST_UPLOAD = process.argv.includes("--first-upload");
 
 let problems = 0;
 let parked = 0;
@@ -81,17 +105,19 @@ function scan(rel, pattern, missingNote, hint, opts = {}) {
     problems++;
     return;
   }
-  const excused = Boolean(opts.parked) && IOS_ONLY;
+  const reason = (Boolean(opts.parked) && IOS_ONLY && `parked — ${opts.parked}`)
+    || (Boolean(opts.bootstrap) && FIRST_UPLOAD && `bootstrap — ${opts.bootstrap}`)
+    || null;
   readFileSync(path, "utf8")
     .split("\n")
     .forEach((line, i) => {
       for (const m of line.matchAll(pattern)) {
         console.error(
           `check-store-copy: ${rel}:${i + 1} unfilled placeholder ${m[0]}` +
-            (excused ? `  [parked — ${opts.parked}, not blocking]` : "") +
+            (reason ? `  [${reason}, not blocking]` : "") +
             (hint ? `\n    → ${hint}` : ""),
         );
-        if (excused) parked++;
+        if (reason) parked++;
         else problems++;
       }
     });
@@ -119,5 +145,15 @@ if (problems) {
 console.log(
   `check-store-copy OK — no unfilled placeholders in ` +
     `${PAGES.length} store-facing pages, ${CONFIGS.length} config files.` +
-    (parked ? `\n  (${parked} parked placeholder(s) reported above and excused by --ios.)` : ""),
+    (parked
+      ? `\n  (${parked} placeholder(s) reported above and excused by `
+        + `${IOS_ONLY ? "--ios" : "--first-upload"}.`
+        + (FIRST_UPLOAD
+          ? "\n   THIS EXCUSE IS GOOD FOR ONE RUN. Play Console → Setup → App"
+            + "\n   signing has the SHA-256 once this build is uploaded; put it in"
+            + "\n   web/.well-known/assetlinks.json and deploy hosting before the"
+            + "\n   next release, which will fail on it."
+          : "")
+        + ")"
+      : ""),
 );

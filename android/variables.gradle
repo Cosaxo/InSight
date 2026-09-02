@@ -13,6 +13,9 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // Play Integrity — D29's Android attestation, and the Device Recall
+    // bits that carry the one-account-per-device-per-month bound.
+    playIntegrityVersion = '1.4.0'
     // @capacitor-firebase/authentication ships each provider's SDK behind
     // an opt-in flag. Without this the Google Sign-In dependency is never
     // pulled in and FirebaseAuthentication.signInWithGoogle() fails at
