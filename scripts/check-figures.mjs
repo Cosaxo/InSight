@@ -186,6 +186,7 @@ const learnConst = constFrom("scripts/learn-budget.mjs");
 // not less: a manual quoting a bigger number than the script computes is the
 // one way a run could be told to spread the crowd thinner than the design says.
 const feedConst = constFrom("scripts/feed-budget.mjs");
+const nowConst = constFrom("scripts/now-budget.mjs");
 // The duel regulator's constants (D213), same reasoning as the other three
 // lanes': the duel section is what a scheduled run obeys.
 const duelConst = constFrom("scripts/duel-budget.mjs");
@@ -1130,6 +1131,29 @@ const FIGURES = [
     actual: budgetConst("PROMOTE_PACE"),
     fix: (n) => `"promotes up to **${n} pen questions per run**"`,
   },
+  // The daily lane's floor and its demand share's thresholds (D350) — the
+  // allocation § Picking topics quotes, computed by farm-budget.mjs.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily per-top floor (TOP_FLOOR)",
+    re: /\*\*(\d+) questions per top\*\*/,
+    actual: budgetConst("TOP_FLOOR"),
+    fix: (n) => `"**${n} questions per top**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited daily answers\*\*/,
+    actual: budgetConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited daily answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the daily lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: budgetConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the daily lane reads no scorecard older than **${n} days**"`,
+  },
   // The four D115 learn-lane figures, quoted in § The learn-card lane.
   {
     file: "docs/QUESTION-FARM.md",
@@ -1140,9 +1164,9 @@ const FIGURES = [
   },
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the learn per-field depth target (FIELD_TARGET)",
+    what: "the learn per-field floor (FIELD_FLOOR)",
     re: /\*\*(\d+) cards per\s*\n?\s*field\*\*/,
-    actual: learnConst("FIELD_TARGET"),
+    actual: learnConst("FIELD_FLOOR"),
     fix: (n) => `"**${n} cards per field**"`,
   },
   {
@@ -1158,6 +1182,21 @@ const FIGURES = [
     re: /at least \*\*(\d+) cards into any field it touches\*\*/,
     actual: learnConst("MIN_CHUNK"),
     fix: (n) => `"at least **${n} cards into any field it touches**"`,
+  },
+  // The learn demand share's two thresholds (D350), same shape as the feed's.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited learn answers\*\*/,
+    actual: learnConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited learn answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the learn lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: learnConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the learn lane reads no scorecard older than **${n} days**"`,
   },
   // The three feed-lane figures, quoted in § The feed lane. Same reasoning as
   // the other two lanes': the section is what a scheduled run obeys, so a cap
@@ -1175,9 +1214,9 @@ const FIGURES = [
   },
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the feed per-topic breadth target (TOPIC_TARGET)",
+    what: "the feed per-topic coverage floor (TOPIC_FLOOR)",
     re: /\*\*(\d+)\s*\n?\s*servable questions per\s*\n?\s*topic\*\*/,
-    actual: feedConst("TOPIC_TARGET"),
+    actual: feedConst("TOPIC_FLOOR"),
     fix: (n) => `"**${n} servable questions per topic**"`,
   },
   {
@@ -1186,6 +1225,53 @@ const FIGURES = [
     re: /\*\*(\d+)\*\* unreviewed questions on\s*\n?\s*that PR/,
     actual: feedConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on that PR"`,
+  },
+  // The demand share's two thresholds (D350): the crowd it will not read a
+  // ranking off, and the scorecard age past which it goes blind. Quoted in
+  // the same section, for the same reason as the caps above.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited feed answers\*\*/,
+    actual: feedConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited feed answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /no older than \*\*(\d+) days\*\*/,
+    actual: feedConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"no older than **${n} days**"`,
+  },
+  // The now lane's four figures (D351), quoted in § The now lane: the cap,
+  // the open-PR ceiling, and the two halves of the source rule.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's per-run cap (NOW_CAP)",
+    re: /\*\*(\d+) current-events questions per run\*\*/,
+    actual: nowConst("NOW_CAP"),
+    fix: (n) => `"**${n} current-events questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's open-PR ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed questions on the now lane's open PR/,
+    actual: nowConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed questions on the now lane's open PR"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's corroboration bar (SOURCES_MIN)",
+    re: /at least \*\*(\d+) independent outlets\*\*/,
+    actual: nowConst("SOURCES_MIN"),
+    fix: (n) => `"at least **${n} independent outlets**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's freshness bound (FRESH_DAYS)",
+    re: /published within the last \*\*(\d+) days\*\*/,
+    actual: nowConst("FRESH_DAYS"),
+    fix: (n) => `"published within the last **${n} days**"`,
   },
   // The three duel-lane figures (D213), quoted in § The duel lane.
   {

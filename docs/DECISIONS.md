@@ -35943,3 +35943,295 @@ headroom is deliberately not restated as one: a ratio between a gated
 figure and a constant is a claim nothing can hold. It also now names
 what the old sentence quietly omitted — a day's qids are bank questions
 PLUS any `paidq-` ones, so the bank is not the only way to the fence.
+
+## D350 · The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory
+
+**2026-09-01.** **Status:** binding. The owner's ask, in their words,
+over one session: *"Feed should be higher allow more in each category
+and have system for prioretizing popular categories"*; on the caps in
+general, *"they are mostly holdovers when this app wrongly stated that
+there was a limit to the amount of questions"*; then, on reading the
+inventory below in its first form, *"remove the learn and daily lane
+holdovers too, same shape. and feed cap can be much higher."* The
+second sentence is the finding this record checks against the tree,
+lane by lane, in § The inventory; the third is what it does about it.
+
+### What shipped
+
+**One allocator, three lanes.** `scripts/lane-tiers.mjs` holds the
+shape once — three copies of one allocator is how the bank parser
+drifted into an invented figure (D197) — and the daily, learn and feed
+regulators call it:
+
+1. **The floor first.** Rows under the lane's floor (a feed topic, a
+   learn field, a daily top) are filled thinnest first, one per row per
+   pass, never past their own room under it. Breadth's minimum, not a
+   target: nothing stops at it.
+2. **Demand takes everything the floor leaves.** Weight per row =
+   popularity × depth — the daily lane's demand lane (QUESTION-FARM.md
+   § Picking topics) made computable: popularity is the row's share of
+   credited answers (the scorecard's conserved shares, TAGS-PLAN §3, so
+   a door redistributes demand and never mints it); depth is answers
+   per unit of stock against the deepest row — the reading of "how far
+   its audience goes through the pool" that stays measurable while
+   D319's volume order keeps new questions at the tail (least ÷ most
+   reads 0 for any row holding one unanswered question, which is all
+   of them). Units go out D'Hondt-style, leaders first over a small
+   budget; no row may take more than ⌈0.75 × batch⌉, the batch-mix
+   gate's own ceiling, so a regulator never prints a batch the
+   pre-flight refuses. The share is READ only when it can be believed:
+   at or past 100 credited answers on the lane and a scorecard no older
+   than 30 days (the manual's staleness rule). Below either the lane is
+   blind. Every lane is blind today — the scorecard credits 28 feed, 25
+   learn and 8 daily answers — and each test pins that it says so.
+3. **Levelling, blind.** The rest spreads thinnest-first across every
+   row with no ceiling.
+
+**Per lane:**
+
+- **Feed** (`feed-budget.mjs`): `TOPIC_TARGET` → `TOPIC_FLOOR` (24,
+  unchanged); the stop at the level is gone; `RUN_CAP` 6 → **60** and
+  `OPEN_MAX` with it (single-gate shape: one unreviewed batch at a
+  time, the one stop left). Sixty is D316's own order of magnitude over
+  the original six — SCALE-PLAN's first owner decision, *"question
+  production scales up by an order of magnitude or more"* — and a
+  throughput figure at the writing bar: the batch gates score sixty
+  candidates and their 1,770 sibling pairs in one pass, and the PR body
+  carries one packet line and one argument per question as before.
+- **Learn** (`learn-budget.mjs`): `FIELD_TARGET` → `FIELD_FLOOR` (24,
+  unchanged); the stop at the level is gone; chunk mode keeps D115's
+  shape rule — at most ⌊budget ÷ 4⌋ fields per run, split evenly, one
+  subject per chunk — and the demand tier reads the scorecard's learn
+  section, where a field's answers per card is the rate it is being
+  read at, which is what runway always meant. `RUN_CAP` stays 10.
+- **Daily** (`farm-budget.mjs`): the budget arithmetic is untouched
+  (`PEN_TARGET` 56, `RUN_CAP` 8, `PROMOTE_PACE` 2 — see the inventory
+  for why those are not holdovers); what changed is where a granted
+  budget GOES. `TOP_FLOOR` 8 per `CAT_META` top, then demand off the
+  scorecard's capitalised daily rows (the old replenishment lane folds
+  into depth), then levelling — printed by `npm run farm:budget` as
+  the allocation, read off the archive by check:quality's own corpus
+  loader. The manual's three "lanes" of 2026-07-30 survive as tiers 2
+  and 1; the sentence under them — *"if no lane has work … the run is
+  a no-op"* — is gone, because it fired on an EMPTY pen: with the crowd
+  too small to give a signal and every top past the old floor of four,
+  the lane logged eighteen straight no-ops against a granted budget of
+  8 (run log #31, 2026-08-14 → 09-01), D33's "never generate into a
+  full review queue" firing on an empty one. A granted budget is
+  always work; the run is a no-op only when the budget script grants
+  zero.
+
+`check:figures` holds every number above to the manual (the two
+renamed floors, and per lane the two demand thresholds; the daily's
+floor besides); `lane-tiers.test.mjs` pins the shape (21 cases) and the
+three lane suites their budgets — the no-stop property on each, floor
+before demand, chunking, the batch-mix cap, staleness, the depth factor
+that lets a small devoted row outrank a big diluted one;
+QUESTION-FARM.md § Picking topics, § The learn-card lane and § The
+feed lane rewritten around the tiers with their canonical prompt
+blocks; FEATURE-COMPLETE.md's three lane lines corrected, including the
+one that still said the feed lane's output was nil.
+
+### What it reverses, and on what grounds
+
+D145's stop at the feed level and D213's *"the dilution bound is a RATE
+bound, so the cap stays 6"*; D115's stop at the learn level; the
+maintainer's 2026-07-30 no-op sentence for the daily. All four were
+sized to a bank every device was handed whole, and that premise ended
+at D316–D321: the install fetches the boot surfaces, the core and a
+page per topic, never the bank; D316's adoption sentence is *"there
+should be no question limit"*, and its phase 2 says what that does to
+the lanes — *"the lane's pace unbinds from consumption … cadence and
+RUN_CAP become throughput questions answered by the writing bar rather
+than the read path."* A target a lane stops at is production sized to
+consumption. What was true in the dilution argument survives where it
+belongs: the demand signal is not READ until the crowd is real, and
+D319's order sinks a question that measures badly — quality moved from
+pre-emptive caps to the serving order, which is D316's own sentence.
+
+### What stands
+
+`OPEN_MAX` on every lane (about the gate, not the bank); every farm
+hard rule; the tail rule — the demand share allocates which TAIL topics
+a run writes into and has no pen on `core`, so *"popularity must not
+tilt the corpus"* holds by construction; `now` out of the feed fold
+(D231); the batch-mix and form gates (D316: none is a volume cap); the
+operator's reseed step. The live Routine prompts for the farm, learn
+and feed lanes were swapped for this record's blocks on 2026-09-02, by
+delete-and-recreate from a sibling session (`update_trigger` still
+refuses a prompt edit into a session that is not the caller's own —
+the D148 mechanism, re-measured); the Governance table carries the new
+ids. Until this record merges, the manual on `main` outranks the new
+prompts, as each prompt says every firing — so a run in between
+follows the old rules, which are the stricter ones.
+
+### The inventory — every cap in the question pipeline, and which premise it stands on
+
+Read off the tree (`npm run feed:budget`, `farm:budget`,
+`learn:budget`, `duel:budget`, the gates' constant blocks).
+
+**Holdovers of the bounded bank, retired here:** the feed's per-topic
+stop and its 6-per-run dilution cap; the learn lane's per-field stop;
+the daily lane's "no lane has work" no-op.
+
+**Still standing, the owner's call, one constant:**
+
+- **Duel `POOL_TARGET` 48** grants zero at 48 per pool. Partly real: the
+  duel banks are bounded rosters a device still takes whole at boot
+  (D321's census), so every question above it costs every install one
+  document — small, and a number to raise deliberately rather than a
+  premise to retire.
+
+**Real bounds, not holdovers** — each is a shape, a cost, or the
+writing bar, and none says how many questions there may be:
+
+- **The daily pen and pace** (`PEN_TARGET` 56, `PROMOTE_PACE` 2): the
+  daily is positional and consumes one a day by design (D316 — cohort
+  comparison needs everyone on the same question), the archive ships
+  in the JavaScript bundle (BANK-DELIVERY's ceiling 1, the one learn
+  left at D284), and the seeded daily bank ships whole to every device.
+  The pen is a promotion buffer with a runway meaning, and the pace is
+  what grows runway a day per day. Raise the pace and the bundle and
+  the id space below move with it.
+- `BANK_WARN` 6000 / `BANK_FAIL` 10000 seeded docs (`check:quality`):
+  re-pointed three times as ceilings retired, now watching the one
+  thing left of BANK-DELIVERY §4 — a device reads every CACHED row into
+  memory each boot. **At the new pace this is the decision owed
+  next:** about 65 documents a day (feed 60, learn ~3, daily 2) against
+  a bank of 744 reaches the warning around late November 2026 and the
+  failure around late January 2027 — and the failure is a hard CI red
+  for every content PR, which would be a question limit in everything
+  but name. The alarm asks for the in-memory design (an eviction rule
+  for unanswered tail pages, or a measured figure that retires the
+  tripwire); that is a device change with its own record, and it is
+  what to build before the date, not a cap to put back.
+- `DAILY_ID_WARN` 900 / `FAIL` 970 of 999: the `daily-NNN` id shape,
+  an id-scheme decision due before it breaks. Bank 130, growing at the
+  promotion pace.
+- Options 2–10 per question (`check:content`) and `optionIdx` 0–19 (the
+  aggregate fold's cell ceiling, `functions/src/v2.ts`): per-question
+  shape, not stock.
+- The published order doc (`v2_rank/feed`) at ~150 KB per 10,000 feed
+  questions against Firestore's 1 MiB: one doc per topic when a surface
+  approaches it (D319 says where to shard).
+- The batch-mix rule (no topic or form past ⌈0.75 × batch⌉) and every
+  `check:quality` form bound (`PROMPT_MAX` 120, `OPTION_MAX` 32,
+  `ALSO_MAX` 2, the tragedy and place tripwires): the writing bar.
+  D316: *"the bar does not move with the volume."*
+- The editorial carve-outs: `now` (D231), `rates` (D187), hard rule 6's
+  place-scoped civic questions (paid inventory), tests and pulses
+  (frozen instruments, D213's census). These bound WHAT a lane may
+  write, never how many.
+- Serving-side numbers that read like limits and are not: `FEED_PAGE`
+  12 and `LEARN_PAGE` 24 per topic per boot (page sizes — the pager
+  keeps fetching), `TASTE_MIN_TOTAL` 10 / `TASTE_TOPIC_MIN` 3 (when a
+  profile shapes pages), `RANK_DEAD_MIN` 20 at 90% (the landslide sink),
+  `DECK_DAYS` 7 (the history pager).
+- Cadence: one fire per lane per day is the Governance table's, and it
+  is the lever that moves throughput next.
+
+### Cost, so raising further is arithmetic
+
+At sixty a day the feed grows 420 a week, ~22,000 a year. A device's
+install is O(core + pages) whatever the bank (D321); the nightly rank
+fold reads O(bank) aggregates in 300-chunks — a night's ordinary work
+at these sizes, and its order doc shards per topic past ~60,000 (above).
+The write side is the Routine's own run on the owner's subscription,
+which fired daily already; what changes is that a run is never idle,
+and that a feed run is a long one.
+
+### When to revisit
+
+Raise a `RUN_CAP` when runs finish with the bar met and time to spare;
+lower it the day a batch merges with a dupe the re-read should have
+caught. Raise a floor if a filtered topic or a followed field still
+reads thin at 24, or a daily top at 8. Move `DEMAND_MIN_ANSWERS` with
+what the first real demand allocations look like against the evenness
+the scorecard then shows — a threshold set before the crowd exists is a
+starting figure, and the record says so. And build the in-memory
+design before the `BANK_FAIL` date above.
+
+## D350 amendment (2026-09-01) · The bank-size failure was a question limit in everything but name
+
+The inventory above named `BANK_WARN`/`BANK_FAIL` a real bound and put
+a date on the failure. The owner's reply: *"i dont understand this does
+youtube have a limit to how many videos can exist or twitter how many
+tweets?"* No — and the tripwire's own comment agreed without noticing:
+it counted the SEEDED bank as a proxy for "every row a device's cache
+has accumulated", and after D320/D321 the bank is not what a device
+holds. A gate that turns CI red at 10,000 questions is a limit on
+questions, whatever it is named.
+
+Re-pointed a fourth time, and the last: `INSTALL_WARN` (4000) counts
+what a fresh device is handed WHOLE — the boot surfaces (daily, test,
+group, duo, pulse, call) plus the feed's core (D321) — and warns, never
+errors, at about 1 MB at the seed's measured bytes per document. That
+count is about 460 today and moves at the daily's promotion pace and
+the core's curation, so the line is years out. The paged surfaces are
+not counted: a device fetches learn and the feed tail a page at a time.
+`BANK_FAIL` is gone; `check:quality` has no error path on bank size,
+and its test pins that a bank of a hundred thousand rows does not fail
+it. The inventory's date for the failure is void with it.
+
+What the old count was reaching for is real and is a DEVICE design: a
+phone that boots daily for a year accumulates every page it was handed,
+and hydrate reads all of them into memory. YouTube's answer is eviction
+— keep what you answered and what is on screen, drop the rest from
+memory. That is a client change with its own record (BANK-DELIVERY §4
+names it), owed before heavy devices hold tens of thousands of rows;
+it is what to build, and it is not a reason to stop writing questions.
+
+## D351 · Current events get their lane: found by searching, never from memory
+
+**2026-09-01.** **Status:** binding. The owner, on the inventory's
+"editorial only" row for `now`: *"should be made by claude but should
+be finding news from some other source."* Reverses D231 §6 (the farm
+may not write this lane) and NEXT-FUNCTIONALITY §7's "not doing:
+farm-authored current events" — on the condition the owner named, which
+is the whole design.
+
+### What shipped
+
+- **`scripts/now-budget.mjs`** (`npm run now:budget`, tests in
+  `now-budget.test.mjs`): `NOW_CAP` 6 per run, `OPEN_MAX` 6 (single
+  gate), `SOURCES_MIN` 2, `FRESH_DAYS` 7. No stock to level — the topic
+  empties itself — so the script's other job is the windows: what is
+  live, which close dates the bank already uses, and the free closes
+  from the short end up, so a batch staggers against the bank and not
+  only against itself (check:quality's stagger rule holds within a
+  batch; this holds it against what is already there).
+- **The source rule, sized to what a run can actually reach.** Measured
+  from the session environment (`env_01Ri3fw8gD9Py3LmTQ9hTYCL`, the
+  one the bound dev session runs in): every news domain tried — BBC,
+  NRK, NYT, AP, Guardian, Al Jazeera, NPR, VG, Google News, Wikipedia's
+  current-events portal — is refused at CONNECT by the egress proxy
+  (403; `query.wikidata.org` and `registry.npmjs.org` still answer
+  200), and the session's page-fetch tool reports `EGRESS_BLOCKED` for
+  the same hosts. The session's SEARCH tool runs outside the sandbox
+  and returns outlets, headlines, URLs and a digest. So a run can FIND
+  and CITE a story, and cannot OPEN it — and the bar is set there: at
+  least two independent outlets, under a week old, every source in the
+  PR body for the audit. One result is a headline; two are an event. If
+  the environment's policy is widened to news domains, the bar tightens
+  to "opened, and quoted" — the manual's bullet and the prompt move
+  together.
+- **QUESTION-FARM.md § The now lane**, its canonical prompt block, the
+  Governance row (a daily Routine at 11:00 UTC, bound to the dev
+  session like the other five, created from this session at the
+  owner's direction — the D148/D212 path), and the feed lane's `now`
+  bullet re-homed. Every D231 and D281 rule binds unchanged: both
+  window ends, 3–21 days, most short, distinct closes, no prediction
+  shape, the options a story has, a `bg` of durable facts; D235's no
+  tragedies bites hardest here and is written into the prompt; the
+  angle is personal and the flag honest (EVENT-DISCUSSIONS §5, now
+  built for `now`); warmth over outrage.
+- `LANE_EXCLUDED` in the feed regulator stands, re-explained: `now` is
+  not editorial any more, it is a lane with a source rule the feed
+  regulator lacks.
+
+### What stands, and the one thing the prompt says to itself
+
+The 1-in-20 audit is where the source claims get read by a person. The
+prompt checks that its section exists on `origin/main` before doing
+anything, so a firing before this record merges is a logged no-op
+rather than an improvisation.
