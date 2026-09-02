@@ -30,6 +30,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   prRow, branchRow, isNoPrBranch, decideActions, renderMergeList, parseTicks,
+  withoutFolds,
   parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions,
   parseRegister, ownerSteps, uncheckedSteps, theorySummary, rollCalls, lastSeen,
   foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay,
@@ -290,7 +291,12 @@ async function main() {
   // The owner list's folded blocks.
   const ownerText = read("docs/OWNER-LIST.md");
   if (ownerText) {
-    const hand = Object.values(state.owner).flatMap((s) => s.open);
+    // Parsed WITHOUT the generated blocks — see `withoutFolds`. `state.owner`
+    // keeps seeing the whole file on purpose: the trail's ownerOpen and the
+    // Console issue's "Today" panel are about what is on the list, generated
+    // rows included. Only this one question — "did the owner already write
+    // this themselves?" — has to ignore the fold's own output.
+    const hand = Object.values(parseOwnerList(withoutFolds(ownerText))).flatMap((s) => s.open);
     const decisions = notAlreadyListed(hand, state.ownerSteps).map((s) => `**${s.title}** — *Source:* \`${s.file}\` ${s.id}.`);
     const launch = notAlreadyListed(hand, state.launchOpen).map((s) => `**${s.id} ${s.title}** — *Source:* \`docs/LAUNCH-RUNBOOK.md\`.`);
     const approvals = state.github.ok

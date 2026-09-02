@@ -25,7 +25,7 @@ import {
   decideActions, isTicked, renderMergeList, parseWorklist, parseOwnerList, parseAxioms,
   parseVisualRequests, parsePermissions, parseRegister, ownerSteps, uncheckedSteps,
   theorySummary, rollCalls, lastSeen, foldOwnerList, notAlreadyListed, trailRow, mergeTrail,
-  renderConsole,
+  renderConsole, withoutFolds,
 } from "./console-lib.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -264,6 +264,45 @@ describe("roll calls and run logs", () => {
 });
 
 describe("the owner list fold", () => {
+  // THE ROUND TRIP, which is the case that was missing. The fold's pieces
+  // were each tested with hand-supplied inputs and never composed into
+  // file -> hand -> fold -> file, so nothing saw that the block's own rows
+  // read back as rows the owner had written. They did, so every candidate
+  // looked already-listed, the fold came back empty, and the block was
+  // deleted — then rewritten on the next run. On main that was a ±37-line
+  // commit every two hours and the owner's list missing a whole section
+  // for half of every cycle.
+  it("is a fixed point: folding its own output changes nothing", () => {
+    const steps = [
+      { id: "S1", title: "First", file: "docs/LAUNCH-RUNBOOK.md" },
+      { id: "S2", title: "Second", file: "docs/LAUNCH-RUNBOOK.md" },
+    ];
+    const start = [
+      "## Store and legal",
+      "",
+      "- [ ] **Something the owner wrote** — by hand.",
+      "",
+    ].join("\n");
+
+    // One turn of the crank, exactly as console.mjs runs it.
+    const turn = (text) => {
+      const hand = Object.values(parseOwnerList(withoutFolds(text))).flatMap((sec) => sec.open);
+      const rows = notAlreadyListed(hand, steps)
+        .map((sec) => `**${sec.id} ${sec.title}** — *Source:* \`${sec.file}\`.`);
+      return foldOwnerList(text, { "Store and legal": rows });
+    };
+
+    const once = turn(start);
+    expect(once, "the first fold wrote nothing to be stable about").toContain("S1 First");
+    const twice = turn(once);
+    expect(
+      twice,
+      "the fold read its own rows back as the owner's and deleted them — "
+        + "a ±37-line commit to main every two hours",
+    ).toBe(once);
+    expect(turn(twice), "it converged and then moved again").toBe(once);
+  });
+
   const text = "# Owner list\n\nintro\n\n## Decisions\n\n- [ ] **Hand row** — *Source:* x.\n\n## Clicks\n\n- [ ] click\n\n## Done\n";
   it("adds a generated block, replaces it on the next fold, and removes it when empty", () => {
     const once = foldOwnerList(text, { Decisions: ["**Gen one** — *Source:* a.", "**Gen two** — *Source:* b."] });

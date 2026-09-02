@@ -548,6 +548,19 @@ export function lastSeen(comments, keyword) {
 const FOLD_BEGIN = "<!-- console:begin -->";
 const FOLD_END = "<!-- console:end -->";
 
+// The fold's own rows are not the owner's.
+//
+// `parseOwnerList` matches any `- [ ] ` line and knows nothing about the
+// markers above, so on every run after one that wrote a block, the
+// generated rows read back as rows the owner had already written by hand.
+// `notAlreadyListed` then drops every candidate, the fold comes back
+// empty, and `foldOwnerList` strips the block — which the next run puts
+// straight back. A period-2 oscillation: a ±37-line commit to main every
+// two hours and on every push, and the owner's list missing a whole
+// section for half of every cycle.
+export const withoutFolds = (text) =>
+  String(text || "").replace(new RegExp(`${FOLD_BEGIN}[\\s\\S]*?${FOLD_END}`, "g"), "");
+
 export function foldOwnerList(text, folds) {
   const parts = String(text || "").split(/^(?=## )/m);
   return parts.map((part) => {
