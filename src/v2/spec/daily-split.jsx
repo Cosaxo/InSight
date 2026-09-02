@@ -712,10 +712,23 @@ class DailySplit extends React.Component {
     // drew a smaller count taller and gave it the headline numeral: over
     // 200k sampled 6-12 option vectors it inverted 2.36% of them and
     // misplaced the maximum on 1.70%. Both feed straight into the tiles
-    // below (`flex: Math.max(rp[i], 9)`) and into which option gets the
-    // big numeral (`rp[i] === maxP`).
+    // below (`flex: Math.max(rp[i], 9)`). The big numeral is decided off
+    // the COUNTS now — see `leads` under the shares — for the tie the
+    // rounding creates rather than the one the rounding inverts.
     const rp = sharePcts(counts);
-    const maxP = Math.max(...rp), myIdx = S.options.findIndex(o => o.id === myVote);
+    const myIdx = S.options.findIndex(o => o.id === myVote);
+    // THE WINNER IS THE BIGGEST COUNT, not the biggest drawn percentage.
+    // `rp` is rounded, so two different counts land on the same integer —
+    // 449 and 451 both draw 50% — and `rp[i] === maxP` was then true for
+    // BOTH tiles, giving each of them the winner's 25px numeral and full
+    // ink. The chart declared a tie the votes do not have, on the app's
+    // front door, the same rounding that let the beat two seconds earlier
+    // tell the losing side they had won.
+    //
+    // Ties on the COUNTS are real ties and still get two big numerals;
+    // that is the only case where both sides genuinely lead.
+    const maxCount = Math.max(...counts);
+    const leads = (i) => counts[i] === maxCount;
     // Below the k-floor the aggregate publishes nothing — say so instead
     // of dressing a single vote up as a population.
     // Under the DESIGN cadence (5) the published count is a LOWER BOUND,
@@ -1035,7 +1048,7 @@ class DailySplit extends React.Component {
                   }, S.friends.filter(f => f.opt === o.id).map(f =>
                     h('span', { key: f.name, title: f.name, style: { width: 8, height: 8, borderRadius: '50%', background: o.color, boxShadow: '0 0 0 1.5px color-mix(in oklch, var(--surface) 70%, transparent)' } })))),
                 // every side gets its number; only the winner gets the big one
-                h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: rp[i] === maxP ? 25 : 15, letterSpacing: '-0.03em', color: rp[i] === maxP ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
+                h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: leads(i) ? 25 : 15, letterSpacing: '-0.03em', color: leads(i) ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
             })),
             // one quiet meta line; the map-add confirmation pops in on its right and fades on its own
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 } },
