@@ -758,6 +758,43 @@ it recorded and deliberately not built.
 151 commits rode in the 28 → 29 gap, over two days — the second widest
 after build 26's 193, ahead of build 27's 130 and build 28's 42.
 
+**Runs 49 and 50 then delivered build 29, and the bump landed off step
+17's conclusion** (D352 amendment, 2026-09-02). Run 49 (`33650731413`,
+15:46:32Z) step 17 `skipped` — the dry run, 6m 20s; run 50
+(`33651487283`, 15:53:40Z) `success`, 16:00:26Z → 16:02:20Z, 1m 54s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`e82cc4de-1466-4ce8-800f-a58dfb33e8c9`, 6,143,472 bytes. Twelfth pair of
+this shape. `appBuild` went 29 → 30 read off step 17 rather than recalled
+— **ten that held** (20, 21, 22, 28, 33, 36, 42, 44, 48, 50) against
+eight skipped (18, 19, 24, 26, 31, 38, 40, 46).
+
+**D159's trap fired during the prep and cost nothing, and the gap was
+then closed on purpose for the third time.** The comparison was made at
+`ec2fd15`; a pulse trail row pushed `74c84a0` while the gates were
+running, and `appBuild` was 29 at both. Both runs then archived
+`74c84a0`, with `main` re-read between the dispatches and confirmed
+unmoved — so what run 49 proved was proved on exactly the bundle run 50
+shipped. The arrangement was D324's rather than D339's, and **the verdict
+is what chooses between them**: *run as-is* means no number has to reach
+`main`, so the record can stay unmerged and the gap is empty by
+construction; *bump* means the number must be on `main` first, so the
+record merges and the gap is closed by re-reading instead.
+
+**The release recorder exists now and is not wired, which is worth
+recognising on sight.** Step 18, `Fire the release recorder`, posts the
+delivered build number, run id and commit to a Routine when
+`inputs.upload` is set — the automation aimed at the D184 shape, four
+releases that went out with no record in `docs/` at all. On run 50 it
+concluded **`success` and did nothing**, because
+`ROUTINE_RELEASE_FIRE_URL` and `ROUTINE_RELEASE_FIRE_TOKEN` are both
+unset; it printed `release recorder not wired … record this delivery by
+hand` as a notice rather than failing the release, which is the right
+trade on this path. So **a green step 18 is not evidence that a record
+was written.** Wiring it is two repository values of § 2's shape. It
+would move the *record* from a habit to a wire and leave the *bump* where
+it has always been — D184's invariant keys on the run list, which nothing
+in this tree can read.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

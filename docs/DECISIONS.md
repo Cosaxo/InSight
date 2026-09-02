@@ -36379,3 +36379,100 @@ the way D324 did: this verdict is *run as-is*, so nothing needs to reach
 make the bump to 30 **off step 17's own conclusion while the step list is
 on screen**, which is the only arrangement that has ever made it stick
 (D186, D198, D273) — a bump has a shelf life of exactly one upload.
+
+## D352 amendment (2026-09-02) · Build 29 is delivered, the bump held off step 17, and the recorder that would have caught a skip is not wired
+
+**Status:** binding as a RELEASE RECORD. D352 above is the pre-flight that
+prepared build 29; this is what the dispatch did with it.
+
+Run 49 (`33650731413`, 15:46:32Z) was the dry run — step 17 `skipped`,
+6m 20s, archive and both entitlement gates green, the signed `.ipa` kept
+as an artifact. Run 50 (`33651487283`, 15:53:40Z) was the upload — step 17
+**`success`**, 16:00:26Z → 16:02:20Z, 1m 54s of transfer. `UPLOAD
+SUCCEEDED with no errors`, delivery UUID
+`e82cc4de-1466-4ce8-800f-a58dfb33e8c9`, 6,143,472 bytes, altool out of
+Xcode 26.6. **Build 29 is spent**, and `appBuild` went 29 → 30 read off
+that step's own step list rather than from a memory of it, carried into
+`android/app/build.gradle` and both `CURRENT_PROJECT_VERSION` settings by
+`check:versions --fix`, with LAUNCH-RUNBOOK 5.6's figure following because
+`check:figures` owns that sentence and went red until it did.
+
+**Ten bumps have now held** (20, 21, 22, 28, 33, 36, 42, 44, 48, 50)
+against eight skipped (18, 19, 24, 26, 31, 38, 40, 46). Twelfth pair of
+this shape.
+
+### The gap was closed on purpose for the third time
+
+Both runs archived `74c84a0`, and `main` was re-read between the two
+dispatches and confirmed unmoved before the upload went. So what run 49
+proved was proved on exactly the bundle run 50 shipped — the signing *and*
+the bundle, the pair D229 and D274 could each only state by halves. Third
+deliberate close after runs 43/44 and 47/48.
+
+**The arrangement was D324's rather than D339's, and that is what the
+verdict decides.** This pre-flight answered *run as-is*, so no number
+needed to reach `main` first and D352's record could stay unmerged on its
+branch — which is the only reason the gap could be empty at all. Where the
+verdict is *bump*, the number must be on `main` before the dispatch, so
+the record merges first and the gap is closed by re-reading `main`
+instead. Two correct orders, chosen by the verdict.
+
+`74c84a0` is itself a pulse trail row, which is run 22's shape: **D159's
+trap fired during the prep and cost nothing.** The pre-flight comparison
+was made at `ec2fd15` and a Routine pushed `74c84a0` while the gates were
+running. `appBuild` is 29 at both, so the comparison stood — the fifth
+worked example of why it is made at the run's own `head_sha`.
+
+### The finding: the release recorder exists and is not wired
+
+`ios-release.yml` gained a step 18, `Fire the release recorder`, since
+build 28 — a `POST` to a Routine, conditioned on `inputs.upload`, that
+reports the delivered `appBuild`, version, run number, run id and commit.
+It is the automation aimed squarely at the D184 shape: four of this
+project's releases went out with **no record in `docs/` at all** (runs
+25/26, 29–31, 39/40, 45/46), each found only when a later pre-flight read
+the run list.
+
+On run 50 it concluded `success` and did nothing, because both
+`ROUTINE_RELEASE_FIRE_URL` and `ROUTINE_RELEASE_FIRE_TOKEN` are unset:
+
+```
+##[notice]release recorder not wired (ROUTINE_RELEASE_FIRE_URL /
+ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand,
+docs/IOS-RELEASE.md has the shape
+```
+
+The step is written correctly — it degrades to a notice rather than
+failing a release over a missing variable, which is the right trade for
+something on this path. But **a green step 18 does not mean a record was
+written**, and that is worth stating plainly because the failure it
+guards against is precisely a delivery nobody wrote down. Until the two
+values exist, the record is still the human's, and this amendment is it.
+
+Wiring it is the owner's call and needs no code: two repository values,
+the same shape as § 2's table. It is worth noting what it would and would
+not have caught — it fires on the upload, so it covers the *record*, and
+the **bump** stays outside it. D184 settled that the sound invariant keys
+on the run list, which nothing in this tree can read; a fired recorder
+moves the record from a habit to a wire, and leaves the number where it
+has always been.
+
+### The gap, and what build 29 carries
+
+151 commits over two days, the second widest after build 26's 193. Build
+29 is the first build carrying D340's paper-tile icon, and carries
+D341–D351 besides — the fake-account defence made live, the account
+requirement becoming a level, the gear-hidden account panel, Play
+un-parked on an ENK, the review lane and the Ties and Interests lanes, the
+feed weaving fresh topics, D349's two-night review, D350's lane regulators
+losing their ceilings and D351's current-events lane.
+
+### When to revisit
+
+**At build 30's pre-flight.** The comparison is unchanged and is made
+against the run list: run 50 is now the highest run, its step 17
+`success`, `appBuild` at its own `head_sha` `74c84a0` is 29, and the tree
+is at 30 — so unless something dispatches in between, that pre-flight
+should answer *run as-is*. That sentence is a report about a comparison
+and never a promise about the tree: **a verdict has a shelf life of
+exactly one dispatch, and a bump has a shelf life of exactly one upload.**
