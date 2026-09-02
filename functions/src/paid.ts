@@ -724,6 +724,46 @@ export interface ReviewSweepStore {
   review(bid: string): Promise<void>;
 }
 
+/**
+ * One page of held bookings, cursored on the previous page's last id.
+ *
+ * EXPORTED, and a named function rather than the closure it was, because
+ * the paging is the half `runReviewSweep`'s own tests cannot see: they
+ * inject a `ReviewSweepStore` and prove the LOOP, while the adapter that
+ * talks to Firestore ran under nothing. That is the shape this file has
+ * already paid for once — `taste.ts` and `patterns.ts` both carry the
+ * note about a guard that "was dead in production while the in-memory
+ * fake, which keeps the whole object, went on proving it worked".
+ *
+ * A VANISHED CURSOR ENDS THE RUN. It used to fall through to `base` with
+ * no `startAfter` at all, which is page ONE — so the sweep re-scanned and
+ * re-reviewed the same held bookings up to SWEEP_MAX_PAGES times, each
+ * retry a billed model call, while the bookings actually starved behind
+ * them were never reached: precisely the starvation runReviewSweep exists
+ * to fix, reintroduced by the adapter under it. The cursor can genuinely
+ * disappear mid-run — `deleteAccount` sweeps this collection by uid — so
+ * this is a real state, not a defensive branch.
+ *
+ * Ending rather than rewinding is the conservative half of the choice:
+ * the bookings past the lost cursor wait for the next scheduled run,
+ * which is minutes, instead of the queue re-reviewing its own head.
+ */
+export async function heldPageFrom(
+  base: FirebaseFirestore.Query,
+  db: FirebaseFirestore.Firestore,
+  after: string | null,
+  limit: number,
+): Promise<Array<{ id: string; attempts: number }>> {
+  let q = base.limit(limit);
+  if (after) {
+    const cur = await db.collection("v2_paid_bookings").doc(after).get();
+    if (!cur.exists) return [];
+    q = base.startAfter(cur).limit(limit);
+  }
+  const snap = await q.get();
+  return snap.docs.map((d) => ({ id: d.id, attempts: Number(d.get("reviewAttempts") ?? 0) }));
+}
+
 export const SWEEP_PAGE = 50;
 /** A loop bound, not a policy: 250 held bookings in one run is already an
  * incident, and an unbounded `while` in a scheduled job is worse. */
@@ -772,15 +812,7 @@ export const sweepPaidReviewsV2 = onSchedule(
       .where("status", "==", "review")
       .where("createdAt", "<", cutoff);
     const res = await runReviewSweep({
-      async heldPage(after, limit) {
-        let q = base.limit(limit);
-        if (after) {
-          const cur = await db.collection("v2_paid_bookings").doc(after).get();
-          if (cur.exists) q = base.startAfter(cur).limit(limit);
-        }
-        const snap = await q.get();
-        return snap.docs.map((d) => ({ id: d.id, attempts: Number(d.get("reviewAttempts") ?? 0) }));
-      },
+      heldPage: (after, limit) => heldPageFrom(base, db, after, limit),
       review: (bid) => reviewBooking(db, bid),
     });
     if (res.scanned) {
@@ -1435,6 +1467,10 @@ export const closePaidCampaignsV2 = onSchedule(
         const refundEur = refundEurFor(budget.cap, budget.capEur, budget.ratePerAnswer, answers);
         const paymentIntent = String(doc.get("stripePaymentIntent") ?? "");
         let refundId: string | null = null;
+        // What actually went back, which is not always what was owed —
+        // see the prior-refund lookup below. Starts at 0 and stays there
+        // on the paths that transfer nothing.
+        let refundedEur = 0;
         if (refundEur > 0 && paymentIntent && key) {
           try {
             if (!stripe) {
@@ -1460,18 +1496,43 @@ export const closePaidCampaignsV2 = onSchedule(
             // and expires a prior checkout session because "two open
             // sessions is two ways to be charged for one question". The
             // refund side had nothing.
-            const prior = await stripe.refunds.list({ payment_intent: paymentIntent, limit: 1 });
-            if (prior.data.length) {
-              refundId = prior.data[0].id;
-              logger.warn(`[paid] ${doc.id} already refunded (${refundId}) — closing without a second transfer`, {
-                metric: "paid_refund_already",
-              });
+            // ALL of them, and their AMOUNTS. This took `limit: 1` and
+            // then closed the purchase recording `refundEur` — what was
+            // OWED — as settled, whatever had actually gone back. An
+            // operator issuing a partial refund by hand in the Stripe
+            // dashboard therefore closed the campaign with the remainder
+            // neither paid nor flagged, and the contract record saying it
+            // had been. The record is the thing a dispute is read against.
+            //
+            // Failed and canceled refunds do not count as money returned.
+            const prior = await stripe.refunds.list({ payment_intent: paymentIntent, limit: 100 });
+            const settled = prior.data.filter(
+              (r) => r.status !== "failed" && r.status !== "canceled",
+            );
+            if (settled.length) {
+              refundId = settled[0].id;
+              refundedEur = Math.round(
+                settled.reduce((a, r) => a + (r.amount || 0), 0),
+              ) / 100;
+              // A cent of slack: both sides are cents rounded through
+              // floats, and a warning that fires on 639.999999 is noise.
+              if (refundedEur + 0.005 < refundEur) {
+                logger.warn(
+                  `[paid] ${doc.id} was refunded €${refundedEur} of €${refundEur} owed — €${Math.round((refundEur - refundedEur) * 100) / 100} outstanding, settle off-app`,
+                  { metric: "paid_refund_offapp", refundedEur, owedEur: refundEur },
+                );
+              } else {
+                logger.warn(`[paid] ${doc.id} already refunded (${refundId}) — closing without a second transfer`, {
+                  metric: "paid_refund_already", refundedEur,
+                });
+              }
             } else {
               const refund = await stripe.refunds.create({
                 payment_intent: paymentIntent,
                 amount: Math.round(refundEur * 100),
               }, { idempotencyKey: `close_${doc.id}` });
               refundId = refund.id;
+              refundedEur = refundEur;
             }
           } catch (err) {
             // A failed refund HOLDS the purchase open — closing it would
@@ -1495,11 +1556,16 @@ export const closePaidCampaignsV2 = onSchedule(
           closed: {
             at: Timestamp.now(),
             answers,
+            // What was OWED, unchanged — the arithmetic the buyer can
+            // re-derive from the public counts.
             refundEur,
+            // …and what was SENT, which the record could not previously
+            // distinguish from it.
+            refundedEur,
             ...(refundId ? { refundId } : {}),
           },
         });
-        logger.info(`[paid] closed ${doc.id}: ${answers}/${budget.cap} answers, refund €${refundEur}`, {
+        logger.info(`[paid] closed ${doc.id}: ${answers}/${budget.cap} answers, refund €${refundedEur} of €${refundEur} owed`, {
           metric: "paid_campaign_closed",
         });
       }

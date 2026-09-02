@@ -139,7 +139,15 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       // Bound once — the coupling ratchet counts references, and this
       // block asks MapStats two things.
       const MS = window.MapStats;
-      const gd = MS ? MS.dist(q.id, 'all', nOpt, idx) : null;
+      // `q.liveId`, not `q.id` — see daily-questions.js's liveSync. In a
+      // live build MapStats reads LIVE.aggFor, which is keyed by the
+      // seeded bank id; this file's `q.id` is the demo calendar's. Passing
+      // the wrong one returns null for EVERY answered question, which is
+      // how the paragraph below came to describe the empty-question case
+      // while still being every question on every live build. Falls back
+      // on a demo build, where the demo id is the only id there is.
+      const qid = q.liveId || q.id;
+      const gd = MS ? MS.dist(qid, 'all', nOpt, idx) : null;
       // The residue, and it is a real absence rather than the old one: a
       // question NOBODY has answered yet has no typicality to read, so the
       // dot takes the neutral radius and is not called rare. What changed
@@ -154,7 +162,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       // dead; teaching MapStats to answer 'all' brought it to life WITH
       // the tie defect, in the same commit and the same block. MapStats
       // reads the counts, so it is the one that can answer.
-      const asked = MS ? MS.mode(q.id, 'all', nOpt, idx) : null;
+      const asked = MS ? MS.mode(qid, 'all', nOpt, idx) : null;
       const maj = asked != null ? asked === idx
         : gd ? gd.indexOf(Math.max(...gd)) === idx : true;
       let parent = meta.catId;
@@ -167,7 +175,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         parent = sub.id;
       }
       out.push({
-        id: 'dq-' + q.id, parentId: parent, qid: q.id, top: path[0], daily: true,
+        id: 'dq-' + q.id, parentId: parent, qid, top: path[0], daily: true,
         // `D.dateOf`, not `q.dateLabel`: the label is the demo calendar's
         // and says nothing about when THIS account answered, so it is null
         // on a live build (daily-questions.js has the argument). `today`

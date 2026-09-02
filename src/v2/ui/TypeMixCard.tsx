@@ -109,7 +109,22 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
             // the People lens, where Kindred one card up already carries
             // the full why, and a clause restating the clause above it is
             // the deletion COPY.md names.
-            ? (LIVE.budgetPaused ? BUDGET_PAUSED_HEAD : "Open a question's who-voted sheet and this fills in.")
+            //
+            // …and it is not offered while the fetch is ALREADY RUNNING,
+            // which is the third state D332 gave this branch copy for two
+            // of. The People lens kicks `loadKindred()` on mount, so an
+            // empty sample is the normal first frame of every visit — and
+            // the card told the reader to go do a thing that was already
+            // happening, directly under a Kindred card correctly saying
+            // "Matching…". LiveBreakdownPanel keeps the same three apart
+            // for the same reason, in the same words: "Distinguished from
+            // 'nobody is typed' because they are different facts and the
+            // second one is permanent."
+            ? (LIVE.budgetPaused
+              ? BUDGET_PAUSED_HEAD
+              : LIVE.kindredLoading()
+                ? "Reading who answered…"
+                : "Open a question's who-voted sheet and this fills in.")
             : mix.sampleN + " sampled here, none typed on this one yet."}
         </span>
       </div>

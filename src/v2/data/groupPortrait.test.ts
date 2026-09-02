@@ -183,6 +183,36 @@ describe("twin / contrarian need a spread, not just a sample", () => {
     expect(p.contrarian!.uid).toBe("cy");
   });
 
+  it("picks the lowest printed likeness even when it is not last in the sort", () => {
+    // The case that pins the REDUCE rather than the guard beside it. Both
+    // cases above happen to put the min-pct member last in the rate sort,
+    // so replacing the reduce with `eligible[eligible.length - 1]` leaves
+    // them passing — and a group with a genuine dissenter then loses the
+    // sentence entirely, because the guard nulls out the thin 100% member
+    // the sort put last.
+    //
+    // ann 13/14 (93%), cy 40/50 (80%), bo 2/2 (100%). The bound orders
+    // them ann, cy, bo — bo LAST despite agreeing with everything — so
+    // "last of the sort" names bo and the guard then answers null, while
+    // the true dissenter cy sits in the middle.
+    const days = [];
+    for (let d = 1; d <= 50; d++) {
+      const row: Record<string, number> = { me: 0 };
+      // cy is here for all fifty and differs on ten of them.
+      row.cy = d <= 10 ? 1 : 0;
+      // ann for fourteen, differing on exactly one.
+      if (d <= 14) row.ann = d === 14 ? 1 : 0;
+      // bo for the last two, agreeing on both.
+      if (d >= 49) row.bo = 0;
+      days.push(rev(d, row));
+    }
+    const p = groupPortrait(days, "me");
+    const pct = Object.fromEntries(p.people.map((x) => [x.uid, x.pct]));
+    expect(pct).toEqual({ ann: 93, cy: 80, bo: 100 });
+    expect(p.twin!.uid).toBe("ann");
+    expect(p.contrarian!.uid, "named whoever the bound put last, not the lowest likeness").toBe("cy");
+  });
+
   it("still names both when there is a real spread", () => {
     const p = groupPortrait([
       rev(1, { me: 0, ann: 0, cy: 1 }),

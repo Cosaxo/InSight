@@ -19,10 +19,9 @@
 // already publishes, and it is personal to nobody — D163/D317's line
 // holds because this fold never reads a uid. The sink is D316 phase 4's
 // first signal: a question ≥ RANK_DEAD_MIN answers whose leading option
-// holds ≥ RANK_DEAD_SHARE of them is the scorecard's landslide — a
-// correct average nobody needs to be asked (the retire-proposal
-// predicate) — and it serves LAST in its topic rather than waiting for
-// a human to read a retire proposal. Deletion stays the lane's;
+// holds ≥ RANK_DEAD_SHARE of them has stopped asking anything, and it
+// serves LAST in its topic rather than waiting for a human to read a
+// retire proposal. Deletion stays the lane's;
 // `active: false` stays the kill switch; this only orders.
 //
 // SURFACES: feed and learn — the two D316 unbounds. The daily is
@@ -51,11 +50,32 @@ import { utcDay } from "./pure";
 export const RANK_SURFACES = ["feed", "learn"] as const;
 export type RankSurface = (typeof RANK_SURFACES)[number];
 
-/** The landslide sink (D316 phase 4's first signal): at this many answers
+/**
+ * The landslide sink (D316 phase 4's first signal): at this many answers
  * with the leading option at this share, a question has stopped asking
- * anything and serves last in its topic. The numbers are the scorecard's
- * own retire-proposal floor, kept equal on purpose — one predicate,
- * spelled twice, is how the two would drift apart. */
+ * anything and serves last in its topic.
+ *
+ * NOT THE SCORECARD'S LANDSLIDE, though this said it was — "the
+ * scorecard's own retire-proposal floor, kept equal on purpose — one
+ * predicate, spelled twice, is how the two would drift apart", under a
+ * predicate that had already drifted. The scorecard grades on EVENNESS
+ * (scripts/scorecard-metrics.mjs), which normalises the leading share by
+ * the option count: `1 − (maxShare − 1/n)/(1 − 1/n) < 0.18`. This is a
+ * raw top share and ignores n, so the two disagree in both directions —
+ * measured, on the same aggregates:
+ *
+ *   binary 90/10     sunk here, NOT a scorecard landslide (evenness 0.20)
+ *   4-option 88/4/4/4  a scorecard landslide, NOT sunk here (evenness 0.16)
+ *
+ * They also cover different question types: the scorecard has a second
+ * formula for ordinals, and this predicate is applied to everything.
+ *
+ * So an operator reading the nightly retire proposals and the published
+ * serving order gets two verdicts on the same question. WHICH ONE IS
+ * RIGHT IS THE OWNER'S CALL — making them one predicate changes what the
+ * feed serves, so it is not a comment fix — and the comment now says what
+ * is true rather than telling the next reader not to look.
+ */
 export const RANK_DEAD_MIN = 20;
 export const RANK_DEAD_SHARE = 0.9;
 

@@ -81,6 +81,7 @@
     "check:deploy-targets": "node scripts/check-deploy-targets.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "check:web-firebase": "node scripts/check-web-firebase.mjs",
+    "check:web-headers": "node scripts/check-web-headers.mjs",
     "check:fn-runtime": "node scripts/check-fn-runtime.mjs",
     "check:appcheck": "node scripts/check-appcheck.mjs",
     "check:versions": "node scripts/check-versions.mjs",

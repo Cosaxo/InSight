@@ -16,6 +16,8 @@ import {
   monthKey,
   recallEpoch,
   requestDetailsProblem,
+  regradeWith,
+  type RegradeAuth,
 } from "./deviceBind";
 
 const at = (iso: string) => new Date(iso);
@@ -205,5 +207,72 @@ describe("requestDetailsProblem", () => {
     // carry a foreign nonce.
     expect(requestDetailsProblem({ requestPackageName: "com.evil.app" }, PKG, undefined))
       .toBe("token is for a different app");
+  });
+});
+
+describe("regradeWith — the claim that decides whether a vote counts", () => {
+  // Nothing reached this. Both invariants in its docblock inverted with the
+  // whole functions suite green, and the e2e calls the callable once on a
+  // fresh account and asserts only that it returned ok.
+  const fakeAuth = (claims: Record<string, unknown> | undefined, providers: string[]) => {
+    const written: Array<Record<string, unknown>> = [];
+    return {
+      written,
+      auth: {
+        getUser: async () => ({
+          customClaims: claims,
+          providerData: providers.map((providerId) => ({ providerId })),
+        }),
+        setCustomUserClaims: async (_uid: string, c: Record<string, unknown>) => {
+          written.push(c);
+        },
+      } as RegradeAuth,
+    };
+  };
+
+  it("NEVER LOWERS: a momentarily empty providerData does not demote", async () => {
+    // The ratchet. Without it a transient read demotes someone, and a
+    // demotion silently stops their votes counting with nothing on screen
+    // to explain it.
+    const { auth, written } = fakeAuth({ db: 2 }, []);
+    expect(await regradeWith(auth, "u1", false)).toBe(2);
+    expect(written, "a claim was rewritten when nothing rose").toEqual([]);
+  });
+
+  it("the cooldown re-grade still sees the device rung it already earned", async () => {
+    // `deviceBound: deviceBoundNow || prior >= 1`. Drop the second half and
+    // a re-grade that is not itself a device activation reads the account
+    // as unbound, so level 2 becomes unreachable — the exact bug D343
+    // records fixing.
+    const { auth, written } = fakeAuth({ db: 1 }, ["google.com"]);
+    expect(await regradeWith(auth, "u1", false)).toBe(2);
+    expect(written).toHaveLength(1);
+    expect(written[0].db).toBe(2);
+  });
+
+  it("keeps claims it did not set — the write is a merge, not a replace", async () => {
+    // setCustomUserClaims overwrites the whole map, so a claim added
+    // elsewhere has to survive an activation re-run.
+    const { auth, written } = fakeAuth({ db: 0, admin: true }, ["google.com"]);
+    await regradeWith(auth, "u1", true);
+    expect(written[0], "a sibling claim was dropped by the re-grade")
+      .toEqual({ db: 2, admin: true });
+  });
+
+  it("reads a non-integer claim as no claim at all", async () => {
+    // firestore.rules compares with `>=`, which errors on a string or a
+    // boolean and denies — so coercing here would read `db: true` as
+    // level 1 and hand out a rung nobody earned.
+    for (const bad of [true, "2", 1.5, null, undefined]) {
+      const { auth } = fakeAuth({ db: bad } as Record<string, unknown>, []);
+      expect(await regradeWith(auth, "u1", false), `db: ${String(bad)} was read as a level`)
+        .toBe(0);
+    }
+  });
+
+  it("writes nothing when there is nothing to raise", async () => {
+    const { auth, written } = fakeAuth({ db: 0 }, []);
+    expect(await regradeWith(auth, "u1", false)).toBe(0);
+    expect(written).toEqual([]);
   });
 });

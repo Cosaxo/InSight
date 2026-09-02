@@ -638,10 +638,16 @@ export const MIN_SHARD_RATE = 0.001;
  * numbers = 8 leaves = 16 entries, against Firestore's 40,000 per
  * document, so 2,500 qids is the ceiling and 1,500 is the fence. At 64
  * characters that is also ~225 KB, comfortably inside 1 MiB. The bank is
- * 710 questions today, so the bank can double before this truncates
- * anything real — and when it does, it truncates into `qOther`, the
- * "…and more" cell the client's own cap already spills into, so the
- * reading stays reported rather than silently dropped.
+ * 750 questions today, so a day cannot hold enough BANK qids to reach the
+ * fence. This said "the bank can double before this truncates anything
+ * real" and check:figures kept the number current underneath it until the
+ * claim expired: at 750 against 1,500 doubling lands exactly ON the fence,
+ * and it was only ever true by twelve questions. The headroom is not
+ * stated as a multiple again — a ratio between a gated figure and a
+ * constant is a claim nothing holds. What the fence catches when it is
+ * reached (a bank past it, or paid `paidq-` qids on top of one) is
+ * `qOther`, the "…and more" cell the client's own cap already spills
+ * into, so the reading stays reported rather than silently dropped.
  */
 export const QID_KEY_MAX = 64;
 export const QIDS_PER_DAY_CAP = 1500;

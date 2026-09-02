@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import type { V2SeedQuestion } from "./v2content";
 import {
   RANK_DEAD_MIN,
+  RANK_DEAD_SHARE,
   computeRank,
   isLandslide,
   runBankRank,
@@ -78,6 +79,21 @@ describe("computeRank", () => {
     ]);
     const { feed } = computeRank(bank, aggs, TODAY);
     expect(feed.topics.food.qids).toEqual(["feed-live", "feed-new", "feed-dead"]);
+  });
+
+  it("holds the share threshold itself, which nothing else does", () => {
+    // RANK_DEAD_SHARE is imported by no other file and by no script, and
+    // the suite only constrained it to (0.55, 0.95] — 0.9 could become
+    // 0.95 with all 567 tests green. That matters because this number is
+    // not free-floating: it is the one an operator compares against the
+    // scorecard's landslide, and the two already disagree (see the
+    // constant's own docblock). A threshold nothing pins is a threshold
+    // that drifts further.
+    expect(RANK_DEAD_SHARE).toBe(0.9);
+    // …and the boundary it names, from both sides, so the comparison is
+    // `>=` rather than `>`.
+    expect(isLandslide(agg(100, { "0": 90, "1": 10 }))).toBe(true);
+    expect(isLandslide(agg(100, { "0": 89, "1": 11 }))).toBe(false);
   });
 
   it("does not sink a lopsided split below the volume floor", () => {

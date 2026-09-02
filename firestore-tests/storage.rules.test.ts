@@ -4,8 +4,14 @@
 //
 // storage.rules was configured in firebase.json, committed, and never
 // deployed by anything — and never tested either. Its three gates
-// (owner-only path match, 8MB cap, image content-type) plus the catch-all
-// deny had zero coverage. These pin them.
+// (owner-only path match, 256 KB cap, image content-type) plus the
+// catch-all deny had zero coverage. These pin them.
+//
+// The cap read "8MB" here until 2026-09-02, which was the retired
+// dailyPhotos number — stranded by the same 2026-08-27 sweep this header
+// describes two paragraphs down. The file's own cases had used 300 KB and
+// 200 KB against a 256 KB rule the whole time. `check:figures` holds the
+// sentence to the rule now, so it cannot go stale again quietly.
 //
 // Note on scope: users/{uid}/dailyPhotos/ — the v1 daily-report backup,
 // a surface removed in D4 — carried a read/delete grant here until

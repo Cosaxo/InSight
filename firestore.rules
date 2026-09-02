@@ -748,7 +748,8 @@ service cloud.firestore {
             // arm below keys on the ANSWER's self-declared surface and
             // excludes "learn", because first-attempt-only IS D32's
             // measurement — so a learn question answered as "feed" was an
-            // editable learn answer. live.ts:4027 already assumed this
+            // editable learn answer. `LIVE.vote`'s world-shape lookup (the
+            // `state.callBank.find` fallback) already assumed this
             // clause was an equality ("would claim surface: daily and rules
             // would refuse it"); it is one now.
             //

@@ -389,6 +389,62 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
+// The anchor keys the client sends, off ANCHOR_FIELDS — the table
+// check:anchors already diffs against firestore.rules cap for cap.
+const anchorKeys = (() => {
+  const src = read("src/v2/data/live.ts");
+  const open = src.indexOf("export const ANCHOR_FIELDS");
+  const body = stripComments(src.slice(open, src.indexOf("};", open)));
+  return [...body.matchAll(/(\w+):\s*\d+/g)].length;
+})();
+
+/**
+ * Live call sites of a store accessor, across the app's own source.
+ *
+ * Comments stripped, tests and fixtures excluded: what the perRev
+ * comments count is folds paid for per RENDER, so a mention in prose and a
+ * stub in a fixture are both noise. Two of these figures had drifted, in
+ * the paragraphs that argue for the memoisation itself.
+ */
+const callSites = (call) => {
+  const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
+  let n = 0;
+  for (const dir of dirs) {
+    for (const f of readdirSync(join(root, dir))) {
+      if (!/\.(ts|tsx|js|jsx)$/.test(f) || /\.test\./.test(f)) continue;
+      const src = stripComments(read(`${dir}/${f}`));
+      n += src.split(call).length - 1;
+    }
+  }
+  return n;
+};
+
+// The political marker's two figures, and the store header's own count of
+// the dynamic-import sites it points a reader at. All three sit in source
+// comments, which is where this repo's figure drift keeps surviving.
+const politicalQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.political === true && q.surface !== "test").length;
+})();
+const dailyFeedQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.surface === "daily" || q.surface === "feed").length;
+})();
+const getDbSites = (() => {
+  const src = stripComments(read("src/v2/data/live.ts"));
+  return [...src.matchAll(/await getDb\(\)/g)].length;
+})();
+
+// The anchors MapStats can answer for — the keys of MAP_ANCHOR_DIM, which
+// is the table the refusal is decided by. Two files quote this count in
+// prose and neither is reachable any other way.
+const mapAnchorDims = (() => {
+  const src = read("src/v2/data/cohort.ts");
+  const open = src.indexOf("export const MAP_ANCHOR_DIM");
+  const body = src.slice(open, src.indexOf("};", open));
+  return [...stripComments(body).matchAll(/^\s{2}(\w+):/gm)].length;
+})();
+
 // The modules that define Cloud Functions, counted off the tree. ops.ts's
 // header prose said "nine" while there were fifteen — the hand-kept-figure
 // drift this script exists for, in the file whose whole subject is that a
@@ -437,6 +493,70 @@ const coreTests = (() => {
 // where the pattern moves and the number does not.
 const smokeFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /^smoke-.*\.test\.jsx$/.test(f)).length;
+
+// …and the suites that actually SHARE that harness, which is a different
+// number and the one CLAUDE.md's sentence is about. The glob and the
+// harness parted company twice over: `dialog.test.jsx` has imported
+// mount-app for a long time, and the 2026-09-02 render-coverage files are
+// not named smoke-*. Until this entry the sentence read "these are the
+// only ones that execute a render", which by then was wrong about eighteen
+// suites in this one directory.
+// Counted by what they DO, not by how they spell an import. This asked for
+// `from "./mount-app.jsx"` with the extension, and fifteen suites import
+// that module — nine with the extension, six without — so normalising any
+// one import, a tidy-up nobody would think twice about, would have failed
+// the gate demanding CLAUDE.md say "fifteen" with nothing having changed.
+// It also counted two files that import the harness for its helpers and
+// never mount anything.
+//
+// `mountApp(` is the real predicate: it is the call that renders the whole
+// App, which is what the sentence is about.
+const harnessFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+
+// How many notifications the product actually SENDS, off v2social.ts's own
+// call sites. web/privacy.html promises the token is "only used for" them
+// and names them, and that sentence said ONE for the nine days after D236
+// shipped three more — while the sender's own comment beside them said
+// "two". A promise in writing is the one thing CLAUDE.md says moves first,
+// so the number it quotes is derived here rather than typed.
+//
+// `validate` is excluded and named rather than filtered by a pattern: it
+// is a dryRun send that never reaches a phone (registerPushToken uses it
+// to test a token), so it is not a notification anyone receives.
+const pushKinds = (() => {
+  const src = readFileSync(join(root, "functions/src/v2social.ts"), "utf8");
+  const kinds = new Set([...src.matchAll(/\bkind:\s*"([a-z-]+)"/g)].map((m) => m[1]));
+  kinds.delete("validate");
+  if (!kinds.size) {
+    throw new Error(
+      "check-figures: no `kind: \"…\"` push sites in v2social.ts — the sender "
+      + "changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return kinds.size;
+})();
+
+// Storage's byte cap, read off storage.rules itself. The suite that pins
+// that rule described it as an "8MB cap" for as long as the number had
+// been 256 KB — the 8 MB was the retired dailyPhotos cap, stranded by the
+// sweep that removed the surface, while the file's own cases used 300 KB
+// and 200 KB against the real rule. Exactly this table's class: a number
+// beside a thing that moved.
+const storageCapKb = (() => {
+  const src = readFileSync(join(root, "storage.rules"), "utf8");
+  const m = /request\.resource\.size\s*<\s*(\d+)\s*\*\s*1024/.exec(src);
+  if (!m) {
+    throw new Error(
+      "check-figures: no `request.resource.size < N * 1024` in storage.rules — "
+      + "the cap moved or changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return Number(m[1]);
+})();
 
 // The city catalogue's size, read off the generated file's own header — the
 // same line check-cities.mjs parses. It is quoted exactly once in live
@@ -520,10 +640,43 @@ const FIGURES = [
   },
   {
     file: "CLAUDE.md",
-    what: "mount smoke files over one harness (§2)",
-    re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
+    what: "mount smoke files (§2)",
+    re: /five of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
-    fix: (n) => `"(${n} files over one harness"`,
+    fix: (n) => `"five of the **${n}** smoke-*.test.jsx"`,
+  },
+  {
+    file: "scripts/apply-monitoring.mjs",
+    // The SECOND occurrence in that header, and the one the entry beside
+    // it does not reach. When the ninth policy landed, the edit on this
+    // line moved `five` to `seven` for the metrics and left `eight` for
+    // the policies — under a commit message saying "all corrected". Two
+    // numbers on one line is exactly where a hand-count survives a sweep.
+    what: "alert policies, in the applier's console-steps sentence",
+    re: /log-based metrics, and (\w+) policies/,
+    actual: word(monitoringPolicies),
+    fix: (n) => `"seven log-based metrics, and ${n} policies"`,
+  },
+  {
+    file: "web/privacy.html",
+    what: "notifications the token is promised to be used for",
+    re: /only used for the (\w+) notifications this app/,
+    actual: word(pushKinds),
+    fix: (n) => `"only used for the ${n} notifications this app sends"`,
+  },
+  {
+    file: "firestore-tests/storage.rules.test.ts",
+    what: "the storage byte cap the suite says it pins",
+    re: /owner-only path match, (\d+) KB cap, image content-type/,
+    actual: String(storageCapKb),
+    fix: (n) => `"owner-only path match, ${n} KB cap, image content-type"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites that mount the whole App through the harness (§2)",
+    re: /harness, and \*\*(\w+)\*\* suites mount\s+the whole `App`/,
+    actual: word(harnessFiles),
+    fix: (n) => `"and **${n}** suites mount the whole App"`,
   },
   {
     file: "CLAUDE.md",
@@ -617,6 +770,88 @@ const FIGURES = [
     re: /a notification channel, (\w+) log-based metrics/,
     actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "anchor keys an answer snapshots, off ANCHOR_FIELDS",
+    re: /the same (\d+) keys an\n {2}\/\/ answer snapshots/,
+    actual: String(anchorKeys),
+    fix: (n) => `"the same ${n} keys an\n  // answer snapshots"`,
+  },
+  {
+    file: "src/v2/ui/LiveProfileSetup.tsx",
+    what: "anchor keys the setup screen maps onto",
+    re: /fields onto the (\d+) anchor keys/,
+    // `check:anchors` holds the CAPS against firestore.rules and reports
+    // all ten agreeing; nothing held the prose, which said seven in one
+    // file and eight in the other.
+    actual: String(anchorKeys),
+    fix: (n) => `"fields onto the ${n} anchor keys"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "call sites of kindredPeople(), the fold perRev exists for",
+    re: /walks every cached voter list and has (\d+)\n\/\/ call sites/,
+    // The COUNT is the argument for the memoisation — how many folds per
+    // render are being paid for — so it is the sentence's load-bearing
+    // half. It said six with "LiveSimilarityField ×2"; that file has had
+    // one since the Near field was rewritten.
+    actual: String(callSites("kindredPeople()")),
+    fix: (n) => `"walks every cached voter list and has ${n}\n// call sites"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "render-path callers of testFeedItems()",
+    re: /and this has (\d+)\n {2}\/\/ render-path callers/,
+    actual: String(callSites("testFeedItems()") - 1),
+    // −1 for live.ts's own internal call, which is not a render path.
+    fix: (n) => `"and this has ${n}\n  // render-path callers"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "questions carrying the political marker",
+    re: /is (\d+) questions carrying the political marker/,
+    actual: String(politicalQuestions),
+    fix: (n) => `"is ${n} questions carrying the political marker"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "the daily+feed corpus that count is read against",
+    re: /out of the\n\/\/ (\d+) on the daily and the feed/,
+    // The RATIO is the sentence's whole point, so both halves have to
+    // follow the bank. This said "ten out of 278" — the first had moved
+    // and the second was wrong when it was written.
+    actual: String(dailyFeedQuestions),
+    fix: (n) => `"out of the\n// ${n} on the daily and the feed"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "the dynamic-import sites the store's header sends a reader to",
+    re: /the (\d+) `await getDb\(\)` sites in this file/,
+    actual: String(getDbSites),
+    fix: (n) => `"the ${n} \`await getDb()\` sites in this file"`,
+  },
+  {
+    file: "src/v2/spec/map-group-stats.js",
+    what: "the anchors MapStats answers for, off MAP_ANCHOR_DIM",
+    re: /REAL for the (\w+) anchors/,
+    // D328 moved `job` from refusing to real, and updated the paragraph
+    // thirteen lines down inside this same header while leaving the
+    // opening sentence at "two" — a file contradicting itself, in the
+    // direction that understates what the Map now draws. A second copy in
+    // world-feed.jsx said "five null anchors" for the same reason.
+    actual: word(mapAnchorDims),
+    fix: (n) => `"REAL for the ${n} anchors"`,
+  },
+  {
+    file: "functions/src/engagement.ts",
+    what: "the bank the day-document's qid fence is sized against",
+    re: /The bank is\n \* (\d+) questions today/,
+    // The whole point of the sentence is the HEADROOM — "the bank can
+    // double before this truncates anything real" — so the number it is
+    // measured against has to be the live one. It said 710 against 722.
+    actual: String(seededQuestions),
+    fix: (n) => `"The bank is\n * ${n} questions today"`,
   },
   {
     file: "src/v2/data/patternsReady.ts",

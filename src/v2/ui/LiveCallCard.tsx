@@ -15,12 +15,23 @@
 //           time rather than only when it disagrees.
 //   void    nobody scored, and the reason, in the app's own words.
 //
-// PINNED AT THE FEED HEAD, one at a time — a call is not dealt into the
-// stream, because its whole shape is "one open question you are
-// carrying". `data/calls.ts` picks which one. (Crossroads shared this
-// head slot when the line was written; D341 dealt it into the stream,
-// which changes nothing about the reasoning here — a story is content,
-// a call is a commitment.)
+// BUILT AND UNMOUNTED (D196). Nothing outside this file's own test
+// imports this component: the feed's head slot holds `LiveReadGame`, and
+// `world-feed.jsx` records why in as many words — "THIS SLOT HELD THE
+// FUTURE-PREDICTION CARD FOR ONE DAY … D196 took it off: the owner wants
+// predictions to be about real events or not at all, and that half is not
+// built. The machinery stands, unmounted." CLAUDE.md says the same of the
+// game as a whole: engine and rules stand, unplaced.
+//
+// This paragraph said "PINNED AT THE FEED HEAD, one at a time" — a claim
+// about where the card mounts, made by a file that mounts nowhere. D341's
+// follow-up edited this very sentence and corrected only its other half
+// (Crossroads no longer shares the slot), which is how a wrong sentence
+// survives being visited.
+//
+// WHEN IT IS PLACED, the shape below is the argument for where: a call is
+// not dealt into the stream, because its whole shape is "one open
+// question you are carrying", and `data/calls.ts` picks which one.
 //
 // NO CLOCK IN THIS VERSION, deliberately. The prototype's ten seconds are
 // the game's pressure and they need the IntersectionObserver arming its
