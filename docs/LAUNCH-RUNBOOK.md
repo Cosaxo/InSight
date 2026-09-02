@@ -1442,7 +1442,7 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [x] **5.5 Apply the eight monitoring alerts — VERIFIED ARMED AND WIRED
+- [x] **5.5 Apply the nine monitoring alerts — VERIFIED ARMED AND WIRED
       2026-08-27 (D333).** Found already applied (the D303 path had run):
       the dry run reports every object `already exists`, `observe` reads
       `armed: true`, and — the half a green count cannot see — a direct

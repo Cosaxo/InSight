@@ -20,7 +20,7 @@ Two instruments, neither of them a view:
 | --- | --- | --- |
 | `npm run costs` | prints the predicted bill at five sizes | anything about what the bill nets against |
 | `npm run scorecard` | scores questions the crowd has answered | anything before launch, and no history — one output path, overwritten |
-| `monitoring/*.json` | eight alert policies, put live by the **Arm monitoring** workflow or `npm run monitoring:apply` | which of the remaining functions has no alert |
+| `monitoring/*.json` | nine alert policies, put live by the **Arm monitoring** workflow or `npm run monitoring:apply` | which of the remaining functions has no alert |
 | `npm run check:monitoring` | that each policy's condition resolves to a metric `monitoring:apply` creates, and each metric to a `metric:` field a function emits | whether any of it is live in Cloud Monitoring — `npm run observe` is what answers that (D300) |
 
 Between them sat things nobody was computing at all: how many days of

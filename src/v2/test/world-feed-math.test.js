@@ -183,8 +183,8 @@ describe("wfPcts — the split a user reads", () => {
     //
     // Asserted from THIS side rather than from cohort.test.ts: `data/` is
     // typed and world-feed-math.js is not, so importing it there costs a
-    // @ts-expect-error and crosses the boundary DECISIONS.md:3337 rests the
-    // no-allowJs argument on. This file is plain JS and is the feed's own.
+    // @ts-expect-error and crosses the boundary D38 rests the no-allowJs
+    // argument on. This file is plain JS and is the feed's own.
     //
     // mineIdx -1 is the comparable call: adding the viewer's vote is this
     // surface's convention, not the rounding's.

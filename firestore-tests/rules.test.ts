@@ -736,21 +736,26 @@ describe("feed ads (D197): readable by everyone, writable by nobody", () => {
   });
 });
 
+// The CALL fixtures, at module scope because TWO describes need them now:
+// this feature's own cases, and the last of them, which the re-bracketing
+// below separates from the folds' documents that had been filed under this
+// name. Lifting them changes nothing about what any case does.
+const CALL = "call-c01";
+const seedCall = () => seed(async (db) => {
+  await setDoc(doc(db, "v2_questions", CALL), {
+    surface: "call", seq: 0, type: "call", prompt: "Will it be lopsided?",
+    options: ["It will", "It stays close"], active: true, tier: "A",
+    resolvesAt: "2026-10-01",
+    rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 },
+  });
+});
+const callAnswer = (over: Record<string, unknown> = {}) => ({
+  qid: CALL, surface: "call", optionIdx: 0,
+  answeredAt: serverTimestamp(), anchors: {}, ...over,
+});
+const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", CALL);
+
 describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded", () => {
-  const CALL = "call-c01";
-  const seedCall = () => seed(async (db) => {
-    await setDoc(doc(db, "v2_questions", CALL), {
-      surface: "call", seq: 0, type: "call", prompt: "Will it be lopsided?",
-      options: ["It will", "It stays close"], active: true, tier: "A",
-      resolvesAt: "2026-10-01",
-      rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 },
-    });
-  });
-  const callAnswer = (over: Record<string, unknown> = {}) => ({
-    qid: CALL, surface: "call", optionIdx: 0,
-    answeredAt: serverTimestamp(), anchors: {}, ...over,
-  });
-  const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", CALL);
 
   it("a call is answered like any world question, and read like one", async () => {
     await seedCall();
@@ -793,7 +798,20 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_call_outcomes", CALL), { outcomeIdx: 1 }));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_call_outcomes", "call-new"), { outcomeIdx: 0 }));
   });
+});
 
+// Eleven cases sat inside the Foresight CALL describe above, so every
+// failure in them printed under that feature's name and nothing in this
+// file led a reader to the attention or engagement blocks at all. They are
+// not CALL cases: they are the nightly folds' documents — published,
+// owner-only, or readable by nobody — and the reason they share a
+// neighbourhood is that shape, not the feature.
+//
+// RE-BRACKETED, not reordered. A rules suite shares emulator state across
+// the cases in a file, so moving one changes what it sees; adding the two
+// braces changes only what a failure is called. The CALL describe reopens
+// below for its own last case, which really is one.
+describe("the nightly folds' documents: published, owner-only, or nobody's", () => {
   it("the Patterns loadings read like an aggregate and write like one — nobody (v28 §2)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_patterns", "loadings"), { k: 8, q: { "daily-000": { v: [0.1], n: 3 } } });
@@ -1061,7 +1079,9 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     for (let i = 0; i <= 120; i++) over[`feed-${i}`] = { s: 1 };
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "q2"), shard({ qids: over })));
   });
+});
 
+describe("Foresight CALL (D194): the question's own bounds", () => {
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {
     await seedCall();
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));
@@ -2895,6 +2915,9 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   // therefore already green here before it is made.
   const QID = "daily-000";
   const CATQ = "cat-bind0";
+  const PULSEQ = "pulse-b01";
+  const CALLQ = "call-b01";
+  const RANKQ = "feed-b01";
   const GID = "gbind";
   const DAY = dayOffset(-1);
 
@@ -2941,6 +2964,23 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
         name: "Bind", mode: "duo", ownerUid: OWNER,
         memberUids: [OWNER, FRIEND], inviteCode: "BIND2345", streak: 0,
       });
+      // The three surfaces whose `deviceBound()` no case reached. Each has
+      // its own branch in the create rule and its own binding, and until
+      // now the block proved the binding for daily and catalog only.
+      await setDoc(doc(db, "v2_questions", PULSEQ), {
+        surface: "pulse", seq: 0, type: "pulse",
+        prompt: "?", options: ["1", "2", "3", "4", "5"], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", CALLQ), {
+        surface: "call", seq: 0, type: "call", prompt: "?",
+        options: ["It will", "It stays close"], active: true, tier: "A",
+        resolvesAt: "2026-10-01",
+        rubric: { kind: "agg", qid: QID, test: "topShareAtLeast", threshold: 60 },
+      });
+      await setDoc(doc(db, "v2_questions", RANKQ), {
+        surface: "feed", seq: 1, type: "rank",
+        prompt: "?", options: ["A", "B", "C"], active: true,
+      });
     });
 
   const worldAnswer = () => ({
@@ -2949,6 +2989,24 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   });
   const catAnswer = () => ({
     qid: CATQ, surface: "feed", entity: 7,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  // A pulse answer is keyed {baseQid}_{day} and carries both, so its id
+  // and its fields have to agree — the template lives in the bank, the
+  // answer is one per day.
+  const pulseDay = new Date().toISOString().slice(0, 10);
+  const pulseAid = `${PULSEQ}_${pulseDay}`;
+  const pulseAnswer = () => ({
+    qid: pulseAid, baseQid: PULSEQ, day: pulseDay,
+    surface: "pulse", optionIdx: 2,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const callAnswerB = () => ({
+    qid: CALLQ, surface: "call", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const rankAnswerB = () => ({
+    qid: RANKQ, surface: "feed", order: [2, 0, 1],
     answeredAt: serverTimestamp(), anchors: {},
   });
   const duelAid = `g_${GID}_${DAY}`;
@@ -2980,6 +3038,64 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     // feed member-only reveals, never aggregates, and membership already
     // required a human's invite code (D29).
     await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
+  });
+
+  it("enforced text: pulse, call and rank demand the claim too", async () => {
+    // Three more branches of the same create rule, each with its own
+    // `deviceBound()` and none of them reached: the block wrote a daily
+    // answer, a catalog answer and a duel answer and stopped. Removing the
+    // binding from any of these three left the whole suite green.
+    //
+    // Each is bound for its own recorded reason — the pulse feeds a
+    // published aggregate, a call is "exactly what a sybil would want to
+    // spam", a rank feeds one too — so each is asserted separately rather
+    // than as a group.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const plain = enfEnv.authenticatedContext(OWNER).firestore();
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    for (const [name, answer, qid] of [
+      ["pulse", pulseAnswer, pulseAid],
+      ["call", callAnswerB, CALLQ],
+      ["rank", rankAnswerB, RANKQ],
+    ] as const) {
+      await assertFails(setDoc(doc(plain, "v2_users", OWNER, "answers", qid), answer()));
+      await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", qid), answer()));
+      void name;
+    }
+  });
+
+  it("enforced text: the EDIT arm demands the claim too (D86 × D343)", async () => {
+    // The D86 edit is the only repeatable answer write, and its
+    // `deviceBound()` was the one call site no case reached. That makes it
+    // the one whose removal is invisible — creates would keep failing
+    // without the claim exactly as they should, edits would quietly stop
+    // caring, and nothing would say so.
+    //
+    // It also fails the other way round on flip day: an unbound account
+    // that answered before enforcement can still READ its answer and would
+    // simply stop being able to change it. Whether that is right is a
+    // decision; that it is TESTED is not optional.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const plain = enfEnv.authenticatedContext(OWNER).firestore();
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    // Each account creates its own answer under the claim the arm demands,
+    // so the edit below is the only thing under test rather than the
+    // create that had to come first.
+    await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", QID), worldAnswer()));
+    await assertSucceeds(updateDoc(doc(bound, "v2_users", FRIEND, "answers", QID),
+      { optionIdx: 1, editedAt: serverTimestamp() }));
+    // …and the same edit, from an account with no claim, is refused.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    await enfEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 0, answeredAt: new Date(), anchors: {},
+      });
+    });
+    await assertFails(updateDoc(doc(plain, "v2_users", OWNER, "answers", QID),
+      { optionIdx: 1, editedAt: serverTimestamp() }));
   });
 
   it("enforced text: a HIGHER level than the bar still passes (D343)", async () => {

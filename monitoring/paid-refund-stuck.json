@@ -1,0 +1,45 @@
+{
+  "displayName": "A campaign refund is stuck and needs an operator",
+  "documentation": {
+    "content": "Money owed back to a buyer is not moving, and no amount of waiting fixes either case.\n\n**What fires this.** `closePaidCampaignsV2` (functions/src/paid.ts) refunds the unserved part of a campaign's budget when its window ends, then marks the purchase closed. Two of its outcomes mean an operator has to look:\n\n- `paid_refund_held` — the Stripe call FAILED. The purchase is deliberately left `running` rather than closed, because closing it would record the debt as settled. Tomorrow's run retries. Its own comment is the reason this alert exists: if the failure is permanent — a refund larger than the charge, a payment intent Stripe will not accept — the campaign can never close, and the job re-attempts it *every night, until an operator intervenes*. Nothing else reports that. The run succeeds, the log line scrolls past, and the buyer is not paid.\n- `paid_refund_already` — a refund was already on the payment intent when the closer looked. That is the survivor of a crash between the transfer and the write: the money went back, the row still said `running`. Safe, and it means a run died where it costs the most, so it is worth seeing once rather than never.\n\n**Why a threshold of zero over an hour.** These are not rate problems. One is one too many, and both are rare enough that a count alert would never trip a sensible rate. The alert is \"this happened\", not \"this is happening a lot\".\n\n**First response** is to read the log line's `doc.id` and open that purchase in Firestore, then the payment intent in Stripe. For a HELD refund, the question is whether the amount is wrong (the closer computes it from the public answer counts and the stored budget) or the intent is unrefundable. For an ALREADY refund, confirm the transfer really landed and that `closed.refundEur` matches it — a partial refund made by hand is the case to check for.\n\n**Not urgent for the app.** Nothing here affects a single reader: the daily, the feed and the Mirror are untouched by the paid pipeline. It is urgent for the person who is owed money.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "a refund failed and is held for retry",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/paid_refund_held\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    },
+    {
+      "displayName": "a refund was already on the intent — a run died mid-close",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/paid_refund_already\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

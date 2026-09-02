@@ -978,7 +978,9 @@ async function revealGroupDay(
     logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
   }
 
-  // The reveal is out — one of the product's two notifications (D236).
+  // The reveal is out — one of the product's four notifications: this,
+  // the circle invitation, the join request and the join approval (D236
+  // added the last three, and this comment kept saying "two").
   // Best-effort by construction: sendPushToUids never throws, so FCM
   // being down can never roll back a reveal that already committed.
   await sendPushToUids(

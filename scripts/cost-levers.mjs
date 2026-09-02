@@ -165,10 +165,11 @@ const LEVERS = [
     // CORRECTED after reading the consumers. This field first said the flat
     // "counts update on a timer", which overstated the loss by implying the
     // vote→counted transition rides the listener. It does not:
-    // `scheduleAggRefresh` (live.ts:390) already re-reads the aggregate 2.5 s
+    // `scheduleAggRefresh` (data/live.ts) already re-reads the aggregate 2.5 s
     // after the write acks and clears `state.unaggregated`, and it is called
     // on BOTH answer paths (the vote ack and D86's edit). The snapshot's own
-    // clear at live.ts:494 is a second, redundant route. So what polling
+    // clear — the aggregate snapshot's own `unaggregated` drain — is a
+    // second, redundant route. So what polling
     // actually costs is narrower than it sounds: OTHER people's votes
     // arriving on the card while you watch it.
     notices: "other people's votes stop landing live; your own still confirms in ~2.5 s",

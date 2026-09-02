@@ -89,7 +89,7 @@
 	     prompt, so it says what actually happens rather than what the
 	     feature is called. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<string>Used on this device to work out which city you are nearest, so the daily can show how your city answered — once, unless you switch Near on, which sends a ~200-metre grid square every few minutes while the app is open. Your exact coordinates are never sent anywhere and never stored. You can skip this and pick your city from a list instead.</string>
 	<!-- The same string again, for an authorisation this app never asks for.
 	     Apple's upload analysis reads the linked binary, not the call
 	     sites: @capacitor/geolocation depends on ion-ios-geolocation, whose
@@ -116,7 +116,7 @@
 	     request, and UIBackgroundModes above carries remote-notification
 	     only. The same check holds that pair too. -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<string>Used on this device to work out which city you are nearest, so the daily can show how your city answered — once, unless you switch Near on, which sends a ~200-metre grid square every few minutes while the app is open. Your exact coordinates are never sent anywhere and never stored. You can skip this and pick your city from a list instead.</string>
 	<!-- PRECISE SINCE D175, and this key flipping is the whole of that
 	     decision on iOS. It used to be <true/>, which asked for a
 	     neighbourhood-level fix and showed "Precise: Off" in the permission

@@ -493,6 +493,70 @@ const coreTests = (() => {
 const smokeFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /^smoke-.*\.test\.jsx$/.test(f)).length;
 
+// …and the suites that actually SHARE that harness, which is a different
+// number and the one CLAUDE.md's sentence is about. The glob and the
+// harness parted company twice over: `dialog.test.jsx` has imported
+// mount-app for a long time, and the 2026-09-02 render-coverage files are
+// not named smoke-*. Until this entry the sentence read "these are the
+// only ones that execute a render", which by then was wrong about eighteen
+// suites in this one directory.
+// Counted by what they DO, not by how they spell an import. This asked for
+// `from "./mount-app.jsx"` with the extension, and fifteen suites import
+// that module — nine with the extension, six without — so normalising any
+// one import, a tidy-up nobody would think twice about, would have failed
+// the gate demanding CLAUDE.md say "fifteen" with nothing having changed.
+// It also counted two files that import the harness for its helpers and
+// never mount anything.
+//
+// `mountApp(` is the real predicate: it is the call that renders the whole
+// App, which is what the sentence is about.
+const harnessFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+
+// How many notifications the product actually SENDS, off v2social.ts's own
+// call sites. web/privacy.html promises the token is "only used for" them
+// and names them, and that sentence said ONE for the nine days after D236
+// shipped three more — while the sender's own comment beside them said
+// "two". A promise in writing is the one thing CLAUDE.md says moves first,
+// so the number it quotes is derived here rather than typed.
+//
+// `validate` is excluded and named rather than filtered by a pattern: it
+// is a dryRun send that never reaches a phone (registerPushToken uses it
+// to test a token), so it is not a notification anyone receives.
+const pushKinds = (() => {
+  const src = readFileSync(join(root, "functions/src/v2social.ts"), "utf8");
+  const kinds = new Set([...src.matchAll(/\bkind:\s*"([a-z-]+)"/g)].map((m) => m[1]));
+  kinds.delete("validate");
+  if (!kinds.size) {
+    throw new Error(
+      "check-figures: no `kind: \"…\"` push sites in v2social.ts — the sender "
+      + "changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return kinds.size;
+})();
+
+// Storage's byte cap, read off storage.rules itself. The suite that pins
+// that rule described it as an "8MB cap" for as long as the number had
+// been 256 KB — the 8 MB was the retired dailyPhotos cap, stranded by the
+// sweep that removed the surface, while the file's own cases used 300 KB
+// and 200 KB against the real rule. Exactly this table's class: a number
+// beside a thing that moved.
+const storageCapKb = (() => {
+  const src = readFileSync(join(root, "storage.rules"), "utf8");
+  const m = /request\.resource\.size\s*<\s*(\d+)\s*\*\s*1024/.exec(src);
+  if (!m) {
+    throw new Error(
+      "check-figures: no `request.resource.size < N * 1024` in storage.rules — "
+      + "the cap moved or changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return Number(m[1]);
+})();
+
 // The city catalogue's size, read off the generated file's own header — the
 // same line check-cities.mjs parses. It is quoted exactly once in live
 // documentation and was quoted in seven code comments besides, none of them
@@ -575,10 +639,43 @@ const FIGURES = [
   },
   {
     file: "CLAUDE.md",
-    what: "mount smoke files over one harness (§2)",
-    re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
+    what: "mount smoke files (§2)",
+    re: /five of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
-    fix: (n) => `"(${n} files over one harness"`,
+    fix: (n) => `"five of the **${n}** smoke-*.test.jsx"`,
+  },
+  {
+    file: "scripts/apply-monitoring.mjs",
+    // The SECOND occurrence in that header, and the one the entry beside
+    // it does not reach. When the ninth policy landed, the edit on this
+    // line moved `five` to `seven` for the metrics and left `eight` for
+    // the policies — under a commit message saying "all corrected". Two
+    // numbers on one line is exactly where a hand-count survives a sweep.
+    what: "alert policies, in the applier's console-steps sentence",
+    re: /log-based metrics, and (\w+) policies/,
+    actual: word(monitoringPolicies),
+    fix: (n) => `"seven log-based metrics, and ${n} policies"`,
+  },
+  {
+    file: "web/privacy.html",
+    what: "notifications the token is promised to be used for",
+    re: /only used for the (\w+) notifications this app/,
+    actual: word(pushKinds),
+    fix: (n) => `"only used for the ${n} notifications this app sends"`,
+  },
+  {
+    file: "firestore-tests/storage.rules.test.ts",
+    what: "the storage byte cap the suite says it pins",
+    re: /owner-only path match, (\d+) KB cap, image content-type/,
+    actual: String(storageCapKb),
+    fix: (n) => `"owner-only path match, ${n} KB cap, image content-type"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites that mount the whole App through the harness (§2)",
+    re: /harness, and \*\*(\w+)\*\* suites mount\s+the whole `App`/,
+    actual: word(harnessFiles),
+    fix: (n) => `"and **${n}** suites mount the whole App"`,
   },
   {
     file: "CLAUDE.md",
