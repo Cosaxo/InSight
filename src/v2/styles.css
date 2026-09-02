@@ -681,9 +681,6 @@ button.card:active,
   box-shadow: 0 1px 3px rgba(20,20,40,0.14), 0 0 0 0.5px color-mix(in oklch, var(--seg-fill, var(--ink)) 26%, transparent);
 }
 
-/* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
-   filled result reveal after answering feels like a real payoff. */
-.sd-opt:hover { background: color-mix(in oklch, var(--opt, var(--ink)) 6%, var(--surface)) !important; border-color: color-mix(in oklch, var(--opt, var(--rule)) 28%, var(--rule)) !important; }
 
 /* Pill (wax-seal) */
 .pill {

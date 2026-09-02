@@ -304,6 +304,21 @@ const wfFrAv = (f, D, k) => (
 );
 const wfFrNone = (txt) => <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>{txt}</div>;
 
+// The nine shapes a feed card can take, in the words a reader would use.
+// Drawn in the kicker beside the topic (2026-09-02) — a card announces
+// what it is asking for rather than making you discover it on tap.
+const WF_FORM_WORD = {
+  duel: 'this or that',
+  rank: 'rank',
+  rate: 'rate',
+  dial: 'dial',
+  field: 'place it',
+  know: 'learn',
+  pick: 'pick one',
+  predict: 'predict',
+  read: 'read the room',
+};
+
 class WorldFeed extends React.Component {
   state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
 
@@ -1938,10 +1953,19 @@ class WorldFeed extends React.Component {
     // LIVE.editVote instead of the create-only vote().
     const editing = mine != null && !!this.state.editFor[q.id];
     if (mine == null || editing) {
+      // one split ballot, the daily's own grammar (2026-09-02): two sides
+      // side by side divided by a hairline seam — the seam is what moves
+      // to the crowd's split once you vote — and three or more stack as
+      // rows inside the same block. The dot carries the option's hue; the
+      // ground is neutral, so the revealed tiles are the payoff.
+      const two = q.options.length === 2;
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: two ? '1fr 1fr' : '1fr', gap: 2, height: two ? (big ? 84 : 68) : undefined, borderRadius: big ? 20 : 16, overflow: 'hidden', background: 'var(--rule)', border: WF_LINE }}>
           {q.options.map((o, i) => (
-            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ border: (editing && mine === i ? '1.5px' : '1px') + ' solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))', borderRadius: big ? 16 : 12, background: 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface))', boxShadow: 'none', padding: big ? '15px 16px' : '11px 14px', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, color: 'var(--ink)', WebkitAppearance: 'none' }}>{o.label}{editing && mine === i && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{' · your pick'}</span>}</button>
+            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ minHeight: big ? 52 : 44, border: 'none', borderRadius: 0, background: editing && mine === i ? 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface-2))' : 'var(--surface-2)', boxShadow: 'none', padding: big ? '0 16px' : '0 13px', display: 'flex', flexDirection: two ? 'column' : 'row', alignItems: two ? 'flex-start' : 'center', justifyContent: 'center', gap: two ? 7 : 11, textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, letterSpacing: '-0.01em', color: 'var(--ink)', WebkitAppearance: 'none' }}>
+              <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: this.opts.v2 ? T.color : wfOpt(T.color, i, q.options.length), flexShrink: 0 }}></span>
+              <span style={{ textWrap: 'pretty' }}>{o.label}{editing && mine === i && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{' · your pick'}</span>}</span>
+            </button>
           ))}
         </div>
       );
@@ -1969,11 +1993,14 @@ class WorldFeed extends React.Component {
     const n = q.options.length;
     const v2 = this.opts.v2;
     const sides = q.live ? [] : this.friendSides(q, q.options.map((o) => o.count));
-    // one row budget per option, so two options do not tower over four
-    const H = (big ? 58 : 46) * n + (n - 1) * 7;
+    // one row budget per option, so two options do not tower over four.
+    // Two sides keep the ballot's own row: the seam sits at the crowd's
+    // split, so their share is a width and the height is fixed.
+    const two = n === 2;
+    const H = two ? (big ? 112 : 92) : (big ? 58 : 46) * n + (n - 1) * 7;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 9, animation: !v2 && fresh ? 'popIn .32s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, height: H }}>
+        <div style={{ display: 'flex', flexDirection: two ? 'row' : 'column', gap: 7, height: H }}>
           {q.options.map((o, i) => {
             // v2: one hue per card. Tint strength tracks share, so 52/48 reads
             // as 52/48 and not as two differently-coloured teams.
@@ -1983,11 +2010,15 @@ class WorldFeed extends React.Component {
             const fr = sides.filter((f) => f.oi === i);
             const win = p[i] === maxP;
             return (
-              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 }}>
-                    <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
-                    {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>{'· you'}</span>}
+              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, minWidth: 0, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
+                <div style={two
+                  ? { height: '100%', display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-start', justifyContent: 'center', gap: 3, padding: big ? '0 16px' : '0 12px' }
+                  : { height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flex: two ? 'none' : 1, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? (two ? 16 : 19) : (two ? 13.5 : 15), letterSpacing: '-0.02em' }}>{o.label}</span>
+                    {/* your mark is a stamp, not a footnote — "· you" beside
+                        a label read as punctuation at a glance */}
+                    {isMine && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: 'var(--ink)', color: 'var(--surface-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>you</span>}
                   </div>
                   {/* Friend marks: DEMO CARDS ONLY (the `sides` gate above —
                       WF_FRIENDS are invented, and on a live card this would
@@ -3816,7 +3847,12 @@ class WorldFeed extends React.Component {
             question is in every other respect an ordinary question. */}
         {q.sponsor
           ? <SponsorMark sponsor={q.sponsor} until={q.until}></SponsorMark>
-          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? WPAL.ink(T.color) : 'var(--ink-2)', background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>}
+          // The kicker names the topic; when it is NOT a sponsor mark it
+          // also names the card's FORM in words (2026-09-02) — "this or
+          // that", "rank", "place it". The feed serves nine shapes and a
+          // reader met each one by discovering it; a sponsor mark keeps
+          // the pill it needs and says nothing else.
+          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: mk ? 12.5 : 10.5, fontWeight: mk ? 600 : 800, letterSpacing: mk ? 0 : '.09em', textTransform: mk ? 'none' : 'uppercase', color: WPAL.ink(T.color), background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: mk ? `0.5px solid color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'none', borderRadius: 999, padding: mk ? '4px 12px 4px 10px' : 0, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}{!mk && q.type && q.type !== 'vote' ? <span style={{ color: 'var(--ink-3)' }}>{'\u00b7 ' + (WF_FORM_WORD[q.type] || q.type)}</span> : null}</span>}
         {bgText ? (
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         ) : (
