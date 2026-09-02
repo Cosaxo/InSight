@@ -10,8 +10,8 @@ import { sharePcts } from '../data/pct';
 // InSight — group statistics for the Map tab.
 //
 // For a (question × anchor-group) pair: how did people who share that
-// anchor with you answer? Since D99 this is REAL for the two anchors that
-// map onto a breakdown dim, and still refuses for the rest.
+// anchor with you answer? Since D99 this is REAL for the three anchors
+// that map onto a breakdown dim, and still refuses for the rest.
 //
 // THE HISTORY MATTERS, because the refusal is what made the fix findable.
 // Every number here used to be a hash of the question id — plausible,

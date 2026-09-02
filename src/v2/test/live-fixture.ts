@@ -291,6 +291,35 @@ export interface LiveHandle {
 export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const tooSmall = !!opts.tooSmall;
   const aggCounts = opts.aggCounts;
+  // One Crossroads story (D136), shaped as the store folds it: eight
+  // per-ending counts in PATH_ENDINGS order, and a total. The counts are
+  // lopsided on purpose — a flat eight would make every branch the same
+  // width, so a card that ignored `counts` entirely and drew a uniform
+  // tree would look correct. `tooSmall` empties them, which is this
+  // fixture's way of asking for the nobody-has-finished-this-yet arm.
+  //
+  // ONE object behind both doors (D341): `pathQs` serves it to the Map's
+  // Walks branch, and the feed pool below carries it as a member — the
+  // same split the app has, so a fixture drift between the two would be
+  // the drift the real build cannot have.
+  const pathStory = {
+    id: "feed-fixture-path",
+    title: PATH_TITLE,
+    intro: "A fixture story, three forks deep.",
+    hue: 20,
+    nodes: Object.fromEntries(
+      ["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
+        k, { q: `Fork ${k === "_" ? "opening" : k}`, a: [{ t: `${k} left` }, { t: `${k} right` }] },
+      ]),
+    ),
+    endings: Object.fromEntries(
+      ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)))
+        .map((k) => [k, { name: `Ending ${k}`, line: `The ${k} road ends here.` }]),
+    ),
+    counts: tooSmall ? [0, 0, 0, 0, 0, 0, 0, 0] : [40, 5, 10, 5, 20, 5, 10, 5],
+    total: tooSmall ? 0 : 100,
+    live: true as const,
+  };
   const votes: Record<string, string> = {};
   const listeners = new Set<() => void>();
   const deck = [
@@ -318,6 +347,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     myDuelVote: () => null,
     revealFor: () => null,
     revealHistory: () => [],
+    // Settled: a mount test is about the drawn frame, not the cold one.
+    revealHistoryLoading: () => false,
     loadRevealHistory: async () => {},
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
@@ -348,6 +379,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // badge. The empty list IS the live-mode surface a circle with nothing
     // written in it shows.
     takes: () => [],
+    // Settled: a mount test is about what the screen draws once the
+    // read has landed, not about the frame before it.
+    takesLoading: () => false,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},
@@ -588,32 +622,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       }
       return out;
     },
-    // One Crossroads story (D136), shaped exactly as buildFeedGlobals emits
-    // it: eight per-ending counts in PATH_ENDINGS order, and a total. The
-    // counts are lopsided on purpose — a flat eight would make every branch
-    // the same width, so a card that ignored `counts` entirely and drew a
-    // uniform tree would look correct.
-    //
-    // `tooSmall` empties them, which is this fixture's way of asking for the
-    // nobody-has-finished-this-yet arm: total 0, no tree, no share chips.
-    pathQs: () => [{
-      id: "feed-fixture-path",
-      title: PATH_TITLE,
-      intro: "A fixture story, three forks deep.",
-      hue: 20,
-      nodes: Object.fromEntries(
-        ["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
-          k, { q: `Fork ${k === "_" ? "opening" : k}`, a: [{ t: `${k} left` }, { t: `${k} right` }] },
-        ]),
-      ),
-      endings: Object.fromEntries(
-        ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)))
-          .map((k) => [k, { name: `Ending ${k}`, line: `The ${k} road ends here.` }]),
-      ),
-      counts: tooSmall ? [0, 0, 0, 0, 0, 0, 0, 0] : [40, 5, 10, 5, 20, 5, 10, 5],
-      total: tooSmall ? 0 : 100,
-      live: true as const,
-    }],
+    // The Map's Walks branch reads the story from here (D341: the CARD no
+    // longer does — it receives the feed item below as a prop).
+    pathQs: () => [pathStory],
     // Catalogue picks (D14 gone live). The fixture mirrors the real
     // quartet: a create-only entity write into the shared votes map, and
     // the three board reads in the demo store's shapes. One two-row board
@@ -726,8 +737,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     loadLearnAggs: async () => {},
     linkGoogle: async () => {},
     // Anonymous-first (D3) is the default state, so that is what the fixture
-    // renders — the branch the privacy panel and profile overlay both
-    // describe in copy.
+    // renders — the identity row's "anonymous session" branch
+    // (profile-overlay.jsx, D344 amendment). A case that needs the linked
+    // branch flips this in its prep.
     linked: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
@@ -834,6 +846,14 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
         : {}),
     }),
   );
+  // The Crossroads story rides the pool as a member (D341), the shape
+  // buildFeedGlobals emits: the story's fields plus its home topic (the
+  // bank's `topic`, 'dilemma' — an always-on channel), the prompt search
+  // reads, and the `n` the "top" sort keys on.
+  (w.WORLD_FEED_QS as Dict[]).push({
+    ...pathStory, cat: "dilemma", type: "path", prompt: PATH_TITLE,
+    n: tooSmall ? 0 : 100,
+  });
   // The live pick card, shaped exactly as buildFeedGlobals emits it: no
   // options (the catalogue is the answer space), `n` from the agg total,
   // and the domain one of the committed catalogues — emoji, matching the

@@ -143,20 +143,6 @@
       ]
     },
     {
-      "collectionGroup": "invites",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "from",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "at",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "answers",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

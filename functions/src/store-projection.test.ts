@@ -73,4 +73,81 @@ describe("the fold stores carry the retry stamp in both directions", () => {
       ).toContain(`${field}:`);
     });
   }
+
+  // The loadings document's own pair, which is the same shape with a
+  // sharper edge: `putModel` is a `set` with NO merge, so a field the
+  // write leaves out is DELETED rather than left alone. `quality` is
+  // omitted deliberately when a run has nothing to score — safe only
+  // because it is undefined in exactly the case where the document had
+  // none, which rests on `getModel` naming it. Drop it from that read and
+  // every run carries undefined, and the next replace erases the 90-day
+  // prequential series D325 calls the number any candidate engine must
+  // beat. Neither end could fail before this.
+  it("patterns.ts: getModel reads `quality` back off the snapshot", () => {
+    const src = read("patterns.ts");
+    const body = between(src, "async getModel(", "async putModel(");
+    expect(body, "getModel moved or was renamed — this case is vacuous").not.toBe("");
+    // The ASSIGNMENT, not the name. Written as `.toContain('snap.get(\"quality\")')`
+    // this passed with the field replaced by `undefined`, because the line
+    // above it reads the same key for `series` — a vacuous assertion of
+    // exactly the kind this file exists to remove.
+    expect(
+      body,
+      "patterns.ts's getModel drops `quality`, so prevQuality is undefined on "
+      + "every run and putModel's non-merge set then erases the published series.",
+    ).toMatch(/quality:\s*snap\.get\("quality"\)/);
+  });
+
+  it("patterns.ts: putModel still carries `quality` when it has one", () => {
+    const src = read("patterns.ts");
+    const body = between(src, "async putModel(", "await modelRef.set");
+    expect(body, "putModel moved or was renamed — this case is vacuous").not.toBe("");
+    const write = src.slice(src.indexOf("await modelRef.set"));
+    expect(
+      write,
+      "patterns.ts's model write no longer names `quality` at all — with no "
+      + "merge on this set, that removes it from the document every night.",
+    ).toContain("{ quality }");
+  });
+
+  // The velocity scan's own projection, added for the same reason and
+  // pinned separately because it is a `.select()` on a query rather than a
+  // field-by-field read of a snapshot.
+  //
+  // `fromIdx` is the only thing distinguishing a D86 edit's ledger row
+  // from a create, and the volume ceiling is about creates. Drop it from
+  // the select and every row reads as a create again — the exact state
+  // this file was written about, where the guard is dead in production
+  // while the in-memory fake goes on proving it works, because
+  // velocity.test.ts builds its rows by hand and never reaches the query.
+  it("velocity.ts: the ledger scan selects `fromIdx`", () => {
+    const src = read("velocity.ts");
+    const m = /\.select\(([^)]*)\)/.exec(src);
+    expect(m, "the ledger scan's .select() moved or was renamed — this case is vacuous").toBeTruthy();
+    for (const field of ["uid", "qid", "at", "fromIdx"]) {
+      expect(
+        m[1],
+        `velocity.ts's scan drops \`${field}\` from its projection`,
+      ).toContain(`"${field}"`);
+    }
+  });
+
+  it("velocity.ts: the scan maps `fromIdx` onto `isEdit`", () => {
+    // The OTHER end, which selecting the field does not give you — the
+    // shape ledger.test.ts already asserts for the twin reader ("copies
+    // fromIdx out of the snapshot, not just off the wire").
+    //
+    // Deleting this one line makes every ledger row read as a create
+    // again, which is the whole D86 false-positive bug back, and the
+    // handler it lives in is executed by no test: the scan body is
+    // uncovered end to end.
+    const src = read("velocity.ts");
+    const body = between(src, "const pageRows: LedgerRow[] = []", "foldInto(fold, pageRows)");
+    expect(body, "the scan's page loop moved or was renamed — this case is vacuous").not.toBe("");
+    expect(
+      body,
+      "velocity.ts reads `fromIdx` and never marks the row an edit, so every "
+      + "row counts toward a ceiling that is about creates.",
+    ).toMatch(/fromIdx[\s\S]{0,80}isEdit:\s*true/);
+  });
 });

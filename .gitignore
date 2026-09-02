@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# `tsc -b` incremental state. Dropped in the tree beside the tsconfig that
+# produced it — functions/ has its own project, so its copy lands there
+# rather than under a build directory the lines above already cover. It is
+# machine-local cache, worthless to anyone else and stale the moment a
+# dependency moves, and nothing tracks one today.
+*.tsbuildinfo
+
 # Environment variables — copy .env.example to .env and fill in your values
 .env
 .env.*
@@ -129,3 +136,15 @@ reports/
 NIGHT_TASKS.md
 MORNING_SUMMARY.md
 .night-shift/
+
+# Night shift B's, which are the same files under different names (D349).
+# The names differ on purpose: two shifts audit this tree on the same nights
+# from two containers, and a person opening either one has to be able to tell
+# whose notes these are without reading them. The entries are load-bearing
+# beyond tidiness — doc-index rule 5 asks that ORIENTATION.md name every root
+# markdown document, and reads its skip set from THIS file, so a root scratch
+# note that is not listed here turns a gate red on the contents of somebody's
+# working tree. scripts/doc-index-ignore.test.mjs is that case.
+NIGHTB_TASKS.md
+NIGHTB_SUMMARY.md
+.nightb/

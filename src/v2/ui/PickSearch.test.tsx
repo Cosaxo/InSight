@@ -53,6 +53,10 @@ const stores = vi.hoisted(() => ({
     { key: 256, name: "blue" },
     { key: 1, name: "black" },
   ],
+  languages: [
+    { key: 47, name: "French (Français)" },
+    { key: 37, name: "English" },
+  ],
 }));
 
 const catalogStore = (rows: () => Array<{ key: number; name: string }>) => ({
@@ -78,6 +82,7 @@ vi.mock("../data/catalogs", () => ({
   COUNTRIES: catalogStore(() => stores.countries),
   DOGS: catalogStore(() => stores.dogs),
   COLORS: catalogStore(() => stores.colors),
+  LANGUAGES: catalogStore(() => stores.languages),
 }));
 
 const { default: PickSearch } = await import("./PickSearch");

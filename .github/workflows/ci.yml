@@ -150,6 +150,13 @@ jobs:
       # deleted from that page is a claim deleted from the product.
       # Client/docs-only, same placement rule as the checks around it.
       - run: npm run check:policy-claims
+      # Every page under web/ is covered by a hosting headers rule. The
+      # commit that enumerated those rules named this gate as its own
+      # missing half and left it on the night's list; four pages were added
+      # without headers in the week that followed, the GDPR erasure route
+      # among them. Reads firebase.json only — client config, so it belongs
+      # here and not on backend-checks.yml.
+      - run: npm run check:web-headers
       # Every collection the rules grant access to is named in
       # data-inventory.md — the document app-privacy.json derives the App
       # Store privacy label from (D130). A name check, like check:globals.
@@ -233,6 +240,14 @@ jobs:
       # names, reported by email after the upload transferred and the build
       # number was spent. Same side of the line as the two above.
       - run: npm run check:ios-location
+      # D29's device-bind bridge is WIRED, not merely present. Its whole
+      # failure mode is silence: an unregistered plugin leaves a green
+      # build, a passing suite and an app that behaves identically, because
+      # enforcement is soft. That is how the gate sat inert from D29 to
+      # D342. Registration hangs off Main.storyboard's customClass, which
+      # `npx cap sync` may rewrite — a red line here is the only way that
+      # gets noticed.
+      - run: npm run check:devicebind
 
   typecheck-build:
     runs-on: ubuntu-latest

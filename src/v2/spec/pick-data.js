@@ -697,6 +697,71 @@ export let PICK_QS;
                      // Coco, Grave of the Fireflies and the 1994 Lion King
                      // are all absent from the sitelink top-1000
     },
+    // first card of the languages domain, 2026-09-01 (minted keys —
+    // build-languages.mjs, ISO 639-1 via npm; the Sunday 08-30 domain
+    // slot, run late). The wish canon, not favouritism: the board is the
+    // languages people tell themselves they'll learn someday.
+    pk32: {
+      39: 26,   // Spanish — the world's default someday-language
+      47: 22,   // French
+      74: 18,   // Japanese
+      72: 14,   // Italian
+      182: 12,  // Chinese
+      32: 10,   // German
+      130: 9,   // Portuguese
+      84: 8,    // Korean
+      8: 7,     // Arabic
+      135: 6,   // Russian
+      57: 5,    // Hindi — clears the floor but not the top 10; folds
+      154: 5,   // Swahili — same
+      36: 4,    // Greek — below the floor
+      117: 2,   // Norwegian — below the floor
+      0: 12,    // Not listed — sign languages and the dialects ISO folds away
+    },
+    // daily catalog-question run, 2026-09-01 — sound is the second
+    // languages canon, and it is not the wish: pk32 ranks what you'd USE
+    // (Spanish leads, on sheer usefulness), this ranks what you'd LISTEN
+    // to — Italian takes the top, and Welsh and Irish chart here without
+    // appearing on the wish board at all.
+    pk33: {
+      72: 25,   // Italian — the consensus music
+      47: 22,   // French
+      39: 15,   // Spanish
+      74: 12,   // Japanese
+      130: 11,  // Portuguese
+      8: 10,    // Arabic
+      135: 9,   // Russian
+      36: 8,    // Greek
+      30: 7,    // Welsh — the eisteddfod vote
+      49: 6,    // Irish
+      153: 5,   // Swedish — clears the floor but not the top 10; folds
+      32: 5,    // German — the contrarian vote; same
+      84: 4,    // Korean — below the floor
+      117: 3,   // Norwegian — below the floor
+      0: 10,    // Not listed — everyone's grandmother's dialect
+    },
+    // daily catalog-question run, 2026-09-02 — the third athletes canon
+    // is the LIFE, not the sport: pk28 ranks achievement and pk30 ranks
+    // spectacle; this ranks the whole existence — wealth, adoration, the
+    // clean exit. Federer overtakes the GOATs, and Beckham charts high
+    // here without leading either other board.
+    pk34: {
+      1426: 24,   // Roger Federer — the envied life: grace, beloved, out on his own terms
+      10520: 19,  // David Beckham — the fame and the post-career empire
+      1189: 16,   // Usain Bolt — the joyful one, retired happy
+      36159: 13,  // LeBron James
+      615: 12,    // Lionel Messi
+      9673: 10,   // Lewis Hamilton — the Monaco life
+      11459: 9,   // Serena Williams
+      169452: 8,  // Shaquille O'Neal — the fun life
+      11571: 7,   // Cristiano Ronaldo
+      41421: 6,   // Michael Jordan — the greatness, minus the peace
+      352159: 5,  // Stephen Curry — clears the floor but not the top 10; folds
+      10132: 5,   // Rafael Nadal — same
+      10993: 3,   // Tiger Woods — below the floor; spectacle without the envy
+      39562: 2,   // Michael Phelps — below the floor
+      0: 11,      // Not listed — everyone's local hero
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1067,6 +1132,42 @@ export let PICK_QS;
         Men: { 208263: 8, 483941: 7, 19355: 6, 106316: 6, 11621: 5 },
       },
     },
+    pk32: {
+      ageBand: {
+        // the young wish follows the screen (Japanese, Korean); the older
+        // wish follows the holiday (Italian, French)
+        '18-24': { 74: 9, 84: 7, 39: 6, 47: 5, 182: 4 },
+        '25-34': { 39: 8, 47: 7, 72: 6, 74: 5, 32: 4 },
+      },
+      gender: {
+        Women: { 47: 8, 72: 7, 39: 6, 84: 5, 74: 4 },
+        Men: { 39: 8, 74: 7, 182: 6, 32: 5, 135: 4 },
+      },
+    },
+    pk33: {
+      ageBand: {
+        // the romance languages hold every cohort; the young cell hears
+        // more Japanese, the older cell more Russian
+        '18-24': { 72: 8, 74: 7, 47: 6, 130: 5, 36: 4 },
+        '25-34': { 47: 8, 72: 7, 39: 6, 135: 5, 8: 4 },
+      },
+      gender: {
+        Women: { 47: 9, 72: 8, 130: 6, 74: 5, 49: 4 },
+        Men: { 72: 8, 39: 7, 135: 6, 8: 5, 30: 4 },
+      },
+    },
+    pk34: {
+      ageBand: {
+        // the young cell wants the still-playing lives; the older cell
+        // has watched enough exits to rank them
+        '18-24': { 1189: 8, 36159: 7, 1426: 6, 11571: 5, 9673: 4 },
+        '25-34': { 1426: 8, 10520: 7, 615: 6, 36159: 5, 11459: 4 },
+      },
+      gender: {
+        Women: { 1426: 8, 11459: 7, 10520: 6, 1189: 5, 9673: 4 },
+        Men: { 1426: 9, 1189: 7, 615: 6, 41421: 5, 169452: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1233,6 +1334,9 @@ export let PICK_QS;
     { id: 'pk29', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'What colour is happiness?', n: 153 },
     { id: 'pk30', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d pay to watch in their prime?', n: 157 },
     { id: 'pk31', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film that made you cry the most?', n: 158 },
+    { id: 'pk32', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The language you wish you spoke?', n: 160 },
+    { id: 'pk33', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The most beautiful language to hear?', n: 152 },
+    { id: 'pk34', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete whose life you’d want?', n: 150 },
   ];
   window.PICK_QS = PICK_QS;
 })();

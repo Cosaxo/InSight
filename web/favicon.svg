@@ -1,22 +1,28 @@
-<!-- InSight favicon — the COMPACT iris on the ink tile (D302). Below
-     ~24px the full mark's outer ring muddies, so tiny surfaces drop to
-     hexagon + pupil; a favicon lives at 16–32px, so it wears the identity
-     canvas's 16px tier (design/identity-2026-08-26/): fattest dots, the
-     six hexagon hues, the launcher tile's ground and palette
+<!-- InSight favicon — the COMPACT iris on the PAPER tile (D340, reversing
+     D302's ink tile). Below ~24px the full mark's outer ring muddies, so
+     tiny surfaces drop to hexagon + pupil; a favicon lives at 16–32px, so
+     it wears the identity canvas's 16px tier
+     (design/identity-2026-08-26/): fattest dots, the six hexagon hues, and
+     since D340 the launcher tile's ground and palette are the paper ones
      (design/icon/mark.svg has the conversions and where they came from).
+     The tile rect earns its place on DARK browser chrome, where it keeps
+     the light-ground dots legible; on light chrome it is invisible against
+     the tab and the mark is simply the mark. No hairline rule around it —
+     the identity canvas draws one on its paper tiles at 29–44px, which at
+     a 16px favicon would be a sixth of a pixel.
      web/favicon.svg is a byte-identical copy — public/ ships with the
      app bundle, web/ with the legal landing pages, and the two hosting
      roots share no directory. Change one, change both. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <rect x="0" y="0" width="100" height="100" rx="24" fill="#1d1914"/>
+  <rect x="0" y="0" width="100" height="100" rx="24" fill="#fefdfb"/>
   <g transform="translate(13.8 13.8) scale(0.724)">
-    <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="#76706a" stroke-width="4" stroke-linejoin="round"/>
-    <circle cx="50" cy="24" r="11" fill="#7e6cd9"/>
-    <circle cx="72.5" cy="37" r="11" fill="#d4556c"/>
-    <circle cx="72.5" cy="63" r="11" fill="#cd9c1f"/>
-    <circle cx="50" cy="76" r="11" fill="#0089c9"/>
-    <circle cx="27.5" cy="63" r="11" fill="#cf6139"/>
-    <circle cx="27.5" cy="37" r="11" fill="#009b9b"/>
-    <circle cx="50" cy="50" r="13.5" fill="#f8f6f4"/>
+    <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="#8b857f" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="50" cy="24" r="11" fill="#5e5bb6"/>
+    <circle cx="72.5" cy="37" r="11" fill="#a83f59"/>
+    <circle cx="72.5" cy="63" r="11" fill="#8c6400"/>
+    <circle cx="50" cy="76" r="11" fill="#0072a5"/>
+    <circle cx="27.5" cy="63" r="11" fill="#a94620"/>
+    <circle cx="27.5" cy="37" r="11" fill="#007b7c"/>
+    <circle cx="50" cy="50" r="13.5" fill="#1d1914"/>
   </g>
 </svg>

@@ -57,6 +57,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
+  // D236 · the page must NAME the notifications, not just count them.
+  // check:figures holds the count against v2social.ts's own call sites;
+  // this holds the list, because a fifth kind added as "and others" would
+  // satisfy a count and tell the reader nothing. The sentence said "the
+  // one notification this app sends" for the nine days after D236 shipped
+  // three more — the exact shape this file's header names: not a promise
+  // thinned on purpose, a promise left behind by a change three commits
+  // away.
+  ["D236 · the token is used for the reveal AND the three circle notices",
+    /revealed,\s*someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
   // One pattern, not an alternation. It shipped as
   // `/…from the first answer|no minimum, no delay/` and the gate's own
   // test caught it inside an hour: with two spellings of one claim, either

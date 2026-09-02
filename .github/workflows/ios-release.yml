@@ -426,6 +426,43 @@ jobs:
           xcrun altool --upload-app -f "$IPA" -t ios \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
 
+      # Tell the release recorder Routine (docs/OPS-RUNBOOK.md § The release
+      # recorder) that a build went out. D339 is the fourth time a delivered
+      # build went unrecorded because the record depended on a session
+      # remembering to write it; the step that uploaded is the one thing
+      # that cannot forget the upload happened. The payload is DATA to the
+      # Routine — it confirms the build against the run list before writing.
+      # Inert until the repository variable and secret exist, and never red:
+      # a build that uploaded is delivered whatever this step does, and a
+      # red run over a shipped build is the confusion D339 records.
+      - name: Fire the release recorder
+        if: ${{ inputs.upload }}
+        env:
+          ROUTINE_URL: ${{ vars.ROUTINE_RELEASE_FIRE_URL }}
+          ROUTINE_TOKEN: ${{ secrets.ROUTINE_RELEASE_FIRE_TOKEN }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$ROUTINE_URL" ] || [ -z "$ROUTINE_TOKEN" ]; then
+            echo "::notice::release recorder not wired (ROUTINE_RELEASE_FIRE_URL / ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand, docs/IOS-RELEASE.md has the shape"
+            exit 0
+          fi
+          APP_BUILD=$(node -p 'require("./package.json").appBuild')
+          APP_VERSION=$(node -p 'require("./package.json").version || ""')
+          BODY=$(APP_BUILD="$APP_BUILD" APP_VERSION="$APP_VERSION" node -e 'const e = process.env; process.stdout.write(JSON.stringify({ text: `iOS build uploaded to App Store Connect: appBuild ${e.APP_BUILD}, version ${e.APP_VERSION}, ios-release.yml run ${e.RUN_NUMBER} (run id ${e.RUN_ID}) at commit ${e.RUN_SHA}.` }))')
+          if RESP=$(curl -sS --fail-with-body -X POST "$ROUTINE_URL" \
+              -H "Authorization: Bearer $ROUTINE_TOKEN" \
+              -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+              -H "anthropic-version: 2023-06-01" \
+              -H "Content-Type: application/json" \
+              -d "$BODY"); then
+            echo "release recorder fired: $RESP"
+            printf '\n### Release recorder fired\n\n%s\n' "$RESP" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::release recorder fire failed: $RESP — record this delivery by hand"
+          fi
+
       - name: What happens next
         run: |
           if [ "${{ inputs.upload }}" = "true" ]; then

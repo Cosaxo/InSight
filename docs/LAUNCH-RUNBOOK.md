@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 722 seeded; the production backend is deployed. **Measured
+questions of 758 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -176,7 +176,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      722 questions land in `v2_questions` — idempotent and, since D34,
+      758 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -187,7 +187,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **722** after the K=5 test expansion, D103's
+      and the bank is **758** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1033,7 +1033,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 722 seeded questions are live regardless.
+      working, not a leak — the 758 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1442,8 +1442,18 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [x] **5.5 Apply the eight monitoring alerts — VERIFIED ARMED AND WIRED
-      2026-08-27 (D333).** Found already applied (the D303 path had run):
+- [ ] **5.5 Apply the nine monitoring alerts — EIGHT VERIFIED ARMED AND
+      WIRED 2026-08-27 (D333); the NINTH is committed and not applied.**
+      **REOPENED 2026-09-02 (D349).** `monitoring/paid-refund-stuck.json`
+      landed with the paid pipeline's first alert of any kind, and with
+      the two log-based metrics it selects on. Nothing in this tree arms
+      a policy — `monitoring:apply` does, and it has not been run since —
+      so the money alert is committed, gated by `check:monitoring`, and
+      silent. Dispatch **Arm monitoring** once more; the 2026-08-27
+      verification below stands for the eight it names and says nothing
+      about the ninth, which is why moving this heading's count from
+      eight to nine was not an edit that could be made on its own.
+      Found already applied on 2026-08-27 (the D303 path had run):
       the dry run reports every object `already exists`, `observe` reads
       `armed: true`, and — the half a green count cannot see — a direct
       policy read shows **all eight policies carry the `InSight oncall`

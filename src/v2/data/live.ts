@@ -45,7 +45,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 25 `await getDb()` sites in this file did not change
+// deliberately: the 39 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -568,7 +568,7 @@ export const TAKE_MAX_CHARS = 280;
 // The anchor keys firestore.rules accepts, with its per-field length caps
 // (isValidV2Anchors). Kept here rather than inline so the client and the
 // ruleset can be diffed against each other by eye.
-const ANCHOR_FIELDS: Record<string, number> = {
+export const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
   profession: 80, jobField: 40, education: 80, relationship: 40, heightBand: 20,
 };
@@ -963,8 +963,8 @@ const listeners = new Set<() => void>();
 // carries the same note: derived on read rather than cached, so a
 // ranking cannot go stale against its own inputs. That reasoning is
 // right and it was being paid for on every render rather than on every
-// change. `kindredPeople()` walks every cached voter list and has six
-// call sites (LiveSimilarityField ×2, LiveMirrorLenses, typeMix ×2,
+// change. `kindredPeople()` walks every cached voter list and has 5
+// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2,
 // testNorms); each of those is inside a component that re-renders on
 // every notify(), and none of them memoises. So one Mirror stop folded
 // the same voter cache four to six times per render — 14 ms a fold in
@@ -1693,7 +1693,7 @@ async function hydrate(): Promise<void> {
     // What this boot's queries handed back, in the cache's own string
     // form — the write-back below is sized by this, not by the archive.
     const fetchedRows: Array<[string, string]> = [];
-    const fold = (d: { id: string; get: (f: string) => unknown }, raiseEdit = true) => {
+    const fold = (d: { id: string; get: (f: string) => unknown }, raiseEdit = true, raiseAnswered = true) => {
       // Catalog answers carry `entity` and rank answers carry `order` —
       // never `optionIdx` (D14/D233). All three join the same map in
       // string form (the entity's digits; the order joined with commas) —
@@ -1713,8 +1713,29 @@ async function hydrate(): Promise<void> {
         state.votes[d.id] = val;
         fetchedRows.push([d.id, val]);
       }
-      const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
-      if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
+      // AND THE ANSWERED WATERMARK IS NOT RAISED BY EVERY PAGE EITHER —
+      // the same rule as the edit watermark below, pointed the other way,
+      // and it was missing here for exactly as long as that one existed.
+      //
+      // A page may raise this only if it is a complete account of the
+      // CREATES in the range it covers. The cold pull is. The answered
+      // delta is (it asks for exactly this field, and when it truncates it
+      // truncates ASCENDING, which is why it self-heals across boots). The
+      // EDIT delta is not: it returns the docs whose editedAt moved, and
+      // their answeredAt can be far newer than the oldest create the
+      // answered delta had to defer.
+      //
+      // Raising from it therefore sealed real answers out. Answered delta
+      // truncates at 400 and leaves the cursor at the 400th create; the
+      // edit delta then returns one doc edited yesterday but created after
+      // that cutoff, lifts this past every deferred create, and persists
+      // it. Those answers are never fetched on that device again — the
+      // deck re-offers their questions and the create-only rule refuses
+      // every re-vote, so each card silently un-votes itself.
+      if (raiseAnswered) {
+        const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
+        if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
+      }
       // THE EDIT WATERMARK IS NOT RAISED BY EVERY PAGE, and which pages
       // may raise it is the whole correctness of the second delta below.
       //
@@ -1832,7 +1853,8 @@ async function hydrate(): Promise<void> {
         limit(400),
       ));
       state.stats.answersFetched += esnap.size;
-      esnap.docs.forEach((d) => fold(d));
+      // …and NOT the answered watermark: see `raiseAnswered` in fold above.
+      esnap.docs.forEach((d) => fold(d, true, false));
     }
     const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
     if (answersFrom === "idb") {
@@ -2234,16 +2256,43 @@ function mirrorVoteValue(
 // from the published position sums).
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
-  // Crossroads (D136) is a feed question but NOT a feed card: its reveal is
-  // a tree rather than a split, so none of renderCard's apparatus — option
-  // rows, who-voted, takes, the insight line — applies to it, and the
-  // prototype pins it at the head of the list rather than dealing it into
-  // the stream. It rides its own accessor below; everything else about it
-  // is ordinary (real options, real counts, the same fold and ledger).
   const feed = state.feedBank
-    .filter((q) => q.surface === "feed" && q.type !== "path"
+    .filter((q) => q.surface === "feed"
       && ((q.options || []).length >= 2 || q.type === "catalog"))
     .map((q) => {
+      // Crossroads (D136, dealt in at D341): a story is a feed question AND
+      // a feed card — a member of this pool like any other, so the stream's
+      // own ordering places it and several can ride at once. It keeps its
+      // own card shape (paths-card.jsx) because its reveal is a tree rather
+      // than a split — renderCard's apparatus has nothing to say about a
+      // walk — so what rides here is what that card and the feed mechanics
+      // read, and NOT the synthesized `options`: the endings-as-options
+      // trick is the vote path's business, and an options array on the item
+      // would invite every generic option consumer to treat a walk as a
+      // split. `cat` is the vote arm's own mapping (bank `topic`, default
+      // 'culture') — for the shipped stories that is 'dilemma', an
+      // always-on channel in both builds, so the chip row names and mutes
+      // them like anything else it carries.
+      if (q.type === "path") {
+        const counts = feedCounts(q);
+        return {
+          id: q.id,
+          cat: q.topic || "culture",
+          type: "path",
+          prompt: q.prompt,
+          title: q.title,
+          intro: q.intro,
+          hue: q.hue,
+          nodes: q.nodes,
+          endings: q.endings,
+          counts,
+          // wfVotes' sort key ("top" is most-answered), summed here the way
+          // pathQs' readers sum it — the card itself re-derives total from
+          // `counts` and never reads this.
+          n: counts.reduce((a, b) => a + b, 0),
+          live: true,
+        };
+      }
       // Catalogue picks (D14 gone live) keep their own card shape: no
       // options — the catalogue is the answer space — so none of the
       // option-counts apparatus below applies. The board itself is not
@@ -2535,6 +2584,21 @@ const SOCIAL = {
   // Every readable reveal for this group, newest first — the cached
   // history plus yesterday's live listener doc. Shape matches what
   // groupPortrait.ts consumes.
+  /**
+   * Is this group's reveal history still being read?
+   *
+   * `revealHistory()` answers `[]` for "never fetched", "in flight" and
+   * "genuinely nothing revealed" alike, and the Groups Mirror stop opens
+   * on a fan-out of one getDoc per day — so the cold frame told a group
+   * with weeks of history that nothing had been revealed. The loader one
+   * function up is careful about exactly this distinction (a
+   * `permission-denied` caches null permanently; a transient error leaves
+   * the key absent "so a later call retries it rather than freezing a gap
+   * into the portrait") and the surface threw it away.
+   */
+  revealHistoryLoading(gid: string): boolean {
+    return !!state.revealHistLoading[gid];
+  },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
     const out: Array<Record<string, unknown> & { day: string }> = [];
     const yesterday = state.reveals[gid];
@@ -2611,7 +2675,18 @@ const SOCIAL = {
    * keystrokes.
    */
   async searchPeople(raw: string): Promise<DirectoryPerson[]> {
-    const key = raw.trim().toLowerCase();
+    // ASCII-ONLY, and it must stay identical to `foldName` in
+    // ./socialFetch — the key it builds is compared against `nameKey`,
+    // which `firestore.rules` forces to equal `name.lower()`, and the
+    // rules engine's `.lower()` touches A-Z and nothing else.
+    // `toLowerCase()` here is full Unicode, so it lowered "Ó" to "ó"
+    // before socialFetch could fold anything, and the stored key still
+    // says "Ó": the prefix query matched nothing and the fold one layer
+    // down was dead code. Written out rather than imported because the
+    // line has to run BEFORE the dynamic import below — that import is
+    // what keeps socialFetch out of the entry chunk, and this is also
+    // the session cache's key, which is looked up without awaiting.
+    const key = raw.trim().replace(/[A-Z]/g, (c) => c.toLowerCase());
     if (!key) return [];
     const hit = state.peopleSearch.get(key);
     if (hit) return hit;
@@ -2831,6 +2906,26 @@ const SOCIAL = {
     if (key == null) return [];
     const all = state.takes[key] || [];
     return gid !== "world" && qid ? all.filter((t) => t.qid === qid) : [...all];
+  },
+  /**
+   * Is this scope's take list still being read?
+   *
+   * `takes()` answers `[]` for three different things — never fetched, in
+   * flight, and genuinely empty — and the panel could only tell the third
+   * one apart by having a flag to ask. Without it the takes panel printed
+   * "No takes yet. Say the first thing." over a query still running, and
+   * kept printing it for the life of that mount after a FAILED fetch,
+   * because `loadTakes`' catch deliberately leaves the key absent so a
+   * later open retries rather than caching an empty list.
+   *
+   * Every other on-demand D98 loader in this store already publishes one
+   * — votersLoading, kindredLoading, circleLoading, followsLoading,
+   * invitesLoading, near.roomLoading. `takesLoading` was the one that
+   * existed in state and never reached the surface.
+   */
+  takesLoading(gid: string, qid?: string): boolean {
+    const key = takeScopeKey(gid, qid);
+    return key == null ? false : !!state.takesLoading[key];
   },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
@@ -3463,7 +3558,7 @@ const LIVE = {
     saveLocalName(name);
     notify();
   },
-  // The viewer's own anchors, as a plain map — the same seven keys an
+  // The viewer's own anchors, as a plain map — the same 10 keys an
   // answer snapshots (D8), read back. Empty until the Basics card is
   // filled in, and that emptiness is load-bearing: the Map's anchor ring
   // (spec/map-anchors.js) renders a row per anchor, so a missing value has
@@ -4216,8 +4311,16 @@ const LIVE = {
       // World paid the voter fan-out — twelve collection-group queries of
       // up to 200 answers each, plus the profile reads that resolve their
       // names — for data neither stop reads: the place fields draw from
-      // the test aggregates above. Only City reads `kindredPeople()`, and
-      // the People lens loads it for itself.
+      // the test aggregates above.
+      //
+      // This said "Only City reads `kindredPeople()`" and that was wrong:
+      // `data/testNorms.ts` reads it too, for the result card's counted
+      // percentiles, and that card had no loader of its own — so scoping
+      // the fan-out here quietly stopped its numbers computing for anyone
+      // who opened World but never City. The card loads for itself now
+      // (spec/result-card.jsx), which is this comment's own rule applied
+      // to the reader it had missed. The city field and the People lens
+      // load for themselves the same way.
       //
       // The city half was already scoped this way, by the effect in
       // LiveSimilarityField that calls `loadCityKindred()` under a comment
@@ -4239,9 +4342,10 @@ const LIVE = {
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
   // to IS_TESTS for scoring metadata without a bridge read.
   //
-  // perRev because the bank only changes at hydrate and this has five
-  // render-path callers (SimilaritySection, PlacesField, testNorms,
-  // result-card ×2), each feeding it straight into testItemMeta — and
+  // perRev because the bank only changes at hydrate and this has 6
+  // render-path callers (SimilaritySection, PlacesField, LiveCompareLens,
+  // testNorms, result-card ×2), each feeding it straight into
+  // testItemMeta — and
   // because docs/SCALE-PLAN.md makes `feedBank` the collection that grows
   // without bound, so a per-call filter over it is the wrong shape to
   // leave lying around.
@@ -4375,9 +4479,15 @@ const LIVE = {
   // into no breakdown cell (D8).
   saveAnchors(next: Record<string, string>): void {
     const clean: Record<string, string> = {};
-    // Only the seven keys firestore.rules validates, trimmed and capped to
-    // its per-field lengths. Sending anything else fails the whole write,
-    // so the client must not rely on the server to reject the extras.
+    // Only the keys firestore.rules validates, trimmed and capped to its
+    // per-field lengths. Sending anything else fails the whole write, so
+    // the client must not rely on the server to reject the extras — and
+    // "the whole write" is the point: the rules refuse the DOCUMENT, so
+    // one over-long value does not lose a city, it loses the profile save
+    // with the display name in it.
+    //
+    // This said "the seven keys" while ANCHOR_FIELDS held ten. The count
+    // is check:figures' now, off that table.
     for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
       const v = next[k];
       if (typeof v !== "string") continue;
@@ -4638,7 +4748,17 @@ const LIVE = {
     }
   },
   async linkGoogle(): Promise<void> {
-    return linkGoogle();
+    await linkGoogle();
+    // The account just gained an identity provider, which is the fact
+    // accountLevel.ts's level 2 is graded on. Activation memoizes per uid
+    // and would otherwise never look again, so drop the memo and let the
+    // next boot re-grade. Here rather than at the two call sites (the
+    // settings row and the first-launch gate) so neither can forget it.
+    //
+    // After the await: a failed link must not clear a settled memo, since
+    // nothing about the account changed.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
   },
   // The operator seed, reachable from a browser console.
   //
@@ -5119,16 +5239,21 @@ const LIVE = {
   },
   /**
    * Crossroads' stories with their folded ending counts (D136), or an empty
-   * list in a demo build — which is the signal spec/paths-card.jsx reads to
-   * fall back to its own authored pool.
+   * list in a demo build. Since D341 the CARD no longer reads this — a
+   * story rides WORLD_FEED_QS like any other feed question and the card
+   * receives it as a prop — so the one caller left is the Map's Walks
+   * branch (paths-card.jsx pathsMapTree), which needs every story whatever
+   * the feed's filters are showing.
    *
    * Folded ON CALL rather than precomputed into state by buildFeedGlobals,
    * which is where it started. The precomputed version cost ~1 KB of the
    * EAGER graph — this file is in the first-paint chunk — and check:bundle
-   * refused it, correctly: MAX_EAGER_KB has no headroom and is the constant
-   * keeping the Firestore SDK out of first paint, so it is not raiseable.
-   * There is one caller and it renders once per feed render, so the fold is
-   * cheaper here than the bytes were there.
+   * refused it at the time: MAX_EAGER_KB had no headroom then. D341's feed
+   * arm in buildFeedGlobals is not that trade re-taken: pool membership
+   * needs the mapped item either way, the ceiling has headroom today, and
+   * check:bundle graded it. THIS accessor stays on-call because its caller
+   * is a lazy tab that most sessions never open, and a fold nobody asked
+   * for is free only until it isn't.
    */
   pathQs(): LivePathQ[] {
     return state.feedBank
@@ -6251,8 +6376,9 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // so a Google-linked user was told "You're on an anonymous session" and
     // offered "Link Google", which then painted auth/provider-already-linked
     // into the panel. Fail-safe (it could only under-claim), but wrong on
-    // screen, and profile-overlay.jsx hardcodes the same sentence with no
-    // check at all.
+    // screen — and profile-overlay.jsx hardcoded the same sentence with no
+    // check at all until the D344 amendment wired its identity row to this
+    // flag.
     //
     // …and ANNOUNCE it when it changes (D134). The anonymous → Google
     // upgrade keeps the uid, so this callback set `linked` and then fell
