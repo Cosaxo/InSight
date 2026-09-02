@@ -104,26 +104,6 @@ export function wfCatArt(color, seed) {
 export function wfCarried(q) { return [q.cat, ...(q.also || [])]; }
 
 /**
- * How many people have answered a question, whatever shape it is.
- *
- * ONE COPY, and the reason is a live bug rather than tidiness. The search
- * overlay kept its own `srchQVotes`, forked from this one and never caught
- * up: it handled `rank` and `rate` and then fell through to summing
- * `q.options`. Continuum and catalogue questions carry NO options, so
- * `dial`, `field` and `pick` all scored 0 — in both of the overlay's
- * orderings, the no-query round-robin and the result tiebreak. The
- * highest-traffic questions of three whole types sorted as if nobody had
- * answered them.
- *
- * `catalogPicks` is the pick fallback the caller looks up (WF_CATALOGS),
- * passed in rather than imported so this module stays arithmetic over its
- * arguments. Pass 0 where there is no table to consult.
- *
- * The `|| 0` inside the reduce is not decoration either: the fork omitted
- * it, so one option row without a `count` turned the whole total into NaN,
- * which sorts unpredictably rather than low.
- */
-/**
  * Has this person answered the question, counting an answer that exists
  * only on the server?
  *
@@ -149,6 +129,26 @@ export function wfAnsweredOf(q, votes, getServer) {
   return q.type === 'rank' ? !!(v && v.order) : v != null;
 }
 
+/**
+ * How many people have answered a question, whatever shape it is.
+ *
+ * ONE COPY, and the reason is a live bug rather than tidiness. The search
+ * overlay kept its own `srchQVotes`, forked from this one and never caught
+ * up: it handled `rank` and `rate` and then fell through to summing
+ * `q.options`. Continuum and catalogue questions carry NO options, so
+ * `dial`, `field` and `pick` all scored 0 — in both of the overlay's
+ * orderings, the no-query round-robin and the result tiebreak. The
+ * highest-traffic questions of three whole types sorted as if nobody had
+ * answered them.
+ *
+ * `catalogPicks` is the pick fallback the caller looks up (WF_CATALOGS),
+ * passed in rather than imported so this module stays arithmetic over its
+ * arguments. Pass 0 where there is no table to consult.
+ *
+ * The `|| 0` inside the reduce is not decoration either: the fork omitted
+ * it, so one option row without a `count` turned the whole total into NaN,
+ * which sorts unpredictably rather than low.
+ */
 export function wfVotesOf(q, catalogPicks = 0) {
   if (q.type === 'rank') return q.votes || 0;
   // `path` (D341's Crossroads) counts like the other continuum types, and
