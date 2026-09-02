@@ -1,8 +1,8 @@
 # Ops runbook — the routines that keep the routine program honest, and the list worker
 
-**Status: mixed — four of the eight Routines exist since 2026-09-02 (the
-roll call, the production reader, the release recorder and the list
-worker; § 5 has their ids), and the platform probe, the PR shepherd, the
+**Status: mixed — five of the eight Routines exist since 2026-09-02 (the
+roll call, the production reader, the release recorder, the list worker
+and the PR shepherd; § 5 has their ids), and the platform probe, the
 pulse responder and the dependency shepherd do not yet.** This file is
 the contract each one defers to from its first fire, written before the
 first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
@@ -50,9 +50,14 @@ they live in one runbook and share one run log.
   here inherits the content lanes' D212 self-merge. **The one door is
   the owner's label**: a PR carrying `merge-when-green` is one the owner
   has decided to merge, and the PR shepherd executes that decision when
-  the PR is green (§ The PR shepherd). The label is the owner's act
-  alone — **no lane ever applies it**, to its own PR or any other, and
-  every prompt in §4 says so.
+  the PR is green (§ The PR shepherd). The label is the owner's act,
+  and since D352 (2026-09-02) it has two hands: the owner applies it
+  directly, or the **merge shift** (`PROGRAM-RUNBOOK.md` § The merge
+  shift) applies it to a PR the owner approved by ticking its row on
+  `MERGE-LIST.md` — the tick mirrored to the label `approved` — once
+  that PR is green on its current head and reviewed as one diff.
+  **No other lane applies it**, to its own PR or any other, and every
+  prompt in §4 says so.
 - **Provisioning is conditional, not assumed.** Every prompt opens with
   "if the repository is not already cloned with push access, provision
   it" — the `add_repo` step the axes lanes use — so the same prompt is
@@ -469,9 +474,28 @@ phone, or a sentence to any session. The lane's first step each run
 copies new labelled issues into the list, oldest first, tagged with
 the issue number; the PR that ships one says `Closes #N`.
 
-**Per run:** if a `claude/worklist-*` PR is open, the run is that PR —
-merge `main`, answer review comments, fix what CI flagged, stop.
-Otherwise take the topmost unchecked item in § Open that carries no
+**The tag (D352, 2026-09-02).** Every item carries `[claude-1]`,
+`[claude-2]` or `[claude-3]` — which subscription's list worker takes
+it; a worker takes the topmost open item carrying **its own account's
+tag** and nothing else. Untagged means `[claude-2]`. One item in flight
+per account, the § In flight row naming the account. The axiom builder
+tags what it files and tags untagged items on each planning run; the
+owner's tag is final. The guide: `[claude-1]` — content and the
+question pipeline, monitoring and pulse follow-ups, store and release
+paperwork, scripts and gates; `[claude-2]` — docs, ops, the axes
+program's build steps, what the night shift or the doc sweep raised;
+`[claude-3]` — product code toward the axioms, the visual builds, the
+merge shift's follow-ups. No account holds more than about half the
+open items; a tag moves with a one-line note, and a worker that finds
+an item belongs elsewhere moves the tag with its reason and takes the
+next one. The three workers are one lane on three accounts
+(`PROGRAM-RUNBOOK.md` § The to-do doers); this section is the contract
+for all of them.
+
+**Per run:** if a `claude/worklist-*` PR of this account's is open, the
+run is that PR — merge `main`, answer review comments, fix what CI
+flagged, stop. Otherwise take the topmost unchecked item in § Open that
+carries this account's tag (untagged means `[claude-2]`) and no
 `[owner]` tag and:
 
 1. **Plan before building.** In a scratch file: what done means in one
@@ -497,7 +521,8 @@ Otherwise take the topmost unchecked item in § Open that carries no
    items ticked by merged PRs to § Done, open the PR on
    `claude/worklist-<slug>`, request the owner, stop.
 
-**Never:** merge or approve; more than one item in flight; the content
+**Never:** merge or approve; more than one item in flight per account;
+another account's item; the content
 banks (the farm's domain — and question content is Fable's by the
 owner's rule, which this lane honours by not writing any);
 `firestore.rules` loosened; a lane contract; a store form; the privacy
@@ -605,7 +630,7 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 | --- | --- | --- | --- | --- |
 | InSight platform probe | — | — | — | — |
 | InSight roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | not set (session default) | persistent session `session_01RQvTPyNEFgX5yNUPqkDPnS` — the ops dispatcher, §2 step 3, created over MCP | 2026-09-02 |
-| InSight PR shepherd | — | — | — | — |
+| InSight PR shepherd | `trig_01UuPxYjLWh5st3iUDyxKu58` | `claude-opus-5` | fresh session per fire in `env_013gTXHYYHNaKBiWe8c4gmtd`, no persistent session — created over MCP from another session on this account; schedule raised from `20 6,16 * * *` to hourly, `55 * * * *`, at 16:55Z | 2026-09-02 |
 | InSight production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | not set (session default) | same dispatcher | 2026-09-02 |
 | InSight release recorder | `trig_01Vr2QLmWAGBaBsnT6yTusnr` | not set (session default) | same dispatcher; no schedule — API fire from `ios-release.yml` | 2026-09-02 |
 | InSight pulse responder | — | — | — | — |
@@ -615,16 +640,19 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 Two things the table cannot say, recorded 2026-09-02 by the session that
 filled it (D353's), for the next one that looks here:
 
-- **The PR shepherd's row is empty although the shepherd is real.** The
-  owner has said the shepherd is a Routine and the repository carries the
-  `merge-when-green` label (created; `no-shepherd` is not yet). No
-  Routine by that name was on this account's `list_triggers` when the
-  four rows above were read — a Routine created in the web UI under
-  another account is outside an MCP session's sight, the content lanes'
-  situation. Whoever can see it at claude.ai/code/routines fills the id;
-  until a row is here, a labelled PR waits for a human merge and says
-  so, and the roll call cannot count the shepherd's fires.
-- **The four rows carry no model.** The MCP path creates a Routine with
+- **The PR shepherd's row was filled from `list_triggers` at 17:00Z by
+  D353's session, not by the one that created it.** The Routine is on
+  this account. What is still open is whether a fire REACHES the
+  repository: `merge-when-green` had been on #363 since the morning,
+  and by 17:00Z no fire had posted the *armed* comment there or on any
+  other labelled PR, although the run log says the fires succeeded. The
+  session that created it was diagnosing exactly that when this was
+  written; its working hypothesis is an empty `session_request.sources`
+  — a Routine created over MCP has no repository attached and must
+  provision one from scratch each fire. Until a fire shows on a PR, a
+  labelled PR is not yet being merged by anything; the roll call can at
+  least count the fires now that the id is here.
+- **The four rows this session created carry no model.** The MCP path creates a Routine with
   the session's default model rather than the §1 column's; the roll
   call's Sunday ledger is where that shows up as a diff, and
   `update_trigger` only moves a model on a human's word.
