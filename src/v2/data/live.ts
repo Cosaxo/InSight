@@ -801,6 +801,12 @@ const restoredPending = new Set<string>();
 // not yet in the public aggregate (the display flag every create sets).
 function restorePending(uid: string): void {
   for (const [aid, p] of Object.entries(loadPending(uid))) {
+    // On a re-run hydrate (a wake after a failed boot) the file also
+    // holds THIS process's own taps — inflight, with a live promise. They
+    // are not restored and not the settle's: their ack is theirs to
+    // count, once. An id inflight because an earlier run restored it is
+    // in the set already and stays.
+    if (aid in state.inflight && !restoredPending.has(aid)) continue;
     state.votes[aid] = p.v;
     state.inflight[aid] = true;
     const n = Number(p.v);
@@ -962,9 +968,11 @@ async function settlePending(
   if (!still.length) return;
   try {
     const found = new Map<string, string>();
-    // A document still carrying a local mutation is a write made since
-    // the drain by this process, over a restored id (an edit of a
-    // restored answer, say) — its own promise settles it; not "absent".
+    // A document still carrying a local mutation: by this file's own
+    // rules none can be a restored id's — editVote refuses an inflight
+    // id and the creates refuse a voted one — so this is defence against
+    // the SDK alone, and a skipped id is simply settled on the next boot
+    // rather than read as absent.
     const echoed = new Set<string>();
     for (let i = 0; i < still.length; i += 30) {
       const chunk = still.slice(i, i + 30);
@@ -1770,13 +1778,15 @@ function saveOwnProfile(): void {
   const { displayName, handle, testResults, anchors, consent } = state.profile;
   lsSet(OWN_PROFILE_LS, JSON.stringify({ uid, displayName, handle, testResults, anchors, consent }));
 }
-// How many times a mutator has moved state.profile this process. hydrate
-// issues its profile read at its top and applies it some round trips
-// later; on a warm-painted screen the person can edit the profile in
-// between, and applying "what the server said when the read was issued"
-// over that edit reverted it on screen AND in the mirror (the third
-// review) — every later answer would have snapshotted the old anchors.
-// The mutators go through here; the boot compares.
+// How many times the PERSON has moved state.profile this process — the
+// anchors, the name, the handle, the political consent. hydrate issues
+// its profile read at its top and applies it some round trips later; on
+// a warm-painted screen the person can edit the profile in between, and
+// applying "what the server said when the read was issued" over that
+// edit reverted it on screen AND in the mirror (the third review) —
+// every later answer would have snapshotted the old anchors. Not the
+// test results: the passive fold writes those on its own schedule, and a
+// fold that ran during the read is no reason to discard it.
 let profileDirty = 0;
 function profileChanged(): void {
   profileDirty += 1;
@@ -2640,6 +2650,11 @@ async function hydrate(): Promise<void> {
       // Started at the top of hydrate — see the note there. Re-read here
       // only if the uid changed under us between then and now, which the
       // auth flip can do.
+      // The counter is read beside whichever read is USED: a fresh read
+      // for a uid that changed under the boot is issued now, and an edit
+      // made before it — the old account's, even — is not an edit made
+      // over it.
+      const dirtyAt = uid0 === uidEarly && profileP ? profileDirtyAt : profileDirty;
       const prof = uid0 === uidEarly && profileP
         ? await profileP
         : await getDoc(doc(db, "v2_users", uid0));
@@ -2656,7 +2671,7 @@ async function hydrate(): Promise<void> {
       // own write carries it to the server, and the next boot's read
       // returns it. Applying the read over it reverted the edit on screen
       // and wrote the old anchors back over the mirror.
-      const edited = profileDirty !== profileDirtyAt;
+      const edited = profileDirty !== dirtyAt;
       if (prof && prof.exists() && !edited) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.handle = (prof.get("handle") as string) || "";
@@ -4361,10 +4376,13 @@ const LIVE = {
     const uid = state.uid;
     const takeId = `av_${target}`;
     if (!uid || !target || target === uid || state.myFlags[takeId]) return;
-    const db = await getDb();
     state.myFlags[takeId] = true;
     notify();
     try {
+      // Inside the try since D342: getDb() holds while the uid is the
+      // mirror's and FAILS if the sign-in does, and a failure there has
+      // to roll the optimistic flag back like any other.
+      const db = await getDb();
       await setDoc(doc(db, "v2_flags", `${takeId}_${uid}`), {
         takeId, gid: "avatar", uid, target, at: serverTimestamp(),
       });
@@ -5214,7 +5232,11 @@ const LIVE = {
   },
   saveTestResult(kind: string, result: unknown): void {
     state.profile.testResults[kind] = result;
-    profileChanged();
+    // Mirrored, not counted as an edit (profileChanged): this is written
+    // by the passive fold as much as by a person, and a fold that ran
+    // while the boot's profile read was in flight must not make the boot
+    // discard the read.
+    saveOwnProfile();
     void (async () => {
       try {
         const db = await getDb();
@@ -5312,7 +5334,7 @@ const LIVE = {
           // nothing to remove costs no write — this runs on every hydrate.
           if (state.profile.testResults[POLITICAL_RESULT_KEY]) {
             delete state.profile.testResults[POLITICAL_RESULT_KEY];
-            profileChanged();
+            saveOwnProfile(); // the same rule as saveTestResult: not an edit
             wrote = true;
             void (async () => {
               try {

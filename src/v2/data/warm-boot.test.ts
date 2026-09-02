@@ -915,6 +915,24 @@ describe("the provisional account", () => {
     expect(LIVE.uid).toBe("uid_test");
   });
 
+  it("an optimistic report parked behind the gate rolls back when the sign-in fails", async () => {
+    // flagAvatar sets its flag before its write like every optimistic
+    // path; its getDb() moved inside the try so a gate failure rolls the
+    // flag back and reports, instead of escaping the method unrolled.
+    await seedWarmDevice();
+    h.holdSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    const report = LIVE.flagAvatar("u_other").catch(() => "refused");
+    await flush();
+    expect(LIVE.flaggedAvatar("u_other")).toBe(true);
+    h.failSignIn?.(new Error("auth/network-request-failed"));
+    expect(await report).toBe("refused");
+    expect(LIVE.flaggedAvatar("u_other")).toBe(false);
+    expect(h.reportError.mock.calls.some((c) => c[1]?.where === "flagAvatar")).toBe(true);
+  });
+
   it("a null auth state while the uid is provisional starts no second sign-in", async () => {
     await seedWarmDevice();
     h.autoAuth = false;
@@ -1256,6 +1274,86 @@ describe("answers the server has not acknowledged (D343)", () => {
     expect(card?.options[0].count).toBe(1);
   });
 
+  it("a re-run boot does not adopt this process's own taps into the settle", async () => {
+    // A wake after a failed boot re-runs hydrate, and the pending file
+    // now also holds taps made in THIS process — inflight, with a live
+    // promise of their own. Restoring those would let the settle confirm
+    // them off the delta and count their ack a second time.
+    await seedBank([row("q_1", 1), row("q_2", 2)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
+    await release();
+    await expectParked(["v2_questions"]);
+    await release();
+    await vi.waitFor(() => { expect(h.pending.length).toBe(3); });
+    await vi.waitFor(() => {
+      h.pending.splice(0).forEach((p) => p.fail(new Error("offline")));
+      expect(LIVE.bootError).toContain("offline");
+    });
+    // The person answers q_2 on the warm deck; the write is in the queue.
+    h.holdWrites = true;
+    LIVE.vote("q_2", "0");
+    await flush();
+    expect(pendingFile()?.e).toEqual({ q_2: { v: "0" } });
+    // The network returns: the queue flushes and the delta returns q_2
+    // acknowledged before the tap's own ack callback has run.
+    h.gated = false;
+    h.answerDocs = [{ id: "q_2", data: { optionIdx: 0, answeredAt: ts(900) } }];
+    fire("online");
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await flush();
+    // Not the settle's: still unconfirmed, still in the file.
+    expect(LIVE.confirmedVotes()).toEqual({ q_1: "1" });
+    expect(pendingFile()?.e).toEqual({ q_2: { v: "0" } });
+    // Its own ack lands, once.
+    h.parkedWrites.splice(0).forEach((r) => r());
+    await vi.waitFor(() => { expect(LIVE.confirmedVotes()).toEqual({ q_1: "1", q_2: "0" }); });
+    expect(pendingFile()).toBeNull();
+  });
+
+  it("an account switch mid-boot still applies the new account's profile after an edit", async () => {
+    // The edit counter is read beside whichever read is USED. An edit
+    // made under the old account before the switch is not an edit made
+    // over the fresh read the new account gets.
+    await seedWarmDevice();
+    h.autoAuth = false;
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
+    LIVE.saveAnchors({ city: "Bergen, NO", age: "30s" });
+    h.uid = "uid_new";
+    h.profile = { displayName: "Bea", anchors: { city: "Tromsø, NO" } };
+    h.authCb?.({ uid: "uid_new" });
+    expect(LIVE.anchors()).toEqual({});
+    await releaseAll(LIVE);
+    expect(LIVE.uid).toBe("uid_new");
+    expect(LIVE.anchors()).toEqual({ city: "Tromsø, NO" });
+    expect(JSON.parse(storage.getItem(OWN_PROFILE_LS) || "null")).toMatchObject({ uid: "uid_new", anchors: { city: "Tromsø, NO" } });
+  });
+
+  it("a test result written while the profile read is in flight does not discard the read", async () => {
+    // The passive fold writes results on its own schedule; only the
+    // person's own edits — anchors, name, handle, consent — may make the
+    // boot keep the screen over the read.
+    await seedWarmDevice();
+    h.gated = true;
+    h.profile = { displayName: "Ada B.", anchors: { city: "Oslo, NO", age: "30s" } };
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
+    LIVE.saveTestResult("big5", { dims: [] });
+    await releaseAll(LIVE);
+    expect(LIVE.displayName).toBe("Ada B.");
+  });
+
   it("the mirror is the account's: a switch takes it with everything else", async () => {
     const LIVE = await answerOffline();
     expect(pendingFile()?.uid).toBe("uid_test");
@@ -1289,9 +1387,10 @@ describe("the network phase's round trips", () => {
     await release();
     // Step 3: the two answer deltas AND the deck aggregates, in one trip.
     // Before D342 this was three trips — answered, then edited, then the
-    // aggregates after the profile await.
-    const step3 = pendingPaths().sort();
-    expect(step3).toEqual(["v2_question_aggs", "v2_users/uid_test/answers", "v2_users/uid_test/answers"]);
+    // aggregates after the profile await. Waited for, not read at once:
+    // the delta's rows are written back to the cache first, and that is
+    // a few macrotasks of IndexedDB.
+    await expectParked(["v2_question_aggs", "v2_users/uid_test/answers", "v2_users/uid_test/answers"]);
     await releaseAll(LIVE);
   });
 
@@ -1303,7 +1402,7 @@ describe("the network phase's round trips", () => {
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
     // The boot surfaces, the core feed, the bought reach — at once.
-    expect(pendingPaths()).toEqual(["v2_questions", "v2_questions", "v2_questions"]);
+    await expectParked(["v2_questions", "v2_questions", "v2_questions"]);
     await releaseAll(LIVE);
     expect(LIVE.dailyBank().map((x) => x.id)).toEqual(["q_1"]);
   });

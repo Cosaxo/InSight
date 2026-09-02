@@ -34971,9 +34971,11 @@ reconcile never flashes a label on launch.
 - A write made behind the provisional gate lives in this process, not
   in the SDK's persisted queue — there is no session to hand it to. If
   the sign-in FAILS, those writes fail with it, into their own catches
-  (a vote rolls back on screen the way a refused write does; a profile
-  edit stays local and mirrored), and the next wake's sign-in re-arms
-  the gate. Holding them would be a promise the next launch cannot keep
+  (a vote rolls back on screen the way a refused write does; anchors,
+  consent and test results stay local and mirrored, because their
+  mutators move state before the write; a display name does not, because
+  `saveDisplayName` moves state only after its write, and the panel
+  shows the error), and the next wake's sign-in re-arms the gate. Holding them would be a promise the next launch cannot keep
   (the third review's finding; it first held them). What is lost in
   that case is the profile edit's server write — the mirror keeps the
   edit for the paint, and the next successful boot's profile read
@@ -34994,7 +34996,11 @@ the disk is still being read surfaced as an unhandled one before the
 own deck read stops the poll before it arms — `aggPollGen`, above — and
 a foreground before the attach JOINS the boot rather than resubscribing,
 so the session attached with its counts frozen; the attach arms the
-poll if nothing did and the app is visible.
+poll if nothing did and the app is visible. And because the gate gave
+every store method a second way to reject, the one optimistic method
+whose `getDb()` stood outside its try (the avatar report) moved it
+inside so a gate failure rolls its flag back like any other, and its
+one `void` call site catches what the method rethrows.
 
 ### What proves it
 
@@ -35155,6 +35161,20 @@ one voter short. And the gate's read arm is a `collection(` line that
 is not also a `doc(` line: the write idiom split across lines lands on
 a line with neither verb, which must be reported as the unclassifiable
 write it is.
+
+A fourth pass over that fix moved three more things. The restore skips
+an id that is inflight in THIS process and not already restored — on a
+re-run hydrate (a wake after a failed boot) the file holds the
+process's own taps, and restoring those let the settle confirm them off
+the delta and count their ack twice. `saveTestResult` mirrors without
+counting as an edit: the passive fold writes results on its own
+schedule, and a fold that ran while the boot's profile read was in
+flight is no reason to discard the read. And the edit counter is read
+beside whichever read is USED — a uid that changed under the boot gets
+a fresh read, and an edit made before it, the old account's even, is
+not an edit made over it. The `echoed` guard's comment now says what it
+is: defence against the SDK alone, since by this file's own rules no
+restored id can carry a mutation of this process's.
 
 ### The trade, stated
 
