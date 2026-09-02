@@ -388,6 +388,62 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
+// The anchor keys the client sends, off ANCHOR_FIELDS — the table
+// check:anchors already diffs against firestore.rules cap for cap.
+const anchorKeys = (() => {
+  const src = read("src/v2/data/live.ts");
+  const open = src.indexOf("export const ANCHOR_FIELDS");
+  const body = stripComments(src.slice(open, src.indexOf("};", open)));
+  return [...body.matchAll(/(\w+):\s*\d+/g)].length;
+})();
+
+/**
+ * Live call sites of a store accessor, across the app's own source.
+ *
+ * Comments stripped, tests and fixtures excluded: what the perRev
+ * comments count is folds paid for per RENDER, so a mention in prose and a
+ * stub in a fixture are both noise. Two of these figures had drifted, in
+ * the paragraphs that argue for the memoisation itself.
+ */
+const callSites = (call) => {
+  const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
+  let n = 0;
+  for (const dir of dirs) {
+    for (const f of readdirSync(join(root, dir))) {
+      if (!/\.(ts|tsx|js|jsx)$/.test(f) || /\.test\./.test(f)) continue;
+      const src = stripComments(read(`${dir}/${f}`));
+      n += src.split(call).length - 1;
+    }
+  }
+  return n;
+};
+
+// The political marker's two figures, and the store header's own count of
+// the dynamic-import sites it points a reader at. All three sit in source
+// comments, which is where this repo's figure drift keeps surviving.
+const politicalQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.political === true && q.surface !== "test").length;
+})();
+const dailyFeedQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.surface === "daily" || q.surface === "feed").length;
+})();
+const getDbSites = (() => {
+  const src = stripComments(read("src/v2/data/live.ts"));
+  return [...src.matchAll(/await getDb\(\)/g)].length;
+})();
+
+// The anchors MapStats can answer for — the keys of MAP_ANCHOR_DIM, which
+// is the table the refusal is decided by. Two files quote this count in
+// prose and neither is reachable any other way.
+const mapAnchorDims = (() => {
+  const src = read("src/v2/data/cohort.ts");
+  const open = src.indexOf("export const MAP_ANCHOR_DIM");
+  const body = src.slice(open, src.indexOf("};", open));
+  return [...stripComments(body).matchAll(/^\s{2}(\w+):/gm)].length;
+})();
+
 // The modules that define Cloud Functions, counted off the tree. ops.ts's
 // header prose said "nine" while there were fifteen — the hand-kept-figure
 // drift this script exists for, in the file whose whole subject is that a
@@ -616,6 +672,88 @@ const FIGURES = [
     re: /a notification channel, (\w+) log-based metrics/,
     actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "anchor keys an answer snapshots, off ANCHOR_FIELDS",
+    re: /the same (\d+) keys an\n {2}\/\/ answer snapshots/,
+    actual: String(anchorKeys),
+    fix: (n) => `"the same ${n} keys an\n  // answer snapshots"`,
+  },
+  {
+    file: "src/v2/ui/LiveProfileSetup.tsx",
+    what: "anchor keys the setup screen maps onto",
+    re: /fields onto the (\d+) anchor keys/,
+    // `check:anchors` holds the CAPS against firestore.rules and reports
+    // all ten agreeing; nothing held the prose, which said seven in one
+    // file and eight in the other.
+    actual: String(anchorKeys),
+    fix: (n) => `"fields onto the ${n} anchor keys"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "call sites of kindredPeople(), the fold perRev exists for",
+    re: /walks every cached voter list and has (\d+)\n\/\/ call sites/,
+    // The COUNT is the argument for the memoisation — how many folds per
+    // render are being paid for — so it is the sentence's load-bearing
+    // half. It said six with "LiveSimilarityField ×2"; that file has had
+    // one since the Near field was rewritten.
+    actual: String(callSites("kindredPeople()")),
+    fix: (n) => `"walks every cached voter list and has ${n}\n// call sites"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "render-path callers of testFeedItems()",
+    re: /and this has (\d+)\n {2}\/\/ render-path callers/,
+    actual: String(callSites("testFeedItems()") - 1),
+    // −1 for live.ts's own internal call, which is not a render path.
+    fix: (n) => `"and this has ${n}\n  // render-path callers"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "questions carrying the political marker",
+    re: /is (\d+) questions carrying the political marker/,
+    actual: String(politicalQuestions),
+    fix: (n) => `"is ${n} questions carrying the political marker"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "the daily+feed corpus that count is read against",
+    re: /out of the\n\/\/ (\d+) on the daily and the feed/,
+    // The RATIO is the sentence's whole point, so both halves have to
+    // follow the bank. This said "ten out of 278" — the first had moved
+    // and the second was wrong when it was written.
+    actual: String(dailyFeedQuestions),
+    fix: (n) => `"out of the\n// ${n} on the daily and the feed"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "the dynamic-import sites the store's header sends a reader to",
+    re: /the (\d+) `await getDb\(\)` sites in this file/,
+    actual: String(getDbSites),
+    fix: (n) => `"the ${n} \`await getDb()\` sites in this file"`,
+  },
+  {
+    file: "src/v2/spec/map-group-stats.js",
+    what: "the anchors MapStats answers for, off MAP_ANCHOR_DIM",
+    re: /REAL for the (\w+) anchors/,
+    // D328 moved `job` from refusing to real, and updated the paragraph
+    // thirteen lines down inside this same header while leaving the
+    // opening sentence at "two" — a file contradicting itself, in the
+    // direction that understates what the Map now draws. A second copy in
+    // world-feed.jsx said "five null anchors" for the same reason.
+    actual: word(mapAnchorDims),
+    fix: (n) => `"REAL for the ${n} anchors"`,
+  },
+  {
+    file: "functions/src/engagement.ts",
+    what: "the bank the day-document's qid fence is sized against",
+    re: /The bank is\n \* (\d+) questions today/,
+    // The whole point of the sentence is the HEADROOM — "the bank can
+    // double before this truncates anything real" — so the number it is
+    // measured against has to be the live one. It said 710 against 722.
+    actual: String(seededQuestions),
+    fix: (n) => `"The bank is\n * ${n} questions today"`,
   },
   {
     file: "src/v2/data/patternsReady.ts",

@@ -30,14 +30,24 @@
 // a person can look at it (it is owner-readable, D163's "shown" carried
 // over) and see exactly their own answering, counted.
 //
-// EDITS COUNT ONCE A DAY, approximately. The ledger logs aggregate
-// EVENTS: a D86 edit writes a second entry byte-identical in shape to
-// the create it supersedes. Within one day the fold dedupes per
-// (person, question); an edit on a LATER day counts again. Patterns
-// needed exactness there and dedupes across the model's whole life;
-// interest is a heuristic where a revisited question over-counting by
-// one is noise, and the cheap rule is recorded rather than silently
-// wrong.
+// AN EDIT NEVER COUNTS. The ledger logs aggregate EVENTS: a D86 edit
+// writes a second entry byte-identical in shape to the create it
+// supersedes, except for `fromIdx`, which only an edit carries. The fold
+// skips on that field, so a revisit adds nothing on any day.
+//
+// This paragraph said the opposite — "EDITS COUNT ONCE A DAY,
+// approximately … an edit on a LATER day counts again", defended as a
+// cheap heuristic where over-counting by one is noise. That WAS the rule
+// until 2026-08-29, when the `fromIdx` skip landed because changing your
+// mind on Tuesday about Monday's answer made a person who edited a lot
+// read as a person who cared a lot. The fix went in and this header did
+// not, so the file a next author reads first documented a known-wrong
+// behaviour as a deliberate trade.
+//
+// What survives is the within-day set below, and it now does less than
+// its name suggests: with edits gone it only collapses a create and a
+// same-day repeat. Entries written before `fromIdx` existed carry none
+// and still fold the old way — history is not rewritten.
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { FieldValue } from "firebase-admin/firestore";
@@ -153,9 +163,8 @@ export async function runTasteFold(
       // cared a lot. An entry written before the field existed carries
       // none and still folds the old way — history is not rewritten.
       if (e.fromIdx !== undefined) continue;
-      // The within-day dedupe (the edit rule in the header): one count
-      // per (person, question) per day, first entry wins — the create
-      // and its same-day edit are one act of interest.
+      // The within-day dedupe, downstream of the `fromIdx` skip above:
+      // one count per (person, question) per day, first entry wins.
       const key = `${e.uid}\u0000${e.qid}`;
       if (seen.has(key)) continue;
       seen.add(key);

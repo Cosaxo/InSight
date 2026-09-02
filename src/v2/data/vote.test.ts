@@ -67,6 +67,8 @@ const h = vi.hoisted(() => ({
   // carried. What proves the `where` reached Firestore rather than being
   // applied on the device afterwards.
   voterQueries: [] as Array<Record<string, unknown>>,
+  /** qids whose voter query rejects — see the fan-out handler below. */
+  voterFailQids: new Set<string>(),
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
   // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
@@ -291,6 +293,12 @@ vi.mock("firebase/firestore", () => {
           if (w && w.__kind === "where" && typeof w.field === "string") wheres[w.field] = w.value;
         }
         h.voterQueries.push(wheres);
+        // A per-qid failure hook. `loadVoters` swallows its own error and
+        // leaves the list unset, which is the state `kindredAt` has to
+        // count around — and no fixture could produce it before this.
+        if (h.voterFailQids.has(String(wheres.qid ?? ""))) {
+          return Promise.reject(new Error("voter query refused"));
+        }
         const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
         return Promise.resolve(snapOf(h.voterDocs[city] || []));
       }
@@ -476,6 +484,7 @@ beforeEach(() => {
   h.aggFailIds.length = 0;
   h.voterDocs = {};
   h.voterQueries.length = 0;
+  h.voterFailQids.clear();
   h.engagementCalls.length = 0;
   h.bankDocs = [
     {
@@ -673,6 +682,25 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
   });
 
+  it("fills the TRAILING options nobody has picked yet", async () => {
+    // The bank's half of the union, which nothing reached. Every case
+    // above happens to have `highestKey === options.length`, so
+    // `optionCountOf` could return 0 for every question and all of them
+    // still passed — while the bank half is the one that matters in the
+    // ORDINARY early state of a multi-option question: counts that stop
+    // before the option list ends, because the last options have no votes
+    // yet.
+    //
+    // Divisiveness normalises by the vector's length, so a short vector is
+    // RESCALED rather than merely missing zeros — and the value is the
+    // selection key for `pickKindredQids`, so it decides which twelve
+    // collection-group queries the Kindred fetch spends.
+    const mod = await withCounts("q_tail", ["A", "B", "C", "D", "E"], { "0": 2, "1": 3 });
+    // Five options, lead 3 of 5 → (1 − 3/5) / (1 − 1/5) = 0.5. Truncated
+    // to the two that have counts it is (1 − 3/5) / (1 − 1/2) = 0.8.
+    expect(mod.divisivenessOf("q_tail")).toBeCloseTo((1 - 3 / 5) / (1 - 1 / 5), 6);
+  });
+
   it("still answers −1 when the device holds no counts at all", async () => {
     const mod = await withCounts("q_none", ["A", "B"], null);
     expect(mod.divisivenessOf("q_none")).toBe(-1);
@@ -814,6 +842,34 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(LIVE.kindredLoading()).toBe(false);
     await pending;
     expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("counts the questions that LANDED, not the ones it asked about", async () => {
+    // `kindredDepth()` is printed as the Mirror's own basis — "across N
+    // questions" under the People lens — and `loadVoters` swallows its
+    // failures (reportError, then the list stays unset). So the line this
+    // asserts, `qids.filter((id) => state.voters[id]).length`, is what
+    // stops the caption claiming twelve after twelve refused queries.
+    //
+    // Nothing reached it: every consumer of kindredDepth is stubbed in the
+    // UI suites, and no test drove the real loadKindred with a failure —
+    // there was no way to produce one until the fixture grew the hook
+    // above.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran at all").toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(),
+      "the caption counted questions whose voter query failed").toBe(1);
   });
 
   it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
@@ -3041,6 +3097,42 @@ describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
     // profile, which is the failure the original `merge: true` was there
     // to avoid.
     expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
+  });
+
+  it("trims and CAPS each field, because one long one loses the whole write", async () => {
+    // `isValidV2Anchors` bounds every anchor, and firestore.rules refuses
+    // the DOCUMENT rather than the field — so one over-long value does not
+    // lose a city, it loses the profile write, display name included. The
+    // comment above `saveAnchors` says exactly that ("Sending anything
+    // else fails the whole write, so the client must not rely on the
+    // server to reject the extras") and nothing held it: every test that
+    // touches saveAnchors mocks it, so the real body's caps ran under
+    // nothing and could be deleted with the whole suite green.
+    //
+    // Asserted against ANCHOR_FIELDS itself rather than against numbers
+    // typed here, so the day a cap moves in the rules and in that table
+    // this case follows instead of arguing.
+    // Imported HERE, not at the top of the file: this suite sets `window`
+    // up per case and evaluates the store through a dynamic import, so a
+    // static import of anything in it runs before that and dies on
+    // `window is not defined`.
+    const { ANCHOR_FIELDS } = await import("./live");
+    const LIVE2 = await bootLive();
+    const anchorsFor = async (next: Record<string, string>) => {
+      h.setDocCalls.length = 0;
+      LIVE2.saveAnchors(next);
+      await flush();
+      const c = h.setDocCalls.find((x) => x.path === "v2_users/uid_test");
+      return ((c?.data as { anchors?: Record<string, string> })?.anchors) || {};
+    };
+    for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
+      const out = await anchorsFor({ [k]: `   ${"x".repeat(max + 25)}  ` });
+      expect(out[k]?.length, `${k} was written past its ${max}-character cap`).toBe(max);
+    }
+    // …and the trim is a trim, not a side effect of the slice.
+    expect((await anchorsFor({ city: "  Oslo, NO  " })).city).toBe("Oslo, NO");
+    // A key the rules do not accept never reaches the write at all.
+    expect((await anchorsFor({ ssn: "123" })).ssn).toBeUndefined();
   });
 });
 

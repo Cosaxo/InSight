@@ -192,7 +192,12 @@ export const LIVE_MEMBERS = [
 export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
+  "revealHistoryLoading",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
+  // The in-flight flag beside `takes` — listed here because the pin is
+  // what makes the surface reviewed, and this one existed in state for a
+  // long time without it.
+  "takesLoading",
   // Handles and invitations (D122) — the uid-addressed way into a circle.
   // Listed here before any consumer reads them, for the reason the block
   // below states: the pin is what makes the surface reviewed.

@@ -23,6 +23,7 @@ import {
   emptyFold,
   foldInto,
   foldWindow,
+  volumeFlagged,
   isAggregateSurface,
   mergeDays,
   pct,
@@ -77,6 +78,63 @@ describe("the impossible-volume ceiling", () => {
     // The shape of the mistake, stated so a re-derivation from any
     // longer-lived constant fails here rather than in production.
     expect(VOLUME_CEILING).toBeLessThan(AGG_BANK_SIZE + PULSE_BANK_SIZE * 90);
+  });
+
+  it("counts CREATES, so an honest reviser is not flagged", () => {
+    // D86 made an optionIdx edit write a SECOND ledger row, which broke
+    // the invariant this ceiling rests on ("one entry per question, ever")
+    // and left the bound sitting almost exactly at the honest maximum. A
+    // heavy user who also revised answers inside the window crossed it —
+    // a false WARN on the person using the app most.
+    //
+    // Every row still feeds cadence: an edit is an action, and an
+    // edit-spam script's rhythm shows there.
+    const rows: LedgerRow[] = [];
+    for (let i = 0; i < VOLUME_CEILING; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 1_000 + i });
+    }
+    // …and then revises a hundred of them.
+    for (let i = 0; i < 100; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 900_000 + i, isEdit: true });
+    }
+    const fold = foldWindow(rows);
+    expect(fold.perUid.get("u_heavy")!.length,
+      "cadence lost the edits — a script's rhythm hides in them").toBe(VOLUME_CEILING + 100);
+    expect(fold.createsPerUid.get("u_heavy"),
+      "edits counted toward a ceiling that is about creates").toBe(VOLUME_CEILING);
+  });
+
+  it("flags on creates, and only past the line", () => {
+    // The DECISION, not just the counting. Both cases here proved the fold
+    // and nothing proved what the number was used for — the comparison
+    // lived inline in the scheduled handler, whose body no test reaches,
+    // so either half of the D86 edit fix could be reverted with all 550
+    // tests green.
+    const rows: LedgerRow[] = [];
+    for (let i = 0; i < VOLUME_CEILING; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 1_000 + i });
+    }
+    for (let i = 0; i < 200; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 900_000 + i, isEdit: true });
+    }
+    const heavy = foldWindow(rows);
+    expect(volumeFlagged(heavy, "u_heavy"),
+      "an honest reviser at the ceiling was flagged").toBe(false);
+    expect(volumeFlagged(heavy, "u_nobody"), "an unknown uid was flagged").toBe(false);
+
+    rows.push({ uid: "u_heavy", qid: "q_extra", atMs: 950_000 });
+    expect(volumeFlagged(foldWindow(rows), "u_heavy"),
+      "one create past the line was not flagged").toBe(true);
+  });
+
+  it("still counts a create past the ceiling", () => {
+    // The control: excluding edits must not exclude everything. One create
+    // over the line is over the line.
+    const rows: LedgerRow[] = [];
+    for (let i = 0; i <= VOLUME_CEILING; i++) {
+      rows.push({ uid: "u_forged", qid: `q${i}`, atMs: 1_000 + i });
+    }
+    expect(foldWindow(rows).createsPerUid.get("u_forged")).toBe(VOLUME_CEILING + 1);
   });
 });
 

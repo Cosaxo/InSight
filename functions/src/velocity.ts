@@ -61,6 +61,10 @@ export interface LedgerRow {
   uid: string;
   qid: string;
   atMs: number;
+  /** A D86 edit's ledger row, marked by `fromIdx` on the entry. Counted in
+   *  CADENCE — an edit is an action, and a script's rhythm shows in it —
+   *  and not in VOLUME, where the ceiling is one entry per question. */
+  isEdit?: boolean;
 }
 
 // UTC calendar day, "YYYY-MM-DD" — the ledger's `at` is server commit
@@ -69,8 +73,22 @@ export interface LedgerRow {
 
 // The impossible-volume ceiling. Answers are create-only with doc id ==
 // qid and deleteAccount sweeps the ledger with the account, so one uid
-// can NEVER honestly exceed one ledger entry per aggregate-feeding bank
-// question — not per day, ever. Duel surfaces never reach the ledger
+// can never honestly hold more than one CREATE per aggregate-feeding bank
+// question — not per day, ever.
+//
+// CREATES, and that word is the correction. This said "one ledger entry
+// per question" and D86 broke it: an optionIdx edit writes a SECOND row
+// (v2.ts's update arm, `ledgerEntry(uid, qid, toIdx, fromIdx)`), which is
+// why ledger.ts projects `fromIdx` and why both nightly folds dedupe on
+// it. With the bank at its current size the ceiling had become almost
+// exactly the honest maximum, so a heavy user who also revised answers
+// inside the 72-hour window could cross it — a false WARN on the person
+// using the app most.
+//
+// Restored by counting what the invariant is about rather than by
+// inflating the bound: edit rows are excluded from the volume count and
+// still feed the cadence signal, which is where an edit-spam script would
+// show anyway. Duel surfaces never reach the ledger
 // (they feed member reveals, not aggregates — D29), so they are not in
 // the ceiling. Derived from the committed bank at cold start, the
 // POLITICAL_QIDS pattern: no Firestore read.
@@ -91,8 +109,10 @@ export const AGG_BANK_SIZE = V2_QUESTIONS.filter((q) => isAggregateSurface(q.sur
 //
 // PER DAY OF THE SCAN'S WINDOW, not of the ledger's retention. This
 // allowance was derived from the 90-day `expireAt` TTL, and the quantity
-// it is compared against is `fold.perUid.get(uid).length` — entries
-// inside the scan window, which `WINDOW_CAP_MS` caps at 72 hours. At the
+// it is compared against is `fold.createsPerUid.get(uid)` — non-edit
+// entries inside the scan window, which `WINDOW_CAP_MS` caps at 72 hours.
+// (It said `perUid.get(uid).length` until the edit rows were split out;
+// that is the cadence signal's quantity, not this one.) At the
 // current bank that made the ceiling 1026 against an honest maximum of
 // about 596: the detector's stated target is a dedup failure or forged
 // writes, which shows as roughly 2x a uid's real count, and 2x an
@@ -336,11 +356,16 @@ export function pct(part: number, whole: number): number {
 export interface WindowFold {
   entries: number;
   perUid: Map<string, number[]>;
+  /** Non-edit rows per uid — what VOLUME_CEILING bounds. Separate from
+   *  `perUid` because cadence wants every action and volume wants one per
+   *  question; folding them into one number would put the invariant back
+   *  where D86 left it. */
+  createsPerUid: Map<string, number>;
   perDayQid: DayCounts;
 }
 
 export function emptyFold(): WindowFold {
-  return { entries: 0, perUid: new Map(), perDayQid: {} };
+  return { entries: 0, perUid: new Map(), createsPerUid: new Map(), perDayQid: {} };
 }
 
 // Fold a batch INTO an existing accumulator. The scan calls this once per
@@ -357,12 +382,31 @@ export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
       acc.perUid.set(r.uid, times);
     }
     times.push(r.atMs);
+    if (!r.isEdit) acc.createsPerUid.set(r.uid, (acc.createsPerUid.get(r.uid) || 0) + 1);
     const day = utcDayKeyOf(r.atMs);
     const forDay = acc.perDayQid[day] || (acc.perDayQid[day] = {});
     forDay[r.qid] = (forDay[r.qid] || 0) + 1;
   }
   acc.entries += rows.length;
   return acc;
+}
+
+/**
+ * Is this uid over the volume ceiling?
+ *
+ * EXPORTED and pure, for the reason `heldPageFrom` in paid.ts is: the
+ * decision lived inline in the scheduled handler, which no test reaches —
+ * the whole `ledgerVelocityScan` body is uncovered — so both halves of the
+ * D86 edit fix could be reverted with all 550 tests green. The fold's two
+ * cases proved the COUNTING and nothing proved what the count was used
+ * for.
+ *
+ * Reads `createsPerUid`, not `perUid`: an edit writes a second ledger row
+ * and the ceiling is one create per question. The cadence signal beside
+ * the call site still reads every row.
+ */
+export function volumeFlagged(fold: WindowFold, uid: string): boolean {
+  return (fold.createsPerUid.get(uid) || 0) > VOLUME_CEILING;
 }
 
 export function foldWindow(rows: LedgerRow[]): WindowFold {
@@ -444,7 +488,12 @@ export const ledgerVelocityScan = onSchedule(
         .collection("v2_agg_events")
         .where("at", ">", Timestamp.fromMillis(windowStart))
         .orderBy("at")
-        .select("uid", "qid", "at")
+        // `fromIdx` rides along because an edit's row carries it and
+        // nothing else does — the volume ceiling is about creates, and a
+        // field left out of the projection is a guard that is dead in
+        // production while the in-memory fake goes on proving it works
+        // (the note store-projection.test.ts exists for).
+        .select("uid", "qid", "at", "fromIdx")
         .limit(PAGE);
       if (cursor) q = q.startAfter(cursor);
       const page = await q.get();
@@ -456,7 +505,10 @@ export const ledgerVelocityScan = onSchedule(
         // can still be inside the window shortly after that deploy.
         if (typeof uid === "string" && uid && at) {
           const atMs = at.toMillis();
-          pageRows.push({ uid, qid: String(d.get("qid") || ""), atMs });
+          pageRows.push({
+            uid, qid: String(d.get("qid") || ""), atMs,
+            ...(d.get("fromIdx") === undefined ? {} : { isEdit: true }),
+          });
           if (atMs > maxAt) maxAt = atMs;
         }
       }
@@ -469,11 +521,12 @@ export const ledgerVelocityScan = onSchedule(
     let volumeFlags = 0;
     let cadenceFlags = 0;
     for (const [uid, times] of fold.perUid) {
-      if (times.length > VOLUME_CEILING) {
+      const creates = fold.createsPerUid.get(uid) || 0;
+      if (volumeFlagged(fold, uid)) {
         volumeFlags++;
         logger.warn(
-          `[velocity] impossible volume: uid=${uid} n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
-          { metric: "velocity_flag", kind: "volume", uid, n: times.length },
+          `[velocity] impossible volume: uid=${uid} creates=${creates} of n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
+          { metric: "velocity_flag", kind: "volume", uid, n: creates, entries: times.length },
         );
       }
       const cad = cadenceSignal(times);

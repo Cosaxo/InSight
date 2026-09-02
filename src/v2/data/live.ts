@@ -45,7 +45,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 25 `await getDb()` sites in this file did not change
+// deliberately: the 39 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -568,7 +568,7 @@ export const TAKE_MAX_CHARS = 280;
 // The anchor keys firestore.rules accepts, with its per-field length caps
 // (isValidV2Anchors). Kept here rather than inline so the client and the
 // ruleset can be diffed against each other by eye.
-const ANCHOR_FIELDS: Record<string, number> = {
+export const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
   profession: 80, jobField: 40, education: 80, relationship: 40, heightBand: 20,
 };
@@ -963,8 +963,8 @@ const listeners = new Set<() => void>();
 // carries the same note: derived on read rather than cached, so a
 // ranking cannot go stale against its own inputs. That reasoning is
 // right and it was being paid for on every render rather than on every
-// change. `kindredPeople()` walks every cached voter list and has six
-// call sites (LiveSimilarityField ×2, LiveMirrorLenses, typeMix ×2,
+// change. `kindredPeople()` walks every cached voter list and has 5
+// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2,
 // testNorms); each of those is inside a component that re-renders on
 // every notify(), and none of them memoises. So one Mirror stop folded
 // the same voter cache four to six times per render — 14 ms a fold in
@@ -2562,6 +2562,21 @@ const SOCIAL = {
   // Every readable reveal for this group, newest first — the cached
   // history plus yesterday's live listener doc. Shape matches what
   // groupPortrait.ts consumes.
+  /**
+   * Is this group's reveal history still being read?
+   *
+   * `revealHistory()` answers `[]` for "never fetched", "in flight" and
+   * "genuinely nothing revealed" alike, and the Groups Mirror stop opens
+   * on a fan-out of one getDoc per day — so the cold frame told a group
+   * with weeks of history that nothing had been revealed. The loader one
+   * function up is careful about exactly this distinction (a
+   * `permission-denied` caches null permanently; a transient error leaves
+   * the key absent "so a later call retries it rather than freezing a gap
+   * into the portrait") and the surface threw it away.
+   */
+  revealHistoryLoading(gid: string): boolean {
+    return !!state.revealHistLoading[gid];
+  },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
     const out: Array<Record<string, unknown> & { day: string }> = [];
     const yesterday = state.reveals[gid];
@@ -2858,6 +2873,26 @@ const SOCIAL = {
     if (key == null) return [];
     const all = state.takes[key] || [];
     return gid !== "world" && qid ? all.filter((t) => t.qid === qid) : [...all];
+  },
+  /**
+   * Is this scope's take list still being read?
+   *
+   * `takes()` answers `[]` for three different things — never fetched, in
+   * flight, and genuinely empty — and the panel could only tell the third
+   * one apart by having a flag to ask. Without it the takes panel printed
+   * "No takes yet. Say the first thing." over a query still running, and
+   * kept printing it for the life of that mount after a FAILED fetch,
+   * because `loadTakes`' catch deliberately leaves the key absent so a
+   * later open retries rather than caching an empty list.
+   *
+   * Every other on-demand D98 loader in this store already publishes one
+   * — votersLoading, kindredLoading, circleLoading, followsLoading,
+   * invitesLoading, near.roomLoading. `takesLoading` was the one that
+   * existed in state and never reached the surface.
+   */
+  takesLoading(gid: string, qid?: string): boolean {
+    const key = takeScopeKey(gid, qid);
+    return key == null ? false : !!state.takesLoading[key];
   },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
@@ -3490,7 +3525,7 @@ const LIVE = {
     saveLocalName(name);
     notify();
   },
-  // The viewer's own anchors, as a plain map — the same seven keys an
+  // The viewer's own anchors, as a plain map — the same 10 keys an
   // answer snapshots (D8), read back. Empty until the Basics card is
   // filled in, and that emptiness is load-bearing: the Map's anchor ring
   // (spec/map-anchors.js) renders a row per anchor, so a missing value has
@@ -4243,8 +4278,16 @@ const LIVE = {
       // World paid the voter fan-out — twelve collection-group queries of
       // up to 200 answers each, plus the profile reads that resolve their
       // names — for data neither stop reads: the place fields draw from
-      // the test aggregates above. Only City reads `kindredPeople()`, and
-      // the People lens loads it for itself.
+      // the test aggregates above.
+      //
+      // This said "Only City reads `kindredPeople()`" and that was wrong:
+      // `data/testNorms.ts` reads it too, for the result card's counted
+      // percentiles, and that card had no loader of its own — so scoping
+      // the fan-out here quietly stopped its numbers computing for anyone
+      // who opened World but never City. The card loads for itself now
+      // (spec/result-card.jsx), which is this comment's own rule applied
+      // to the reader it had missed. The city field and the People lens
+      // load for themselves the same way.
       //
       // The city half was already scoped this way, by the effect in
       // LiveSimilarityField that calls `loadCityKindred()` under a comment
@@ -4266,9 +4309,10 @@ const LIVE = {
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
   // to IS_TESTS for scoring metadata without a bridge read.
   //
-  // perRev because the bank only changes at hydrate and this has five
-  // render-path callers (SimilaritySection, PlacesField, testNorms,
-  // result-card ×2), each feeding it straight into testItemMeta — and
+  // perRev because the bank only changes at hydrate and this has 6
+  // render-path callers (SimilaritySection, PlacesField, LiveCompareLens,
+  // testNorms, result-card ×2), each feeding it straight into
+  // testItemMeta — and
   // because docs/SCALE-PLAN.md makes `feedBank` the collection that grows
   // without bound, so a per-call filter over it is the wrong shape to
   // leave lying around.
@@ -4402,9 +4446,15 @@ const LIVE = {
   // into no breakdown cell (D8).
   saveAnchors(next: Record<string, string>): void {
     const clean: Record<string, string> = {};
-    // Only the seven keys firestore.rules validates, trimmed and capped to
-    // its per-field lengths. Sending anything else fails the whole write,
-    // so the client must not rely on the server to reject the extras.
+    // Only the keys firestore.rules validates, trimmed and capped to its
+    // per-field lengths. Sending anything else fails the whole write, so
+    // the client must not rely on the server to reject the extras — and
+    // "the whole write" is the point: the rules refuse the DOCUMENT, so
+    // one over-long value does not lose a city, it loses the profile save
+    // with the display name in it.
+    //
+    // This said "the seven keys" while ANCHOR_FIELDS held ten. The count
+    // is check:figures' now, off that table.
     for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
       const v = next[k];
       if (typeof v !== "string") continue;
