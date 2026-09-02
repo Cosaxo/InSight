@@ -17,4 +17,4 @@ each answered question with the node ids that answer it.
   materializations of one ledger (cited); db-5 schema evolution
   first-class; db-6 the join's currency is sufficient statistics with
   basis; db-7 erasure as a transaction across all three parts (cited);
-  db-8 the read side bounded by density and serving policy.)*
+  db-8 the read side bounded by density and serving policy. As of 2026-09-02, nine: db-5, db-6 and db-8 raised to cited with restated claims, and db-9 added — every ledger fact bitemporal by contract, with a per-read-model transaction time.)*

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "database",
-  "updated": "2026-08-28",
+  "updated": "2026-09-02",
   "nodes": [
     {
       "id": "db-1",
@@ -9,7 +9,12 @@
       "status": "argued",
       "detail": "The owner's purpose frame (charter §1) makes every axiom's output either powerful data in itself or a strengthener of another axiom's data — so the storage layer's success metric is the cost and expressiveness of axis-crossing reads, not write throughput or raw capacity. Schema, layout, indexing and precomputation are chosen so that the app's core operation — crossing one axis against another — is the cheapest thing the system does. A design that optimizes single-axis reads first has optimized the part of the product that is not the point.",
       "sources": [],
-      "edges": [{ "to": "cen-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "cen-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-26",
       "updated": "2026-08-26"
     },
@@ -24,7 +29,12 @@
         "The All of Us Research Program Investigators (2019). The \"All of Us\" Research Program. N Engl J Med 381(7):668-676. DOI 10.1056/NEJMsr1809937; with the program's Registered/Controlled tier CDR v7 data dictionaries (R2022Q4R9 / C2022Q4R9, researchallofus.org user support)",
         "Johnson AEW, Bulgarelli L, Shen L, et al. (2023). MIMIC-IV, a freely accessible electronic health record dataset. Sci Data 10:1. DOI 10.1038/s41597-022-01899-x"
       ],
-      "edges": [{ "to": "gen-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "gen-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-26",
       "updated": "2026-08-28"
     },
@@ -46,7 +56,12 @@
         "Budiu M, Chajed T, McSherry F, Ryzhyk L, Tannen V (2023). DBSP: Automatic Incremental View Maintenance for Rich Query Languages. PVLDB 16(7):1601-1614. DOI 10.14778/3587136.3587137 [abstract-grade; VLDB 2023 Best Research Paper, verified]",
         "Materialize (MaterializeInc/materialize) README [repo-grade: incremental maintenance under arbitrary inserts, updates and deletes, exact consistency]"
       ],
-      "edges": [{ "to": "db-2", "type": "depends" }],
+      "edges": [
+        {
+          "to": "db-2",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-26",
       "updated": "2026-08-28"
     },
@@ -76,34 +91,104 @@
         "Dittrich J, Jindal A (2011). Towards a One Size Fits All Database Architecture (OctopusDB). CIDR 2011, Outrageous Ideas and Vision track",
         "Duggan J, Elmore AJ, Stonebraker M, et al. (2015). The BigDAWG Polystore System. ACM SIGMOD Record 44(2):11-16"
       ],
-      "edges": [{ "to": "db-3", "type": "depends" }],
+      "edges": [
+        {
+          "to": "db-3",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-26",
       "updated": "2026-08-28"
     },
     {
       "id": "db-5",
-      "claim": "Schema evolution is a first-class operation: versioned, all-or-none migration, with old shapes readable until the last consumer moves.",
-      "status": "argued",
-      "detail": "A database serving always-on devices and long-running research can neither take downtime nor break old readers, so every schema change ships with its migration and its compatibility window as one unit — a change that cannot say how every existing consumer survives it is not finished being designed. This branch's own graphs live by the same rule (charter §5); the principle is fractal, which is weak evidence it is a principle and not a habit.",
-      "sources": [],
-      "edges": [{ "to": "db-3", "type": "refines" }],
+      "claim": "Schema evolution is a first-class operation: every change is a named, ordered version whose transition commits all-or-none and never lands half-applied, while the data rewrite behind it may be eager, lazy or incremental along a measured latency-versus-migration-cost frontier — and every prior shape stays readable, by reader/writer resolution or by intermediate states, until the last consumer has moved off it.",
+      "status": "cited",
+      "detail": "Raised to cited 2026-09-02, claim restated: the literature treats schema change as a versioned protocol and is unanimous that old shapes stay readable while consumers move — but it does NOT support eager all-at-once data rewrite, so all-or-none now binds the version transition, not the rewrite. Schemas do not stop changing: Curino, Moon, Tanca & Zaniolo's Wikipedia study reports 170+ schema versions over 4.5 years, 41.5% of original attributes removed and 25.1% renamed [snippet-grade]; Qiu, Li & Su, over 160K revisions of ten open-source database applications, find schemas evolve frequently and schema changes induce significant code-level modification [abstract-grade]. Rae et al.'s F1 protocol is the mechanism: a change decomposes into intermediate delete-only and write-only states, safe 'so long as all servers are no more than one schema version behind at any time' [abstract-grade], a lease keeping at most two versions live [repo-grade: CockroachDB RFC]. That is the precise shape of all-or-none — each transition commits atomically, but a sequence of safe steps carries the system across, never one global flip. Readability of old shapes is the reader/writer split: Avro resolves a writer's schema against a reader's and signals an error only where a reader field has no default [repo-grade]; Confluent's registry makes the survival condition mechanical — BACKWARD demands consumers upgrade first, FULL lets either side move [practice-grade]; Herrmann et al. push co-existing schema versions into the database itself [abstract-grade]; Kleppmann: data outlives code, so compatibility is needed in both directions [practice-grade]; Ambler & Sadalage's transition period keeps both shapes until dependent teams move, 'several quarters, if not years' [snippet-grade]. The correction: Störl, Klettke, Hillenbrand et al. show eager rewrite buys latency at a price in billed reads and writes, lazy is cheaper but pays on access and accumulates chains of pending operations on entities written releases ago — the longitudinal failure mode, so a long-lived personal store must cap that chain [abstract-grade]. Product note (docs read this run): the shipped app's compatibility trap is the sharper lesson — a defaulted getter treating an absent field as a value read as the backward-compatible shape and leaked in queries; what shipped was a required boolean (D65). A read-time default is a claim about old data its writer never made: a default is itself a migration and must be versioned like one.",
+      "sources": [
+        "Rae I, Rollins E, Shute J, Sodhi S, Vingralek R (2013). Online, Asynchronous Schema Change in F1. PVLDB 6(11):1045-1056. DOI 10.14778/2536222.2536230 [abstract-grade; the one-version-behind condition verbatim from index records]",
+        "CockroachDB RFC 20151014 'Online Schema Change' (github.com/cockroachdb/cockroach/docs/RFCS) [repo-grade, fetched: DELETE_ONLY/WRITE_ONLY states; lease keeps at most two active descriptor versions]",
+        "Curino CA, Moon HJ, Tanca L, Zaniolo C (2008). Schema Evolution in Wikipedia: Toward a Web Information System Benchmark. ICEIS 2008 [snippet-grade; figures as carried by index records and the Manousis et al. 2016 survey]",
+        "Curino CA, Moon HJ, Zaniolo C (2008). Graceful database schema evolution: the PRISM workbench. PVLDB 1(1):761-772. DOI 10.14778/1453856.1453939; and Curino, Moon, Deutsch, Zaniolo (2013). Automating the database schema evolution process. VLDB J 22(1):73-98. DOI 10.1007/s00778-012-0302-x [abstract-grade]",
+        "Qiu D, Li B, Su Z (2013). An empirical analysis of the co-evolution of schema and code in database applications. ESEC/FSE 2013:125-135. DOI 10.1145/2491411.2491431 [abstract-grade]",
+        "Herrmann K, Voigt H, Behrend A, Rausch J, Lehner W (2017). Living in Parallel Realities: Co-Existing Schema Versions with a Bidirectional Database Evolution Language. SIGMOD 2017:1101-1116. DOI 10.1145/3035918.3064046 [abstract-grade]",
+        "Ambler SW, Sadalage PJ (2006). Refactoring Databases: Evolutionary Database Design. Addison-Wesley. ISBN 9780321293534 [snippet-grade; transition-period definition via tdan.com and Red Gate excerpts]",
+        "Sato D (2014). ParallelChange. martinfowler.com bliki, 2014-05-13 [practice-grade; expand/migrate/contract, corroborated via three secondary records, site egress-blocked]",
+        "Kleppmann M (2017). Designing Data-Intensive Applications, ch. 4 Encoding and Evolution. O'Reilly [practice-grade]",
+        "Apache Avro Specification, Schema Resolution (apache/avro, doc/content/en/docs/++version++/Specification) [repo-grade, fetched]",
+        "Confluent Schema Registry documentation: schema compatibility types (BACKWARD, FORWARD, FULL, *_TRANSITIVE) [practice-grade]",
+        "Apache Iceberg documentation: Evolution (apache/iceberg docs/docs/evolution.md) [repo-grade, fetched]",
+        "Armbrust M, Das T, Paranjpye S, et al. (2020). Delta Lake: High-Performance ACID Table Storage over Cloud Object Stores. PVLDB 13(12):3411-3424. DOI 10.14778/3415478.3415560 [abstract-grade]",
+        "Störl U, Klettke M, Scherzinger S (2020). NoSQL Schema Evolution and Data Migration: State-of-the-Art and Opportunities. EDBT 2020:655-658. DOI 10.5441/002/edbt.2020.87 [abstract-grade]",
+        "Hillenbrand A, Levchenko M, Störl U, Scherzinger S, Klettke M (2019). MigCast: Putting a Price Tag on Data Model Evolution in NoSQL Data Stores. SIGMOD 2019:1925-1928; and Hillenbrand A, Störl U, Nabiyev S, Klettke M (2021). Self-adapting data migration in the context of schema evolution in NoSQL databases. Distributed and Parallel Databases [abstract-grade]",
+        "Manousis P, Vassiliadis P, Zarras A, Papastefanatos G (2016). Schema Evolution for Databases and Data Warehouses. eBISS 2015, LNBIP 253:1-31. Springer [abstract-grade]"
+      ],
+      "edges": [
+        {
+          "to": "db-3",
+          "type": "refines"
+        }
+      ],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-09-02"
     },
     {
       "id": "db-6",
-      "claim": "The join's currency is sufficient statistics carrying their basis, not raw rows: cross-axis connection composes derived quantities that name their n and provenance, which makes the join custody-preserving and recomputable at once.",
-      "status": "argued",
-      "detail": "Added 2026-08-28 by synthesis over the sibling graphs' current runs; no external evidence is claimed — that is the next rung (candidate literature: distributed model fitting and federated aggregation via sufficient statistics). Three lanes converge on the same grain from three directions. Central's custody law (cen-6): what crosses into shared computation is derived and carries its basis. Tests (tst-7, cited): person-level latent scores are indeterminate estimates that secondary analysis cannot consume directly — plausible values are the remedy — so even setting custody aside, a join over raw point estimates is statistically wrong; the join wants statistics with a stated basis and uncertainty, not rows pretending to be measurements. Pattern (pat-2): every published pattern must be recomputable by a reader from public numbers, which is only possible if what crossed into the fold is itself published statistics rather than private rows. So the perfect database's join layer is not a row store with foreign keys; it is a statistics exchange — each axis contributes (statistic, basis n, provenance, version), and joins compose statistics. db-1 said the join is the unit of design; this node says what the join is made of. The OHDSI network is the pattern at civilizational scale — analyses run where the data lives, only aggregates travel (Hripcsak et al. 2016, noted as supporting context, not yet marshalled as this node's evidence). Product note (docs read this run): the shipped system already joins this way where it joins at all — the Mirror's cohort readings fold agg.by cells (counts with their basis), the similarity fields ride published aggregates, and v2_call_outcomes publishes the exact inputs snapshot a grade was computed from so the join stays recomputable (docs/data-inventory.md).",
-      "sources": [],
+      "claim": "The join's currency is sufficient statistics carrying their basis, not raw rows — but sufficiency is relative to the join's estimand: each cross-axis quantity is a statistic sufficient for the joint target, computed jointly over the sources — within a person by their own custody, across custodians by secure computation, never by physically pooling two custody classes (marginal per-axis summaries do not identify cross-axis structure), naming its n, provenance, reference basis and version so composition is arithmetically valid, and cleared through disclosure control because a derived quantity is not automatically custody-preserving; under those conditions the join is custody-preserving and recomputable at once.",
+      "status": "cited",
+      "detail": "Raised to cited 2026-09-02, restated with three clauses the evidence forces. Sufficiency is why a derived quantity can stand in for rows (Fisher 1922 [snippet-grade, via secondary]; the factorization theorem, Neyman 1935 and Halmos & Savage 1949 [abstract-grade]). Built practice: DataSHIELD links site analyses by 'non-disclosive summary statistics' and reproduces individual-level GLM meta-analysis (Gaye et al. 2014) [abstract-grade]; GLORE exchanges 'partially aggregated intermediary results' and matches centralized logistic regression 'to a 10^-15 precision' (Wu et al. 2012) [snippet-grade]; OHDSI's 250-million-patient study ran queries locally and returned only aggregate results centrally (Hripcsak et al. 2016); Lin & Zeng 2010 prove no asymptotic efficiency loss under three named conditions (common parameter of interest, distinct nuisance parameters, ML-based summaries) [all abstract-grade]. Clause one, sufficiency is join-relative: fixed-size sufficient statistics exist only inside exponential families (Koopman–Pitman–Darmois) [snippet-grade]; aggregate correlations can invert individual ones (Robinson 1950; Berlin et al. 2002) — so the cross-axis term is computed jointly and never recomposed from marginals — and where the sources sit under different custody the vertical-partition protocols recover the exact joint regression by secure matrix product across custodians holding disjoint attributes of the same persons (Sanil et al. 2004; Karr et al. 2009) [abstract-grade]. Clause two, the basis travels: unaccounted subject overlap 'can greatly inflate type I error' (Lin & Sullivan 2009) [abstract-grade]; summary GWAS statistics read only against a declared reference (Bulik-Sullivan et al. 2015; Pasaniuc & Price 2017), and GWAS-SSF pairs every statistics file with mandatory metadata [practice-grade]. Clause three, derived is not safe: allele frequencies re-identify contributors (Homer et al. 2008), shared gradients invert to training data (Zhu et al. 2019), and too many accurate aggregates reconstruct the database under any disclosure method (Dinur & Nissim 2003; Dwork & Roth 2014) [abstract-grade] — so publication passes disclosure control (Hundepool et al. 2012) or secure aggregation (Bonawitz et al. 2017) first. Latent axes travel as plausible values (Mislevy 1991; von Davier et al. 2009). The currency costs: summary-statistic imputation recovers 84%/54% of effective sample size against 89%/67% from genotypes (Pasaniuc et al. 2014) [abstract-grade]. Product note: the shipped app joins in clause one's shape — anchors frozen onto each answer at write, in the person's partition, so the fold publishes joint question×anchor cells with counts rather than recomposing them later — though one anchor dimension at a time (foldAnchors keys dim→bucket→option, so anchor×anchor structure is exactly the marginal not identified); what D98's exact publication costs under the reconstruction law, this graph does not yet carry.",
+      "sources": [
+        "Fisher RA (1922). On the mathematical foundations of theoretical statistics. Phil Trans R Soc A 222:309-368. DOI 10.1098/rsta.1922.0009 [snippet-grade; sufficiency criterion quoted via secondary rendering, primary egress-blocked]",
+        "Halmos PR, Savage LJ (1949). Application of the Radon-Nikodym theorem to the theory of sufficient statistics. Ann Math Stat 20(2):225-241. DOI 10.1214/aoms/1177730032; with Neyman J (1935), Giornale dell'Istituto Italiano degli Attuari VI(4) [abstract-grade]",
+        "Koopman–Pitman–Darmois theorem (Darmois 1935; Koopman 1936; Pitman 1936), cited by name: theorem corroborated at two index records, the three primary papers not individually verified [snippet-grade]",
+        "Wu Y, Jiang X, Kim J, Ohno-Machado L (2012). Grid Binary LOgistic REgression (GLORE): building shared models without sharing data. JAMIA 19(5):758-764. DOI 10.1136/amiajnl-2012-000862 [snippet-grade]",
+        "Karr AF, Lin X, Sanil AP, Reiter JP (2005). Secure regression on distributed databases. J Comput Graph Stat 14(2):263-279. DOI 10.1198/106186005X47714 [abstract-grade]",
+        "Sanil AP, Karr AF, Lin X, Reiter JP (2004). Privacy preserving regression modelling via distributed computation. KDD 2004:677-682. DOI 10.1145/1014052.1014139 [abstract-grade; vertically partitioned data]",
+        "Karr AF, Lin X, Reiter JP, Sanil AP (2009). Privacy-preserving analysis of vertically partitioned data using secure matrix products. Journal of Official Statistics 25(1):125-138 [abstract-grade]",
+        "Lu C-L, Wang S, Ji Z, et al. (2015). WebDISCO: a web service for distributed Cox model learning without patient-level data sharing. JAMIA 22(6):1212-1219. DOI 10.1093/jamia/ocv083 [abstract-grade]",
+        "Duan R, Boland MR, Moore JH, Chen Y (2020). Learning from electronic health records across multiple sites: a communication-efficient and privacy-preserving distributed algorithm. JAMIA 27(3):376-385. DOI 10.1093/jamia/ocz199 [abstract-grade]",
+        "Gaye A, et al. (2014). DataSHIELD: taking the analysis to the data, not the data to the analysis. Int J Epidemiol 43(6):1929-1944 [abstract-grade]; Wolfson M, et al. (2010). DataSHIELD: resolving a conflict in contemporary bioscience. Int J Epidemiol 39(5):1372-1382. DOI 10.1093/ije/dyq111 [abstract-grade]",
+        "Hripcsak G, et al. (2016). Characterizing treatment pathways at scale using the OHDSI network. PNAS 113(27):7329-7336. DOI 10.1073/pnas.1510502113 [abstract-grade]; The Book of OHDSI, ch. 20 Network Research [practice-grade]",
+        "Lin DY, Zeng D (2010). On the relative efficiency of using summary statistics versus individual-level data in meta-analysis. Biometrika 97(2):321-332 [abstract-grade]",
+        "Liu Q, Ihler A (2014). Distributed Estimation, Information Loss and Exponential Families. NIPS 2014:1098-1106 [abstract-grade]",
+        "Yang Q, Liu Y, Chen T, Tong Y (2019). Federated Machine Learning: Concept and Applications. ACM TIST 10(2), art. 12 [abstract-grade; horizontal vs vertical federation vocabulary]",
+        "Robinson WS (1950). Ecological correlations and the behavior of individuals. Am Sociol Rev 15:351-357 [abstract-grade]",
+        "Berlin JA, Santanna J, Schmid CH, Szczech LA, Feldman HI (2002). Individual patient- versus group-level data meta-regressions for the investigation of treatment effect modifiers: ecological bias rears its ugly head. Stat Med 21(3):371-387. DOI 10.1002/sim.1023 [abstract-grade]",
+        "Riley RD, Lambert PC, Abo-Zaid G (2010). Meta-analysis of individual participant data: rationale, conduct, and reporting. BMJ 340:c221. DOI 10.1136/bmj.c221 [abstract-grade; contrary]",
+        "Lin DY, Sullivan PF (2009). Meta-analysis of genome-wide association studies with overlapping subjects. Am J Hum Genet 85(6):862-872 [abstract-grade]",
+        "Bulik-Sullivan BK, et al. (2015). LD Score regression distinguishes confounding from polygenicity in GWAS. Nat Genet 47(3):291-295. DOI 10.1038/ng.3211 [abstract-grade; github.com/bulik/ldsc repo-grade]",
+        "Pasaniuc B, Price AL (2017). Dissecting the genetics of complex traits using summary association statistics. Nat Rev Genet 18(2):117-127. DOI 10.1038/nrg.2016.142 [abstract-grade]",
+        "Pasaniuc B, Zaitlen N, et al. (2014). Fast and accurate imputation of summary statistics enhances evidence of functional enrichment. Bioinformatics 30(20):2906-2914 [abstract-grade; effective-sample-size recovery figures as carried by the abstract]",
+        "Hayhurst J, Buniello A, et al. (2022). A community driven GWAS summary statistics standard (GWAS-SSF). bioRxiv 2022.07.15.500230; implemented in the NHGRI-EBI GWAS Catalog 2023 [preprint + practice-grade]",
+        "Willer CJ, Li Y, Abecasis GR (2010). METAL: fast and efficient meta-analysis of genomewide association scans. Bioinformatics 26(17):2190-2191. PMID 20616382 [abstract-grade]",
+        "Homer N, et al. (2008). Resolving individuals contributing trace amounts of DNA to highly complex mixtures using high-density SNP genotyping microarrays. PLoS Genet 4(8):e1000167. DOI 10.1371/journal.pgen.1000167 [abstract-grade]",
+        "Zhu L, Liu Z, Han S (2019). Deep Leakage from Gradients. NeurIPS 2019 [abstract-grade]",
+        "Dinur I, Nissim K (2003). Revealing information while preserving privacy. PODS 2003. DOI 10.1145/773153.773173 [abstract-grade]; Dwork C, Roth A (2014). The Algorithmic Foundations of Differential Privacy. Found Trends Theor Comput Sci 9(3-4):211-407. DOI 10.1561/0400000042 [abstract-grade]",
+        "Bonawitz K, et al. (2017). Practical Secure Aggregation for Privacy-Preserving Machine Learning. ACM CCS 2017. DOI 10.1145/3133956.3133982 [abstract-grade]; McMahan HB, et al. (2017). Communication-Efficient Learning of Deep Networks from Decentralized Data. AISTATS, PMLR 54:1273-1282 [abstract-grade; the cautionary case]",
+        "Hundepool A, Domingo-Ferrer J, Franconi L, et al. (2012). Statistical Disclosure Control. Wiley. DOI 10.1002/9781118348239 [abstract-grade]",
+        "Mislevy RJ (1991). Randomization-based inference about latent variables from complex samples. Psychometrika 56(2):177-196. DOI 10.1007/BF02294457 [abstract-grade]; von Davier M, Gonzalez E, Mislevy RJ (2009). What are plausible values and why are they useful? IERI Monograph Series 2:9-36 [abstract-grade]",
+        "Vatsalan D, Christen P, Verykios VS (2013). A taxonomy of privacy-preserving record linkage techniques. Information Systems 38(6):946-969 [abstract-grade; the pre-join linkage step the claim assumes]"
+      ],
       "edges": [
-        { "to": "db-1", "type": "refines" },
-        { "to": "cen-6", "type": "supports" },
-        { "to": "tst-7", "type": "depends" },
-        { "to": "pat-2", "type": "depends" }
+        {
+          "to": "db-1",
+          "type": "refines"
+        },
+        {
+          "to": "cen-6",
+          "type": "supports"
+        },
+        {
+          "to": "tst-7",
+          "type": "depends"
+        },
+        {
+          "to": "pat-2",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-28",
-      "updated": "2026-08-28"
+      "updated": "2026-09-02"
     },
     {
       "id": "db-7",
@@ -124,24 +209,109 @@
         "Apache Kafka log compaction semantics (delete.retention.ms) and Apache JIRA KAFKA-7137 [practice-grade]"
       ],
       "edges": [
-        { "to": "db-3", "type": "refines" },
-        { "to": "db-2", "type": "supports" }
+        {
+          "to": "db-3",
+          "type": "refines"
+        },
+        {
+          "to": "db-2",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-28",
       "updated": "2026-08-28"
     },
     {
       "id": "db-8",
-      "claim": "The read side's publishable grain is bounded by the answer-density budget and the serving policy, not by storage: observations per day are conserved regardless of corpus size, and how its inputs were sampled is part of what a read model means.",
-      "status": "argued",
-      "detail": "Added 2026-08-28. Storage scales with corpus size; evidence does not. Total observations per day equal population times answers-per-person-per-day, conserved no matter how many questions exist — growing the corpus divides a fixed observation budget across more cells, it never creates observations. So the perfect database designs its read models against the density budget: a cell (question x cohort) is published when its sample can carry it, and the system makes an ADMISSION decision — what stays in rotation long enough to become dense — rather than pretending storage capacity is the constraint. The second half is sharper: the serving policy is part of the data-generating process. If a personalization model selects who is served a question, then who answers it is model-selected, and a fold over those answers is arithmetically correct while its population claim is wrong. A read model that does not know its own sampling design cannot say what its numbers mean — so the perfect database records, on every read model, how its inputs were admitted and served, the same requirement central's portfolio metric makes for itself by demanding a common evaluation population (cen-2). Product note (docs/SCALE-PLAN.md §1, read this run): the shipped product reached both halves independently as the core/tail split — the Mirror folds only the core set served to everyone unpersonalized, because density is conserved (cohort cells need months in rotation) and because an interest-selected feed would silently bias the corpus the Mirror reads; the split is enforced at content declaration (core is a declared, gated field) precisely so the read model knows its own sampling design. This is the density law the tail of db-4 implies but does not state: the three materializations share one ledger, and the PUBLISHABLE subset of every materialization is bounded by the same conserved observation budget.",
-      "sources": [],
+      "claim": "The read side's publishable grain is bounded by the answer-density budget and the serving policy, not by storage: the daily observation budget is conserved — population times a small, effort-bounded number of answers per person-day — however large the bank grows, so adding questions divides a fixed budget; and because a serving policy makes who answers a question policy-selected, an aggregate is a population claim only if its read model carries its sampling design: the serving and response propensities recorded at serve time, or covariates rich enough to render the selection ignorable.",
+      "status": "cited",
+      "detail": "Raised to cited 2026-09-02, restated with the 'or' the evidence forces. DENSITY. The 2012 Xbox opt-in poll ran this shape — a bank under a per-person daily cap: 'Each day, three to five questions were posted', 'respondents were allowed to answer at most once per day', 750,148 interviews from 345,858 respondents (Wang, Rothschild, Goel & Gelman 2015) [full text]. EMA studies average six assessments a day at 79% compliance across 496 samples (Wrzus & Neubauer 2023) [snippet-grade]; longer questionnaires raised burden and degraded data while three-to-nine prompts a day alone did not (Eisele et al. 2022) [abstract-grade] — the budget is denominated in items and effort, not prompts. SERVING POLICY AS MEANING. Selection, not size, governs error: a self-selected 1% of US voters carries the error of a random sample near 400 once the data-defect correlation is priced (Meng 2018) [abstract-grade, paraphrase]; Delphi–Facebook's quarter-million weekly responses overstated vaccine uptake by 17 points (Bradley et al. 2021) [abstract-grade]. The design is part of the datum operationally: replay evaluation is unbiased only for streams 'from a uniformly random logging policy', weakened to any randomized logging policy via rejection sampling at a cost in data efficiency (Li et al. 2011) [full text]; counterfactual estimates need 'active randomization', and 'each data sample needs to provide ... the values of all variables needed to evaluate the factors that do not cancel in the ratio' (Bottou et al. 2013) [full text]; hence the Open Bandit Dataset logs 'true propensity scores' per row [repo-grade]. Randomly exposed ratings differ markedly from user-selected ones, so error on user-selected items 'is clearly an unreliable estimate ... over the whole rating matrix' (Marlin & Zemel 2009) [full text]. Contrary, now in the claim: poststratification corrected the 93%-male Xbox sample from respondent covariates alone, no propensity logged (Wang et al. 2015) [full text]; Steck 2010 gets unbiased measures under MNAR by modelling the mechanism [snippet-grade]. Product note (docs read this run): the shipped app removes only the SERVING half of the selection — the Mirror folds core, served to everyone unpersonalized (D161) — and leaves response self-selection, for which its frozen anchors are the poststratification covariates Wang et al. used, not a logged propensity; it cannot take the full propensity branch: D316/D317 made the server choose what the tail offers, so serving is knowable, but the response side stays device-local (D317 keeps D163's pass/defer line unbuilt) and only sampled anonymous shards carry per-question seen/passed buckets (D271). Tail aggregates publish without a sampling design and are not population claims.",
+      "sources": [
+        "Wang W, Rothschild D, Goel S, Gelman A (2015). Forecasting elections with non-representative polls. International Journal of Forecasting 31(3):980-991 [full text via the Microsoft Research PDF store; quotes verbatim]",
+        "Meng X-L (2018). Statistical paradises and paradoxes in big data (I): Law of large populations, big data paradox, and the 2016 US presidential election. Annals of Applied Statistics 12(2):685-726. DOI 10.1214/18-AOAS1161SF [abstract-grade; content paraphrased from index records]",
+        "Bradley VC, Kuriwaki S, Isakov M, Sejdinovic D, Meng X-L, Flaxman S (2021). Unrepresentative big surveys significantly overestimated US vaccine uptake. Nature 600:695-700. DOI 10.1038/s41586-021-04198-4 [abstract-grade; figures from abstract summaries]",
+        "Li L, Chu W, Langford J, Wang X (2011). Unbiased offline evaluation of contextual-bandit-based news article recommendation algorithms. WSDM 2011:297-306. DOI 10.1145/1935826.1935878 [full text via GitHub mirror]",
+        "Bottou L, Peters J, Quiñonero-Candela J, et al. (2013). Counterfactual reasoning and learning systems: the example of computational advertising. JMLR 14:3207-3260 [full text via the Microsoft Research PDF store]",
+        "Marlin BM, Zemel RS (2009). Collaborative prediction and ranking with non-random missing data. RecSys 2009:5-12. DOI 10.1145/1639714.1639717 [full text via GitHub mirror]",
+        "Saito Y, Aihara S, Matsutani M, Narita Y (2021). Open Bandit Dataset and Pipeline: Towards Realistic and Reproducible Off-Policy Evaluation. NeurIPS 2021 Datasets and Benchmarks; arXiv:2008.07146 [repo-grade: github.com/st-tech/zr-obp obd/README.md fetched; the per-row action_prob field]",
+        "Schnabel T, Swaminathan A, Singh A, Chandak N, Joachims T (2016). Recommendations as Treatments: Debiasing Learning and Evaluation. ICML 2016, PMLR 48:1670-1679 [abstract-grade]",
+        "Steck H (2010). Training and testing of recommender systems on data missing not at random. KDD 2010:713-722. DOI 10.1145/1835804.1835895 [snippet-grade; contrary]",
+        "Swaminathan A, Joachims T (2015). Batch learning from logged bandit feedback through counterfactual risk minimization. JMLR 16(52):1731-1755 [snippet-grade]",
+        "Rubin DB (1976). Inference and missing data. Biometrika 63(3):581-592 [snippet-grade]",
+        "Rosenbaum PR, Rubin DB (1983). The central role of the propensity score in observational studies for causal effects. Biometrika 70(1):41-55 [snippet-grade]",
+        "Horvitz DG, Thompson DJ (1952). A generalization of sampling without replacement from a finite universe. JASA 47(260):663-685. DOI 10.1080/01621459.1952.10483446 [snippet-grade]",
+        "Groves RM, Lyberg L (2010). Total Survey Error: Past, Present, and Future. Public Opinion Quarterly 74(5):849-879. DOI 10.1093/poq/nfq065 [snippet-grade]",
+        "Eisele G, Vachon H, Lafit G, et al. (2022). The effects of sampling frequency and questionnaire length on perceived burden, compliance, and careless responding in experience sampling data in a student population. Assessment 29(2):136-151. DOI 10.1177/1073191120957102 [abstract-grade]",
+        "Wrzus C, Neubauer AB (2023). Ecological Momentary Assessment: A Meta-Analysis on Designs, Samples, and Compliance Across Research Fields. Assessment 30(3):825-846. DOI 10.1177/10731911211067538 [snippet-grade]"
+      ],
       "edges": [
-        { "to": "db-3", "type": "refines" },
-        { "to": "cen-2", "type": "supports" }
+        {
+          "to": "db-3",
+          "type": "refines"
+        },
+        {
+          "to": "cen-2",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-28",
-      "updated": "2026-08-28"
+      "updated": "2026-09-02"
+    },
+    {
+      "id": "db-9",
+      "claim": "Every ledger fact is bitemporal by contract: it carries the valid-time person-state snapshot in force when it was recorded — the anchors and the asking context, held as a determinate stand-in for an indeterminate reality — and a transaction time per published read model it entered (this lane's inference; the literature fixes one transaction time per database), with corrections appended rather than snapshots mutated (erasure excepted: db-7's forgettable payloads are deleted, not corrected); because each axis is lossy in one direction, this is what makes within-person joins as-of by construction and every published cross-source number reproducible wherever db-3's determinism condition holds.",
+      "status": "cited",
+      "detail": "Added 2026-09-02, cited. The two-axis split is foundational, not this lane's: Snodgrass & Ahn (SIGMOD 1985) separated valid from transaction time [snippet-grade]; the consensus glossary fixes them — valid time 'when the fact is true in the modeled reality', transaction time 'when the fact is current in the database and may be retrieved' (Jensen et al. 1994); SQL:2011 standardized both (Kulkarni & Michels 2012) [snippet-grade]. Load-bearing is the lossiness: a rollback database views tuples 'as of that time', a historical one 'as of now', and only one carrying both — his 'temporal' class — 'can thus record retroactive changes' (Snodgrass 1990) [snippet-grade; the as-of phrases at one record only] — so a snapshot that froze a wrong anchor is repaired by a later transaction-time record, never by mutation (Fowler 2021) [practice-grade]; XTDB [repo-grade] and Datomic's as-of/history [practice-grade] ship this. The as-of join half is prior art, named as such (Kimball's Type 2 dimension, in sources); feature stores industrialize it — Feast's point-in-time join reproduces 'the state of features at a specific point in the past' and, filtered on created timestamp, 'what the online store would have served at each event time' [repo-grade]; Hopsworks (SIGMOD 2024) [snippet-grade]. Reproducing a published number pins its inputs to a transaction time: Delta Lake time travel (Armbrust et al. 2020) [snippet-grade]. The wrong axis is a named error: leakage (Kaufman et al. 2012), immortal time bias (Suissa 2008), time-varying confounding over person-period data (Robins 1986; Singer & Willett 2003) [snippet-grade]. This lane's inference over that base, marked: (1) transaction time is PER READ MODEL — one valid time, n entry times, and only the per-surface time reproduces what that surface showed (no source found either way); (2) the asking context belongs inside valid time, since answers co-vary with wording, order and mode (Tourangeau, Rips & Rasinski 2000) [snippet-grade]; (3) 'as published' and 'as best known' are two reproduction targets, and a read model says which. Limits: DBMS 'support for temporal data is still in its infancy' (Kaufmann et al. 2014); valid time is formally indeterminate (Dyreson & Snodgrass 1998) [snippet-grade]. Product note (code read this run): the shipped answer doc is the valid-time half — anchors frozen with answeredAt (D8), an edit moving only optionIdx in place (D86) — and the loadings doc's server timestamp and the graded call's published inputs snapshot are per-read-model transaction pins in miniature; but the fact itself is uni-temporal, so a pre-edit aggregate is reproducible only inside the 90-day ledger horizon.",
+      "sources": [
+        "Snodgrass R, Ahn I (1985). A taxonomy of time in databases (ACM indexes the title as 'A taxonomy of time databases'). SIGMOD 1985:236-246. DOI 10.1145/318898.318921 [snippet-grade]",
+        "Snodgrass RT (1990). Temporal databases: status and research directions. ACM SIGMOD Record, December 1990 [snippet-grade; rollback/historical/temporal passage as carried by index records]",
+        "Jensen CS, Clifford J, Elmasri R, Gadia SK, Hayes P, Jajodia S, et al. (1994). A consensus glossary of temporal database concepts. ACM SIGMOD Record 23(1):52-64. DOI 10.1145/181550.181560 [snippet-grade; both definitions verified as exact strings]",
+        "Jensen CS, Snodgrass RT (1999). Temporal data management. IEEE TKDE 11(1):36-44 [snippet-grade]",
+        "Kulkarni KG, Michels J-E (2012). Temporal features in SQL:2011. ACM SIGMOD Record 41(3):34-43. DOI 10.1145/2380776.2380786 [snippet-grade]",
+        "XTDB (JUXT), github.com/xtdb/xtdb README and docs.xtdb.com 'time in XTDB' [repo-grade: README fetched — 'bitemporal indexes'; the system-time/SQL:2011 detail from docs.xtdb.com, site egress-blocked]",
+        "Datomic documentation: as-of, history filters and :db/txInstant (docs.datomic.com) [practice-grade, site egress-blocked, corroborated at index records incl. the Jepsen analysis]",
+        "Fowler M (2021). Bitemporal History. martinfowler.com, 2021-04-07 [practice-grade; site egress-blocked, payroll example via index records]",
+        "Kimball Group. Dimensional Modeling Techniques: Type 2 'Add New Row'; Slowly Changing Dimensions parts 1-2 (2008). kimballgroup.com [practice-grade; prior art]",
+        "Feast documentation: Point-in-time joins (github.com/feast-dev/feast docs/getting-started/concepts/point-in-time-joins.md) [repo-grade, fetched]",
+        "de la Rúa Martínez J, Buso F, Kouzoupis A, et al. (2024). The Hopsworks Feature Store for Machine Learning. SIGMOD 2024 Companion. DOI 10.1145/3626246.3653389 [snippet-grade]",
+        "Armbrust M, Das T, Paranjpye S, et al. (2020). Delta Lake: High-Performance ACID Table Storage over Cloud Object Stores. PVLDB 13(12):3411-3424. DOI 10.14778/3415478.3415560 [snippet-grade]",
+        "Clinical Practice Research Datalink (CPRD). Digital object identifiers for dataset releases. cprd.com [practice-grade]",
+        "Kaufman S, Rosset S, Perlich C, Stitelman O (2012). Leakage in data mining: formulation, detection, and avoidance. ACM TKDD 6(4), art. 15. DOI 10.1145/2382577.2382579 [snippet-grade]",
+        "Suissa S (2008). Immortal time bias in pharmacoepidemiology. Am J Epidemiol 167(4):492-499. DOI 10.1093/aje/kwm324 [snippet-grade]",
+        "Robins JM (1986). A new approach to causal inference in mortality studies with a sustained exposure period. Mathematical Modelling 7(9-12):1393-1512 [snippet-grade]; Hernán MA, Robins JM (2020). Causal Inference: What If. Chapman & Hall/CRC, part III [snippet-grade]",
+        "Singer JD, Willett JB (2003). Applied Longitudinal Data Analysis. Oxford University Press. ISBN 0-19-515296-4 [snippet-grade; the person-period dataset and time-varying predictors]",
+        "Tourangeau R, Rips LJ, Rasinski K (2000). The Psychology of Survey Response. Cambridge University Press [snippet-grade]",
+        "Kaufmann M, Fischer PM, May N, Kossmann D (2014). Benchmarking Bitemporal Database Systems: Ready for the Future or Stuck in the Past? EDBT 2014 [snippet-grade; 'still in its infancy' quote at two records]",
+        "Dyreson CE, Snodgrass RT (1998). Supporting valid-time indeterminacy. ACM TODS 23(1):1-57. DOI 10.1145/288086.288087 [snippet-grade]"
+      ],
+      "edges": [
+        {
+          "to": "db-3",
+          "type": "refines"
+        },
+        {
+          "to": "db-6",
+          "type": "supports"
+        },
+        {
+          "to": "pat-10",
+          "type": "supports"
+        },
+        {
+          "to": "pat-2",
+          "type": "supports"
+        },
+        {
+          "to": "db-5",
+          "type": "depends"
+        },
+        {
+          "to": "db-7",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-02",
+      "updated": "2026-09-02"
     }
   ]
 }
