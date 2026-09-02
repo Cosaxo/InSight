@@ -79,13 +79,29 @@ jobs:
       - name: Fetch the theory branch
         run: git fetch --depth=1 origin axiom-theory:refs/remotes/origin/axiom-theory || echo "::warning::origin/axiom-theory could not be fetched — the theory panel draws its absence"
 
+      # A pull_request event runs THIS file from the PR's head against a
+      # checkout of main — so before the PR that adds the console merges,
+      # main has no script to run. That is a state, not a failure: say so
+      # and stop, rather than turning the console's own PR red.
+      - name: Is the console on main?
+        id: present
+        run: |
+          if [ -f scripts/console.mjs ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::scripts/console.mjs is not on main yet — nothing to render until the console merges"
+          fi
+
       - name: Refresh the console
+        if: ${{ steps.present.outputs.yes == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/console.mjs --refresh
 
       - name: Summarise
+        if: ${{ steps.present.outputs.yes == 'true' }}
         run: |
           {
             echo "## Console — $(date -u +%Y-%m-%dT%H:%MZ)"
@@ -101,6 +117,7 @@ jobs:
       # main holds now always converges. The merge list is only rewritten
       # when GitHub answered, so a rejected push never costs a tick.
       - name: Commit the list, the fold and the trail
+        if: ${{ steps.present.outputs.yes == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}

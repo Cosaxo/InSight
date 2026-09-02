@@ -94,7 +94,7 @@ async function readGithub(missing) {
   for (const pr of prs) {
     const detail = await step(`PR #${pr.number}`, () => gh(`/repos/${REPO}/pulls/${pr.number}`));
     const checks = await step(`checks #${pr.number}`, () => gh(`/repos/${REPO}/commits/${pr.head.sha}/check-runs?per_page=100`));
-    const cmp = await step(`compare #${pr.number}`, () => gh(`/repos/${REPO}/compare/main...${encodeURIComponent(pr.head.sha)}`));
+    const cmp = await step(`compare #${pr.number}`, () => gh(`/repos/${REPO}/compare/main...${pr.head.sha}`));
     let shiftBlocked = false;
     const labels = (pr.labels || []).map((l) => l.name);
     if (labels.includes("approved") && !labels.includes("merge-when-green")) {
@@ -107,7 +107,10 @@ async function readGithub(missing) {
   const branches = await step("branches", () => ghAll(`/repos/${REPO}/branches`));
   for (const b of branches || []) {
     if (!isNoPrBranch(b.name) || openHeads.has(b.name)) continue;
-    const cmp = await step(`compare ${b.name}`, () => gh(`/repos/${REPO}/compare/main...${encodeURIComponent(b.name)}`));
+    // The branch name goes in raw: the compare route takes `base...head` as one
+    // path segment and reads a slash inside a branch name correctly, while an
+    // encoded slash is a different string to it.
+    const cmp = await step(`compare ${b.name}`, () => gh(`/repos/${REPO}/compare/main...${b.name}`));
     if (!cmp || !cmp.ahead_by) continue;
     const last = cmp.commits?.[cmp.commits.length - 1];
     g.branches.push({ name: b.name, aheadBy: cmp.ahead_by, lastCommitAt: last?.commit?.committer?.date || null, commits: (cmp.commits || []).map((c) => c.commit.message.split("\n")[0]) });
