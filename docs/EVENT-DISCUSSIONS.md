@@ -138,6 +138,15 @@ existing surfaces pay nothing. Details that matter:
 
 ## 5 · The lane — a farm section, with two rules of its own
 
+> **Built for `now` at D351** (2026-09-01) as the now lane —
+> `QUESTION-FARM.md` § The now lane. Rule 1's source posture became a
+> corroboration bar sized to what a session can actually reach (found by
+> searching, at least two independent outlets, under a week old, cited
+> in the PR body — the environment's egress policy refuses news domains,
+> so a run can find and cite a story but not open it); rule 2 stands
+> verbatim. The event-thread surface this page proposes is still
+> proposed.
+
 A new section in `QUESTION-FARM.md`, run by a scheduled Routine two or
 three times a week. Everything structural inherits: PR-only output,
 human on the merge, the roll-up rule, the run log on issue #31,

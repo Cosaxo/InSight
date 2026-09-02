@@ -289,3 +289,22 @@ describe("the retired Thinking test is gone from every surface", () => {
     expectNoBoundary("profile with the four surviving tests");
   });
 });
+
+// D344 put Account & privacy behind a gear in the profile's corner — and
+// the gear is live-only, because the panel it opens states facts about a
+// real account and renders nothing in demo. A gear whose sheet can only
+// ever open empty is D167's rule one control down, so the button itself
+// must be absent, not just inert. The live half — the gear exists and its
+// sheet holds the panel — is in smoke-live; what a demo mount can prove
+// is the absence.
+describe("the profile's account gear (D344)", () => {
+  it("is not offered in a demo build", async () => {
+    const expectNoBoundary = mountApp();
+    await openHeaderOverlay("profile");
+    expect(
+      screen.queryByRole("button", { name: "Account & privacy" }),
+      "a demo profile offers the gear, whose sheet can only open empty",
+    ).toBeNull();
+    expectNoBoundary("profile without the account gear");
+  });
+});

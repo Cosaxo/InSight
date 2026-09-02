@@ -114,7 +114,7 @@ describe("LiveRoomTabs · People, the one tab that discloses something new", () 
   beforeEach(() => {
     LIVE.near.room = () => ({
       // "The Host", not "Host": the presence doc carries what myType()
-      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // resolved (`myType`, data/typeMix), which is an IS_ARCHETYPES name verbatim.
       // The short form was fixture-only and quietly made the mark below
       // unresolvable, which is half of why it went four days undrawn.
       people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],
@@ -293,7 +293,7 @@ describe("LiveRoomTabs · People draws faces and can report one", () => {
   beforeEach(() => {
     LIVE.near.room = () => ({
       // "The Host", not "Host": the presence doc carries what myType()
-      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // resolved (`myType`, data/typeMix), which is an IS_ARCHETYPES name verbatim.
       // The short form was fixture-only and quietly made the mark below
       // unresolvable, which is half of why it went four days undrawn.
       people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],

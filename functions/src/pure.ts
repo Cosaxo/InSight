@@ -2155,13 +2155,22 @@ export function roomQids(
 /**
  * Bounds on a stored FCM token, applied before it reaches FCM.
  *
- * Rules cap the token array at 10 entries but never check what is IN
- * them, so a client can store ten ~1MB strings in its own profile and we
- * would hand them straight to sendEachForMulticast. Length only — no
- * format regex, which is the part most likely to silently kill every
- * notification the day FCM changes its token shape.
+ * WHAT ACTUALLY ENFORCES THE REST, because this said "rules cap the token
+ * array at 10 entries but never check what is IN them, so a client can
+ * store ten ~1MB strings in its own profile" and both halves stopped
+ * being true at D98. Tokens left the profile for
+ * `v2_users/{uid}/push/tokens`, which is `allow read, write: if false` —
+ * no client can store anything there at all (firestore.rules, and
+ * rules.test.ts pins both the shut door and the profile not keeping a
+ * back way in). There is no rules clause capping the array; the cap of
+ * ten is a server literal, `nextFcmTokens(…, 10)` in v2social.ts,
+ * reachable only through `registerPushToken`, which already rejects
+ * anything failing `isPlausibleFcmToken`.
  *
- * NB: this bounds SEND cost, not what is stored.
+ * So this is the second, looser bound, applied at SEND time to whatever
+ * is already stored — length only, no format regex, which is the part
+ * most likely to silently kill every notification the day FCM changes
+ * its token shape. It bounds send cost, not what is stored.
  */
 export const FCM_TOKEN_MIN = 20;
 export const FCM_TOKEN_MAX = 4096;

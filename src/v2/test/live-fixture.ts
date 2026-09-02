@@ -353,6 +353,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     myDuelVote: () => null,
     revealFor: () => null,
     revealHistory: () => [],
+    // Settled: a mount test is about the drawn frame, not the cold one.
+    revealHistoryLoading: () => false,
     loadRevealHistory: async () => {},
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
@@ -383,6 +385,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // badge. The empty list IS the live-mode surface a circle with nothing
     // written in it shows.
     takes: () => [],
+    // Settled: a mount test is about what the screen draws once the
+    // read has landed, not about the frame before it.
+    takesLoading: () => false,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},
@@ -744,8 +749,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     loadLearnAggs: async () => {},
     linkGoogle: async () => {},
     // Anonymous-first (D3) is the default state, so that is what the fixture
-    // renders — the branch the privacy panel and profile overlay both
-    // describe in copy.
+    // renders — the identity row's "anonymous session" branch
+    // (profile-overlay.jsx, D344 amendment). A case that needs the linked
+    // branch flips this in its prep.
     linked: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both

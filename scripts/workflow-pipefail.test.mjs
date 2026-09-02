@@ -30,6 +30,20 @@ const files = readdirSync(dir).filter((f) => f.endsWith(".yml") || f.endsWith(".
  * Deliberately not a YAML parse: what matters is the shell body GitHub
  * hands to bash, and a step's `run:` is a block scalar whose indentation
  * is the whole structure. Split on the next key at the step's own indent.
+ *
+ * EVERY `run:` SPELLING, not just `run: |`. This matched the literal
+ * block scalar alone, so a step written `run: cmd | tee "$X"` on one
+ * line — or as a folded `run: >`, two of which already exist in
+ * firebase-deploy.yml — was never parsed and so never subject to the
+ * rule below. That is not a missed case; it is the rule silently ceasing
+ * to apply, and neither vacuity floor above can see it: rewriting one
+ * step that way does not fail its per-file case, it DELETES it, while
+ * `total > 20` counts blocks repo-wide and `teed.length > 3` still holds
+ * on the steps that stayed.
+ *
+ * A one-line body can still be judged correctly — the assertion reads
+ * the body text for `set -o pipefail`, and a one-liner that does not
+ * carry it fails, which is right.
  */
 function runBlocks(src) {
   const out = [];
@@ -37,8 +51,12 @@ function runBlocks(src) {
   let stepStart = 0;
   for (let i = 0; i < lines.length; i++) {
     if (/^\s*-\s+name:/.test(lines[i])) stepStart = i;
-    const m = /^(\s*)run:\s*\|/.exec(lines[i]);
+    // Group 2 is the block indicator (`|`, `>`, with any chomping or
+    // explicit-indent suffix) when there is one; group 3 is the rest of
+    // the line, which is the body itself for a plain scalar.
+    const m = /^(\s*)run:\s*([|>][-+0-9]*)?[ \t]*(.*)$/.exec(lines[i]);
     if (!m) continue;
+    const inline = m[2] ? "" : m[3].trim();
     const indent = m[1].length;
     const body = [];
     for (let j = i + 1; j < lines.length; j++) {
@@ -48,8 +66,13 @@ function runBlocks(src) {
       if (lead <= indent) break;
       body.push(line);
     }
-    // The step's own keys, so an exemption can be read off them.
-    out.push({ head: lines.slice(stepStart, i).join("\n"), body: body.join("\n") });
+    // The step's own keys, so an exemption can be read off them. The
+    // inline remainder leads the body: for a plain scalar it IS the
+    // command, and any indented lines after it are its continuation.
+    out.push({
+      head: lines.slice(stepStart, i).join("\n"),
+      body: (inline ? inline + "\n" : "") + body.join("\n"),
+    });
   }
   return out;
 }

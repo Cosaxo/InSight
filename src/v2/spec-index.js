@@ -189,10 +189,13 @@ import './spec/mirror-tab.jsx';
 // window.GeneralPanel, so it could never be reached before that group had
 // resolved — yet it and its whole static tail sat in the modulepreload set
 // on every cold start. Measured: 20 KB of first paint.
-// These were born in this repo (never in design/) and live as typed TSX
-// under ui/; they self-register on globalThis so the render-time lookups
-// in profile-overlay / profile-general still work.
-import './ui/LivePrivacyPanel';
+// These two were born in this repo (never in design/) and live as typed
+// TSX under ui/; they self-register on globalThis so the render-time
+// lookups in profile-general still work. ui/LivePrivacyPanel left this
+// list at D344: profile-overlay.jsx imports it now, so it rides the
+// loadOverlays chunk with its one consumer instead of costing first
+// paint, and a line here would drag it back into the entry chunk — the
+// exact mistake the NB below warns against for the other ui/ panels.
 import './ui/CityPicker';
 import './ui/PickSearch';
 // NB: no other ui/ panel is listed here, and the reason is now the same one

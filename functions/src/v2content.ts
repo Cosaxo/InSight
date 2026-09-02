@@ -6143,6 +6143,328 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-f127",
+  "surface": "feed",
+  "seq": 172,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The band re-forms without its singer: still the band, or a tribute act?",
+  "options": [
+   "Still the band",
+   "A tribute act"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f128",
+  "surface": "feed",
+  "seq": 173,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The teacher you'd want for one term: Aristotle, Leonardo da Vinci, Charles Darwin, or Maya Angelou?",
+  "options": [
+   "Aristotle",
+   "Leonardo da Vinci",
+   "Charles Darwin",
+   "Maya Angelou"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f129",
+  "surface": "feed",
+  "seq": 174,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The Olympics: summer, or winter?",
+  "options": [
+   "Summer",
+   "Winter"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f130",
+  "surface": "feed",
+  "seq": 175,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Video calls: camera on, or camera off?",
+  "options": [
+   "Camera on",
+   "Camera off"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f131",
+  "surface": "feed",
+  "seq": 176,
+  "type": "vote",
+  "domain": null,
+  "prompt": "What writes more of a life: luck, or effort?",
+  "options": [
+   "Luck",
+   "Effort"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-pt3",
+  "surface": "feed",
+  "seq": 177,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Reunion — twenty years, one evening",
+  "options": [
+   "The One Who Books It",
+   "The Warm Maybe",
+   "The Late Arrival",
+   "The Observer",
+   "The Two-Chair Table",
+   "The Door Ajar",
+   "The Midnight Scroller",
+   "The Clean Break"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Reunion",
+  "intro": "Twenty years since the last day of school. The invitation has sat in your inbox for a week; the RSVP closes at midnight.",
+  "hue": 200,
+  "nodes": {
+   "_": {
+    "q": "Midnight is an hour away. The form wants one click.",
+    "a": [
+     {
+      "t": "Reply yes"
+     },
+     {
+      "t": "Let it close"
+     }
+    ]
+   },
+   "A": {
+    "q": "You arrive early. Across the room: your old best friend, mid-laugh, twenty years older.",
+    "a": [
+     {
+      "t": "Walk straight over"
+     },
+     {
+      "t": "Get a drink, read the room first"
+     }
+    ]
+   },
+   "B": {
+    "q": "Next morning the group chat fills with photos. Someone writes: \"Where were you?\"",
+    "a": [
+     {
+      "t": "The truth — crowds aren't your thing"
+     },
+     {
+      "t": "Say work got in the way"
+     }
+    ]
+   },
+   "AA": {
+    "q": "An hour in, no time has passed at all. They mention they're moving back next month.",
+    "a": [
+     {
+      "t": "Set a date and a place, tonight"
+     },
+     {
+      "t": "\"We should catch up sometime\""
+     }
+    ]
+   },
+   "AB": {
+    "q": "From your corner the room sorts itself into its old tables. Your old friend spots you and waves.",
+    "a": [
+     {
+      "t": "Go over: \"I almost didn't come\""
+     },
+     {
+      "t": "Wave back, keep the corner"
+     }
+    ]
+   },
+   "BA": {
+    "q": "A private reply: \"Fair. I only went hoping you'd be there.\"",
+    "a": [
+     {
+      "t": "Offer a coffee, just you two"
+     },
+     {
+      "t": "Leave it warm and unanswered"
+     }
+    ]
+   },
+   "BB": {
+    "q": "The chat moves on. One tagged photo shows your old table — someone new in your old seat.",
+    "a": [
+     {
+      "t": "Open the whole album"
+     },
+     {
+      "t": "Mute the chat"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The One Who Books It",
+    "line": "A date, a place, no 'sometime'. Twenty years turned out to be a scheduling problem."
+   },
+   "AAB": {
+    "name": "The Warm Maybe",
+    "line": "The hug was real. The 'sometime' stayed a sometime."
+   },
+   "ABA": {
+    "name": "The Late Arrival",
+    "line": "'Almost didn't come' — said out loud, it became the best story of the night."
+   },
+   "ABB": {
+    "name": "The Observer",
+    "line": "You saw the whole evening clearly. It never quite saw you."
+   },
+   "BAA": {
+    "name": "The Two-Chair Table",
+    "line": "No name tags, no speeches. The reunion that actually reunited."
+   },
+   "BAB": {
+    "name": "The Door Ajar",
+    "line": "Warm, unanswered. Some doors you like exactly this open."
+   },
+   "BBA": {
+    "name": "The Midnight Scroller",
+    "line": "Every photo, twice. You attended after all — from here."
+   },
+   "BBB": {
+    "name": "The Clean Break",
+    "line": "The chat went quiet because you asked it to. So did the decade."
+   }
+  }
+ },
+ {
+  "id": "feed-f132",
+  "surface": "feed",
+  "seq": 178,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Teleport anywhere instantly — but you can never travel slowly again. Take it?",
+  "options": [
+   "Take it",
+   "Keep the journey"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f133",
+  "surface": "feed",
+  "seq": 179,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A cashless world: convenient future, or something lost?",
+  "options": [
+   "Convenient future",
+   "Something lost"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f134",
+  "surface": "feed",
+  "seq": 180,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Ketchup: fridge, or cupboard?",
+  "options": [
+   "Fridge",
+   "Cupboard"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f135",
+  "surface": "feed",
+  "seq": 181,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One genre forever: comedy, thriller, drama, or documentary?",
+  "options": [
+   "Comedy",
+   "Thriller",
+   "Drama",
+   "Documentary"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl19",
+  "surface": "feed",
+  "seq": 182,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many songs on a perfect album?",
+  "options": [
+   "6–7 songs",
+   "7–8 songs",
+   "8–10 songs",
+   "10–11 songs",
+   "11–12 songs",
+   "12–13 songs",
+   "13–14 songs",
+   "14–15 songs",
+   "15–17 songs",
+   "17–18 songs",
+   "18–19 songs",
+   "19–20 songs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 6,
+  "hi": 20,
+  "unit": "songs"
+ },
+ {
+  "id": "feed-f136",
+  "surface": "feed",
+  "seq": 183,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One selfie with: Beyoncé, the Pope, Lionel Messi, or Taylor Swift?",
+  "options": [
+   "Beyoncé",
+   "The Pope",
+   "Lionel Messi",
+   "Taylor Swift"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,

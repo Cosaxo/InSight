@@ -72,7 +72,19 @@ export function usePeopleFinder(query: string, exclude: readonly string[] = []):
   const [busy, setBusy] = React.useState(false);
   const [empty, setEmpty] = React.useState<string | null>(null);
   const canonical = normalizeHandle(query);
-  const key = query.trim().toLowerCase();
+  // ASCII-ONLY, matching `foldName` in data/socialFetch and the fold in
+  // `LIVE.social.searchPeople` this key is handed to. It ends up as a
+  // prefix over `nameKey`, which firestore.rules pins to `name.lower()` —
+  // and the rules engine's `.lower()` touches A-Z and nothing else, so a
+  // full-Unicode `toLowerCase()` here lowers "Ó" to "ó" and the prefix
+  // stops matching the stored key. This is the THIRD hop that had to
+  // agree; socialFetch's own docstring calls this module "what every
+  // surface that finds people actually uses", which is why it is the one
+  // that decides whether the other two are reachable at all.
+  // The two `toLowerCase()` calls above, in the local circle filter,
+  // stay: they compare a name against a name, both in JS, and never meet
+  // a rules-computed key.
+  const key = query.trim().replace(/[A-Z]/g, (c) => c.toLowerCase());
   // A string, so the effect re-runs when the SET changes rather than on
   // every render — an array literal from a caller is a new identity each
   // time and would restart the debounce forever.

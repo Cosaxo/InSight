@@ -33,6 +33,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { GoogleAuth } from "google-auth-library";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+import { levelFor, levelDef } from "./accountLevel";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -243,12 +244,39 @@ async function iosActivate(deviceToken: string, now: Date): Promise<boolean> {
   return true;
 }
 
-async function androidActivate(integrityToken: string, now: Date): Promise<boolean> {
+/**
+ * What the signed payload has to say about the request before any verdict
+ * in it is worth reading. Pure and exported so the two refusals are pinned
+ * by unit tests — neither can be reached from the emulator, and both are
+ * the kind of check that is easy to write inverted.
+ *
+ * The nonce arm is REQUIRED on Android rather than best-effort. Play
+ * refuses to build a request without a nonce, so a token that carries none
+ * did not come from this app's bridge; treating that as acceptable would
+ * make the check decorative, which is the failure mode this whole area
+ * already had once (D342).
+ */
+export function requestDetailsProblem(
+  details: { requestPackageName?: string; nonce?: string } | undefined,
+  pkg: string,
+  nonce: string | undefined,
+): string | null {
+  if (details?.requestPackageName !== pkg) return "token is for a different app";
+  if (!nonce) return "missing integrity nonce";
+  if (details?.nonce !== nonce) return "integrity nonce does not match";
+  return null;
+}
+
+async function androidActivate(
+  integrityToken: string,
+  nonce: string | undefined,
+  now: Date,
+): Promise<boolean> {
   const pkg = process.env.PLAY_PACKAGE_NAME || "com.cosaxo.insight";
   const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/playintegrity"] });
   const client = await auth.getClient();
   let payload: {
-    requestDetails?: { requestPackageName?: string };
+    requestDetails?: { requestPackageName?: string; nonce?: string };
     deviceIntegrity?: { deviceRecognitionVerdict?: string[] };
     deviceRecall?: { values?: RecallValues; writeDates?: RecallWriteDates };
   };
@@ -263,8 +291,10 @@ async function androidActivate(integrityToken: string, now: Date): Promise<boole
     logger.warn("[deviceBind] Play Integrity decode failed:", err);
     throw new HttpsError("unavailable", "attestation service unreachable");
   }
-  if (payload.requestDetails?.requestPackageName !== pkg) {
-    throw new HttpsError("failed-precondition", "token is for a different app");
+  const problem = requestDetailsProblem(payload.requestDetails, pkg, nonce);
+  if (problem) {
+    logger.warn(`[deviceBind] Play Integrity request rejected: ${problem}`);
+    throw new HttpsError("failed-precondition", problem);
   }
   const verdict = payload.deviceIntegrity?.deviceRecognitionVerdict || [];
   if (!verdict.includes("MEETS_DEVICE_INTEGRITY")) {
@@ -299,11 +329,80 @@ async function androidActivate(integrityToken: string, now: Date): Promise<boole
 
 // ── the callable ────────────────────────────────────────────────
 
-async function grant(uid: string): Promise<void> {
-  const user = await getAuth().getUser(uid);
+/**
+ * Compute this account's level from what is true NOW, and ratchet the claim
+ * to it. Returns the resulting level.
+ *
+ * ONE FETCH. The user record carries both halves — the prior claim and
+ * `providerData`, which firebase-admin documents as "providers linked to
+ * the user". That is the authoritative source for the identity rung, and
+ * the reason this does not read the token's `sign_in_provider`: that field
+ * is the provider used to SIGN IN, and this app links rather than signs in
+ * (D134), so it says "anonymous" for the life of a linked account.
+ *
+ * `deviceBoundNow` is false on a cooldown, and the `|| prior >= 1` below is
+ * what makes the identity rung reachable at all. Activation runs once, at
+ * boot; linking happens later, from settings. Without this, an account that
+ * links after activating could never be re-graded — every later call is a
+ * cooldown, and a cooldown that refused to look would freeze the account at
+ * level 1 forever.
+ *
+ * A cooldown for an account with prior 0 is a DIFFERENT account on a device
+ * that already spent its month, and it gets nothing: the device rung is
+ * earned per account, and `prior >= 1` is the record that THIS account
+ * earned it.
+ *
+ * NEVER LOWERS. An account whose providerData momentarily reads empty must
+ * not be demoted, because a demotion silently stops that person's votes
+ * counting with nothing on screen to explain it. Levels ratchet up.
+ */
+/** The auth surface `regrade` needs, so its arithmetic can be tested
+ *  without an emulator. `regrade` below is the one-line binding to the
+ *  real thing; `regradeWith` is what every case drives. */
+export interface RegradeAuth {
+  getUser(uid: string): Promise<{
+    customClaims?: Record<string, unknown> | undefined;
+    providerData: Array<{ providerId: string }>;
+  }>;
+  setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
+}
+
+/**
+ * EXPORTED and seam-taking, because nothing reached this.
+ *
+ * Both invariants in the docblock above could be inverted with the whole
+ * functions suite green: dropping the `Math.max` ratchet, and dropping
+ * `prior >= 1` so a cooldown re-grade can no longer see the device rung —
+ * which makes level 2 unreachable, the exact bug D343 records fixing. The
+ * e2e calls the callable once on a fresh account and asserts only that it
+ * returned ok, so it reaches neither arm either.
+ *
+ * This is the code that decides whether a real person's votes count once
+ * `deviceBindEnforced()` flips. It should not be the untested part.
+ */
+export async function regradeWith(
+  auth: RegradeAuth, uid: string, deviceBoundNow: boolean,
+): Promise<number> {
+  const user = await auth.getUser(uid);
+  const raw = user.customClaims?.db;
+  // An integer only, matching what firestore.rules accepts — its `>=`
+  // errors on a string or a boolean and denies. Coercing would read
+  // `db: true` as level 1.
+  const prior = typeof raw === "number" && Number.isInteger(raw) ? raw : 0;
+  const level = levelFor({
+    deviceBound: deviceBoundNow || prior >= 1,
+    linkedProviders: user.providerData.map((p) => p.providerId),
+  });
+  const next = Math.max(prior, level);
+  if (next === prior) return prior;
   // Merge, not replace: setCustomUserClaims overwrites the whole map, and
   // a future claim added elsewhere must survive activation re-runs.
-  await getAuth().setCustomUserClaims(uid, { ...(user.customClaims || {}), db: 1 });
+  await auth.setCustomUserClaims(uid, { ...(user.customClaims || {}), db: next });
+  return next;
+}
+
+async function regrade(uid: string, deviceBoundNow: boolean): Promise<number> {
+  return regradeWith(getAuth() as unknown as RegradeAuth, uid, deviceBoundNow);
 }
 
 export const activateDeviceV2 = onCall(
@@ -319,8 +418,8 @@ export const activateDeviceV2 = onCall(
     // path, and dev-in-a-browser all work without Apple/Google — the
     // seedContentV2 gating pattern.
     if (process.env.FUNCTIONS_EMULATOR === "true") {
-      await grant(uid);
-      return { ok: true };
+      const level = await regrade(uid, true);
+      return { ok: true, level };
     }
     if (platform === "web") {
       // Production has no web build (hosting serves only the legal pages
@@ -331,17 +430,35 @@ export const activateDeviceV2 = onCall(
     if (typeof token !== "string" || !token || token.length > 65536) {
       throw new HttpsError("invalid-argument", "missing attestation token");
     }
+    // Android's Play Integrity nonce, echoed back by the platform inside
+    // the signed payload. Length-bounded like the token for the same
+    // reason: this is an unauthenticated-shaped input on an App
+    // Check-enforced callable, and neither field is ever long.
+    const nonce = request.data?.nonce;
+    if (nonce !== undefined && (typeof nonce !== "string" || nonce.length > 1024)) {
+      throw new HttpsError("invalid-argument", "bad nonce");
+    }
     const now = new Date();
     const allow =
-      platform === "ios" ? await iosActivate(token, now) : await androidActivate(token, now);
+      platform === "ios" ? await iosActivate(token, now) : await androidActivate(token, nonce, now);
     if (!allow) {
       // Expected outcome, not an error: this device already bought its
       // account this month. The client memoizes and retries next month.
-      logger.info(`[deviceBind] cooldown for uid=${uid} platform=${platform}`);
-      return { ok: false, reason: "cooldown" };
+      //
+      // STILL RE-GRADE. For the account that bought it, a cooldown carries
+      // no new device fact but the IDENTITY fact may have moved since —
+      // this is the only path by which an account that links after
+      // activating ever reaches level 2. For any other account on this
+      // device, prior is 0 and regrade returns 0.
+      const level = await regrade(uid, false);
+      logger.info(`[deviceBind] cooldown for uid=${uid} platform=${platform} level=${level}`);
+      return { ok: false, reason: "cooldown", level };
     }
-    await grant(uid);
-    logger.info(`[deviceBind] activated uid=${uid} platform=${platform}`);
-    return { ok: true };
+    const level = await regrade(uid, true);
+    logger.info(
+      `[deviceBind] activated uid=${uid} platform=${platform} level=${level} (${levelDef(level).key})`,
+      { metric: "device_activated", platform, level },
+    );
+    return { ok: true, level };
   },
 );

@@ -11,14 +11,27 @@ parts and their state:
 | Month/epoch decision logic | shipped, unit-tested (`functions/src/deviceBind.test.ts`) |
 | Rules requirement on answer writes | shipped **soft** — `deviceBindEnforced()` returns `false`; the flipped text is pre-tested |
 | Client activation flow (`src/v2/data/deviceBind.ts`) | shipped, wired into the live boot, memo logic unit-tested |
-| Native token bridges (iOS/Android) | **not in the tree — paste-ready below**, needs Xcode / Android Studio |
+| Native token bridge — **iOS** | **shipped (D342)**, compiled on every PR by `ios-build.yml` |
+| Native token bridge — **Android** | **shipped (D342)**, compiled on every PR by `ci.yml`'s `android-build` |
 | Apple/Google console setup + env vars | **owner steps below** |
 | Apple/Google endpoint shapes | written from D29's verify-before-build list; **confirm against current docs before relying on staging results** |
 
-Until the last three land, activation on real devices fails loud and
-retries next boot; because enforcement is soft, no vote is refused. The
-emulator path (e2e, dev-in-a-browser) grants without Apple/Google and is
-green today.
+Until the remaining pieces land, activation on real devices fails loud
+and retries next boot; because enforcement is soft, no vote is refused.
+The emulator path (e2e, dev-in-a-browser) grants without Apple/Google and
+is green today.
+
+**What was actually blocking this, and it was not the console (D342).**
+It was the bridge. `src/v2/data/deviceBind.ts` checks
+`Capacitor.isPluginAvailable("DeviceBind")`, did not find it, logged
+`native bridge missing — activation deferred`, and returned. So activation
+had never run once, on any device — and every later record that cited
+device binding as a live control was citing something inert. D219 is the
+consequential one: it took the sign-in wall off the store build partly on
+the strength of "that layer is shipped end to end and soft". The layer was
+shipped and not connected. The iOS half is now in the tree and compiled by
+CI; what remains is genuinely owner-gated — the Apple key, the probe, the
+flip.
 
 ## 1 · Console + environment (owner-gated)
 
@@ -47,126 +60,75 @@ green today.
 3. `PLAY_PACKAGE_NAME` env is optional — defaults to
    `com.cosaxo.insight` (capacitor.config.ts appId).
 
-## 2 · Native token bridges (paste-ready, ~30 lines each)
+## 2 · Native token bridges — both shipped
 
 Neither token is exposed by the App Check plugin (D10) — App Check
-consumes its attestations internally. These bridges expose exactly one
-platform call each and are deliberately not committed from a machine
-that cannot compile them: iOS additionally requires registering the file
-with the Xcode project (`project.pbxproj`), which is not safe to edit
-blind. The JS side (`src/v2/data/deviceBind.ts`) detects the bridge with
-`Capacitor.isPluginAvailable("DeviceBind")` and simply waits until it
-exists, so pasting these is a self-contained change with no ordering
-constraint against the rest of D29.
+consumes its attestations internally. Each bridge exposes exactly one
+platform call. The JS side (`src/v2/data/deviceBind.ts`) detects the
+bridge with `Capacitor.isPluginAvailable("DeviceBind")` and simply waits
+until it exists, so each platform's bridge is a self-contained change
+with no ordering constraint against the rest of D29.
 
-**iOS — `ios/App/App/DeviceBindPlugin.swift`** (add via Xcode so the
-project file updates):
+**This section used to say both bridges were "deliberately not committed
+from a machine that cannot compile them", and that premise was wrong the
+whole time** — `ios-build.yml` compiles the iOS target on every PR
+touching `ios/**`, on a macOS runner, unsigned and with no Apple account,
+and `ci.yml`'s `android-build` runs `assembleDebug`. The compile check
+that would have made this safe already existed, on both platforms. D342
+committed both halves against it.
 
-```swift
-import Foundation
-import Capacitor
-import DeviceCheck
+**And the Android snippet that sat here was broken.** It built its
+`IntegrityTokenRequest` without a nonce, which that builder refuses —
+so it would have failed on every device it ever ran on, and failed
+*silently*, because `deviceBind.ts` treats any activation error as "try
+again on a later boot". Pasting it would have looked identical to the
+missing-bridge state it was meant to end. The committed version generates
+a 32-byte base64url nonce, returns it to JS, and `activateDeviceV2`
+refuses a payload whose signed nonce disagrees
+(`requestDetailsProblem`, unit-tested).
 
-@objc(DeviceBindPlugin)
-public class DeviceBindPlugin: CAPPlugin {
-    @objc func generateToken(_ call: CAPPluginCall) {
-        guard DCDevice.current.isSupported else {
-            // Simulators cannot mint DeviceCheck tokens — expected there,
-            // an error on any real device.
-            call.reject("devicecheck unsupported on this device")
-            return
-        }
-        DCDevice.current.generateToken { data, error in
-            if let error = error {
-                call.reject("token failed: \(error.localizedDescription)")
-                return
-            }
-            guard let data = data else {
-                call.reject("no token data")
-                return
-            }
-            call.resolve(["token": data.base64EncodedString()])
-        }
-    }
+**iOS — shipped, and not by the route this section used to prescribe.**
+`ios/App/App/DeviceBindPlugin.swift` holds the plugin;
+`ios/App/App/MainViewController.swift` registers it from
+`capacitorDidLoad()`, and `Base.lproj/Main.storyboard` names that class in
+place of `CAPBridgeViewController`. Four `project.pbxproj` entries carry
+the two files into the target.
 
-    @objc func requestIntegrityToken(_ call: CAPPluginCall) {
-        call.reject("android only")
-    }
-}
-```
+The `CAP_PLUGIN` macro this section used to prescribe was **not usable
+here**, and the reason generalises: the macro lives in an Objective-C
+file, needs `#import <Capacitor/Capacitor.h>` and a bridging header, and
+this project has no `.m` file and no `SWIFT_OBJC_BRIDGING_HEADER` — while
+Capacitor arrives as a Swift Package (`CapApp-SPM`), which publishes no
+Objective-C umbrella header to import. Registering the instance from the
+bridge view controller is all-Swift, needs no new build settings, and is
+Capacitor's own documented path for app-local plugins.
 
-**iOS — `ios/App/App/DeviceBindPlugin.m`** (the registration macro; same
-Xcode add):
+**The fragility that route buys, stated because it is silent.** The
+storyboard is a Capacitor-managed file. If `npx cap sync` ever rewrites
+that `customClass` back to `CAPBridgeViewController`, the plugin stops
+registering and activation defers again with no error — the exact failure
+the bridge's absence already caused once. Check that attribute first if
+`[deviceBind] activated` lines stop appearing.
 
-```objc
-#import <Capacitor/Capacitor.h>
+**Measured, not assumed:** `npm run build && npx cap sync` was run against
+this tree on 2026-09-01 and left `android/` and `ios/` byte-identical —
+`customClass="MainViewController"` survives. Capacitor writes the
+storyboard at `cap add`, not at `cap sync`, so the risk is a future CLI
+change rather than routine use. `npm run check:devicebind` is what would
+catch it either way.
 
-CAP_PLUGIN(DeviceBindPlugin, "DeviceBind",
-  CAP_PLUGIN_METHOD(generateToken, CAPPluginReturnPromise);
-  CAP_PLUGIN_METHOD(requestIntegrityToken, CAPPluginReturnPromise);
-)
-```
+**Android — shipped.**
+`android/app/src/main/java/com/cosaxo/insight/DeviceBindPlugin.java` holds
+the plugin; `MainActivity.java` registers it with
+`registerPlugin(DeviceBindPlugin.class)` **before** `super.onCreate`, which
+is where Capacitor builds the bridge — registering after it compiles,
+ships and does nothing. `app/build.gradle` carries
+`com.google.android.play:integrity` at `playIntegrityVersion` from
+`variables.gradle`.
 
-If the app's Capacitor version has moved off the macro registration,
-follow the current "custom code" page (registerPluginInstance in a
-CAPBridgeViewController subclass) — the plugin class body is unchanged.
-
-**Android — `android/app/src/main/java/com/cosaxo/insight/DeviceBindPlugin.java`**
-(a new file in the source tree is picked up by Gradle without project
-surgery):
-
-```java
-package com.cosaxo.insight;
-
-import com.getcapacitor.JSObject;
-import com.getcapacitor.Plugin;
-import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginMethod;
-import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.android.play.core.integrity.IntegrityManager;
-import com.google.android.play.core.integrity.IntegrityManagerFactory;
-import com.google.android.play.core.integrity.IntegrityTokenRequest;
-
-@CapacitorPlugin(name = "DeviceBind")
-public class DeviceBindPlugin extends Plugin {
-
-    @PluginMethod
-    public void requestIntegrityToken(PluginCall call) {
-        IntegrityManager manager = IntegrityManagerFactory.create(getContext());
-        IntegrityTokenRequest.Builder req = IntegrityTokenRequest.builder();
-        String cloudProjectNumber = call.getString("cloudProjectNumber");
-        if (cloudProjectNumber != null) {
-            try {
-                req.setCloudProjectNumber(Long.parseLong(cloudProjectNumber));
-            } catch (NumberFormatException e) {
-                call.reject("bad cloudProjectNumber");
-                return;
-            }
-        }
-        manager.requestIntegrityToken(req.build())
-            .addOnSuccessListener(r -> {
-                JSObject out = new JSObject();
-                out.put("token", r.token());
-                call.resolve(out);
-            })
-            .addOnFailureListener(e ->
-                call.reject("integrity token failed: " + e.getMessage()));
-    }
-
-    @PluginMethod
-    public void generateToken(PluginCall call) {
-        call.reject("ios only");
-    }
-}
-```
-
-Register it in `MainActivity` (`registerPlugin(DeviceBindPlugin.class);`
-before `super.onCreate`), and add the Play library to
-`android/app/build.gradle` if it is not already present transitively:
-
-```groovy
-implementation "com.google.android.play:integrity:1.4.0"
-```
+`npm run check:devicebind` holds all of it on both platforms, including
+that registration order and the nonce, because every one of those failures
+is silent on a device.
 
 **Verify while adding (D29's open API questions):** whether device
 recall requires the *standard* (warmed-up) integrity request rather than
@@ -247,6 +209,31 @@ The staging probe (§3) proves the round trip works on *one* device. These
 are the fleet numbers, and they guard two different failures — one is
 "we are refusing honest users", the other is "we are not actually stopping
 the attack". Both must pass; neither substitutes for the other.
+
+**Read the third number FIRST (D342), because the two below cannot see
+the failure they exist to prevent.** Both are computed from
+`activateDeviceV2`'s own logs, so both measure THE ENDPOINT. An account
+that never called it is invisible to both — a client below the activation
+build, a device with no bridge (which was every device until D342), a boot
+where the call was never reached. Those accounts vote, and the flip
+refuses them. So both rates can read perfect while most real votes would
+be refused, which is precisely the silent-refusal failure this section
+exists to prevent, hiding inside the instrument meant to prevent it.
+
+`ledgerVelocityScan` now logs the population that actually matters, daily,
+at INFO, from the Auth records it already fetches:
+
+```bash
+gcloud logging read \
+  'resource.labels.service_name="ledgervelocityscan" AND jsonPayload.metric="bind_coverage"' \
+  --project prvfire33 --limit 7 --format='value(jsonPayload.refusedPct,jsonPayload.boundAnswers,jsonPayload.answers)'
+```
+
+`refusedPct` is, directly, the share of that window's real votes the flip
+would have refused. **It must be at or near zero before flipping** — that
+is the gate, and the two rates below are the diagnostics for why it is
+not. A coverage number that will not climb means activation is failing
+somewhere the endpoint's own logs do not show.
 
 | | Threshold | What failing it means |
 | --- | --- | --- |

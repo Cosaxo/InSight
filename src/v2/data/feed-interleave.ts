@@ -24,6 +24,26 @@
 // coprime with 4, so the two cadences drift past each other instead of
 // colliding. The knowledge stream keeps its own independent cadence for the
 // same reason.
+//
+// THE WORLD LIST IS THE FRESH ONE, and `depth` is what keeps the side
+// streams alive when it is short (D348). The feed used to weave against
+// the FULL world list — answered cards included — and drop the answered
+// ones from the output afterwards, so that every cadence position stayed
+// reachable as the fresh half shrank. That kept the counts right and the
+// order wrong: a returning device's answered cards are a PREFIX of the
+// stable order (you answer from the top), so the slots that fired against
+// that prefix survived the drop as a solid block at the head of the feed.
+// Measured with the shipped loop over a 190-card bank: 16 answered put
+// seven side cards before the first topic card — the whole first mounted
+// page bar one — and 40 answered put nineteen. The owner's report was
+// "when you first open the app it never seems to add topics that are not
+// tests or learn", and D309 had read the same complaint as depletion.
+//
+// So the caller hands over the fresh list and the depth the full one had,
+// and the loop keeps walking cadence positions past the end of `world`
+// with nothing between them. Same cards, same counts per stream, one
+// order: topics first at the designed rhythm, and the surplus after —
+// which at the fully caught-up end is exactly what the full walk produced.
 
 /** One feed card every this many world questions, per stream. */
 export const TEST_EVERY = 4;
@@ -83,6 +103,17 @@ export interface InterleaveStreams<T> {
   sponsored?: T | null;
   /** Which world card it lands after. */
   sponsorAt?: number;
+  /**
+   * How many cadence positions to walk when `world` is shorter than that
+   * (D348): the side streams keep firing past the end of the world list,
+   * with nothing between them, until this many positions have passed.
+   * The feed passes the length of the full list — fresh and answered —
+   * so a returning device gets the same side cards the full walk placed,
+   * after its fresh topics rather than in front of them. Defaults to
+   * `world.length`, which is no continuation at all; a depth shorter than
+   * the world list is ignored, never a truncation.
+   */
+  depth?: number;
 }
 
 /**
@@ -97,14 +128,20 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
     tests, lenses, know = [], knowEvery = 0,
     testEvery = TEST_EVERY, lensEvery = LENS_EVERY,
     sponsored = null, sponsorAt = 0,
+    depth = 0,
   } = streams;
   const out: T[] = [];
   let ti = 0;
   let li = 0;
   let ki = 0;
   let paidPlaced = false;
-  world.forEach((q, i) => {
-    out.push(q);
+  // Cadence positions, not world cards: past the end of `world` the loop
+  // keeps counting so the side streams keep their slots (the header says
+  // why). Nothing else changes past that point — a position with no world
+  // card simply contributes no card of its own.
+  const positions = Math.max(world.length, depth);
+  for (let i = 0; i < positions; i++) {
+    if (i < world.length) out.push(world[i]);
     // The paid slot fires ONCE, at a fixed depth, before the side streams'
     // cadences — a card that could land twice is inventory the seller did
     // not sell and the reader did not agree to.
@@ -112,10 +149,12 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
     if (knowEvery && (i + 1) % knowEvery === 0 && ki < know.length) out.push(know[ki++]);
     if ((i + 1) % testEvery === 0 && ti < tests.length) out.push(tests[ti++]);
     if ((i + 1) % lensEvery === 0 && li < lenses.length) out.push(lenses[li++]);
-  });
+  }
   // Mute every opinion topic and the knowledge stream should still be there —
-  // it is a subscription of its own, not a garnish on the others.
-  if (knowEvery && world.length < knowEvery) while (ki < know.length) out.push(know[ki++]);
+  // it is a subscription of its own, not a garnish on the others. On the
+  // positions walked, not the world list: a depth long enough to fire the
+  // cadence has already served it.
+  if (knowEvery && positions < knowEvery) while (ki < know.length) out.push(know[ki++]);
   // A world list shorter than the slot depth still owes the buyer their
   // card — the alternative is a window that silently delivers nothing to
   // anyone with a heavily muted feed, which is the measurement asymmetry

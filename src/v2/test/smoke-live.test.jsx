@@ -164,6 +164,70 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
+  // D344: Account & privacy left the General tab for the gear in the
+  // profile's corner. Three halves worth pinning, because each fails
+  // silently: the General tab no longer mounts the panel (a re-added
+  // inline render would draw the settings twice with every gate green);
+  // the gear's sheet holds the whole panel — the public-answers sentence
+  // and the delete control stay one tap away rather than gone; and Escape
+  // closes the SHEET alone. useDialog's stopPropagation is what keeps the
+  // press off the profile dialog underneath — losing it would throw the
+  // reader out of the profile for asking to leave settings. The demo half
+  // (no gear at all — the panel renders nothing without an account) is in
+  // smoke-overlays, where LIVE is undefined.
+  it("hides Account & privacy behind the corner gear, and the sheet peels alone (D344)", async () => {
+    const expectNoBoundary = mountLive();
+    await openHeaderOverlay("profile");
+    await act(async () => {});
+    expect(
+      screen.queryByText("Delete everything"),
+      "the account panel is still inline on the General tab",
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Account & privacy" }));
+    const sheet = screen.getByRole("dialog", { name: "Account & privacy" });
+    expect(within(sheet).getByText("Delete everything")).toBeTruthy();
+    // The bluntest sentence in the app rides the panel wherever it lives
+    // (D183; LivePrivacyPanel.test pins it open-on-arrival inside).
+    expect(within(sheet).getByText(/Your answers are public/)).toBeTruthy();
+    fireEvent.keyDown(sheet, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Account & privacy" })).toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "Your profile" }),
+      "closing the account sheet closed the profile under it",
+    ).toBeTruthy();
+    expectNoBoundary("profile/live gear sheet");
+  });
+
+  // The identity row's sub-line, both branches (D344 amendment). It was one
+  // hardcoded sentence for every live session — "anonymous session — link
+  // Google below to keep it" — wrong twice: a Google-linked account was
+  // told it was anonymous (live.ts's auth observer had this exact site on
+  // record), and "below" pointed at the Sign-in row D211 removed. D343
+  // then revived that row inside the account sheet, so the nudge is true
+  // again and only the location claim stays dead. The fixture is
+  // anonymous-first, so the default mount pins that branch; the second
+  // flips `linked` and claims a handle to pin the other.
+  it("keeps the sign-in nudge, minus the dead location, while anonymous", async () => {
+    const expectNoBoundary = mountLive();
+    await openHeaderOverlay("profile");
+    expect(screen.getByText("anonymous session — sign in to keep it")).toBeTruthy();
+    // The location claim must not come back: the Sign-in row is behind
+    // the gear (D344), not "below" on the tab this line sits on.
+    expect(document.body.textContent).not.toMatch(/link Google below/i);
+    expectNoBoundary("profile/live identity row, anonymous");
+  });
+
+  it("shows the handle, not the anonymous line, once the account is linked", async () => {
+    const expectNoBoundary = mountLive({}, (l) => {
+      l.LIVE.linked = true;
+      l.LIVE.handle = "fixture";
+    });
+    await openHeaderOverlay("profile");
+    expect(screen.queryByText(/anonymous session/)).toBeNull();
+    expect(screen.getByText("@fixture")).toBeTruthy();
+    expectNoBoundary("profile/live identity row, linked");
+  });
+
   // ── the patterns tab's mount gate, both sides (D265) ────────────────
   //
   // The tab is absent until the nightly fit has published enough to draw
@@ -2270,6 +2334,44 @@ describe("live mode never inherits the sample persona (D55)", () => {
       .toMatch(/Openness/);
     expect(initialsIn(container), "invented friends survived on a live result")
       .toEqual([]);
+  });
+
+  it("fetches the people its percentiles count over, on a live build only", async () => {
+    // The card's counted numbers — the percentile line, the rarity field —
+    // are folds over LIVE.kindredPeople(), and nothing else on this screen
+    // fills that pool. It arrived as a side effect of any place stop's
+    // loadSimilarity until 2026-08-31 scoped that fan-out to the surfaces
+    // that read it and missed this one, so a viewer who opened World but
+    // never City lost the numbers with nothing said.
+    live = installLive();
+    hydrateTestResults(BIG5_RESULT);
+    const asked = vi.fn(async () => {});
+    live.LIVE.loadKindred = asked;
+    render(<window.ResultProfileCard testKey="big5" />);
+    await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+    expect(asked, "the card counts over people it never asked for").toHaveBeenCalled();
+  });
+
+  it("asks for nobody in demo mode, where the numbers are authored", async () => {
+    // The control, and it is the half that keeps the case above honest: an
+    // effect with no gate would also satisfy that one. The demo build's
+    // rarity and percentile come from the authored curve, so a fetch here
+    // would be a bill for a number it does not use.
+    //
+    // THROUGH THE HANDLE, not through `window.LIVE`. Written as
+    // `window.LIVE = { ...window.LIVE, enabled: false }` this case passed
+    // with the gate deleted — result-card.jsx does `import LIVE from
+    // '../data/live'`, so replacing the global leaves the binding the
+    // component actually reads untouched. installLive redefines members on
+    // the REAL store, which is why setting them on `live.LIVE` reaches it.
+    live = installLive();
+    hydrateTestResults(BIG5_RESULT);
+    const asked = vi.fn(async () => {});
+    live.LIVE.loadKindred = asked;
+    live.LIVE.enabled = false;
+    render(<window.ResultProfileCard testKey="big5" />);
+    await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+    expect(asked, "the demo build paid for a crowd it does not count over").not.toHaveBeenCalled();
   });
 
   it("keeps the persona's same-type friends in demo mode", () => {
