@@ -36445,7 +36445,7 @@ its pricing tokens (§4.1). The tab remains behind D265's gate, the trial
 remains live-data-only (D166 §1), and the seal's pin never moved —
 `data/patterns.test.ts` is byte-identical.
 
-### The six things the build settled, which a plan could not
+### The seven things the build settled, which a plan could not
 
 1. **`planeOf` is deleted**, with `MapPoint`, `PATTERNS_MIN_GAP` and its
    two tests. §1.2 left the choice to the PR: the ring took its last
@@ -36476,12 +36476,19 @@ remains live-data-only (D166 §1), and the seal's pin never moved —
    the role, which `check:a11y` refuses and is a real reading bug; and
    the rail lists only NAMED people, because chipping a nameless account
    with an initial avatar is the invented identity D167 refuses.
-5. **The Oracle stopped keeping device state.** The one-time hints
+5. **The Oracle needs no many-option fallback, and the one written for
+   it was deleted.** `pool()` skips anything that is not two-option
+   (`patterns.ts`), because the engine encodes an answer as ±1 and the
+   guess as P(option 0) — a third option has no representation in it. A
+   branch for a state the store cannot produce is residue that reads as
+   a live path; the halves read `options.slice(0, 2)` and carry the
+   reasoning at the draw site instead.
+6. **The Oracle stopped keeping device state.** The one-time hints
    retired into the card's standing sentence and the record's kicker, so
    `insight.oracle.hints.v1` went with them — `check:purge`'s subject
    set is derived, so the sweep simply stops naming that file, and a
    test pins that the lens writes nothing at all.
-6. **`check:figures` caught the ninth mount suite.** The split ballot's
+7. **`check:figures` caught the ninth mount suite.** The split ballot's
    own suite made CLAUDE.md's "eight suites mount the whole App" false
    the moment it landed, and the gate said so with the corrected
    sentence — the documentation error this repo keeps re-committing,

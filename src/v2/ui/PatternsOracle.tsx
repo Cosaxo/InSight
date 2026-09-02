@@ -309,7 +309,6 @@ export default function PatternsOracle({ items }: {
   const discOp = 0.35 + 0.65 * sol;
   const rc = sel != null ? log[sel] : null;
   const rq = rc ? qOf(rc.qid) : undefined;
-  const two = q.options.length === 2;
 
   const answer = (i: number) => {
     if (!pre) return; // no seal, no tap — the guess must exist first
@@ -347,7 +346,16 @@ export default function PatternsOracle({ items }: {
                 : "Its guess is sealed — pick a side"}>
               {rec && <path key={"f" + rec.qid} className="or2-fill" d={orFillPath(rec.pred, conf)} fill="var(--ln-beacon)"></path>}
               <line x1={OR_C} y1="22" x2={OR_C} y2={OR_S - 22} stroke="var(--ln-ring)" strokeWidth="1" strokeDasharray="3 4"></line>
-              {two && q.options.map((op, i) => {
+              {/* The halves ARE the options, and they can be because the
+                  pool is two-option BY CONSTRUCTION: patterns.ts's
+                  `pool()` skips anything else (`q.options.length !== 2`),
+                  since the engine encodes an answer as ±1 and the guess as
+                  P(option 0) — a third option has no representation
+                  anywhere in it. Sliced rather than guarded by a fallback
+                  screen: a branch for a state the store cannot produce is
+                  residue that reads as a live path, and if that filter
+                  ever loosens, this is where the reader lands. */}
+              {q.options.slice(0, 2).map((op, i) => {
                 const cx = orSeat(i);
                 const mine = rec != null && rec.mine === i;
                 const called = rec != null && rec.pred === i;
@@ -406,16 +414,6 @@ export default function PatternsOracle({ items }: {
             </svg>
           </div>
         </div>
-        {/* a pool question with more than two options cannot be two halves
-            of a disc: it falls back to the Map's own option buttons rather
-            than a field that could only point at two of them */}
-        {!two && !rec && (
-          <div className="qm-opts" style={{ gridTemplateColumns: "1fr" }}>
-            {q.options.map((op, i) => (
-              <button key={op.id} className="qm-opt" disabled={!pre} onClick={() => answer(i)}>{op.label}</button>
-            ))}
-          </div>
-        )}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12 }}>
           {rec ? (
             <p className="or2-verdict" style={{ flex: 1, margin: 0 }}>
