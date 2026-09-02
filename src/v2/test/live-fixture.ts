@@ -347,6 +347,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     myDuelVote: () => null,
     revealFor: () => null,
     revealHistory: () => [],
+    // Settled: a mount test is about the drawn frame, not the cold one.
+    revealHistoryLoading: () => false,
     loadRevealHistory: async () => {},
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
@@ -377,6 +379,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // badge. The empty list IS the live-mode surface a circle with nothing
     // written in it shows.
     takes: () => [],
+    // Settled: a mount test is about what the screen draws once the
+    // read has landed, not about the frame before it.
+    takesLoading: () => false,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},

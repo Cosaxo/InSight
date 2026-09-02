@@ -21,6 +21,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
+import { isExplicit } from "./fn-runtime-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -92,7 +93,12 @@ if (!rows.length) {
   process.exit(1);
 }
 
-const bare = rows.filter((r) => r.mem == null || r.timeout == null || r.maxInst == null);
+// NUMBERS, not merely "not null" — and the difference is the whole gate.
+// The predicate and the reasoning behind it live in ./fn-runtime-lib.mjs,
+// which exists so both can be tested: this file reads functions/lib at
+// module scope, so importing it to test anything runs the whole check,
+// which is why the assertion went untested and stayed unreachable.
+const bare = rows.filter((r) => !isExplicit(r.mem) || !isExplicit(r.timeout) || !isExplicit(r.maxInst));
 for (const r of rows) {
   console.log(
     `  ${r.name.padEnd(26)} mem=${String(r.mem).padStart(5)}MiB `

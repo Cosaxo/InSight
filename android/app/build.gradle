@@ -1,5 +1,52 @@
 apply plugin: 'com.android.application'
 
+// ── Release signing (docs/PLAY-RELEASE.md §2.1, D345) ────────────────
+//
+// Until 2026-09-01 the release build type had NO signingConfig at all, so
+// `bundleRelease` produced an unsigned AAB that Play will not accept. That
+// was invisible for as long as it was true, because CI only ever runs
+// assembleDebug — which signs with the debug keystore and proves nothing
+// about this path.
+//
+// Values come from the environment first (CI secrets) and from an
+// untracked android/keystore.properties second (a developer's own
+// machine). Neither is committed and neither can be: the upload key is the
+// one credential in this tree whose loss is only recoverable because Play
+// App Signing lets an upload key be replaced. Enroll in Play App Signing —
+// Google then holds the app signing key, and this file's keystore is
+// merely the upload key.
+//
+// WHEN NOTHING IS CONFIGURED THIS STAYS UNSIGNED, ON PURPOSE. A clean
+// clone, every CI job, and `assembleDebug` must all keep working with no
+// secrets present; failing configuration would break the android-build job
+// that D42 kept alive precisely so the shell could not rot. The warning
+// below is the compensation, and play-release.yml hard-fails on a missing
+// secret rather than relying on it — the same division ios-release.yml
+// draws, where the Gradle/Xcode layer is permissive and the release
+// workflow is strict.
+def ksProps = new Properties()
+def ksPropsFile = rootProject.file("keystore.properties")
+if (ksPropsFile.exists()) {
+    ksPropsFile.withInputStream { ksProps.load(it) }
+}
+
+def ksPath = System.getenv("ANDROID_KEYSTORE_PATH") ?: ksProps["storeFile"]
+def ksStorePass = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ksProps["storePassword"]
+// NOT named keyAlias/keyPassword: those are the signingConfig DSL's own
+// setters, and a local of the same name shadows them inside the closure.
+def ksAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ksProps["keyAlias"]
+def ksKeyPass = System.getenv("ANDROID_KEY_PASSWORD") ?: ksProps["keyPassword"]
+
+def hasReleaseSigning = ksPath && ksStorePass && ksAlias && ksKeyPass && file(ksPath).exists()
+
+if (!hasReleaseSigning) {
+    logger.lifecycle(
+        "[InSight] release signing is NOT configured — a release build will be UNSIGNED "
+        + "and Play will reject it. Set ANDROID_KEYSTORE_PATH / _PASSWORD / ANDROID_KEY_ALIAS "
+        + "/ ANDROID_KEY_PASSWORD, or create android/keystore.properties. "
+        + "Harmless for assembleDebug. See docs/PLAY-RELEASE.md §2.1.")
+}
+
 android {
     namespace = "com.cosaxo.insight"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +63,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(ksPath)
+                storePassword ksStorePass as String
+                keyAlias ksAlias as String
+                keyPassword ksKeyPass as String
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Left null rather than defaulted to debug when unconfigured.
+            // AGP will happily sign a release with the DEBUG key if pointed
+            // at it, and a debug-signed AAB is worse than an unsigned one:
+            // it uploads, installs, and can never be updated by a
+            // correctly-signed build.
+            signingConfig = hasReleaseSigning ? signingConfigs.getByName("release") : null
         }
     }
 }

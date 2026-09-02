@@ -356,8 +356,34 @@ async function androidActivate(
  * not be demoted, because a demotion silently stops that person's votes
  * counting with nothing on screen to explain it. Levels ratchet up.
  */
-async function regrade(uid: string, deviceBoundNow: boolean): Promise<number> {
-  const user = await getAuth().getUser(uid);
+/** The auth surface `regrade` needs, so its arithmetic can be tested
+ *  without an emulator. `regrade` below is the one-line binding to the
+ *  real thing; `regradeWith` is what every case drives. */
+export interface RegradeAuth {
+  getUser(uid: string): Promise<{
+    customClaims?: Record<string, unknown> | undefined;
+    providerData: Array<{ providerId: string }>;
+  }>;
+  setCustomUserClaims(uid: string, claims: Record<string, unknown>): Promise<void>;
+}
+
+/**
+ * EXPORTED and seam-taking, because nothing reached this.
+ *
+ * Both invariants in the docblock above could be inverted with the whole
+ * functions suite green: dropping the `Math.max` ratchet, and dropping
+ * `prior >= 1` so a cooldown re-grade can no longer see the device rung —
+ * which makes level 2 unreachable, the exact bug D343 records fixing. The
+ * e2e calls the callable once on a fresh account and asserts only that it
+ * returned ok, so it reaches neither arm either.
+ *
+ * This is the code that decides whether a real person's votes count once
+ * `deviceBindEnforced()` flips. It should not be the untested part.
+ */
+export async function regradeWith(
+  auth: RegradeAuth, uid: string, deviceBoundNow: boolean,
+): Promise<number> {
+  const user = await auth.getUser(uid);
   const raw = user.customClaims?.db;
   // An integer only, matching what firestore.rules accepts — its `>=`
   // errors on a string or a boolean and denies. Coercing would read
@@ -371,8 +397,12 @@ async function regrade(uid: string, deviceBoundNow: boolean): Promise<number> {
   if (next === prior) return prior;
   // Merge, not replace: setCustomUserClaims overwrites the whole map, and
   // a future claim added elsewhere must survive activation re-runs.
-  await getAuth().setCustomUserClaims(uid, { ...(user.customClaims || {}), db: next });
+  await auth.setCustomUserClaims(uid, { ...(user.customClaims || {}), db: next });
   return next;
+}
+
+async function regrade(uid: string, deviceBoundNow: boolean): Promise<number> {
+  return regradeWith(getAuth() as unknown as RegradeAuth, uid, deviceBoundNow);
 }
 
 export const activateDeviceV2 = onCall(
