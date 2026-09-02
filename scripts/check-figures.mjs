@@ -450,6 +450,29 @@ const harnessFiles = readdirSync(join(root, "src/v2/test"))
     readFileSync(join(root, "src/v2/test", f), "utf8"),
   )).length;
 
+// How many notifications the product actually SENDS, off v2social.ts's own
+// call sites. web/privacy.html promises the token is "only used for" them
+// and names them, and that sentence said ONE for the nine days after D236
+// shipped three more — while the sender's own comment beside them said
+// "two". A promise in writing is the one thing CLAUDE.md says moves first,
+// so the number it quotes is derived here rather than typed.
+//
+// `validate` is excluded and named rather than filtered by a pattern: it
+// is a dryRun send that never reaches a phone (registerPushToken uses it
+// to test a token), so it is not a notification anyone receives.
+const pushKinds = (() => {
+  const src = readFileSync(join(root, "functions/src/v2social.ts"), "utf8");
+  const kinds = new Set([...src.matchAll(/\bkind:\s*"([a-z-]+)"/g)].map((m) => m[1]));
+  kinds.delete("validate");
+  if (!kinds.size) {
+    throw new Error(
+      "check-figures: no `kind: \"…\"` push sites in v2social.ts — the sender "
+      + "changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return kinds.size;
+})();
+
 // Storage's byte cap, read off storage.rules itself. The suite that pins
 // that rule described it as an "8MB cap" for as long as the number had
 // been 256 KB — the 8 MB was the retired dailyPhotos cap, stranded by the
@@ -554,6 +577,13 @@ const FIGURES = [
     re: /all but one of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
     fix: (n) => `"all but one of the **${n}** \`smoke-*.test.jsx\`"`,
+  },
+  {
+    file: "web/privacy.html",
+    what: "notifications the token is promised to be used for",
+    re: /only used for the (\w+) notifications this app/,
+    actual: word(pushKinds),
+    fix: (n) => `"only used for the ${n} notifications this app sends"`,
   },
   {
     file: "firestore-tests/storage.rules.test.ts",
