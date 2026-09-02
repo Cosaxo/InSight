@@ -201,8 +201,12 @@ export function allocateTiers({ rows, budget, floor, demand = null, open = 0, ch
     // 2. Demand — D'Hondt: each unit to the row with the highest
     //    weight ÷ (already given + 1); ties to the heavier weight, then id.
     const ws = demand ? out.filter(weighted) : [];
+    // Hoisted out of the demand block: the ceiling is a property of the
+    // BATCH, so the tier that happens to be spending must not change
+    // whether it applies. It used to live inside the block below, which
+    // is why levelling walked straight past it.
+    const cap = Math.ceil(budget * shareCap);
     if (left > 0 && ws.length) {
-      const cap = Math.ceil(budget * shareCap);
       while (left > 0) {
         const eligible = ws.filter((r) => r.write < cap);
         if (!eligible.length) break;
@@ -223,9 +227,26 @@ export function allocateTiers({ rows, budget, floor, demand = null, open = 0, ch
         left--;
       }
     }
-    // 3. Levelling — thinnest first across every row, no ceiling.
+    // 3. Levelling — thinnest first across every row.
+    //
+    // THE CEILING BINDS HERE TOO, and it did not: this loop said "no
+    // ceiling" and meant it, so a row the demand tier had just stopped at
+    // the cap took the rest of the budget one level unit at a time. The
+    // batch-mix ceiling is a claim about the finished batch, not about one
+    // tier of it, so a row could end up over it whenever levelling had
+    // anything left to spend.
+    //
+    // A PREFERENCE, NOT A HARD STOP, and the fallback is the whole of the
+    // difference. A hard cap strands budget — one row, stock 20, budget 6,
+    // cap ceil(6 × 0.75) = 5 leaves a unit unspendable — and this suite's
+    // own property is that the budget is spent whole and never stops for
+    // stock. Filtering with no fallback is worse: the outer loop spins
+    // forever once every row is capped. So: spend on under-cap rows while
+    // any exist, and only then go over, which makes the ceiling bind in
+    // every case where binding it is possible at all.
     while (left > 0) {
-      for (const r of byThinness(out)) {
+      const under = byThinness(out).filter((r) => r.write < cap);
+      for (const r of (under.length ? under : byThinness(out))) {
         if (!left) break;
         give(r, "level");
         left--;
