@@ -264,6 +264,11 @@ morning, the reader lanes the next.
 | Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 2-30/2 * *` |
 | Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/2 * *` |
 
+Every lane's Routine prompt is exported verbatim to `prompts/<lane>.md`
+(the slug its `theory/` workspace already uses, taken from the account
+2026-09-02), so what a lane actually fires with is readable here rather
+than only in the Routines UI.
+
 Central still sits last in its group so it reads the freshest axiom
 work. The three product-side program Routines (build · skeptic ·
 retro, `docs/AXES-RUNBOOK.md` on `main`) dispatch the same way; their
