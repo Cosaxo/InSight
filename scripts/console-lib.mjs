@@ -262,8 +262,14 @@ export const isTicked = (row) =>
 const fmtDay = (iso) => (iso ? String(iso).slice(0, 10) : "?");
 const fmtTime = (iso) => (iso ? `${String(iso).slice(11, 16)} UTC ${String(iso).slice(0, 10)}` : "?");
 
-export function rowLine(row, { box = true } = {}) {
-  const tick = isTicked(row) ? "x" : " ";
+export function rowLine(row, { box = true, pending } = {}) {
+  // `pending` is the keys whose action the run tried and could not apply.
+  // The tick is drawn from the LABELS, which only move on success — so a
+  // failed label call re-rendered the row unticked and erased the owner's
+  // decision from the file. Drawing it keeps their answer; leaving it out
+  // of the ticks marker (see renderMergeList) is what makes the next run
+  // read it as new again and retry.
+  const tick = (isTicked(row) || pending?.has(row.key)) ? "x" : " ";
   const head = box ? `- [${tick}] ` : "- ";
   if (row.kind === "branch") {
     const n = row.aheadBy == null ? "commits unknown" : `${row.aheadBy} commit${row.aheadBy === 1 ? "" : "s"}`;
@@ -319,7 +325,7 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 `;
 
-export function renderMergeList({ rows, merged = [], generatedAt, githubState = "ok" }) {
+export function renderMergeList({ rows, merged = [], generatedAt, githubState = "ok", pending }) {
   const by = (stage) => rows.filter((r) => r.kind === "pr" && !r.selfMerge && r.from !== "dependabot" && r.stage === stage);
   const branches = rows.filter((r) => r.kind === "branch");
   const deps = rows.filter((r) => r.kind === "pr" && r.from === "dependabot");
@@ -334,6 +340,7 @@ export function renderMergeList({ rows, merged = [], generatedAt, githubState = 
     lines.push("");
   }
   const section = (title, list, opts) => {
+    opts = { ...(opts || {}), pending };
     lines.push(`## ${title}`);
     lines.push("");
     if (list.length === 0) lines.push("*(none)*");
@@ -345,7 +352,7 @@ export function renderMergeList({ rows, merged = [], generatedAt, githubState = 
   if (deps.length) {
     lines.push(`**Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):`);
     lines.push("");
-    for (const r of deps.filter((d) => d.stage === "new")) lines.push(rowLine(r));
+    for (const r of deps.filter((d) => d.stage === "new")) lines.push(rowLine(r, { pending }));
     lines.push("");
   }
   if (selfMerge.length) {
@@ -621,7 +628,7 @@ export function mergeTrail(prior, row) {
 // ── the console page ────────────────────────────────────────────────
 export const ARTIFACT_LINE = /^\*\*Console artifact:\*\*/;
 
-export function renderConsole(state, priorBody = "") {
+export function renderConsole(state, priorBody = "", pending) {
   const L = [];
   const firstLine = String(priorBody || "").split("\n")[0];
   L.push(ARTIFACT_LINE.test(firstLine) ? firstLine : "**Console artifact:** *(the console keeper puts its link here)*");
@@ -655,12 +662,12 @@ export function renderConsole(state, priorBody = "") {
   const open = [...prs.filter((r) => r.stage === "new"), ...rows.filter((r) => r.kind === "branch")];
   L.push("### Approve");
   if (!open.length) L.push("*(nothing waiting for a tick)*");
-  for (const r of open) L.push(rowLine(r));
+  for (const r of open) L.push(rowLine(r, { pending }));
   for (const [title, stage] of [["In the shift", "shift"], ["Ready — merge-when-green, the shepherd merges on green", "ready"], ["Could not be made green — your call", "blocked"]]) {
     const list = prs.filter((r) => r.stage === stage);
     L.push(`### ${title}`);
     if (!list.length) L.push("*(none)*");
-    for (const r of list) L.push(rowLine(r, { box: false }));
+    for (const r of list) L.push(rowLine(r, { box: false, pending }));
   }
   L.push("### Merged this week");
   if (!(state.merged || []).length) L.push(state.github.ok ? "*(none)*" : "*(not reported)*");

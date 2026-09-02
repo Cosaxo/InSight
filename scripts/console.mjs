@@ -235,7 +235,14 @@ async function ensureLabel() {
 }
 
 async function act(state, actions, log) {
-  if (!actions.length) return;
+  if (!actions.length) return new Set();
+  // The keys this run could not apply. A failed label call leaves the row's
+  // labels untouched, so the next render draws it UNTICKED — the owner's
+  // approval erased from the file by a transient GitHub error, with the
+  // action forgotten too (the following run sees no tick, so decides
+  // nothing). Handing these back lets the render keep the tick; keeping
+  // them out of the ticks marker is what makes that run try again.
+  const failed = new Set();
   await ensureLabel();
   for (const a of actions) {
     try {
@@ -260,9 +267,11 @@ async function act(state, actions, log) {
         log(`opened #${pr.number} from ${a.branch} and labelled it approved`);
       }
     } catch (e) {
-      log(`::warning::${a.type} ${a.key} failed: ${e.message.split("\n")[0]}`);
+      failed.add(a.key);
+      log(`::warning::${a.type} ${a.key} failed: ${e.message.split("\n")[0]} — the tick stays on the row and the next run tries again`);
     }
   }
+  return failed;
 }
 
 async function upsertIssue(state, body, log) {
@@ -291,8 +300,8 @@ async function main() {
   const file = parseTicks(state.priorList);
   const issue = parseTicks(state.priorIssueBody);
   const actions = state.github.ok ? decideActions(state.rows, file, issue) : [];
-  if (REFRESH && TOKEN) await act(state, actions, log);
-  else if (actions.length) log(`${actions.length} tick action(s) pending — run with --refresh and a token to apply: ${actions.map((a) => `${a.type} ${a.key}`).join(", ")}`);
+  const failed = REFRESH && TOKEN ? await act(state, actions, log) : new Set();
+  if (!(REFRESH && TOKEN) && actions.length) log(`${actions.length} tick action(s) pending — run with --refresh and a token to apply: ${actions.map((a) => `${a.type} ${a.key}`).join(", ")}`);
 
   // The list: only when GitHub answered — a render from nothing would erase
   // the owner's ticks with an empty page.
@@ -302,7 +311,7 @@ async function main() {
   // arriving through a half-answer instead of a silent one. A tick the
   // owner put on a row is the row's only record of their decision.
   if (state.github.ok && state.github.rowsComplete && state.github.mergedOk) {
-    writeFileSync(MERGE_LIST, renderMergeList({ rows: state.rows, merged: state.merged, generatedAt: state.generatedAt }));
+    writeFileSync(MERGE_LIST, renderMergeList({ rows: state.rows, merged: state.merged, generatedAt: state.generatedAt, pending: failed }));
     log("wrote docs/MERGE-LIST.md");
   } else if (!state.github.ok) log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
   else log(`left docs/MERGE-LIST.md untouched — GitHub answered in part only (${state.missing.join("; ")})`);
@@ -332,7 +341,7 @@ async function main() {
   log(`trail row for ${state.today}`);
 
   if (REFRESH && TOKEN && state.github.ok && state.github.rowsComplete && state.github.mergedOk) {
-    await upsertIssue(state, renderConsole(state, state.priorIssueBody), log);
+    await upsertIssue(state, renderConsole(state, state.priorIssueBody, failed), log);
   } else if (REFRESH) log("no token or GitHub unreachable — the Console issue was not rewritten");
   if (state.missing.length) log(`sources that did not answer: ${state.missing.join("; ")}`);
 }

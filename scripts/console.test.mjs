@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  laneOfBranch, isNoPrBranch, whatHow, checksSummary, prRow, branchRow, parseTicks, ticksMarker,
+  laneOfBranch, isNoPrBranch, whatHow, checksSummary, prRow, branchRow, rowLine, parseTicks, ticksMarker,
   decideActions, isTicked, renderMergeList, parseWorklist, parseOwnerList, parseAxioms,
   parseVisualRequests, parsePermissions, parseRegister, ownerSteps, uncheckedSteps,
   theorySummary, rollCalls, lastSeen, foldOwnerList, notAlreadyListed, trailRow, mergeTrail,
@@ -103,6 +103,34 @@ describe("rows and stages", () => {
 });
 
 describe("the tick protocol", () => {
+  it("keeps a tick whose action failed, and still asks the next run to retry", () => {
+    // The tick is drawn from the row's LABELS, and a label only moves when
+    // the call succeeds. So a transient GitHub error erased the owner's
+    // approval from the file — and silently: the following run compares the
+    // file against the marker, sees no tick, and decides nothing. Their
+    // answer was gone and nothing was going to ask again.
+    const row = prRow(pr(7));
+    const pending = new Set([row.key]);
+
+    expect(rowLine(row), "the row is already ticked without the failure — the case proves nothing").toContain("- [ ]");
+    expect(
+      rowLine(row, { pending }),
+      "the owner's tick was erased by a failed label call",
+    ).toContain("- [x]");
+
+    // …and the marker must NOT claim it. `decideActions` reads a tick as new
+    // when the file has it and the marker does not, so leaving it out is
+    // exactly what makes the next run try the label again.
+    const page = renderMergeList({ rows: [row], generatedAt: "now", pending });
+    expect(page, "the row lost its tick in the rendered page").toContain(`- [x] **${row.key}**`);
+    const marker = parseTicks(page);
+    expect(
+      marker.rendered.has(row.key),
+      "the marker recorded the failed tick as applied, so the next run will never retry it",
+    ).toBe(false);
+    expect(marker.now.get(row.key), "the page does not read back as ticked").toBe(true);
+  });
+
   const list = `# Merge list\n\n${ticksMarker(["#2", "#3"])}\n\n## Open\n\n- [x] **#1** · a session · *what:* a · *how:* b · stage **new**\n- [x] **#2** · a session · … · stage **in the shift**\n- [ ] **#3** · a session · … · stage **in the shift**\n- [ ] **#4** · a session · … · stage **in the shift**\n- [x] **night-20260903** (no PR yet) · Claude 2's night shift · 12 commits\n- [ ] **#7** · the now lane · …\n`;
   const rows = [
     prRow(pr(1)),                                            // new tick in the file → approve
