@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 354 lines instead of
-35,164. Do not hand-edit; `npm run check:docs` fails when this
+35,219. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -367,4 +367,4 @@ detect it.
 | **D340** | [The app icon moves to the paper tile, and the two-palette rule survives the move](DECISIONS.md#d340--the-app-icon-moves-to-the-paper-tile-and-the-two-palette-rule-survives-the-move) | — | 34603 |
 | **D341** | [Crossroads is a question TYPE, and its stories ride the feed as members](DECISIONS.md#d341--crossroads-is-a-question-type-and-its-stories-ride-the-feed-as-members) | — | 34685 |
 | **D342** | [First paint comes off the device: the warm boot, and `ready` splits from `attached`](DECISIONS.md#d342--first-paint-comes-off-the-device-the-warm-boot-and-ready-splits-from-attached) | D343 | 34790 |
-| **D343** | [An answer the server has not acknowledged survives the relaunch](DECISIONS.md#d343--an-answer-the-server-has-not-acknowledged-survives-the-relaunch) | — | 35025 |
+| **D343** | [An answer the server has not acknowledged survives the relaunch](DECISIONS.md#d343--an-answer-the-server-has-not-acknowledged-survives-the-relaunch) | — | 35052 |

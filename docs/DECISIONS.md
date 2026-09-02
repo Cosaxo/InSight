@@ -34968,6 +34968,33 @@ reconcile never flashes a label on launch.
   the person sees their own previous account's deck for that window and
   then the purge; the pre-D342 boot showed the demo deck for longer and
   then kept the previous account's device trace under the new uid.
+- A write made behind the provisional gate lives in this process, not
+  in the SDK's persisted queue — there is no session to hand it to. If
+  the sign-in FAILS, those writes fail with it, into their own catches
+  (a vote rolls back on screen the way a refused write does; a profile
+  edit stays local and mirrored), and the next wake's sign-in re-arms
+  the gate. Holding them would be a promise the next launch cannot keep
+  (the third review's finding; it first held them). What is lost in
+  that case is the profile edit's server write — the mirror keeps the
+  edit for the paint, and the next successful boot's profile read
+  overwrites it unless the person edits again. Known and priced: it
+  needs a device whose session cannot be restored or re-minted, offline,
+  editing the profile, killed before the network returns.
+
+Three more corrections from the same review. A profile edit made on the
+warm-painted screen while the boot's profile read is in flight is newer
+than that read, and applying the read over it reverted the city on
+screen and wrote the old anchors back over the mirror — every later
+answer would have snapshotted the old city; the block now applies the
+read only if nothing moved the profile since it was issued (a counter
+the mutators bump), and the edit's own write carries it. The sign-in's
+promise is observed the moment it is created, because a rejection while
+the disk is still being read surfaced as an unhandled one before the
+`await` further down attached. And a hide that lands during the boot's
+own deck read stops the poll before it arms — `aggPollGen`, above — and
+a foreground before the attach JOINS the boot rather than resubscribing,
+so the session attached with its counts frozen; the attach arms the
+poll if nothing did and the app is visible.
 
 ### What proves it
 
@@ -35107,6 +35134,28 @@ gate's read arm moved BEHIND the two verb tests: ahead of them it would
 have waved through a write spelled `setDoc(doc(collection(…)))`, the
 idiom the takes write already uses.
 
+### What the third review moved
+
+The settle rules only on what the restore brought back (a set the
+restore fills and a reset clears). An answer tapped in THIS process has
+its own promise; the queue-drained signal does not cover a write
+requested after it, so the settle's read finds that document absent —
+and a settle that ruled on it rolled back a write still on its way,
+which its own ack then never restored. A document the read returns
+with a local mutation laid over it (a write made since the drain over a
+restored id) is skipped, not read as absent. The verdicts are applied
+only if the account is still the one the settle started for: the read
+is a round trip, and a reset landing inside it would have applied the
+old account's verdicts to the new one's votes and pending file. The
+boot's deck read (`refreshAggs`) no longer clears a still-inflight
+answer's own-vote bump — `drainAggRefresh` had carried that guard since
+the optimistic split; a restored pending daily answer put an inflight
+answer in front of the deck read for the first time, and the card read
+one voter short. And the gate's read arm is a `collection(` line that
+is not also a `doc(` line: the write idiom split across lines lands on
+a line with neither verb, which must be reported as the unclassifiable
+write it is.
+
 ### The trade, stated
 
 - One more `insight.*` key, a few hundred bytes at most, gone the moment
@@ -35135,14 +35184,20 @@ device won settled to that device's answer on screen and in the cache;
 an edit's own echo in the delta (`hasPendingWrites`) proving nothing
 until the drain; a cold pull never filing a pending answer into the
 acknowledged cache; a settled answer arming the aggregate re-read the
-ack arms; and the mirror going with the account on a switch. Probed,
-each failing exactly its case: dropping the restore, confirming a
-refused create instead of rolling it back, confirming the other
-device's document with this device's value, taking the echo as the
-server's word, and filing the pending answer in the cold rewrite. The
+ack arms; an answer tapped during the drain wait left to its own
+promise (the settle's read asks for the restored id alone); the boot's
+deck read keeping a restored answer's own-vote bump; and the mirror
+going with the account on a switch. Probed, each failing exactly its
+case: dropping the restore, confirming a refused create instead of
+rolling it back, confirming the other device's document with this
+device's value, taking the echo as the server's word, filing the
+pending answer in the cold rewrite, settling every pending id instead
+of the restored ones, and clearing the bump from the deck read. The
 file tears its instance down after every case (`_teardownForTest`):
 the 2.5 s aggregate re-read a confirm arms, left running, fired into a
-later case's exact-set pins as a read nobody issued. `test:unit` green in full; lint, `tsc -b`,
+later case's exact-set pins as a read nobody issued. D342's own file
+gained the sign-in failure paths and the profile-edit and hide-during-
+read orderings alongside, each probed the same way. `test:unit` green in full; lint, `tsc -b`,
 check:purge (live.ts is the dispatcher and owner-stamps the key),
 check:globals unchanged. `check:answer-shape` learned one thing: the
 settle's `documentId() in` read is the first READ of the answers path

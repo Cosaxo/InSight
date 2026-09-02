@@ -89,16 +89,26 @@ const h = vi.hoisted(() => ({
   // SDK import and the auth restore, made as slow as a test needs.
   holdSignIn: false,
   releaseSignIn: null as null | (() => void),
+  failSignIn: null as null | ((err: Error) => void),
+  // Set, anonSignIn rejects at once with it — a lost session that cannot
+  // be re-minted offline.
+  signInError: null as null | Error,
   signIns: 0,
+  // The document's visibility, and its captured listeners — so a case can
+  // hide and foreground the app.
+  hidden: false,
+  docListeners: {} as Record<string, Array<() => void>>,
 }));
 
 vi.mock("../../lib/firebase", () => ({
   firebaseEnabled: true,
   anonSignIn: () => {
     h.signIns += 1;
+    if (h.signInError) return Promise.reject(h.signInError);
     if (!h.holdSignIn) return Promise.resolve(h.uid);
-    return new Promise<string>((resolve) => {
+    return new Promise<string>((resolve, reject) => {
       h.releaseSignIn = () => resolve(h.uid);
+      h.failSignIn = (err) => reject(err);
     });
   },
   getDb: () => Promise.resolve({ __db: true }),
@@ -328,6 +338,8 @@ async function releaseAll(LIVE: { attached: boolean }) {
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 // Fire every listener registered for a window event (`online`, mostly).
 const fire = (ev: string) => { for (const fn of h.listeners[ev] || []) fn(); };
+// …and for a document event (`visibilitychange`).
+const fireDoc = (ev: string) => { for (const fn of h.docListeners[ev] || []) fn(); };
 // The SDK reports its queue drained (D343).
 const drainQueue = async () => {
   h.drainWaiters.splice(0).forEach((r) => r());
@@ -373,7 +385,11 @@ beforeEach(() => {
   h.autoAuth = true;
   h.holdSignIn = false;
   h.releaseSignIn = null;
+  h.failSignIn = null;
+  h.signInError = null;
   h.signIns = 0;
+  h.hidden = false;
+  h.docListeners = {};
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
   idb = new IDBFactory();
@@ -395,7 +411,9 @@ beforeEach(() => {
     removeEventListener: () => {},
   });
   vi.stubGlobal("document", {
-    hidden: false, addEventListener: () => {}, removeEventListener: () => {},
+    get hidden() { return h.hidden; },
+    addEventListener: (ev: string, fn: () => void) => { (h.docListeners[ev] ||= []).push(fn); },
+    removeEventListener: () => {},
   });
   vi.stubGlobal("navigator", { onLine: true });
   vi.stubEnv("VITE_V2_LIVE", "true");
@@ -659,6 +677,52 @@ describe("the warm paint", () => {
     expect(bankQs.some((c) => c.cons.some((k) => k.kind === "where" && k.field === "surface" && k.op === "in"))).toBe(true);
   });
 
+  it("a profile edit made on the warm-painted screen survives the profile read in flight", async () => {
+    // The read went out at the top of hydrate; the person picks a city
+    // before it comes back. The read's copy is older than the edit, and
+    // applying it reverted the city on screen and wrote the old anchors
+    // back over the mirror — so every later answer would have snapshotted
+    // the old city.
+    await seedWarmDevice();
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
+    LIVE.saveAnchors({ city: "Bergen, NO", age: "30s" });
+    expect(LIVE.anchors()).toEqual({ city: "Bergen, NO", age: "30s" });
+    // The read returns the server's older copy (Oslo).
+    await releaseAll(LIVE);
+    expect(LIVE.anchors()).toEqual({ city: "Bergen, NO", age: "30s" });
+    expect(JSON.parse(storage.getItem(OWN_PROFILE_LS) || "null")?.anchors).toEqual({ city: "Bergen, NO", age: "30s" });
+    // …and the edit's own write went out.
+    expect(h.writes).toContain("v2_users/uid_test");
+  });
+
+  it("a hide during the boot's deck read still leaves the poll armed after the attach", async () => {
+    // The hide handler stops the poll (and bumps its generation) while the
+    // boot's own deck read is in flight, so that read cannot arm it; a
+    // foreground before the attach joins the running boot instead of
+    // resubscribing. Without the re-arm at the attach the session came up
+    // with its counts frozen.
+    await seedWarmDevice();
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
+    await release();
+    await expectParked(["v2_questions"]);
+    await release();
+    await vi.waitFor(() => { expect(h.pending.length).toBe(3); });
+    h.hidden = true;
+    fireDoc("visibilitychange");
+    h.hidden = false;
+    fireDoc("visibilitychange");
+    await releaseAll(LIVE);
+    await vi.waitFor(() => { expect(mod._aggPollForTest().running).toBe(true); });
+  });
+
   it("a wake during the running boot joins it rather than starting the poll twice", async () => {
     await seedWarmDevice();
     h.gated = true;
@@ -799,6 +863,56 @@ describe("the provisional account", () => {
     fire("online");
     await releaseAll(LIVE);
     expect(mod._aggPollForTest().running).toBe(true);
+  });
+
+  it("a sign-in that rejects while the disk is still being read fails the boot cleanly", async () => {
+    // A lost session that cannot be re-minted offline: the rejection
+    // lands while refreshLive is parked on the IndexedDB reads. Unobserved
+    // it would surface as an unhandled rejection (vitest fails the file
+    // on one); observed, it is the boot's own failure, once.
+    await seedWarmDevice();
+    h.signInError = new Error("auth/network-request-failed");
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    // The paint still happened — the deck is the device's — and the boot
+    // says what it hit.
+    expect(LIVE.ready).toBe(true);
+    await vi.waitFor(() => { expect(LIVE.bootError).toContain("auth/network-request-failed"); });
+    expect(LIVE.stale).toBe(true);
+    expect(h.signIns).toBe(1);
+    expect(h.reportError.mock.calls.filter((c) => c[1]?.where === "boot")).toHaveLength(1);
+  });
+
+  it("a write parked behind the gate fails loudly when the sign-in fails, and the next wake retries", async () => {
+    // A write parked here lives only in this process — there is no
+    // session to hand it to the SDK under — so holding it past a failed
+    // sign-in would be a promise the next launch cannot keep. It fails
+    // into its own catch instead: the vote rolls back on screen the way a
+    // refused write does.
+    await seedBank([row("q_1", 1), row("q_2", 2)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    h.holdSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    LIVE.vote("q_2", "0");
+    await flush();
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+    expect(h.writes).toEqual([]);
+    h.failSignIn?.(new Error("auth/network-request-failed"));
+    await vi.waitFor(() => { expect(LIVE.myVotes()).toEqual({ q_1: "1" }); });
+    expect(h.writes).toEqual([]);
+    expect(pendingFile()).toBeNull();
+    await vi.waitFor(() => { expect(LIVE.bootError).toContain("auth/network-request-failed"); });
+    // The network returns: the wake signs in again, and the session
+    // attaches for the account the mirror named.
+    h.holdSignIn = false;
+    fire("online");
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    expect(h.signIns).toBe(2);
+    expect(LIVE.uid).toBe("uid_test");
   });
 
   it("a null auth state while the uid is provisional starts no second sign-in", async () => {
@@ -1084,6 +1198,62 @@ describe("answers the server has not acknowledged (D343)", () => {
     // The delayed re-read that clears `unaggregated` is armed for it,
     // exactly as vote()'s ack arms it.
     expect(mod._aggRefreshForTest().pending).toContain("q_2");
+  });
+
+  it("an answer tapped during the drain wait is left to its own promise", async () => {
+    // The settle may rule only on what the restore brought back. A tap
+    // made in this process has its own promise; the queue-drained signal
+    // does not cover a write made after it was requested, so the settle's
+    // read would find that document absent — and a settle that ruled on
+    // it would roll back a write still on its way.
+    await seedBank([row("q_1", 1), row("q_2", 2), row("q_3", 3)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    let mod = await import("./live");
+    let LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    h.holdWrites = true;
+    LIVE.vote("q_2", "0");
+    await flush();
+    relaunch();
+    mod = await import("./live");
+    LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    // The settle is parked on the drain; the person answers q_3 meanwhile.
+    h.holdWrites = true;
+    LIVE.vote("q_3", "1");
+    await flush();
+    expect(pendingFile()?.e).toEqual({ q_2: { v: "0" }, q_3: { v: "1" } });
+    // The queue delivered q_2; q_3 is still on its way.
+    h.answerDocs = [{ id: "q_2", data: { optionIdx: 0, answeredAt: ts(900) } }];
+    await drainQueue();
+    await vi.waitFor(() => { expect(LIVE.confirmedVotes()).toEqual({ q_1: "1", q_2: "0" }); });
+    // q_3: untouched — on screen, still pending, its own write parked.
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0", q_3: "1" });
+    expect(pendingFile()?.e).toEqual({ q_3: { v: "1" } });
+    const byId = h.calls.filter((c) => c.path === "v2_users/uid_test/answers"
+      && c.cons.some((k) => k.kind === "where" && typeof k.field === "object"));
+    expect(byId).toHaveLength(1);
+    expect(byId[0].cons.find((k) => k.kind === "where")?.value).toEqual(["q_2"]);
+  });
+
+  it("the boot's deck read keeps a restored answer's own-vote bump while it is unconfirmed", async () => {
+    // deck() hands the UI counts that EXCLUDE the viewer's own vote once
+    // the aggregate holds it (the UI adds its own +1). A restored pending
+    // answer is not in the aggregate yet; the boot's deck read used to
+    // clear the flag anyway, and the card read one voter short.
+    await answerOffline();
+    relaunch();
+    h.aggDocs = [{ id: "q_2", data: { counts: { "0": 1, "1": 2 }, total: 3, tooSmall: false } }];
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await flush();
+    const card = LIVE.deck().find((q) => q.id === "q_2");
+    expect(card?.options[0].count).toBe(1);
   });
 
   it("the mirror is the account's: a switch takes it with everything else", async () => {

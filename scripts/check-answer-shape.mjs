@@ -134,8 +134,12 @@ for (let i = 0; ; ) {
     // `setDoc(doc(collection(db, "v2_users", uid, "answers"), qid), …)`
     // — the idiom the takes write already uses one collection over —
     // carries `collection(` on its line too, and a read test ahead of the
-    // verbs would have waved its payload through unchecked.
-    if (/\bcollection\(/.test(callLine)) { reads++; continue; }
+    // verbs would have waved its payload through unchecked. And NOT a
+    // `doc(` line: the same idiom split across lines puts
+    // `doc(collection(db, "v2_users", uid, "answers"), qid),` on a line
+    // with neither verb, which must land in `problems` below as the
+    // unclassifiable write it is, not here as a read.
+    if (/\bcollection\(/.test(callLine) && !/\bdoc\(/.test(callLine)) { reads++; continue; }
     // Neither verb on the line means the scan shape has drifted from the
     // code — a multi-line call, say. Report it: a site this cannot classify
     // is a site it is not checking, and silence there is the whole failure

@@ -790,6 +790,13 @@ function loadPending(uid: string): Record<string, PendingAnswer> {
   const cur = readPendingFile();
   return cur && cur.uid === uid ? cur.e : {};
 }
+// The ids the restore brought back THIS process — the only ones the
+// settle may rule on. An answer tapped in this process has its own
+// promise, its own ack and its own catch; a settle that ruled on it too
+// would roll back a write still on its way (a document the read returns
+// with the mutation laid over it is skipped, and "pending" for a restored
+// id means refused) or count its ack twice.
+const restoredPending = new Set<string>();
 // Back into memory as the state they died in: voted, unconfirmed, and
 // not yet in the public aggregate (the display flag every create sets).
 function restorePending(uid: string): void {
@@ -798,6 +805,7 @@ function restorePending(uid: string): void {
     state.inflight[aid] = true;
     const n = Number(p.v);
     state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    restoredPending.add(aid);
   }
 }
 // The feed's own vote mirror, dropped or restored beside the store's.
@@ -885,10 +893,12 @@ function settleOne(
   if (server === undefined) return "pending";
   if (server === p.v) {
     confirmPending(db, aid, p.v, !!p.edit);
+    restoredPending.delete(aid);
     return "confirmed";
   }
   if (p.edit && !afterDrain) return "pending";
   rollbackPending(aid, server);
+  restoredPending.delete(aid);
   return "settled";
 }
 
@@ -914,7 +924,7 @@ async function settlePending(
   fetched: Array<[string, string]>,
 ): Promise<void> {
   const pending = loadPending(uid);
-  const ids = Object.keys(pending);
+  const ids = Object.keys(pending).filter((aid) => restoredPending.has(aid));
   if (!ids.length) return;
   const seen = new Map(fetched);
   let unsettled = 0;
@@ -945,12 +955,17 @@ async function settlePending(
   }
   settleWaitingFor = null;
   if (torndown || state.uid !== uid) return;
-  // Re-read: an ack in THIS process may have settled some meanwhile, and a
-  // later hydrate may have restored more.
-  const still = Object.keys(loadPending(uid));
+  // Re-read: a later hydrate may have restored more (a restored id an
+  // in-process ack could not have settled — the process that made the
+  // tap is gone).
+  const still = Object.keys(loadPending(uid)).filter((aid) => restoredPending.has(aid));
   if (!still.length) return;
   try {
     const found = new Map<string, string>();
+    // A document still carrying a local mutation is a write made since
+    // the drain by this process, over a restored id (an edit of a
+    // restored answer, say) — its own promise settles it; not "absent".
+    const echoed = new Set<string>();
     for (let i = 0; i < still.length; i += 30) {
       const chunk = still.slice(i, i + 30);
       const snap = await getDocs(query(
@@ -958,23 +973,30 @@ async function settlePending(
         where(documentId(), "in", chunk),
       ));
       snap.docs.forEach((d) => {
-        // A document still carrying a local mutation is a write made
-        // since the drain — its own promise settles it.
-        if ((d as { metadata?: { hasPendingWrites?: boolean } }).metadata?.hasPendingWrites) return;
+        if ((d as { metadata?: { hasPendingWrites?: boolean } }).metadata?.hasPendingWrites) {
+          echoed.add(d.id);
+          return;
+        }
         const v = answerValueOf((f) => d.get(f));
         if (v !== null) found.set(d.id, v);
       });
       state.stats.answersFetched += snap.size;
     }
+    // The read was a round trip, and the account can have changed under
+    // it (a lost session re-minted, a link resolving to an existing
+    // account): these verdicts are the OLD account's and must not touch
+    // the new one's votes or its pending file.
+    if (torndown || state.uid !== uid) return;
     const now = loadPending(uid);
     for (const aid of still) {
       const p = now[aid];
-      if (!p) continue;
+      if (!p || echoed.has(aid)) continue;
       if (settleOne(db, aid, p, found.get(aid), true) === "pending") {
         // Absent after the drain: a create the rules refused, or a write
         // that never reached the queue — the same rollback the in-process
         // catch performs.
         rollbackPending(aid);
+        restoredPending.delete(aid);
       }
     }
     notify();
@@ -1429,7 +1451,12 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       // Same rule the snapshot handler applied: a fresh aggregate means the
       // trigger has (very likely) folded the vote in, so stop
       // double-counting it. A premature clear self-heals on the next read.
-      if (d.id in state.unaggregated && state.votes[d.id]) {
+      // …unless the write itself is still unacknowledged — a restored
+      // pending answer at boot (D343) — which this aggregate cannot hold
+      // yet. drainAggRefresh has carried the same guard since the
+      // optimistic split; here it was unreachable until restorePending
+      // put an inflight answer in front of the boot's deck read.
+      if (d.id in state.unaggregated && state.votes[d.id] && !(d.id in state.inflight)) {
         delete state.unaggregated[d.id];
       }
     });
@@ -1706,16 +1733,35 @@ function ownProfileUid(): string | null {
 // wake restores.
 let authSettled: Promise<void> = Promise.resolve();
 let settleAuth: () => void = () => {};
+let failAuth: (err: unknown) => void = () => {};
+function armAuthGate(): void {
+  authSettled = new Promise<void>((resolve, reject) => {
+    settleAuth = resolve;
+    failAuth = reject;
+  });
+  // Observed here, so a failure with no waiter is not an unhandled
+  // rejection; every waiter still sees it.
+  authSettled.catch(() => {});
+}
 function beginProvisional(uid: string): void {
   state.uid = uid;
   state.uidProvisional = true;
-  authSettled = new Promise<void>((resolve) => {
-    settleAuth = resolve;
-  });
+  armAuthGate();
 }
 function endProvisional(): void {
   state.uidProvisional = false;
   settleAuth();
+}
+// The sign-in failed: the writes parked behind the gate fail with it —
+// LOUDLY, into their own catches (a vote rolls back on screen, the way a
+// refused write does), rather than dying with the process. A write parked
+// here lives only in this process, not in the SDK's persisted queue, and
+// there is no session to hand it to; holding it would be a promise the
+// next launch cannot keep. The uid stays provisional and a fresh gate is
+// armed for the next attempt (the next wake's refreshLive).
+function failProvisional(err: unknown): void {
+  failAuth(err);
+  armAuthGate();
 }
 
 function saveOwnProfile(): void {
@@ -1723,6 +1769,18 @@ function saveOwnProfile(): void {
   if (torndown || !uid) return;
   const { displayName, handle, testResults, anchors, consent } = state.profile;
   lsSet(OWN_PROFILE_LS, JSON.stringify({ uid, displayName, handle, testResults, anchors, consent }));
+}
+// How many times a mutator has moved state.profile this process. hydrate
+// issues its profile read at its top and applies it some round trips
+// later; on a warm-painted screen the person can edit the profile in
+// between, and applying "what the server said when the read was issued"
+// over that edit reverted it on screen AND in the mirror (the third
+// review) — every later answer would have snapshotted the old anchors.
+// The mutators go through here; the boot compares.
+let profileDirty = 0;
+function profileChanged(): void {
+  profileDirty += 1;
+  saveOwnProfile();
 }
 
 // The bank, published: sorted by seq, the serving window applied, split
@@ -1934,6 +1992,8 @@ async function hydrate(): Promise<void> {
       return null;
     })
     : null;
+  // Where the profile stood when that read went out — see profileChanged.
+  const profileDirtyAt = profileDirty;
 
   // ── the disk first, and the warm paint (D342) ──
   // Read before the meta document, not after it: nothing here depends on
@@ -2590,7 +2650,14 @@ async function hydrate(): Promise<void> {
       // Wiping to "what the server said a second ago" threw those away
       // and mirrored the empty object, so every later answer snapshotted
       // no anchors — the exact fault the mirror exists to prevent.
-      if (prof && prof.exists()) {
+      // …and a document that DOES exist is applied only if nothing moved
+      // the profile while the read was in flight. An edit made on the
+      // warm-painted screen in that window is newer than the read; its
+      // own write carries it to the server, and the next boot's read
+      // returns it. Applying the read over it reverted the edit on screen
+      // and wrote the old anchors back over the mirror.
+      const edited = profileDirty !== profileDirtyAt;
+      if (prof && prof.exists() && !edited) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.handle = (prof.get("handle") as string) || "";
         state.profile.testResults =
@@ -2611,8 +2678,9 @@ async function hydrate(): Promise<void> {
       }
       // `prof` is null only when the early read failed (captured to null
       // at the top of hydrate) — then the mirror keeps what it had rather
-      // than recording a truth nobody read.
-      if (prof) saveOwnProfile();
+      // than recording a truth nobody read. Edited: the mutator already
+      // mirrored the newer state.
+      if (prof && !edited) saveOwnProfile();
     } catch (err) {
       reportError(err, { where: "hydrate.profile" });
     }
@@ -3276,7 +3344,7 @@ const SOCIAL = {
   async claimHandle(handle: string) {
     const out = await callable<{ handle: string }>("claimHandleV2", { handle });
     state.profile.handle = out.handle;
-    saveOwnProfile();
+    profileChanged();
     notify();
     return out;
   },
@@ -4108,7 +4176,7 @@ const LIVE = {
     }
     state.profile.displayName = name;
     saveLocalName(name);
-    saveOwnProfile();
+    profileChanged();
     notify();
   },
   // The viewer's own anchors, as a plain map — the same seven keys an
@@ -5033,7 +5101,7 @@ const LIVE = {
       if (t) clean[k] = t.slice(0, max);
     }
     state.profile.anchors = clean;
-    saveOwnProfile();
+    profileChanged();
     void (async () => {
       try {
         const db = await getDb();
@@ -5125,7 +5193,7 @@ const LIVE = {
     const rec = politicalConsentRecord(on, Date.now());
     state.profile.consent = { ...state.profile.consent, political: rec };
     if (!on) delete state.profile.testResults[POLITICAL_RESULT_KEY];
-    saveOwnProfile();
+    profileChanged();
     publishTestResults();
     const db = await getDb();
     const uid = state.uid;
@@ -5146,7 +5214,7 @@ const LIVE = {
   },
   saveTestResult(kind: string, result: unknown): void {
     state.profile.testResults[kind] = result;
-    saveOwnProfile();
+    profileChanged();
     void (async () => {
       try {
         const db = await getDb();
@@ -5244,7 +5312,7 @@ const LIVE = {
           // nothing to remove costs no write — this runs on every hydrate.
           if (state.profile.testResults[POLITICAL_RESULT_KEY]) {
             delete state.profile.testResults[POLITICAL_RESULT_KEY];
-            saveOwnProfile();
+            profileChanged();
             wrote = true;
             void (async () => {
               try {
@@ -6440,6 +6508,7 @@ function resetForNewUid(uid: string): void {
   state.attached = false;
   state.warm = false;
   warmDisk = null;
+  restoredPending.clear();
   state.sessionLost = false;
   state.uid = uid;
   // After the uid: the gate's waiters proceed under the account they
@@ -6677,6 +6746,10 @@ export function refreshLive(): Promise<void> {
     // First boot of the process only: a reconnect already has a confirmed
     // uid and a deck on screen, and nothing here would add to either.
     const signIn = anonSignIn();
+    // Observed at once: a rejection while the disk is still being read
+    // below would otherwise surface as an unhandled one before the
+    // `await` further down attaches. The await still rethrows.
+    signIn.catch(() => {});
     if (!state.uid && !state.attached) {
       const mirrorUid = ownProfileUid();
       if (mirrorUid) {
@@ -6685,7 +6758,13 @@ export function refreshLive(): Promise<void> {
         if (state.uid === mirrorUid) warmDisk = { uid: mirrorUid, disk };
       }
     }
-    const uid = await signIn;
+    let uid: string;
+    try {
+      uid = await signIn;
+    } catch (err) {
+      if (state.uidProvisional) failProvisional(err);
+      throw err;
+    }
     if (state.uid && state.uid !== uid) {
       // The observer normally sees this first and resets; this is the
       // same reset for the other ordering. resetForNewUid re-enters
@@ -6722,6 +6801,14 @@ export function refreshLive(): Promise<void> {
     // on `ready`, which the warm paint may have flipped an age ago.
     state.attached = true;
     state.warm = false;
+    // The deck poll, if nothing armed it: a hide during the boot's own
+    // deck read stops it before it arms (aggPollGen), and a foreground
+    // before the attach joins this boot instead of resubscribing — so
+    // without this the session attached with the counts frozen. Hidden,
+    // the next foreground's resubscribe arms it.
+    if (!aggPollTimer && !(typeof document !== "undefined" && document.hidden)) {
+      void startAggPoll();
+    }
     // fire-and-forget: reveal notifications on real devices (no-op on web).
     // Once per UID — re-registering on every reconnect would churn the
     // token array for no gain, but a new account needs its own.
