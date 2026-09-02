@@ -807,6 +807,33 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     }
   });
 
+  it("…and pay it the moment someone opens People", async () => {
+    // The other half of the case above, and the half its sibling case's
+    // NAME has been promising with nothing behind it.
+    //
+    // "costs nothing for a tab nobody opened, and pays as soon as one is"
+    // is asserted at CITY, where the constellation fetches the voter rows
+    // on arrival — so at that scope the second half is unobservable, and
+    // the People click in it has no assertion after it. The closing review
+    // of 2026-08-31 found the assertion that once stood there had been
+    // deleted rather than reframed when the fan-out moved.
+    //
+    // World is where the property is visible: nothing fetches the rows
+    // until the tab that draws them is opened. LiveMirrorLenses.test.tsx
+    // holds the same property one layer down ("fetches Kindred when People
+    // mounts, and never for another lens") — this is the host half, that
+    // the tab bar actually reaches the mount.
+    const kindred = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    render(<LiveCohortBody scope="world" />);
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(kindred, "the world stop fetched voter rows nobody asked for").not.toHaveBeenCalled();
+    fireEvent.click(tab("People"));
+    await vi.waitFor(() => {
+      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
+    });
+  });
+
   it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
     // The property the old collapsed strip existed for, restated for
     // tabs: People pays for voter lists, so it may not run because the

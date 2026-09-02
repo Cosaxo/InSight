@@ -104,6 +104,66 @@ export function wfCatArt(color, seed) {
 export function wfCarried(q) { return [q.cat, ...(q.also || [])]; }
 
 /**
+ * How many people have answered a question, whatever shape it is.
+ *
+ * ONE COPY, and the reason is a live bug rather than tidiness. The search
+ * overlay kept its own `srchQVotes`, forked from this one and never caught
+ * up: it handled `rank` and `rate` and then fell through to summing
+ * `q.options`. Continuum and catalogue questions carry NO options, so
+ * `dial`, `field` and `pick` all scored 0 — in both of the overlay's
+ * orderings, the no-query round-robin and the result tiebreak. The
+ * highest-traffic questions of three whole types sorted as if nobody had
+ * answered them.
+ *
+ * `catalogPicks` is the pick fallback the caller looks up (WF_CATALOGS),
+ * passed in rather than imported so this module stays arithmetic over its
+ * arguments. Pass 0 where there is no table to consult.
+ *
+ * The `|| 0` inside the reduce is not decoration either: the fork omitted
+ * it, so one option row without a `count` turned the whole total into NaN,
+ * which sorts unpredictably rather than low.
+ */
+/**
+ * Has this person answered the question, counting an answer that exists
+ * only on the server?
+ *
+ * ONE COPY, for the reason `wfVotesOf` below is one: the search overlay
+ * kept a fork of this that was the feed's TAIL with the live branch cut
+ * off. A continuum or catalogue answer given on another device — or on a
+ * page fetched after boot — has no local raw value, so search read it as
+ * unanswered: it went into the "five open questions" round-robin, sorted
+ * as unanswered in the result tiebreak, and its row offered the question
+ * again instead of showing the share meter.
+ *
+ * `getServer` is a THUNK rather than a map, so the caller's server-side
+ * read only happens on the branch that needs it — which is what the
+ * feed's own version did by having the call inside the `if`.
+ */
+export function wfAnsweredOf(q, votes, getServer) {
+  const v = votes[q.id];
+  if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank')
+      && v == null && q.live && getServer) {
+    const server = getServer();
+    return !!server && server[q.id] != null;
+  }
+  return q.type === 'rank' ? !!(v && v.order) : v != null;
+}
+
+export function wfVotesOf(q, catalogPicks = 0) {
+  if (q.type === 'rank') return q.votes || 0;
+  // `path` (D341's Crossroads) counts like the other continuum types, and
+  // it is here as a MERGE resolution rather than as new work: D341 landed
+  // on main after this function was extracted from the feed, so the
+  // extraction never carried it. Both sides merged cleanly on this line —
+  // the feed's caller conflicted, this did not — and taking either side
+  // whole would have scored every Crossroads story zero, in the feed and
+  // in the search overlay at once, with no gate able to see it.
+  if (q.type === 'rate' || q.type === 'dial' || q.type === 'field' || q.type === 'path') return q.n || 0;
+  if (q.type === 'pick') return q.n || catalogPicks || 0;
+  return q.options ? q.options.reduce((a, o) => a + (o.count || 0), 0) : 0;
+}
+
+/**
  * The feed's stream interleave — round-robin across streams so the list
  * reads as a mix rather than as blocks.
  *

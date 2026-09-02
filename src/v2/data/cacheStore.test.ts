@@ -134,6 +134,50 @@ describe("cacheStore", () => {
     expect(h.reportError).not.toHaveBeenCalled();
   });
 
+  // open() returns null for FOUR reasons and only one of them is "there is
+  // no database". The other three — the open request errored, it timed out,
+  // the accessor threw — describe a database that exists and may hold
+  // answers. clearAll() used to return early for all four, so a purge that
+  // wiped nothing resolved as a wipe, which is the one thing this
+  // function's own contract forbids.
+  const openFails = (deleteBehaviour: "success" | "error" | "blocked") => {
+    const req = (fire: (r: Record<string, unknown>) => void) => {
+      const r: Record<string, unknown> = { error: new Error("nope") };
+      setTimeout(() => fire(r), 0);
+      return r;
+    };
+    return {
+      open: () => req((r) => (r.onerror as () => void)?.()),
+      deleteDatabase: () => req((r) => {
+        if (deleteBehaviour === "success") (r.onsuccess as () => void)?.();
+        else if (deleteBehaviour === "blocked") (r.onblocked as () => void)?.();
+        else (r.onerror as () => void)?.();
+      }),
+    };
+  };
+
+  it("deletes the database outright when the connection cannot be opened", async () => {
+    vi.resetModules();
+    vi.stubGlobal("indexedDB", openFails("success"));
+    vi.stubGlobal("window", { addEventListener: () => {}, removeEventListener: () => {} });
+    const cs = await import("./cacheStore");
+    // The wipe really happened — by a route that needs no usable connection.
+    await expect(cs.clearAll()).resolves.toBeUndefined();
+  });
+
+  it("REJECTS rather than reporting a wipe it could not perform", async () => {
+    for (const behaviour of ["error", "blocked"] as const) {
+      vi.resetModules();
+      vi.stubGlobal("indexedDB", openFails(behaviour));
+      vi.stubGlobal("window", { addEventListener: () => {}, removeEventListener: () => {} });
+      const cs = await import("./cacheStore");
+      await expect(
+        cs.clearAll(),
+        `deleteDatabase ${behaviour} read as a successful purge`,
+      ).rejects.toThrow();
+    }
+  });
+
   it("counts every failed write and reports only the first", async () => {
     const cs = await freshStore();
     // A function cannot be structured-cloned, so the put throws — a real

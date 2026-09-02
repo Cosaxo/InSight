@@ -473,11 +473,18 @@ function LiveTakesPanel({ gid, qid, options }: {
           {/* Paused before empty (D332): unloaded is not "nobody wrote".
               The composer stays — writing still works, and your own take
               echoes locally until the next real fetch. */}
+          {/* READING IS NOT EMPTY, and both sentences below are claims
+              about the room rather than about the read: `takes()` answers
+              [] for "never fetched", "in flight" and "genuinely nothing"
+              alike. The paused arm stays in front — that state is true
+              whatever the query would have found. */}
           {LIVE.budgetPaused
             ? <>{BUDGET_PAUSED_BODY}</>
-            : openSide >= 0
-              ? <>Nobody who picked {opts[openSide]} has written a take yet.</>
-              : <>No takes yet. Say the first thing.</>}
+            : LIVE.social.takesLoading(gid, qid)
+              ? <>Reading the room…</>
+              : openSide >= 0
+                ? <>Nobody who picked {opts[openSide]} has written a take yet.</>
+                : <>No takes yet. Say the first thing.</>}
         </span>
       )}
       {mineAlready ? (
