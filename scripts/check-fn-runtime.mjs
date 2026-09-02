@@ -21,6 +21,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
+import { isExplicit } from "./fn-runtime-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -93,21 +94,10 @@ if (!rows.length) {
 }
 
 // NUMBERS, not merely "not null" — and the difference is the whole gate.
-//
-// firebase-functions never leaves these three unset. An omitted `memory`
-// or `timeoutSeconds` is backfilled with the gen-2 defaults, and an
-// omitted `maxInstances` becomes a RESET SENTINEL — an object, so
-// `== null` is false for it however it prints. The old predicate was
-// therefore unreachable: deleting `memory: "512MiB"` from ops.ts's
-// setGlobalOptions puts deleteAccount back on 256 MiB (measured, not
-// argued) and this script printed "all with explicit memory, timeout and
-// maxInstances" and exited 0. The only trace was `mem=[object Object]MiB`
-// in a table nothing reads.
-//
-// That is the exact failure the header of this file exists for, on the
-// deploy path, wearing the shape CLAUDE.md warns about: a gate that
-// checks something and cannot fail.
-const isExplicit = (v) => typeof v === "number" && Number.isFinite(v);
+// The predicate and the reasoning behind it live in ./fn-runtime-lib.mjs,
+// which exists so both can be tested: this file reads functions/lib at
+// module scope, so importing it to test anything runs the whole check,
+// which is why the assertion went untested and stayed unreachable.
 const bare = rows.filter((r) => !isExplicit(r.mem) || !isExplicit(r.timeout) || !isExplicit(r.maxInst));
 for (const r of rows) {
   console.log(
