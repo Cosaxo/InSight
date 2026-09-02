@@ -1946,6 +1946,38 @@
         "by": "ai",
         "audited": false
       }
+    },
+    "n07": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n08": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n09": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n10": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   },
   "pick": {
