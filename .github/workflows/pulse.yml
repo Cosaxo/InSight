@@ -159,7 +159,19 @@ jobs:
       # `| tee`, on purpose: the response is captured and appended, so the
       # step's exit status is curl's own.
       - name: Fire the pulse responder
-        if: ${{ steps.gate.outcome == 'failure' && github.event_name == 'schedule' }}
+        # `failure()` FIRST, and it is what makes the rest reachable.
+        # GitHub inserts an implicit `success()` into any `if:` that names
+        # no status function, and the gate above deliberately carries no
+        # `continue-on-error` — a red scheduled job is D47's whole signal.
+        # So on the one day this step is for, the job is already failing,
+        # the implicit success() is false, and the step was skipped: the
+        # condition could only ever be EVALUATED after the gate passed,
+        # where `outcome == 'failure'` is false. It could not fire, ever.
+        #
+        # `continue-on-error` on the gate would also make it reachable and
+        # is the wrong fix: it turns the scheduled run green and takes the
+        # red morning email with it.
+        if: ${{ failure() && steps.gate.outcome == 'failure' && github.event_name == 'schedule' }}
         env:
           ROUTINE_URL: ${{ vars.ROUTINE_PULSE_FIRE_URL }}
           ROUTINE_TOKEN: ${{ secrets.ROUTINE_PULSE_FIRE_TOKEN }}
