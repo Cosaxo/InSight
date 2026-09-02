@@ -123,15 +123,19 @@ for (let i = 0; ; ) {
   const line = src.slice(0, at).split("\n").length;
 
   if (/updateDoc\(/.test(callLine)) { edits++; continue; }
-  // A READ of the path — `collection(db, "v2_users", uid, "answers")`
-  // inside a query — is outside this gate's subject: nothing a read does
-  // can drop a field from a document. D343's settle is the first read
-  // written with the same `uid` name the write shape uses (hydrate's
-  // deltas say `uidA`, which is why they never reached this line), and
-  // it is classified rather than renamed around the scan, so the next
-  // read is not tempted to do the second.
-  if (/\bcollection\(/.test(callLine)) { reads++; continue; }
   if (!/setDoc\(/.test(callLine)) {
+    // A READ of the path — `collection(db, "v2_users", uid, "answers")`
+    // inside a query — is outside this gate's subject: nothing a read
+    // does can drop a field from a document. D343's settle is the first
+    // read written with the same `uid` name the write shape uses
+    // (hydrate's deltas say `uidA`, which is why they never reached this
+    // line), and it is classified rather than renamed around the scan.
+    // Tested AFTER both verbs, deliberately: a write spelled
+    // `setDoc(doc(collection(db, "v2_users", uid, "answers"), qid), …)`
+    // — the idiom the takes write already uses one collection over —
+    // carries `collection(` on its line too, and a read test ahead of the
+    // verbs would have waved its payload through unchecked.
+    if (/\bcollection\(/.test(callLine)) { reads++; continue; }
     // Neither verb on the line means the scan shape has drifted from the
     // code — a multi-line call, say. Report it: a site this cannot classify
     // is a site it is not checking, and silence there is the whole failure

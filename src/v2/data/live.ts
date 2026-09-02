@@ -800,8 +800,9 @@ function restorePending(uid: string): void {
     state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
   }
 }
-// The feed's own vote mirror, dropped or restored beside the store's —
-// the same lines every rollback carries.
+// The feed's own vote mirror, dropped or restored beside the store's.
+// rollbackPending below IS the rollback every optimistic write path runs
+// from its catch — one copy of what a refused answer has to undo.
 function dropFeedMirror(aid: string, restoreTo?: string): void {
   try {
     const WF_LS = "insight.feedVotes.v1";
@@ -819,10 +820,26 @@ function dropFeedMirror(aid: string, restoreTo?: string): void {
     /* best-effort */
   }
 }
-function confirmPending(aid: string, v: string): void {
+// The ack, as the in-process ack would have done it: the cache row, the
+// counters the create counted on ITS ack (R2/D270, R4/D271), the passive
+// fold for a test answer (D277), and the delayed aggregate re-read that
+// clears `unaggregated` — without which a settled feed answer read one
+// high for the session, since only the daily deck is polled.
+function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: string, edit: boolean): void {
   delete state.inflight[aid];
   cacheVote(aid, v);
   clearPending(aid);
+  const q = dailyById(aid) || feedById(aid) || state.callBank.find((x) => x.id === aid);
+  if (edit) {
+    engagement.note("edits");
+  } else if (q) {
+    engagement.noteAnswer(q.surface);
+    if (q.surface === "feed" || q.surface === "test" || q.surface === "learn" || q.surface === "call") {
+      engagement.noteQid(aid, "a");
+    }
+    if (q.surface === "test") LIVE.syncPassiveResults();
+  }
+  scheduleAggRefresh(db, aid);
 }
 function rollbackPending(aid: string, serverValue?: string): void {
   if (serverValue === undefined) {
@@ -846,9 +863,51 @@ function answerValueOf(get: (f: string) => unknown): string | null {
     : Array.isArray(order) ? order.join(",")
     : null;
 }
+// One answer against the server's word: confirmed only when the document
+// carries the pending VALUE — for a create as much as for an edit. A
+// create the rules refused because another device answered first comes
+// back as a document with THAT device's value, and confirming it with
+// this one's would cache a value the server never held while the fold
+// had already put the server's on screen (found by the second review,
+// executed). The document's value stands, both on screen and in the
+// cache — at once for a create, because a document that exists with
+// another value means the create can only be refused; for an EDIT only
+// after the drain, because before it the document's old value says
+// nothing about a write still in the queue. Absent after the drain, the
+// create was refused or never reached the queue.
+function settleOne(
+  db: Awaited<ReturnType<typeof getDb>>,
+  aid: string,
+  p: PendingAnswer,
+  server: string | undefined,
+  afterDrain: boolean,
+): "confirmed" | "settled" | "pending" {
+  if (server === undefined) return "pending";
+  if (server === p.v) {
+    confirmPending(db, aid, p.v, !!p.edit);
+    return "confirmed";
+  }
+  if (p.edit && !afterDrain) return "pending";
+  rollbackPending(aid, server);
+  return "settled";
+}
+
+// Which uid a drain-wait is already parked for. Defensive: today no path
+// re-runs hydrate on an attached session (a wake on one resubscribes
+// instead), and a boot that fails before its answers block never gets
+// here — but a re-entered hydrate for the same account would otherwise
+// park a second waiter, and each would pay its own read of the same
+// documents when the queue finally drains. One waiter; it re-reads the
+// pending file after the drain, so it settles whatever is there by then,
+// not only what it was started for.
+let settleWaitingFor: string | null = null;
+
 // Settle what a relaunch restored, against what the boot just read and
 // then against the drained queue. `fetched` is what the answers reads
-// folded this boot, id → value.
+// folded this boot, id → value — server-acknowledged documents only; the
+// fold leaves out a document that carries this device's own pending
+// mutation (see `hasPendingWrites` there), which is the one document
+// whose value proves nothing.
 async function settlePending(
   db: Awaited<ReturnType<typeof getDb>>,
   uid: string,
@@ -858,23 +917,21 @@ async function settlePending(
   const ids = Object.keys(pending);
   if (!ids.length) return;
   const seen = new Map(fetched);
-  const unsettled: string[] = [];
+  let unsettled = 0;
   for (const aid of ids) {
     const p = pending[aid];
-    const server = seen.get(aid);
-    if (server !== undefined && (!p.edit || server === p.v)) {
-      confirmPending(aid, p.v);
-    } else {
+    if (settleOne(db, aid, p, seen.get(aid), false) === "pending") {
       // Still pending, and still what is on screen: the fold above may
       // have written the document's OLD value over an edit the queue is
       // yet to deliver, and the newer intent is this one.
       state.votes[aid] = p.v;
       state.inflight[aid] = true;
-      unsettled.push(aid);
+      unsettled += 1;
     }
   }
   notify();
-  if (!unsettled.length) return;
+  if (!unsettled || settleWaitingFor === uid) return;
+  settleWaitingFor = uid;
   // The SDK's word that every mutation it held has been acknowledged or
   // refused. Offline it never resolves, which is right: the answers are
   // still pending, and the next online boot asks again. Rejects only
@@ -883,11 +940,14 @@ async function settlePending(
   try {
     await waitForPendingWrites(db);
   } catch {
+    settleWaitingFor = null;
     return;
   }
+  settleWaitingFor = null;
   if (torndown || state.uid !== uid) return;
-  // An ack in THIS process may have settled some of them meanwhile.
-  const still = unsettled.filter((aid) => aid in loadPending(uid));
+  // Re-read: an ack in THIS process may have settled some meanwhile, and a
+  // later hydrate may have restored more.
+  const still = Object.keys(loadPending(uid));
   if (!still.length) return;
   try {
     const found = new Map<string, string>();
@@ -898,6 +958,9 @@ async function settlePending(
         where(documentId(), "in", chunk),
       ));
       snap.docs.forEach((d) => {
+        // A document still carrying a local mutation is a write made
+        // since the drain — its own promise settles it.
+        if ((d as { metadata?: { hasPendingWrites?: boolean } }).metadata?.hasPendingWrites) return;
         const v = answerValueOf((f) => d.get(f));
         if (v !== null) found.set(d.id, v);
       });
@@ -907,15 +970,10 @@ async function settlePending(
     for (const aid of still) {
       const p = now[aid];
       if (!p) continue;
-      const server = found.get(aid);
-      if (server !== undefined && (!p.edit || server === p.v)) {
-        confirmPending(aid, p.v);
-      } else if (server !== undefined) {
-        // An edit the rules refused: the document stands at its value.
-        rollbackPending(aid, server);
-      } else {
-        // A create the rules refused, or a write that never reached the
-        // queue — the same rollback the in-process catch performs.
+      if (settleOne(db, aid, p, found.get(aid), true) === "pending") {
+        // Absent after the drain: a create the rules refused, or a write
+        // that never reached the queue — the same rollback the in-process
+        // catch performs.
         rollbackPending(aid);
       }
     }
@@ -2255,7 +2313,10 @@ async function hydrate(): Promise<void> {
     // What this boot's queries handed back, in the cache's own string
     // form — the write-back below is sized by this, not by the archive.
     const fetchedRows: Array<[string, string]> = [];
-    const fold = (d: { id: string; get: (f: string) => unknown }, raiseEdit = true) => {
+    const fold = (
+      d: { id: string; get: (f: string) => unknown; metadata?: { hasPendingWrites?: boolean } },
+      raiseEdit = true,
+    ) => {
       // Catalog answers carry `entity` and rank answers carry `order` —
       // never `optionIdx` (D14/D233). All three join the same map in
       // string form (the entity's digits; the order joined with commas) —
@@ -2267,7 +2328,15 @@ async function hydrate(): Promise<void> {
       const val = answerValueOf((f) => d.get(f));
       if (val !== null) {
         state.votes[d.id] = val;
-        fetchedRows.push([d.id, val]);
+        // NOT the server's word when the SDK's persistent cache has laid
+        // this device's own unacknowledged mutation over the document
+        // (latency compensation: such a query result carries
+        // `hasPendingWrites`). Folding it into the cache, or letting the
+        // settle read it as proof, would confirm a write the rules may
+        // yet refuse — D343's second review, reasoned from the SDK's
+        // source. In memory it is harmless: it is the value the pending
+        // mirror restored anyway.
+        if (!d.metadata?.hasPendingWrites) fetchedRows.push([d.id, val]);
       }
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
@@ -2412,9 +2481,13 @@ async function hydrate(): Promise<void> {
       // Cold pull or legacy blob: everything in state.votes is current,
       // so rewrite the store whole and retire the localStorage copy only
       // after the commit (the bank cache above has the ordering argument).
+      // …minus what is still INFLIGHT (D343): a restored pending answer is
+      // in state.votes and not yet the server's, and a row for it here
+      // would be the phantom the ack-only cache exists to refuse — the
+      // settle caches it when the server confirms it.
       await cacheStore.write(
         "answers",
-        Object.entries(state.votes).map(([k, v]) => [k, v]),
+        Object.entries(state.votes).filter(([k]) => !(k in state.inflight)).map(([k, v]) => [k, v]),
         { meta: ansMeta, clearFirst: true },
       );
       try {
@@ -6060,20 +6133,7 @@ const LIVE = {
       } catch (err) {
         // Write refused (rules/network): roll the optimistic state back.
         // Subscribers reconcile from myVotes(), so the UI un-votes too.
-        delete state.votes[qid];
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        clearPending(qid);
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            delete wf[qid];
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        rollbackPending(qid);
         notify();
         reportError(err, { where: "vote", qid });
       }
@@ -6130,20 +6190,7 @@ const LIVE = {
         notify();
         scheduleAggRefresh(db, qid);
       } catch (err) {
-        delete state.votes[qid];
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        clearPending(qid);
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            delete wf[qid];
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        rollbackPending(qid);
         notify();
         reportError(err, { where: "votePick", qid });
       }
@@ -6199,20 +6246,7 @@ const LIVE = {
         notify();
         scheduleAggRefresh(db, qid);
       } catch (err) {
-        delete state.votes[qid];
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        clearPending(qid);
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            delete wf[qid];
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        rollbackPending(qid);
         notify();
         reportError(err, { where: "voteRank", qid });
       }
@@ -6274,27 +6308,13 @@ const LIVE = {
         // Refused (rules cooldown raced another device, network): restore
         // the previous option everywhere the optimistic flip reached. The
         // answers cache was never touched — it still mirrors the doc.
-        state.votes[qid] = prev;
-        delete state.inflight[qid];
-        delete state.unaggregated[qid];
-        clearPending(qid);
-        try {
-          const WF_LS = "insight.feedVotes.v1";
-          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-          if (qid in wf) {
-            // Through mirrorVoteValue, not Number(prev) directly: a dial's
-            // mirror entry is a VALUE, and restoring the bucket index here
-            // was D218's rarest door in. The raw drag the mirror held is
-            // gone (only the feed ever knew it) — the standing bucket's
-            // midpoint is the closest the doc can testify to.
-            const q = feedById(qid);
-            const mv = q ? mirrorVoteValue(q, prev) : null;
-            wf[qid] = mv != null ? mv : Number(prev);
-            lsSet(WF_LS, JSON.stringify(wf));
-          }
-        } catch {
-          /* best-effort */
-        }
+        // rollbackPending restores the feed mirror through mirrorVoteValue,
+        // not Number(prev) directly: a dial's mirror entry is a VALUE, and
+        // restoring the bucket index here was D218's rarest door in. The
+        // raw drag the mirror held is gone (only the feed ever knew it) —
+        // the standing bucket's midpoint is the closest the doc can
+        // testify to.
+        rollbackPending(qid, prev);
         notify();
         reportError(err, { where: "editVote", qid });
       }
@@ -6851,6 +6871,24 @@ function detachIdleListeners(): void {
 // timer that is still armed looks identical to one that is not until
 // something asks. `tick()` runs exactly what the interval body runs, so a
 // test drives the real refresh path rather than a re-implementation of it.
+// For a test file's afterEach: every timer and every in-flight chain this
+// instance still holds becomes a no-op, the way deleteAccount's teardown
+// makes them. vi.resetModules() gives the next case a fresh instance but
+// does not stop the old one's 2.5 s aggregate re-read or a boot parked on
+// a gate — and those leaked into later cases' exact-set pins as reads
+// nobody issued (warm-boot.test.ts found it as a flake, D343).
+export function _teardownForTest(): void {
+  torndown = true;
+  stopAggPoll();
+  cancelIdleDetach();
+  cancelAggCache();
+  if (aggRefreshTimer) {
+    clearTimeout(aggRefreshTimer);
+    aggRefreshTimer = null;
+  }
+  pendingAggRefresh.clear();
+}
+
 export function _aggPollForTest(): { running: boolean; tick: () => Promise<void> } {
   return {
     running: aggPollTimer !== null,

@@ -40,6 +40,7 @@ interface Constraint {
 interface FakeDoc {
   id: string;
   data: Record<string, unknown>;
+  pending?: boolean;
 }
 interface Call {
   path: string;
@@ -130,6 +131,10 @@ vi.mock("firebase/firestore", () => {
       id: d.id,
       data: () => ({ ...d.data }),
       get: (k: string) => d.data[k],
+      // The SDK's per-document flag for a local mutation laid over the
+      // server's copy (D343's second review) — a fake doc sets it with
+      // `pending: true`.
+      metadata: { hasPendingWrites: !!d.pending },
     })),
   });
   const docSnap = (data: Record<string, unknown> | null) => ({
@@ -396,7 +401,13 @@ beforeEach(() => {
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // The case's instance is torn down before the next case's is built:
+  // its 2.5 s aggregate re-read and any boot still parked on a gate would
+  // otherwise fire into a later case's exact-set pins as reads nobody
+  // issued. Same instance the case used — resetModules runs in the NEXT
+  // beforeEach.
+  (await import("./live"))._teardownForTest();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -970,6 +981,109 @@ describe("answers the server has not acknowledged (D343)", () => {
     await vi.waitFor(() => { expect(LIVE.myVotes()).toEqual({ q_1: "1" }); });
     expect(LIVE.confirmedVotes()).toEqual({ q_1: "1" });
     expect(pendingFile()).toBeNull();
+  });
+
+  it("a create another device won is settled to THAT device's answer, on screen and in the cache", async () => {
+    // The document exists with a different value: the create-only rule
+    // refused this device's write because the other one landed first.
+    // Confirming with the pending value would cache an answer the server
+    // never held — the second review executed exactly that.
+    await answerOffline();
+    relaunch();
+    h.answerDocs = [{ id: "q_2", data: { optionIdx: 1, answeredAt: ts(900) } }];
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await vi.waitFor(() => { expect(LIVE.confirmedVotes()).toEqual({ q_1: "1", q_2: "1" }); });
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "1" });
+    expect(pendingFile()).toBeNull();
+    const cs = await import("./cacheStore");
+    expect((await cs.readAll<string>("answers")).get("q_2")).toBe("1");
+  });
+
+  it("a document echoing this device's own unacknowledged write is not the server's word", async () => {
+    // Under the persistent cache a query result carries the local
+    // mutation laid over the document, flagged hasPendingWrites. The
+    // shape that reaches a delta is an EDIT: the document's answeredAt
+    // is real (the create was acknowledged), so the edit delta returns
+    // it — with this device's new option laid over the old one. That
+    // echo proves nothing until the queue has drained.
+    await seedBank([row("q_1", 1)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    let mod = await import("./live");
+    let LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    h.holdWrites = true;
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush();
+    relaunch();
+    h.answerDocs = [{
+      id: "q_1",
+      data: { optionIdx: 0, answeredAt: ts(400), editedAt: ts(450) },
+      pending: true,
+    }];
+    mod = await import("./live");
+    LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await flush();
+    // On screen, unconfirmed, still in the mirror — the echo did not
+    // settle it.
+    expect(LIVE.myVotes()).toEqual({ q_1: "0" });
+    expect(LIVE.confirmedVotes()).toEqual({});
+    expect(pendingFile()).toEqual({ uid: "uid_test", e: { q_1: { v: "0", edit: true } } });
+    // The queue drains and the rules refused the edit: the document
+    // stands at its old option, and so — now — does the screen. Taking
+    // the echo as the server's word would have cached 0 for good.
+    h.answerDocs = [{ id: "q_1", data: { optionIdx: 1, answeredAt: ts(400), editedAt: ts(450) } }];
+    await drainQueue();
+    await vi.waitFor(() => { expect(LIVE.myVotes()).toEqual({ q_1: "1" }); });
+    expect(LIVE.confirmedVotes()).toEqual({ q_1: "1" });
+    expect(pendingFile()).toBeNull();
+  });
+
+  it("a cold pull never files a still-pending answer into the acknowledged cache", async () => {
+    // A relaunch whose answers cache is gone (the boot before it failed
+    // its answers read) takes the cold pull, which rewrites the cache
+    // from state.votes — and state.votes now holds the restored pending
+    // answer. Filed there, a refused create would be a confirmed phantom
+    // on every later boot with nothing left to reconcile it.
+    await answerOffline();
+    relaunch();
+    const cs = await import("./cacheStore");
+    await cs.clearAll();
+    // The server holds the acknowledged answer the cache no longer does.
+    h.answerDocs = [{ id: "q_1", data: { optionIdx: 1, answeredAt: ts(500) } }];
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await flush();
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+    expect((await cs.readAll<string>("answers")).has("q_2")).toBe(false);
+    // …and once refused, it is gone from memory too, with nothing on disk
+    // to bring it back.
+    await drainQueue();
+    await vi.waitFor(() => { expect(LIVE.myVotes()).toEqual({ q_1: "1" }); });
+    expect((await cs.readAll<string>("answers")).has("q_2")).toBe(false);
+  });
+
+  it("a settled answer takes the ack's own path: the aggregate re-read is scheduled", async () => {
+    await answerOffline();
+    relaunch();
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    h.answerDocs = [{ id: "q_2", data: { optionIdx: 0, answeredAt: ts(900) } }];
+    await drainQueue();
+    await vi.waitFor(() => { expect(LIVE.confirmedVotes()).toEqual({ q_1: "1", q_2: "0" }); });
+    // The delayed re-read that clears `unaggregated` is armed for it,
+    // exactly as vote()'s ack arms it.
+    expect(mod._aggRefreshForTest().pending).toContain("q_2");
   });
 
   it("the mirror is the account's: a switch takes it with everything else", async () => {

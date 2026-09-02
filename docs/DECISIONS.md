@@ -35079,6 +35079,34 @@ Not an ask under D334: the mirror is the account's own answers on the
 account's own device, one key beside three others that already hold
 them, exposed to nobody.
 
+### What the second review moved
+
+Five findings, all kept. A create is confirmed only when the document
+carries the pending VALUE — a document that exists with another value
+is another device's answer, the create can only be refused, and
+confirming with this device's value cached one the server never held
+(executed by the review); the document's value now stands, on screen
+and in the cache. An edit is different only in timing: before the
+drain, the document's old value says nothing about a write still in
+the queue, so the pending value keeps the screen; after it, the
+document wins. Under the SDK's persistent cache a query result can
+carry this device's OWN unacknowledged mutation laid over the document
+(latency compensation, flagged `hasPendingWrites`), so the fold no
+longer counts such a document as the server's word and the settle's
+read skips one. The cold answers pull rewrote the acknowledged cache
+from `state.votes`, which the restore had just filled with pending
+answers — a refused create would have become a confirmed phantom, the
+exact failure the ack-only cache exists to refuse; still-inflight
+answers stay out of that rewrite. The settle's confirm now takes the
+ack's own path — the aggregate re-read that clears `unaggregated`, the
+engagement counters, the passive fold — where it had cleared the flag
+and cached and nothing else, so a settled feed answer read one high for
+the session. And the four inline rollbacks are the one helper the
+settle uses, so what a refused answer has to undo lives once. The
+gate's read arm moved BEHIND the two verb tests: ahead of them it would
+have waved through a write spelled `setDoc(doc(collection(…)))`, the
+idiom the takes write already uses.
+
 ### The trade, stated
 
 - One more `insight.*` key, a few hundred bytes at most, gone the moment
@@ -35095,17 +35123,26 @@ them, exposed to nobody.
 
 `warm-boot.test.ts` gates the writes as well as the reads and the
 sign-in, and holds the queue-drained signal until a case releases it.
-Seven cases: an answer written before the ack survives a relaunch as a
+Eleven cases: an answer written before the ack survives a relaunch as a
 vote that is unconfirmed and not re-offered; confirmed by the delta once
 the queue delivered (no extra read); confirmed by one read of its own
 document once the SDK reports the queue drained; rolled back — feed
 mirror included — when the queue drained and the server holds no such
 document; still pending across an offline relaunch whose boot fails; a
 pending edit keeping the newer option until the server agrees, and
-yielding to the document when the rules refused it; and the mirror
-going with the account on a switch. Probed: dropping the restore fails
-the relaunch case, and confirming a refused create instead of rolling it
-back fails exactly that case. `test:unit` green in full; lint, `tsc -b`,
+yielding to the document when the rules refused it; a create another
+device won settled to that device's answer on screen and in the cache;
+an edit's own echo in the delta (`hasPendingWrites`) proving nothing
+until the drain; a cold pull never filing a pending answer into the
+acknowledged cache; a settled answer arming the aggregate re-read the
+ack arms; and the mirror going with the account on a switch. Probed,
+each failing exactly its case: dropping the restore, confirming a
+refused create instead of rolling it back, confirming the other
+device's document with this device's value, taking the echo as the
+server's word, and filing the pending answer in the cold rewrite. The
+file tears its instance down after every case (`_teardownForTest`):
+the 2.5 s aggregate re-read a confirm arms, left running, fired into a
+later case's exact-set pins as a read nobody issued. `test:unit` green in full; lint, `tsc -b`,
 check:purge (live.ts is the dispatcher and owner-stamps the key),
 check:globals unchanged. `check:answer-shape` learned one thing: the
 settle's `documentId() in` read is the first READ of the answers path
