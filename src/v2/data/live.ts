@@ -2660,7 +2660,18 @@ const SOCIAL = {
    * keystrokes.
    */
   async searchPeople(raw: string): Promise<DirectoryPerson[]> {
-    const key = raw.trim().toLowerCase();
+    // ASCII-ONLY, and it must stay identical to `foldName` in
+    // ./socialFetch — the key it builds is compared against `nameKey`,
+    // which `firestore.rules` forces to equal `name.lower()`, and the
+    // rules engine's `.lower()` touches A-Z and nothing else.
+    // `toLowerCase()` here is full Unicode, so it lowered "Ó" to "ó"
+    // before socialFetch could fold anything, and the stored key still
+    // says "Ó": the prefix query matched nothing and the fold one layer
+    // down was dead code. Written out rather than imported because the
+    // line has to run BEFORE the dynamic import below — that import is
+    // what keeps socialFetch out of the entry chunk, and this is also
+    // the session cache's key, which is looked up without awaiting.
+    const key = raw.trim().replace(/[A-Z]/g, (c) => c.toLowerCase());
     if (!key) return [];
     const hit = state.peopleSearch.get(key);
     if (hit) return hit;
