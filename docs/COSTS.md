@@ -938,7 +938,7 @@ still the largest single line that could be wrong without any code being
 wrong. Also console-only.
 
 **4 · A notification channel on the alert policies.** `monitoring/` holds
-eight policies and `check:monitoring` proves the chain from log line to
+nine policies and `check:monitoring` proves the chain from log line to
 condition — but `notificationChannels` is `[]` in every file, filled in at
 POST time by the **Arm monitoring** workflow (`npm run monitoring:apply --
 --email` locally). A policy with no channel evaluates correctly and pages

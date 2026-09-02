@@ -23,7 +23,11 @@
 // D211's whole reason for dropping it and nothing went back for the row.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+/** Store subscribers, so a test can drive a notify the way hydrate does. */
+const subscribers = new Set<() => void>();
+const notifyAll = () => { for (const fn of [...subscribers]) fn(); };
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 // The claim list the CI gate reads, shared rather than re-typed (D183):
 // a second copy of these patterns is a second thing to forget to update.
 // @ts-expect-error TS7016 — plain .mjs gate script, no types
@@ -57,7 +61,12 @@ const LIVE = vi.hoisted(() => ({
   linkGoogle: vi.fn(async () => {}),
   politicalConsented: vi.fn(() => true),
   setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
-  subscribe: () => () => {},
+  // A REAL notifier, not a no-op. The panel re-renders on every store
+  // notify, and the case at the end of this file needs that path to exist
+  // — with `() => () => {}` the store could correct itself and no render
+  // would ever happen, so any "follows the store" assertion would be
+  // measuring nothing.
+  subscribe: (fn: () => void) => { subscribers.add(fn); return () => { subscribers.delete(fn); }; },
 }));
 vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 
@@ -375,5 +384,26 @@ describe("LivePrivacyPanel · the political compass row", () => {
     expect(screen.getByText(/Your answers still count/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Turn on" }));
     expect(LIVE.setPoliticalConsent).toHaveBeenCalledWith(true);
+  });
+
+  it("follows the store when consent arrives after the panel is open", async () => {
+    // The row was a `useState` lazy initializer — read once per mount and
+    // never again — while the profile's consent field fills late, in
+    // hydrate. So an account that HAS consented, opening Account before
+    // the profile document landed, was told "Off … no political profile is
+    // built from them" while the coordinate was published.
+    //
+    // A claim about the server, made from a snapshot of what this device
+    // happened to know at mount, which is the failure this panel's own
+    // D327 note is written against.
+    LIVE.politicalConsented.mockReturnValue(false);
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText(/Your answers still count/)).toBeTruthy();
+    // …hydration lands and the store now knows better. The panel already
+    // re-renders on every notify; what it did not do was re-read.
+    LIVE.politicalConsented.mockReturnValue(true);
+    await act(async () => { notifyAll(); });
+    expect(screen.queryByText(/Your answers still count/),
+      "the row kept its mount-time snapshot after the store corrected it").toBeNull();
   });
 });

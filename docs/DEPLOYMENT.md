@@ -663,7 +663,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (eight policies, five log-based metrics)
+## Alerting (nine policies, seven log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
