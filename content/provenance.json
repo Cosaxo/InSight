@@ -1946,6 +1946,114 @@
         "by": "ai",
         "audited": false
       }
+    },
+    "dl20": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "dl21": {
+      "source": "farm",
+      "batch": "2026-08-19",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl22": {
+      "source": "farm",
+      "batch": "2026-08-20",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl23": {
+      "source": "farm",
+      "batch": "2026-08-21",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl24": {
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl25": {
+      "source": "farm",
+      "batch": "2026-08-24",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl26": {
+      "source": "farm",
+      "batch": "2026-08-25",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl27": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl28": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl29": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl30": {
+      "source": "farm",
+      "batch": "2026-08-28",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl31": {
+      "source": "farm",
+      "batch": "2026-08-29",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl32": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl33": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   },
   "pick": {

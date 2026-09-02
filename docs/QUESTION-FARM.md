@@ -1156,7 +1156,21 @@ freezes the range with the labels: never touch a shipped `lo`/`hi`/
 the same range and the interesting fact is *where* the numbers sit — a
 threshold ("when does old age begin?"), a norm ("the right tip"), a
 share ("how much of your life is in your control?"). The range must be
-the honest span of real answers, not drama: ends people actually hold.
+the honest span of real answers, not drama: ends people actually hold —
+BOTH ends, and generously. A crowd sitting on a floor is a floor set too
+high, not a crowd: the first live music-taste dial (10–40 yrs) had its
+median at 11, and D352 retired it with thirteen others. And a step of
+at least one unit per bucket: the span in the printed unit is at least
+12, and a multiple of 12 where the unit allows, because `dialFmt`
+prints integers and the twelve synthesized labels round their edges — a
+half-hour step reads "18–18 h" in the voters panel. Where the honest
+span is under twelve units, change the UNIT (a concert in minutes, not
+hours) rather than stretch the ends. A shipped range cannot be edited
+(the freeze above): widening one is a retire-and-append, D352's shape —
+same copy, new `dlN` appended at the end so every `seq` stands, the old
+id `active: false`, its provenance row carried forward, the demo twin
+moved to the new id — and the operator's console flip is what stops the
+old card serving (LAUNCH-RUNBOOK §1).
 A field earns its place when two judgments are independent enough to
 disagree — taste × legitimacy, feeling × importance — and the corners
 are all inhabitable positions. Axis ends are judgments, not facts, and

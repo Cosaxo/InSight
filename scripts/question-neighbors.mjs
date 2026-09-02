@@ -427,9 +427,20 @@ export function buildDomains() {
   // texture. Same id = same question, not a dupe — only demo entries the
   // content bank does not know join the domain.
   const feedIds = new Set(feed.map((q) => q.id));
+  // A retired entry (`active: false`, D52's shape) leaves the domain. The
+  // gate exists so the feed never asks one question twice, and a retired
+  // question is not asked at all — while its REPLACEMENT carries the same
+  // prompt by design: the only way to change a shipped dial's range is to
+  // retire the id and append a new one (D114's freeze; D352 did it for
+  // fourteen), so scoring the pair would fail every legitimate
+  // replacement at 1.000 and push each into ALLOW as a non-exception.
+  // The retired entries stay in the bank file (the seed and the deck read
+  // the flag there), and stay in `feedIds`: a demo twin of a retired id is
+  // still that id, not a new dupe.
+  const live = feed.filter((q) => q.active !== false);
   return {
     daily: specQ.map((q, i) => entry(dailyIdOf(i, dqBase), q)),
-    feed: [...feed, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
+    feed: [...live, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
     duel: [
       ...duel.group.map((q) => entry(q.id, q)),
       ...duel.oneVsOne.map((q) => entry(q.id, q)),

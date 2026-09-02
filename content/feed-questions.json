@@ -1475,6 +1475,7 @@
       "lo": 1,
       "hi": 12,
       "unit": "h",
+      "active": false,
       "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two."
     },
     {
@@ -1997,6 +1998,7 @@
       "lo": 25,
       "hi": 45,
       "unit": "yrs",
+      "active": false,
       "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
     },
     {
@@ -2086,6 +2088,7 @@
       "lo": 1,
       "hi": 10,
       "unit": "cups",
+      "active": false,
       "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
     },
     {
@@ -2113,7 +2116,8 @@
       "prompt": "How long should a concert be?",
       "lo": 1,
       "hi": 4,
-      "unit": "hrs"
+      "unit": "hrs",
+      "active": false
     },
     {
       "id": "f73",
@@ -2391,7 +2395,8 @@
       "prompt": "How many close friends does a person need?",
       "lo": 0,
       "hi": 10,
-      "unit": "friends"
+      "unit": "friends",
+      "active": false
     },
     {
       "id": "f87",
@@ -2598,7 +2603,8 @@
       "prompt": "How many hours a day on a phone is too many?",
       "lo": 0,
       "hi": 12,
-      "unit": "h"
+      "unit": "h",
+      "active": false
     },
     {
       "id": "f92",
@@ -2706,7 +2712,8 @@
       "prompt": "Books finished last year — how many?",
       "lo": 0,
       "hi": 30,
-      "unit": "books"
+      "unit": "books",
+      "active": false
     },
     {
       "id": "f97",
@@ -2803,7 +2810,8 @@
       "prompt": "Hours of live sport in a good week?",
       "lo": 0,
       "hi": 20,
-      "unit": "h"
+      "unit": "h",
+      "active": false
     },
     {
       "id": "f102",
@@ -2847,7 +2855,8 @@
       "prompt": "How old were you when your taste in music settled?",
       "lo": 10,
       "hi": 40,
-      "unit": "yrs"
+      "unit": "yrs",
+      "active": false
     },
     {
       "id": "f104",
@@ -2969,7 +2978,8 @@
       "prompt": "Meals cooked from scratch in a week?",
       "lo": 0,
       "hi": 14,
-      "unit": "meals"
+      "unit": "meals",
+      "active": false
     },
     {
       "id": "f109",
@@ -3124,7 +3134,8 @@
       "prompt": "The ideal dinner hour?",
       "lo": 17,
       "hi": 23,
-      "unit": "h"
+      "unit": "h",
+      "active": false
     },
     {
       "id": "f117",
@@ -3219,7 +3230,8 @@
       "prompt": "How many years ahead do you actually plan?",
       "lo": 0,
       "hi": 20,
-      "unit": "years"
+      "unit": "years",
+      "active": false
     },
     {
       "id": "f122",
@@ -3254,7 +3266,8 @@
       "prompt": "Minutes late before it counts as late?",
       "lo": 0,
       "hi": 30,
-      "unit": "min"
+      "unit": "min",
+      "active": false
     },
     {
       "id": "f123",
@@ -3632,7 +3645,8 @@
       "prompt": "How many songs on a perfect album?",
       "lo": 6,
       "hi": 20,
-      "unit": "songs"
+      "unit": "songs",
+      "active": false
     },
     {
       "id": "f136",
@@ -3658,6 +3672,152 @@
           "count": 1500
         }
       ]
+    },
+    {
+      "id": "dl20",
+      "core": true,
+      "cat": "dilemma",
+      "also": [
+        "tech"
+      ],
+      "type": "dial",
+      "prompt": "Daily screen time — where does “too much” start?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "h",
+      "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two."
+    },
+    {
+      "id": "dl21",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "At what age is an athlete past their peak?",
+      "lo": 20,
+      "hi": 50,
+      "unit": "yrs",
+      "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
+    },
+    {
+      "id": "dl22",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "How many coffees a day is too many?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "cups",
+      "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
+    },
+    {
+      "id": "dl23",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How long should a concert be?",
+      "lo": 30,
+      "hi": 270,
+      "unit": "min"
+    },
+    {
+      "id": "dl24",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many close friends does a person need?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "friends"
+    },
+    {
+      "id": "dl25",
+      "core": false,
+      "cat": "tech",
+      "type": "dial",
+      "prompt": "How many hours a day on a phone is too many?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "h"
+    },
+    {
+      "id": "dl26",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Books finished last year — how many?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "books"
+    },
+    {
+      "id": "dl27",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "Hours of live sport in a good week?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "h"
+    },
+    {
+      "id": "dl28",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How old were you when your taste in music settled?",
+      "lo": 5,
+      "hi": 50,
+      "unit": "yrs"
+    },
+    {
+      "id": "dl29",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "Meals cooked from scratch in a week?",
+      "lo": 0,
+      "hi": 21,
+      "unit": "meals"
+    },
+    {
+      "id": "dl30",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "The ideal dinner hour?",
+      "lo": 12,
+      "hi": 24,
+      "unit": "h"
+    },
+    {
+      "id": "dl31",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many years ahead do you actually plan?",
+      "lo": 0,
+      "hi": 30,
+      "unit": "years"
+    },
+    {
+      "id": "dl32",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Minutes late before it counts as late?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "min"
+    },
+    {
+      "id": "dl33",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How many songs on a perfect album?",
+      "lo": 6,
+      "hi": 30,
+      "unit": "songs"
     }
   ]
 }

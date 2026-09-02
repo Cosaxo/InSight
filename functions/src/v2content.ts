@@ -4107,7 +4107,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "hi": 12,
   "unit": "h",
   "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two.",
-  "core": true
+  "core": true,
+  "active": false
  },
  {
   "id": "feed-dl4",
@@ -4743,7 +4744,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 25,
   "hi": 45,
   "unit": "yrs",
-  "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
+  "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16.",
+  "active": false
  },
  {
   "id": "feed-f68",
@@ -4836,7 +4838,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 1,
   "hi": 10,
   "unit": "cups",
-  "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
+  "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy.",
+  "active": false
  },
  {
   "id": "feed-f72",
@@ -4879,7 +4882,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 1,
   "hi": 4,
-  "unit": "hrs"
+  "unit": "hrs",
+  "active": false
  },
  {
   "id": "feed-f73",
@@ -5153,7 +5157,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 10,
-  "unit": "friends"
+  "unit": "friends",
+  "active": false
  },
  {
   "id": "feed-f87",
@@ -5368,7 +5373,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 12,
-  "unit": "h"
+  "unit": "h",
+  "active": false
  },
  {
   "id": "feed-f92",
@@ -5475,7 +5481,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 30,
-  "unit": "books"
+  "unit": "books",
+  "active": false
  },
  {
   "id": "feed-f97",
@@ -5580,7 +5587,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 20,
-  "unit": "h"
+  "unit": "h",
+  "active": false
  },
  {
   "id": "feed-f102",
@@ -5638,7 +5646,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 10,
   "hi": 40,
-  "unit": "yrs"
+  "unit": "yrs",
+  "active": false
  },
  {
   "id": "feed-f104",
@@ -5780,7 +5789,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 14,
-  "unit": "meals"
+  "unit": "meals",
+  "active": false
  },
  {
   "id": "feed-f109",
@@ -5931,7 +5941,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 17,
   "hi": 23,
-  "unit": "h"
+  "unit": "h",
+  "active": false
  },
  {
   "id": "feed-f117",
@@ -6034,7 +6045,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 20,
-  "unit": "years"
+  "unit": "years",
+  "active": false
  },
  {
   "id": "feed-f122",
@@ -6079,7 +6091,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 30,
-  "unit": "min"
+  "unit": "min",
+  "active": false
  },
  {
   "id": "feed-f123",
@@ -6445,7 +6458,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 6,
   "hi": 20,
-  "unit": "songs"
+  "unit": "songs",
+  "active": false
  },
  {
   "id": "feed-f136",
@@ -6463,6 +6477,405 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "people",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "feed-dl20",
+  "surface": "feed",
+  "seq": 184,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Daily screen time — where does “too much” start?",
+  "options": [
+   "0–2 h",
+   "2–4 h",
+   "4–6 h",
+   "6–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–14 h",
+   "14–16 h",
+   "16–18 h",
+   "18–20 h",
+   "20–22 h",
+   "22–24 h"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "also": [
+   "tech"
+  ],
+  "lo": 0,
+  "hi": 24,
+  "unit": "h",
+  "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two.",
+  "core": true
+ },
+ {
+  "id": "feed-dl21",
+  "surface": "feed",
+  "seq": 185,
+  "type": "dial",
+  "domain": null,
+  "prompt": "At what age is an athlete past their peak?",
+  "options": [
+   "20–23 yrs",
+   "23–25 yrs",
+   "25–28 yrs",
+   "28–30 yrs",
+   "30–33 yrs",
+   "33–35 yrs",
+   "35–38 yrs",
+   "38–40 yrs",
+   "40–43 yrs",
+   "43–45 yrs",
+   "45–48 yrs",
+   "48–50 yrs"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 20,
+  "hi": 50,
+  "unit": "yrs",
+  "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
+ },
+ {
+  "id": "feed-dl22",
+  "surface": "feed",
+  "seq": 186,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many coffees a day is too many?",
+  "options": [
+   "0–1 cups",
+   "1–2 cups",
+   "2–3 cups",
+   "3–4 cups",
+   "4–5 cups",
+   "5–6 cups",
+   "6–7 cups",
+   "7–8 cups",
+   "8–9 cups",
+   "9–10 cups",
+   "10–11 cups",
+   "11–12 cups"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "cups",
+  "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
+ },
+ {
+  "id": "feed-dl23",
+  "surface": "feed",
+  "seq": 187,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How long should a concert be?",
+  "options": [
+   "30–50 min",
+   "50–70 min",
+   "70–90 min",
+   "90–110 min",
+   "110–130 min",
+   "130–150 min",
+   "150–170 min",
+   "170–190 min",
+   "190–210 min",
+   "210–230 min",
+   "230–250 min",
+   "250–270 min"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 30,
+  "hi": 270,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl24",
+  "surface": "feed",
+  "seq": 188,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many close friends does a person need?",
+  "options": [
+   "0–1 friends",
+   "1–2 friends",
+   "2–3 friends",
+   "3–4 friends",
+   "4–5 friends",
+   "5–6 friends",
+   "6–7 friends",
+   "7–8 friends",
+   "8–9 friends",
+   "9–10 friends",
+   "10–11 friends",
+   "11–12 friends"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "friends"
+ },
+ {
+  "id": "feed-dl25",
+  "surface": "feed",
+  "seq": 189,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many hours a day on a phone is too many?",
+  "options": [
+   "0–2 h",
+   "2–4 h",
+   "4–6 h",
+   "6–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–14 h",
+   "14–16 h",
+   "16–18 h",
+   "18–20 h",
+   "20–22 h",
+   "22–24 h"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl26",
+  "surface": "feed",
+  "seq": 190,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Books finished last year — how many?",
+  "options": [
+   "0–5 books",
+   "5–10 books",
+   "10–15 books",
+   "15–20 books",
+   "20–25 books",
+   "25–30 books",
+   "30–35 books",
+   "35–40 books",
+   "40–45 books",
+   "45–50 books",
+   "50–55 books",
+   "55–60 books"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "books"
+ },
+ {
+  "id": "feed-dl27",
+  "surface": "feed",
+  "seq": 191,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Hours of live sport in a good week?",
+  "options": [
+   "0–2 h",
+   "2–4 h",
+   "4–6 h",
+   "6–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–14 h",
+   "14–16 h",
+   "16–18 h",
+   "18–20 h",
+   "20–22 h",
+   "22–24 h"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl28",
+  "surface": "feed",
+  "seq": 192,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How old were you when your taste in music settled?",
+  "options": [
+   "5–9 yrs",
+   "9–13 yrs",
+   "13–16 yrs",
+   "16–20 yrs",
+   "20–24 yrs",
+   "24–28 yrs",
+   "28–31 yrs",
+   "31–35 yrs",
+   "35–39 yrs",
+   "39–43 yrs",
+   "43–46 yrs",
+   "46–50 yrs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 5,
+  "hi": 50,
+  "unit": "yrs"
+ },
+ {
+  "id": "feed-dl29",
+  "surface": "feed",
+  "seq": 193,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Meals cooked from scratch in a week?",
+  "options": [
+   "0–2 meals",
+   "2–4 meals",
+   "4–5 meals",
+   "5–7 meals",
+   "7–9 meals",
+   "9–11 meals",
+   "11–12 meals",
+   "12–14 meals",
+   "14–16 meals",
+   "16–18 meals",
+   "18–19 meals",
+   "19–21 meals"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 21,
+  "unit": "meals"
+ },
+ {
+  "id": "feed-dl30",
+  "surface": "feed",
+  "seq": 194,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The ideal dinner hour?",
+  "options": [
+   "12–13 h",
+   "13–14 h",
+   "14–15 h",
+   "15–16 h",
+   "16–17 h",
+   "17–18 h",
+   "18–19 h",
+   "19–20 h",
+   "20–21 h",
+   "21–22 h",
+   "22–23 h",
+   "23–24 h"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 12,
+  "hi": 24,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl31",
+  "surface": "feed",
+  "seq": 195,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years ahead do you actually plan?",
+  "options": [
+   "0–3 years",
+   "3–5 years",
+   "5–8 years",
+   "8–10 years",
+   "10–13 years",
+   "13–15 years",
+   "15–18 years",
+   "18–20 years",
+   "20–23 years",
+   "23–25 years",
+   "25–28 years",
+   "28–30 years"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "years"
+ },
+ {
+  "id": "feed-dl32",
+  "surface": "feed",
+  "seq": 196,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes late before it counts as late?",
+  "options": [
+   "0–5 min",
+   "5–10 min",
+   "10–15 min",
+   "15–20 min",
+   "20–25 min",
+   "25–30 min",
+   "30–35 min",
+   "35–40 min",
+   "40–45 min",
+   "45–50 min",
+   "50–55 min",
+   "55–60 min"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl33",
+  "surface": "feed",
+  "seq": 197,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many songs on a perfect album?",
+  "options": [
+   "6–8 songs",
+   "8–10 songs",
+   "10–12 songs",
+   "12–14 songs",
+   "14–16 songs",
+   "16–18 songs",
+   "18–20 songs",
+   "20–22 songs",
+   "22–24 songs",
+   "24–26 songs",
+   "26–28 songs",
+   "28–30 songs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 6,
+  "hi": 30,
+  "unit": "songs"
  },
  {
   "id": "pick-pk04",

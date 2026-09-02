@@ -187,14 +187,17 @@ describe("the live corpus", () => {
     // pair ever does cross, the fix is an ALLOW entry with a reason, not a
     // quieter metric. Re-pinned 2026-08-24: dl11 (phone hours) tied dl7
     // (coffees) at 0.400 on the shared "how many X a day is too many"
-    // scaffold — re-read, different canons, kept.
+    // scaffold — re-read, different canons, kept. Re-pinned 2026-09-02
+    // (D352): the same pair under its widened ids, dl22 and dl25 — the
+    // retired dl7/dl11 left the domain, and their replacements carry the
+    // same two prompts.
     const worst = ["daily", "feed", "duel", "pick", "learn"]
       .map((name) => ({ name, ...scanDomain(domains[name]).closest }))
       .sort((a, b) => b.s - a.s)[0];
     expect(
       `${worst.name} ${worst.a.id}~${worst.b.id} @ ${worst.s.toFixed(3)}`,
       "the closest legitimate pair moved — re-read it, then re-pin this",
-    ).toBe("feed dl7~dl11 @ 0.400");
+    ).toBe("feed dl22~dl25 @ 0.400");
     expect(worst.s).toBeLessThan(GATE);
   });
 
