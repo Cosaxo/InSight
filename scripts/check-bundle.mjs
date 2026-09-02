@@ -177,8 +177,8 @@ const DEMO = process.argv.includes("--demo");
 // `import.meta.env.VITE_SENTRY_DSN` and Vite replaces that with a literal at
 // build time — unset, the whole `import("@sentry/capacitor")` branch is
 // provably dead and rolldown drops it. So CI has been weighing a bundle with
-// no Sentry in it, while ios-release.yml:132 sets the DSN (and does not run
-// this script). Measured both ways off the same tree:
+// no Sentry in it, while ios-release.yml's build step sets VITE_SENTRY_DSN
+// (and does not run this script). Measured both ways off the same tree:
 //
 //   no DSN   1577.2 KB across 40 chunks   ← what CI weighed
 //   with DSN 2058.4 KB across 44 chunks   ← what ships (+481.2 KB)

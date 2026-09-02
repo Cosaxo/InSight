@@ -978,7 +978,9 @@ async function revealGroupDay(
     logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
   }
 
-  // The reveal is out — one of the product's two notifications (D236).
+  // The reveal is out — one of the product's four notifications: this,
+  // the circle invitation, the join request and the join approval (D236
+  // added the last three, and this comment kept saying "two").
   // Best-effort by construction: sendPushToUids never throws, so FCM
   // being down can never roll back a reveal that already committed.
   await sendPushToUids(
@@ -1342,8 +1344,19 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     // `name` is "" would be found by an empty prefix — that is, by
     // everything. The client's own write fills it in either way.
     const myName = String(me.exists ? (me.get("displayName") || "") : "").trim();
+    // nameKey folds A-Z ONLY, matching `firestore.rules`' `nameKey ==
+    // name.lower()` — the rules engine's `.lower()` is ASCII-only while
+    // JS `toLowerCase()` is full Unicode, so a name carrying a non-ASCII
+    // capital written the JS way disagrees with the rule. The admin SDK
+    // is not bound by rules, so THIS write would have succeeded and then
+    // disagreed with the client's own row for the same account — which
+    // is worse than being refused. Keep this identical to `foldName` in
+    // src/v2/data/socialFetch.ts; the two cannot share a module across
+    // the package boundary, so they are kept honest by this comment and
+    // by the rule that judges both.
+    const nameKey = myName.replace(/[A-Z]/g, (c) => c.toLowerCase());
     tx.set(peopleRef, myName
-      ? { handle, name: myName, nameKey: myName.toLowerCase() }
+      ? { handle, name: myName, nameKey }
       : { handle }, { merge: true });
   });
   return { handle };
@@ -1662,6 +1675,18 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)
     && ownExpiry > now.toMillis();
+  // …but ADMITTED is not the same as COUNTED, and the difference is one
+  // person. The aggregation above filters `until > now`, and Firestore's
+  // range filter skips a document missing the field entirely. The gate
+  // just above admits on `presenceExpiry`, which falls back to
+  // `at` + the linger for exactly those documents (D179's compatibility
+  // arm). So a legacy phone passes the gate while sitting outside
+  // `total` — and the blind `- 1` below then removes a person who was
+  // never in the number, reporting the room one emptier than it is.
+  // Captured HERE, before the backfill a few lines down writes the very
+  // field this tests: `own` is a snapshot and would not see that write,
+  // but a reader moving either statement should not have to know it.
+  const ownWasCounted = !!own.get("until");
   // YOU MAY ONLY ASK ABOUT A ROOM YOU ARE STANDING IN (D177).
   //
   // `cell` arrives from the client, and until now nothing checked that the
@@ -1697,7 +1722,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!own.get("until")) {
     await own.ref.set({ until: Timestamp.fromMillis(ownExpiry) }, { merge: true });
   }
-  const n = Math.max(0, total - 1);
+  const n = Math.max(0, total - (ownWasCounted ? 1 : 0));
   return { n, mix: await roomMixFor(cells, cell as string) };
 });
 
