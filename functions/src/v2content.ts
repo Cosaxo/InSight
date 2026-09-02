@@ -6465,6 +6465,81 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-n07",
+  "surface": "feed",
+  "seq": 184,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Nine-figure transfer fees: the market working, or football losing the plot?",
+  "options": [
+   "The market working",
+   "Losing the plot",
+   "Fine — until my club pays"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-04",
+  "bg": "Europe's summer transfer window closed on 1 September. Deadline day brought a rush of deals across the big leagues, several at nine-figure fees, before squads lock until the winter window opens in January."
+ },
+ {
+  "id": "feed-n08",
+  "surface": "feed",
+  "seq": 185,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A $4bn telescope just left to hunt dark energy. Money well spent?",
+  "options": [
+   "Every cent",
+   "Fix Earth first",
+   "Ask me when it finds something"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-05",
+  "bg": "NASA's Nancy Grace Roman Space Telescope launched on a SpaceX Falcon Heavy on 30 August, bound for the L2 point 1.5 million kilometres out. Its wide-field camera will hunt exoplanets and map dark energy; the mission cost about $4.3 billion."
+ },
+ {
+  "id": "feed-n09",
+  "surface": "feed",
+  "seq": 186,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A Grand Slam without the world No. 1: wide open, or missing something?",
+  "options": [
+   "Wide open",
+   "Missing something"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-06",
+  "bg": "The 2026 US Open runs 30 August to 13 September in New York. Top-ranked Jannik Sinner withdrew before play began with a knee injury; Carlos Alcaraz and Aryna Sabalenka arrived as the defending singles champions."
+ },
+ {
+  "id": "feed-n10",
+  "surface": "feed",
+  "seq": 187,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Awards season opens at Venice. Do festival prizes change what you watch?",
+  "options": [
+   "I seek winners out",
+   "They reach me eventually",
+   "Industry theatre"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-07",
+  "bg": "The 83rd Venice International Film Festival runs 2 to 12 September and opens the autumn awards season. Maggie Gyllenhaal chairs the main-competition jury; 21 world premieres compete for the Golden Lion."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -7135,6 +7210,18 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "group-gp7",
+  "surface": "group",
+  "seq": 25,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who tells the same story every time, and it still lands?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-000",
   "surface": "duo",
   "seq": 0,
@@ -7630,9 +7717,24 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-020",
+  "id": "duo-053",
   "surface": "duo",
   "seq": 31,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Realising you're wrong mid-argument: concede on the spot, or land the plane quietly?",
+  "options": [
+   "Concede on the spot",
+   "Quietly change course"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 32,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -7650,7 +7752,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 32,
+  "seq": 33,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -7668,7 +7770,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 33,
+  "seq": 34,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -7686,7 +7788,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 34,
+  "seq": 35,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -7703,7 +7805,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 35,
+  "seq": 36,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -7722,7 +7824,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 36,
+  "seq": 37,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -7740,7 +7842,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 37,
+  "seq": 38,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -7757,7 +7859,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 38,
+  "seq": 39,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -7775,7 +7877,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 39,
+  "seq": 40,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -7794,7 +7896,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 40,
+  "seq": 41,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -7811,7 +7913,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 41,
+  "seq": 42,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -7829,7 +7931,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 42,
+  "seq": 43,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -7847,7 +7949,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 43,
+  "seq": 44,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -7865,7 +7967,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 44,
+  "seq": 45,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -7883,7 +7985,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 45,
+  "seq": 46,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -7902,7 +8004,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 46,
+  "seq": 47,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -7920,7 +8022,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 47,
+  "seq": 48,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -7939,7 +8041,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 48,
+  "seq": 49,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -7957,7 +8059,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 49,
+  "seq": 50,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -7976,7 +8078,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 50,
+  "seq": 51,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
@@ -7993,7 +8095,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-051",
   "surface": "duo",
-  "seq": 51,
+  "seq": 52,
   "type": "binary",
   "domain": null,
   "prompt": "After a fight, the first move back is usually…",
@@ -8012,13 +8114,50 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-052",
   "surface": "duo",
-  "seq": 52,
+  "seq": 53,
   "type": "binary",
   "domain": null,
   "prompt": "The retirement dream: settled deep somewhere, or still moving?",
   "options": [
    "Settled deep",
    "Still moving"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-054",
+  "surface": "duo",
+  "seq": 54,
+  "type": "binary",
+  "domain": null,
+  "prompt": "When they need help, they…",
+  "options": [
+   "Ask straight out",
+   "Hint and hope",
+   "Soldier on alone"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-055",
+  "surface": "duo",
+  "seq": 55,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Ten years on, the two of you are known for…",
+  "options": [
+   "The open house",
+   "The adventures",
+   "The quiet steadiness",
+   "The double act"
   ],
   "topic": null,
   "axis": null,

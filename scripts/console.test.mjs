@@ -1,0 +1,328 @@
+// console.test.mjs — the pieces of the program console that can be wrong
+// quietly (docs/PROGRAM-RUNBOOK.md § The console, D352).
+//
+// WHAT EARNS A TEST HERE. The page is mostly markup; what a wrong answer
+// would LOOK right on is:
+//
+//   - the tick protocol — a stale render re-read as an approval would
+//     label a PR the owner never approved, and a fresh label read as a
+//     withdrawal would strip one they gave. Every branch of decideActions
+//     is pinned, including "tick beats untick";
+//   - the round trip — a rendered list must parse back to exactly the
+//     ticks it drew, or the marker echoes itself on the next run;
+//   - absence drawn as absence (D1): GitHub unreachable is null in the
+//     trail and "not reported" on the page, never a zero;
+//   - the parsers over the real seeded lists on this tree, so a format
+//     drift in one of the six files fails here before the page goes wrong.
+//
+// Run: npm run test:scripts
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  laneOfBranch, isNoPrBranch, whatHow, checksSummary, prRow, branchRow, parseTicks, ticksMarker,
+  decideActions, isTicked, renderMergeList, parseWorklist, parseOwnerList, parseAxioms,
+  parseVisualRequests, parsePermissions, parseRegister, ownerSteps, uncheckedSteps,
+  theorySummary, rollCalls, lastSeen, foldOwnerList, notAlreadyListed, trailRow, mergeTrail,
+  renderConsole,
+} from "./console-lib.mjs";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
+
+const pr = (number, over = {}) => ({
+  number, title: `PR ${number}`, html_url: `https://github.com/x/y/pull/${number}`, draft: false,
+  head: { ref: over.branch || "claude/topic-abc123", sha: "deadbeef" }, user: { login: over.login || "Cosaxo" },
+  labels: (over.labels || []).map((name) => ({ name })), created_at: "2026-09-02T11:00:00Z",
+  body: over.body ?? "what: does a thing\nhow: by a mechanism",
+});
+
+describe("lanes by branch", () => {
+  it("names the lane and whether it self-merges", () => {
+    expect(laneOfBranch("claude/feed-questions-2026-09-02")).toEqual({ lane: "the feed lane", selfMerge: true });
+    expect(laneOfBranch("claude/axes-retro-2026-09-01").lane).toBe("the axes retro lane");
+    expect(laneOfBranch("claude/axes-1.1").lane).toBe("the axes build lane");
+    expect(laneOfBranch("night-20260902").lane).toBe("Claude 2's night shift");
+    expect(laneOfBranch("claude/whatever-x1y2z3")).toEqual({ lane: "a session", selfMerge: false });
+  });
+  it("knows which branches never get a PR of their own", () => {
+    expect(isNoPrBranch("nightb-20260902")).toBe(true);
+    expect(isNoPrBranch("claude/daily-database-optimization-j03rdh")).toBe(true);
+    expect(isNoPrBranch("claude/axes-1.1")).toBe(false);
+  });
+});
+
+describe("what / how", () => {
+  it("reads the what: and how: lines a program prompt asks for, in any emphasis", () => {
+    expect(whatHow("Intro\n\n*what:* a returning device paints its deck\n**how:** IndexedDB first\n")).toEqual({ what: "a returning device paints its deck", how: "IndexedDB first" });
+  });
+  it("falls back to the first two sentences of prose, skipping headings, tables, boxes and the footer", () => {
+    const body = "## What changed, and why\n\n<!-- hidden -->\nThe warm boot paints from disk. Answers survive relaunch. Third sentence.\n\n## Checks\n\n- [x] lint\n| a | b |\n🤖 Generated with Claude\n";
+    expect(whatHow(body)).toEqual({ what: "The warm boot paints from disk.", how: "Answers survive relaunch." });
+  });
+  it("is empty, not undefined, for an empty body", () => {
+    expect(whatHow("")).toEqual({ what: "", how: "" });
+  });
+  it("strips HTML, and a dependabot row reads its title rather than its changelog", () => {
+    expect(whatHow("<p>Fixes <b>the</b> thing.</p> <br> Second sentence.").what).toBe("Fixes the thing.");
+    const row = prRow(pr(6, { branch: "dependabot/npm_and_yarn/x-1.2.3", login: "dependabot[bot]", body: "<details><summary>Release notes</summary>…</details>" }));
+    expect(row.what).toBe("PR 6");
+    expect(row.how).toContain("dependency shepherd");
+  });
+});
+
+describe("checks", () => {
+  const run = (status, conclusion) => ({ status, conclusion });
+  it("is red on one failure, pending on one running, green when all concluded well, none when empty", () => {
+    expect(checksSummary([run("completed", "success"), run("completed", "failure")]).state).toBe("red");
+    expect(checksSummary([run("completed", "success"), run("in_progress", null)]).state).toBe("pending");
+    expect(checksSummary([run("completed", "success"), run("completed", "skipped")]).state).toBe("green");
+    expect(checksSummary([]).state).toBe("none");
+  });
+  it("does not read a cancelled run as red, and never grades main by the console's own run", () => {
+    expect(checksSummary([run("completed", "success"), run("completed", "cancelled")]).state).toBe("green");
+    expect(checksSummary([{ name: "console", status: "completed", conclusion: "failure" }]).state).toBe("none");
+  });
+});
+
+describe("rows and stages", () => {
+  it("stages a PR by its labels, and a blocked shift by the shift's comment", () => {
+    expect(prRow(pr(1)).stage).toBe("new");
+    expect(prRow(pr(2, { labels: ["approved"] })).stage).toBe("shift");
+    expect(prRow(pr(3, { labels: ["approved", "merge-when-green"] })).stage).toBe("ready");
+    expect(prRow(pr(4, { labels: ["approved"] }), { shiftBlocked: true }).stage).toBe("blocked");
+  });
+  it("marks self-merging lanes and dependabot", () => {
+    expect(prRow(pr(5, { branch: "claude/now-questions-2026-09-02" })).selfMerge).toBe(true);
+    expect(prRow(pr(6, { branch: "dependabot/npm_and_yarn/x-1.2.3", login: "dependabot[bot]" })).from).toBe("dependabot");
+  });
+  it("draws a branch as a no-PR-yet row", () => {
+    expect(branchRow({ name: "night-20260903", aheadBy: 12, lastCommitAt: "2026-09-03T05:20:00Z" })).toMatchObject({ kind: "branch", key: "night-20260903", stage: "no PR yet", from: "Claude 2's night shift" });
+  });
+});
+
+describe("the tick protocol", () => {
+  const list = `# Merge list\n\n${ticksMarker(["#2", "#3"])}\n\n## Open\n\n- [x] **#1** · a session · *what:* a · *how:* b · stage **new**\n- [x] **#2** · a session · … · stage **in the shift**\n- [ ] **#3** · a session · … · stage **in the shift**\n- [ ] **#4** · a session · … · stage **in the shift**\n- [x] **night-20260903** (no PR yet) · Claude 2's night shift · 12 commits\n- [ ] **#7** · the now lane · …\n`;
+  const rows = [
+    prRow(pr(1)),                                            // new tick in the file → approve
+    prRow(pr(2, { labels: ["approved"] })),                  // rendered ticked, still ticked → nothing
+    prRow(pr(3, { labels: ["approved"] })),                  // rendered ticked, now unticked → withdraw
+    prRow(pr(4, { labels: ["approved"] })),                  // labelled on GitHub, file not yet re-rendered → nothing
+    branchRow({ name: "night-20260903", aheadBy: 12 }),      // new tick on a branch → open the PR
+    prRow(pr(7, { branch: "claude/now-questions-2026-09-02" })), // self-merging: never
+  ];
+  it("parses ticks and the rendered marker", () => {
+    const t = parseTicks(list);
+    expect(t.now.get("#1")).toBe(true);
+    expect(t.now.get("#3")).toBe(false);
+    expect(t.now.get("night-20260903")).toBe(true);
+    expect([...t.rendered]).toEqual(["#2", "#3"]);
+  });
+  it("turns the owner's edits since the last render into exactly these actions", () => {
+    const actions = decideActions(rows, parseTicks(list), parseTicks(""));
+    expect(actions).toEqual([
+      { type: "label-add", key: "#1", number: 1, label: "approved" },
+      { type: "label-remove", key: "#3", number: 3, label: "approved" },
+      { type: "open-pr", key: "night-20260903", branch: "night-20260903", from: "Claude 2's night shift" },
+    ]);
+  });
+  it("reads a new tick in the Console issue the same way, while a stale box there does not undo a withdrawal", () => {
+    const rowsPlus = [...rows, prRow(pr(8))];
+    // #8: ticked in the issue, never rendered ticked → a new tick. #3: the
+    // file withdrew it and the issue's box is still ticked from the last
+    // render (the marker lists it) → that box is stale, the withdrawal holds.
+    const issue = `${ticksMarker(["#3"])}\n- [x] **#8** …\n- [x] **#3** …\n`;
+    const actions = decideActions(rowsPlus, parseTicks(list), parseTicks(issue));
+    expect(actions.find((a) => a.key === "#8")).toEqual({ type: "label-add", key: "#8", number: 8, label: "approved" });
+    expect(actions.find((a) => a.key === "#3")).toEqual({ type: "label-remove", key: "#3", number: 3, label: "approved" });
+  });
+  it("lets a fresh tick beat an untick when the two surfaces disagree", () => {
+    // The file withdrew #3 (rendered ticked, now unticked); the issue never
+    // rendered #3 ticked and now shows it ticked — a NEW tick, which wins.
+    const issue = `${ticksMarker([])}\n- [x] **#3** …\n`;
+    const actions = decideActions(rows, parseTicks(list), parseTicks(issue));
+    expect(actions.find((a) => a.key === "#3")).toBeUndefined();
+  });
+  it("never touches a merge-when-green PR, whatever the boxes say", () => {
+    const ready = [prRow(pr(9, { labels: ["approved", "merge-when-green"] }))];
+    expect(decideActions(ready, parseTicks(`${ticksMarker(["#9"])}\n- [ ] **#9** …`), parseTicks(""))).toEqual([]);
+  });
+  it("round-trips: a rendered list parses back to the ticks it drew", () => {
+    const text = renderMergeList({ rows, merged: [], generatedAt: "2026-09-02T14:00:00Z" });
+    const t = parseTicks(text);
+    const drawn = rows.filter(isTicked).map((r) => r.key);
+    expect([...t.rendered]).toEqual(drawn);
+    for (const r of rows.filter((r) => r.kind === "pr" && !r.selfMerge)) expect(t.now.get(r.key)).toBe(isTicked(r));
+    expect(decideActions(rows, t, parseTicks(""))).toEqual([]);
+  });
+});
+
+describe("the merge list file", () => {
+  it("places rows by stage, boxes only where a tick means something, and keeps the how-to", () => {
+    const rows = [prRow(pr(1)), prRow(pr(2, { labels: ["approved"] })), prRow(pr(3, { labels: ["merge-when-green"] })),
+      prRow(pr(6, { branch: "dependabot/npm_and_yarn/x-1.2.3", login: "dependabot[bot]" })), prRow(pr(7, { branch: "claude/feed-questions-2026-09-02" })),
+      branchRow({ name: "nightb-20260903", aheadBy: 3 })];
+    const text = renderMergeList({ rows, merged: [{ number: 5, title: "merged one", merged_at: "2026-09-01T10:00:00Z", merged_by: "Cosaxo" }], generatedAt: "2026-09-02T14:00:00Z" });
+    expect(text).toContain("## How to approve");
+    expect(text).toMatch(/## Open\n\n- \[ \] \*\*#1\*\*/);
+    expect(text).toMatch(/## In the shift\n\n- \[x\] \*\*#2\*\*/);
+    expect(text).toMatch(/## Ready\n\n- \[x\] \*\*#3\*\*/);
+    expect(text).toContain("**Dependencies**");
+    expect(text).toContain("**Self-merging:** #7");
+    expect(text).toContain("- [ ] **nightb-20260903** (no PR yet)");
+    expect(text).toContain("- **#5** · merged one · merged 2026-09-01 by Cosaxo");
+    expect(text).not.toContain("GitHub did not answer");
+  });
+  it("says so on the page when GitHub did not answer", () => {
+    expect(renderMergeList({ rows: [], generatedAt: "2026-09-02T14:00:00Z", githubState: "open PRs (403)" })).toContain("GitHub did not answer");
+  });
+});
+
+describe("the lists on this tree", () => {
+  it("reads the worklist by account tag", () => {
+    const w = parseWorklist(read("docs/WORKLIST.md"));
+    expect(w.open.length).toBeGreaterThan(0);
+    expect(w.byTag["claude-2"] + w.byTag["claude-1"] + w.byTag["claude-3"]).toBe(w.open.length);
+    expect(w.open.every((i) => /^claude-[123]$/.test(i.tag))).toBe(true);
+  });
+  it("defaults an untagged item to claude-2", () => {
+    expect(parseWorklist("## Open\n\n- [ ] a thing\n- [ ] [claude-3] another\n").byTag).toEqual({ "claude-1": 0, "claude-2": 1, "claude-3": 1 });
+  });
+  it("reads the owner list's sections", () => {
+    const o = parseOwnerList(read("docs/OWNER-LIST.md"));
+    expect(Object.keys(o)).toEqual(expect.arrayContaining(["Decisions", "Clicks", "Designs", "Approvals", "Store and legal", "Done"]));
+    expect(o.Decisions.open.length).toBeGreaterThan(0);
+  });
+  it("reads the axiom board with the owner's two operational axioms first", () => {
+    const a = parseAxioms(read("docs/AXIOMS.md"));
+    expect(a.operational.slice(0, 2)).toEqual(["Questions", "Tests"]);
+    expect(a.explored).toEqual(["Genetic", "Body"]);
+    expect(a.proposed.length).toBeGreaterThan(0);
+  });
+  it("reads visual requests by status and permissions by state", () => {
+    const v = parseVisualRequests(read("docs/VISUAL-REQUESTS.md"));
+    expect(v.requested.length).toBe(3);
+    expect(v.built).toEqual([]);
+    const p = parsePermissions(read("docs/PERMISSIONS.md"));
+    expect(p.open.length).toBeGreaterThan(5);
+  });
+  it("finds the [owner] steps of the runbooks by id", () => {
+    const ids = ownerSteps(read("docs/AXES-RUNBOOK.md"), "docs/AXES-RUNBOOK.md").map((s) => s.id);
+    expect(ids).toEqual(expect.arrayContaining(["2.0", "3.0", "4.0", "5.2"]));
+    expect(uncheckedSteps(read("docs/LAUNCH-RUNBOOK.md"), "docs/LAUNCH-RUNBOOK.md").length).toBeGreaterThan(0);
+  });
+});
+
+describe("the register", () => {
+  const fixture = `# The routine register\n\n## 2 · Session 1 — the content lanes\n\n| Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |\n| --- | --- | --- | --- | --- | --- |\n| InSight feed lane | \`trig_1\` | \`30 9 * * *\` — daily 09:30 | dev | x | self |\n\n## 3 · Session 2 — the axes program\n\n| Lane | Trigger id | Slot (UTC) | Dates |\n| --- | --- | --- | --- |\n| Genetic | \`trig_2\` | \`2 9 1-31/2 * *\` — 09:02 | odd |\n`;
+  it("reads every table row under its session heading", () => {
+    expect(parseRegister(fixture)).toEqual([
+      { account: "Claude 1", name: "feed lane", trigger: "trig_1", schedule: "30 9 * * *" },
+      { account: "Claude 2", name: "Genetic", trigger: "trig_2", schedule: "2 9 1-31/2 * *" },
+    ]);
+  });
+  it("is null, not empty, when the file is not on main", () => {
+    expect(parseRegister(null)).toBeNull();
+  });
+});
+
+describe("the theory branch", () => {
+  const graphs = { genetic: { nodes: [{ status: "cited" }, { status: "argued" }] }, body: { nodes: [{ status: "conjecture" }] } };
+  const logs = { genetic: "# log\n\n- 2026-08-25 · seeded\n- 2026-09-01 · gen-14 added\n", body: "" };
+  const digest = "# digest\n\n*Week of 2026-08-30 (UTC). Written 2026-09-01.*\n\n## The headline\n\nThe theory roughly\ndoubled.\n\n## What each\n";
+  const verdicts = "- **… — WORTH-BUILDING**\n- **… — NOT-YET**\n- **… — WORTH-BUILDING**\n- **… — NEEDS-OWNER**";
+  it("counts claims by rung, reads the last log row per lane, the headline and the bridge queue", () => {
+    const t = theorySummary({ graphs, logs, digest, verdicts, scores: "No review yet." });
+    expect(t.byStatus).toEqual({ conjecture: 1, argued: 1, cited: 1, measured: 0 });
+    expect(t.lanes.find((l) => l.lane === "genetic").lastLanded).toBe("2026-09-01");
+    expect(t.lanes.find((l) => l.lane === "body").lastLanded).toBeNull();
+    expect(t.headline).toBe("The theory roughly doubled.");
+    expect(t.digestWeek).toBe("2026-08-30 (UTC)");
+    expect(t.bridge).toEqual({ worthBuilding: 2, notYet: 1, needsOwner: 1 });
+    expect(t.scoresTable).toBeNull();
+  });
+});
+
+describe("roll calls and run logs", () => {
+  const comments = [
+    { body: "Claude 2 roll call 2026-09-01\ndue 9…", created_at: "2026-09-01T15:30:00Z" },
+    { body: "Claude 2 roll call 2026-09-02\ndue 9…", created_at: "2026-09-02T15:30:00Z" },
+    { body: "Claude 1 roll call 2026-08-31\n…", created_at: "2026-08-31T15:35:00Z" },
+    { body: "production reader 2026-09-02: alerts 9/9", created_at: "2026-09-02T06:40:00Z" },
+  ];
+  it("draws today, a stale row and no row ever as three different states", () => {
+    expect(rollCalls(comments, "2026-09-02").map((r) => [r.account, r.state])).toEqual([
+      ["Claude 1", "last 2026-08-31"], ["Claude 2", "today"], ["Claude 3", "no row ever"],
+    ]);
+  });
+  it("attributes the last line by keyword and picks the latest", () => {
+    expect(lastSeen(comments, "roll call").created_at).toBe("2026-09-02T15:30:00Z");
+    expect(lastSeen(comments, "production reader").line).toContain("alerts 9/9");
+    expect(lastSeen(comments, "merge shift")).toBeNull();
+  });
+});
+
+describe("the owner list fold", () => {
+  const text = "# Owner list\n\nintro\n\n## Decisions\n\n- [ ] **Hand row** — *Source:* x.\n\n## Clicks\n\n- [ ] click\n\n## Done\n";
+  it("adds a generated block, replaces it on the next fold, and removes it when empty", () => {
+    const once = foldOwnerList(text, { Decisions: ["**Gen one** — *Source:* a.", "**Gen two** — *Source:* b."] });
+    expect(once).toContain("<!-- console:begin -->\n- [ ] **Gen one**");
+    expect(once).toContain("## Clicks\n\n- [ ] click");
+    const twice = foldOwnerList(once, { Decisions: ["**Gen three** — *Source:* c."] });
+    expect(twice).not.toContain("Gen one");
+    expect(twice).toContain("Gen three");
+    expect((twice.match(/console:begin/g) || []).length).toBe(1);
+    const none = foldOwnerList(twice, { Decisions: [] });
+    expect(none).not.toContain("console:begin");
+    expect(none).toContain("- [ ] **Hand row**");
+  });
+  it("does not repeat a row the owner already wrote by hand", () => {
+    const hand = ["**The consented tier's custody decision** — consented tier versus … *Source:* `AXES-RUNBOOK.md` 2.0."];
+    const kept = notAlreadyListed(hand, [
+      { id: "2.0", title: "The custody decision", file: "docs/AXES-RUNBOOK.md" },
+      { id: "3.0", title: "The D168 carve-out for the genetic axis", file: "docs/AXES-RUNBOOK.md" },
+    ]);
+    expect(kept.map((c) => c.id)).toEqual(["3.0"]);
+  });
+});
+
+describe("the trail and the page", () => {
+  const base = () => ({
+    generatedAt: "2026-09-02T14:00:00Z", today: "2026-09-02", github: { ok: false, error: "open PRs (403)" }, rows: [], merged: [],
+    worklist: { byTag: { "claude-1": 0, "claude-2": 5, "claude-3": 1 }, inFlight: [], parked: 0, open: [] },
+    owner: { Decisions: { open: ["a decision"], done: 0 }, Done: { open: [], done: 0 } }, axioms: { operational: ["Questions"], explored: [], proposed: [] },
+    visuals: { requested: ["x"], planned: [], drafted: [], designed: [], built: [] }, permissions: { open: ["p"], granted: 0 },
+    register: null, lastSeen: {}, theory: null, pulse: null, rollCalls: rollCalls([], "2026-09-02"), runLogs: {}, productionReader: null,
+    mainCi: null, merges: [], missing: ["open PRs (403)"],
+  });
+  it("records absence as null, never as zero, when GitHub did not answer", () => {
+    const row = trailRow(base());
+    expect(row.prsOpen).toBeNull();
+    expect(row.mainCi).toBeNull();
+    expect(row.worklist["claude-2"]).toBe(5);
+  });
+  it("replaces the same day's row and keeps the order", () => {
+    const rows = mergeTrail([{ on: "2026-09-01", a: 1 }, { on: "2026-09-02", a: 1 }], { on: "2026-09-02", a: 2 });
+    expect(rows).toEqual([{ on: "2026-09-01", a: 1 }, { on: "2026-09-02", a: 2 }]);
+  });
+  it("draws every missing source as absent and keeps the keeper's artifact line", () => {
+    const page = renderConsole(base(), "**Console artifact:** https://claude.ai/artifacts/abc\nold body");
+    expect(page.startsWith("**Console artifact:** https://claude.ai/artifacts/abc")).toBe(true);
+    expect(page).toContain(ticksMarker([]));
+    expect(page).toContain("GitHub did not answer");
+    expect(page).toContain("not on `main` yet");
+    expect(page).toContain("| Claude 3 | **no row ever** |");
+    expect(page).toContain("*(not reported)*");
+    expect(page).toContain("Sources that did not answer this run: open PRs (403)");
+  });
+  it("lists the ticked rows in the page's marker", () => {
+    const s = base();
+    s.github = { ok: true, error: null };
+    s.rows = [prRow(pr(1, { labels: ["approved"] })), prRow(pr(2))];
+    const page = renderConsole(s, "");
+    expect(page).toContain(ticksMarker(["#1"]));
+    expect(page).toMatch(/### Approve\n- \[ \] \*\*#2\*\*/);
+    expect(page).toMatch(/### In the shift\n- \*\*#1\*\*/);
+  });
+});

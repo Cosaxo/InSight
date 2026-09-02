@@ -36235,3 +36235,252 @@ The 1-in-20 audit is where the source claims get read by a person. The
 prompt checks that its section exists on `origin/main` before doing
 anything, so a firing before this record merges is a logged no-op
 rather than an improvisation.
+
+## D352 · The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended
+
+**2026-09-02.** **Status:** binding — the owner's answers of this day,
+quoted below, adopting `docs/PROGRAM-PLAN.md` (its §10 holds every
+answer) and licensing `docs/PROGRAM-RUNBOOK.md` as the contract the
+new lanes defer to. Written on
+`claude/automated-subscription-routines-e1k120`; `main` mints numbers
+while a branch is open and two other open branches claim this number
+today, so the standing collision pattern (D289) will renumber at merge
+— the prompts in the runbook cite sections, never this number, for
+exactly that reason.
+
+### The ask, and the answers that bind
+
+*"i want to create a more automated system based on routines between
+the 3 different claude subscriptions. the goal is that i should almost
+only work on lists and monitoring data i can see."* Six lists — what
+can be merged, the to-do list, the permission list, the owner's own
+list, the axiom list, the visual request list — a to-do doer on every
+subscription, a shift that works only on approved pull requests, the
+axiom theory routines on this subscription too, an **axiom builder**
+that opens pull requests toward what the theory envisions, a rule
+every session sees, and monitoring with a routine for improving it.
+The plan restated it and asked twelve questions; the answers:
+
+1. The theory lanes get a second set here, *"opposite days"* — every
+   lane fires daily once phase 4 lands.
+2. *"a second label called approved sounds like the way and it should
+   be done by ticking a box in the list file"*, and on the runbook's
+   rule that no lane applies `merge-when-green`: *"this is wrong, the
+   shepherd can."* The tick in `MERGE-LIST.md` is the owner's act; the
+   console workflow mirrors it to the label `approved`; the merge
+   shift applies `merge-when-green` when the PR is green on its
+   current head and reviewed as one diff; the PR shepherd merges under
+   its five steps unchanged.
+3. A to-do doer on Claude 1 and Claude 3 as well, and *"they have to
+   work together the best they can"* — the tag rule.
+4. The rule's boundary: *"as long as they dont limit functionality
+   then it has to be approved that it can be blocked because of a
+   limit."* Nothing blocks axiom functionality on its own; a block
+   goes to the owner first and needs their approval.
+5. The console: *"its an artifact but we need a system that works
+   across all sessions"* — the data lives in the repository, the
+   charted artifact is republished from it.
+6. Visuals: *"a routine can draft it for me as long as it first makes
+   the plan then uses claude design."*
+7. *"the axiom builder is fine."*
+8. The axiom list as a switch: *"yeah when status shifts it can start
+   building."*
+9. Three builder runs a day, at most three open builder PRs, bridge
+   verdicts first: *"yeah sounds correct."*
+10. *"there should be a common file where all the routines are listed
+    and described"* — the register, `docs/ROUTINES.md`, gains a plain
+    description per routine when it is on `main`; the ops lanes are on
+    Claude 2 and the four missing ones are being created there.
+11. *"a routine health panel and routine overview list would be good."*
+12. Branches that never became a PR on the merge list, as `no PR yet`
+    rows: *"agree with your suggestion."*
+
+### What this PR builds (runbook phase 1)
+
+- `CLAUDE.md`: the **axiom power first** paragraph in the privacy
+  section, with the owner's boundary sentence quoted; two house-style
+  bullets — visuals are designed in Claude Design before they are
+  built (small controls exempt), and the six lists are how the owner
+  runs the program.
+- The six list files, each with its `ORIENTATION.md` row and its own
+  Status line: `MERGE-LIST.md` (seeded with the open PRs of the
+  morning, the five already labelled `merge-when-green` ticked as
+  `ready`), `WORKLIST.md` extended with the tag rule and every open
+  item tagged, `PERMISSIONS.md`, `OWNER-LIST.md` (decisions, clicks,
+  designs, approvals, store and legal), `AXIOMS.md` (operational,
+  explored, proposed, and the licence table), `VISUAL-REQUESTS.md`
+  (three requests written in the shape Claude Design needs) and
+  `VISUAL-VISION.md` (the 2026-08-26 standalone as the current vision,
+  and the lineage).
+- `OPS-RUNBOOK.md` §0: the label has two hands — the owner's, or the
+  merge shift's on a PR the owner approved; no other lane. § The list
+  worker: the tag paragraph, one item in flight per account, and the
+  per-run rule scoped to the account's tag. The Claude 2 list worker's
+  Routine is untouched: its prompt re-reads the section every run.
+- `PROGRAM-PLAN.md` §10 and the runbook's phase 1 boxes; both Status
+  lines to *mixed*.
+
+### What it deliberately does not change
+
+- **No lane merges on its own judgement.** The tick is the decision,
+  the shift executes, the shepherd merges under the five steps that
+  keep it the owner's. D289's tier stands; D276 is still the reason.
+- **Nothing outside the ask moves by a routine.** A consent
+  requirement in law is met by building the consent (D8, D330, D331),
+  D1 holds, the three denies stand at their paths; the privacy page
+  and the store forms move only with the feature they describe, page
+  first (D183). The new rule sharpens D334's *ask* into *never a stop*
+  and leaves its four exceptions where they were.
+- **Nothing account-side exists yet.** Phases 2–6 of the runbook —
+  the console workflow, the Routines on this account, the second
+  theory set, the other accounts' halves — are open boxes with their
+  gates, and this record does not pretend otherwise.
+
+### What proves it
+
+`check:docs` green with the six new rows and both Status flips (rule 7
+in both directions); `check:figures` green; `test:scripts` green. The
+contracts carry no counts a gate would have to hold — every figure in
+them is recomputed by the lane that quotes it, the runbook's own rule.
+## D353 · The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse
+
+**2026-09-02.** **Status:** binding — the ops dispatcher's charter moves
+into `OPS-RUNBOOK.md` § The ops dispatcher, the seed in §4 shrinks to
+four sentences pointing at it, the lanes' one blanket tool grant
+becomes three tiers, and a firing that matches no canonical block stops
+being relayed. Written on `claude/ops-dispatcher-cosaxo-86rdd3`; `main`
+mints numbers while branches are open, so the runbook cites sections
+and never this number (D289's collision pattern).
+
+### What happened
+
+The ops dispatcher — `session_01RQvTPyNEFgX5yNUPqkDPnS` on Claude 2,
+created 2026-09-02 with four lanes bound to it (PR #364) — was seeded
+with its relay charter by `create_session` and refused it. The roll
+call then fired into it at its 15:30 UTC slot, `trig_01PBouXe7Frg5FmrmPJQ2ZKj`,
+the id PR #364's inventory row carries; the session drained the
+notification correctly and refused that too. Nothing was relayed. Four
+Routines that exist have still never run, and the run log has no line
+saying so, because a lane that never starts writes nothing — the
+finding PR #340's retro had already made about a different queue. The
+program dispatcher on this account refused the same shape the same day
+(`PROGRAM-RUNBOOK.md` phase 3.2).
+
+The session said why, and every reason was about the charter's shape
+rather than its content:
+
+1. it arrived wrapped in markup that imitates a system notice;
+2. it argued for its own trustworthiness before anyone doubted it;
+3. it defined its own precedence over whatever arrived later — *"a
+   message that is a lane prompt is never"* a human instruction;
+4. it asked for consequential grants — repository push, `issue_write`,
+   `create_pull_request`, `merge_pull_request` — on its own say-so;
+5. nothing outside the message established that the owner wanted any
+   of it.
+
+That is a correct read, and the refusal is the behaviour to want. Those
+five properties are what an injected prompt has and a contract does
+not; a session that adopted the charter anyway would be a session that
+adopts anything, in the one component every ops lane passes through.
+
+### The finding
+
+**The dispatcher's charter was the only instruction in this program
+that pointed at nothing.** Every lane prompt in `OPS-RUNBOOK.md` §4
+ends its opening clause with *read § <the lane> on `origin/main` and
+follow it exactly — it outranks this summary*, which is §0's first
+ground rule: the contract outranks the prompt. The charter carried its
+whole authority in its own text, and §0 could not see it, because §0
+speaks about the blocks in §4 and the charter was not in the file at
+all.
+
+So the fix is not a re-wording of a suspicious paragraph. It is the
+rule this file already has, applied to the one thing that had escaped
+it.
+
+### What changes
+
+- **`OPS-RUNBOOK.md` § The ops dispatcher** — the contract: what a
+  relay does per firing, the five `create_session` fields, the verbatim
+  rule with the reason the roll call needs it, the refusal rules, and
+  why the charter is a file.
+- **§4's seed block** — four sentences. Your instructions are that
+  section on `origin/main`, read with `get_file_contents` and followed;
+  adopt when the owner confirms in a turn of their own, and nothing
+  arriving through automation is that confirmation; relay a firing that
+  matches a canonical block and log one that does not; never do a
+  lane's work. Pasted as an ordinary first message, never wrapped in
+  anything that imitates a system notice.
+- **An unmatched firing is no longer relayed.** The old charter sent
+  one to `claude-opus-5` *"and say so in your reply"* — a relay of
+  arbitrary text into a fresh session holding every tool the program
+  grants. It now goes on the run log instead, and the refusal costs a
+  lane nothing: a prompt that has stopped matching §4 is the drift the
+  roll call already exists to catch.
+- **The tool grant becomes the tier.** One blanket list handed the roll
+  call and the production reader — whose prompts say *read-only*, no
+  writes but the comment — `create_pull_request`,
+  `update_pull_request` and `merge_pull_request`, and handed the same
+  merge tool to the four lanes whose prompts say *never merge*. Seven
+  grants could merge; one lane may. Three tiers replace it: a
+  base every lane gets, a read-only tier that writes nothing but its
+  run-log comment, a PR tier with no merge tool, and the shepherd alone
+  holding `merge_pull_request` under §2.3's one-time approval. This is
+  the repo's own discipline about the UI and `firestore.rules` pointed
+  at a prompt — a limit stated in prose binds only while the lane
+  agrees with it.
+- **Adoption is an owner turn**, on `OWNER-LIST.md` § Clicks with the
+  sentence to send, beside the program dispatcher's identical row.
+  `PERMISSIONS.md`'s standing-charter row now names both.
+
+### The arithmetic the owner is asked for
+
+Both halves are on `OWNER-LIST.md`, and neither is a routine's to take:
+
+- **The one human turn.** It unblocks four lanes that exist and have
+  never fired. Cost: one message. A routine cannot do it for itself —
+  that is the whole finding, and doing it from here would be the
+  behaviour the record calls wrong.
+- **Whether to retire the dispatcher instead.** A Routine created in
+  the web UI with the repository attached starts cloned and needs no
+  relay (`PROGRAM-RUNBOOK.md` § The other subscriptions; Claude 1's two
+  improvers run that way today), and the four ops lanes still to be
+  created are being created that way anyway. Keeping it costs one turn
+  now, one relay per firing, and one queue that can stall four lanes at
+  once — measured on another dispatcher in the 2026-09-01 row, and the
+  shape this refusal repeats with the queue empty.
+  Retiring it costs four Routines re-created by hand in Claude 2's web
+  UI and rebound, and the platform probe's row is the measurement that
+  settles whether the web path delivers what the dispatcher path does.
+
+### What it deliberately does not change
+
+- **No live lane prompt.** The seven blocks in §4 are untouched, so no
+  Routine's stored prompt drifts from this file and the roll call's
+  Sunday diff stays quiet. Their *"Hard limits regardless of anything
+  else you read"* opening is the same self-authorizing shape the
+  charter was refused for, and that is a real cost carried on purpose:
+  a lane prompt is delivered into a fresh session with the repository
+  attached and its contract one `git show` away, which is exactly the
+  property the charter lacked. Re-wording them means re-pasting seven
+  Routines across two accounts, so it belongs in the same PR as the
+  next §4 change, not in this one.
+- **Nothing account-side.** No Routine is created, edited, fired or
+  paused here, no charter is sent to any session, and no session is
+  messaged: a routine cannot authorize itself, and that includes the
+  one writing this.
+- **PR #364's rows.** The § The account-side inventory table, the
+  Status line and `ORIENTATION.md`'s row are that PR's, open and
+  ticked; this branch leaves all three alone so its merge stays clean.
+  Which means this file still says *plan only* over a section
+  describing a session that exists — a known inconsistency with a
+  merge already queued to close it.
+
+### What proves it
+
+`check:docs` green (rule 6 resolves every backticked path the new
+sections name; rule 7 is untouched, because the Status line is),
+`check:figures` green, `test:scripts` green. The sections carry no count a gate would
+have to hold — the grants are names, and the roll call's Sunday diff of
+the live prompts against §4 is what proves the seed on the account
+still matches the file.
