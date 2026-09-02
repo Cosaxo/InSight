@@ -364,3 +364,425 @@ request.
   gains its Stocking-drift observable, and the same artifact
   strengthens map-3's stability record. A person carries this to
   `docs/AXES-RUNBOOK.md` on `main`.
+
+- **2026-09-02 · genetic: consented within-family pairing flag for
+  future genetic imports — NEEDS-OWNER — one question, ready now, whose answer is not needed
+  until G2.** Product facts, read first-hand this
+  run: no genetic data, import path or staging store exists — AXES-PLAN
+  §4's G1 is "design now; build after the D168 carve-out is decided"
+  and G2 (the consented tier the flag would serve) says the legal
+  review (GDPR Art. 9, the Biotechnology Act, both stores) PRECEDES the
+  build; the plan already carries gen-6's sentence ("a genome is never
+  about one person only"). The flag itself has no precedent in the
+  tree in either of its two halves: no relationship-between-people
+  record exists (`relationship` is a status anchor, `duoMode` a
+  per-group pool switch; D101 stores follows as two independent rows
+  and "knows nothing about the pair" — there is no handshake or
+  acceptance state anywhere), and no owner-only FIELD exists on the
+  world-readable profile document — the private precedents are
+  subcollections (`taste/`, `patterns/`, owner-or-nobody read,
+  admin-SDK write, taken by `deleteAccount`'s recursive delete). So the
+  shape, if built, is fixed by the tree: a two-party, revocable pair
+  record on a denied path under BOTH persons' subtrees, never a
+  profile field, erased with either account. Why this is the owner's — ONE reason: it is a new consent SURFACE
+  naming two people, a mutual-state object the product has never had,
+  the same class of call PEOPLE-MAP §7 reserves for a new presentation
+  of people. Two obligations ride with it rather than being reasons to
+  ask, because D334 keeps them outside the ask as things to COMPLY with,
+  never to escalate: the store forms must be re-answered for a
+  relationship record between two accounts (no declared row fits one;
+  the Sensitive Info row is already Yes for the politics result, so a
+  genetic pairing is a scope change on that row rather than a new
+  category — part of the review AXES-PLAN §4 calls "owed, not assumed";
+  `check:store-forms` holds two files equal to each other, not to the
+  app), and `web/privacy.html` says nothing about relatives, so under
+  D334 that page moves FIRST. Neither is the owner's preference to give. What theory contributes
+  to the decision: (a) the flag has no value until G2 exists — it
+  pairs decomposition magnitudes to genotypes nobody has imported —
+  so the owner call — whether the product ever holds a mutual-state
+  object naming two people — is cheapest asked inside the G2 review, and
+  designing the pair object early costs nothing if the answer is yes; (b) custody tier per
+  cen-6: personal/denied, published only as within-family contrast
+  statistics with their n (gen-11's decomposition), never a per-pair
+  fact; (c) cen-10 this run makes the tie a second UNIT with its own
+  bookkeeping; a first-degree pair is a tie in that unit sense only —
+  ascribed rather than chosen, so tie-5's homophily reading does not
+  cover it — but the CONSENT OBJECT is the same shape, two parties,
+  revocable by either, erased with either account, and designing it once
+  for both is the argument the governed process should hear. Priced
+  honestly: the paired population here is first-degree pairs where BOTH
+  accounts exist, both consent and both have imported — zero today — and
+  AXES-PLAN §4's own arithmetic ("a real correlation of r ≈ 0.1 becomes
+  detectable in the high hundreds of paired users") is the floor for the
+  unpaired case; within-family designs need more, not less, so the value
+  of deciding early is option value, not measurement. If the owner
+  wants the biology ambition's engineering half (gen-14) to ever run
+  on the system's own data, this door opens with G2; if not, the theory
+  carries within-family magnitudes as borrowed from the literature and
+  says so. This one goes to the owner through the digest (§6); nothing
+  is carried to the runbook until it is answered.
+
+- **2026-09-02 · body: recurring one-tap illness micro-report —
+  WORTH-BUILDING, with the item's shape corrected and the consent
+  question placed where D334 puts it.** Product facts, first-hand: a pulse carries
+  EXACTLY five ordered options — the trends chart's y-axis is the 1..5
+  scale, and both `check:content` and `check:quality` refuse fewer ("a
+  3-step pulse would silently draw on the wrong scale") — and a feed question is answered once per person EVER (create-only per
+  (user, question); the D86 edit arm moves `optionIdx`, it does not add
+  a day), so only the pulse surface carries a daily repeat — the
+  request's 2–3-option shape is therefore not buildable as asked, and
+  the buildable item is a five-step pulse ON THE REQUESTED CONSTRUCT,
+  the illness dimension (the sick day is the occasion covariate bod-13
+  needs; a generic body-state scale would not identify it), wording the
+  governed process's, one row in `content/pulse-questions.json`
+  plus `build:content`, template doc seeded once, day-keyed create-only
+  answers `{baseQid}_{day}`, trigger unchanged (D139), velocity ceiling +5 (`VOLUME_CEILING =
+  AGG_BANK_SIZE + PULSE_BANK_SIZE × WINDOW_MAX_DAYS`, and
+  `WINDOW_MAX_DAYS` is 4 under the 72-hour window cap — D139's ×90
+  predates it) — near-zero cost, the path AXES-PLAN §3 itself calls the
+  body axis's cheap frontier ("more pulse questions — body content
+  through the one write"). Store forms: it lands in the Health row
+  D203 already answered YES for `sleep`/`energy` under Apple's "any
+  other user provided health or medical data", Linked because it
+  folds into the same public aggregate — no new category, but the
+  STORE-FORMS.md prose must name it, since `check:store-forms` holds
+  two files equal to each other and not to the app (D203's own
+  lesson). The one open question, and it is NOT the owner's — the lane asked
+  whether it was, and D334 answers no: today NO answer carries a consent
+  gate — D331's consent gates a derived coordinate, never a raw item —
+  so a sickness report would publish like `sleep` does, a public per-day
+  aggregate with the eight-dim anchor breakdown; whether "feeling sick"
+  is Art. 9 health data on a different footing from sleep quality is a
+  consent-in-law question, and D334 puts that OUTSIDE the ask: if the
+  legal reading says yes, the answer is to build the consent, not to ask
+  whether to. The rules already key `consent.political` "so the next
+  special-category ask is a sibling rather than a rename" — one sibling
+  key plus a refusal-to-compute path is the built shape. The legal
+  reading belongs to the governed process's own review, beside AXES-PLAN
+  §4's owed Biotechnology-Act and store-row reviews. The medication-course flag the lane mentions is
+  squarely special-category and is not part of this verdict. Benefit,
+  bounded honestly by bod-13: randomization shows the body→mind
+  channel at pharmacological dose only; naturalistic sick days are the
+  hypothesis it cannot test, and bod-12 shows the trait grain is too
+  small to carry it — so the occasion grain is the only place the
+  reverse limb is measurable at all, and this item is the cheapest
+  possible occasion covariate. What it can be read against, corrected
+  to what the store holds: same-day affect-adjacent answer choices
+  (public), per-question edit RATES (aggregate only, D226), and duel
+  behaviour — NOT response latency (D329 lifted hesitation timing only
+  as bucketed shard counts, and no timing key is built; nothing timed
+  is written on any answer) — and the duel column is empty today (zero
+  plays at the 08-27 scorecard). Publish per bod-3 as the perception
+  channel (feeling sick, never measured infection), population-average
+  within-person coupling only (the sleep verdict's grain), floored at
+  the standing believable-basis figure. Dormant at today's population
+  like every artifact in this queue; cheap now for the same reason. A
+  person carries this to `docs/AXES-RUNBOOK.md` on `main`.
+
+- **2026-09-02 · questions: per-core-question shape-feature table —
+  WORTH-BUILDING, with the raw-feature list corrected against the
+  bank.** Product facts, first-hand: `core` is feed-only and 81 of 184
+  feed questions carry it (vote 64 · duel 6 · dial 5 · field 3 · path
+  3); `tone` and `rates` are DAILY-only fields (130 daily questions;
+  `rates` on 24), so no core question carries either — the committed
+  features a core row can join are `type`, option count, `cat` (a bare
+  topic string on feed, a [Top, Sub] pair on daily), `political`, `bg`
+  presence and `active`/`from`/`until`; `tone` and `cat` survive the flattening under other names — daily
+  `topic` is TONE and `branch`/`sub` is the `cat` path, feed `topic` IS
+  `cat` — so the table may read either file, and should read
+  `content/*.json` for one reason: the generated file's `topic` means
+  different things on daily and feed; there is no `vintage` field
+  — the vintage proxy is `content/provenance.json`'s `batch` date and
+  `source` (editorial · farm · community, D97/D162). Derived features:
+  nothing exists beyond prompt character length and the neighbours
+  gate's token-set Jaccard over a hand-written concept lexicon — no readability index, syllable counter,
+  concreteness norm or moral/out-group dictionary anywhere, and no
+  third-party lexicon is vendored (every gate is "Node stdlib only").
+  So the derived half is where the cost and the one real condition
+  live: a readability index is arithmetic, but a concreteness norm and
+  Brady's and Rathje's dictionaries are third-party data files whose
+  licences the governed process must clear before vendoring, and the
+  script convention means a committed data file, not a package. Cost
+  otherwise low: one script over the committed bank writing one
+  committed JSON, the `content/scorecard.json` precedent exactly,
+  keyed by qid and joinable to the item-parameter row (2026-08-28,
+  still uncarried) — with the scope caveat that the fit's parameters
+  exist only for two-option questions in `PATTERNS_QIDS` (daily plus
+  binary core feed), so dial/field/path/duel rows of this table will
+  join to nothing until a per-type parameter artifact exists; the
+  table should say so per row rather than leave the join silently
+  empty. Benefit: que-3's route toward measured (do this bank's shape
+  features predict its measured discrimination beyond a
+  predict-the-mean baseline, in BEA 2024's form), and the guardrail
+  measured at home — whether the farm's vintages drift against editorial on the
+  moral-emotional and out-group features as splitting is optimized
+  (`community` is a value the provenance vocabulary admits and no row
+  uses today: 185 editorial · 153 farm · 0 community) —
+  the one test of que-3's warmth constraint that the product's own
+  D97/D162 provenance makes possible. Timing, as for the rest of this
+  queue: the FEATURE half is measurable the day it is built (it reads
+  the committed bank); the PREDICTION half is dormant — 38 of 270
+  questions scored and a per-question maximum of 5 answers on the 08-27
+  scorecard — so the regression against measured discrimination waits on
+  the population exactly as the other instruments do. A person carries
+  this to
+  `docs/AXES-RUNBOOK.md` on `main`.
+
+- **2026-09-02 · tests: population cross-axis structure artifact over
+  the 22 flattened test axes — WORTH-BUILDING, cheap, dormant, and
+  folded with the joint-density artifact ruled 09-01.** Product facts,
+  first-hand: the 22 axes are exactly big5 5 · political 6 · values 6 ·
+  attachment 5, flattened as `test:dim` by `flattenAxes`; `testResults`
+  is a field on the world-readable profile doc, so the whole artifact is one `v2_users` scan — a new read shape, since
+  `report-lib` resolves profiles by uid from a roll rather than listing
+  the collection, though the list is legal under the same read grant and
+  `v2_users` is already in its frozen read set; `scripts/report-lib.mjs`
+  already reads `testResults` through anonymous auth with a read
+  counter, and already computes a pairwise association (Cramér's
+  V) over joined per-person data — the machinery and the billed-read
+  discipline both exist. The constants the request tests are real and
+  where it says: `AXIS_PRIOR = 6`, `TYPICAL_AXIS_GAP = 17` (E|X−Y| of
+  two independent N(50,15) draws, 16.93 closed form), `MIN_AXIS_ITEMS
+  = 2` (in `passiveProfile.ts`, applied to EVERY axis before an
+  instrument publishes), `match` printed and `raw` the unprinted sort
+  key (D277). Three corrections, all part of the verdict: (1) six of
+  the 22 axes are consent-gated — the political fold runs only for
+  accounts that affirmatively consented (D331, default OFF) and a
+  published coordinate is purged on withdrawal — so the political rows
+  and columns are missing-not-at-random and the per-pair n the request
+  already asks for is load-bearing, not decoration; the artifact
+  states the political population separately; (2) the sampling design
+  per db-8 is "answered at least two feed items on every axis of that
+  instrument, passively" — not completers, not a sample — and the
+  passive fold refuses an instrument unless every axis clears the
+  floor, which the artifact declares; (3) at today's population (the
+  committed scorecard shows single-digit answer totals) every cell is
+  below any believable-basis floor, so the artifact publishes per-pair
+  n and nothing else until the population exists — an instrument
+  correctly built now, exactly as the 09-01 joint-density verdict
+  reasoned, and it reads the SAME document that artifact reads, so
+  the governed process should build them as one job. The floor is
+  believable-basis reliability, never privacy (the inputs are public
+  profiles under D98). Benefit: tst-1's single named hinge — near-zero
+  local correlations defeat both its arguments, strong ones confirm
+  both — and a direct test of the λ=6 calibration's independence-drawn
+  simulation on shipped data; cen-8's tests slot inherits the same
+  falsifier. A person carries this to `docs/AXES-RUNBOOK.md` on `main`.
+
+- **2026-09-02 · map: binned crowd density over a declared plane,
+  published beside the loadings — NEEDS-OWNER, with the arithmetic
+  D334 asks for.** The request files itself as a bounded new exposure
+  and names the owner call; the product facts confirm it is one.
+  First-hand: the nightly fit already holds every person's K=8 vector
+  server-side at `v2_users/{uid}/patterns/state`, denied both ways by
+  a rule whose reason is the sentence at issue — "a latent vector is a
+  summary nobody signed up to be read AS" — and the loadings doc was
+  designed with "nothing per-person in it" so erasure needs no new arm.
+  PEOPLE-MAP §7 deferred the whole-world map on four reasons; the request answers two by construction — a cell grid has no
+  per-person row (reason 1, erasure) and is O(cells) in the document,
+  though not in the nightly scan (reason 3, size — see the cost) —
+  MEASURES the fourth rather than answering it (the persistent
+  hash-seeded basis removes arbitrary re-rotation, and D325's
+  displacement says how much real drift a nightly grid would show a
+  returning reader), and honestly leaves the second, "publishing a
+  per-person derived summary is in-thesis under D98 but is a new
+  presentation of people — an owner call, with the §5 concern answered
+  again at server scope", where §7 put it. What would be exposed: population-scope counts of person
+  vectors per cell of a declared, cohort-independent plane of the
+  published basis, to any signed-in user, nightly, with cells under a
+  declared floor reported only as suppressed mass and no retained
+  history. Which of the four untouchables it touches: no store-forms row moves
+  (nothing new is collected — the grid is a projection of data already
+  held); no consent-in-law question arises (the cells carry no
+  special-category coordinate, and the political fold's consent gate
+  sits upstream of the vector either way); `web/privacy.html` is the one
+  to check before build, since it describes what the app publishes and
+  moves first if that changes; and none of the three denies — but the `patterns/state` deny's stated reason is
+  exactly what a count-1 cell would contradict — that one person sits
+  THERE — so the floor is not cosmetic; and db-6's reconstruction clause (cited 09-02: too many accurate
+  aggregates reconstruct the database under any disclosure method — the
+  grid-specific reading is this verdict's application, a gap db-6 itself
+  names) says nightly exact grids under a drifting basis compose toward
+  reconstruction, which is why no-history and the floor
+  are conditions, and why the owner is spending a finite disclosure
+  budget, not a zero one. The smallest shape: cells at or above a
+  declared floor, suppressed mass published, no history, plane
+  declared on the doc — with `PATTERNS_QUALITY_FLOOR = 8` the natural
+  floor value (its own docstring is the precedent: a question's daily
+  mean publishes only from eight observations because at n = 1 the
+  mean IS one person's surprisal, "the one number on this doc that
+  cannot be recomputed from public data" — the same custody fact this grid inherits, one step closer: the quality
+  floor protects θ·L, a projection of the denied vector, while a cell
+  count bins the denied vector itself). Note the request's `PEOPLE_MIN_BASIS` is a plan-only name, and the
+  built constant `PEOPLE_MIN_SHARED = 4` floors the DEVICE solve over a
+  fetched sample (used as max(4, 0.32 × fetched)) — the wrong family for
+  a server grid that bins the fit's own θ̂, whose basis is the state's
+  `n`, so `PATTERNS_MIN_BASIS = 8` is the basis constant here, the same
+  figure the cell floor takes. Cost if the owner says yes: NOT zero, and the request's size argument
+  is half right. The fold reads only the day's answerers' vectors
+  (`getUsers` over the ledger day's uids), so a population grid adds a
+  nightly read of every account's `patterns/state` — O(people) reads a
+  night, the half of PEOPLE-MAP §7's size reason a cell grid does NOT
+  answer (the grid bounds the document, not the scan); cheap at a
+  single-digit population and priced honestly as linear in it. The
+  binning itself is a projection plus a histogram at publish time, one
+  more block on the loadings doc.
+  Timing: at today's population every cell is below any floor, so the
+  artifact would publish suppressed mass only — dormant like the rest
+  of the queue. What theory says the number is for: map-1/map-13/map-5
+  can only be tested when the map has a crowd to draw beyond the
+  recency-capped orbit, and cen-1's publication rule (population
+  statistics, never per-person latent draws) is met at the floor and
+  violated below it. Two items of the request ride with the same ruling: the cell-mass
+  displacement series beside the loadings' own (map-3's stability thesis
+  on the crowd — free once the grid exists), and the fold with the tests
+  joint-density artifact, which this run's tests verdict already folds
+  for its own pair; if the owner says yes they are one artifact family,
+  as the request says. One sentence from the owner settles whether a
+  suppressed cell grid over denied vectors is a presentation of people
+  the product makes; the theory is content either way and says which
+  nodes stay untestable if the answer is no. This one goes to the owner
+  through the digest (§6); nothing is carried to the runbook until it is
+  answered.
+
+- **2026-09-02 · pattern: a pairing ledger on the published aggregates
+  — WORTH-BUILDING, with the axis list corrected and the read path
+  priced.** Product facts, first-hand: the `v2_agg_events` ledger
+  carries `uid` + `qid` for every aggregate-feeding answer, and the
+  engagement digest already builds a per-day `byUid → Set<qid>` map in
+  memory with a qid→surface mapping — so per-DAY presence across the ledger's surfaces
+  (daily/feed/test/learn/pulse/call) is already computed for free — with
+  two joins the surface map does not give: catalogue picks ride
+  `surface: "feed"` (type `catalog`) and the nine lenses' 50 items ride
+  `surface: "test"` beside the four instruments', so a per-axis ledger
+  keys on the qid prefix, not the surface, and duels are outside that
+  document by design (the reveal fold owns them); but the ledger TTLs at 90 days and the digest is per-day, so a
+  CUMULATIVE per-person presence across axes cannot come from the
+  ledger and must be read from what persists: one `v2_users` scan (for
+  `testResults`), the `answers` collection group (the replay tool's
+  scan shape, already indexed), and a `following` collection-group scan
+  — two scans no nightly job runs today, priced under the repo's read discipline (`report-lib`'s frozen
+  `REPORT_READ_SET` and read counter, which would need `following`
+  added). A weekly committed artifact through report-lib's
+  anonymous-auth path is the cheap shape; nightly is not needed for a
+  count that moves slowly. The axis list, corrected: the nine lenses
+  have NO server-side result — the folded score lives only in
+  `localStorage` — so a lens pairing count can be over lens ITEMS
+  answered (public), never over lens scores; the genome axis does not
+  exist and its column is absent, not zero; duel participation is
+  countable from public reveals and reads zero today (no plays
+  recorded); follows are one document per edge, world-readable. The
+  Fréchet half: pure arithmetic over published marginal cells, with
+  one product-shaped bound — `foldAnchors` publishes one anchor
+  dimension at a time (dim → bucket → option), so the declared
+  conditioning set X for any pair's interval is a single anchor dim,
+  never an anchor cross; the artifact says which. Two additions from
+  this run's theory: the ledger needs a UNIT column per axis — for the
+  ties axis the paired population is of PAIRS, not persons (cen-10) —
+  and since every input is public or aggregate the ledger has no
+  custody question (a count of people on two public axes is a
+  population-scope fact about public data; cen-6 tier: published).
+  Benefit: cen-2 as revised this run prices crowd value only where
+  axes are co-observed and set-valued elsewhere, and has no number to
+  price it with — this is that number; pat-4's route toward measured;
+  pat-12's allocation arithmetic gets its standing count; and the Fréchet intervals are the honest published object for every pair
+  the product cannot yet point-identify. Dormant in the same sense as
+  the rest of the queue, and differently useful for it: at today's
+  counts (42 answers and zero duel plays on the 08-27 scorecard) the
+  ledger's first reading is STRUCTURAL — which pairs the product can
+  observe jointly at all, and which are zero by construction rather than
+  by thinness — exactly the half pat-4's identification argument needs,
+  and the half that does not wait on a crowd. A person carries this to
+  `docs/AXES-RUNBOOK.md` on `main`.
+
+- **2026-09-02 · database: every published aggregate names its serving
+  design, and a tail aggregate carries a sampled seen-denominator —
+  WORTH-BUILDING, with the write path corrected and the denominator's
+  honest label fixed.** Product facts, first-hand: `core` lives on the committed bank (feed-only; absent means tail) and
+  is carried onto the published question doc (`v2_questions`,
+  world-readable) — but NOT onto the read model at issue:
+  `v2_question_aggs/{qid}` carries `counts`/`total`/`by`/
+  `edits` (or `pos`, or `top`/`rest`) and no `core`, `surface`, policy
+  or version field; four fold arms write it with `merge: false`, and
+  the vote arm deliberately reads no question doc (D139's load-bearing
+  property). So the stamp must NOT be a bank read at fold time (a
+  billed read per answer on the hottest path); the right shape is the
+  `PATTERNS_QIDS` precedent — a compile-time set from the committed
+  bank inside the function bundle, a constant lookup — written on ALL FOUR arms and on `replay.ts`'s three rebuild writes,
+  every one of which is `merge: false` — an arm or a rebuild that omits
+  the key silently deletes it on the next write, and the repair tool is
+  the likeliest place to forget it. The "policy version" half-exists: `v2_rank/{surface}` already
+  publishes `{ day, basis, topics, at }`, with `basis` a literal policy
+  string ("volume desc, landslides sink (D316); ties by seq") written
+  every night, and the tree already stamps a generator version on a
+  record elsewhere (`gv` on logic attempts) — so the governed process
+  mints nothing from scratch: the aggregate can carry `{ serving: "core"
+  | "tail", rankDay, rankBasis }`, pointing at the publish that served
+  it, and the only new work is threading it. The seen-denominator:
+  D271's shards carry seen · answered · passed · deferred per qid as
+  0..4 BUCKET INDICES, one anonymous shard per device per day, folded
+  by bucket midpoints and deleted (fold-and-delete is the channel's
+  promise), into `v2_engagement_daily/{day}.attn` — so a per-question seen figure exists today as a per-day midpoint
+  ESTIMATE with the overflow cell reported and an `ATTENTION_MIN_SEEN =
+  5` refusal, and `SHARD_SAMPLE_RATE = 1`
+  (no sampling yet). The denominator the request wants is a sum of
+  those daily estimates, joined onto the aggregate or published beside
+  it, and it covers only the feed-rendered surfaces (feed, test, learn,
+  call) — the daily, pulses and duels are deliberately outside the
+  attention channel, so their aggregates get a serving stamp and no
+  denominator. Honesty label, part of the verdict: this is neither of
+  db-8's two legal forms of a sampling design (recorded propensities;
+  ignorable covariates) — it is a served/answered ratio per question
+  from bucketed estimates — so it upgrades a tail aggregate from "no
+  design" to "design partially recorded", and the scorecard's existing
+  attention warning ("a skip is not dislike … novelty inflates new
+  questions") travels with it. Cost: small — a constant set, one
+  field on four arms, one join — and it is an aggregate-doc schema
+  change, which db-5 says is a versioned transition: build it together
+  with the fold cursor below as ONE change to the doc's shape, with
+  the version noted, rather than two. Benefit: the first number that
+  says how much personalization bends a tail cell (served vs answered
+  per question per policy), db-8's route toward measured, and cen-7's sampling-design clause gets its first product-side
+  instrument. Timing, as for the queue: the serving stamp is meaningful
+  from the first answer it labels; the denominator is not — the
+  committed trail shows one day with attention data and nothing clearing
+  `ATTENTION_MIN_SEEN = 5` — so a tail aggregate's ratio publishes as
+  null until the population exists. A person carries this to `docs/AXES-RUNBOOK.md` on `main`.
+
+- **2026-09-02 · database: a fold cursor on every read model —
+  WORTH-BUILDING, with the cursor's form corrected so it survives the
+  aggregate's own stated objection.** Product facts, first-hand: two
+  read models already carry a real day cursor — `v2_patterns/loadings.
+  lastDay` (the owed-days loop reads it back) and
+  `v2_engagement_daily/meta.lastDay` — a third rides `v2_meta/app.tasteLastDay`, a fourth is
+  `v2_rank/{surface}.day` (the fold day, "so a device can tell a stale
+  order"), and `v2_question_aggs/{qid}` — the only published read model
+  without one — carries NOTHING: no `at`, no cursor, and the
+  omission is reasoned in the code — "a rewritten `updatedAt` on every
+  answer would wake every client's onSnapshot for a field none of them
+  render." That objection is to a wall-clock stamp, and it decides the
+  form: the cursor on the aggregate must be a LEDGER POSITION — the
+  `at` of the last folded event, or a monotone event count — which
+  changes exactly when the counts change and never on a no-op replay,
+  so it preserves the property the omission protects. Written on all four `merge: false` fold arms and on `replay.ts`'s
+  three rebuild writes, with the serving stamp above, as one versioned
+  change to the doc. What the cursor can and cannot buy,
+  stated so the benefit is not overclaimed: the ledger TTLs at 90 days
+  (`LEDGER_RETENTION_DAYS`, chosen for dedup plus attribution
+  headroom) and the answer doc is uni-temporal (an edit overwrites
+  `optionIdx` in place with `editedAt` on the latest edit only,
+  `answeredAt` and anchors frozen, delete denied), so an as-of replay
+  from the cursor is possible only inside the 90-day window and only
+  from the ledger (`readLedgerDay`), not from `replay.ts`, which
+  rebuilds from the answers as they stand now and carries the `edits`
+  matrix forward because the -old/+new moves are gone; beyond the
+  window the cursor is an identity, not a replay handle — it still
+  says which position a number was published from, which is what db-9
+  needs to separate fold drift from legitimate later edits when read
+  against the standing replay audit (ruled 08-28). Cost: one field on
+  four arms plus the ledger position threaded through the transaction
+  that already writes the ledger row. Benefit: db-9's per-read-model
+  transaction time gets its first shipped instance on the app's
+  most-published read model, and cen-7's sixth clause (the as-of pin,
+  added this run) gets its product-side instrument. A person carries
+  this to `docs/AXES-RUNBOOK.md` on `main`.

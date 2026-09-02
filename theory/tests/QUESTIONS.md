@@ -86,3 +86,14 @@ each answered question with the node ids that answer it.
   re-basing que-8 records for the objective). Either answer shapes
   cen-1's architecture and the joint-density instrument ruled this
   run; one clause in tst-8 would settle it.
+
+- 2026-09-02 · central: tie-2 (argued) reads the duel guess as a
+  second-person measurement graded against a key — after logic, the
+  second keyed thing in the product — and tie-7 (conjecture) reads the
+  Oracle's surprisal grade and Foresight READ as the same measurement at
+  crowd scale. cen-8 now places ties beside tests on exactly that
+  keyed-channel ground. Where does a person's reading ability live in
+  tst-1's joint model: a second keyed ability dimension with tst-3's
+  ability link function, a person-level component of a tie-level model
+  (tie-2's perceiver effect), or both — and does the answer turn tst-3's
+  "two item families" into three?

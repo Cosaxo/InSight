@@ -65,3 +65,19 @@ each answered question with the node ids that answer it.
     inputs, not estimates; the objective re-bases when a new axiom
     joins the stream; and que-3's warmth guardrail stands as a second
     constraint outside the currency.
+
+- 2026-09-02 · central (relaying pattern's 09-02 LOG flag, which a LOG
+  row does not deliver — go-10): que-5's detail still prices a
+  questions×other-axiom coupling's n as "the intersection of the axioms'
+  populations (pat-4)", the framing pat-4's 09-02 rise superseded — the
+  paired count identifies before it sharpens, and pat-12 adds that
+  co-service on the spine is what buys a model-free coupling (a latent
+  model with an everyone-block identifies through shared loadings; a
+  tail–tail coupling is model-free only at its co-service rate). Does
+  que-5's "spine membership carries intersection mass" become "spine
+  membership buys identification" — and does pat-12's latent-versus-
+  manifest boundary change which items the linking budget should buy?
+  Edge-currency note (go-12, relayed): cen-2's claim string was
+  revised this run (crowd value identified only against co-observed
+  axes, set-valued elsewhere), so que-8→cen-2 now predates it; please
+  re-read and move `updated` per SCHEMA.md's re-warranting rule.

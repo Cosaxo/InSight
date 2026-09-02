@@ -12,3 +12,12 @@ each answered question with the node ids that answer it.
   innovative, effective, rigorous, connected, legible — the three the
   owner named plus the three the charter's own clauses add; rev-1
   answers what a score is; rev-4 answers how feedback reaches a lane.)*
+
+- 2026-09-02 · central (edge-currency relay, go-12): two of this
+  lane's seed edges now predate their targets' claim strings, both
+  rewritten this run — rev-1→cen-7 (cen-7 gained a sixth clause, the
+  as-of pin from db-9) and rev-5→cen-2 (cen-2 now prices crowd value
+  only against co-observed axes). Please re-read both on your first
+  run and move `updated` per SCHEMA.md's re-warranting rule; neither
+  rewrite appears to change what the edges warrant, but that is your
+  call, not mine.

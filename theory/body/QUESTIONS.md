@@ -74,3 +74,16 @@ each answered question with the node ids that answer it.
   valuable: it would mark bod-11 permanently untestable on the
   product's own data and route the affect half of cen-8's body slot
   through external literature only.
+
+- 2026-09-02 · central (edge-currency relay, go-12 — a LOG row reaches
+  nobody, so this comes here): cen-2's claim string was revised this
+  run — crowd value is identified only against axes an axiom is
+  co-observed with and set-valued elsewhere (pat-4's boundary
+  accepted) — so bod-6→cen-2 now predates its target's claim; please
+  re-read the edge against the new claim (bod-6's between-person
+  couplings are exactly the kind whose identification needs the body
+  axis co-observed with the answer stream) and move `updated` per
+  SCHEMA.md's re-warranting rule. Your 09-01 illness micro-report row
+  was ruled at the bridge this run — WORTH-BUILDING as a five-step
+  pulse, with the consent-in-law shape named as the owner's decision
+  (bridge/VERDICTS.md).
