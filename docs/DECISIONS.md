@@ -36342,3 +36342,83 @@ The plan restated it and asked twelve questions; the answers:
 in both directions); `check:figures` green; `test:scripts` green. The
 contracts carry no counts a gate would have to hold — every figure in
 them is recomputed by the lane that quotes it, the runbook's own rule.
+
+## D353 · The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward
+
+**2026-09-02.** **Status:** binding — the owner's sentence, on the
+seventh numbered standalone: *"new visual should be added as the new
+visual vision until i update it with new visuals. also map the new
+functonality in this and plan how to implement it."* Written on
+`claude/new-visual-vision-mapping-ealrob`; `main` mints numbers while a
+branch is open, so the standing collision pattern (D289) may renumber
+this at merge — the documents cite it by date where they can.
+
+### What this amends
+
+D352 gave `docs/VISUAL-VISION.md` one path to move: a request in
+`VISUAL-REQUESTS.md` crossed out as `built`. The owner's uploads are the
+other path, and they always were — every row in that page's lineage
+arrived as an `InSight_N.html` drop, none through a request. This
+record writes the second path down: **an owner upload is a vision
+without a request.** It is extracted under `design/` with a README in
+the family's shape, measured against the tree in a `VISION-<date>.md`,
+and named the current vision in the same PR, until the next upload. A
+design that arrives this way closes whichever requests it happens to
+draw and reopens the plan of any whose surface it redraws — request 1
+(trait-axis directions *in the plane*) is the first, because this
+design's Map is a ring.
+
+### What the mapping found
+
+`InSight_7.html` ships **compiled JSX** — one 2 MB bundle of 114
+modules, Babel's output for the 61 components, plain source for the 53
+data modules — and no `.jsx` at all. The diff was made exact rather
+than approximate: the latest recorded state of every component (v18 +
+v28 patches + the six extractions + two READMEs' recorded hunks) was
+compiled with the same preset and compared by byte, and three untouched
+08-26 files compile identical to the bundle's builds, which is the
+proof the method needed. Against that baseline **94 of 114 modules are
+unchanged** and ten more differ only by hunks already recorded in
+prose. **Ten modules, three stylesheets, one new stylesheet and one
+new font moved**, as four moves: the three Patterns lenses on one round
+dusk instrument (`lens.css`) with the Map redrawn as a **ring**, the
+Oracle in the field and the People lens coloured by agreement; a serif
+voice (Spectral, `--serif`) for every prompt a person answers; the
+two-option ballot split into one block whose seam moves to the crowd's
+split, on the daily and the feed; and four smaller passes (the Mirror's
+answer rows in the topic hue, a quieter Crossroads tree, the paid door's
+rate rows with the pricing law as tokens, the catalog window's polish).
+`design/standalone-2026-09-02/README.md` is the inventory;
+`docs/VISION-2026-09-02.md` is the plan, every item measured against
+the file it lands in.
+
+### What is decided, and what is not
+
+- **The ring is adopted as drawn.** It says less than the plane it
+  replaces — position stops meaning similarity, only the chords carry
+  it — and that is the owner's trade to make; the port owes the honesty,
+  not a veto: the D310 basis line *"close together = answers that
+  predict each other"* goes, the design's own sentence replaces it, and
+  the tie card keeps its bounded-sample wording. `VISION-2026-09-02.md`
+  §1.2 has the arithmetic.
+- **Nothing here needs a new read, a rules change or a collection**, so
+  the build is six worklist lines tagged `[claude-3]` (§7 there) and one
+  `[claude-2]` re-plan of request 1.
+- **The two open owner decisions stay open and now stand on
+  `OWNER-LIST.md`**: anonymous answers and private results
+  (VISION-2026-08-26 §1) and the seat-split subscription price (§2.2).
+  This design draws both and decides neither; the catalog window still
+  waits on the second.
+- **The accent handback of D310 §4.5 does not reverse.** The upload's
+  `page.css` carries the dusk override again, but the new field is drawn
+  in absolute hue-282 tokens and is dusk whatever the tab wears; judge
+  the sienna chrome over it at a screen.
+
+### What this PR builds
+
+The extraction (`design/standalone-2026-09-02/`: seven modules whole,
+four patches whose left side is the compiled recorded state, `lens.css`
+and `patterns.css`, the README), the plan, the vision page moved with
+its lineage row and the second path written into its last section,
+`design/README.md`'s series paragraph, the `ORIENTATION.md` row, two
+owner-list rows, seven worklist lines and the note on request 1.

@@ -10,28 +10,41 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-08-26 standalone
+## The current vision — the 2026-09-02 standalone
 
-- **Source:** the owner's `InSight_4.html` upload of 2026-08-26,
-  extracted to `design/standalone-2026-08-26/` (its README is the
-  inventory: every file, where it lands, and the nine patches recorded
-  as diffs).
-- **The plan built on it:** `VISION-2026-08-26.md` — every item
-  measured against the tree with its backend half named.
-- **What it changed over the 2026-08-24 design:** anonymous answers and
-  private test results (the first design to amend D98 itself);
-  co-funded subscription seats with a read-only catalog window (the
-  shop window); the Oracle's "working" — the sealed call rebuilt in
-  the open; a Patterns and person-overlay polish pass (lens swaps slide
-  from the side you moved toward, the beacon becomes a tap target, the
-  People lens' selected person wears their dot's hue); the instruments
-  turned toward one person (`role-data.js`).
-- **Built from it:** the client passes at D310 — the Oracle's working,
-  the Patterns polish, Play together, the feed's participation pass, a
-  still-render crash fix. The two big halves wait on their owner
-  decisions (anonymous answers + private results; the co-funded seats
-  and catalog window).
-- **Requests it closed:** none — the request list starts 2026-09-02.
+- **Source:** the owner's `InSight_7.html` upload of 2026-09-02,
+  extracted to `design/standalone-2026-09-02/` (its README is the
+  inventory: the ten modules and four stylesheets that moved, the four
+  patches, the unchanged list — and the one thing this upload does
+  differently: it ships compiled JSX, so the README carries the recipe
+  that makes the diff exact). Made the vision on the owner's sentence
+  of that day — *"new visual should be added as the new visual vision
+  until i update it with new visuals"* (D353) — not through a request.
+- **The plan built on it:** `VISION-2026-09-02.md` — every item
+  measured against the tree with its backend half named, §7 the build
+  order as worklist lines, §8 the gate per step.
+- **What it changed over the 2026-08-26 design:** the three Patterns
+  lenses become **one instrument** — a round dusk field in a light card,
+  a title and one plain sentence above, a legend in words below
+  (`lens.css`); the Map is redrawn as a **ring** (questions on a rim by
+  topic, ties as chords — position stops meaning similarity, and the
+  basis lines change with it), the Oracle moves into the field (the two
+  options are its halves, the verdict is said in words), the People lens
+  colours every dot by agreement in three steps and names the five most
+  like you; the shell gains a meta line, a topic select and a swipe axis
+  that runs off the far end into the daily. **Every prompt a person
+  answers gets a serif voice** (Spectral, `--serif`). **The two-option
+  ballot splits** into one block with a hairline seam that moves to the
+  crowd's split, on the daily and on every feed card. Smaller: topic-hued
+  answer rows in the Mirror's Answers lens, a quieter Crossroads tree,
+  the paid door's rate rows with the pricing law as scannable tokens, the
+  catalog window's polish (still waiting on its owner decision), the tab
+  bar's buttons losing weight.
+- **Built from it:** nothing yet — `VISION-2026-09-02.md` §7 is the
+  order, on `WORKLIST.md` tagged `[claude-3]`.
+- **Requests it closed:** none. It **reopens the plan for request 1**
+  (trait-axis directions on the Map), which was written against the
+  plane the ring retires.
 
 ## The lineage
 
@@ -42,7 +55,8 @@ it is moving toward.
 | 2026-08-20 | `design/standalone-2026-08-20/` | the Patterns tab whole — People lens, Map and Oracle redesigns, population chips | D214–D216 |
 | 2026-08-22 | `design/standalone-2026-08-22/` | the paid question report | D251 |
 | 2026-08-24 | `design/standalone-2026-08-24/` | the suggestion board becomes the paid door; the buyer's room; locals and visitors | `VISION-2026-08-24.md`, D287–D288 |
-| **2026-08-26** | `design/standalone-2026-08-26/` | **the current vision** — above | `VISION-2026-08-26.md`, D310 |
+| 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
+| **2026-09-02** | `design/standalone-2026-09-02/` | **the current vision** — above | `VISION-2026-09-02.md`, D353 |
 
 ## How the next one arrives
 
@@ -53,3 +67,12 @@ request is crossed out as `built`, this page's *current vision* moves
 to that design, the lineage gains a row, and the one before keeps its
 row. A design that is drafted and never accepted is not a vision and
 gets no row.
+
+**The owner's own upload moves it too** (D353, 2026-09-02). A new
+standalone the owner drops — the `InSight_N.html` series — is a vision
+without a request: it is extracted under `design/` with a README in the
+family's shape, measured against the tree in a `VISION-<date>.md`, and
+named here as the current vision in the same PR, until the owner
+uploads the next one. The requests list keeps its own path; a design
+that arrives this way closes whichever requests it happens to draw and
+reopens the plan of any it redraws the surface of.

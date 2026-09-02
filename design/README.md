@@ -31,8 +31,9 @@ its population chips at D216 — the Patterns tab ported whole
 its port and lists the behaviours the ports refused). Same rule again:
 it does not re-point this file.
 
-**Three more followed in the same numbered series** (`InSight_2`,
-`InSight_3`, `InSight_4`): the **2026-08-22** upload carried the paid
+**Four more followed in the same numbered series** (`InSight_2`,
+`InSight_3`, `InSight_4`, `InSight_7` — five and six were never
+uploaded here): the **2026-08-22** upload carried the paid
 question report's design, extracted to `standalone-2026-08-22/` and
 implemented by the report builder (D251); the **2026-08-24** upload
 turns the suggestion board into the paid door, adds the buyer's room,
@@ -44,7 +45,15 @@ smaller moves — extracted to `standalone-2026-08-24/`, with the plan at
 with a read-only catalog window, the Oracle's "working", and a
 Patterns/person-overlay polish pass — extracted to
 `standalone-2026-08-26/`, with the plan at
-[`docs/VISION-2026-08-26.md`](../docs/VISION-2026-08-26.md). Each
+[`docs/VISION-2026-08-26.md`](../docs/VISION-2026-08-26.md); the
+**2026-09-02** upload puts the three Patterns lenses on one round dusk
+instrument with the Map redrawn as a ring, gives every prompt a serif
+voice, splits the two-option ballot into one block with a seam, and
+makes four smaller passes — extracted to `standalone-2026-09-02/`
+(**compiled JSX, not source** — that upload ships only its bundle, and
+the README carries the recipe that makes the diff exact), with the plan
+at [`docs/VISION-2026-09-02.md`](../docs/VISION-2026-09-02.md);
+`docs/VISUAL-VISION.md` names it the current vision (D353). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

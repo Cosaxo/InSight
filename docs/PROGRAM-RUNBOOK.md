@@ -375,12 +375,13 @@ highest-leverage item).
 ### `docs/VISUAL-VISION.md` — the design the tree is built toward
 
 Status: *tree.* One page: the newest Claude Design output (today:
-`design/standalone-2026-08-26/`, the 08-26 upload, with its README as
-the inventory and `VISION-2026-08-26.md` as the plan), what it changed
+`design/standalone-2026-09-02/`, the 09-02 upload, with its README as
+the inventory and `VISION-2026-09-02.md` as the plan), what it changed
 over the one before, which requests it closed, and the line that it
 does not re-point `design/README.md`'s style-diff reference (v18 stays
 until a full sync — that file's rule). Upgraded in the PR that crosses
-a request out.
+a request out — or in the PR that extracts the owner's next upload,
+which moves it without a request (D353).
 
 ---
 

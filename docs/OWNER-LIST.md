@@ -19,6 +19,8 @@ by hand, 2026-09-02.
 - [ ] **One landslide predicate or two** — `rank.ts` sinks a question at a raw top share; the scorecard's retire proposal grades on evenness; they disagree both ways, and making them one changes what the feed serves. *Source:* D349 § Two things that are the owner's call.
 - [ ] **The functions coverage scope** — whether `paid.ts` or the moderation queue belongs in `functions/vitest.config.ts`'s coverage now that the pre-D98 reason for the old scope is gone. *Source:* D349 § One open question.
 - [ ] **Adoption per earned axis** — a corner door exists only behind a crossed gate; adopting one is a record citing D265's shape. Waits on an axis earning it. *Source:* `AXES-RUNBOOK.md` 5.2.
+- [ ] **Anonymous answers and private test results** — the first amendment D98 would notice: does the option exist, on which surfaces (the design draws it on the feed and the daily's world card, never duels), and what may the account panel promise. The surface-value shape and the rejected field shape are written in `VISION-2026-08-26.md` §1; the 2026-09-02 design still draws the toggle. *Source:* D310; `VISION-2026-09-02.md` §6.
+- [ ] **The subscription price — a split across seats, or a per-buyer price** — the catalog window prints the answer, so the window (`design/standalone-2026-09-02/catalog-sheet.jsx`, polished again in the 2026-09-02 upload) waits on it, and with it the seat and pledge records. *Source:* `VISION-2026-08-26.md` §2.2; `VISION-2026-09-02.md` §4.2.
 
 ## Clicks
 

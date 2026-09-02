@@ -65,6 +65,14 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 - **why** — *"the axes exist to be connected"* (charter §1); AXES-PLAN
   §2: "That is the owner's sentence, drawn, on data that publishes
   today."
+- **note (2026-09-02)** — the vision moved to the 2026-09-02 standalone,
+  whose Map is a **ring**: questions on a rim grouped by topic, ties as
+  chords, position no longer a claim about similarity
+  (`VISUAL-VISION.md`; `VISION-2026-09-02.md` §1.2). The plane this
+  request draws its directions *in* is retired with it. The plan step
+  re-aims the request against the ring — an axis as a band on the rim,
+  or a family of chords that lean with it — before anything is drafted;
+  the data, the states and the basis rule above stand.
 - **status** — `requested`.
 
 ### 2 · The corner doors for earned axes
