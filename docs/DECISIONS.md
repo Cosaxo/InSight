@@ -36235,3 +36235,110 @@ The 1-in-20 audit is where the source claims get read by a person. The
 prompt checks that its section exists on `origin/main` before doing
 anything, so a firing before this record merges is a logged no-op
 rather than an improvisation.
+
+## D352 · The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended
+
+**2026-09-02.** **Status:** binding — the owner's answers of this day,
+quoted below, adopting `docs/PROGRAM-PLAN.md` (its §10 holds every
+answer) and licensing `docs/PROGRAM-RUNBOOK.md` as the contract the
+new lanes defer to. Written on
+`claude/automated-subscription-routines-e1k120`; `main` mints numbers
+while a branch is open and two other open branches claim this number
+today, so the standing collision pattern (D289) will renumber at merge
+— the prompts in the runbook cite sections, never this number, for
+exactly that reason.
+
+### The ask, and the answers that bind
+
+*"i want to create a more automated system based on routines between
+the 3 different claude subscriptions. the goal is that i should almost
+only work on lists and monitoring data i can see."* Six lists — what
+can be merged, the to-do list, the permission list, the owner's own
+list, the axiom list, the visual request list — a to-do doer on every
+subscription, a shift that works only on approved pull requests, the
+axiom theory routines on this subscription too, an **axiom builder**
+that opens pull requests toward what the theory envisions, a rule
+every session sees, and monitoring with a routine for improving it.
+The plan restated it and asked twelve questions; the answers:
+
+1. The theory lanes get a second set here, *"opposite days"* — every
+   lane fires daily once phase 4 lands.
+2. *"a second label called approved sounds like the way and it should
+   be done by ticking a box in the list file"*, and on the runbook's
+   rule that no lane applies `merge-when-green`: *"this is wrong, the
+   shepherd can."* The tick in `MERGE-LIST.md` is the owner's act; the
+   console workflow mirrors it to the label `approved`; the merge
+   shift applies `merge-when-green` when the PR is green on its
+   current head and reviewed as one diff; the PR shepherd merges under
+   its five steps unchanged.
+3. A to-do doer on Claude 1 and Claude 3 as well, and *"they have to
+   work together the best they can"* — the tag rule.
+4. The rule's boundary: *"as long as they dont limit functionality
+   then it has to be approved that it can be blocked because of a
+   limit."* Nothing blocks axiom functionality on its own; a block
+   goes to the owner first and needs their approval.
+5. The console: *"its an artifact but we need a system that works
+   across all sessions"* — the data lives in the repository, the
+   charted artifact is republished from it.
+6. Visuals: *"a routine can draft it for me as long as it first makes
+   the plan then uses claude design."*
+7. *"the axiom builder is fine."*
+8. The axiom list as a switch: *"yeah when status shifts it can start
+   building."*
+9. Three builder runs a day, at most three open builder PRs, bridge
+   verdicts first: *"yeah sounds correct."*
+10. *"there should be a common file where all the routines are listed
+    and described"* — the register, `docs/ROUTINES.md`, gains a plain
+    description per routine when it is on `main`; the ops lanes are on
+    Claude 2 and the four missing ones are being created there.
+11. *"a routine health panel and routine overview list would be good."*
+12. Branches that never became a PR on the merge list, as `no PR yet`
+    rows: *"agree with your suggestion."*
+
+### What this PR builds (runbook phase 1)
+
+- `CLAUDE.md`: the **axiom power first** paragraph in the privacy
+  section, with the owner's boundary sentence quoted; two house-style
+  bullets — visuals are designed in Claude Design before they are
+  built (small controls exempt), and the six lists are how the owner
+  runs the program.
+- The six list files, each with its `ORIENTATION.md` row and its own
+  Status line: `MERGE-LIST.md` (seeded with the open PRs of the
+  morning, the five already labelled `merge-when-green` ticked as
+  `ready`), `WORKLIST.md` extended with the tag rule and every open
+  item tagged, `PERMISSIONS.md`, `OWNER-LIST.md` (decisions, clicks,
+  designs, approvals, store and legal), `AXIOMS.md` (operational,
+  explored, proposed, and the licence table), `VISUAL-REQUESTS.md`
+  (three requests written in the shape Claude Design needs) and
+  `VISUAL-VISION.md` (the 2026-08-26 standalone as the current vision,
+  and the lineage).
+- `OPS-RUNBOOK.md` §0: the label has two hands — the owner's, or the
+  merge shift's on a PR the owner approved; no other lane. § The list
+  worker: the tag paragraph, one item in flight per account, and the
+  per-run rule scoped to the account's tag. The Claude 2 list worker's
+  Routine is untouched: its prompt re-reads the section every run.
+- `PROGRAM-PLAN.md` §10 and the runbook's phase 1 boxes; both Status
+  lines to *mixed*.
+
+### What it deliberately does not change
+
+- **No lane merges on its own judgement.** The tick is the decision,
+  the shift executes, the shepherd merges under the five steps that
+  keep it the owner's. D289's tier stands; D276 is still the reason.
+- **Nothing outside the ask moves by a routine.** A consent
+  requirement in law is met by building the consent (D8, D330, D331),
+  D1 holds, the three denies stand at their paths; the privacy page
+  and the store forms move only with the feature they describe, page
+  first (D183). The new rule sharpens D334's *ask* into *never a stop*
+  and leaves its four exceptions where they were.
+- **Nothing account-side exists yet.** Phases 2–6 of the runbook —
+  the console workflow, the Routines on this account, the second
+  theory set, the other accounts' halves — are open boxes with their
+  gates, and this record does not pretend otherwise.
+
+### What proves it
+
+`check:docs` green with the six new rows and both Status flips (rule 7
+in both directions); `check:figures` green; `test:scripts` green. The
+contracts carry no counts a gate would have to hold — every figure in
+them is recomputed by the lane that quotes it, the runbook's own rule.

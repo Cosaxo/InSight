@@ -10,9 +10,9 @@
 > Same split as `AXES-PLAN.md` / `AXES-RUNBOOK.md`, for the same
 > reason.
 
-**Status: plan only — none of these steps is done and none of these
-Routines exists.** Written 2026-09-02 from the owner's answers of that
-day (`PROGRAM-PLAN.md` §10). When a step is done its box is ticked
+**Status: mixed — phase 1 is done (D352, 2026-09-02); phases 2–6 are
+open and none of the Routines exists.** Written 2026-09-02 from the
+owner's answers of that day (`PROGRAM-PLAN.md` §10). When a step is done its box is ticked
 with the PR that did it; when a Routine is created its row in
 § The account-side inventory gets the trigger id and this line flips
 to *mixed* together with `ORIENTATION.md` §4's row — the convention
@@ -95,7 +95,7 @@ log** like the list worker they are.
 
 ## Phase 1 — the rule, the lists, the amendments (one PR, docs only)
 
-- [ ] **1.1 `CLAUDE.md` gains three house-style bullets.** *Axiom
+- [x] **1.1 `CLAUDE.md` gains three house-style bullets.** *DONE 2026-09-02 (D352).* *Axiom
       power first* (the paragraph in `PROGRAM-PLAN.md` §3, with the
       owner's boundary: nothing blocks axiom functionality on its
       own, a block needs the owner's approval first); *visuals are
@@ -106,11 +106,11 @@ log** like the list worker they are.
       opening or a run-log line the console folds). · **Gate:**
       `check:docs` (rule 6 holds every path the bullets name).
       · **Size:** S.
-- [ ] **1.2 The six list files, seeded**, each with its
+- [x] **1.2 The six list files, seeded** *DONE 2026-09-02 (D352).*, each with its
       `ORIENTATION.md` row and its own Status line — § The list files
       below has every seed. `WORKLIST.md` is extended, not replaced.
       · **Gate:** `check:docs`, `check:figures`. · **Size:** S.
-- [ ] **1.3 `OPS-RUNBOOK.md` amended in two places.** §0's label
+- [x] **1.3 `OPS-RUNBOOK.md` amended in two places.** *DONE 2026-09-02 (D352).* §0's label
       bullet: *the label is the owner's act, executed either by the
       owner or by the merge shift on a PR the owner approved; no other
       lane applies it.* § The list worker: the tag rule from § The
@@ -118,7 +118,7 @@ log** like the list worker they are.
       per account. · **Gate:** `check:docs`; the list worker's live
       prompt still matches its §4 block (the rule is in the contract,
       not the prompt). · **Size:** S.
-- [ ] **1.4 The decision record.** One `DECISIONS.md` record, *Status:
+- [x] **1.4 The decision record.** *DONE 2026-09-02 (D352).* One `DECISIONS.md` record, *Status:
       binding*, quoting the owner's 2026-09-02 answers: the program
       adopted; the amendment to `OPS-RUNBOOK.md` §0; the axiom list as
       the builder's switch; the tick as the owner's act; the second
@@ -127,7 +127,7 @@ log** like the list worker they are.
       on the branch's base; the standing collision pattern (D289) may
       renumber it at merge. · **Gate:** `check:docs` rule 10.
       · **Size:** S.
-- [ ] **1.5 `PROGRAM-PLAN.md` §9 marked answered, §10 the answers.**
+- [x] **1.5 `PROGRAM-PLAN.md` §9 marked answered, §10 the answers.** *DONE 2026-09-02 (D352).*
       Done in the same PR as this file. · **Gate:** `check:docs`.
 
 ## Phase 2 — the console workflow (one PR, scripts and one workflow)

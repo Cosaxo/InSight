@@ -1,14 +1,16 @@
 # The program plan — six lists, three subscriptions, and the routines between them
 
-**Status: plan only — nothing here is built, and nothing here binds.**
-Written 2026-09-02 from the owner's ask of that day, on the third
-subscription (the one the routine register's §4 found running nothing).
+**Status: mixed — adopted 2026-09-02 (D352); the rule, the six lists
+and the contract amendments are built (`PROGRAM-RUNBOOK.md` phase 1),
+the lanes and the console are not yet.** Written 2026-09-02 from the
+owner's ask of that day, on the third subscription (the one the routine
+register's §4 found running nothing).
 This page does three things: it restates the ask against what the
 tree and the three accounts actually run today, it proposes one
 mechanism for every piece, and it ends with the questions the owner
-answers before any of it is built. Adoption is the owner's word, in a
-`DECISIONS.md` record; until then every "the X does Y" below reads as
-"the X would do Y".
+answers before any of it is built. Adoption was the owner's word, in
+D352; where a mechanism is not built yet, "the X does Y" below reads
+as "the X will do Y" — the runbook's boxes say which.
 
 > **Reasoning that already exists is cited, not repeated.**
 > `AXES-PLAN.md` §10 is the argument for lanes that report to a log,
