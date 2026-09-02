@@ -86,7 +86,15 @@ async function ghAll(path) {
 }
 
 async function readGithub(missing) {
-  const g = { ok: false, error: null, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
+  // `ok` says the FIRST call answered, which is all it can say: it is set
+  // below as soon as the open-PR list arrives. Every call after it can
+  // still fail, and two of them fail SILENTLY — a branch whose compare
+  // errored is dropped by the same `continue` as a branch that is simply
+  // not ahead, and a failed closed-PR page yields an empty merged list.
+  // The merge list is then regenerated from the short set and the missing
+  // rows are deleted, taking the owner's tick with them. So the write
+  // guard needs a stronger fact than "GitHub answered once".
+  const g = { ok: false, rowsComplete: true, mergedOk: true, error: null, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
   const step = async (name, fn) => { try { return await fn(); } catch (e) { missing.push(`${name} (${e.message.split("\n")[0].slice(0, 80)})`); return null; } };
   const prs = await step("open PRs", () => ghAll(`/repos/${REPO}/pulls?state=open&base=main`));
   if (prs === null) { g.error = missing[missing.length - 1]; return g; }
@@ -106,17 +114,22 @@ async function readGithub(missing) {
   }
   const openHeads = new Set(prs.map((p) => p.head.ref));
   const branches = await step("branches", () => ghAll(`/repos/${REPO}/branches`));
+  if (branches === null) g.rowsComplete = false;
   for (const b of branches || []) {
     if (!isNoPrBranch(b.name) || openHeads.has(b.name)) continue;
     // The branch name goes in raw: the compare route takes `base...head` as one
     // path segment and reads a slash inside a branch name correctly, while an
     // encoded slash is a different string to it.
     const cmp = await step(`compare ${b.name}`, () => gh(`/repos/${REPO}/compare/main...${b.name}`));
-    if (!cmp || !cmp.ahead_by) continue;
+    // A FAILED compare is not "not ahead". Both used to `continue` here,
+    // so a transient error deleted that branch's row from the next render.
+    if (cmp === null) { g.rowsComplete = false; continue; }
+    if (!cmp.ahead_by) continue;
     const last = cmp.commits?.[cmp.commits.length - 1];
     g.branches.push({ name: b.name, aheadBy: cmp.ahead_by, lastCommitAt: last?.commit?.committer?.date || null, commits: (cmp.commits || []).map((c) => c.commit.message.split("\n")[0]) });
   }
   const closed = await step("merged PRs", () => gh(`/repos/${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=60&base=main`));
+  if (closed === null) g.mergedOk = false;
   const weekAgo = new Date(Date.now() - 7 * 86400e3).toISOString();
   g.merged = (closed || []).filter((p) => p.merged_at && p.merged_at > weekAgo).map((p) => ({ number: p.number, title: p.title, merged_at: p.merged_at, merged_by: p.merged_by?.login }));
   const issues = await step("issues", () => ghAll(`/repos/${REPO}/issues?state=open`));
@@ -283,10 +296,16 @@ async function main() {
 
   // The list: only when GitHub answered — a render from nothing would erase
   // the owner's ticks with an empty page.
-  if (state.github.ok) {
+  // …and only when it answered COMPLETELY. `ok` is set by the first call
+  // alone, so a partial failure used to regenerate this file from a short
+  // set of rows — which is the same erasure the line above refuses, just
+  // arriving through a half-answer instead of a silent one. A tick the
+  // owner put on a row is the row's only record of their decision.
+  if (state.github.ok && state.github.rowsComplete && state.github.mergedOk) {
     writeFileSync(MERGE_LIST, renderMergeList({ rows: state.rows, merged: state.merged, generatedAt: state.generatedAt }));
     log("wrote docs/MERGE-LIST.md");
-  } else log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
+  } else if (!state.github.ok) log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
+  else log(`left docs/MERGE-LIST.md untouched — GitHub answered in part only (${state.missing.join("; ")})`);
 
   // The owner list's folded blocks.
   const ownerText = read("docs/OWNER-LIST.md");
@@ -312,7 +331,7 @@ async function main() {
   writeFileSync(TRAIL, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
   log(`trail row for ${state.today}`);
 
-  if (REFRESH && TOKEN && state.github.ok) {
+  if (REFRESH && TOKEN && state.github.ok && state.github.rowsComplete && state.github.mergedOk) {
     await upsertIssue(state, renderConsole(state, state.priorIssueBody), log);
   } else if (REFRESH) log("no token or GitHub unreachable — the Console issue was not rewritten");
   if (state.missing.length) log(`sources that did not answer: ${state.missing.join("; ")}`);
