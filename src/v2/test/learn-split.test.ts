@@ -35,7 +35,7 @@ interface LearnCard {
   p: number;
   a: string[];
 }
-// `W.LIVE = {…}` is the seam these cases drive, and since D353 it installs
+// `W.LIVE = {…}` is the seam these cases drive, and since D354 it installs
 // the stand-in's members ONTO the imported store singleton rather than
 // assigning a second object to `window.LIVE`: learn-data.js imports the
 // binding now, so an object on the global would reach nobody and every
@@ -232,7 +232,7 @@ describe("LEARN_COUNTS folds in the answer the trigger has not caught yet", () =
     // This case used to justify a defensive `L.learnMine ? … : null` read
     // with "an older shell is a real deployment" — but the store and the
     // spec layer ship in one bundle, so there is no version to skew, and
-    // D353 dropped the guard with the bridge read. What the case pins now
+    // D354 dropped the guard with the bridge read. What the case pins now
     // is the honest version of the same sentence: a stand-in that omits
     // `learnMine` leaves the REAL member in place, and the un-booted store
     // has recorded no first try, so it answers null and adds nothing.

@@ -21,7 +21,7 @@ const BANK = [
 
 // A fresh module registry per case, and the stand-in defined ONTO the
 // fresh store singleton rather than assigned to `window.LIVE`:
-// daily-questions.js imports the binding (D353), so a second object on the
+// daily-questions.js imports the binding (D354), so a second object on the
 // global would reach nobody (test/live-fixture.ts's header). `ready` is a
 // getter on the store's literal, hence defineProperty rather than
 // assignment — and the un-booted singleton is inert, so no case here

@@ -12,7 +12,7 @@ import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
 // The store, through the module rather than through `window` — D39's
 // ratchet only moves down, so coupling arrives as an import. Every read in
-// this file goes through this binding since the LIVE conversion (D353).
+// this file goes through this binding since the LIVE conversion (D354).
 // The `window.LIVE &&` existence guards went with it, because an imported
 // binding cannot be unset; the DATA conditions beside them (`.enabled`,
 // `.ready`, `.demoInProd`, `.feedReady`) stayed, because those can still
@@ -20,7 +20,7 @@ import { Sheet } from './primitives.jsx';
 // because the surface pin in data/vote.test.ts holds every one of those
 // methods on the store's literal.
 import LIVE from '../data/live';
-// D353's sweep. WORLD_TOPICS was a module-scope `window.` read with a
+// D354's sweep. WORLD_TOPICS was a module-scope `window.` read with a
 // five-entry fallback — the fragility src/v2/README.md's feed paragraph
 // names ("deferring world-feed-data swaps the real topic set for the
 // fallback, silently"); the import makes the order a graph guarantee and

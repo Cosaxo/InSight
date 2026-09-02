@@ -638,10 +638,10 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 | InSight list worker | `trig_01USe4xEhJ57MRjgThykdRzM` | not set (session default) | same dispatcher | 2026-09-02 |
 
 Two things the table cannot say, recorded 2026-09-02 by the session that
-filled it (D353's), for the next one that looks here:
+filled it (D354's), for the next one that looks here:
 
 - **The PR shepherd's row was filled from `list_triggers` at 17:00Z by
-  D353's session, not by the one that created it.** The Routine is on
+  D354's session, not by the one that created it.** The Routine is on
   this account. What is still open is whether a fire REACHES the
   repository: `merge-when-green` had been on #363 since the morning,
   and by 17:00Z no fire had posted the *armed* comment there or on any

@@ -13,7 +13,7 @@ import { list as anchorList } from './map-anchors.js';
 // graph does — imports evaluate before this module's body — and one
 // dynamic import of THIS file (mirror-tab's lazy body, spec-index's
 // loadMapTab) brings the whole family in one deferred chunk. All six
-// arrive as named bindings since D353's sweep; the cards' `window.X ?`
+// arrive as named bindings since D354's sweep; the cards' `window.X ?`
 // guards went with the bridge reads.
 import { MTRootCard, MTAnchorCard, MTBranchCard, MTSubCard, MTAnswerCard } from './map-bottom-card.jsx';
 import { MTLearnCard, MTLearnSubCard } from './map-learn-card.jsx';
@@ -146,7 +146,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       // how the paragraph below came to describe the empty-question case
       // while still being every question on every live build. Falls back
       // on a demo build, where the demo id is the only id there is.
-      // (MapStats is the imported binding since D353's sweep; the `MS ?`
+      // (MapStats is the imported binding since D354's sweep; the `MS ?`
       // existence guard that stood here was a load-order guard.)
       const qid = q.liveId || q.id;
       const gd = MapStats.dist(qid, 'all', nOpt, idx);

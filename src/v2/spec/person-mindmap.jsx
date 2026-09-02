@@ -90,7 +90,7 @@ function pmmBuild(p) {
     // returns null for every question, so `typ` and `maj` both fell back
     // to the deterministic hash and this map placed nobody by any real
     // agreement. Falls back on a demo build, where the demo id is the only
-    // id there is. (MapStats is the imported binding since D353's sweep.)
+    // id there is. (MapStats is the imported binding since D354's sweep.)
     const qid = q.liveId || q.id;
     const gd = MapStats.dist(qid, 'all', n, mineIdx);
     const majIdx = gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);

@@ -3,7 +3,7 @@
 //
 // CONVERTED off the shared-global bridge (D39): the four names below are
 // plain named exports and this file publishes nothing to globalThis.
-// `window.LIVE` stays a global read HERE, and here alone: D353 converted
+// `window.LIVE` stays a global read HERE, and here alone: D354 converted
 // every other reader to `import LIVE from '../data/live'`. This module
 // also loads under plain node — scripts/report-lib.mjs imports it, and
 // archetype-data.js imports IS_TEST_AVG — and data/live.ts cannot follow

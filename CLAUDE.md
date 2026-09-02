@@ -200,7 +200,7 @@ awaited in sequence instead of imported at the top. The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
 comment where the eager list used to hold them. The Mirror's thirteen
-defer the same way since D354 (`loadMirrorTab()` names only
+defer the same way since D355 (`loadMirrorTab()` names only
 `mirror-tab.jsx`), and the tab mounts through a slot that renders in the
 tap's own tick once the prewarm has landed — `src/v2/README.md` § the
 Mirror, and `data/mirrorChunk.ts` for the handoff that makes it so.
@@ -281,7 +281,7 @@ real slipped through:
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
 are **not** exempt from the convention: `live.ts` still publishes
 `window.LIVE` (for the mount fixtures and one node-safe reader — every
-spec module imports the binding since D353), and until D353's sweep the
+spec module imports the binding since D354), and until D354's sweep the
 two `ui/` pickers `Object.assign`ed onto `globalThis` for render-time
 lookups. The scanner reads both directories for that reason.
 

@@ -35,7 +35,7 @@ semantics instead of hand-converting 65 files to ESM at once:
   These are **not** exempt from the globals convention, despite being
   typed: `live.ts` still ends by publishing `window.LIVE` (the mount
   fixtures and one node-safe reader want it there — every spec module
-  imports the binding since D353), and until D353's sweep the two `ui/`
+  imports the binding since D354), and until D354's sweep the two `ui/`
   pickers `Object.assign`ed themselves onto `globalThis` because spec
   modules looked them up **by name at render time**. `check-spec-globals.mjs`
   scans `data/` and `ui/` for that reason. What IS different is that their
@@ -153,7 +153,7 @@ matches `'./spec/…'` strings against. The full reasoning, including why
 `INEFFECTIVE_DYNAMIC_IMPORT` on every build), is at the foot of
 `spec-index.js`.
 
-## …and so is the Mirror (D354)
+## …and so is the Mirror (D355)
 
 `loadMirrorTab()` defers the thirteen modules behind the app's second tab —
 `compare-pop.js`, `demographics.js`, `compare-breakdown.jsx`,
@@ -954,7 +954,7 @@ assuming: the sentence above this one said "imported by nothing" until a
 grep said otherwise, and dropping the export on that reading would have
 broken a panel every gate here is blind to.
 
-### `LIVE` — the store itself leaves the bridge (D353)
+### `LIVE` — the store itself leaves the bridge (D354)
 
 234 → 160 in one change, the largest single drop since `test-definitions.js`
 and `passive-progress.js` (657 → 540), and the cheapest per site: `LIVE` was
@@ -1082,7 +1082,7 @@ Four shapes recurred, and each is worth knowing before the next one:
   deleted that a test DID read — `FEEDREAD` and `WF_REPORT`, through a
   `window as any` handle in `purge-wipe.test.ts` that the first grep for
   window readers could not see — failed the suite and moved to imports;
-  the same lesson `learn-split` taught in the D353 section.
+  the same lesson `learn-split` taught in the D354 section.
 - **The eager/lazy boundary decides direction, not the ratchet.** Three
   reads stay on the bridge because an import would cross it the wrong way:
   daily-split's three `ConsequenceBeat` sites and its two `WorldFeed`

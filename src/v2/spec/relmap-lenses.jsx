@@ -10,7 +10,7 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 // Each lens: axes (with pole words), an overall "type" per person, a diverging
 // spectrum for single-axis focus, and stable mock per-person values seeded
 // from each person's name (+ their existing 1–5 political/personality traits).
-// Exported (D353's sweep) — relmap.jsx and vote-cuts.js import it.
+// Exported (D354's sweep) — relmap.jsx and vote-cuts.js import it.
 export let RMLenses;
 (function () {
   function h(s) {

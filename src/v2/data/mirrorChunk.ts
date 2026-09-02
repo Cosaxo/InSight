@@ -1,4 +1,4 @@
-// The Mirror tab's module, remembered once its chunk has landed (D354).
+// The Mirror tab's module, remembered once its chunk has landed (D355).
 //
 // WHY A MODULE FOR ONE VARIABLE. The Mirror rides loadMirrorTab()
 // (spec-index.js) after first paint, and app-shell renders it through a

@@ -43,7 +43,7 @@ import { sharePcts } from '../data/pct';
 //
 // `groupLabel` answers in both modes either way: it is a noun for the
 // cohort, not a claim about it.
-// The export the Map's cards and the person map import (D353's sweep);
+// The export the Map's cards and the person map import (D354's sweep);
 // assigned inside the IIFE below, the DAILYQ shape. The window copy stays
 // beside it: smoke-live.test.jsx reads `window.MapStats` directly to pin
 // the cohort gate, and a test is a reader like any other.

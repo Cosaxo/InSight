@@ -327,7 +327,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
         {(() => {
           // A whole fallback card used to sit here for the frame in which
           // compare-breakdown.jsx had not loaded; it is an import now
-          // (D353's sweep) and there is no such frame.
+          // (D354's sweep) and there is no such frame.
           const rnd = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v)]));
           const to01 = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round((v + 100) / 2)]));
           const who = p.anon ? 'them' : (p.name ? p.name.split(' ')[0] : p.init);
