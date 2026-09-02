@@ -326,3 +326,51 @@ describe("the trail and the page", () => {
     expect(page).toMatch(/### In the shift\n- \*\*#1\*\*/);
   });
 });
+
+// ── a tick that does not land ───────────────────────────────────────
+//
+// THE OWNER'S APPROVAL EXISTS AS A CHECKBOX IN A FILE A SCRIPT REWRITES,
+// and the rewrite draws each box from that row's LABELS. So when the
+// label-add failed, `act` caught it, logged, and carried on; the list was
+// rewritten with the row UNTICKED; the ticks marker stopped listing it;
+// and the next run saw neither a new tick (the box is empty now) nor a
+// withdrawal (the marker never had it). The approval was gone from the
+// file and from the Console issue, with no trace on either, and the run
+// was green.
+//
+// The workflow comment said "the merge list is only rewritten when GitHub
+// answered" — true of a rejected PUSH, and not of a rejected ACTION.
+describe("act, when GitHub refuses", () => {
+  const row = (key, number) => ({ kind: "pr", key, number, labels: [], selfMerge: false });
+
+  it("reports what did not land instead of swallowing it", async () => {
+    const { act } = await import("./console.mjs");
+    const state = { rows: [row("pr:12", 12)], branches: [] };
+    // The label lookup answers; only the write refuses. That is the real
+    // shape — a read-only token, or a rate limit on the write — and it is
+    // the one that used to be swallowed. (A refusal on the lookup itself
+    // rethrows out of `act` and takes the whole run red, which is also
+    // correct and is not this case.)
+    const refuse = async (path, opts) => {
+      if (!opts) return {};
+      const e = new Error("Resource not accessible by integration"); e.status = 403; throw e;
+    };
+    const failed = await act(state, [{ type: "label-add", key: "pr:12", number: 12, label: "approved" }], () => {}, refuse);
+    expect(failed).toHaveLength(1);
+    expect(failed[0].key).toBe("pr:12");
+    expect(failed[0].error).toMatch(/not accessible/);
+    // …and it did NOT pretend the label is on the row, which would draw a
+    // tick the labels do not have and mark it done for the next run.
+    expect(state.rows[0].labels).toEqual([]);
+  });
+
+  it("says nothing failed when the call goes through — the control", async () => {
+    const { act } = await import("./console.mjs");
+    const state = { rows: [row("pr:12", 12)], branches: [] };
+    const ok = async () => ({});
+    const failed = await act(state, [{ type: "label-add", key: "pr:12", number: 12, label: "approved" }], () => {}, ok);
+    expect(failed).toEqual([]);
+    // the row carries the label now, so the re-render draws the tick
+    expect(state.rows[0].labels).toEqual(["approved"]);
+  });
+});

@@ -212,17 +212,33 @@ export async function collect({ now = new Date() } = {}) {
 }
 
 // ── act ─────────────────────────────────────────────────────────────
-async function ensureLabel() {
-  try { await gh(`/repos/${REPO}/labels/approved`); }
+async function ensureLabel(api = gh) {
+  try { await api(`/repos/${REPO}/labels/approved`); }
   catch (e) {
     if (e.status !== 404) throw e;
-    await gh(`/repos/${REPO}/labels`, { method: "POST", body: { name: "approved", color: "0e8a16", description: "The owner's tick on docs/MERGE-LIST.md — the merge shift takes it from here (D352)" } });
+    await api(`/repos/${REPO}/labels`, { method: "POST", body: { name: "approved", color: "0e8a16", description: "The owner's tick on docs/MERGE-LIST.md — the merge shift takes it from here (D352)" } });
   }
 }
 
-async function act(state, actions, log) {
-  if (!actions.length) return;
-  await ensureLabel();
+/**
+ * Apply the owner's ticks, and RETURN THE ONES THAT DID NOT LAND.
+ *
+ * The caller needs that list, because the merge list is rewritten from
+ * `state.rows` and a row's box is drawn from its LABELS. So a tick whose
+ * label-add failed came back drawn UNTICKED, the ticks marker stopped
+ * listing it, and on the next run `decideActions` saw neither a new tick
+ * (the box is empty now) nor a withdrawal (the marker never had it). The
+ * owner's approval was gone from the file and from the issue, with no
+ * trace on either, and the run was green.
+ *
+ * `api` is injectable so the failure path can be tested; it defaults to
+ * the real GitHub call.
+ */
+export async function act(state, actions, log, api = gh) {
+  const failed = [];
+  if (!actions.length) return failed;
+  await ensureLabel(api);
+  const gh = api;
   for (const a of actions) {
     try {
       if (a.type === "label-add") {
@@ -246,9 +262,16 @@ async function act(state, actions, log) {
         log(`opened #${pr.number} from ${a.branch} and labelled it approved`);
       }
     } catch (e) {
-      log(`::warning::${a.type} ${a.key} failed: ${e.message.split("\n")[0]}`);
+      // UNPREFIXED, on its own line. This went through `log`, which
+      // prefixes with "console: " — and GitHub parses a workflow command
+      // only when `::` begins the line, so the one place the console
+      // reported that it had dropped an owner decision produced no
+      // annotation at all. Measured with `node -e`.
+      console.log(`::warning::${a.type} ${a.key} failed: ${e.message.split("\n")[0]}`);
+      failed.push({ ...a, error: e.message.split("\n")[0] });
     }
   }
+  return failed;
 }
 
 async function upsertIssue(state, body, log) {
@@ -277,8 +300,32 @@ async function main() {
   const file = parseTicks(state.priorList);
   const issue = parseTicks(state.priorIssueBody);
   const actions = state.github.ok ? decideActions(state.rows, file, issue) : [];
-  if (REFRESH && TOKEN) await act(state, actions, log);
+  let failed = [];
+  if (REFRESH && TOKEN) failed = await act(state, actions, log);
   else if (actions.length) log(`${actions.length} tick action(s) pending — run with --refresh and a token to apply: ${actions.map((a) => `${a.type} ${a.key}`).join(", ")}`);
+
+  // A TICK THAT DID NOT LAND LEAVES THE FILE ALONE.
+  //
+  // The rule below is "only rewrite when GitHub answered", and it was
+  // true of a rejected PUSH and not of a rejected ACTION — which is the
+  // case that actually costs a tick. Rewriting now would draw that row
+  // unticked (the box comes from the labels), and the next run would see
+  // neither a new tick nor a withdrawal: the approval would be gone from
+  // both surfaces, silently.
+  //
+  // Leaving both files untouched keeps the owner's box exactly as they
+  // left it, so the next run finds the same new tick and RETRIES. The
+  // run goes red, which is the point: a console that dropped a decision
+  // must not report success. A persistent refusal then shows as a red
+  // run over a stale list, which is visible — the alternative is green
+  // over a list that is quietly wrong.
+  if (failed.length) {
+    for (const f of failed) log(`did not apply: ${f.type} ${f.key} — ${f.error}`);
+    log(`left docs/MERGE-LIST.md and the Console issue untouched so ${failed.length} tick(s) are retried next run`);
+    if (state.missing.length) log(`sources that did not answer: ${state.missing.join("; ")}`);
+    process.exitCode = 1;
+    return;
+  }
 
   // The list: only when GitHub answered — a render from nothing would erase
   // the owner's ticks with an empty page.

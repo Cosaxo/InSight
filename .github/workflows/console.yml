@@ -116,6 +116,14 @@ jobs:
       # derived from GitHub and the tree, so recomputing against whatever
       # main holds now always converges. The merge list is only rewritten
       # when GitHub answered, so a rejected push never costs a tick.
+      #
+      # That was true of a rejected PUSH and not of a rejected ACTION,
+      # which is the case that actually cost one: a failed label-add left
+      # the row drawn unticked, and the next run then saw neither a new
+      # tick nor a withdrawal. The console leaves both files alone and
+      # exits non-zero when an action does not land, so the owner's box
+      # survives and the tick is retried — a red run over a stale list,
+      # rather than a green one over a list that is quietly wrong.
       - name: Commit the list, the fold and the trail
         if: ${{ steps.present.outputs.yes == 'true' }}
         env:
