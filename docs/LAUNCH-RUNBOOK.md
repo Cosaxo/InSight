@@ -1442,8 +1442,18 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [x] **5.5 Apply the nine monitoring alerts — VERIFIED ARMED AND WIRED
-      2026-08-27 (D333).** Found already applied (the D303 path had run):
+- [ ] **5.5 Apply the nine monitoring alerts — EIGHT VERIFIED ARMED AND
+      WIRED 2026-08-27 (D333); the NINTH is committed and not applied.**
+      **REOPENED 2026-09-02 (D349).** `monitoring/paid-refund-stuck.json`
+      landed with the paid pipeline's first alert of any kind, and with
+      the two log-based metrics it selects on. Nothing in this tree arms
+      a policy — `monitoring:apply` does, and it has not been run since —
+      so the money alert is committed, gated by `check:monitoring`, and
+      silent. Dispatch **Arm monitoring** once more; the 2026-08-27
+      verification below stands for the eight it names and says nothing
+      about the ninth, which is why moving this heading's count from
+      eight to nine was not an edit that could be made on its own.
+      Found already applied on 2026-08-27 (the D303 path had run):
       the dry run reports every object `already exists`, `observe` reads
       `armed: true`, and — the half a green count cannot see — a direct
       policy read shows **all eight policies carry the `InSight oncall`

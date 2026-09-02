@@ -35706,12 +35706,13 @@ feed — 180 answered puts ninety side cards after the ten fresh topics
 one screen earlier. Thinning that block is a cadence question, and
 D309 says whose numbers it waits on.
 
-## D349 · Two night shifts and a night nobody had read, merged as one tree — 81 commits kept, three added, and a standalone suite that could not stand alone
+## D349 · Two night shifts and a night nobody had read, merged as one tree — 81 commits kept, four added, and a standalone suite that could not stand alone
 
 **2026-09-02.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
 eighty-one commits are kept as written; nothing was reverted and nothing
-amended. Three commits are added by this review, each closing something
-the night named and left.
+amended. Four commits are added by this review: three close something a
+night named and left, and the fourth reopens a runbook box the night's
+own figure sweep walked into.
 
 ### What arrived, and why no branch's own green was enough
 
@@ -35820,7 +35821,7 @@ Console, not this tree's.
   `refundedEur` beside `refundEur`, warning when the two differ. The
   record is what a dispute is read against.
 
-### The three commits this review adds
+### The four commits this review adds
 
 1. **The stolen docstring, committed twice in one night.** `143df93`
    fixed exactly this in `socialFetch.ts` — a new export inserted after
@@ -35848,6 +35849,18 @@ Console, not this tree's.
    `backend-checks.yml`'s own comment calls the three scripts "the right
    thing to run by hand". Two legs, the world leg and the avatar leg,
    had not run by hand for five days.
+4. **A checked box that had stopped being true.** The ninth alert
+   policy — `paid-refund-stuck`, the paid pipeline's first alert of any
+   kind — landed tonight, and the figure sweep that followed the count
+   from eight to nine walked straight through LAUNCH-RUNBOOK 5.5, whose
+   `[x]` reads "Apply the nine monitoring alerts — VERIFIED ARMED AND
+   WIRED 2026-08-27" over a body that verifies **eight**. Nothing in
+   this tree arms a policy, so the money alert is committed, gated and
+   silent. The box is reopened, the 2026-08-27 verification is left
+   saying exactly what it verified, and the heading keeps the count
+   `check:figures` holds it to. This is the sweep's own hazard pointed at
+   the sweep: a derived number is only safe where the sentence around it
+   is about the number.
 
 ### Two things that are the owner's call, not this review's
 
