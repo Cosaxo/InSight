@@ -203,8 +203,12 @@ describe("the paid slot holds ONE thing, of either kind (D197)", () => {
       const slot = pickPaid(qs, ads, OSLO, d);
       expect(slot).not.toBeNull();
       // A union, so "both" is not even expressible — which is the point of
-      // the shape rather than a property to test around it.
-      expect(slot!.kind === "ad" ? "ad" : "question").toBeTruthy();
+      // the shape rather than a property to test around it. What IS worth
+      // asserting is that the kind is one of the two the union names: the
+      // line here read `expect(slot!.kind === "ad" ? "ad" : "question")
+      // .toBeTruthy()`, and both arms are non-empty strings, so it could
+      // not fail for any value of `kind` — including a third one.
+      expect(["ad", "question"]).toContain(slot!.kind);
     }
   });
 
