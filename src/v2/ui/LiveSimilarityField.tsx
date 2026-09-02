@@ -624,8 +624,21 @@ export function NearField() {
   // back fresh on every notify — an effect keyed on the array itself would
   // re-fire on every beat and re-ask for names it already holds.
   const rosterKey = roster.map((p) => p.uid).join(",");
+  // READING IS NOT "NOBODY HAS", the same rule the Compare lens states at
+  // length and for the same reason: `scoresFor` answers null for "fetched,
+  // has none" and "never fetched" alike, and this fetch runs after first
+  // paint. Until it lands, every roster member filters out of `placeable`,
+  // the field falls into the empty arm, and its last branch announces
+  // "Nobody here has taken the test — N in the room" about people whose
+  // profiles are still on the wire. `roomLoading()` does not cover this:
+  // it is the ROSTER's flag, and the roster has already arrived.
+  const [reading, setReading] = React.useState(false);
   React.useEffect(() => {
-    void LIVE.loadNames(rosterKey ? rosterKey.split(",") : []);
+    if (!rosterKey) { setReading(false); void LIVE.loadNames([]); return; }
+    let live = true;
+    setReading(true);
+    void LIVE.loadNames(rosterKey.split(",")).finally(() => { if (live) setReading(false); });
+    return () => { live = false; };
   }, [rosterKey]);
   // AFTER the hooks, never before: an early return above them changes the
   // hook order between renders (react-hooks/rules-of-hooks), and this
@@ -704,8 +717,10 @@ export function NearField() {
             ? <>Nobody else has Near on right now.</>
             : !Object.keys(myFlat).length
               ? <>Finish a test and the room draws in around you.</>
-              : <>Nobody here has taken the test — {roster.length} in the room,
-                {" "}<strong>People</strong> lists them.</>}
+              : reading
+                ? <>Matching…</>
+                : <>Nobody here has taken the test — {roster.length} in the room,
+                  {" "}<strong>People</strong> lists them.</>}
       </SfEmptyField>
     );
   }
