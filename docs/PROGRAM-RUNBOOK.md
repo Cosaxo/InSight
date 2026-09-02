@@ -166,7 +166,7 @@ log** like the list worker they are.
       first fire finds its section — the doc sweep and the now lane
       both fired ahead of theirs and no-opped for days. · **Gate:**
       `git show origin/main:docs/PROGRAM-RUNBOOK.md` succeeds.
-- [x] **3.2 The program dispatcher.** *DONE 2026-09-02 — `session_01THJsyLkHr1aJskpnhahwuf`, tag `program-dispatcher`, `claude-sonnet-5`.* One persistent session on this
+- [x] **3.2 The program dispatcher.** *Created 2026-09-02 — `session_01THJsyLkHr1aJskpnhahwuf`, tag `program-dispatcher`, `claude-sonnet-5` — and it refused its charter as an injected prompt twice (§ Platform measurements). It relays nothing until the owner opens the session and approves the charter in a human turn of their own: one sentence, on `OWNER-LIST.md` § Clicks. Until then every firing bound to it is refused at the door.* One persistent session on this
       account (`claude-sonnet-5`, tag `program-dispatcher`, charter in
       its first turn: relay each firing verbatim into a fresh session
       titled `<Lane> — <UTC date>`, tagged `program-lane`, on the lane's
@@ -767,6 +767,7 @@ shape as Claude 2's ops lanes, and the first fire measures it (3.5).
 | --- | --- | --- | --- |
 | 2026-09-02 | this account, `list_triggers` | zero Routines; one prior session; a five-hour rate-limit window of its own | `PROGRAM-PLAN.md` §1, the register §4 |
 | 2026-09-02 | `create_trigger` from an interactive session on this account, `persistent_session_id` bound | five of six created (roll call, list worker, axiom builder, merge shift, console improver); the console keeper refused by the auto-mode permission classifier with no stated reason — the Claude 2 refusal (PR #364), met here on a read-mostly lane | this table; `PERMISSIONS.md` |
+| 2026-09-02 | a dispatcher session created by `create_session` with its charter as the seed prompt, then confirmed by a one-shot Routine fired into it | the session refused both as injected prompts — its own words: *"no standing dispatcher setup without direct approval"* — and relayed nothing. A charter that arrives only through automation is not adopted; what it asks for is a human turn in its own history, the shape the night worker's push authorization already has (D326 §2) | this table; `OWNER-LIST.md` § Clicks |
 | *(phase 3.5 fills these)* | first fire of each lane | — | — |
 
 ## What would make me stop and re-plan
