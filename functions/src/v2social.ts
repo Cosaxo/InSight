@@ -1342,8 +1342,19 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     // `name` is "" would be found by an empty prefix — that is, by
     // everything. The client's own write fills it in either way.
     const myName = String(me.exists ? (me.get("displayName") || "") : "").trim();
+    // nameKey folds A-Z ONLY, matching `firestore.rules`' `nameKey ==
+    // name.lower()` — the rules engine's `.lower()` is ASCII-only while
+    // JS `toLowerCase()` is full Unicode, so a name carrying a non-ASCII
+    // capital written the JS way disagrees with the rule. The admin SDK
+    // is not bound by rules, so THIS write would have succeeded and then
+    // disagreed with the client's own row for the same account — which
+    // is worse than being refused. Keep this identical to `foldName` in
+    // src/v2/data/socialFetch.ts; the two cannot share a module across
+    // the package boundary, so they are kept honest by this comment and
+    // by the rule that judges both.
+    const nameKey = myName.replace(/[A-Z]/g, (c) => c.toLowerCase());
     tx.set(peopleRef, myName
-      ? { handle, name: myName, nameKey: myName.toLowerCase() }
+      ? { handle, name: myName, nameKey }
       : { handle }, { merge: true });
   });
   return { handle };
