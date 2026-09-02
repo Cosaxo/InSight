@@ -3258,7 +3258,7 @@ class WorldFeed extends React.Component {
               cases here are a measurement, the demo's authored figure, and
               a live card nobody else has answered \u2014 which says so rather
               than printing a number nobody measured. */}
-          <span style={{ flex: 1, minWidth: 0 }}>{p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{rate.src === 'loading' ? 'Counting\u2026' : p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
           {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
         </div>
         {/* The cuts' honest absence, in the sheet that was built to hold

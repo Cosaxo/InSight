@@ -2591,6 +2591,42 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     expect(LIVE.learnAgg("cap6")).toBeNull();
   });
 
+  // THE THIRD STATE, and the two sentences it used to collapse into one.
+  //
+  // An unwarmed read returns null — the case above — and so does a card
+  // nobody has answered. Two surfaces printed "Nobody else has answered
+  // this one yet" for both, so on every learn card's first paint the app
+  // stated a falsehood about a question thousands may have answered, and
+  // then quietly replaced it with a number a beat later.
+  it("says a cold read is IN FLIGHT, not that nobody has answered", async () => {
+    const LIVE = await bootLive();
+    expect(LIVE.learnAgg("cap6"), "the cold read still has nothing to hand back").toBeNull();
+    expect(LIVE.learnAggLoading("cap6"), "…but it is a read in the air, not an empty card").toBe(true);
+    // …and it stops saying so once the read settles. Bounded rather than
+    // a fixed tick: the chain is a getDb plus a getDoc.
+    for (let i = 0; i < 50 && LIVE.learnAggLoading("cap6"); i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(LIVE.learnAggLoading("cap6"), "a settled read must not still look pending").toBe(false);
+    // The single-document read finds nothing in this harness — `aggDocs`
+    // feeds the WARM-UP query, which is the whole point of the D125 case
+    // above — so what is cached now is a fetched absence. That is the
+    // second sentence, and the surfaces may state it.
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+  });
+
+  it("…and a warmed card is neither null nor pending", async () => {
+    // The control. Every assertion above is about a flag being SET or a
+    // value being null, which a store that always answered "pending" or
+    // always answered null would satisfy.
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAgg("cap6")).toEqual({ total: 40, counts: { "0": 30, "1": 10 } });
+    expect(LIVE.learnAggLoading("cap6"), "a warmed card was never in flight here").toBe(false);
+  });
+
   it("warms only what it was asked for", async () => {
     h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30 } } }];
     const LIVE = await bootLive();

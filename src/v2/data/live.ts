@@ -265,6 +265,15 @@ const state = {
   // reveal time, NOT a standing subscription — 96 snapshots for cards
   // mostly never seen is the wrong cost shape.
   learnAggs: {} as Record<string, AggDoc | null>,
+  // …and which of those reads is STILL IN THE AIR. Without this the cache
+  // was pre-filled with null on the first call, so "the fetch has not come
+  // back" and "there is nothing there" were one value — and two surfaces
+  // rendered the second sentence for the first: "Nobody else has answered
+  // this one yet", about a card thousands may have answered, on every
+  // card's first paint. Its neighbours in this block keep the distinction
+  // and say why (`callOutcomes`, `feedAds`); this pool was the one that
+  // did not.
+  learnAggPending: {} as Record<string, true>,
   // First-attempt sends already fired this session (belt to the rules'
   // braces: the create-only rule is the real enforcement).
   learnSent: {} as Record<string, true>,
@@ -5084,21 +5093,43 @@ const LIVE = {
   learnAgg(cardId: string): AggDoc | null {
     const qid = "learn-" + cardId;
     if (qid in state.learnAggs) return state.learnAggs[qid];
-    state.learnAggs[qid] = null;
+    // A read already in the air. Returning early is also what keeps one
+    // fetch per card: the cache used to be pre-filled with null for that
+    // job, which is what collapsed in-flight into fetched-absent.
+    if (state.learnAggPending[qid]) return null;
+    state.learnAggPending[qid] = true;
     void (async () => {
       try {
         const db = await getDb();
         const snap = await getDoc(doc(db, "v2_question_aggs", qid));
-        if (snap.exists()) {
-          state.learnAggs[qid] = snap.data() as AggDoc;
-          notify();
-        }
+        // A MISSING DOCUMENT IS AN ANSWER: nobody has answered this card.
+        // Caching that null is what lets the caller say so, and it is a
+        // different fact from the one above.
+        state.learnAggs[qid] = snap.exists() ? (snap.data() as AggDoc) : null;
       } catch (err) {
-        // Leave the null cache entry: the estimate stays up, labeled.
+        // Deliberately NOT cached: a read that failed is not a fact about
+        // the card, and leaving the key unset lets a later render try
+        // again. The comment here used to say "the estimate stays up,
+        // labeled" — D149 removed the estimate from live builds, so on
+        // error the card said nobody had answered, permanently.
         reportError(err, { where: "learnAgg", qid });
+      } finally {
+        delete state.learnAggPending[qid];
+        notify();
       }
     })();
     return null;
+  },
+
+  /**
+   * Is this card's aggregate still being read?
+   *
+   * The one thing a caller cannot tell from `learnAgg` alone, and the
+   * difference between "nobody has answered this" and "we have not looked
+   * yet". Callers render the first as a fact and the second as a wait.
+   */
+  learnAggLoading(cardId: string): boolean {
+    return !!state.learnAggPending["learn-" + cardId];
   },
   /**
    * The viewer's own first try on this card, and whether the cached

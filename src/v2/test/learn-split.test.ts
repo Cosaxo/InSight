@@ -429,6 +429,29 @@ describe("LEARN_RATE — one crowd rate, and where it came from (D133)", () => {
     // check draws something obviously broken and fails a test, rather than
     // rendering a confident bar at zero — "nobody gets this right" is a
     // much worse lie than the estimate this replaced.
+    W.LIVE = { enabled: true, learnAgg: () => null, learnAggLoading: () => false };
+    expect(LEARN_RATE(card)).toEqual({ pct: null, src: "none" });
+  });
+
+  // …AND THE STATE THAT IS NOT A STATEMENT ABOUT THE CARD.
+  //
+  // `learnAgg` returns null on a cold read too, and the case above cannot
+  // tell that apart from "nobody has answered". Two surfaces read the null
+  // and printed "Nobody else has answered this one yet" — the Map's
+  // knowledge node and the feed's reveal — so on every learn card's first
+  // paint the app made a claim about a question thousands may have
+  // answered, then replaced it with a number a beat later.
+  it("live and still reading: a fourth source, and not an empty card", () => {
+    W.LIVE = { enabled: true, learnAgg: () => null, learnAggLoading: () => true };
+    expect(LEARN_RATE(card)).toEqual({ pct: null, src: "loading" });
+    expect(LEARN_SPLIT_SRC(card)).toBe("loading");
+  });
+
+  it("a store too old to answer still says 'none', not 'loading'", () => {
+    // The member is optional on purpose: `learn-data.js` is read by the
+    // demo build and by any live store that predates this, and a missing
+    // member must degrade to the old sentence rather than leaving a card
+    // saying "Counting…" forever.
     W.LIVE = { enabled: true, learnAgg: () => null };
     expect(LEARN_RATE(card)).toEqual({ pct: null, src: "none" });
   });
@@ -478,6 +501,12 @@ describe("the who-knows-this cuts are demo furniture too (D133)", () => {
     expect(block).toMatch(/const rate = LEARN_RATE\(card\);/);
     expect(block).toMatch(/const p = rate\.pct;/);
     expect(block).toMatch(/rate\.src === 'estimate'/);
+    // …and reads the fourth source BEFORE the null. `p == null` is true
+    // while the read is in the air as well as when nobody has answered,
+    // so an arm that tests the number first prints the wrong sentence
+    // whatever the source says.
+    expect(block, "the reveal states an empty card before its read comes back")
+      .toMatch(/rate\.src === 'loading' \? '[^']+' : p == null/);
   });
 
   it("says what it cannot show instead of leaving an empty sheet", () => {

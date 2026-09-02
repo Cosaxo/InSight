@@ -728,6 +728,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // is exactly the honest cold-start state the live tests should see.
     learnAnswer: () => {},
     learnAgg: () => null,
+    // …and NOT pending. The fixture's null is a settled absence — there is
+    // nothing to fetch — so its cards render the honest "nobody has
+    // answered" state rather than the "Counting…" one. A fixture that
+    // answered `true` here would leave every live learn card waiting
+    // forever on a read that is not happening.
+    learnAggLoading: () => false,
     // Nothing written this session, so nothing pending — the fixture's
     // reveals read exactly what `learnAgg` gives them.
     learnMine: () => null,
