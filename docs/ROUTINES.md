@@ -385,7 +385,7 @@ conflict. Any new account picks a prefix that collides with neither.
 
 ### Merge authority
 
-Three tiers, and they do not transfer between programs:
+Four tiers, and they do not transfer between programs:
 
 - **Self-merge**: the six content lanes — the farm's five plus the now
   lane (D212 — the gates are the review). Squash, only on green, never a re-run to outwait
@@ -396,6 +396,20 @@ Three tiers, and they do not transfer between programs:
   owner) and every theory lane (their branch is not `main` at all).
 - **Opens its own PR, never merges**: the doc sweep — one branch, one PR
   a run, and the owner merges every time.
+
+**The merge nobody here performs is the owner's, and since 2026-09-02 it
+has a delegated form.** `OPS-RUNBOOK.md` § The PR shepherd records the
+owner's direction: a PR labelled `merge-when-green` is squash-merged by
+the PR shepherd once every check on its *current* head has concluded
+green, under five steps that keep the decision the owner's — armed at a
+named sha, every commit the shepherd makes on the branch prefixed
+`shepherd:`, and the grant spent the moment anyone else pushes after
+arming. The label is the merge click taken early, not a review waiver,
+and the shepherd may never apply it to a PR itself. **Nothing acts on it
+yet**: that runbook's § The account-side inventory has no trigger id in
+the PR shepherd's row, so a labelled PR waits exactly as an unlabelled
+one does until the Routine exists. A label is a standing instruction —
+whoever creates that Routine inherits every PR already carrying one.
 
 ### The three collision rules
 
