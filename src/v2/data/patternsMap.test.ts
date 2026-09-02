@@ -17,7 +17,6 @@ import {
   mapGeometry,
   nearOf,
   oracleGuess,
-  planeOf,
   simOf,
   surprisalBits,
   type MapNode,
@@ -68,30 +67,6 @@ describe("sim and the web", () => {
   });
 });
 
-describe("the plane", () => {
-  const { U } = mapGeometry(POOL);
-  const edges = edgesOf(U, 3);
-
-  it("is deterministic and stays inside the box", () => {
-    const a = planeOf(POOL, edges);
-    const b = planeOf(POOL, edges);
-    expect(a).toEqual(b);
-    for (const p of a) {
-      expect(p.x).toBeGreaterThanOrEqual(16 * 0.6 - 1e-9);
-      expect(p.x).toBeLessThanOrEqual(344 - 16 * 0.6 + 1e-9);
-      expect(p.y).toBeGreaterThanOrEqual(16 * 0.6 - 1e-9);
-      expect(p.y).toBeLessThanOrEqual(330 - 16 * 0.6 + 1e-9);
-    }
-  });
-
-  it("keeps no two dots on top of each other", () => {
-    const pts = planeOf(POOL, edges);
-    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-      const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
-      expect(d).toBeGreaterThan(2);
-    }
-  });
-});
 
 describe("the Oracle's arithmetic", () => {
   it("recovers a planted trait from the viewer's own answers", () => {

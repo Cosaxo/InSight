@@ -10,8 +10,7 @@ import {
   PEOPLE_LABELS,
   PEOPLE_MIN_SHARED,
   PEOPLE_QUESTIONS,
-  PEOPLE_W,
-  PEOPLE_H,
+  PEOPLE_C,
   type PeopleItem,
   type PeopleRow,
 } from "./peopleMap";
@@ -130,17 +129,34 @@ describe("foldPeople", () => {
     expect(by.get("b1")!.tie).toBeNull();
   });
 
-  it("keeps every dot inside the frame and labels at most the cap, uniquely", () => {
+  it("keeps every dot inside the RIM and labels at most the cap, uniquely", () => {
+    // the frame is a disc since 2026-09-02: a rectangular clamp would
+    // leave a pushed dot sitting in a corner the field does not have
     for (const p of [...field.placed, field.me]) {
-      expect(p.x).toBeGreaterThanOrEqual(14);
-      expect(p.x).toBeLessThanOrEqual(PEOPLE_W - 14);
-      expect(p.y).toBeGreaterThanOrEqual(16);
-      expect(p.y).toBeLessThanOrEqual(PEOPLE_H - 14);
+      expect(Math.hypot(p.x - PEOPLE_C, p.y - PEOPLE_C)).toBeLessThanOrEqual(PEOPLE_C - p.r - 12 + 1e-9);
     }
     const labeled = field.placed.filter((p) => p.lab);
     expect(labeled.length).toBeLessThanOrEqual(PEOPLE_LABELS);
     const names = labeled.map((p) => p.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("rails exactly the labelled people, nearest first (the field and the rail agree)", () => {
+    expect([...field.near.map((p) => p.uid)].sort())
+      .toEqual(field.placed.filter((p) => p.lab).map((p) => p.uid).sort());
+    const d = (p: { x: number; y: number }) => Math.hypot(p.x - field.me.x, p.y - field.me.y);
+    for (let i = 1; i < field.near.length; i++) {
+      expect(d(field.near[i - 1])).toBeLessThanOrEqual(d(field.near[i]));
+    }
+  });
+
+  it("sizes a dot in two steps, and draws nothing off a hue", () => {
+    // size is a RANK (more shared answers), not a measurement: a continuum
+    // read as jitter. Colour is the lens's job now, so the fold carries no
+    // per-person hue to be mistaken for one.
+    expect(new Set(field.placed.map((p) => p.r)).size).toBeLessThanOrEqual(2);
+    for (const p of field.placed) expect(p.many).toBe(p.r > 4);
+    expect(field.placed.every((p) => !("hue" in p))).toBe(true);
   });
 
   it("is deterministic — same inputs, same field, bit for bit", () => {
