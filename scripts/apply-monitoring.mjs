@@ -5,7 +5,7 @@
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
 //
 // WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
-// steps: a notification channel, seven log-based metrics, and eight policies
+// steps: a notification channel, seven log-based metrics, and nine policies
 // that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one

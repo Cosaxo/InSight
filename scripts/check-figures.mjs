@@ -579,6 +579,18 @@ const FIGURES = [
     fix: (n) => `"all but one of the **${n}** \`smoke-*.test.jsx\`"`,
   },
   {
+    file: "scripts/apply-monitoring.mjs",
+    // The SECOND occurrence in that header, and the one the entry beside
+    // it does not reach. When the ninth policy landed, the edit on this
+    // line moved `five` to `seven` for the metrics and left `eight` for
+    // the policies — under a commit message saying "all corrected". Two
+    // numbers on one line is exactly where a hand-count survives a sweep.
+    what: "alert policies, in the applier's console-steps sentence",
+    re: /log-based metrics, and (\w+) policies/,
+    actual: word(monitoringPolicies),
+    fix: (n) => `"seven log-based metrics, and ${n} policies"`,
+  },
+  {
     file: "web/privacy.html",
     what: "notifications the token is promised to be used for",
     re: /only used for the (\w+) notifications this app/,
