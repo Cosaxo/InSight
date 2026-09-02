@@ -110,7 +110,7 @@ export function whatHow(body) {
     const prose = lines
       .filter((l) => l && !/^(#|\||- \[|```|---|>|🤖|https?:\/\/|_Generated|Co-Authored|Claude-Session)/.test(l))
       .join(" ");
-    const sentences = prose.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const sentences = prose.split(/(?<=[.!?])\s+/).filter(Boolean).map(clean);
     what ??= sentences[0] || "";
     how ??= sentences[1] || "";
   }
