@@ -353,13 +353,18 @@ describe("the Near field is a crowd, never a directory", () => {
     expect(LIVE.loadNames).toHaveBeenCalled();
   });
 
-  it("counts who it could place against who is there, rather than quietly dropping them", () => {
+  it("counts who it could place against who is there, rather than quietly dropping them", async () => {
     render(<NearField />);
     // "2 of 3 here" — the person with no test is missing from the ring and
     // the caption is where that is admitted (D112 honesty rule 2: a number
     // stays attached to what it counts).
+    // AWAITED, because the caption is not allowed to speak until the
+    // profile read settles: until then "untested" cannot tell "has no
+    // test" from "not fetched yet", which is the defect the `reading`
+    // flag closes. A synchronous getByText here asserted the first frame,
+    // which is exactly the frame that must stay silent.
+    expect(await screen.findByText(/the rest have not taken it/)).toBeTruthy();
     expect(screen.getByText(/2 of 3 here/)).toBeTruthy();
-    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
   });
 
   it("does not tell a room that people who took the test have not", async () => {
@@ -372,19 +377,21 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.near.room = () => ({ people: room, qs: {} });
     LIVE.scoresFor = () => big5(50, 50, 50, 52, 48);
     render(<NearField />);
+    // Settle FIRST. While the profile read is in flight the caption is
+    // silent by design, so asserting its absence before that would pass
+    // on the loading state rather than on the fix.
+    expect(await screen.findByText(/closest 14 of 20 who have/)).toBeTruthy();
     expect(screen.queryByText(/have not taken it/)).toBeNull();
-    // …and it says what did happen instead.
-    expect(screen.getByText(/closest 14 of 20 who have/)).toBeTruthy();
   });
 
-  it("still says so when people really have not taken it", () => {
+  it("still says so when people really have not taken it", async () => {
     // The contrast, or the case above would pass on a caption that simply
     // stopped mentioning the untested.
     const room = Array.from({ length: 6 }, (_, i) => ({ uid: `p${i}` }));
     LIVE.near.room = () => ({ people: room, qs: {} });
     LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
     render(<NearField />);
-    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    expect(await screen.findByText(/the rest have not taken it/)).toBeTruthy();
     expect(screen.queryByText(/closest/)).toBeNull();
   });
 
