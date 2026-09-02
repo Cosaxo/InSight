@@ -5,7 +5,9 @@
 // Usage (paths resolve from this file, cwd does not matter):
 //   node graph/health.mjs               human-readable report, all graphs
 //   node graph/health.mjs --json        machine-readable, for the digest
-//   node graph/health.mjs --as-of 2026-08-26   staleness relative to a date
+//   node graph/health.mjs --as-of 2026-08-26   staleness and edge currency
+//                                              relative to a date (commits
+//                                              up to it; working tree ignored)
 //
 // What this measures vs what check.mjs enforces: check.mjs fails on
 // malformed graphs; this script assumes well-formed input (run the checker
@@ -15,14 +17,22 @@
 // near-duplicate candidates (these last two program-wide) — plus, since
 // 2026-09-01, run recency (go-11): every other signal is a function of
 // graph CONTENT and reads unchanged when a lane stops running, so a lane's
-// last LOG.md row date is measured too. Numbers here are descriptive, never gating:
+// last LOG.md row date is measured too — and, since 2026-09-02, edge
+// currency (go-12): check.mjs proves an edge's target EXISTS, not that its
+// claim still reads as it did when the edge was made, so each node's last
+// claim-change date is recovered from git and every edge older than its
+// target's claim is listed for its owner, beside two cheaper cousins of
+// the same drift — a prose rung label ("map-6 (cited)") that no longer
+// matches the target's status, and a same-type mutual pair (A supports B,
+// B supports A). Numbers here are descriptive, never gating:
 // a finding is the START of an optimizer judgment, not a verdict. In
 // particular a "near-duplicate candidate" is a pair worth a human read —
 // claim-token overlap cannot tell a duplicate from a deliberate
 // cross-lane mirror (bod-2/gen-2 class), and only literal duplicates may
 // ever be merged (CHARTER §5).
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -121,6 +131,142 @@ for (const { lane, g } of graphs)
   }
 
 const allNodes = graphs.flatMap(({ lane, g }) => g.nodes.map((n) => ({ lane, n })));
+const byId = new Map(allNodes.map(({ lane, n }) => [n.id, { lane, n }]));
+
+// ---- edge currency (go-12) ---------------------------------------------
+// The last date each node's CLAIM changed, recovered by walking every
+// commit that touched its graph file — the graph carries `updated` per
+// node but no per-field history, and `updated` moves on detail and edge
+// changes too, so it over-flags (49 vs 25 of 321 edges when this landed).
+// Git is the one history this branch has (SCHEMA: "history lives in git").
+// A working-tree claim that differs from the last committed one counts as
+// changed today — only when measuring today: under --as-of the walk stops
+// at that date and the working tree is ignored, so a replayed view never
+// dates an uncommitted claim into the past. Where git is unavailable the
+// signal is reported as not measured, never guessed. A truncated history
+// is named — the test is whether the root of HEAD's history is a shallow
+// boundary (a clone of main alone leaves this orphan branch complete, and
+// its boundary commit touches no graph file, so the boundary list itself
+// is not the test) — because claim changes before the boundary are
+// unseen and currency then reads better than it is. A lane whose graph
+// has no commits yet gets each node's `created` as its claim date rather
+// than "today", so a freshly seeded lane does not flag every inbound edge.
+const asOfDate = asOf.toISOString().slice(0, 10);
+const measuringToday = asOfIdx < 0;
+const git = (args) =>
+  execFileSync("git", args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+const claimChanged = new Map();
+let historyNote = null;
+let currencyMeasured = true;
+try {
+  let shallow = new Set();
+  try {
+    const sp = git(["rev-parse", "--git-path", "shallow"]).trim();
+    const abs = sp.startsWith("/") ? sp : join(ROOT, sp);
+    if (existsSync(abs)) shallow = new Set(readFileSync(abs, "utf8").split("\n").filter(Boolean));
+  } catch { /* no shallow file — full history */ }
+  const roots = git(["rev-list", "--max-parents=0", "HEAD"]).trim().split("\n").filter(Boolean);
+  const truncated = roots.some((r) => shallow.has(r));
+  for (const { lane, g } of graphs) {
+    const rel = `theory/${lane}/graph.json`;
+    const commits = git(["log", "--format=%H %cs", "--reverse", `--before=${asOfDate}T23:59:59Z`, "--", rel])
+      .trim().split("\n").filter(Boolean);
+    const prev = new Map();
+    for (const line of commits) {
+      const [hash, date] = line.split(" ");
+      let snap;
+      try { snap = JSON.parse(git(["show", `${hash}:${rel}`])); } catch { continue; }
+      for (const n of snap.nodes ?? []) {
+        if (prev.get(n.id) !== n.claim) claimChanged.set(n.id, date);
+        prev.set(n.id, n.claim);
+      }
+    }
+    if (commits.length === 0) {
+      for (const n of g.nodes) claimChanged.set(n.id, n.created);
+    } else if (measuringToday) {
+      for (const n of g.nodes)
+        if (prev.has(n.id) && prev.get(n.id) !== n.claim) claimChanged.set(n.id, asOfDate);
+        else if (!prev.has(n.id)) claimChanged.set(n.id, n.created);
+    }
+  }
+  if (truncated) historyNote = "git history is shallow at its root — claim changes before the boundary are unseen, so edge currency reads better than it is";
+} catch (e) {
+  currencyMeasured = false;
+  historyNote = `git history unavailable (${String(e.message).split("\n")[0]}) — edge currency not measured`;
+}
+
+// An edge is a claim about its target's claim AS IT READ when the edge was
+// made (go-12). Flagged: source.updated earlier than the target's last
+// claim change — the source has not been touched since the target moved.
+// A candidate to READ: the rewrite may have kept the edge true. Limit: a
+// re-read that confirms the edge and changes nothing must still move
+// `updated` to clear the flag (SCHEMA.md's 2026-09-02 note), or the flag
+// stands as a known item.
+const staleEdges = [];
+if (currencyMeasured)
+  for (const { lane, n } of allNodes)
+    for (const e of Array.isArray(n.edges) ? n.edges : []) {
+      const changed = claimChanged.get(e.to);
+      if (changed && changed > n.updated)
+        staleEdges.push({ lane, from: n.id, type: e.type, to: e.to, updated: n.updated, claimChanged: changed,
+          cross: byId.get(e.to)?.lane !== lane });
+    }
+
+// Prose rung labels: "map-6 (cited)" or "gen-11 cited, bod-8 cited" written
+// into a claim or detail is a statement about a sibling's status that
+// nothing updates when the sibling moves. Two forms are counted — the
+// parenthesised one, and the bare one only when punctuation follows the
+// rung, because "cen-2 argued that…" is a verb and a regex cannot tell.
+const RUNG_RES = [
+  /\b([a-z]+-\d+)\s*\((conjecture|argued|cited|measured)\b/g,
+  /\b([a-z]+-\d+),?\s+(conjecture|argued|cited|measured)(?=[,;:.)])/g,
+];
+const rungLabels = [];
+for (const { lane, n } of allNodes)
+  for (const re of RUNG_RES)
+    for (const m of `${n.claim} ${n.detail ?? ""}`.matchAll(re)) {
+      const target = byId.get(m[1]);
+      if (!target || m[1] === n.id) continue;
+      rungLabels.push({ lane, from: n.id, to: m[1], stated: m[2], actual: target.n.status, drifted: target.n.status !== m[2] });
+    }
+const rungDrift = rungLabels.filter((r) => r.drifted);
+
+// Mutual pairs. A depends/supports pair is the fission shape (child
+// supports parent, parent depends on child) and is counted, not flagged;
+// the same type both ways — A supports B and B supports A — is a cycle
+// that lends each node the other's standing and is flagged. The test is
+// the intersection of the type SETS in each direction, so a multi-typed
+// edge cannot hide a cycle behind whichever of its types is read first.
+const types = new Map(); // "a>b" → Set of types
+for (const { n } of allNodes)
+  for (const e of n.edges ?? []) {
+    const k = `${n.id}>${e.to}`;
+    if (!types.has(k)) types.set(k, new Set());
+    types.get(k).add(e.type);
+  }
+const mutualSameType = [];
+let mutualPairs = 0;
+for (const [k, fwd] of types) {
+  const [a, b] = k.split(">");
+  if (a > b) continue; // each unordered pair once
+  const back = types.get(`${b}>${a}`);
+  if (!back) continue;
+  mutualPairs++;
+  for (const t of fwd) if (back.has(t)) mutualSameType.push({ a, b, type: t });
+}
+
+// Inbound cross-graph edges per lane — "another lane used it", the
+// review rubric's 8-anchor, counted rather than asserted.
+const inboundCross = new Map();
+for (const { lane, n } of allNodes)
+  for (const e of n.edges ?? []) {
+    const t = byId.get(e.to);
+    if (t && t.lane !== lane) {
+      const rec = inboundCross.get(t.lane) ?? { edges: 0, nodes: new Set() };
+      rec.edges++; rec.nodes.add(e.to);
+      inboundCross.set(t.lane, rec);
+    }
+  }
 
 // Near-duplicate candidates, program-wide (cross-graph pairs included).
 const dupCandidates = [];
@@ -161,8 +307,12 @@ const perLane = graphs.map(({ lane, prefix, g }) => {
     if ((degree.get(n.id) ?? 0) === 0) orphans.push(n.id);
   }
   const lastLog = lastLogDate(lane);
+  const inb = inboundCross.get(lane) ?? { edges: 0, nodes: new Set() };
   return {
     lane, nodes: g.nodes.length, edges, crossOut, updated: g.updated, mix,
+    inboundCrossEdges: inb.edges, inboundCrossNodes: inb.nodes.size,
+    staleEdges: staleEdges.filter((s) => s.lane === lane).map(({ from, type, to, claimChanged }) => ({ from, type, to, claimChanged })),
+    rungDrift: rungDrift.filter((r) => r.lane === lane).map(({ from, to, stated, actual }) => ({ from, to, stated, actual })),
     staleConjectures: stale, orphans, overBudget, sources, gradedSources,
     detailMeanWords: g.nodes.length ? Math.round(detailTotal / g.nodes.length) : 0,
     detailMaxWords: detailMax,
@@ -178,6 +328,16 @@ const totals = {
   mix: Object.fromEntries(STATUSES.map((s) => [s, perLane.reduce((a, l) => a + l.mix[s], 0)])),
   contradictions,
   dupCandidates,
+  edgeCurrency: {
+    measured: currencyMeasured,
+    note: historyNote,
+    stale: staleEdges.length, staleCross: staleEdges.filter((s) => s.cross).length,
+    edges: staleEdges.map(({ from, type, to, updated, claimChanged }) => ({ from, type, to, updated, claimChanged })),
+  },
+  rungLabels: rungLabels.length,
+  rungDrift: rungDrift.map(({ from, to, stated, actual }) => ({ from, to, stated, actual })),
+  mutualPairs,
+  mutualSameType,
   silentLanes: perLane.filter((l) => l.silent)
     .map((l) => ({ lane: l.lane, lastLog: l.lastLog, logAgeDays: l.logAgeDays })),
   asOf: asOf.toISOString().slice(0, 10),
@@ -194,15 +354,23 @@ console.log(`status mix: ${STATUSES.map((s) => `${totals.mix[s]} ${s}`).join(" �
 console.log(`unresolved contradictions: ${contradictions.length}${contradictions.length ? " — " + contradictions.map((c) => `${c.from}⇄${c.to}`).join(", ") : " (zero — see go-6 before reading this as health)"}`);
 console.log(`near-duplicate candidates (jaccard ≥ ${DUP_JACCARD}): ${dupCandidates.length ? dupCandidates.map((d) => `${d.a}~${d.b}@${d.similarity}`).join(", ") : "none"}`);
 console.log(`silent lanes (last logged run > ${SILENT_DAYS}d old): ${totals.silentLanes.length ? totals.silentLanes.map((s) => `${s.lane}@${s.lastLog ?? "no LOG"}(${s.logAgeDays ?? "?"}d)`).join(", ") : "none"}`);
+if (historyNote) console.log(`note: ${historyNote}`);
+if (currencyMeasured)
+  console.log(`edge currency: ${staleEdges.length} of ${totals.edges} edges predate their target's last claim change (${totals.edgeCurrency.staleCross} cross-graph)` +
+    (staleEdges.length ? " — " + staleEdges.map((s) => `${s.from}→${s.to}(${s.claimChanged})`).join(", ") : ""));
+console.log(`rung-label drift: ${rungDrift.length} of ${rungLabels.length} prose rung labels no longer match${rungDrift.length ? " — " + rungDrift.map((r) => `${r.from} says ${r.to} (${r.stated}), now ${r.actual}`).join("; ") : ""}`);
+console.log(`mutual pairs: ${mutualPairs} (typed both ways; the depends/supports fission shape is expected) · same type both ways: ${mutualSameType.length ? mutualSameType.map((m) => `${m.a}⇄${m.b} ${m.type}`).join(", ") : "none"}`);
 console.log("");
 for (const l of perLane) {
   const flags = [
     l.orphans.length && `orphans: ${l.orphans.join(",")}`,
     l.staleConjectures.length && `stale conjectures (>${STALE_DAYS}d): ${l.staleConjectures.join(",")}`,
     l.overBudget.length && `detail over ${DETAIL_BUDGET_WORDS}w: ${l.overBudget.map((o) => `${o.id}(${o.words})`).join(",")}`,
+    l.staleEdges.length && `edges older than their target's claim: ${l.staleEdges.map((s) => `${s.from}→${s.to}`).join(",")}`,
+    l.rungDrift.length && `rung labels drifted: ${l.rungDrift.map((r) => `${r.from}:${r.to}`).join(",")}`,
   ].filter(Boolean);
   console.log(
-    `${l.lane.padEnd(16)} ${String(l.nodes).padStart(2)} nodes  ${String(l.edges).padStart(2)} edges (${l.crossOut} cross)  ` +
+    `${l.lane.padEnd(16)} ${String(l.nodes).padStart(2)} nodes  ${String(l.edges).padStart(2)} edges (${l.crossOut} cross out, ${l.inboundCrossEdges} in to ${l.inboundCrossNodes} nodes)  ` +
     `[${STATUSES.map((s) => l.mix[s]).join("/")}]  detail ${l.detailMeanWords}w mean / ${l.detailMaxWords}w max  graded src ${l.gradedSources}/${l.sources}` +
     (flags.length ? `\n${" ".repeat(17)}⚑ ${flags.join(" · ")}` : "")
   );

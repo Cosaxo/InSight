@@ -45,7 +45,15 @@ Rules:
   adds one line to the lane's `LOG.md` naming the id, the claim, and
   why. History lives in git; the graph stays lean.
 - **`updated` moves only on real change** to that node — status, claim,
-  detail, edges. Reformatting is not a change.
+  detail, edges. Reformatting is not a change; **re-warranting is**
+  (clarified 2026-09-02, go-12): an edge warrants against the target's
+  claim as it read when the edge was made, so the warrant is part of
+  the node, and re-reading the edge against a target whose claim
+  changed since moves `updated` even when the edge survives unchanged
+  — provided the node's `detail` records what was re-read and what
+  survived. A date edit alone is padding, not a re-read. This is what
+  clears the health instrument's "edges older than their target's
+  claim" flag. Format unchanged; no version bump.
 
 ## The checker
 
