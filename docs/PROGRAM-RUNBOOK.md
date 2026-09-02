@@ -10,8 +10,9 @@
 > Same split as `AXES-PLAN.md` / `AXES-RUNBOOK.md`, for the same
 > reason.
 
-**Status: mixed — phase 1 is done (D352, 2026-09-02); phases 2–6 are
-open and none of the Routines exists.** Written 2026-09-02 from the
+**Status: mixed — phases 1 and 2 are done (D352, 2026-09-02; the
+console workflow's first run is its own gate); phases 3–6 are open and
+none of the Routines exists.** Written 2026-09-02 from the
 owner's answers of that day (`PROGRAM-PLAN.md` §10). When a step is done its box is ticked
 with the PR that did it; when a Routine is created its row in
 § The account-side inventory gets the trigger id and this line flips
@@ -132,7 +133,7 @@ log** like the list worker they are.
 
 ## Phase 2 — the console workflow (one PR, scripts and one workflow)
 
-- [ ] **2.1 `scripts/console.mjs`** — stdlib only, the `pulse.mjs`
+- [x] **2.1 `scripts/console.mjs`** *DONE 2026-09-02.* — stdlib only, the `pulse.mjs`
       discipline: reads the tree, the GitHub API through
       `GITHUB_TOKEN`, and `origin/axiom-theory`; writes
       `docs/MERGE-LIST.md`'s generated rows (ticks preserved), the
@@ -144,7 +145,7 @@ log** like the list worker they are.
       `test:scripts` — fixtures for the tick preservation, the label
       mirror, the branch-row PR body, and every panel's empty state
       drawn as absence (D1). · **Size:** M.
-- [ ] **2.2 `.github/workflows/console.yml`** — `schedule` every two
+- [x] **2.2 `.github/workflows/console.yml`** *DONE 2026-09-02.* — `schedule` every two
       hours, `push` to `main`, `pull_request` on `labeled` /
       `unlabeled` / `closed`, `issues` on `edited` (filtered to the
       Console issue), `workflow_dispatch`; permissions `contents:
@@ -534,8 +535,10 @@ PR row without `approved` → the label; a ticked branch row → opens the
 PR from the branch (title from the branch's summary file if one exists
 on the branch, else the branch name; body the summary's verdict line
 and the commit list) and labels it `approved`; an unticked row with
-`approved` and no `shift:` commit yet → the label removed. Never
-merges, never applies `merge-when-green`.
+`approved` and not yet `merge-when-green` → the label removed (past
+that label the shepherd's five steps own the PR, and a withdrawal is a
+review or a close, the owner's to make on GitHub). Never merges, never
+applies `merge-when-green`.
 
 **The panels, top to bottom**, each naming the source it was computed
 from: *Today* (the owner list's open rows) · *The merge list* by stage
