@@ -2,8 +2,9 @@
 
 > **Status:** tree — every row below is a Routine that exists on
 > somebody's account right now. §2 was verified against the live account
-> that owns it; §3 and §4 are transcribed from this repo's own records
-> and each says which. Nothing here is proposed.
+> that owns it; §3, §4 and §5 carry what could be established without
+> access to theirs, and each says what its basis is. Nothing here is
+> proposed.
 
 **Why this file exists.** Three claude.ai subscriptions now run scheduled
 Routines against this one repository, and **no session can see another
@@ -30,7 +31,7 @@ already exist and each stays canonical for its own lanes' *contracts*:
 § The account-side inventory (the axes program), `CHARTER.md` §10 on the
 `axiom-theory` branch (the theory lanes), and `OPS-RUNBOOK.md` §5 (the
 ops lanes, every row still a dash). This is the index across them plus
-the shared-resource map (§5) that none of them could hold alone — a
+the shared-resource map (§6) that none of them could hold alone — a
 per-program table cannot see a collision with another program, which is
 exactly what three subscriptions produce.
 
@@ -122,14 +123,14 @@ written. That is the finding, so it is kept rather than tidied away.
   every time; **D351** wrote the section and gave the lane its budget
   script. `QUESTION-FARM.md`'s inventory carries the lane as its sixth
   row.
-- **Eight more Routines are chartered and none exists yet.**
-  `OPS-RUNBOOK.md` (merged today) contracts the platform probe, the roll
-  call, the two shepherds, the production reader, the release recorder,
-  the pulse responder and the list worker, with the account-side
-  inventory left as dashes. They belong in this register the day they
-  are created — under whichever account creates them, which is not
-  decided by the runbook and is exactly the question this file exists to
-  answer.
+- **Eight more Routines exist that nothing in the tree records.**
+  `OPS-RUNBOOK.md` merged at 10:38 with its account-side inventory left
+  as dashes, and the lanes were created the same day from another
+  session — known here only because the owner said so, since no other
+  source could have. §5 is what could be written down without their ids.
+  It is the register's own failure mode demonstrated on its first day: a
+  program can be live for hours with every trace of it invisible to
+  every account but the one that made it.
 
 ---
 
@@ -153,7 +154,7 @@ proof. **Whoever owns them: replace this section with a verified block.**
 The doc sweep has its own dispatcher deliberately: the Axiom dispatcher
 was found failed on its own rate limit, and a shared dispatcher makes one
 lane's rate limit every lane's outage. That argument generalizes across
-accounts and is the reason §5's clock matters more than it looks.
+accounts and is the reason §6's clock matters more than it looks.
 
 ---
 
@@ -174,7 +175,50 @@ flow's shape, not the audit flows'.
 
 ---
 
-## 5 · The shared-resource map
+## 5 · The ops program — live on an account this one cannot see
+
+**Not verified, and not verifiable from here.** The owner's word,
+2026-09-02: the ops Routines exist and were created from another Claude
+session. `list_triggers` from §2's account does not return them, and
+`OPS-RUNBOOK.md` §5's inventory is still every row a dash — so **no
+trigger id for any ops lane is recorded anywhere in the tree.** Filling
+that table is the owning session's job under rule 1. Until it does, §1
+of that file is the whole record, reproduced here so a session that
+meets one of these lanes knows what it has met.
+
+| Lane | Fires (UTC) | Model | Merge authority |
+| --- | --- | --- | --- |
+| **PR shepherd** | `20 6,16 * * *`, plus GitHub `pull_request` events — opened, ready_for_review, reopened, **labeled**, closed-and-merged, base `main` | `claude-opus-5` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner labelled `merge-when-green`, only while the grant is intact |
+| Production reader | `40 6 * * *` | `claude-sonnet-5` | none — read-only |
+| Dependency shepherd | `30 8 * * 1` — Mondays | `claude-opus-5` | never, absent a dated grant in its own contract |
+| Roll call | `30 15 * * *` | `claude-sonnet-5` | none — read-only |
+| List worker | `0 17 * * *` | `claude-fable-5-1` orchestrating subagents | never |
+| Platform probe | one-off, Run now | `claude-sonnet-5` | never |
+| Release recorder | API, from `ios-release.yml` after an upload | `claude-opus-5` | never |
+| Pulse responder | API, from `pulse.yml` when the operator gate is red | `claude-opus-5` | never |
+
+**How to tell whether they are firing**, since no session here can read
+their trigger state. The program's run log is one issue titled **Ops run
+log**, created by the first lane that needs it — the doc sweep's
+precedent, issue #336. At 11:18 UTC on 2026-09-02 that issue does not
+exist, and neither does `no-shepherd`, the label `OPS-RUNBOOK.md` §2.7
+pairs with `merge-when-green`. So on the traces in the repository, no
+ops lane has completed a run. That is a statement about traces and not
+about the Routines: the contract merged at 10:38 the same morning, and
+the PR shepherd's next scheduled fire is 16:20 UTC.
+
+**One measurement, taken while labelling PR #365.** Applying
+`merge-when-green` through the GitHub API **created the label** — default
+grey, no description. `OPS-RUNBOOK.md` §2.7's "GitHub applies only labels
+that exist, and no lane creates one" is false for that path: a lane that
+typos a label name creates the typo instead of failing. The sentence's
+instruction (no lane applies a label) is untouched; its factual half is
+not. It belongs as a row in that file's § Platform measurements, which is
+its owner's table to write.
+
+---
+
+## 6 · The shared-resource map
 
 Three things all three accounts write to, and the rule that keeps them
 from colliding.
@@ -188,14 +232,18 @@ from colliding.
 03 ·  night shift A audit 03:00–04:35
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50   ── both morning branches due before 08:00 Oslo
+06 ·  PR shepherd 06:20 · production reader 06:40
 07 ·  question farm
-08 ·  catalog question · DB scalability 08:00 → 12:00 · doc sweep 08:17 (odd) · theory readers 08:02 (even)
+08 ·  catalog question · DB scalability 08:00 → 12:00 · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
 09 ·  learn lane (Mon/Thu) · feed lane 09:30 · theory 09:02
 10 ·  duel lane (Wed) · theory 10:02
 11 ·  now lane · axes build (Tue) / skeptic (Wed) · theory 11:02
 12 ·  axes retro (Sun) · theory 12:02
 13 ·  theory ties 13:02 (odd)
 14 ·  theory interests 14:02 (odd)
+15 ·  roll call 15:30
+16 ·  PR shepherd 16:20
+17 ·  list worker 17:00
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
 22 ·  night B audit 22:00–23:35
@@ -241,9 +289,10 @@ There is one door through the second tier, and it is the owner's:
 a PR labelled **`merge-when-green`** is one the owner has decided to
 merge, and `OPS-RUNBOOK.md` § The PR shepherd is the lane that executes
 that decision — squash, only on green on the current head, only while
-the grant is intact. No lane applies the label and none creates it. That
-shepherd does not exist yet: its inventory row is a dash, so a labelled
-PR waits for the owner until the Routine is created.
+the grant is intact. No lane applies the label. That shepherd is live on
+an account this one cannot see (§5), so a labelled PR is a real
+instruction with a real lane behind it — and the Ops run log issue and
+the PR itself are the only places its work is visible from here.
 
 ### The three collision rules
 
@@ -260,7 +309,7 @@ PR waits for the owner until the Routine is created.
 
 ---
 
-## 6 · Updating this file
+## 7 · Updating this file
 
 Adding, rebinding, re-pacing or retiring a Routine is a change to your
 own block, in the same PR as whatever else the change touches. Verify
