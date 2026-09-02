@@ -684,7 +684,13 @@ export function NearField() {
   // about six people standing next to them. The sort comment above already
   // says the slice is "a real choice"; the caption contradicted it.
   const placed = placeable.slice(0, NEAR_FIELD_CAP);
-  const untested = roster.length - placeable.length;
+  // Nobody is "untested" while their profile is still in flight — the same
+  // conflation the empty arm below now guards against, in the caption
+  // instead. `placeable` is empty for the whole of the read, so without
+  // this the caption tells you "the rest have not taken it" about every
+  // person in the room. Found by the closing flow reading this night
+  // against night-20260901, which fixed both halves together.
+  const untested = reading ? 0 : roster.length - placeable.length;
   const capped = placeable.length > placed.length;
 
   if (!on) {
