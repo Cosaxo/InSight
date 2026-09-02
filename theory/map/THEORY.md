@@ -1,8 +1,8 @@
 # The map axiom — current theory
 
-*Regenerated from `graph.json` on 2026-09-01; the graph is the data,
-this page is its readable face. Status counts: 6 cited · 3 argued ·
-1 conjecture.*
+*Regenerated from `graph.json` on 2026-09-02; the graph is the data,
+this page is its readable face. Status counts: 8 cited · 6 argued ·
+0 conjecture.*
 
 Display theory: how everything the axioms measure should be drawn,
 mapped and navigated — perfectly and most efficiently. This lane reads
@@ -10,20 +10,50 @@ the other theories; it never writes them.
 
 ## The shape of the theory
 
-One geometry, honestly labeled, structurally stable, drawn from public
-numbers — and every cross-axis connection drawn with its population,
-its decomposition and its basis. The ten claims:
+One geometry per level, honestly labeled, structurally stable, drawn
+from public numbers at a fixed projection — the mark changing with the
+crowd and the space never, one seam at the person — and every
+cross-axis connection drawn with its population, its decomposition and
+its basis. The fourteen claims:
 
-### map-1 · One geometry at every scale — `conjecture`
+### map-1 · One geometry per level; zoom is a filter — `argued`, revised
 
-The perfect display is a single navigable space shared by every scale
-(you, your city, the world) and every axiom — zooming changes cohort,
-not metaphor; each axiom is a region or direction, not a separate
-screen. InSight already runs one telescope (you→world) and one plane
-(the patterns Map); this claim says they should be the same object. It
-stays conjecture until the geometry is specified — what distance,
-direction and size mean at every zoom without a metaphor switch — and
-it depends on map-2's channel discipline to be specifiable at all.
+The seed said "one geometry that every scale shares" and was wrong by
+exactly one level: the program's hierarchical consensus (central's
+two-geometry revision on tests' fork; pattern; this lane's map-6/7)
+holds that between-person structure does not carry within-person
+structure, so the seed assumed ergodicity silently. What survives is
+bounded and specified. **Coordinates**: the between-person system
+central publishes at model level, with its uncertainty — every axiom
+enters through its own measurement model, so an axiom is a set of
+directions in the shared space, never a separate screen. **Distance**:
+one meaning at every stop, the model's expected disagreement beyond
+popularity. **Zoom is a filter on this fixed space, never a re-fit**:
+circle, city, country and world are the same coordinates with a
+different cohort drawn, so distance semantics survive zoom in the
+published basis — but not through projection for free: any
+cohort-dependent layout (a force plane, a per-cohort PCA; InSight's
+`planeOf` is one) re-earns the metaphor switch in the drawn plane, so
+the perfect display fixes the projection too — one declared,
+cohort-independent plane, the object this run's bridge request is
+declared over. A cohort whose loadings differ is graded by a named
+invariance method (questions' que-4) and the frame draws only what
+that grade licenses, labeled. **Direction**: unnamed, explained by
+items — the items are the fixed landmarks, the crowd is what changes,
+which is also the orientation aid a thin cohort needs (map-11). The
+level-of-detail ladder is map-13; below the person the geometry
+changes (map-12). InSight's live shadow is the strongest case for the
+rule: the telescope runs *four* distances (per-answer unusualness at
+You, test-score likeness at Near and City, axis-score distance to
+place averages at Country and World, model disagreement in the People
+lens), and the planned plane switch — a re-solve over a filtered pool
+whose "who teleports" reading is a feature — is the case the rule
+bites hardest; the disagreement is this node's. Held at `argued`: no
+source states the per-level invariance and no study tests readers
+across an individuals-to-density switch (map-10). Falsifier, biting
+the design half: readers stating what a city's structure says about
+the world's do better from two per-cohort re-fits side by side than
+from two cohorts in one basis at a fixed plane.
 
 ### map-2 · Every channel means exactly one thing per view — `cited`
 
@@ -107,14 +137,30 @@ achieved — the display states which uncertainty it drew. This extends
 InSight's n=0-draws-nothing refusal continuously, and its suppressed
 palettes enter map-2's table as declared modifiers.
 
-### map-5 · Efficiency is a display property — `argued`
+### map-5 · Efficiency is a display property — `argued`, restated
 
-The perfect map is drawable from published aggregates on a phone, with
-no per-view server work. A display needing a server render per
-interaction is a different, worse product — slower, costlier,
-structurally tempted toward per-user computation — and a device-drawn
-map from public artifacts stays independently verifiable: anyone can
-recompute the picture from the same numbers.
+The seed's "no per-view server work" is restated to what the evidence
+carries: per-view work bounded by display resolution rather than
+record count, and no *blocking* round trip inside the interaction loop
+— a transfer from desktop findings to the phone's network loop that
+this lane makes by analogy, and says so. The premises are cited one
+node over (map-14); the composition — therefore the phone draws from
+published bins over the declared plane — is this lane's design
+conclusion, held at `argued` by the adversarial pass, the same shape
+map-6 was demoted for. The field's own systems keep a bounded server
+in the loop; the perfect map's zero is a design choice argued from
+map-1's fixed space: zoom is a filter, so the world-scale bins are one
+published artifact per fit, cacheable for the session like the
+loadings doc is today. The auditability half of the seed stays this
+lane's inference on pattern's recompute contract — no published
+argument for it was found. InSight deferred its whole-world map on a
+per-person positions doc for four reasons — size, erasure, rotation,
+and that a new presentation of people is an owner call — and the
+binned artifact answers the first two by construction, meets the third
+on the fit's persistent basis, and leaves the fourth with the owner
+(this run's bridge request, filed as a bounded new exposure at cell
+grain, not as none). Falsifier: readers on map-1's task do no worse
+from a phone whose every redraw waits on a bounded server.
 
 ### map-6 · A drawn connection declares its population, decomposition and basis — `argued`
 
@@ -227,38 +273,147 @@ other people's — the you-beside-a-population shape (reading it as the
 Mirror's shape is this lane's identification, not the paper's) —
 recorded as design precedent only, preprint grade.
 
-### map-10 · Two search-negatives, standing — `argued`
+### map-10 · Six search-negatives, standing — `argued`
 
 No study was found showing readers map an aggregate display onto
 themselves individually, and no controlled study was found testing
 whether readers distinguish within- from between-person structure in a
-display at all. Split out of map-8 at this run's adversarial pass's
-insistence: an absence can be attacked and survive, but no source can
-ground it, so it wears `argued` no matter how load-bearing it is.
-Twice attacked (the 2026-08-28 adversarial pass; this run's lead
-check: arXiv 2505.00855 is real but is juxtaposition design-precedent
-work at preprint grade, not the missing comprehension experiment) and
-still standing. The absence is load-bearing for map-6: if readers
-could be shown to recover an undeclared population unaided,
-declaration would be courtesy; nothing shows they can, so it is
-structure. Standing duty: any run touching this territory re-searches
-before restating — a single controlled experiment either way moves
-this node.
+display — the two from 2026-09-01, twice attacked. Added 2026-09-02 by
+this node's own rule (an absence wears `argued` no matter how
+load-bearing; keeping it inside a cited node is the hand-label
+pathology): no source states that one coordinate system should persist
+across levels of analysis; no controlled study tests readers across an
+individuals-to-density level-of-detail switch inside one coordinate
+system versus a separate view (nearest: Kim, Correll & Heer 2019 on
+identifying the aggregate operation; Phoenixmap on representations);
+no study of network round-trip latency in phone-based visual analysis
+(nearest: touch input-latency studies, a mobile web-search latency
+paper); no published argument that client-side rendering from
+published aggregates makes a picture reader-verifiable (nearest:
+BioVisReport, a tool). Load-bearing for map-1, map-13, map-5 and
+map-14, each of which points here rather than carrying the absence at
+`cited`. Standing duty: any run touching this territory re-searches
+before restating — one controlled study either way moves the clause.
+
+### map-11 · Multiscale navigation is a studied, modellable cost — `cited`
+
+The premise layer under map-1 and map-13, kept apart from the
+compositions. "Desert fog" — a view with no information on which to
+base navigational decisions — is a named and analyzed navigation
+failure met with view-based aids and critical-zone analysis (Jul &
+Furnas 1998; a user study not asserted). Crossing scales has a formal
+cost model: optimal smooth zoom-and-pan derives analytically from a
+perceived-velocity metric with an explicit zoom/pan trade-off
+parameter (van Wijk & Nuij 2003/2004) — modellable, not deliberately
+costly. Semantic zoom's reported wins differ by study: no correctness
+difference against overview+detail on map tasks, with a preference
+for overviews and the multi-level map improving recall (Hornbæk,
+Bederson & Plaisant 2002); faster and less error-prone than flat
+viewing in program visualization (Summers et al. 2003). Cockburn,
+Karlson & Bederson's review is cited for its taxonomy only — its
+empirical verdict was unreachable and one candidate quotation traced
+to a different paper. Aggregation across levels of detail carries
+design guidelines whose reported names include discriminability
+(aggregates distinguishable from items) and fidelity (Elmqvist &
+Fekete 2010, names at single-listing snippet grade — that a seamless
+mark would *violate* it is map-13's inference, not the paper's
+prohibition); staged animated transitions help readers identify which
+aggregate operation was performed (Kim, Correll & Heer 2019); unit
+visualizations are a described grammar family (Park et al. 2018).
+Grade stated in-node: publisher and index APIs were egress-blocked
+this run; bibliography corroborated across at least two independent
+index listings per source, content at snippet grade, reported not
+read, no number asserted — and a standing duty that any sentence a
+primary read contradicts demotes the node loudly.
+
+### map-12 · One seam of geometry, at the person — `argued`
+
+The between-person telescope reaches its smallest cohort at n = 1: you
+are a point in the shared space, and a point has no coupling. Your own
+coupling lives in the within-person geometry — one per state space, in
+central's plural — whose loadings are estimated separately, so drawing
+"has your openness moved" as motion along a between-person axis
+asserts a cross-level invariance the model must instead test. The
+perfect display does not zoom past the person; it *crosses*: different
+axes, different marks (a trajectory over occasions, map-6's
+within-person form), the population's landmarks no longer valid —
+drawn as a declared transition, never hidden as continuity. The mark
+changes along the population stops (map-13) are not seams. Conditional:
+where the invariance test passes for a pair of axes, the geometries
+coincide there and the seam vanishes — declared on measurement, never
+assumed. At world zoom the within-person geometry has an aggregate
+object too — the population-average within-person parameter, an
+average *over* persons' dynamics and nobody's own — drawn as a second
+field, never as vectors on the between-person plane. Falsifiers:
+invariance holding for *all* of InSight's axes (the seam would have no
+domain), or readers of a continuous zoom through a failing pair
+showing no misreading; a controlled study of readers reading a
+within-person trajectory on between-person axes. Path to `measured`
+runs through the era-scoped re-serving decision waiting on the owner.
+
+### map-13 · The mark changes with the crowd, the space does not — `argued`
+
+Fissioned from map-1 at the adversarial pass's request. The ladder:
+one point (you); named unit marks with the exact agreement counts the
+product already folds beside a name (circle); unit marks from a
+bounded, recency-capped anonymous sample, the cap stated when it binds
+(city); density over published bins in the declared plane, no
+per-person datum — central's publication rule applied to the drawing
+(country, world). Continuity is of coordinates, never of mark: marks at
+different levels must look different (this lane's inference from the
+discriminability guideline map-11 reports), and the level switch is an
+aggregation the reader must recognize. **A cohort is drawn as a
+density, never as a centroid**: an average person is closer to
+everyone than any person is, so a centroid in the person space would
+be a second meaning for distance — "what your city says about the
+world" is two densities in one basis, not two dots, and InSight's
+Country and World stops, which place cities and countries as objects,
+are the case this clause names. Thinness at world zoom looks like what
+it is: cells drawn with their counts, empty where empty (map-4), never
+smoothed into a contour the n cannot carry. Standing cost: aggregation
+raises perceived causality (map-8), met by declaration (map-6), not
+avoided. Falsifier: readers of an in-place unit-to-bin switch in one
+fixed plane misread the variable more than readers of a separate
+aggregate view — the in-place clause would fall, map-1's coordinate
+rule would not.
+
+### map-14 · Latency is behaviour; aggregation bounds cost by resolution — `cited`
+
+The premise layer under map-5. An added 500 ms delay in exploratory
+visual analysis decreased activity and dataset coverage, reduced the
+rate of observations, generalizations and hypotheses, and shifted
+strategy, with early exposure to delay depressing later low-latency
+performance (Liu & Heer 2014 — an added delay, not a threshold;
+desktop, not mobile). The precise reading is against *blocking*:
+instantaneous and progressive delivery performed alike on insight
+discovery and coverage while blocking was detrimental (Zgraggen et al.
+2017). Binned aggregation is the published principle — in reported
+wording — under which scalability is limited by the resolution of the
+visualized data rather than the number of records (imMens 2013); the
+data-cube (Nanocubes 2013) and prefetch-and-reindex (Falcon 2019)
+lines are what per-view work looks like when it is not zero, and the
+node carries the literature's bounded server honestly rather than a
+zero it never claims. Grade stated in-node: bibliography corroborated
+across at least two independent index listings per source, content at
+snippet grade; the only number asserted is the 500 ms manipulation,
+returned by three searches, two unseeded, read in no record; the same
+standing demotion duty as map-11.
 
 ## Open front
 
-map-1 is the unproved spine: the constraints are now five (channel
-semantics, structural stability, outcome uncertainty, device
-drawability, connection declarations), but the geometry itself — one
-space, every scale, every axiom — is still unspecified. The next runs'
-work: specify it against those constraints, and say what the crowd's
-thinness looks like at world zoom. The lane's first bridge request
-crossed as D325 (the displacement instrument now ships); the open
-request is the committed fit-scorecard snapshot that would let map-3
-rise to `measured` on a real displacement distribution. map-10's two
-search-negatives (no study of readers mapping aggregates onto
-themselves; none on distinguishing the two populations in a display)
-stay re-check items — the one parked lead was checked 2026-09-01 and
-did not dent them. Four sibling nodes (pat-3, cen-1, cen-2, cen-7)
-still cite map-6 for content or a rung this fission moved; their
-owners repair them from this run's LOG row.
+map-1 is specified now — one geometry per level, zoom a filter in the
+published basis at a fixed projection, the mark changing with the
+crowd (map-13), one seam at the person (map-12) — and the whole spine
+is argued rather than cited, honestly: no source states the per-level
+invariance and no study tests the individuals-to-density switch
+(map-10's new negatives). The next runs' work: the channel arbitration
+map-1 defers to map-2's table (mark type, object type, fill); a
+primary-text pass over map-11 and map-14, whose every sentence is
+reported not read under this run's blocked egress; and the
+product-shadow passage in map-1, now the heaviest thing in the node,
+which is a fission candidate of its own. The bridge queue holds two
+open rows: the committed fit-scorecard snapshot (map-3's only path to
+`measured`) and this run's binned crowd density over a declared plane
+(the per-person-free whole-world map, filed as a bounded new exposure
+at cell grain with the owner's call named). map-10's six negatives
+stay re-check items.

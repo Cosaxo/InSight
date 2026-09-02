@@ -1,17 +1,50 @@
 {
   "version": 1,
   "axiom": "map",
-  "updated": "2026-09-01",
+  "updated": "2026-09-02",
   "nodes": [
     {
       "id": "map-1",
-      "claim": "The perfect display is one geometry that every scale shares — you, your city, the world, and every axiom drawn in the same space with the same grammar.",
-      "status": "conjecture",
-      "detail": "InSight already runs one telescope (you→world) and one plane (the patterns Map); the perfect version unifies them: a single navigable space where zooming changes cohort, not metaphor, and where each axiom is a region or direction rather than a separate screen. The corner-doors instinct (connections radiating every direction) is this node's UI shadow. To argue: specify the geometry (what is distance, what is direction, what is size) at every zoom without a metaphor switch.",
+      "claim": "The perfect display is one geometry per level, not one per screen: every population cut — circle, city, country, world — is the same between-person space, at one declared cohort-independent projection, with a different cohort drawn, so zooming changes who is drawn and never what distance means; the person's own occasions are a second geometry, and the seam between the two lies at the person.",
+      "status": "argued",
+      "detail": "Revised 2026-09-02: the 2026-08-25 seed said 'one geometry that every scale shares' and was wrong by exactly one level — the program's hierarchical consensus (cen-1's two-geometry revision on tst-6/tst-7; pat-3; map-6/map-7) holds that between-person structure does not carry within-person structure, so the seed assumed ergodicity silently. THE GEOMETRY. Coordinates: the between-person system cen-1 publishes at model level — directions plus population-level sufficient statistics reproducing couplings with their uncertainty, never a table of person scores — of which the product's nightly loadings doc is the shipped, uncertainty-free ancestor; every axiom enters through its own measurement model, so an axiom is a set of directions in the shared space, never a separate screen, and the instrument space embeds in it (tst-6). Distance: one meaning at every stop — in this node's restatement, the model's expected disagreement between two points beyond popularity (the People lens's own sentence is quoted at map-2). Zoom is a FILTER on this fixed space, never a re-fit: the population stops are the same coordinates with a different cohort drawn, so distance semantics are invariant under zoom in the PUBLISHED BASIS, at one fit (the time axis between fits is map-3's, priced separately). The invariance does not survive projection for free: any cohort-dependent layout — a force plane, a per-cohort PCA; InSight's planeOf is one (map-3) — re-earns the metaphor switch in the drawn plane, so the perfect display fixes the projection too: one declared, cohort-independent plane of the shared basis, the object this run's bridge request is declared over. A per-cohort embedding would make distance mean 'this cohort's structure' at each stop — a silent metaphor switch (map-2), a stability loss (map-3), the loss of the comparison the Mirror exists to draw. A cohort whose loadings differ is graded by a named invariance method (que-4: exact, partial, approximate, alignment); the frame draws only the comparisons that grade licenses, labeled — where graded comparability fails, the shared-space distance stops meaning the same thing for that cohort and the display says so rather than drawing it. Direction: unnamed, explained by items (map-2's landscape-metaphor negative); the items are the fixed landmarks, the crowd is what changes — also the orientation aid a thin cohort needs (map-11's navigation literature). The level-of-detail ladder is map-13; below the person the geometry changes (map-12); channel arbitration (mark type for level of detail, object type for geometry level, fill for evidential weight) is deferred to map-2's table with that assignment proposed. InSight's live shadow is the strongest case for the rule: the telescope runs four distances — per-answer unusualness at You (live for age and edu only, D99; refused for the rest, D72), test-score likeness at Near and City (answer agreement as City's fallback), axis-score distance to place averages at Country and World, model-expected disagreement in the People lens (docs/MIRROR.md §2, PEOPLE-MAP on main) — and PEOPLE-MAP §6's planned plane switch, a re-solve over a filtered pool whose 'who teleports' reading is a feature, is the case this rule bites hardest: that reading is per-cohort structure this node says must be drawn as a declared difference inside one basis. The disagreement is this node's. Search record at map-10: no source states the per-level invariance; no study tests readers across an individuals-to-density switch. Falsifier, biting the design half, not map-2's normative half: readers asked what a city's structure says about the world's, given two cohorts in one published basis at a fixed plane versus two per-cohort re-fits side by side — this node fails if the re-fits yield more correct cross-cohort statements. Status argued: the composition is this lane's; its premises wear cited one node over (map-2, map-3, map-11) or by edge (tst-7, map-7).",
       "sources": [],
-      "edges": [{ "to": "map-2", "type": "depends" }],
+      "edges": [
+        {
+          "to": "map-2",
+          "type": "depends"
+        },
+        {
+          "to": "map-11",
+          "type": "depends"
+        },
+        {
+          "to": "map-12",
+          "type": "depends"
+        },
+        {
+          "to": "map-13",
+          "type": "depends"
+        },
+        {
+          "to": "map-6",
+          "type": "depends"
+        },
+        {
+          "to": "map-10",
+          "type": "depends"
+        },
+        {
+          "to": "cen-1",
+          "type": "depends"
+        },
+        {
+          "to": "tst-6",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-09-02"
     },
     {
       "id": "map-2",
@@ -50,7 +83,16 @@
         "Liu X, Zhang Z, Leontie R, Stylianou A, Pless R 2020, '2-MAP: Aligned Visualizations for Comparison of High-Dimensional Point Sets', WACV 2020",
         "umap-learn GitHub discussion #966 (github.com/lmcinnes/umap) — author statement that AlignedUMAP has no method paper; SOFTWARE-DOCS grade, read at full text"
       ],
-      "edges": [{ "to": "pat-2", "type": "depends" }, { "to": "map-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "pat-2",
+          "type": "depends"
+        },
+        {
+          "to": "map-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-28"
     },
@@ -75,19 +117,41 @@
         "Hullman J 2020, 'Why Authors Don't Visualize Uncertainty', IEEE TVCG 26(1):130-139, DOI 10.1109/TVCG.2019.2934287, PMID 31425093",
         "Hullman J, Kale A, Hartline J 2025, 'Underspecified Human Decision Experiments Considered Harmful', CHI 2025, DOI 10.1145/3706598.3714063 (arXiv:2401.15106 under the title 'Decision Theoretic Foundations for Experiments Evaluating Human Decisions') — methodological critique of the genre"
       ],
-      "edges": [{ "to": "map-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "map-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-26"
     },
     {
       "id": "map-5",
-      "claim": "Efficiency is a display property: the perfect map is drawable from published aggregates on a phone, with no per-view server work.",
+      "claim": "Efficiency is a display property, not an implementation detail: the perfect map is drawn on a phone from published, cacheable aggregates over the declared plane of the fixed space — binned counts, never per-person rows — with per-view work bounded by display resolution rather than record count and no blocking round trip inside the interaction loop, a transfer from desktop visual-analysis findings to the phone's network loop that this lane makes by analogy.",
       "status": "argued",
-      "detail": "A display theory that needs a server render per interaction is a different (worse) product: slower, costlier, and structurally tempted toward per-user computation. The perfect map reads published, cacheable artifacts (the loadings-doc pattern) and computes layout on device — which also keeps the display layer independently verifiable: anyone can recompute the picture from the same public numbers.",
+      "detail": "Revised 2026-09-02; the 2026-08-25 form said 'no per-view server work' and the systems literature does not support that absolute — it supports per-view work made small and bounded (map-14, cited: added latency changed exploration and discovery on the desktop; blocking, not slowness, is what the evidence condemns; binned aggregation bounds cost by the resolution of the visualized data rather than the record count, in reported wording). The adversarial pass held this node at argued rather than letting it rise: the premises are cited one node over, and the composition — therefore the phone draws from published bins with no blocking round trip — is this lane's design conclusion, the same shape map-6 was demoted for on 2026-09-01. WHAT THE CONCLUSION ADDS TO ITS PREMISES. The literature's own systems (map-14: Nanocubes, Falcon) keep a bounded server in the loop; the perfect map's zero is a design choice argued from map-1's fixed space and fixed plane: zoom is a filter, so the world-scale bins are one published artifact per fit, cacheable for the session like the loadings doc is today, and the phone only draws (map-13's density level). No mobile visual-analysis latency study was found (map-10), so the transfer from desktop findings to a phone's network round trip is by analogy and the claim string says so. The auditability half of the seed — anyone can recompute the picture from the same public numbers — stands as this lane's inference on pat-2's recompute contract; no published argument for it was found (map-10). InSight's live shadow: the loadings doc is one read per session and the layout runs on the device (docs/PEOPLE-MAP.md §1 on main); the whole-world map was deferred there (§7) on four reasons — a per-person positions doc's size, its erasure obligation, night-to-night rotation, and that publishing a per-person derived summary is a new presentation of people and an owner call — and the binned artifact this node prescribes answers the first two by construction, meets the third on the fit's persistent basis, and leaves the fourth exactly where §7 put it: with the owner (REQUESTS 2026-09-02, which files it as a bounded new exposure at cell grain, not as none). Falsifier, with map-1's task: readers asked what a city's structure says about the world's read no worse from a phone whose every redraw waits on a bounded server than from one drawing published bins — the zero would then be cost, not display, and this node would fall to map-14's premises alone.",
       "sources": [],
-      "edges": [{ "to": "map-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "map-1",
+          "type": "supports"
+        },
+        {
+          "to": "map-14",
+          "type": "depends"
+        },
+        {
+          "to": "map-10",
+          "type": "depends"
+        },
+        {
+          "to": "pat-2",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-09-02"
     },
     {
       "id": "map-6",
@@ -96,13 +160,34 @@
       "detail": "Added 2026-08-28 as this lane's answer to the charter's cross-connection mandate (§1); FISSIONED 2026-09-01 on central's 2026-08-28 question (carrying go-7): the original node bundled two cited premises, a cited precedent survey and this lane's own design inferences under one status at ~1531 words, handing the skeptic no target smaller than the whole essay. The evidence now lives where the ladder can grip it — the level divergence at map-7 (cited), the reading unreliability at map-8 (cited), the deployed-system precedent at map-9 (cited), the two search-negatives at map-10 (argued — an absence a search can attack but no source can ground) — and this node keeps what was always this lane's own: the rule and its consequences, at the rung an inference honestly wears. The demotion cited→argued is the fission's point, not a loss: every sentence that earned cited still wears it, one node over. The form now differs from map-2's on purpose: map-2 wears cited because its premise sources sit in its own node; map-6's premises moved out, so its rung covers exactly what remains in it — the inference (fission map-2 the same way and its rule half would wear argued too). Forwarding note: the Fisher rebuttal and the per-pair scope note live at map-7, the search-negatives at map-10 — four sibling nodes (pat-3, cen-1, cen-2, cen-7) still cite map-6 for content or a rung that moved this run; they are named in this run's LOG row for their owners to repair. The sibling axioms each reached the same shape of answer at their own rungs (statuses as of 2026-09-01): an honest coupling is published with its decomposition (gen-11 cited, bod-8 cited), exchanged as statistics carrying their basis (db-6 argued), and split by level because between-person structure does not carry within-person structure (tst-6 argued, on tst-7 cited) — this node is the last mile: the drawn connection either preserves those declarations into the frame or undoes the axioms' honesty at the moment of reading. THE RULE'S WARRANT, from the premises: map-7 says the level split is real and per-pair; map-8 says reading a drawn connection is demonstrably unreliable in both directions; map-10 records that no study shows readers recover an undeclared population or level unaided. That absence is load-bearing: if readers could be shown to recover the population unaided, declaration would be courtesy; nothing shows they can, so it is structure — the frame carries the population rather than trusting the reader to infer it. The product-shaped worry — that a Mirror user reads the crowd's coupling as their own — is this lane's inference from map-7's divergence plus InSight's juxtaposition of you and cohorts, stated as inference. DESIGN CONSEQUENCES, this lane's own inferences, marked as such. (a) Population and basis enter map-2's semantic table as part of a channel's ONE meaning: even the People lens's stated sentence — 'the model's expected disagreement between two people, beyond each question's popularity' — is incomplete until it says between whom: which population, computed over what n — the same completion db-6 demands of the stored join. (b) Between-person and within-person couplings take DIFFERENT geometries — crowd structure as a field over people, your own coupling as a trajectory over time — never the same mark shape, so the population declaration is carried by form rather than by a caption a reader can skip; per map-2's premise every channel present gets read, and identical marks assert identical objects. (c) The drawn coupling states its decomposition status exactly as gen-11 and bod-8 demand of the published one: an undecomposed composite drawn as one clean connector is the display asserting a mechanism nobody measured; where the decomposition exists the mark can carry it (the comet-chart pattern map-8 records), and where it does not, the connection draws as explicitly composite — map-4's thin-data discipline applied to edges instead of positions. (d) Language is a legitimate display channel for a coupling, and for low-n within-person couplings plausibly the honest one — map-9's deployed precedent — with map-8's tension held openly: text drew the HIGHEST causality ratings in Xiong's comparison, so language is not automatically safer; its honesty has to come from stating population and basis in the sentence, which is precisely what a sentence can do and an unlabeled mark cannot.",
       "sources": [],
       "edges": [
-        { "to": "map-7", "type": "depends" },
-        { "to": "map-8", "type": "depends" },
-        { "to": "map-9", "type": "depends" },
-        { "to": "map-10", "type": "depends" },
-        { "to": "tst-7", "type": "depends" },
-        { "to": "map-2", "type": "refines" },
-        { "to": "db-6", "type": "supports" }
+        {
+          "to": "map-7",
+          "type": "depends"
+        },
+        {
+          "to": "map-8",
+          "type": "depends"
+        },
+        {
+          "to": "map-9",
+          "type": "depends"
+        },
+        {
+          "to": "map-10",
+          "type": "depends"
+        },
+        {
+          "to": "tst-7",
+          "type": "depends"
+        },
+        {
+          "to": "map-2",
+          "type": "refines"
+        },
+        {
+          "to": "db-6",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-28",
       "updated": "2026-09-01"
@@ -119,7 +204,12 @@
         "Kievit RA, Frankenhuis WE, Waldorp LJ, Borsboom D 2013, 'Simpson's paradox in psychological science: a practical guide', Frontiers in Psychology 4:513, DOI 10.3389/fpsyg.2013.00513, PMID 23964259, PMC3740239 — review/practical guide, not a measured error rate",
         "Curran PJ, Bauer DJ 2011, 'The Disaggregation of Within-Person and Between-Person Effects in Longitudinal Models of Change', Annual Review of Psychology 62:583-619, DOI 10.1146/annurev.psych.093008.100356, PMID 19575624 — scope: time-varying covariates; a genotype has no within-person half"
       ],
-      "edges": [{ "to": "map-6", "type": "supports" }],
+      "edges": [
+        {
+          "to": "map-6",
+          "type": "supports"
+        }
+      ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
     },
@@ -137,7 +227,12 @@
         "Brath R, Hagerman C, Sorenson E 2020, 'Why Two Y-Axes (Y2Y): A Case Study for Visual Correlation with Dual Axes', IV 2020 (IEEE Xplore 9373177); expanded 2022 as 'Dual Y Axes Charts Defended: Case Studies, Domain Analysis and a Method', in Kovalerchuk et al. (eds.), Integrating Artificial Intelligence and Visualization for Visual Knowledge Discovery, Studies in Computational Intelligence 1014, DOI 10.1007/978-3-030-93119-3_22 — the peer-reviewed defense; case studies, not controlled experiments",
         "Isenberg P, Bezerianos A, Dragicevic P, Fekete J-D 2011, 'A Study on Dual-Scale Data Charts', IEEE TVCG 17(12):2469-2478, PMID 22034368 — recorded as the trap: dual-SCALE (focus+context of one measure), not dual-measure; not evidence about two y-axes for two measures"
       ],
-      "edges": [{ "to": "map-6", "type": "supports" }],
+      "edges": [
+        {
+          "to": "map-6",
+          "type": "supports"
+        }
+      ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
     },
@@ -152,19 +247,165 @@
         "Bringmann LF, van der Veen DC, Wichers M, Riese H, Stulp G 2021, 'ESMvis: a tool for visualizing individual Experience Sampling Method (ESM) data', Quality of Life Research 30:3179-3188, DOI 10.1007/s11136-020-02701-4, PMID 33222049, PMC8528801 — tool/framework paper, not a comprehension experiment",
         "Daza EJ 2018, 'Causal analysis of self-tracked time series data using a counterfactual framework for N-of-1 trials', Methods of Information in Medicine, DOI 10.3414/ME16-02-0044 — peer-reviewed; the related 'Person as Population' item is a preprint and is deliberately not cited as evidence"
       ],
-      "edges": [{ "to": "map-6", "type": "supports" }],
+      "edges": [
+        {
+          "to": "map-6",
+          "type": "supports"
+        }
+      ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
     },
     {
       "id": "map-10",
-      "claim": "No study was found showing readers map an aggregate display onto themselves individually, and no controlled study was found testing whether readers distinguish within-person from between-person structure in a display — two search-negatives, twice attacked, still standing.",
+      "claim": "No study was found showing readers map an aggregate display onto themselves individually; none testing whether readers distinguish within-person from between-person structure in a display; and, added 2026-09-02, none stating that one coordinate system should persist across levels of analysis, none testing readers across an individuals-to-density switch inside one coordinate system versus a separate view, none on network latency in phone-based visual analysis, and no published auditability argument for client-side rendering from aggregates — search-negatives, attacked, still standing.",
       "status": "argued",
-      "detail": "Split out of map-8 on 2026-09-01 at this run's adversarial pass's insistence: a universal negative is a search that found nothing — it can be attacked and survive, but no source can ground it, so it wears argued no matter how load-bearing it is, and keeping it inside a cited node was exactly the hand-label pathology go-7 names (an argued-rung sub-claim living inside a cited node). The two negatives, stated precisely: (1) no study was found showing readers map an aggregate display onto themselves individually — the product-shaped worry that a Mirror user reads the crowd's coupling as their own is map-6's inference from map-7's divergence plus InSight's juxtaposition of you and cohorts, stated there as inference; (2) no controlled study was found testing whether readers distinguish within-person from between-person structure in a display at all. Search record: the 2026-08-28 scout (one Opus web pass over the connection-reading literature, 16 sources verified) found neither; the 2026-08-28 adversarial pass attacked both deliberately and they held; the one lead that pass parked was checked 2026-09-01 — arXiv 2505.00855, 'Beyond the Mirror: Personal Analytics through Visual Juxtaposition with Other People's Data', is real, a cs.HC preprint (May 2025) presenting CALTREND, a visual-analytics system juxtaposing one person's deidentified online calendar logs with other people's (verified at search-index/snippet grade — web-search index snippets of the arXiv record; arXiv full text egress-blocked from this container) — juxtaposition design-precedent work (recorded at map-9), not a controlled comprehension experiment on population recovery or level discrimination, and preprint grade regardless; both negatives stand. Why the absence is load-bearing rather than trivia: if readers could be shown to recover an undeclared population unaided, map-6's declaration rule would be courtesy; nothing shows they can, so it is structure. Standing duty: any run touching this territory re-searches before restating these — a single controlled experiment either way moves this node, and its status can rise only if the negatives are ever converted into a cited positive finding about what readers do.",
+      "detail": "Split out of map-8 on 2026-09-01 at this run's adversarial pass's insistence: a universal negative is a search that found nothing — it can be attacked and survive, but no source can ground it, so it wears argued no matter how load-bearing it is, and keeping it inside a cited node was exactly the hand-label pathology go-7 names (an argued-rung sub-claim living inside a cited node). The two negatives, stated precisely: (1) no study was found showing readers map an aggregate display onto themselves individually — the product-shaped worry that a Mirror user reads the crowd's coupling as their own is map-6's inference from map-7's divergence plus InSight's juxtaposition of you and cohorts, stated there as inference; (2) no controlled study was found testing whether readers distinguish within-person from between-person structure in a display at all. Search record: the 2026-08-28 scout (one Opus web pass over the connection-reading literature, 16 sources verified) found neither; the 2026-08-28 adversarial pass attacked both deliberately and they held; the one lead that pass parked was checked 2026-09-01 — arXiv 2505.00855, 'Beyond the Mirror: Personal Analytics through Visual Juxtaposition with Other People's Data', is real, a cs.HC preprint (May 2025) presenting CALTREND, a visual-analytics system juxtaposing one person's deidentified online calendar logs with other people's (verified at search-index/snippet grade — web-search index snippets of the arXiv record; arXiv full text egress-blocked from this container) — juxtaposition design-precedent work (recorded at map-9), not a controlled comprehension experiment on population recovery or level discrimination, and preprint grade regardless; both negatives stand. Why the absence is load-bearing rather than trivia: if readers could be shown to recover an undeclared population unaided, map-6's declaration rule would be courtesy; nothing shows they can, so it is structure. Standing duty: any run touching this territory re-searches before restating these — a single controlled experiment either way moves this node, and its status can rise only if the negatives are ever converted into a cited positive finding about what readers do. ADDED 2026-09-02, at the adversarial pass's insistence and by this node's own rule (a universal negative wears argued, and keeping it inside a cited node is the hand-label pathology): four more negatives from this run's two scouts, each a web-search sweep of at least four queries with publisher and index APIs egress-blocked. (3) No source states that one coordinate system should persist across levels of analysis or across population cuts — map-1's rule is therefore this lane's composition, held at argued. (4) No controlled study tests readers' orientation or their reading of a variable across an individuals-to-density level-of-detail switch inside one coordinate system versus a separate aggregated view; nearest neighbours: Kim, Correll & Heer 2019 (identification of the aggregate operation, carried at map-11) and Phoenixmap (arXiv 2002.00732, dot maps versus heatmaps versus a novel density form — representations, not transitions). (5) No study of network round-trip latency on phone-based data-visualization use; nearest: device input-to-display touch-latency studies, one mobile web-search latency paper (arXiv 2101.09086), one mobile-AR latency paper — different tasks, none the missing experiment. (6) No published argument that visualizations computed client-side from published aggregates are thereby reader-verifiable; nearest: BioVisReport (PMC9233186, a static reproducible-visualization builder — a tool, not the argument) and reproducibility-stamp work on research artifacts — orthogonal. Load-bearing for: map-1 (3, 4), map-13 (4), map-5 and map-14 (5, 6). Same standing duty: any run touching these re-searches before restating; one controlled study either way moves the relevant clause.",
       "sources": [],
-      "edges": [{ "to": "map-6", "type": "supports" }],
+      "edges": [
+        {
+          "to": "map-6",
+          "type": "supports"
+        }
+      ],
       "created": "2026-09-01",
-      "updated": "2026-09-01"
+      "updated": "2026-09-02"
+    },
+    {
+      "id": "map-11",
+      "claim": "Multiscale navigation is a studied, modellable cost rather than a free property: a view with no navigational information is a named and analyzed navigation failure (desert fog), zoom-and-pan has a formal optimal-animation model with an explicit trade-off parameter, semantic zoom's reported wins differ by study (no correctness difference with better recall and preference in one map study; faster and less error-prone in one program-visualization study), aggregation across levels of detail carries design guidelines including one reported as discriminability of aggregates from items, and staged animated aggregation transitions help readers identify the operation performed.",
+      "status": "cited",
+      "detail": "Added 2026-09-02 as the cited premise layer under map-1 and map-13 — the facts kept apart from the compositions that use them (the tst-6/tst-7 form). WHAT THE LITERATURE CARRIES. 'Desert fog' is a view of an information world containing no information on which to base navigational decisions, a named and analyzed navigation failure met with view-based aids and a critical-zone analysis grouping objects by visibility across views rather than by spatial layout (Jul & Furnas 1998 — definitions reported; a user study is not asserted). Crossing scales has a formal cost model: an optimal smooth zoom-and-pan animation derives analytically from a perceived-velocity metric with two free parameters, animation speed and the zoom/pan trade-off (van Wijk & Nuij 2003; journal form 2004) — modellable cost, not a normative claim of deliberate cost. Semantic zoom — representation changing with scale, the idea from Pad (Perlin & Fox 1993), the term from Pad++ — has been tested, with results that differ by study: on map tasks, overview+detail versus a zoomable interface showed no difference in task correctness, most participants preferred having an overview, and the multi-level (semantically zoomed) map gave richer navigation cues, made the overview unnecessary and improved recall of objects (Hornbæk, Bederson & Plaisant 2002); a program-visualization study found blended continuous semantic zooming faster and less error-prone than flat viewing (Summers et al. 2003). The taxonomy — overview+detail, zooming, focus+context and, at snippet grade, a fourth (cue-based) — is Cockburn, Karlson & Bederson's; its empirical verdict on which form wins is NOT asserted, because that section could not be reached and one candidate quotation was traced to a different paper (a UMD HCIL report). Aggregation across levels of detail has design guidelines whose reported names — single-listing snippet grade — include an entity budget, visual summary, discriminability ('aggregates should be distinguishable from individual items') and fidelity (counteracting artifacts that misrepresent true effects) (Elmqvist & Fekete 2010); that a seamless continuation of one mark would VIOLATE that guideline is map-13's inference from the name, not the paper's stated prohibition, and stands or falls on a primary read. Staged animated transitions improve accuracy at identifying which aggregate operation was performed, sometimes at a time cost (Kim, Correll & Heer 2019); unit visualizations — every data item its own mark — are a described grammar family whose mental-model advantage is stated as motivation, not a tested result (Park et al. 2018). What it does not carry lives at map-10 (the 2026-09-02 negatives), at the rung an absence wears. Verification grade: publisher and index APIs egress-blocked this run; every source corroborated on authors, title, venue, year and DOI by at least two independent index listings, page ranges and article numbers as printed in those listings and single-sourced unless noted; content at search-snippet grade, reported not read; no number asserted. Standing duty (§11): every sentence here is reported, not read; any of them contradicted by a primary read demotes this node loudly, and the run that reaches full text records which sentences survived.",
+      "sources": [
+        "Jul S, Furnas GW 1998, 'Critical zones in desert fog: aids to multiscale navigation', UIST '98, pp. 97-106, DOI 10.1145/288392.288578 — index-record grade (Semantic Scholar, ResearchGate, citing works); definitions reported, presence of a user study not asserted",
+        "van Wijk JJ, Nuij WAA 2003, 'Smooth and efficient zooming and panning', IEEE InfoVis 2003, pp. 15-22, DOI 10.1109/INFVIS.2003.1249004; journal form van Wijk JJ, Nuij WA 2004, 'A model for smooth viewing and navigation of large 2D information spaces', IEEE TVCG 10(4):447-458 — index-record grade (TU/e portal, DBLP, IEEE Xplore, Wikidata)",
+        "Hornbæk K, Bederson BB, Plaisant C 2002, 'Navigation patterns and usability of zoomable user interfaces with and without an overview', ACM TOCHI 9(4):362-389, DOI 10.1145/586081.586086 — index-record grade (ACM DL, ResearchGate, ScienceDirect reprint); findings reported at snippet grade",
+        "Summers KL, Goldsmith TE, Kubica S, Caudell TP 2003, 'An experimental evaluation of continuous semantic zooming in program visualization', IEEE InfoVis 2003, pp. 155-162 — index-record grade (ResearchGate, InfoVis 2003 listing); DOI not re-verified; domain-specific, single implementation",
+        "Perlin K, Fox D 1993, 'Pad: an alternative approach to the computer interface', SIGGRAPH '93, pp. 57-64, DOI 10.1145/166117.166125 — index-record grade (ACM DL, DBLP, Semantic Scholar); origin of the semantic-zoom idea, the term itself attributed to Pad++ (Bederson & Hollan 1994, UIST '94, DOI 10.1145/192426.192435)",
+        "Cockburn A, Karlson A, Bederson BB 2008/2009, 'A review of overview+detail, zooming, and focus+context interfaces', ACM Computing Surveys 41(1), article 2, DOI 10.1145/1456650.1456652 — index-record grade (ACM DL, DBLP, Microsoft Research); cited for the taxonomy only, its empirical verdict deliberately not asserted",
+        "Elmqvist N, Fekete J-D 2010, 'Hierarchical Aggregation for Information Visualization: Overview, Techniques, and Design Guidelines', IEEE TVCG 16(3):439-454, DOI 10.1109/TVCG.2009.84, PMID 20224139 — index-record grade (PubMed, Inria HAL, ACM DL); guideline names at snippet grade from a single listing",
+        "Kim Y, Correll M, Heer J 2019, 'Designing Animated Transitions to Convey Aggregate Operations', Computer Graphics Forum 38(3):541-551 (EuroVis 2019), DOI 10.1111/cgf.13709 — index-record grade (Wiley, EuroVis programme, UW IDL); finding reported at snippet grade",
+        "Park D, Drucker SM, Fernandez R, Elmqvist N 2018, 'ATOM: A Grammar for Unit Visualizations', IEEE TVCG 24(12):3032-3043, DOI 10.1109/TVCG.2017.2785807, PMID 29990044 — index-record grade (Semantic Scholar, PubMed, Microsoft Research); grammar paper, no evaluation asserted"
+      ],
+      "edges": [
+        {
+          "to": "map-1",
+          "type": "supports"
+        },
+        {
+          "to": "map-13",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-09-02",
+      "updated": "2026-09-02"
+    },
+    {
+      "id": "map-12",
+      "claim": "The telescope has exactly one seam of geometry, at the person — mark changes across the population stops are not seams — and zooming past the between-person point that is you crosses into a within-person geometry (one per state space) drawn as a declared transition; the seam vanishes for a pair of axes only when cross-level invariance is measured for it, never by assumption.",
+      "status": "argued",
+      "detail": "Added 2026-09-02, split from map-1's revision so the ladder can grip it separately. The between-person telescope reaches its smallest cohort at n = 1: you are a point in the shared space, and a point has no coupling — crowd structure stops being drawable there. Your own coupling lives in the within-person geometry — one per state space, in cen-1's plural — whose loadings are estimated separately (cen-1; tst-6 part 3, on tst-7's cited facts: within-person variance two to four times the group estimate, cross-level generalization only under rarely met ergodicity). So drawing 'has your openness moved' as motion of your point along a between-person axis asserts a cross-level loading invariance the joint model must instead test. The perfect display therefore does not zoom past the person; it CROSSES: the step from the population space to your own is a declared change of geometry — different axes, different marks (a trajectory over occasions, map-6's within-person form), the population's item-directions no longer valid landmarks — drawn as a transition, never hidden as continuity. The mark changes along the population stops (map-13) are not seams: coordinates persist there, and here they do not. Conditional, not absolute: where tst-6's invariance test passes for a pair of axes, the two geometries coincide there and the seam vanishes for that pair — coincidence declared on measurement, never assumed. Consequence at the density level: the within-person geometry has an aggregate object too — the population-average within-person parameter (pat-3), an average OVER persons' dynamics and nobody's own (pat-8: another person's stream carries no information about yours beyond a group prior) — drawn as a second field, never as vectors on the between-person plane. Falsifiers: (a) cross-level loading invariance holding for ALL of InSight's axes — the seam would then have no domain and 'exactly one seam' would be an empty claim; or invariance failing for a pair while readers of a single continuous zoom through it show no measurable misreading; (b) a controlled study showing readers correctly read a within-person trajectory drawn on between-person axes — map-10 records that none on distinguishing the two levels in a display was found. To measured: the repeated measurements that tst-6's era-scoped re-serving request would create (needs-owner, bridge item 5 in DIGEST.md). Status argued: an architecture inference composed from cited siblings.",
+      "edges": [
+        {
+          "to": "map-1",
+          "type": "supports"
+        },
+        {
+          "to": "cen-1",
+          "type": "depends"
+        },
+        {
+          "to": "tst-6",
+          "type": "depends"
+        },
+        {
+          "to": "map-6",
+          "type": "depends"
+        },
+        {
+          "to": "map-7",
+          "type": "depends"
+        },
+        {
+          "to": "map-13",
+          "type": "refines"
+        },
+        {
+          "to": "pat-3",
+          "type": "depends"
+        },
+        {
+          "to": "pat-8",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-02",
+      "updated": "2026-09-02",
+      "sources": []
+    },
+    {
+      "id": "map-13",
+      "claim": "Across the population stops the mark changes with cohort size and the space does not: one point, named unit marks with exact counts, an anonymous sample stated as such, then density over published bins with no per-person datum — a cohort is drawn as a density and never as a centroid, and thinness at world zoom is drawn as counts, empty where empty.",
+      "status": "argued",
+      "detail": "Added 2026-09-02, fissioned from map-1's revision at the adversarial pass's request: a separable design claim with its own premises and falsifier. THE LADDER. n = 1: you, one point. Tens (circle): named unit marks, each carrying the exact agreement count the product already folds beside a name (docs/PEOPLE-MAP.md §2 on main). Hundreds (city): unit marks from a bounded, recency-capped sample, anonymous, with the cap stated when it binds — the honest bias the who-voted sheet already names. Thousands and up (country, world): density over published bins in the declared plane (map-1), no per-person datum, which is cen-1's publication rule — population-level sufficient statistics, never per-person latent draws — applied to the drawing, and what map-5 says the phone then draws. Continuity is of coordinates, never of mark: marks at different levels must look different, this lane's inference from the discriminability guideline map-11 reports at snippet grade (aggregates distinguishable from individual items), and the level switch itself is an aggregation the reader must recognize, which map-11's animated-transition result speaks to. A cohort is drawn as a DENSITY, never as a centroid point: an average person is closer to everyone than any person is, so a centroid in the person space would be a second meaning for distance (map-2) — 'what your city says about the world' is read as two densities in one basis, not two dots, and the product's Country and World stops, which arrange cities and countries as placed objects by score likeness, are the case this clause names. Thinness at world zoom looks like what it is: cells drawn frequency-framed with their counts (map-4's outcome-uncertainty form), empty where empty, never smoothed into a contour the n cannot carry; the perfect display would rather show a sparse grid than a confident cloud. Standing cost: aggregation raises perceived causality (map-8), so the density level invites over-reading, met by declaration in the frame (map-6), not avoided. Search record at map-10: no controlled study of readers across an individuals-to-density switch inside one coordinate system versus a separate view. Falsifier: readers shown an in-place level switch (units to bins in one fixed plane) misread the drawn variable more than readers shown the aggregate in a separate view — the ladder's in-place clause would fall, map-1's coordinate rule would not. Status argued: this lane's design inference over cited premises (map-4, map-8, map-11, cen-1 by edge).",
+      "sources": [],
+      "edges": [
+        {
+          "to": "map-1",
+          "type": "supports"
+        },
+        {
+          "to": "map-4",
+          "type": "depends"
+        },
+        {
+          "to": "map-8",
+          "type": "depends"
+        },
+        {
+          "to": "map-11",
+          "type": "depends"
+        },
+        {
+          "to": "map-5",
+          "type": "depends"
+        },
+        {
+          "to": "map-6",
+          "type": "depends"
+        },
+        {
+          "to": "map-10",
+          "type": "depends"
+        },
+        {
+          "to": "cen-1",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-02",
+      "updated": "2026-09-02"
+    },
+    {
+      "id": "map-14",
+      "claim": "Interaction latency is behaviour, not polish — an added 500 ms delay reduced exploratory activity, coverage and the rate of observations and hypotheses, and blocking (not progressive) delivery is what degrades analysis — and binned aggregation is the published design principle under which rendering cost is bounded by the resolution of the visualized data rather than the number of records, with the field's own systems keeping a bounded server in the loop.",
+      "status": "cited",
+      "detail": "Added 2026-09-02 as the cited premise layer under map-5, kept apart from the design conclusion that uses it. LATENCY. An added delay of 500 ms in an exploratory visual-analysis study decreased user activity and dataset coverage, reduced the rate at which users made observations, drew generalizations and generated hypotheses, and shifted exploration strategy, with early exposure to higher latency depressing later low-latency performance (Liu & Heer 2014 — an ADDED delay against a baseline, not a threshold; desktop, not mobile). The precise reading is against BLOCKING: with progressive, instantaneous and blocking conditions compared, users performed equally well with instantaneous or progressive results on insight-discovery rate and dataset coverage while blocking had detrimental effects (Zgraggen et al. 2017). AGGREGATION. The binned-aggregation principle — in reported wording, not read in a record — that perceptual and interactive scalability should be limited by the chosen resolution of the visualized data, not the number of records (imMens, Liu, Jiang & Heer 2013); the data-cube line (Nanocubes, Lins, Klosowski & Scheidegger 2013) and the prefetch-and-reindex line (Falcon, Moritz, Howe & Heer 2019) are the shapes per-view work takes when it is not zero — Nanocubes is a server-side index and Falcon reindexes on interaction, trading resolution for latency, so this node carries the literature's bounded server honestly rather than a zero it never claims. Search-negatives (map-10): no mobile visual-analysis latency study; no published auditability argument for client-side rendering from aggregates. Verification grade, stated plainly: publisher and index APIs were egress-blocked this run; every source is corroborated on authors, title, venue, year and DOI by at least two independent index records, page ranges as printed in those listings and single-sourced unless noted (Nanocubes' unverified), while abstract content is search-snippet grade — so the only number asserted is the 500 ms manipulation, which three separate queries returned, two of them unseeded, snippet grade, not read in any record. Standing duty (§11): every sentence here is reported, not read; any of them contradicted by a primary read demotes this node loudly, and the run that reaches full text records which sentences survived.",
+      "sources": [
+        "Liu Z, Heer J 2014, 'The Effects of Interactive Latency on Exploratory Visual Analysis', IEEE TVCG 20(12), DOI 10.1109/TVCG.2014.2346452, PMID 26356926 — index-record grade (PubMed, IEEE Xplore, Wikidata); the 500 ms added delay and the four reported effects returned by three searches, two unseeded; no effect sizes asserted",
+        "Zgraggen E, Galakatos A, Crotty A, Fekete J-D, Kraska T 2017, 'How Progressive Visualizations Affect Exploratory Analysis', IEEE TVCG 23(8):1977-1987, DOI 10.1109/TVCG.2016.2607714 — index-record grade (IEEE Xplore, Wikidata, dblp); cited for the three-condition design and its direction (blocking harmful; progressive ≈ instantaneous); no numbers asserted",
+        "Liu Z, Jiang B, Heer J 2013, 'imMens: Real-time Visual Querying of Big Data', Computer Graphics Forum 32(3):421-430 (EuroVis 2013), DOI 10.1111/cgf.12129 — index-record grade (Wiley, Eurographics DigLib — page range in the handle — ACM DL); the resolution-not-records principle is reported wording, not read in a record",
+        "Lins L, Klosowski JT, Scheidegger C 2013, 'Nanocubes for Real-Time Exploration of Spatiotemporal Datasets', IEEE TVCG 19(12), DOI 10.1109/TVCG.2013.179 — index-record grade (IEEE Xplore, Wikidata); page range not verified; cited as the server-side data-cube shape",
+        "Moritz D, Howe B, Heer J 2019, 'Falcon: Balancing Interactive Latency and Resolution Sensitivity for Scalable Linked Visualizations', CHI 2019, paper 694, DOI 10.1145/3290605.3300924 — index-record grade (ACM DL, NSF PAR); cited as the per-interaction reindexing shape"
+      ],
+      "edges": [
+        {
+          "to": "map-5",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-09-02",
+      "updated": "2026-09-02"
     }
   ]
 }
