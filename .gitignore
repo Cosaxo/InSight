@@ -129,3 +129,15 @@ reports/
 NIGHT_TASKS.md
 MORNING_SUMMARY.md
 .night-shift/
+
+# Night shift B's, which are the same files under different names (D349).
+# The names differ on purpose: two shifts audit this tree on the same nights
+# from two containers, and a person opening either one has to be able to tell
+# whose notes these are without reading them. The entries are load-bearing
+# beyond tidiness — doc-index rule 5 asks that ORIENTATION.md name every root
+# markdown document, and reads its skip set from THIS file, so a root scratch
+# note that is not listed here turns a gate red on the contents of somebody's
+# working tree. scripts/doc-index-ignore.test.mjs is that case.
+NIGHTB_TASKS.md
+NIGHTB_SUMMARY.md
+.nightb/
