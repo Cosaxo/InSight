@@ -48,10 +48,16 @@ vi.mock("../data/live", async (importOriginal) => {
   return { get default() { return STUB.live ?? real.default; } };
 });
 
-// The bank ids the fixture's own deck uses, and the prompt that joins them
-// to the demo calendar — read off the archive rather than typed, so a
-// content edit that moves the prompt fails here instead of quietly
-// un-joining.
+// A bank id for the stub to key on. Invented, and it does not matter what
+// it is: the whole point is that it is NOT one of daily-questions.js's own
+// demo ids, so asking with the wrong one has to come back empty. The join
+// is by prompt, taken from the question at runtime.
+//
+// (This comment said the id was "read off the archive rather than typed,
+// so a content edit that moves the prompt fails here" — residue of an
+// earlier draft, and false in both halves. Caught reading the night's
+// diff as a whole, in the file whose other two drafting mistakes were
+// already written up in it.)
 const BANK_ID = "daily-bank-probe";
 
 let DAILYQ;
@@ -132,8 +138,16 @@ describe("the id the Map asks the live store about", () => {
   // given a size (see map-body-renders.test.jsx). That is the test this
   // one should become; until then this at least fails when the plumbing is
   // undone, which is what shipped.
-  it("and map-tab asks with it, not with the demo id", async () => {
+  it("and BOTH maps ask with it, not with the demo id", async () => {
     const { readFileSync } = await import("node:fs");
+    // person-mindmap.jsx carries the identical loop over the same
+    // questions and was left behind by the first pass at this — the same
+    // class going unfixed in its twin one file over, which is exactly
+    // what had happened to the Map itself.
+    const person = readFileSync("src/v2/spec/person-mindmap.jsx", "utf8");
+    expect(person, "person-mindmap went back to the demo id").toMatch(/const qid = q\.liveId \|\| q\.id;/);
+    expect(person, "person-mindmap's reading went back to the demo id").toMatch(/MapStats\.dist\(qid, 'all'/);
+    expect(person, "person-mindmap's node carries the demo id again").toMatch(/daily: true, qid,/);
     // Resolved off the process cwd, which vitest sets to the repo root —
     // `import.meta.url` in a transformed module is not a filesystem path
     // this can read from.
