@@ -1,5 +1,6 @@
 // learn-budget.mjs — the learn lane's generation budget as arithmetic (D115),
-// replacing D32's flat "≤8 cards/run, thinnest fields first".
+// replacing D32's flat "≤8 cards/run, thinnest fields first"; reshaped at
+// D350 around a FLOOR with no ceiling, the feed regulator's shape.
 //
 // WHY THIS EXISTS. The flat rule did not merely under-produce; it produced
 // NOTHING, and had to. "Thinnest fields first (a field below 8 cards cannot
@@ -9,80 +10,61 @@
 // never tested against a real firing. A lane whose selection rule can only
 // return the empty set is not a conservative lane, it is a stopped one.
 //
-// WHAT ACTUALLY BOUNDS THIS LANE, which is not what bounds the daily one.
-// farm-budget.mjs regulates against a promotion PEN: finished questions
-// waiting on a second human gate. Learn has no second gate — "one gate instead
-// of two means the PR review IS the production review" (QUESTION-FARM.md § the
-// learn-card lane), so a merged card is a shipped card and there is no pen to
-// measure. The two real bounds are:
-//
-//   1. What the bank owes its readers. A field is the unit LEARN.plan() serves
-//      from, and its cards are consumed as `fresh` exactly once each, so field
-//      depth IS runway. The arithmetic, from learn-feed.js's own serve rate
-//      (`some` = one learn card per 7 feed cards, the default; `lots` = one in
-//      3) and learn-progress.js's three seeded follows: at 8 cards a field, a
-//      reader following three fields has 24 fresh cards, which at ~20 feed
-//      cards a day is about EIGHT DAYS at the default rate and under four at
-//      `lots`. That is the honest state of the shipped bank, and it is the
-//      argument for FIELD_TARGET below.
-//
-//      **THE DENOMINATOR MOVED AT D283 AND THE CONSTANT DID NOT.** A fresh
-//      install follows every field now, not three, so the runway is the
-//      whole bank rather than the three thinnest slices of it — which at
-//      today's 146 cards is about seven weeks at the default rate instead
-//      of about ten days. FIELD_TARGET stays 24 deliberately: the owner
-//      picked the pool lever and not the depth one, and 24 is still what
-//      makes a field worth following ON ITS OWN, which is the question a
-//      reader who narrows is asking. What HAS gone is the emergency in the
-//      paragraph above — the target is now a shape goal rather than a
-//      runway floor, and the next run to find every field level should say
-//      so rather than raising the number by reflex.
-//   2. Review capacity, tighter here than anywhere else. A learn card review
-//      is not a taste judgment: the reviewer checks the fact, argues the trap,
-//      and sanity-checks the calibration, with no second gate behind them.
-//      OPEN_MAX is that ceiling and it sits BELOW the daily lane's 12.
+// WHAT BOUNDED THIS LANE UNTIL D350, and why it no longer does. D115 gave it
+// a TARGET of 24 cards per field and stopped there ("every field is at the
+// target — a card written into a full field is inventory rather than
+// runway"). That sentence was sized to a bank every device was handed whole
+// and to a runway measured in days of reading; D283 moved the runway
+// premise (every field followed by default) and re-labelled 24 a "shape
+// goal", D316 phase 2 said the lane's pace unbinds from consumption once
+// learn pages, and D320 paged it. The script still stopped. It does not
+// now: 24 is the FLOOR every field reaches first — what makes a field worth
+// following ON ITS OWN, the question a reader who narrows is asking — and
+// above it the budget follows where the crowd is reading fastest, or
+// levels thinnest-first, with no ceiling. The single-gate posture is
+// unchanged: a merged card is a shipped card, so the lane carries ONE
+// unreviewed batch at a time, and that is the one stop left.
 //
 // The constants (quoted in QUESTION-FARM.md and held equal by check:figures):
-//   RUN_CAP      = 10  cards per run, the catch-up ceiling. Above the old flat
-//                      8 because the regulator is what makes a bigger cap safe
-//                      (D97's argument, unchanged): the cap binds only while
-//                      the bank is short, and OPEN_MAX closes the tap the
-//                      moment review stops keeping up.
-//   FIELD_TARGET = 24  cards per field — three times the scheduler's spacing
-//                      floor, and the depth at which three followed fields
-//                      carry a default-rate reader about a month instead of
-//                      about a week. Twelve fields at 24 is 288 learn cards
-//                      and a seeded bank of ~685 against check:quality's
-//                      BANK_WARN, so the target is reachable without spending
-//                      the headroom another lane may need. (That constant was
-//                      1200, guarding an unpaginated fetch; D161 paged the
-//                      fetch and re-pointed it at the localStorage cache
-//                      budget; D318 moved the cache to IndexedDB and
-//                      re-pointed it again, at the whole-bank install fetch.)
+//   RUN_CAP      = 10  cards per run — a throughput figure at the writing
+//                      bar (each card's trap argued, its fact sourced, its
+//                      difficulty placed), not a stock one. Raise it when
+//                      runs finish with the bar met and time to spare.
+//   FIELD_FLOOR  = 24  cards per field, reached first — three times the
+//                      scheduler's 8-card spacing floor, and the depth at
+//                      which a single followed field carries a default-rate
+//                      reader about a month. A floor, not a target: nothing
+//                      stops at it, and no number says how deep a field may
+//                      grow.
 //   OPEN_MAX     = 10  unreviewed cards on the lane's open PR at which
-//                      generation stops entirely. Equal to RUN_CAP, and
-//                      deliberately unlike the daily lane where OPEN_MAX
-//                      exceeds it: there, a part-run may top up an open PR
-//                      because a second human gate still stands between that
-//                      PR and production. Here the merge IS production, so
-//                      the lane carries ONE unreviewed batch at a time and
-//                      the open count is subtracted from the budget rather
-//                      than only compared against a ceiling.
+//                      generation stops entirely. Equal to RUN_CAP and
+//                      subtracted from the budget: with no second gate
+//                      behind the merge, the lane carries ONE unreviewed
+//                      batch at a time. Since D212 a PR normally merges in
+//                      the run that opened it, so a batch sitting open
+//                      means a gate refused it — fix, do not stack.
 //   MIN_CHUNK    = 4   cards per field a run may write. Not a bound on volume
 //                      but on SHAPE: one card each into ten fields is ten
 //                      context switches for the writer and cannot demonstrate
 //                      the difficulty spread check:quality's batch rule asks
 //                      for, which is a per-field property.
+//   DEMAND_MIN_ANSWERS = 100  credited learn answers across the fields
+//                      before the demand share is read; below it the lane
+//                      levels. The feed's threshold, for the feed's reason:
+//                      a share measured on a handful of answers is noise.
+//   DEMAND_STALE_DAYS  = 30  the scorecard's age past which its demand
+//                      share is not read (the manual's staleness rule).
 //
 // The budget:
-//   deficit = Σ over fields of max(0, FIELD_TARGET − cards in field)
-//   budget  = 0  if open ≥ OPEN_MAX, else
-//             min(RUN_CAP, OPEN_MAX − open, max(0, deficit − open))
-//
-// and the budget is then allocated to the thinnest fields in chunks of at
-// least MIN_CHUNK, which is water-filling: uneven fields get concentrated
-// attention, level ones get taken in turn, and either way the writer holds one
-// subject at a time.
+//   budget = 0 if open ≥ OPEN_MAX, else min(RUN_CAP, OPEN_MAX − open)
+//            — never zero for stock
+// allocated through lane-tiers' CHUNK mode: a run touches at most
+// ⌊budget ÷ MIN_CHUNK⌋ fields, chosen in tier order — under the floor
+// thinnest first, then by demand weight (popularity × depth: the field's
+// share of credited learn answers times answers per card against the
+// deepest field — a field being read fastest is the one running out
+// soonest, which is what "runway" meant), then thinnest — and splits the
+// budget evenly among them, so the writer holds one subject per chunk.
 //
 // This is an operator/run tool, not a CI gate — the CI-side learn gates are
 // check:quality's learn surface and check:content's structural half.
@@ -91,26 +73,31 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { allocateTiers, laneSignal, tierLabel, tierReason } from "./lane-tiers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export const RUN_CAP = 10;
-export const FIELD_TARGET = 24;
+export const FIELD_FLOOR = 24;
 export const OPEN_MAX = 10;
 export const MIN_CHUNK = 4;
+export const DEMAND_MIN_ANSWERS = 100;
+export const DEMAND_STALE_DAYS = 30;
 
 // Pure: everything the CLI prints derives from this one function, so the test
 // pins the budget the lane actually gets.
 //
 // `fields` is [{ id, cards }] — every field in the bank, thin or not.
-export function learnBudget({ fields, open = 0 }) {
-  const deficit = fields.reduce((sum, f) => sum + Math.max(0, FIELD_TARGET - f.cards), 0);
+// `demand` is { fieldId: weight } from learnSignal, or null when blind.
+export function learnBudget({ fields, open = 0, demand = null }) {
+  const deficit = fields.reduce((sum, f) => sum + Math.max(0, FIELD_FLOOR - f.cards), 0);
 
   if (open >= OPEN_MAX) {
     return {
       budget: 0,
       deficit,
       allocation: [],
+      split: { floor: 0, demand: 0, level: 0 },
       reason:
         `the open lane PR already carries ${open} unreviewed cards (OPEN_MAX ${OPEN_MAX}) — ` +
         "review is the work now, not writing. A learn card merges straight into production; " +
@@ -119,59 +106,40 @@ export function learnBudget({ fields, open = 0 }) {
   }
 
   // `OPEN_MAX - open` is what makes "one unreviewed batch at a time" true
-  // rather than aspirational: without it a run with 5 cards already on the PR
-  // would still grant a full cap and leave 15 sitting in front of the one
-  // reviewer standing between the lane and production.
-  const budget = Math.min(RUN_CAP, OPEN_MAX - open, Math.max(0, deficit - open));
-  if (budget === 0) {
-    return {
-      budget: 0,
-      deficit,
-      allocation: [],
-      reason:
-        deficit === 0
-          ? `every field is at the ${FIELD_TARGET}-card target — the bank owes its readers nothing, ` +
-            "and a card written into a full field is inventory rather than runway"
-          : `the bank is ${deficit} cards short of ${FIELD_TARGET}/field, and the ${open} already ` +
-            "written and unreviewed cover the whole of it — review is the work now, not writing",
-    };
-  }
-
-  // Water-filling, thinnest first, in chunks of at least MIN_CHUNK. Ties break
-  // on id so a run is reproducible; level fields therefore come up in turn
-  // across successive runs rather than one field absorbing every batch.
-  const thin = fields
-    .filter((f) => f.cards < FIELD_TARGET)
-    .sort((a, b) => a.cards - b.cards || a.id.localeCompare(b.id));
-  const slots = Math.max(1, Math.min(thin.length, Math.floor(budget / MIN_CHUNK)));
-  const chosen = thin.slice(0, slots);
-
-  // Spread the budget as evenly as the chosen fields' own room allows: a field
-  // four short of the target takes four, and what it cannot hold moves on
-  // rather than being written into it anyway.
-  const allocation = chosen.map((f) => ({ field: f.id, cards: f.cards, write: 0 }));
-  let left = budget;
-  let progress = true;
-  while (left > 0 && progress) {
-    progress = false;
-    for (const a of allocation) {
-      if (left === 0) break;
-      if (a.cards + a.write >= FIELD_TARGET) continue;
-      a.write++;
-      left--;
-      progress = true;
-    }
-  }
-
+  // rather than aspirational. Never zero for stock (D316/D350).
+  const budget = Math.min(RUN_CAP, OPEN_MAX - open);
+  const tiers = allocateTiers({
+    rows: fields.map((f) => ({ id: f.id, stock: f.cards })),
+    budget,
+    floor: FIELD_FLOOR,
+    demand,
+    open,
+    chunk: MIN_CHUNK,
+  });
   return {
-    budget: budget - left,
+    budget: tiers.spent,
     deficit,
-    allocation: allocation.filter((a) => a.write > 0),
-    reason:
-      open > 0
-        ? `the bank is ${deficit} cards short of ${FIELD_TARGET}/field, ${open} of them already written and unreviewed — capped at ${RUN_CAP}/run`
-        : `the bank is ${deficit} cards short of ${FIELD_TARGET}/field — capped at ${RUN_CAP}/run`,
+    split: tiers.split,
+    allocation: tiers.allocation.map((r) => ({
+      field: r.id, cards: r.stock, write: r.write, floor: r.floor, demand: r.demand, level: r.level,
+    })),
+    reason: tierReason({ split: tiers.split, deficit, open, floor: FIELD_FLOOR, cap: RUN_CAP, unit: "cards", group: "field" }),
   };
+}
+
+// The demand signal, or the reason there is none — lane-tiers' laneSignal
+// pointed at where this lane's credited answers live: the scorecard's
+// `learn.fields` rows (D33's learn section), not the daily/feed topic rows.
+export function learnSignal(scorecard, fields, now = Date.now()) {
+  return laneSignal({
+    scorecard,
+    rows: fields.map((f) => ({ id: f.id, stock: f.cards })),
+    answersOf: (id) => scorecard?.learn?.fields?.[id]?.answers,
+    minAnswers: DEMAND_MIN_ANSWERS,
+    staleDays: DEMAND_STALE_DAYS,
+    now,
+    noun: "learn answers",
+  });
 }
 
 // The runway sentence, from the serve rate rather than from a remembered
@@ -220,13 +188,21 @@ if (invokedDirectly) {
   }
 
   const fields = loadLearnFields();
-  const { budget, deficit, allocation, reason } = learnBudget({ fields, open });
+  let scorecard = null;
+  try {
+    scorecard = JSON.parse(readFileSync(join(root, "content", "scorecard.json"), "utf8"));
+  } catch {
+    // Absent is a legitimate state the signal line names; a missing scorecard
+    // must not stop a run computing its budget.
+  }
+  const signal = learnSignal(scorecard, fields);
+  const { budget, deficit, allocation, reason } = learnBudget({ fields, open, demand: signal.weights });
   const labels = new Map(fields.map((f) => [f.id, f.label]));
 
   console.log(`learn-budget: lane budget ${budget} (cap ${RUN_CAP}/run)`);
   console.log(
     `  bank: ${fields.reduce((n, f) => n + f.cards, 0)} cards over ${fields.length} fields · ` +
-      `${deficit} short of ${FIELD_TARGET}/field + ${open} on the open PR` +
+      `${deficit} under the ${FIELD_FLOOR}/field floor + ${open} on the open PR` +
       `${openIdx < 0 ? " (assumed — pass --open with the real count)" : ""}`,
   );
   console.log(`  ${reason}`);
@@ -234,11 +210,13 @@ if (invokedDirectly) {
   if (allocation.length) {
     console.log("  write:");
     for (const a of allocation) {
-      console.log(`    ${a.write} into ${a.field} (${labels.get(a.field)}) — at ${a.cards} of ${FIELD_TARGET}`);
+      const why = tierLabel({ ...a, id: a.field, stock: a.cards }, { floor: FIELD_FLOOR, weights: signal.weights, unit: "cards" });
+      console.log(`    ${a.write} into ${a.field} (${labels.get(a.field)}) — ${why}`);
     }
   }
+  console.log(`  signal: ${signal.note}`);
 
-  // The distinguishing line, pulse's framing: a lane at its target is a
+  // The distinguishing line, pulse's framing: a lane at its floor is a
   // different afternoon from a lane whose readers are days from the bottom.
   const r = learnRunway(fields);
   console.log(

@@ -6037,6 +6037,509 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "unit": "years"
  },
  {
+  "id": "feed-f122",
+  "surface": "feed",
+  "seq": 166,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+  "options": [
+   "Dolly Parton",
+   "Keanu Reeves",
+   "David Attenborough",
+   "Michelle Obama"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl18",
+  "surface": "feed",
+  "seq": 167,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes late before it counts as late?",
+  "options": [
+   "0–3 min",
+   "3–5 min",
+   "5–8 min",
+   "8–10 min",
+   "10–13 min",
+   "13–15 min",
+   "15–18 min",
+   "18–20 min",
+   "20–23 min",
+   "23–25 min",
+   "25–28 min",
+   "28–30 min"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "min"
+ },
+ {
+  "id": "feed-f123",
+  "surface": "feed",
+  "seq": 168,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Never lie again — and never be lied to. Take the deal?",
+  "options": [
+   "Take it",
+   "Too much truth"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f124",
+  "surface": "feed",
+  "seq": 169,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A referendum on every big question: more democracy, or chaos?",
+  "options": [
+   "More democracy",
+   "Chaos"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f125",
+  "surface": "feed",
+  "seq": 170,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Breakfast: sweet, or savoury?",
+  "options": [
+   "Sweet",
+   "Savoury"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f126",
+  "surface": "feed",
+  "seq": 171,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Black-and-white films: a treat, or a chore?",
+  "options": [
+   "A treat",
+   "A chore"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f127",
+  "surface": "feed",
+  "seq": 172,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The band re-forms without its singer: still the band, or a tribute act?",
+  "options": [
+   "Still the band",
+   "A tribute act"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f128",
+  "surface": "feed",
+  "seq": 173,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The teacher you'd want for one term: Aristotle, Leonardo da Vinci, Charles Darwin, or Maya Angelou?",
+  "options": [
+   "Aristotle",
+   "Leonardo da Vinci",
+   "Charles Darwin",
+   "Maya Angelou"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f129",
+  "surface": "feed",
+  "seq": 174,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The Olympics: summer, or winter?",
+  "options": [
+   "Summer",
+   "Winter"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f130",
+  "surface": "feed",
+  "seq": 175,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Video calls: camera on, or camera off?",
+  "options": [
+   "Camera on",
+   "Camera off"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f131",
+  "surface": "feed",
+  "seq": 176,
+  "type": "vote",
+  "domain": null,
+  "prompt": "What writes more of a life: luck, or effort?",
+  "options": [
+   "Luck",
+   "Effort"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-pt3",
+  "surface": "feed",
+  "seq": 177,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Reunion — twenty years, one evening",
+  "options": [
+   "The One Who Books It",
+   "The Warm Maybe",
+   "The Late Arrival",
+   "The Observer",
+   "The Two-Chair Table",
+   "The Door Ajar",
+   "The Midnight Scroller",
+   "The Clean Break"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Reunion",
+  "intro": "Twenty years since the last day of school. The invitation has sat in your inbox for a week; the RSVP closes at midnight.",
+  "hue": 200,
+  "nodes": {
+   "_": {
+    "q": "Midnight is an hour away. The form wants one click.",
+    "a": [
+     {
+      "t": "Reply yes"
+     },
+     {
+      "t": "Let it close"
+     }
+    ]
+   },
+   "A": {
+    "q": "You arrive early. Across the room: your old best friend, mid-laugh, twenty years older.",
+    "a": [
+     {
+      "t": "Walk straight over"
+     },
+     {
+      "t": "Get a drink, read the room first"
+     }
+    ]
+   },
+   "B": {
+    "q": "Next morning the group chat fills with photos. Someone writes: \"Where were you?\"",
+    "a": [
+     {
+      "t": "The truth — crowds aren't your thing"
+     },
+     {
+      "t": "Say work got in the way"
+     }
+    ]
+   },
+   "AA": {
+    "q": "An hour in, no time has passed at all. They mention they're moving back next month.",
+    "a": [
+     {
+      "t": "Set a date and a place, tonight"
+     },
+     {
+      "t": "\"We should catch up sometime\""
+     }
+    ]
+   },
+   "AB": {
+    "q": "From your corner the room sorts itself into its old tables. Your old friend spots you and waves.",
+    "a": [
+     {
+      "t": "Go over: \"I almost didn't come\""
+     },
+     {
+      "t": "Wave back, keep the corner"
+     }
+    ]
+   },
+   "BA": {
+    "q": "A private reply: \"Fair. I only went hoping you'd be there.\"",
+    "a": [
+     {
+      "t": "Offer a coffee, just you two"
+     },
+     {
+      "t": "Leave it warm and unanswered"
+     }
+    ]
+   },
+   "BB": {
+    "q": "The chat moves on. One tagged photo shows your old table — someone new in your old seat.",
+    "a": [
+     {
+      "t": "Open the whole album"
+     },
+     {
+      "t": "Mute the chat"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The One Who Books It",
+    "line": "A date, a place, no 'sometime'. Twenty years turned out to be a scheduling problem."
+   },
+   "AAB": {
+    "name": "The Warm Maybe",
+    "line": "The hug was real. The 'sometime' stayed a sometime."
+   },
+   "ABA": {
+    "name": "The Late Arrival",
+    "line": "'Almost didn't come' — said out loud, it became the best story of the night."
+   },
+   "ABB": {
+    "name": "The Observer",
+    "line": "You saw the whole evening clearly. It never quite saw you."
+   },
+   "BAA": {
+    "name": "The Two-Chair Table",
+    "line": "No name tags, no speeches. The reunion that actually reunited."
+   },
+   "BAB": {
+    "name": "The Door Ajar",
+    "line": "Warm, unanswered. Some doors you like exactly this open."
+   },
+   "BBA": {
+    "name": "The Midnight Scroller",
+    "line": "Every photo, twice. You attended after all — from here."
+   },
+   "BBB": {
+    "name": "The Clean Break",
+    "line": "The chat went quiet because you asked it to. So did the decade."
+   }
+  }
+ },
+ {
+  "id": "feed-f132",
+  "surface": "feed",
+  "seq": 178,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Teleport anywhere instantly — but you can never travel slowly again. Take it?",
+  "options": [
+   "Take it",
+   "Keep the journey"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f133",
+  "surface": "feed",
+  "seq": 179,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A cashless world: convenient future, or something lost?",
+  "options": [
+   "Convenient future",
+   "Something lost"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f134",
+  "surface": "feed",
+  "seq": 180,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Ketchup: fridge, or cupboard?",
+  "options": [
+   "Fridge",
+   "Cupboard"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f135",
+  "surface": "feed",
+  "seq": 181,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One genre forever: comedy, thriller, drama, or documentary?",
+  "options": [
+   "Comedy",
+   "Thriller",
+   "Drama",
+   "Documentary"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl19",
+  "surface": "feed",
+  "seq": 182,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many songs on a perfect album?",
+  "options": [
+   "6–7 songs",
+   "7–8 songs",
+   "8–10 songs",
+   "10–11 songs",
+   "11–12 songs",
+   "12–13 songs",
+   "13–14 songs",
+   "14–15 songs",
+   "15–17 songs",
+   "17–18 songs",
+   "18–19 songs",
+   "19–20 songs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 6,
+  "hi": 20,
+  "unit": "songs"
+ },
+ {
+  "id": "feed-f136",
+  "surface": "feed",
+  "seq": 183,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One selfie with: Beyoncé, the Pope, Lionel Messi, or Taylor Swift?",
+  "options": [
+   "Beyoncé",
+   "The Pope",
+   "Lionel Messi",
+   "Taylor Swift"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-n07",
+  "surface": "feed",
+  "seq": 184,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Nine-figure transfer fees: the market working, or football losing the plot?",
+  "options": [
+   "The market working",
+   "Losing the plot",
+   "Fine — until my club pays"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-04",
+  "bg": "Europe's summer transfer window closed on 1 September. Deadline day brought a rush of deals across the big leagues, several at nine-figure fees, before squads lock until the winter window opens in January."
+ },
+ {
+  "id": "feed-n08",
+  "surface": "feed",
+  "seq": 185,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A $4bn telescope just left to hunt dark energy. Money well spent?",
+  "options": [
+   "Every cent",
+   "Fix Earth first",
+   "Ask me when it finds something"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-05",
+  "bg": "NASA's Nancy Grace Roman Space Telescope launched on a SpaceX Falcon Heavy on 30 August, bound for the L2 point 1.5 million kilometres out. Its wide-field camera will hunt exoplanets and map dark energy; the mission cost about $4.3 billion."
+ },
+ {
+  "id": "feed-n09",
+  "surface": "feed",
+  "seq": 186,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A Grand Slam without the world No. 1: wide open, or missing something?",
+  "options": [
+   "Wide open",
+   "Missing something"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-06",
+  "bg": "The 2026 US Open runs 30 August to 13 September in New York. Top-ranked Jannik Sinner withdrew before play began with a knee injury; Carlos Alcaraz and Aryna Sabalenka arrived as the defending singles champions."
+ },
+ {
+  "id": "feed-n10",
+  "surface": "feed",
+  "seq": 187,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Awards season opens at Venice. Do festival prizes change what you watch?",
+  "options": [
+   "I seek winners out",
+   "They reach me eventually",
+   "Industry theatre"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-07",
+  "bg": "The 83rd Venice International Film Festival runs 2 to 12 September and opens the autumn awards season. Maggie Gyllenhaal chairs the main-competition jury; 21 world premieres compete for the Golden Lion."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -6707,6 +7210,18 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "group-gp7",
+  "surface": "group",
+  "seq": 25,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who tells the same story every time, and it still lands?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-000",
   "surface": "duo",
   "seq": 0,
@@ -7202,9 +7717,24 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-020",
+  "id": "duo-053",
   "surface": "duo",
   "seq": 31,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Realising you're wrong mid-argument: concede on the spot, or land the plane quietly?",
+  "options": [
+   "Concede on the spot",
+   "Quietly change course"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 32,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -7222,7 +7752,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 32,
+  "seq": 33,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -7240,7 +7770,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 33,
+  "seq": 34,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -7258,7 +7788,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 34,
+  "seq": 35,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -7275,7 +7805,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 35,
+  "seq": 36,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -7294,7 +7824,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 36,
+  "seq": 37,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -7312,7 +7842,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 37,
+  "seq": 38,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -7329,7 +7859,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 38,
+  "seq": 39,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -7347,7 +7877,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 39,
+  "seq": 40,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -7366,7 +7896,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 40,
+  "seq": 41,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -7383,7 +7913,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 41,
+  "seq": 42,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -7401,7 +7931,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 42,
+  "seq": 43,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -7419,7 +7949,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 43,
+  "seq": 44,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -7437,7 +7967,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 44,
+  "seq": 45,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -7455,7 +7985,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 45,
+  "seq": 46,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -7474,7 +8004,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 46,
+  "seq": 47,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -7492,7 +8022,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 47,
+  "seq": 48,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -7511,7 +8041,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 48,
+  "seq": 49,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -7529,7 +8059,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 49,
+  "seq": 50,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -7548,7 +8078,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 50,
+  "seq": 51,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
@@ -7565,7 +8095,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-051",
   "surface": "duo",
-  "seq": 51,
+  "seq": 52,
   "type": "binary",
   "domain": null,
   "prompt": "After a fight, the first move back is usually…",
@@ -7584,13 +8114,50 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-052",
   "surface": "duo",
-  "seq": 52,
+  "seq": 53,
   "type": "binary",
   "domain": null,
   "prompt": "The retirement dream: settled deep somewhere, or still moving?",
   "options": [
    "Settled deep",
    "Still moving"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-054",
+  "surface": "duo",
+  "seq": 54,
+  "type": "binary",
+  "domain": null,
+  "prompt": "When they need help, they…",
+  "options": [
+   "Ask straight out",
+   "Hint and hope",
+   "Soldier on alone"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-055",
+  "surface": "duo",
+  "seq": 55,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Ten years on, the two of you are known for…",
+  "options": [
+   "The open house",
+   "The adventures",
+   "The quiet steadiness",
+   "The double act"
   ],
   "topic": null,
   "axis": null,
@@ -13811,6 +14378,225 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "p": 60,
   "k": "The Sun runs on fusion",
   "w": "Hydrogen fusing into helium in the core — not combustion; there is nothing up there to burn."
+ },
+ {
+  "id": "learn-anc14",
+  "surface": "learn",
+  "seq": 156,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Pompeii was buried by…",
+  "options": [
+   "A volcano",
+   "A flood",
+   "An earthquake",
+   "A sandstorm"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 72,
+  "k": "Vesuvius buried Pompeii",
+  "w": "AD 79 — and the town had already been rattled by a major earthquake seventeen years earlier."
+ },
+ {
+  "id": "learn-anc15",
+  "surface": "learn",
+  "seq": 157,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The oldest known writing was mostly used for…",
+  "options": [
+   "Poetry",
+   "Prayers",
+   "Accounting",
+   "Royal decrees"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 39,
+  "k": "Writing began as accounting",
+  "w": "The earliest cuneiform tablets are inventories — grain, beer, sheep — centuries before anyone wrote a poem down."
+ },
+ {
+  "id": "learn-anc16",
+  "surface": "learn",
+  "seq": 158,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Sphinx's missing nose was…",
+  "options": [
+   "Shot off by Napoleon's troops",
+   "Removed to a museum",
+   "Eroded by a flood",
+   "Gone centuries before Napoleon"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 42,
+  "k": "The nose predates Napoleon",
+  "w": "Drawings made decades before Napoleon's campaign already show the Sphinx noseless."
+ },
+ {
+  "id": "learn-anc17",
+  "surface": "learn",
+  "seq": 159,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The pyramids were built mainly by…",
+  "options": [
+   "Enslaved people",
+   "Paid seasonal workers",
+   "Prisoners of war",
+   "Priests"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "Pyramid builders were paid",
+  "w": "Workers' villages near Giza show bread and beer rations, medical care and honourable burials — not slave quarters."
+ },
+ {
+  "id": "learn-anc18",
+  "surface": "learn",
+  "seq": 160,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The trial of Socrates was decided by…",
+  "options": [
+   "A single judge",
+   "A jury of about 500",
+   "The king of Athens",
+   "An oracle"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 33,
+  "k": "Socrates faced 500 jurors",
+  "w": "Athenian juries ran to hundreds precisely so they could not be bribed."
+ },
+ {
+  "id": "learn-body14",
+  "surface": "learn",
+  "seq": 161,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your stomach gets a new lining every…",
+  "options": [
+   "Few days",
+   "Few months",
+   "Year",
+   "It never renews"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 35,
+  "k": "Stomach relines in days",
+  "w": "The acid would digest the stomach itself otherwise — the mucus lining turns over in under a week."
+ },
+ {
+  "id": "learn-body15",
+  "surface": "learn",
+  "seq": 162,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The body's strongest muscle for its size is…",
+  "options": [
+   "The thigh",
+   "The jaw",
+   "The heart",
+   "The bicep"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 44,
+  "k": "The jaw: strongest for size",
+  "w": "The masseter — bite force concentrates through a short, brutal lever."
+ },
+ {
+  "id": "learn-body16",
+  "surface": "learn",
+  "seq": 163,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which sense is wired most directly to memory?",
+  "options": [
+   "Sight",
+   "Hearing",
+   "Smell",
+   "Touch"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 51,
+  "k": "Smell wires to memory",
+  "w": "Olfactory signals skip the brain's relay station and land beside the memory centres — hence the time-travel of a familiar smell."
+ },
+ {
+  "id": "learn-body17",
+  "surface": "learn",
+  "seq": 164,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Goosebumps are…",
+  "options": [
+   "A leftover from having fur",
+   "A circulation boost",
+   "An infection response",
+   "Random nerve noise"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 57,
+  "k": "Goosebumps: fur we lost",
+  "w": "The muscles that raise hairs made ancestors look bigger and warmer; the reflex outlived the coat."
+ },
+ {
+  "id": "learn-body18",
+  "surface": "learn",
+  "seq": 165,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many times does your heart beat in a day, roughly?",
+  "options": [
+   "10,000",
+   "100,000",
+   "1 million",
+   "1,000"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 62,
+  "k": "100,000 beats a day"
  },
  {
   "id": "pulse-pace",

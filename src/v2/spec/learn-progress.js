@@ -63,7 +63,7 @@ export const LEARN = (function () {
   SUBJECTS.forEach((s) => { SBY[s.id] = s; });
 
   const listeners = new Set();
-  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } });
+  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* a subscriber that throws must not stop the others — one broken listener would silence the store for every screen watching it. NOT storage: the comment here said localStorage for years, pasted from the save() above. */ } });
 
   // The live bank, when it lands (D284). `hydrate()` publishes it well
   // after this module evaluated, so the pool is re-read and the two card

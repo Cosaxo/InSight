@@ -63,6 +63,7 @@ const LIVE = vi.hoisted(() => {
     // reveal tests assert is the reveal, and a seeded take here would put
     // words in a named member's mouth in a fixture.
     takes: () => [] as Array<Record<string, unknown>>,
+    takesLoading: () => false,
     loadTakes: async (gid: string) => { void gid; },
     postTake: async (gid: string, qid: string, text: string) => {
       void gid; void qid; void text;

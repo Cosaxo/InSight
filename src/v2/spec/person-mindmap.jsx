@@ -80,7 +80,17 @@ function pmmBuild(p) {
     if (H('has' + q.id) > 0.68) return; // one they haven't answered
     const n = Math.max(2, q.type === 'rating' ? 10 : q.type === 'binary' ? 2 : q.type === 'scale' ? 5 : (q.options || []).length || 2);
     const mineIdx = D.myAnswer(q);
-    const gd = window.MapStats ? window.MapStats.dist(q.id, 'all', n, mineIdx) : null;
+    // `q.liveId`, not `q.id` — the same two-id-space trap map-tab.jsx
+    // carried until 2026-09-02, in the file that found the LAST class of
+    // this kind. MapStats reads LIVE.aggFor in a live build, which is
+    // keyed by the seeded bank id; `q.id` is daily-questions.js's own demo
+    // calendar id, and the two spaces are disjoint. Passing the wrong one
+    // returns null for every question, so `typ` and `maj` both fell back
+    // to the deterministic hash and this map placed nobody by any real
+    // agreement. Falls back on a demo build, where the demo id is the only
+    // id there is.
+    const qid = q.liveId || q.id;
+    const gd = window.MapStats ? window.MapStats.dist(qid, 'all', n, mineIdx) : null;
     const majIdx = gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
     let aidx;
     if (mineIdx != null && H('agree' + q.id) < agreeP) aidx = mineIdx;
@@ -104,7 +114,7 @@ function pmmBuild(p) {
       parent = sub.id;
     }
     nodes.push({
-      id: 'pmq-' + q.id, parentId: parent, daily: true, qid: q.id,
+      id: 'pmq-' + q.id, parentId: parent, daily: true, qid,
       label: ansText(q, aidx), tag: q.tag || prompt, ans: ansText(q, aidx), prompt, typ, maj,
       mine: mineIdx != null ? ansText(q, mineIdx) : null,
       same: mineIdx != null ? aidx === mineIdx : null,

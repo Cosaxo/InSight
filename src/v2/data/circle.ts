@@ -66,7 +66,44 @@ import { WORLD_ANSWER_SURFACES } from "./voters";
  */
 export const FOLLOW_CAP = 50;
 
-/** Answers to read per followed account. */
+/**
+ * Answers to read per followed account.
+ *
+ * WHICH answers, when it binds: the query below carries no `orderBy`, and
+ * an unordered `limit` in Firestore takes documents by NAME — here the
+ * question id. So past this cap a member's likeness would be computed
+ * from the alphabetically-first 300 questions they have answered, and the
+ * bias would be invisible: the reading still draws, it is just about a
+ * slice nobody chose. That is the same shape as the follow cap's own bug,
+ * fixed four nights ago after it silently kept the alphabetically-first
+ * fifty people in a circle.
+ *
+ * IT BINDS TODAY. This said "it cannot bind today — the core bank is
+ * ~130 questions" until the closing review of 2026-08-31 measured it
+ * against the wrong bank. `core` is the Mirror's corpus; the query below
+ * asks for WORLD_ANSWER_SURFACES, which is six of them — daily 130, feed
+ * 166, test 110, learn 156, pulse 5, call 3 = 570 answerable questions
+ * against a cap of 300, with no bank growth required. Somebody who has
+ * worked through more than half of what they can answer is read from the
+ * alphabetically-first slice of it, and the reading still draws.
+ *
+ * (That line first landed saying "feed 190, test 160 = 644". Counted off
+ * the committed banks instead: `content/feed-questions.json` holds 166
+ * questions and the four instruments in `IS_TESTS` hold 110 between them
+ * — 25 + 30 + 30 + 25. The conclusion is untouched, 570 being nearly
+ * twice the cap either way, but a figure written by hand inside the
+ * argument it supports is this repo's most-repeated documentation error,
+ * and it does not get an exemption for being in a comment that is right.)
+ *
+ * The fix is NOT free, which is why this is still recorded rather than
+ * built (D7): ordering by `answeredAt` needs a composite index on
+ * (surface ASC, answeredAt DESC) scoped to the `answers` COLLECTION, and
+ * this repo pays index entries on every answer ever written. The night
+ * that removed a reader-less index said so in its own message. What
+ * changed is the urgency, not the price — this is a live bias to bring to
+ * the owner with the index cost, not a note to file behind the pagination
+ * work.
+ */
 export const CIRCLE_ANSWER_CAP = 300;
 
 export interface Member {

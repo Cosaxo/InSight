@@ -19,6 +19,7 @@ export const KEY_DOMAINS = [
   { constName: "COUNTRY_KEYS", file: "countries.txt" },
   { constName: "DOG_KEYS", file: "dogs.txt" },
   { constName: "COLOR_KEYS", file: "colors.txt" },
+  { constName: "LANGUAGE_KEYS", file: "languages.txt" },
 ];
 
 export function parseKeys(file) {

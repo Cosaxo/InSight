@@ -29,7 +29,7 @@ export const LEARN_FEED = (function () {
   return {
     LEVELS: ['off', 'some', 'lots'],
     freq: () => f,
-    setFreq: (v) => { if (RATE[v] === undefined) return; f = v; try { localStorage.setItem(LS, v); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } subs.forEach((fn) => { try { fn(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); },
+    setFreq: (v) => { if (RATE[v] === undefined) return; f = v; try { localStorage.setItem(LS, v); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } subs.forEach((fn) => { try { fn(); } catch (e) { /* a subscriber that throws must not stop the others — one broken listener would silence the store for every screen watching it. NOT storage: the comment here said localStorage for years, pasted from the save() above. */ } }); },
     every: () => RATE[f],
     // n cards from the fields you follow, minus any chip you've muted
     cards: (n, muted) => {

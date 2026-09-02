@@ -69,7 +69,7 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 // coupling-meter reasoning. The three legacy stores stay window.* reads
 // below (in the D39 baseline); convert them on touch, never re-add one.
 import ELEMENTS_CATALOG from '../data/elements.ts';
-import { COUNTRIES, DOGS, COLORS } from '../data/catalogs.ts';
+import { COUNTRIES, DOGS, COLORS, LANGUAGES } from '../data/catalogs.ts';
 // Imported for the D89 gate rather than read off window — same meter
 // reasoning as the imports above. The window.LIVE reads elsewhere in this
 // file predate the ratchet; new ones may not join them.
@@ -81,6 +81,10 @@ import { PASSIVE } from './passive-progress.js';
 // is the deferred feed group (spec-index.js), so neither reaches first
 // paint; check:bundle's eager ceiling has no headroom for either.
 import { PathsCard } from './paths-card.jsx';
+// …and the store directly, for one read: answered() must know whether a
+// walk is finished, which for a DEMO story lives nowhere but here (a live
+// walk is a vote and rides the ordinary answer plumbing).
+import { PATHS } from './paths-data.js';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
 // The app's ONE rounding rule (D277). Three splits in this file computed
 // their own — round each share, dump the residue on the largest bucket —
@@ -91,6 +95,8 @@ import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
   wfTileArt, wfTint,
+  wfVotesOf,
+  wfAnsweredOf,
 } from './world-feed-math.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
@@ -176,7 +182,7 @@ function wfLoadTakes() {
   try { const v = JSON.parse(localStorage.getItem(WF_TAKES_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
   catch (e) { return {}; }
 }
-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' || q.type === 'dial' || q.type === 'field' ? (q.n || 0) : q.type === 'pick' ? (q.n || ((WF_CATALOGS[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
+function wfVotes(q) { return wfVotesOf(q, (WF_CATALOGS[q.catalog] || {}).picks || 0); }
 
 
 
@@ -1608,6 +1614,7 @@ class WorldFeed extends React.Component {
       : domain === 'countries' ? COUNTRIES
       : domain === 'dogs' ? DOGS
       : domain === 'colors' ? COLORS
+      : domain === 'languages' ? LANGUAGES
       : POKEDEX;
   }
 
@@ -1707,7 +1714,7 @@ class WorldFeed extends React.Component {
     // it. The entity count renders only when the fold covers at least two
     // entries (the subtraction-leak rule the backend fold keeps) and steps
     // down like the vote counts do, so it never ticks per-answer.
-    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes' };
+    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes', languages: 'languages' };
     const foldNoun = nounOf[q.domain] || 'picks';
     const foldNote = c.restEntities >= 5
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
@@ -2244,14 +2251,26 @@ class WorldFeed extends React.Component {
   // and rank question takes that branch, because the server-side answer has
   // no local raw value.
   answered(q, mine) {
-    const v = this.state.votes[q.id];
+    // A Crossroads story (D341) is answered when its walk is finished. The
+    // walk lives in PATHS (demo and live alike — the card writes each fork
+    // there), and a live finish is ALSO a vote, which covers the returning
+    // device whose localStorage is gone. An unfinished walk is not an
+    // answer: the card stays in the fresh stream and resumes.
+    //
+    // BEFORE `wfAnsweredOf`, and that is the whole of the resolution here:
+    // D341 landed on main after this branch extracted the shared helper,
+    // so the helper has never heard of `path`. Handled early means it does
+    // not have to. (`const v` went with the extraction — the tail that
+    // read it is now inside the helper.)
+    if (q.type === 'path') {
+      if (PATHS.walkOf(q.id).length >= 3) return true;
+      return !!(q.live && LIVE.myVotes && (mine || LIVE.myVotes())[q.id] != null);
+    }
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
-    if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank') && v == null && q.live && LIVE.myVotes) {
-      return (mine || LIVE.myVotes())[q.id] != null;
-    }
-    return q.type === 'rank' ? !!(v && v.order) : v != null;
+    return wfAnsweredOf(q, this.state.votes,
+      LIVE.myVotes ? () => mine || LIVE.myVotes() : null);
   }
 
   // The feed's source pool, read in one place by the two callers that need
@@ -3213,7 +3232,7 @@ class WorldFeed extends React.Component {
     // fabrication with more of it: every row below is `wfKnowRate`, a hash
     // of (card, cohort) \u2014 a per-cohort knowledge rate nobody has measured,
     // drawn against a baseline nobody has measured either. So the cuts go
-    // the way MapStats' five null anchors went (D72): refused at the
+    // the way MapStats' null anchors went (D72): refused at the
     // source, returning when a per-cohort learn aggregate exists to rank.
     //
     // The headline stays, because it has a true version \u2014 LEARN_RATE hands
@@ -3911,7 +3930,12 @@ class WorldFeed extends React.Component {
     if (this.props.focus) {
       return (
         <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {this.props.focus.filter(Boolean).map((q) => this.renderCard(q, {}))}
+          {/* the same dispatch the stream uses: a story found through
+              search opens as the real story card, not as renderCard's
+              option apparatus over a walk (D341) */}
+          {this.props.focus.filter(Boolean).map((q) => (q.type === 'path'
+            ? <PathsCard key={q.id} q={q}></PathsCard>
+            : this.renderCard(q, {})))}
           {this.renderSheet()}
         </div>
       );
@@ -4020,18 +4044,24 @@ class WorldFeed extends React.Component {
     // What the expander holds, in the same order the feed would have
     // shown it: the world's record first, then the test and lens streams'.
     const doneList = [...worldSplit.done, ...testSplit.done, ...lensSplit.done];
-    // The weave walks the FULL world list — answered cards included — and
-    // the answered ones are filtered out of the OUTPUT below. Weaving the
-    // fresh half alone reads simpler but starves the side streams: the
-    // test/lens slots fire on world indices, the bank is finite, and the
-    // fresh half only ever shrinks — at eight fresh world cards the lens
-    // stream (every 9th) would strand its remaining questions FOREVER,
-    // not "until later". Walking the full list keeps every cadence
-    // position alive at the cost of the slots landing a little closer
-    // together on screen as the fresh half thins — which at the fully
-    // caught-up end degrades into exactly the right thing: the remaining
-    // fresh test/lens cards, in cadence order, with no world cards
-    // between them.
+    // The weave walks the FRESH world list, and its cadences walk the FULL
+    // list's depth (D348). It used to walk the full list — answered cards
+    // included — and drop the answered ones from the output below, so the
+    // side streams could not be starved: the test/lens slots fire on
+    // world indices, the bank is finite, and the fresh half only ever
+    // shrinks — at eight fresh world cards the lens stream (every 9th)
+    // would have stranded its remaining questions FOREVER. That kept the
+    // counts right and the order wrong. A returning device's answered
+    // cards are a PREFIX of the stable order (you answer from the top),
+    // so every slot that fired against the prefix survived the drop as a
+    // solid block at the head of the feed: sixteen answered put seven
+    // side cards before the first topic card, forty put nineteen, and
+    // the owner's "when you first open the app it never seems to add
+    // topics that are not tests or learn" was this, not the depletion
+    // D309 read it as. So the fresh list is what gets woven, and `depth`
+    // carries the full length: the same side cards land, at the designed
+    // rhythm among the fresh topics, with the surplus after them — which
+    // at the fully caught-up end is exactly what the full walk produced.
     // The paid slot (D195). Every sponsored card leaves the ordinary
     // stream and at most ONE comes back, at a fixed depth — the cap is the
     // unit of sale, so it has to be a property of the code rather than of
@@ -4065,15 +4095,18 @@ class WorldFeed extends React.Component {
     const paidCard = paidSplit.ad
       ? { id: paidSplit.ad.id, ad: paidSplit.ad }
       : paidSplit.sponsored;
-    const woven = interleaveFeed(ordered, {
+    const dropWorld = new Set(worldSplit.done.map((q) => q.id));
+    const woven = interleaveFeed(ordered.filter((q) => !dropWorld.has(q.id)), {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
       sponsored: paidCard, sponsorAt: SPONSOR_AT,
+      depth: ordered.length,
     });
-    // …and only now do the answered world cards leave the feed (fresh
-    // questions only — release feedback; they park behind the Answered
-    // expander below). Stream cards never match a world id, so the filter
-    // touches exactly the world's done half.
-    const dropWorld = new Set(worldSplit.done.map((q) => q.id));
+    // The one answered world card that can still be in the weave is the
+    // paid one: partitionSponsored picks it off the full list, so a
+    // sponsored question the viewer has already answered parks behind the
+    // Answered expander like every other answered card instead of
+    // spending the day's slot on a result. Stream cards never match a
+    // world id, so this touches nothing else.
     const feedList = woven.filter((q) => !dropWorld.has(q.id));
     // Read by the two growth checks above, which run outside render and so
     // cannot see this local. Assigned rather than derived there because the
@@ -4087,7 +4120,10 @@ class WorldFeed extends React.Component {
     // Never a card that carries a real window (D231) — the fake ring on a
     // card with a true deadline is the one place this grace note would be
     // read as information. Both fallbacks are filtered for the same reason.
-    const clockable = feedList.filter((q) => !askWindow(q));
+    // Nor a story (D341): the ring is renderCard's to draw and PathsCard
+    // never would, so a hash that landed on one would silently spend the
+    // grace note on a card that cannot wear it.
+    const clockable = feedList.filter((q) => !askWindow(q) && q.type !== 'path');
     const closingId = this.opts.clock
       ? ((clockable.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || clockable[1] || {}).id)
       : null;
@@ -4140,25 +4176,14 @@ class WorldFeed extends React.Component {
         </div>
         {feedList.slice(0, this.state.shown).map((q, i) => (
           <React.Fragment key={q.id}>
-            {/* Crossroads at the head of the feed (D136). Live it reads a
-                real bank question and folds its branch shares from real
-                answers; demo it reads the authored pool. The card picks its
-                own source (see srcOf), so there is no gate here — which is
-                the point: a surface that renders in one mode and not the
-                other is a surface only one of them is tested on.
-
-                Not dealt into the stream with the other cards because its
-                reveal is a TREE rather than a split: none of renderCard's
-                apparatus — option rows, who-voted, takes, the insight line
-                — has anything to say about a walk, and the prototype pins
-                it here for the same reason. */}
-            {i === 0 && <PathsCard />}
-            {/* The reading game (D196) — pinned beside Crossroads and for
-                the same reason: it is one thing you are doing, not a card
-                dealt into the stream. It renders nothing in a demo build
-                and nothing until there are enough fair reads to keep a
-                record worth believing, so this line adds a card only where
-                there is a real one to add.
+            {/* The reading game (D196) — held at the head, not dealt into
+                the stream: it is one thing you are doing, not a card in
+                it. (Crossroads stood beside it here until D341 made a
+                story an ordinary member of the stream — see the dispatch
+                below.) It renders nothing in a demo build and nothing
+                until there are enough fair reads to keep a record worth
+                believing, so this line adds a card only where there is a
+                real one to add.
 
                 THIS SLOT HELD THE FUTURE-PREDICTION CARD FOR ONE DAY
                 (D194's tier-A call, which guessed the app's own future
@@ -4168,9 +4193,20 @@ class WorldFeed extends React.Component {
                 this game's engine — see D196. */}
             {i === 0 && <LiveReadGame />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
+            {/* Three card shapes, one stream. A Crossroads story (D341) is
+                a MEMBER of feedList — a feed question like any other, so
+                the sort, the topic chips, the weave and the answered
+                partition all place it and several can be on screen at
+                once — but its reveal is a tree rather than a split, so it
+                renders through its own component instead of renderCard
+                (the D136 half that stands). D136 pinned one story at the
+                head instead; the owner's correction is on record in D341:
+                "it should be in the feed like the others". */}
             {q.ad
               ? <AdCard ad={q.ad}></AdCard>
-              : this.renderCard(q, { closing: q.id === closingId })}
+              : q.type === 'path'
+                ? <PathsCard q={q}></PathsCard>
+                : this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
         {/* Room to scroll INTO while the window is still short of the list.
@@ -4197,7 +4233,9 @@ class WorldFeed extends React.Component {
             <span aria-hidden="true" style={{ fontSize: 10, transform: this.state.doneOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s ease' }}>{'▾'}</span>
           </button>
         )}
-        {this.state.doneOpen && doneList.map((q) => this.renderCard(q, {}))}
+        {this.state.doneOpen && doneList.map((q) => (q.type === 'path'
+          ? <PathsCard key={q.id} q={q}></PathsCard>
+          : this.renderCard(q, {})))}
         {this.renderSheet()}
       </div>
     );

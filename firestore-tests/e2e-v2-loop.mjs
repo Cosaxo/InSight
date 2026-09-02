@@ -810,6 +810,41 @@ const latecomer = await signInAnonymously(lateAuth);
 await httpsCallable(lateFns, "requestJoinV2")({ code: gCreated.data.inviteCode });
 await httpsCallable(fns, "approveJoinV2")({ gid: lateGid, uid: latecomer.user.uid });
 
+// THE JOINER'S OWN LIMIT, on the one admission path that never checked it.
+// Creating a circle, ASKING to join one and accepting an invite all assert
+// how many circles an account may be in; approve checked only whether the
+// circle had room. So somebody else's tap could put an account past the
+// cap — and that cap is what bounds deleteAccount's group walk, which has
+// no limit of its own.
+//
+// Twenty is the cap, and creating twenty is how an account reaches it
+// honestly (the twenty-first create is refused by the same bound, which is
+// the control below).
+{
+  const capApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "capjoiner");
+  const capAuth = getAuth(capApp); connectAuthEmulator(capAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const capFns = getFunctions(capApp, FUNCTIONS_REGION); connectFunctionsEmulator(capFns, "127.0.0.1", 5001);
+  const capUser = await signInAnonymously(capAuth);
+  // ORDER MATTERS, and it is the whole reason this path needed its own
+  // check. Asking to join asserts the cap too, so an account already at
+  // twenty cannot even ask — the only way to arrive at an approval over
+  // the cap is to ask while under it and cross it before somebody taps
+  // "Let in". So: nineteen circles, then the request, then the twentieth.
+  for (let i = 0; i < 19; i++) {
+    await httpsCallable(capFns, "createGroupV2")({ name: `Cap ${i}`, mode: "group" });
+  }
+  const host = await httpsCallable(fns, "createGroupV2")({ name: "One More", mode: "group" });
+  await httpsCallable(capFns, "requestJoinV2")({ code: host.data.inviteCode });
+  await httpsCallable(capFns, "createGroupV2")({ name: "Cap 19", mode: "group" });
+  await expectCode("a twenty-first circle of their own refused",
+    "functions/resource-exhausted",
+    () => httpsCallable(capFns, "createGroupV2")({ name: "Cap 20", mode: "group" }));
+  await expectCode("letting in someone already in twenty circles refused",
+    "functions/resource-exhausted",
+    () => httpsCallable(fns, "approveJoinV2")({ gid: host.data.gid, uid: capUser.user.uid }));
+  ok("the joiner's membership cap holds on the approval path");
+}
+
 const lateAid = `g_${lateGid}_${OTHERDAY}`;
 const groupAnswer = (idx) => ({
   qid: "group-gu0", surface: "group", optionIdx: idx,

@@ -26,9 +26,27 @@
 // prototype's own pool rule — two options, nothing else — over the daily
 // bank (core by construction) and the feed's core: true questions.
 //
-// Scale note, recorded not built (D7): the day's per-user fold holds the
-// active users' vectors in memory — fine to ~100k DAU under 256MiB, and
-// the fix at that size is paging the fold by uid range, not a bigger box.
+// Scale note, recorded not built (D7) — and CORRECTED 2026-08-31, because
+// it named the wrong term and therefore the wrong fix.
+//
+// It said the binding cost is "the active users' vectors in memory", with
+// the remedy "paging the fold by uid range". The vectors are eight floats
+// per person; the term that actually binds is the LEDGER DAY, which
+// `readLedgerDay` pages out of Firestore and then returns as one array.
+// Measured here with realistic 28-character uids and bank-shaped qids,
+// after a forced gc: ~290 bytes retained per entry — 124 MiB at 450k
+// entries, 250 MiB at 900k. At COSTS.md's ~5 world answers per user per
+// day, 100k DAU is ~500k entries ≈ 139 MiB for the array alone, before the
+// per-uid Map of Maps built on top of it, the vectors, and node's own
+// baseline, on a 256 MiB instance.
+//
+// Paging by uid range cannot help: the whole day is read precisely to
+// learn which uids answered. The fix is the one `velocity.ts` already
+// took and wrote down — fold each PAGE as it arrives (`foldInto` there)
+// instead of buffering the day — and its note explains why this failure is
+// worse than a lost run: nothing here advances a cursor until the end, so
+// an OOM re-reads the same day and dies identically, every night, with
+// the shards and the rollup behind it never draining.
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { FieldValue } from "firebase-admin/firestore";
@@ -94,12 +112,20 @@ export interface PatternsStore {
   ledgerDay(dayKey: string): Promise<PatternsLedgerEntry[]>;
   /** The model, plus the published quality series (D325) so the fit can
    * append to it rather than restart it every night. */
-  getModel(): Promise<(PatternsModel & { lastDay?: string; series?: PatternsQualityDay[] }) | null>;
+  getModel(): Promise<(PatternsModel & {
+    lastDay?: string;
+    series?: PatternsQualityDay[];
+    /** The previous publish in full — carried forward by a run that scores
+     * nothing, so a crashed day does not cost the perQ table too. */
+    quality?: PatternsQuality;
+  }) | null>;
   putModel(
     model: PatternsModel,
     lastDay: string,
     folded: number,
-    quality: PatternsQuality,
+    /** Absent when the run has no head to score and no prior to carry —
+     *  see the fold's own note. A doc predating D325 has none either. */
+    quality: PatternsQuality | undefined,
     displacement: PatternsDisplacement,
   ): Promise<void>;
   getUsers(uids: string[]): Promise<Map<string, PatternsUserState>>;
@@ -152,6 +178,9 @@ export async function runPatternsFit(
   // the fold mutates them, so the displacement summary (D325) compares
   // publish to publish with zero extra reads.
   const priorSeries = model.series ?? [];
+  // The whole previous publish, not just its series: it is what a run that
+  // scores nothing carries forward, perQ table included.
+  const prevQuality = model.quality;
   const prevPub: Record<string, number[]> = {};
   for (const [qid, L] of Object.entries(model.q)) prevPub[qid] = [...L.v];
 
@@ -177,6 +206,7 @@ export async function runPatternsFit(
     const entries = (await store.ledgerDay(day)).filter(
       (e) => eligible.has(e.qid) && (e.optionIdx === 0 || e.optionIdx === 1),
     );
+    let refolded = 0;
     if (!entries.length) continue;
     // group by person; sort each person's day by qid so a replay
     // reproduces the run (the fit is order-sensitive within a day)
@@ -246,7 +276,7 @@ export async function runPatternsFit(
       // ALREADY FOLDED — a previous attempt at this day wrote this person
       // before it died. Neither the vector nor the model steps again; see
       // the note on the trade in this function's header.
-      if (user.d && user.d >= day) continue;
+      if (user.d && user.d >= day) { refolded += 1; continue; }
       foldUserDay(model, user, obs, score);
       user.d = day;
       write.set(uid, user);
@@ -254,11 +284,47 @@ export async function runPatternsFit(
       folded += obs.length;
     }
     if (write.size) await store.putUsers(write);
+    // A DAY A DEAD RUN ALREADY FOLDED IS NOT AN EMPTY DAY. The retry guard
+    // above skips everybody a previous attempt stamped, so `score` stays at
+    // n: 0 — and a zero row published into the series says exactly what the
+    // series' own docstring defines it to mean: nobody answered. For a day
+    // that had answers, folded into the model that crashed before it could
+    // publish. The row then lives 90 days in the standing prequential
+    // record D325 keeps as "the number any candidate engine must beat", and
+    // the ledger day it describes is consumed, so nothing can recompute it.
+    //
+    // Silence is the honest reading: a previous attempt owned that day's
+    // score and it is gone. Dropped from `scored` rather than published,
+    // and only when the day had entries and every one of them was skipped
+    // as already folded — a day that genuinely had no eligible answers
+    // keeps its n: 0 row, which is the putModel zero-rather-than-nothing
+    // idiom working as intended.
+    if (!write.size && refolded > 0) scored.pop();
   }
-  const quality = publishableQuality(scored, priorSeries);
+  // …and if EVERY owed day was one of those, there is no head to publish.
+  // `lastDay` still advances — the days really are folded, and not
+  // advancing would re-walk them forever, since every user is stamped — so
+  // the previous publish is carried forward untouched rather than replaced
+  // by a row about nothing.
+  // NOTHING, not an invented day, when there is no head AND no previous
+  // publish. This read `prevQuality ?? publishableQuality([{ day:
+  // yesterday, score: emptyDayScore() }], …)`, which manufactures exactly
+  // the "nobody answered" row the drop above exists to suppress — and it
+  // is reachable: a FIRST-EVER run that folds the whole catch-up window
+  // and dies before putModel leaves every entry stamped as folded and no
+  // model published, so the retry drops every day and has no prior to
+  // carry forward.
+  //
+  // `quality` is already optional on the way back out (the store's own
+  // getter types it `quality?`), because a loadings doc predating D325 has
+  // none. Publishing without one is therefore a state readers handle, and
+  // it is the honest one: the fit has nothing to say about this run.
+  const quality = scored.length
+    ? publishableQuality(scored, priorSeries)
+    : prevQuality;
   const displacement = displacementSummary(prevPub, model);
   await store.putModel(model, yesterday, folded, quality, displacement);
-  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality.bits };
+  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality?.bits ?? 0 };
 }
 
 /** The Firestore store. State lives in two places, each chosen for its
@@ -284,6 +350,7 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         q: (snap.get("q") as PatternsModel["q"]) ?? {},
         lastDay: (snap.get("lastDay") as string) ?? "",
         series: (snap.get("quality") as PatternsQuality | undefined)?.series ?? [],
+        quality: snap.get("quality") as PatternsQuality | undefined,
       };
     },
     async putModel(model, lastDay, folded, quality, displacement) {
@@ -310,7 +377,24 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         // displacement. Zero extra reads, zero extra writes; the client
         // reads only `k` and `q` and ignores both until something is
         // built to draw them.
-        quality,
+        // Omitted rather than written as undefined, which Firestore
+        // rejects outright.
+        //
+        // AND THIS `set` HAS NO MERGE — it REPLACES the document, so
+        // omitting a field deletes it. (I wrote "a `set` with merge" here
+        // when this arm landed, which is the opposite, and it is the kind
+        // of wrong sentence that makes the next edit look survivable.)
+        //
+        // Omitting is safe only because `quality` is undefined in exactly
+        // one case: the fold had no head to score AND `getModel` handed
+        // back no prior. That is a document with no `quality` to begin
+        // with, so nothing is deleted. The whole safety rests on the read
+        // above continuing to name `quality` — drop it from that
+        // projection and every run would carry undefined, and this
+        // replace would erase the 90-day prequential series D325 calls the
+        // number any candidate engine must beat. store-projection.test.ts
+        // holds both ends for that reason.
+        ...(quality ? { quality } : {}),
         displacement,
       });
       // ── the mount signal (D265) ──────────────────────────────────

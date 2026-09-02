@@ -11,6 +11,11 @@ import React from 'react';
 // arrive with THIS group, not with that one. loadOverlays calls
 // installSubtopicStock() for the same reason.
 import { SUBTOPICS } from './world-subtopics.js';
+// Both deferred with this file (search-overlay moved into loadOverlays at
+// D223), so neither reaches the first frame — world-catalogs is already
+// pulled in by loadWorldFeed for the same reason.
+import { WF_CATALOGS } from './world-catalogs.js';
+import { wfAnsweredOf, wfVotesOf } from './world-feed-math.js';
 import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
@@ -56,12 +61,18 @@ function srchQScore(q, query, topicLabel) {
   if (t >= 0) best = Math.max(best, 3 + t);
   return best;
 }
+// The feed's own counter, not a fork of it. This was a stale copy that
+// knew about `rank` and `rate` and nothing else, so `dial`, `field` and
+// `pick` — which carry no `options` — scored 0 in both orderings below.
 function srchQVotes(q) {
-  return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : (q.options || []).reduce((a, o) => a + o.count, 0);
+  return wfVotesOf(q, (WF_CATALOGS[q.catalog] || {}).picks || 0);
 }
+// The feed's own predicate, not a fork of it. This was the feed's TAIL
+// with the live branch cut off, so an answer that exists only on the
+// server — another device, or a page fetched after boot — read as
+// unanswered in both orderings below and on the row itself.
 function srchAnswered(q, votes) {
-  const v = votes[q.id];
-  return q.type === 'rank' ? !!(v && v.order) : v != null;
+  return wfAnsweredOf(q, votes, LIVE.myVotes ? () => LIVE.myVotes() : null);
 }
 // what you said, in the fewest words that still mean something
 function srchMyPick(q, votes) {

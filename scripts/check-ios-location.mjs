@@ -121,6 +121,53 @@ for (const key of [WHEN_IN_USE, ALWAYS]) {
   }
 }
 
+// 1b · …and the string describes EVERY location read the app makes.
+//
+// It said "Used once, on this device, to work out which city you are
+// nearest" while the Near presence loop re-read location every four
+// minutes for as long as Near was on and the app was open — a fresh read
+// each time, because locate.ts caps `maximumAge` at one minute precisely
+// so a stale fix cannot place you in a room you left. D175 turned
+// precision ON for that feature, and the string still described only the
+// city lookup. This is the prompt iOS shows a person before they decide,
+// so it is a promise in writing in the strongest sense the app has.
+//
+// Two-sided on purpose. Silent-while-the-loop-exists is the bug that
+// happened; still-claiming-it-after-the-loop-goes is the mirror, and a
+// purpose string that over-describes is its own kind of wrong.
+const liveTs = join(root, "src/v2/data/live.ts");
+if (existsSync(liveTs)) {
+  const live = readFileSync(liveTs, "utf8");
+  // The loop by its CALL, not by the identifier: `PRESENCE_BEAT_MS` also
+  // appears in prose two hundred lines up, so a bare name test kept
+  // answering "the loop is here" after the loop was taken out — measured,
+  // while proving this check. `setInterval(… PRESENCE_BEAT_MS)` and a
+  // location read are the two halves; either alone is not the behaviour.
+  const beats = /setInterval\([\s\S]{0,120}?PRESENCE_BEAT_MS\s*\)/.test(live)
+    && /locateCell\(/.test(live);
+  const str = strings[WHEN_IN_USE] ?? "";
+  const mentionsNear = /\bNear\b/.test(str);
+  if (beats && !mentionsNear) {
+    problems.push(
+      `${PLIST}: the purpose string does not mention Near.\n` +
+        `    data/live.ts re-reads location on a PRESENCE_BEAT_MS timer while\n` +
+        `    Near is on, so "used once" is not what the app does — and this\n` +
+        `    string is the prompt shown before anyone can consent to it.\n` +
+        `    web/privacy.html already describes the ~200 m square; the plist\n` +
+        `    is the copy that lags.`,
+    );
+  }
+  if (!beats && mentionsNear) {
+    problems.push(
+      `${PLIST}: the purpose string describes a Near loop that is gone.\n` +
+        `    No PRESENCE_BEAT_MS read remains in data/live.ts. A purpose\n` +
+        `    string that over-describes asks for more than the app needs,\n` +
+        `    which is the direction that loses a permission grant. Simplify\n` +
+        `    it — and the store label and privacy page move with it.`,
+    );
+  }
+}
+
 // 2 · …and identical, so the never-shown one cannot drift.
 if (
   strings[WHEN_IN_USE] !== undefined &&
@@ -239,8 +286,9 @@ if (!requested.length) {
   for (const [file, type] of wrong) {
     problems.push(
       `${PLUGIN}/${file}: requests .${type} authorisation.\n` +
-        `    This app's Info.plist purpose string describes a single foreground\n` +
-        `    reading ("used once, on this device"). If the plugin now asks for\n` +
+        `    This app's Info.plist purpose string describes foreground reads\n` +
+        `    only — the city lookup, and Near's square while the app is open.\n` +
+        `    If the plugin now asks for\n` +
         `    .${type}, that string is shown in a prompt it does not describe, and\n` +
         `    the store label, D9's table and web/privacy.html all need revisiting\n` +
         `    before this check does.`,

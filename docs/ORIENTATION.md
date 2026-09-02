@@ -83,7 +83,7 @@ who decides:
 | `content/` | The canonical question banks and archetypes — the seed source | `content/README.md`, `docs/QUESTION-FARM.md` |
 | `public/` | What Vite serves from the bundle root: the catalogue files answers are keyed into (`public/cities.txt`, `public/pokedex.txt`, `public/elements.txt` and the rest) and the webfonts. Fetched through `BASE_URL` rather than an absolute path — the Capacitor shells serve from a local file root, where a leading slash resolves off the device | `docs/CATALOG-QUESTIONS.md` |
 | `scripts/` | Four kinds of file, and the difference matters before you run one: the **gates** (`check-*`, every one of them in §5), the **builders** that regenerate committed artifacts (`build-*`, `gen-*`), the **instruments** that only read and print (cost, pulse, the budget models), and the **operator tools that act on live services** — seeding, aggregate rebuilds, App Store Connect, monitoring policies, test users. Each opens with why it exists, and several with what they caught | the script's own header |
-| `monitoring/` | Cloud Monitoring policies, applied by hand rather than by the pipeline, plus the pulse console's rate card | `docs/MONITORING.md` |
+| `monitoring/` | Cloud Monitoring policies, applied by hand rather than by the pipeline, the pulse console's rate card and trail, and the program console's trail (`monitoring/console-trail.jsonl`, one row a day from `console.yml` — D352) | `docs/MONITORING.md` |
 | `web/` | The Firebase Hosting root (`firebase.json` → `hosting.public`) — the marketing home, the `/join/**` link target, terms, and `web/.well-known/` for the two app-link association files. **Not the app**: the app is what Vite builds out of `index.html` | `docs/DEPLOYMENT.md` |
 | `web/privacy.html` | The one place the long privacy disclosure lives (D183). `check:policy-claims` holds it to the app | `docs/COPY.md` §3 |
 | `android/` · `ios/` | The Capacitor shells, committed so the apps build from a clean clone. `npx cap sync` copies the Vite build in; everything the toolchains generate on top is gitignored | `docs/IOS-RELEASE.md` |
@@ -123,6 +123,7 @@ directions.
 | [`SHIP-CHECKLIST.md`](SHIP-CHECKLIST.md) | The reasoning for every remaining human step to the App Store. Canonical | tree |
 | [`LAUNCH-RUNBOOK.md`](LAUNCH-RUNBOOK.md) | The same work as an ordered to-do list. Holds order and status | tree |
 | [`IOS-RELEASE.md`](IOS-RELEASE.md) | Producing a signed archive without a Mac | tree |
+| [`PLAY-RELEASE.md`](PLAY-RELEASE.md) | What a Play release would take, assessed while it is parked (D42): four code gaps, one missing web page, three owner decisions | mixed |
 | [`STORE-FORMS.md`](STORE-FORMS.md) | Apple's privacy and age-rating questionnaires, answered field by field | tree |
 | [`SCALE-PLAN.md`](SCALE-PLAN.md) | What an unbounded feed costs, what trips first, and the core/tail split it forces. §1's classification is built; the rest is not | mixed |
 | [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) | The same work as an ordered build list — open steps only | plan |
@@ -138,7 +139,17 @@ directions.
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`AXES-PLAN.md`](AXES-PLAN.md) | The owner's axis frame: every source the app measures as one family, the genetic and body axes it does not have yet, and where their doors go. Nothing new is built | plan |
 | [`AXES-RUNBOOK.md`](AXES-RUNBOOK.md) | The axes work as an ordered build list run by scheduled routines — the lanes, their canonical prompts, the learning loop, and the gate each step must pass. The lanes are live (D289); every build step is still open | mixed |
-| [`AXIOM-THEORY.md`](AXIOM-THEORY.md) | The theory layer above the axes: eight recurring lanes on an orphan branch writing each source's perfect form and their combination, and the bridge that is their only path into the product. Live since 2026-08-25 | tree |
+| [`AXIOM-THEORY.md`](AXIOM-THEORY.md) | The theory layer above the axes: twelve recurring lanes on an orphan branch — eleven writing each source's perfect form and their combination, one scoring that work every second night (D346) — and the bridge that is their only path into the product. Live since 2026-08-25 | tree |
+| [`OPS-RUNBOOK.md`](OPS-RUNBOOK.md) | The routines that keep the routine program honest — the platform probe, the roll call, the two shepherds, the production reader, the release recorder, the pulse responder — and the list worker that finishes `WORKLIST.md`. Contracts, models, canonical prompts and the wiring. Four of the eight Routines exist, bound to the ops dispatcher; the inventory says which | mixed |
+| [`WORKLIST.md`](WORKLIST.md) | The owner's to-do queue the list worker finishes, one item per PR. Add a line under § Open, or open an issue labelled `worklist` | plan |
+| [`PROGRAM-PLAN.md`](PROGRAM-PLAN.md) | The owner's 2026-09-02 ask — run the project from six lists and a console, across three subscriptions — restated against what runs today, one mechanism per list, the new lanes (the axiom builder, the merge shift, a to-do doer per account, the console), the rule every session reads, and the owner's answers (§10). Adopted at D352; the lists and the rule are built, the lanes and the console are not yet | mixed |
+| [`PROGRAM-RUNBOOK.md`](PROGRAM-RUNBOOK.md) | The program plan as an ordered build list — the phases with their gates, the seed of each list, the contracts and canonical prompts for the axiom builder, the merge shift, the console and the to-do doers, what the owner creates on the other subscriptions, and the account-side inventory. Phases 1 and 2 are done (D352) and phase 3 all but one Routine; phases 4–6 are open | mixed |
+| [`MERGE-LIST.md`](MERGE-LIST.md) | What the automation built, and what the owner approved — every open PR and every branch without one, as rows the console workflow regenerates; the owner's tick is the approval the merge shift acts on (D352) | tree |
+| [`PERMISSIONS.md`](PERMISSIONS.md) | Every permission, secret, install or setting that is limiting a routine — what was refused, what it blocks, the exact fix, and its status; the owner grants (D352) | tree |
+| [`OWNER-LIST.md`](OWNER-LIST.md) | Only the owner can do these — decisions, clicks, designs, approvals, store and legal — folded daily by the console from their sources and appended by any lane (D352) | tree |
+| [`AXIOMS.md`](AXIOMS.md) | The roster of axioms in three statuses — proposed, explored, operational — where the status word is the owner's edit and the axiom builder's licence for what it may build (D352) | tree |
+| [`VISUAL-REQUESTS.md`](VISUAL-REQUESTS.md) | What needs a design before it is built — each request written so Claude Design understands it whole, from requested through drafted and designed to built (D352) | tree |
+| [`VISUAL-VISION.md`](VISUAL-VISION.md) | The newest Claude Design output the tree is built toward, what it changed, which requests it closed, and the lineage — beside, never instead of, `design/README.md`'s style-diff reference (D352) | tree |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
 | [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md) | The 2026-08-23 ask — measure what engages and what bores — against the standing analytics refusals: the two-channel design and the record each rung reverses. The adoptable ladder is built — rung 0 at D268, rung 1 at D270, its per-question map at D271, rung 2 at D272; what stays plan is what the plan refuses, §4.3's event-stream rung and everything §4.4 keeps out | mixed |
 | [`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md) | The same work as an ordered build list — phases per rung, sizes, and the gate that proves each step | plan |
@@ -147,6 +158,7 @@ directions.
 | [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md) | Recent events as feed cards, each with a discussion window. The rework of the parked prediction slot; no code exists | plan |
 | [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |
 | [`PAID-PLAN.md`](PAID-PLAN.md) | Paid questions with downloadable reports, place-score subscriptions, and cohort pricing by size and demand — the owner's 2026-08-21 ask measured against the standing constraints. §3's edit-flow matrix (D226), §4's logic cut (D227) and §2's report builder (D251) are built; the rest waits on demand evidence | mixed |
+| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. The funnel is in the app binary today; the plan moves it to the web and keeps the results room. Nothing built — adoption is a decision record | plan |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
 | [`../SECURITY.md`](../SECURITY.md) | The security policy, at the repo root rather than in `docs/` because that is where GitHub looks for it — and `web/privacy.html` names it to a user by filename, so it is a live promise, not a courtesy | tree |
@@ -222,6 +234,9 @@ everything else: the static gates, and where each one runs.
 | `check:ios-spm` | ci | The npm alias that keeps the iOS SwiftPM graph resolvable |
 | `check:ios-facebook` | ci | That the postinstall actually stripped the Facebook SDK a transitive SPM manifest links in (D16) |
 | `check:ios-location` | ci | The iOS location declarations against what the app does. ITMS-90683 is why it exists |
+| `check:devicebind` | ci | D29's iOS and Android bridges are registered, not merely present — the failure it guards is silent (D342) |
+| `check:account-level` | deploy | firestore.rules' account bar equals `accountLevel.ts`'s `REQUIRED_LEVEL` — they disagree silently both ways (D343) |
+| `check:web-headers` | ci | Every page under `web/` is covered by a hosting headers rule — the enumerated `source` lists lost four pages in a week |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |
 | `check:store-copy` | release | No unfilled placeholders in the store-facing legal pages. Runs on every iOS archive (`ios-release.yml`) and is off CI on purpose |

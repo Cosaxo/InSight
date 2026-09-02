@@ -29,7 +29,7 @@ import { IS_DATA } from './sample-data.js';
 // nothing until a real open (D124/D129 posture).
 let sgData = null; // ../data/suggestions, once the door has opened
 let sgPaid = null; // ../data/paidBookings (D313), same ride
-let sgBucketLabel = null; // ../ui/cohortLabels.bucketLabel, same ride
+let sgBucketLabel = null; // ../data/cohortLabels.bucketLabel, same ride
 
 // ── the hints an ask can carry. Hints, not settings: the review decides,
 // and the composer says so. `like` is unreachable from the scope ruler now
@@ -215,7 +215,7 @@ export const SUGGESTIONS = {
    * unpaid until a real open). No-op in demo mode. */
   ensureLive() {
     if (!LIVE.enabled) return;
-    Promise.all([import('../data/suggestions'), import('../data/paidBookings'), import('../ui/cohortLabels')])
+    Promise.all([import('../data/suggestions'), import('../data/paidBookings'), import('../data/cohortLabels')])
       .then(([d, p, l]) => {
         if (!sgData) {
           sgData = d;

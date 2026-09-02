@@ -25,6 +25,7 @@ import {
   RATING,
   REVIEW_GUIDELINES,
   SWEEP_MAX_PAGES,
+  heldPageFrom,
   SWEEP_PAGE,
   WINDOW_DAYS,
   runReviewSweep,
@@ -395,6 +396,12 @@ describe("refundEurFor — the closer's arithmetic", () => {
     expect(refundEurFor(2222, 320, 0.144, 2222)).toBe(0);
     expect(refundEurFor(2222, 320, 0.144, 5000)).toBe(0);
     expect(refundEurFor(2222, 320, 0.144, 0)).toBeLessThanOrEqual(320);
+    // The clamp, actually reached. The line above satisfies itself: 2222 ×
+    // 0.144 = 319.97, already under the cap, so `Math.min(capEur, …)` could
+    // be deleted with the whole suite green — under the name "never more
+    // than was paid". These two put the raw product ABOVE the cap.
+    expect(refundEurFor(2222, 300, 0.144, 0)).toBe(300);
+    expect(refundEurFor(2222, 300, 0.144, 1000)).toBe(175.97); // unclamped, unchanged
   });
   it("treats a negative answer count as zero rather than inventing money", () => {
     expect(refundEurFor(100, 16, 0.16, -5)).toBe(16);
@@ -685,5 +692,56 @@ describe("runReviewSweep", () => {
     const { store: st, state } = store(held(3, 0));
     await runReviewSweep(st);
     expect(state.pages.length).toBe(1);
+  });
+});
+
+describe("heldPageFrom — the paging the sweep's own tests cannot see", () => {
+  // runReviewSweep is proved against an injected ReviewSweepStore, so the
+  // adapter that actually talks to Firestore ran under nothing. The bug it
+  // was hiding: a cursor document that has gone away (deleteAccount sweeps
+  // this collection by uid) fell through to a query with no startAfter —
+  // page ONE — so the sweep re-reviewed its own head up to five times,
+  // each retry a billed model call, and never reached what was starved
+  // behind it.
+  const page = (ids: string[]) => ({
+    docs: ids.map((id) => ({ id, get: (f: string) => (f === "reviewAttempts" ? 1 : undefined) })),
+  });
+
+  /** A query that records whether startAfter was applied. */
+  function fakeBase(ids: string[]) {
+    const calls: string[] = [];
+    const q: Record<string, unknown> = {};
+    q.limit = () => q;
+    q.startAfter = (cur: { id: string }) => { calls.push(cur.id); return q; };
+    q.get = async () => page(ids);
+    return { q: q as unknown as FirebaseFirestore.Query, calls };
+  }
+  const fakeDb = (exists: boolean) => ({
+    collection: () => ({ doc: (id: string) => ({ get: async () => ({ id, exists }) }) }),
+  }) as unknown as FirebaseFirestore.Firestore;
+
+  it("reads the first page with no cursor", async () => {
+    const { q, calls } = fakeBase(["b1", "b2"]);
+    const rows = await heldPageFrom(q, fakeDb(true), null, 50);
+    expect(rows).toEqual([{ id: "b1", attempts: 1 }, { id: "b2", attempts: 1 }]);
+    expect(calls, "a first page asked to start after something").toEqual([]);
+  });
+
+  it("advances past the cursor when it is still there", async () => {
+    const { q, calls } = fakeBase(["b3"]);
+    const rows = await heldPageFrom(q, fakeDb(true), "b2", 50);
+    expect(rows.map((r) => r.id)).toEqual(["b3"]);
+    expect(calls, "the cursor was not applied").toEqual(["b2"]);
+  });
+
+  it("ENDS the run when the cursor booking has been deleted", async () => {
+    // Not "starts over". This is the whole finding: the returned page is
+    // empty, so runReviewSweep's loop stops and the rest waits for the
+    // next scheduled run — minutes — instead of the queue re-reviewing
+    // the head it just paid for.
+    const { q, calls } = fakeBase(["b1", "b2"]);
+    const rows = await heldPageFrom(q, fakeDb(false), "gone", 50);
+    expect(rows, "a vanished cursor rewound to page one").toEqual([]);
+    expect(calls).toEqual([]);
   });
 });

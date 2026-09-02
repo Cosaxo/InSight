@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
+  loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom, installDocs,
   checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
   windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit, BG_MIN, BG_MAX,
@@ -423,6 +423,21 @@ describe("the corpus itself", () => {
     // failure IS the tripwire asking for the recorded decision (id scheme,
     // or D30's bank pagination).
     expect(checkHeadroom(corpus).errs).toEqual([]);
+  });
+
+  it("no bank size can fail the gate — the install fetch only warns (D350 amendment)", () => {
+    // "Does youtube have a limit to how many videos can exist?" A seeded
+    // bank of any size is not a failure. What a fresh device is handed
+    // WHOLE warns at INSTALL_WARN; the paged surfaces never count.
+    const rows = [
+      ...Array.from({ length: 50000 }, (_, i) => ({ id: `feed-x${i}`, surface: "feed", core: false })),
+      ...Array.from({ length: 50000 }, (_, i) => ({ id: `learn-x${i}`, surface: "learn" })),
+      { id: "daily-001", surface: "daily" },
+      { id: "feed-c1", surface: "feed", core: true },
+    ];
+    expect(installDocs(rows)).toBe(2);
+    const { errs } = checkHeadroom(corpus);
+    expect(errs.filter((e) => /bank|install|MB/.test(e))).toEqual([]);
   });
 });
 

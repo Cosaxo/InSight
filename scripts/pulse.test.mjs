@@ -378,9 +378,21 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // over the window rather than a counter or an aggregation query.
     const v = read("functions/src/velocity.ts");
     expect(v).toMatch(/collection\("v2_agg_events"\)/);
-    expect(v).toMatch(/\.select\("uid", "qid", "at"\)/);
+    // The FIELD LIST is not the tripwire and must not be pinned as one:
+    // `select()` narrows egress, not billed reads, so adding a field (as
+    // `fromIdx` was, to tell a D86 edit's row from a create) changes the
+    // bytes and not the number this constant charges for. Pinning the
+    // exact string made a projection change look like a cost regression.
+    //
+    // What the constant actually rests on is below: a paged query over the
+    // window, one document per entry, rather than a counter or an
+    // aggregation query that would bill differently.
+    expect(v, "the scan stopped projecting — it now reads whole documents")
+      .toMatch(/\.select\(/);
     expect(v, "select() narrows egress, not reads — one billed read per entry")
       .not.toMatch(/\.count\(\)/);
+    expect(v, "an aggregation query bills differently from a paged scan")
+      .not.toMatch(/\.aggregate\(/);
   });
 
   it("the reveal pipeline's per-member read count still has its five parts", () => {

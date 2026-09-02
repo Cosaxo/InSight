@@ -67,6 +67,8 @@ const h = vi.hoisted(() => ({
   // carried. What proves the `where` reached Firestore rather than being
   // applied on the device afterwards.
   voterQueries: [] as Array<Record<string, unknown>>,
+  /** qids whose voter query rejects — see the fan-out handler below. */
+  voterFailQids: new Set<string>(),
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
   // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
@@ -77,6 +79,8 @@ const h = vi.hoisted(() => ({
   // listener the tests used to push into, so its fixtures are a document set
   // rather than a callback, and they land in this same map.
   aggDocs: [] as FakeSnapshotDoc[],
+  /** The viewer's `following` rows — the set every follow button reads. */
+  followDocs: [] as FakeSnapshotDoc[],
   // Documents the my-answers query resolves to (empty = the fresh-account
   // boot every earlier case was written against). Added for the catalog
   // fold: an entity answer doc has no optionIdx, and hydrate's fold has to
@@ -289,8 +293,21 @@ vi.mock("firebase/firestore", () => {
           if (w && w.__kind === "where" && typeof w.field === "string") wheres[w.field] = w.value;
         }
         h.voterQueries.push(wheres);
+        // A per-qid failure hook. `loadVoters` swallows its own error and
+        // leaves the list unset, which is the state `kindredAt` has to
+        // count around — and no fixture could produce it before this.
+        if (h.voterFailQids.has(String(wheres.qid ?? ""))) {
+          return Promise.reject(new Error("voter query refused"));
+        }
         const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
         return Promise.resolve(snapOf(h.voterDocs[city] || []));
+      }
+      // The viewer's own follow rows. Served because `isFollowing` reads
+      // this set when the circle is not loaded, and every follow button
+      // outside the Circle stop is in exactly that state — with the path
+      // unserved, the store could only ever answer "not following".
+      if (q?.path === "v2_users/uid_test/following") {
+        return Promise.resolve(snapOf(h.followDocs));
       }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
@@ -467,6 +484,7 @@ beforeEach(() => {
   h.aggFailIds.length = 0;
   h.voterDocs = {};
   h.voterQueries.length = 0;
+  h.voterFailQids.clear();
   h.engagementCalls.length = 0;
   h.bankDocs = [
     {
@@ -664,6 +682,25 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
   });
 
+  it("fills the TRAILING options nobody has picked yet", async () => {
+    // The bank's half of the union, which nothing reached. Every case
+    // above happens to have `highestKey === options.length`, so
+    // `optionCountOf` could return 0 for every question and all of them
+    // still passed — while the bank half is the one that matters in the
+    // ORDINARY early state of a multi-option question: counts that stop
+    // before the option list ends, because the last options have no votes
+    // yet.
+    //
+    // Divisiveness normalises by the vector's length, so a short vector is
+    // RESCALED rather than merely missing zeros — and the value is the
+    // selection key for `pickKindredQids`, so it decides which twelve
+    // collection-group queries the Kindred fetch spends.
+    const mod = await withCounts("q_tail", ["A", "B", "C", "D", "E"], { "0": 2, "1": 3 });
+    // Five options, lead 3 of 5 → (1 − 3/5) / (1 − 1/5) = 0.5. Truncated
+    // to the two that have counts it is (1 − 3/5) / (1 − 1/2) = 0.8.
+    expect(mod.divisivenessOf("q_tail")).toBeCloseTo((1 - 3 / 5) / (1 - 1 / 5), 6);
+  });
+
   it("still answers −1 when the device holds no counts at all", async () => {
     const mod = await withCounts("q_none", ["A", "B"], null);
     expect(mod.divisivenessOf("q_none")).toBe(-1);
@@ -696,6 +733,24 @@ describe("a loader that starts tells its subscribers it started", () => {
     expect(calls).toBeGreaterThan(0);
     expect(LIVE.votersLoading("q_1")).toBe(true);
     await flush();
+  });
+
+  it("isFollowing answers from the follow set, not only from the circle", async () => {
+    // `state.circle` is filled by ONE component, the Circle stop's body,
+    // and three surfaces draw a follow button without ever loading it: the
+    // Kindred cards, the city constellation's person card, and people
+    // search. So this predicate returned false for everyone you already
+    // follow — the button read Follow with aria-pressed false, and the
+    // first tap re-wrote a follow you already had before the label could
+    // flip. Two of those hosts already load the set for other reasons, so
+    // the answer was in memory and the predicate would not look at it.
+    h.followDocs = [{ id: "u_friend", data: { to: "u_friend", at: { seconds: 1 } } }];
+    const LIVE = await bootLive();
+    expect(LIVE.isFollowing("u_friend"), "before the set is asked for").toBe(false);
+    await LIVE.loadFollows();
+    expect(LIVE.follows()).toContain("u_friend");
+    expect(LIVE.isFollowing("u_friend"), "the set was loaded and ignored").toBe(true);
+    expect(LIVE.isFollowing("u_stranger")).toBe(false);
   });
 
   it("loadFollows", async () => {
@@ -787,6 +842,34 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(LIVE.kindredLoading()).toBe(false);
     await pending;
     expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("counts the questions that LANDED, not the ones it asked about", async () => {
+    // `kindredDepth()` is printed as the Mirror's own basis — "across N
+    // questions" under the People lens — and `loadVoters` swallows its
+    // failures (reportError, then the list stays unset). So the line this
+    // asserts, `qids.filter((id) => state.voters[id]).length`, is what
+    // stops the caption claiming twelve after twelve refused queries.
+    //
+    // Nothing reached it: every consumer of kindredDepth is stubbed in the
+    // UI suites, and no test drove the real loadKindred with a failure —
+    // there was no way to produce one until the fixture grew the hook
+    // above.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran at all").toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(),
+      "the caption counted questions whose voter query failed").toBe(1);
   });
 
   it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
@@ -2426,6 +2509,46 @@ describe("loadSimilarity — parallel chunks keep partial progress (D169)", () =
       expect.objectContaining({ where: "loadSimilarity" }),
     );
   });
+
+  it("fetches the place aggregates and NOT the voter lists", async () => {
+    // This awaited `loadKindred` — twelve collection-group queries of up
+    // to 200 answers each, plus the profile reads that resolve their
+    // names — and every stop that draws a constellation called it. Only
+    // City reads those rows; Country and World draw places from the test
+    // aggregates fetched above, so the fan-out was bought for nothing on
+    // two stops out of three. It is the city field's own loader now.
+    h.bankDocs.push({
+      id: "q_t00",
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: "q_t00", data: { total: 4, counts: { "2": 4 } } });
+    // A vote of the viewer's own, because the fan-out picks its questions
+    // from those: with none, `loadKindred` returns without asking anybody
+    // anything and the assertion below would hold for the wrong reason.
+    // The control at the end of the case is what proves it does not.
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", optionIdx: 0, surface: "daily", answeredAt: { seconds: 1 } },
+    });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+
+    await LIVE.loadSimilarity();
+
+    expect(LIVE.aggFor("q_t00"), "the place profiles' own aggregates did not land").not.toBeNull();
+    expect(h.voterQueries, "the constellation fold paid the voter fan-out again").toHaveLength(0);
+
+    // THE CONTROL, and without it the assertion above is worth nothing:
+    // this fixture must be one where the fan-out really would fire. Asking
+    // for it directly — which is what the city field now does — issues the
+    // queries the loader used to issue for every stop.
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "this fixture never fans out, so the case above proves nothing")
+      .toBeGreaterThan(0);
+  });
 });
 
 // The learn crowd split, warmed before the tap (D125).
@@ -2975,6 +3098,42 @@ describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
     // to avoid.
     expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
   });
+
+  it("trims and CAPS each field, because one long one loses the whole write", async () => {
+    // `isValidV2Anchors` bounds every anchor, and firestore.rules refuses
+    // the DOCUMENT rather than the field — so one over-long value does not
+    // lose a city, it loses the profile write, display name included. The
+    // comment above `saveAnchors` says exactly that ("Sending anything
+    // else fails the whole write, so the client must not rely on the
+    // server to reject the extras") and nothing held it: every test that
+    // touches saveAnchors mocks it, so the real body's caps ran under
+    // nothing and could be deleted with the whole suite green.
+    //
+    // Asserted against ANCHOR_FIELDS itself rather than against numbers
+    // typed here, so the day a cap moves in the rules and in that table
+    // this case follows instead of arguing.
+    // Imported HERE, not at the top of the file: this suite sets `window`
+    // up per case and evaluates the store through a dynamic import, so a
+    // static import of anything in it runs before that and dies on
+    // `window is not defined`.
+    const { ANCHOR_FIELDS } = await import("./live");
+    const LIVE2 = await bootLive();
+    const anchorsFor = async (next: Record<string, string>) => {
+      h.setDocCalls.length = 0;
+      LIVE2.saveAnchors(next);
+      await flush();
+      const c = h.setDocCalls.find((x) => x.path === "v2_users/uid_test");
+      return ((c?.data as { anchors?: Record<string, string> })?.anchors) || {};
+    };
+    for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
+      const out = await anchorsFor({ [k]: `   ${"x".repeat(max + 25)}  ` });
+      expect(out[k]?.length, `${k} was written past its ${max}-character cap`).toBe(max);
+    }
+    // …and the trim is a trim, not a side effect of the slice.
+    expect((await anchorsFor({ city: "  Oslo, NO  " })).city).toBe("Oslo, NO");
+    // A key the rules do not accept never reaches the write at all.
+    expect((await anchorsFor({ ssn: "123" })).ssn).toBeUndefined();
+  });
 });
 
 // ── the cold answer fetch is PAGED, not capped ─────────────────────────
@@ -3102,5 +3261,66 @@ describe("hydrate's edit-delta watermark", () => {
       meta?.maxEditTs,
       "the edit cursor was raised to an edit no edit query returned",
     ).toBeLessThanOrEqual(10_05);
+  });
+});
+
+// The SAME rule, pointed the other way, and it was missing for exactly as
+// long as the one above existed.
+//
+// A page may raise the ANSWERED cursor only if it is a complete account of
+// the creates in the range it covers. The answered delta is: it truncates
+// ascending, so the cursor lands on the oldest unread create and the next
+// boot picks up where this one stopped. The EDIT delta is not — it returns
+// the docs whose editedAt moved, and their answeredAt can be far newer
+// than the creates the answered page had to defer.
+//
+// Raising from it seals those creates out permanently: the deck re-offers
+// their questions, the create-only rule refuses every re-vote, and each
+// card silently un-votes itself.
+describe("hydrate's answered-delta watermark", () => {
+  const stamp = (ms: number) => ({ toMillis: () => ms });
+
+  it("does not let the edit page carry the answered cursor past a deferred create", async () => {
+    // The stub serves one document per query and shares its cursor across
+    // both, so this fixture is built to that: the answered query takes the
+    // first matching row, the edit query the second.
+    //
+    //   q_seen     created 09:00, edited 08:50  -> the answered page's one row
+    //   q_deferred created 20:00, never edited  -> truncated away, the victim
+    //   q_edited   created 30:00, edited 40:00  -> the edit page's one row
+    h.answerPageSize = 1;
+    h.answerDocs.push(
+      {
+        id: "q_seen",
+        data: {
+          qid: "q_seen", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(9_00), editedAt: stamp(8_50),
+        },
+      },
+      {
+        id: "q_deferred",
+        data: {
+          qid: "q_deferred", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(20_00),
+        },
+      },
+      {
+        id: "q_edited",
+        data: {
+          qid: "q_edited", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(30_00), editedAt: stamp(40_00),
+        },
+      },
+    );
+    await seedAnsCache({ uid: "uid_test", votes: {}, maxTs: 8_00, maxEditTs: 8_00 });
+
+    await bootLive();
+
+    const meta = await readAnsCache();
+    expect(
+      meta?.maxTs,
+      "the edit page carried the ANSWERED cursor past a create the answered page "
+        + "deferred — that answer is now unreachable on this device forever",
+    ).toBeLessThan(20_00);
   });
 });

@@ -110,6 +110,47 @@ if ((seqByLane.get("feed") ?? 0) >= PICK_SEQ_BASE) {
 // (members fill them client-side); everything else needs 2..10 choices.
 const RATING = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+// THE SCALES, READ OFF THE CLIENT — the half this rule was missing.
+//
+// `LENS_SCALE` and `LIKERT` are imported from the GENERATOR, and
+// `buildEntries` in that same module ASSIGNS those very arrays as the
+// options (`options: LENS_SCALE`). So the per-question check below compared
+// an object with itself: every scale entry matched by identity, and the
+// rule could not fail. The comment above it says "Either drifting fails
+// here", and two more comments — in `spec/lens-defs.js` and
+// `test/lens-live.test.ts` — tell readers this drift is "drift-gated by
+// check:content".
+//
+// It was not. Flipping LENS_SCALE to disagree-first and regenerating leaves
+// this gate at exit 0 and the whole unit suite green, while the client's
+// own copy stays agree-first — at which point every stored `optionIdx` on a
+// lens question labels the opposite answer, and `world-feed`'s `4 - val`
+// store inversion goes with it.
+//
+// The client's lists are the independent source, parsed the way
+// check-anchors.mjs parses profile-vitals.js. A parse that finds nothing is
+// an ERROR rather than a skip: a gate that goes quiet when its input moves
+// is the same defect one level up.
+const scaleFrom = (file, name) => {
+  const src = readFileSync(resolve(root, file), "utf8");
+  const m = src.match(new RegExp(`const\\s+${name}\\s*=\\s*\\[([^\\]]*)\\]`));
+  if (!m) {
+    errors.push(`${file}: could not read \`${name}\` — the scale gate has nothing to compare against`);
+    return null;
+  }
+  return [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]);
+};
+const clientLens = scaleFrom("src/v2/spec/lens-defs.js", "SCALE");
+const clientLikert = scaleFrom("src/v2/spec/daily-questions.js", "SCALE5");
+if (clientLens && !same(LENS_SCALE, clientLens)) {
+  errors.push("LENS_SCALE (gen-v2content.mjs) and SCALE (spec/lens-defs.js) disagree — "
+    + "a stored optionIdx on every lens question now means the opposite answer");
+}
+if (clientLikert && !same(LIKERT, clientLikert)) {
+  errors.push("LIKERT (gen-v2content.mjs) and SCALE5 (spec/daily-questions.js) disagree — "
+    + "a stored optionIdx on every scale question now means the opposite answer");
+}
 for (const q of entries) {
   if (!q.prompt || !q.prompt.trim()) errors.push(`${q.id}: empty prompt`);
   // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231):

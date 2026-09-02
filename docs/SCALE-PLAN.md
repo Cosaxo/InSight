@@ -101,8 +101,8 @@ selection logic evolves or how wrong it gets about someone.
 The half that gets dearer with time is now done, and the half that does
 not is deliberately not:
 
-- **`core` is a declared field on feed questions.** 80 of the 166 in
-  `content/feed-questions.json` carry `core: true`, and 86 declare
+- **`core` is a declared field on feed questions.** 81 of the 188 in
+  `content/feed-questions.json` carry `core: true`, and 107 declare
   `core: false` — **the tail is not hypothetical; it is already more than a
   third of the feed and growing with every feed run.** The generator emits it
   onto feed entries only (`scripts/gen-v2content.mjs`, emit-when-set beside
@@ -510,6 +510,7 @@ clearing engine — not before.
 | Core grows faster than the population | The ratio gate (§6 item 6) | Until it exists, the Mirror can thin without anyone noticing |
 | Sponsored content reaches the Mirror's corpus | Tail-only placement, same flag as §1 | An operator who flags a sponsored question core |
 | Cost surprise | The model takes production rate as an input; re-run it, do not reason about it | Three behaviour inputs are still guesses (`COSTS.md` says which) |
+| A capped read truncates by NAME, not by recency | `fetchAnswersOf` (`src/v2/data/circle.ts`) caps at 300 answers per followed account with no `orderBy`, and an unordered `limit` takes documents by question id — so past the cap a circle member's likeness is computed from the alphabetically-first slice of what they answered, and it still draws | **Binds today.** The row read "cannot bind at ~130 core questions" until 2026-08-31's closing review measured it against the wrong bank: the query asks for `WORLD_ANSWER_SURFACES`, six surfaces totalling 644 answerable questions today (daily 130 · feed 190 · test 160 · learn 156 · pulse 5 · call 3) against a cap of 300. No bank growth needed. Ordering it needs a composite index on (`surface` ASC, `answeredAt` DESC) over the `answers` collection, which this repo pays for on every answer ever written — so the cost goes to the owner now rather than waiting behind the pagination work |
 
 ## 8 · What I would do
 

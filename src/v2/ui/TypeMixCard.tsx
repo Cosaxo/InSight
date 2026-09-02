@@ -25,7 +25,7 @@ import { BUDGET_PAUSED_HEAD } from "../data/budgetMode";
 import { myTypeOn, typeMixFor, TYPE_SMALL, TYPE_SYSTEMS, TYPE_TEST, isTypeSystem, type TypeRow } from "../data/typeMix";
 // @ts-expect-error TS7016 — untyped spec module (additive export, D141)
 import { TypeMark } from "../spec/type-marks.jsx";
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
 
 /** The chosen instrument, remembered across opens (D202). Device state, so
  * `purgeLocalTrace`'s `insight.` prefix sweep takes it for free — the
@@ -109,7 +109,22 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
             // the People lens, where Kindred one card up already carries
             // the full why, and a clause restating the clause above it is
             // the deletion COPY.md names.
-            ? (LIVE.budgetPaused ? BUDGET_PAUSED_HEAD : "Open a question's who-voted sheet and this fills in.")
+            //
+            // …and it is not offered while the fetch is ALREADY RUNNING,
+            // which is the third state D332 gave this branch copy for two
+            // of. The People lens kicks `loadKindred()` on mount, so an
+            // empty sample is the normal first frame of every visit — and
+            // the card told the reader to go do a thing that was already
+            // happening, directly under a Kindred card correctly saying
+            // "Matching…". LiveBreakdownPanel keeps the same three apart
+            // for the same reason, in the same words: "Distinguished from
+            // 'nobody is typed' because they are different facts and the
+            // second one is permanent."
+            ? (LIVE.budgetPaused
+              ? BUDGET_PAUSED_HEAD
+              : LIVE.kindredLoading()
+                ? "Reading who answered…"
+                : "Open a question's who-voted sheet and this fills in.")
             : mix.sampleN + " sampled here, none typed on this one yet."}
         </span>
       </div>

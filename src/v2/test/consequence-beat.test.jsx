@@ -28,12 +28,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 
 import "../spec/consequence-beat.jsx";
 
 const ConsequenceBeat = globalThis.ConsequenceBeat;
 
 // The props daily-split.jsx passes at the real call site, minus the height.
+// This comment was true and the props were NOT: the real call site carried
+// no `counts` until 2026-09-02, so the file below tested the fix on props
+// the daily never sent. The last case in it holds the two together now.
 const PROPS = {
   seed: "q-test",
   options: [
@@ -74,6 +78,23 @@ describe("the consequence beat's verdict", () => {
     // 449 and 451 both draw 45%. The voter on 449 did not win.
     expect(say([45, 45, 10], [449, 451, 100], 0)).toContain("you among them");
     expect(say([45, 45, 10], [449, 451, 100], 1)).toContain("you\u2019re with them");
+  });
+
+  it("and the daily's own call site passes them, which it did not", () => {
+    // The cases above prove the COMPONENT reads counts. They say nothing
+    // about whether the daily hands them over, and for as long as this
+    // file has existed it did not — while the comment at the top of it
+    // claimed these were "the props daily-split.jsx passes".
+    //
+    // A source assertion rather than a mount: reaching this beat means
+    // answering today's question inside a full app render, and the
+    // component's own behaviour is already covered three cases up. What
+    // is missing is only the wiring, and this fails when it is undone.
+    const src = readFileSync("src/v2/spec/daily-split.jsx", "utf8");
+    expect(
+      src,
+      "the daily's ConsequenceBeat call dropped `counts` — its verdict is back to breaking ties by index",
+    ).toMatch(/window\.ConsequenceBeat, \{[^}]*pcts: rp, counts,/);
   });
 
   it("still prints the percentage it was given", () => {

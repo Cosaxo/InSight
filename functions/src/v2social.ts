@@ -87,11 +87,26 @@ function inviteCode(): string {
 
 // ── membership callables ────────────────────────────────────────
 
-async function assertMembershipCap(uid: string): Promise<void> {
+/**
+ * Is this account already in as many circles as it may be?
+ *
+ * A predicate as well as an assertion because the approval path cannot
+ * throw where it checks: `approveJoinV2` clears a stale queue row for
+ * somebody who is ALREADY a member, and that must keep working for a
+ * person at the cap — otherwise a row nobody can clear stays drawn on the
+ * owner's screen forever. So the query runs before the transaction (a
+ * transaction cannot run a query at all) and the answer is used inside it,
+ * where the "already a member" case is decided.
+ */
+async function atMembershipCap(uid: string): Promise<boolean> {
   const db = firestore();
   const mine = await db.collection("v2_groups")
     .where("memberUids", "array-contains", uid).limit(MEMBERSHIP_CAP).get();
-  if (mine.size >= MEMBERSHIP_CAP) {
+  return mine.size >= MEMBERSHIP_CAP;
+}
+
+async function assertMembershipCap(uid: string): Promise<void> {
+  if (await atMembershipCap(uid)) {
     throw new HttpsError("resource-exhausted", "too many groups on this account");
   }
 }
@@ -340,6 +355,18 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!gid || !who) throw new HttpsError("invalid-argument", "gid and uid required");
   const db = firestore();
   const ref = db.doc(`v2_groups/${gid}`);
+  // THE JOINER'S CAP, checked here because this is the one admission path
+  // that never did. `createGroupV2`, the join REQUEST and the invite accept
+  // all assert it; approve checked only the circle's own size, so a
+  // popular invite link could put somebody in far more circles than the cap
+  // allows — thirty requests is one hour of the rate limit, and every
+  // approval is somebody else's tap. That cap is also what bounds
+  // deleteAccount's group walk, which has no limit of its own.
+  //
+  // Read before the transaction and USED inside it: a transaction cannot
+  // run a query, and the "already a member" branch below has to keep
+  // clearing stale queue rows for people who are at the cap.
+  const capped = await atMembershipCap(who);
   const name = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError("not-found", "no such circle");
@@ -363,6 +390,11 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     if (!pending.includes(who)) throw new HttpsError("failed-precondition", "they have not asked");
     const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
     if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+    // …and the other side of the same bound: the circle has room, but they
+    // do not. Said as THEIR limit rather than as this circle's, because
+    // the person tapping "Let in" has done nothing wrong and the message
+    // is what they read.
+    if (capped) throw new HttpsError("resource-exhausted", "they are in too many circles");
     tx.update(ref, {
       memberUids: FieldValue.arrayUnion(who),
       [`memberNames.${who}`]: String(snap.get("pendingNames")?.[who] || ""),
@@ -727,14 +759,18 @@ async function revealGroupDay(
 
   // ONE FIELD, and the fieldMask is load-bearing rather than tidy. A
   // profile is client-writable and firestore.rules bounds only some of it:
-  // displayName and the anchors are capped, `testResults` only by KEY
-  // COUNT (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member
+  // displayName and the anchors are capped, the consent record is keyed
+  // and typed, `testResults` is bounded only by KEY COUNT (8), and
+  // `createdAt`/`updatedAt` not at all — no cap, not even a type. So a member
   // can legitimately hold a document approaching Firestore's 1 MiB, and
   // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
   // 512 MiB instance. The mask bounds the exposure regardless of what any
   // rule permits, which is why it is fixed here rather than by capping
-  // testResults: `anon` is equally unbounded and the next field added
-  // would be too. Reading past the gate narrows the same window further —
+  // testResults: `createdAt` is equally unbounded and the next field
+  // added would be too. (This named `anon` until 2026-08-31 — a key D331
+  // took off the allowlist, so the example had no writer at all. The
+  // argument held; its illustration named a ghost, which is the way an
+  // argument stops being checkable.) Reading past the gate narrows the same window further —
   // only days that actually reveal put profiles in flight at all.
   const profileSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),
@@ -942,7 +978,9 @@ async function revealGroupDay(
     logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
   }
 
-  // The reveal is out — one of the product's two notifications (D236).
+  // The reveal is out — one of the product's four notifications: this,
+  // the circle invitation, the join request and the join approval (D236
+  // added the last three, and this comment kept saying "two").
   // Best-effort by construction: sendPushToUids never throws, so FCM
   // being down can never roll back a reveal that already committed.
   await sendPushToUids(
@@ -1306,8 +1344,19 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     // `name` is "" would be found by an empty prefix — that is, by
     // everything. The client's own write fills it in either way.
     const myName = String(me.exists ? (me.get("displayName") || "") : "").trim();
+    // nameKey folds A-Z ONLY, matching `firestore.rules`' `nameKey ==
+    // name.lower()` — the rules engine's `.lower()` is ASCII-only while
+    // JS `toLowerCase()` is full Unicode, so a name carrying a non-ASCII
+    // capital written the JS way disagrees with the rule. The admin SDK
+    // is not bound by rules, so THIS write would have succeeded and then
+    // disagreed with the client's own row for the same account — which
+    // is worse than being refused. Keep this identical to `foldName` in
+    // src/v2/data/socialFetch.ts; the two cannot share a module across
+    // the package boundary, so they are kept honest by this comment and
+    // by the rule that judges both.
+    const nameKey = myName.replace(/[A-Z]/g, (c) => c.toLowerCase());
     tx.set(peopleRef, myName
-      ? { handle, name: myName, nameKey: myName.toLowerCase() }
+      ? { handle, name: myName, nameKey }
       : { handle }, { merge: true });
   });
   return { handle };
@@ -1626,6 +1675,18 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)
     && ownExpiry > now.toMillis();
+  // …but ADMITTED is not the same as COUNTED, and the difference is one
+  // person. The aggregation above filters `until > now`, and Firestore's
+  // range filter skips a document missing the field entirely. The gate
+  // just above admits on `presenceExpiry`, which falls back to
+  // `at` + the linger for exactly those documents (D179's compatibility
+  // arm). So a legacy phone passes the gate while sitting outside
+  // `total` — and the blind `- 1` below then removes a person who was
+  // never in the number, reporting the room one emptier than it is.
+  // Captured HERE, before the backfill a few lines down writes the very
+  // field this tests: `own` is a snapshot and would not see that write,
+  // but a reader moving either statement should not have to know it.
+  const ownWasCounted = !!own.get("until");
   // YOU MAY ONLY ASK ABOUT A ROOM YOU ARE STANDING IN (D177).
   //
   // `cell` arrives from the client, and until now nothing checked that the
@@ -1661,7 +1722,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!own.get("until")) {
     await own.ref.set({ until: Timestamp.fromMillis(ownExpiry) }, { merge: true });
   }
-  const n = Math.max(0, total - 1);
+  const n = Math.max(0, total - (ownWasCounted ? 1 : 0));
   return { n, mix: await roomMixFor(cells, cell as string) };
 });
 

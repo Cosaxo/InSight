@@ -595,7 +595,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (722 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (758 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -668,7 +668,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (722 docs) caches in localStorage keyed by
+everything. The question bank (758 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -689,8 +689,8 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   deterministic daily rotation (`dayIndex % bankSize`, local midnight),
   aggregate snapshots per deck question, optimistic votes with rollback,
   mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
-  Live cards show takes — named inside a circle, anonymous at world
-  scale (D83) — and DO show who-voted, by name, from the collection-group
+  Live cards show takes — named at both scales since D98, which is the
+  same reversal the rest of this bullet describes — and DO show who-voted, by name, from the collection-group
   read D98 opened (`data/voters.ts`, `ui/LiveBreakdownPanel.tsx`'s
   Friends cut and `ui/LiveTakesPanel.tsx`'s side badges, capped at
   `VOTER_FETCH_CAP`). The per-anchor breakdown beside it is exact per
@@ -703,7 +703,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 156 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 163 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

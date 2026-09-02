@@ -417,6 +417,24 @@ describe("v2 profile", () => {
       testResults: { big5: { dims: [], title: "Big Five" } },
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
+    // …and capped at 8 keys, which nothing asserted either.
+    await assertFails(setDoc(mine, {
+      testResults: Object.fromEntries(
+        Array.from({ length: 9 }, (_, i) => [`t${i}`, { dims: [] }]),
+      ),
+    }, { merge: true }));
+    // The display name's own 60-char cap. It went untested from the day it
+    // was written: this case checked the unknown-field and stranger-write
+    // arms and stopped, so `isOptionalShortString(displayName, 60)` could be
+    // widened to 6000, or deleted, with the whole suite still green. That
+    // matters more than the number — displayName is the string rendered
+    // beside every answer, take, reveal row and directory hit, and it is the
+    // one field on this document a person types freely. Its two neighbours
+    // with identical caps (the anchors below, and `v2_people.name`) both
+    // have negative cases; this one had none.
+    await assertFails(setDoc(mine, { displayName: "x".repeat(61) }, { merge: true }));
+    await assertFails(setDoc(mine, { displayName: 7 }, { merge: true }));
+    await assertSucceeds(setDoc(mine, { displayName: "x".repeat(60) }, { merge: true }));
   });
 
   // Push tokens are the reveal sender's fan-out list, and a token is a
@@ -718,21 +736,26 @@ describe("feed ads (D197): readable by everyone, writable by nobody", () => {
   });
 });
 
+// The CALL fixtures, at module scope because TWO describes need them now:
+// this feature's own cases, and the last of them, which the re-bracketing
+// below separates from the folds' documents that had been filed under this
+// name. Lifting them changes nothing about what any case does.
+const CALL = "call-c01";
+const seedCall = () => seed(async (db) => {
+  await setDoc(doc(db, "v2_questions", CALL), {
+    surface: "call", seq: 0, type: "call", prompt: "Will it be lopsided?",
+    options: ["It will", "It stays close"], active: true, tier: "A",
+    resolvesAt: "2026-10-01",
+    rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 },
+  });
+});
+const callAnswer = (over: Record<string, unknown> = {}) => ({
+  qid: CALL, surface: "call", optionIdx: 0,
+  answeredAt: serverTimestamp(), anchors: {}, ...over,
+});
+const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", CALL);
+
 describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded", () => {
-  const CALL = "call-c01";
-  const seedCall = () => seed(async (db) => {
-    await setDoc(doc(db, "v2_questions", CALL), {
-      surface: "call", seq: 0, type: "call", prompt: "Will it be lopsided?",
-      options: ["It will", "It stays close"], active: true, tier: "A",
-      resolvesAt: "2026-10-01",
-      rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 },
-    });
-  });
-  const callAnswer = (over: Record<string, unknown> = {}) => ({
-    qid: CALL, surface: "call", optionIdx: 0,
-    answeredAt: serverTimestamp(), anchors: {}, ...over,
-  });
-  const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", CALL);
 
   it("a call is answered like any world question, and read like one", async () => {
     await seedCall();
@@ -775,7 +798,20 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_call_outcomes", CALL), { outcomeIdx: 1 }));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_call_outcomes", "call-new"), { outcomeIdx: 0 }));
   });
+});
 
+// Eleven cases sat inside the Foresight CALL describe above, so every
+// failure in them printed under that feature's name and nothing in this
+// file led a reader to the attention or engagement blocks at all. They are
+// not CALL cases: they are the nightly folds' documents — published,
+// owner-only, or readable by nobody — and the reason they share a
+// neighbourhood is that shape, not the feature.
+//
+// RE-BRACKETED, not reordered. A rules suite shares emulator state across
+// the cases in a file, so moving one changes what it sees; adding the two
+// braces changes only what a failure is called. The CALL describe reopens
+// below for its own last case, which really is one.
+describe("the nightly folds' documents: published, owner-only, or nobody's", () => {
   it("the Patterns loadings read like an aggregate and write like one — nobody (v28 §2)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_patterns", "loadings"), { k: 8, q: { "daily-000": { v: [0.1], n: 3 } } });
@@ -893,6 +929,40 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
+    // The forward half of the same window, untested here for the same
+    // reason as on the shard above.
+    const ahead = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", ahead), rollup({ day: ahead })));
+    // `dayparts` is a fixed FOUR-slot histogram the fold indexes
+    // positionally, and its size clause went untested alongside the
+    // build/platform pair the shard above has the same gap in.
+    //
+    // On a FRESH day id each, and that is the point rather than tidiness:
+    // written to rollupDay() these two passed with their clauses replaced
+    // by `true`, because the case's own opening assertSucceeds already
+    // created that document and the rule is create-only. A refusal for the
+    // wrong reason is not a test of anything.
+    const dayN = (back: number) =>
+      new Date(Date.now() - back * 86400000).toISOString().slice(0, 10);
+    // LONGER, not shorter, and that is the whole assertion: a 3-slot list
+    // is already refused by `dayparts[3] is int` one line down, so a short
+    // one proves nothing about the size clause. Five slots clear every
+    // element check and reach `size() == 4` alone.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(2)),
+      rollup({ day: dayN(2), dayparts: [0, 1, 1, 0, 1] })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(5)),
+      rollup({ day: dayN(5), dayparts: [0, 1, 1] })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(3)),
+      rollup({ day: dayN(3), build: "24" })));
+    // The control: the same fresh ids are otherwise writable, so the two
+    // refusals above are the clauses and not the id.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(4)),
+      rollup({ day: dayN(4) })));
     // …and not a doc that DISAGREES with its own id, which the line above
     // does not test: it moves the id and the field together, so the window
     // bound refuses it and `day == docId` is never asked. The fold reads
@@ -958,8 +1028,19 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     // a uid on the question channel is the two-channel rule's exact breach
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-3"), shard({ uid: OWNER })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4"), shard({ day: "2026-01-01" })));
+    // Both directions. The duel idiom this block copied has a test named
+    // "no pre-sealing the future, no deep backfill"; the copy took the
+    // clause and half the test, so `day < request.time + 2d` could be
+    // widened to 2000 days with the suite green.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4f"),
+      shard({ day: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-5"), shard({ s: { opens: 1, notAKey: 1 } })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
+    // The build/platform pair is the shard's whole provenance — the pulse
+    // console slices by it — and neither clause was asserted: both could be
+    // replaced with `true` with the suite green.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-7"), shard({ build: "24" })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-8"), shard({ platform: "linux" })));
   });
 
   it("refuses a sampling rate below the floor — the fold weighs by 1/rate", async () => {
@@ -998,7 +1079,9 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     for (let i = 0; i <= 120; i++) over[`feed-${i}`] = { s: 1 };
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "q2"), shard({ qids: over })));
   });
+});
 
+describe("Foresight CALL (D194): the question's own bounds", () => {
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {
     await seedCall();
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));
@@ -1752,6 +1835,13 @@ describe("v2 foresight verdicts (D126)", () => {
   it("owner writes one verdict; a stranger cannot write it for them", async () => {
     await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
     await assertFails(setDoc(fRef(STRANGER, OWNER, "q2__ageBand__25-34"), verdict({ qid: "q2" })));
+  });
+
+  it("refuses a negative population — the verdict's own denominator", async () => {
+    // `n` is how many people the guess was read against, and it is what a
+    // score is later divided by. The `is int` half was asserted; `>= 0`
+    // was not, so the clause could be deleted with the suite green.
+    await assertFails(setDoc(fRef(OWNER, OWNER, "qn__ageBand__25-34"), verdict({ qid: "qn", n: -1 })));
   });
 
   it("cannot be rewritten or deleted — a wrong read stays wrong", async () => {
@@ -2825,6 +2915,9 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   // therefore already green here before it is made.
   const QID = "daily-000";
   const CATQ = "cat-bind0";
+  const PULSEQ = "pulse-b01";
+  const CALLQ = "call-b01";
+  const RANKQ = "feed-b01";
   const GID = "gbind";
   const DAY = dayOffset(-1);
 
@@ -2871,6 +2964,23 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
         name: "Bind", mode: "duo", ownerUid: OWNER,
         memberUids: [OWNER, FRIEND], inviteCode: "BIND2345", streak: 0,
       });
+      // The three surfaces whose `deviceBound()` no case reached. Each has
+      // its own branch in the create rule and its own binding, and until
+      // now the block proved the binding for daily and catalog only.
+      await setDoc(doc(db, "v2_questions", PULSEQ), {
+        surface: "pulse", seq: 0, type: "pulse",
+        prompt: "?", options: ["1", "2", "3", "4", "5"], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", CALLQ), {
+        surface: "call", seq: 0, type: "call", prompt: "?",
+        options: ["It will", "It stays close"], active: true, tier: "A",
+        resolvesAt: "2026-10-01",
+        rubric: { kind: "agg", qid: QID, test: "topShareAtLeast", threshold: 60 },
+      });
+      await setDoc(doc(db, "v2_questions", RANKQ), {
+        surface: "feed", seq: 1, type: "rank",
+        prompt: "?", options: ["A", "B", "C"], active: true,
+      });
     });
 
   const worldAnswer = () => ({
@@ -2879,6 +2989,24 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   });
   const catAnswer = () => ({
     qid: CATQ, surface: "feed", entity: 7,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  // A pulse answer is keyed {baseQid}_{day} and carries both, so its id
+  // and its fields have to agree — the template lives in the bank, the
+  // answer is one per day.
+  const pulseDay = new Date().toISOString().slice(0, 10);
+  const pulseAid = `${PULSEQ}_${pulseDay}`;
+  const pulseAnswer = () => ({
+    qid: pulseAid, baseQid: PULSEQ, day: pulseDay,
+    surface: "pulse", optionIdx: 2,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const callAnswerB = () => ({
+    qid: CALLQ, surface: "call", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const rankAnswerB = () => ({
+    qid: RANKQ, surface: "feed", order: [2, 0, 1],
     answeredAt: serverTimestamp(), anchors: {},
   });
   const duelAid = `g_${GID}_${DAY}`;
@@ -2910,6 +3038,85 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     // feed member-only reveals, never aggregates, and membership already
     // required a human's invite code (D29).
     await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
+  });
+
+  it("enforced text: pulse, call and rank demand the claim too", async () => {
+    // Three more branches of the same create rule, each with its own
+    // `deviceBound()` and none of them reached: the block wrote a daily
+    // answer, a catalog answer and a duel answer and stopped. Removing the
+    // binding from any of these three left the whole suite green.
+    //
+    // Each is bound for its own recorded reason — the pulse feeds a
+    // published aggregate, a call is "exactly what a sybil would want to
+    // spam", a rank feeds one too — so each is asserted separately rather
+    // than as a group.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const plain = enfEnv.authenticatedContext(OWNER).firestore();
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    for (const [name, answer, qid] of [
+      ["pulse", pulseAnswer, pulseAid],
+      ["call", callAnswerB, CALLQ],
+      ["rank", rankAnswerB, RANKQ],
+    ] as const) {
+      await assertFails(setDoc(doc(plain, "v2_users", OWNER, "answers", qid), answer()));
+      await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", qid), answer()));
+      void name;
+    }
+  });
+
+  it("enforced text: the EDIT arm demands the claim too (D86 × D343)", async () => {
+    // The D86 edit is the only repeatable answer write, and its
+    // `deviceBound()` was the one call site no case reached. That makes it
+    // the one whose removal is invisible — creates would keep failing
+    // without the claim exactly as they should, edits would quietly stop
+    // caring, and nothing would say so.
+    //
+    // It also fails the other way round on flip day: an unbound account
+    // that answered before enforcement can still READ its answer and would
+    // simply stop being able to change it. Whether that is right is a
+    // decision; that it is TESTED is not optional.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const plain = enfEnv.authenticatedContext(OWNER).firestore();
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    // Each account creates its own answer under the claim the arm demands,
+    // so the edit below is the only thing under test rather than the
+    // create that had to come first.
+    await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", QID), worldAnswer()));
+    await assertSucceeds(updateDoc(doc(bound, "v2_users", FRIEND, "answers", QID),
+      { optionIdx: 1, editedAt: serverTimestamp() }));
+    // …and the same edit, from an account with no claim, is refused.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    await enfEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 0, answeredAt: new Date(), anchors: {},
+      });
+    });
+    await assertFails(updateDoc(doc(plain, "v2_users", OWNER, "answers", QID),
+      { optionIdx: 1, editedAt: serverTimestamp() }));
+  });
+
+  it("enforced text: a HIGHER level than the bar still passes (D343)", async () => {
+    // The `>=` property, and it is not academic. With `==`, raising the
+    // bar to 2 and later relaxing it to 1 would refuse every level-2
+    // account — the strictest users locked out by a relaxation, which is
+    // the exact wrong direction and would read as a random outage.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const linked = enfEnv.authenticatedContext(FRIEND, { db: 2 }).firestore();
+    await assertSucceeds(setDoc(doc(linked, "v2_users", FRIEND, "answers", QID), worldAnswer()));
+  });
+
+  it("enforced text: level 0 is refused exactly as an absent claim is (D343)", async () => {
+    // 0 is a real level (accountLevel.ts: "signed in, nothing verified"),
+    // so it must not read as "some claim, therefore fine" — the shape a
+    // truthiness check would have.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const zero = enfEnv.authenticatedContext(OWNER, { db: 0 }).firestore();
+    await assertFails(setDoc(doc(zero, "v2_users", OWNER, "answers", QID), worldAnswer()));
   });
 
   it("enforced text: the claim check is type-strict — only the server's exact value passes", async () => {
@@ -3115,6 +3322,26 @@ describe("people directory: found by name (D239)", () => {
     // contains it would sort into the wrong prefix range.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Olaf", nameKey: "Olaf" }));
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Olaf T", nameKey: "olaf t" }));
+  });
+
+  // THE FOLD IS THE RULES ENGINE'S, NOT JAVASCRIPT'S, and three client
+  // writers now depend on which — `foldName` in data/socialFetch.ts, the
+  // copy inside `LIVE.searchPeople` that has to run before that module's
+  // dynamic import, and `claimHandleV2`'s server-side one. All three
+  // replace A-Z and nothing else, because `.lower()` above does; JS
+  // `toLowerCase()` is full Unicode and disagrees on the first non-ASCII
+  // capital, at which point this rule REFUSES the write and the account
+  // gets no directory row at all — invisible rather than hard to find.
+  //
+  // The premise was measured against this emulator with a throwaway probe
+  // and then left unpinned, deliberately, because the other shift was
+  // rewriting this file the same night. This is that case. It fails the
+  // day the engine's `.lower()` learns Unicode — which is the day all
+  // three client folds have to change with it, and nothing else would say
+  // so.
+  it("folds A-Z only, which is why the client's fold is not toLowerCase()", async () => {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Ólaf", nameKey: "ólaf" }));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Ólaf", nameKey: "Ólaf" }));
   });
 
   it("refuses an empty or oversized name", async () => {
@@ -3402,6 +3629,24 @@ describe("rank answers (D233): an order, never an index", () => {
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", "feed-v1"),
       rankAnswer({ qid: "feed-v1" }),
+    ));
+  });
+
+  it("refuses a one-item order — a ranking of one is not a ranking", async () => {
+    // `order.size() >= 2` sits beside `order.size() == options.size()`, and
+    // only the second was ever exercised: every case here ranks a
+    // four-option question, so the floor could be deleted with the suite
+    // green. A one-option question satisfies the equality and has to fail
+    // on the floor alone.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "feed-f04"), {
+        surface: "feed", seq: 4, type: "rank", prompt: "Rank it",
+        options: ["A"], active: true,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "feed-f04"),
+      rankAnswer({ qid: "feed-f04", order: [0] }),
     ));
   });
 

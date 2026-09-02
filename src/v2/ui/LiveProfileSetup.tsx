@@ -47,10 +47,13 @@
 //   3. It collects no free text and no exact anything. Every control is a
 //      closed vocabulary held equal to the server's buckets by
 //      check:anchors, the city is the catalogue picker (D9), and the
-//      birthday never leaves the device — only its band is written
-//      (profile-vitals.js anchorsFrom).
+//      BIRTHDAY never leaves the device — what `anchorsFrom` writes is
+//      the band and, since D155, the exact age derived from it
+//      (profile-vitals.js). This said "only its band is written", which
+//      understated what the profile carries: a year-resolution age is
+//      published, the date it was computed from is not.
 //   4. It has no vocabulary of its own. Every list, and the map from these
-//      fields onto the eight anchor keys, is imported from
+//      fields onto the 10 anchor keys, is imported from
 //      spec/profile-vitals.js, which is the file check:anchors reads. A
 //      second copy here would pass every gate and quietly stop a level
 //      counting.

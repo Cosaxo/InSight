@@ -18,7 +18,7 @@ conventions you have to know before the first edit.
 ## Answering — three ways in, all blind until you've played
 
 - **The daily.** One blind vote a day, *then* how the world split, with
-  exact counts — plus a finite question feed underneath to
+  exact counts — plus a question feed underneath to
   snack on.
 - **Duels.** Groups and 1v1s with your real people: one question a day,
   everyone's answers **sealed until tomorrow**, then revealed with names.
@@ -149,7 +149,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups, sealed duels) — 156 emulator tests
+                   member-only groups, sealed duels) — 163 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -180,7 +180,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 156 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 163 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.

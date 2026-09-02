@@ -193,50 +193,45 @@ was what zeroed the feed lane's budget and idled the catalog lane for
 four days. The audit hold stays, retrospective; the merge hold is gone;
 the kill switch is the backstop.
 
-Allocation of whatever the budget grants runs through three lanes in
-strict priority order (maintainer's direction, 2026-07-30, sharpened
-same day: once signals exist, the demand-driven lanes take the *whole*
-budget — coverage is a fallback, not a reserved slice). A lane with no
-signal passes its budget down; signals come from the committed scorecard
-(next section), and with no scorecard — or a stale one — the whole
-budget flows to lane 3 and behavior is the original thin-first rule.
+Allocation of whatever the budget grants is arithmetic since D350 —
+`npm run farm:budget` prints it beside the budget — through the three
+tiers every lane shares (`scripts/lane-tiers.mjs`), in strict order:
 
-1. **Replenishment — first claim, up to 2.** Topics whose pool the
-   people active in them have nearly finished. Signal, from the
-   scorecard's public aggregates only: when even the
-   *least-answered* question in a topic has crossed a healthy answer
-   count, that topic's audience has effectively consumed the pool —
-   refill before they hit the bottom. This is the aggregate reading of
-   "users are close to completing the topic"; per-user completion
-   tracking is not the mechanism and may never be — PER-USER skip/pass
-   stays local-only, and D271 narrowed rather than reversed that line:
-   what reaches the server since then is a question's AGGREGATE
-   seen/pass counts, from anonymous unlinkable shards, never anyone's
-   list (the scorecard's attention columns carry them, D33 warning
-   attached).
-2. **Demand — everything replenishment leaves.** Topics ranked by
-   popularity × depth from the scorecard: popularity = total published
-   answers across the topic's questions; depth = least-answered ÷
-   most-answered question in the topic (how far its audience goes
-   through the pool). Depth is in the product so small-but-devoted
-   topics earn content alongside big ones.
-3. **Coverage — only what lanes 1–2 leave unclaimed.** With no
-   scorecard (or a stale one), that is the whole computed budget (D97 —
-   it used to read "all 4" under D33's flat cap); with signals it may often
-   be zero, and that is by design. A topic below **4 questions** cannot
-   show demand; nobody can engage with content that does not exist.
-   Thinnest first, toward 5 each — cold start and browsability, never
-   the main allocation.
+1. **The floor first.** Every `CAT_META` top is brought to
+   **8 questions per top** before anything else, thinnest first, one
+   per top per pass — a week of dailies per subject, breadth's minimum
+   in the Mirror's groupings and the Map. A floor, not a target:
+   nothing stops at it.
+2. **Demand takes everything the floor leaves.** Tops are weighted
+   popularity × depth off the committed scorecard's daily rows:
+   popularity is the top's share of credited daily answers, depth is
+   answers per question against the deepest top — which is also the
+   old replenishment signal (a top whose every question is heavily
+   answered has an audience going through it). The share is read only
+   once the scorecard credits **100 credited daily answers** across the
+   tops, and the daily lane reads no scorecard older than **30 days**
+   (the staleness rule below) — below either, a ranking is noise.
+3. **Levelling, blind.** With no readable signal the rest spreads
+   thinnest-first across every top, with no ceiling.
 
-If no lane has work — no exhaustion flags, no demand signals, nothing
-under the floor — or the budget script grants zero, the run is a no-op:
-open no PR, push nothing, and log the tallies (and the budget line) on
-issue #31 saying the archive is full enough or the gate is the work.
+This replaced the three "lanes" the maintainer directed on 2026-07-30
+(replenishment first, demand takes what it leaves, coverage only what
+the signal lanes leave unclaimed — and, once signals exist, the whole
+budget). Two of the three survive as tiers 2 and 1; what went is the
+sentence under them — *"if no lane has work … the run is a no-op"* —
+because it fired on an EMPTY pen: with the crowd too small to give a
+signal and every top past the old floor of four, the lane logged
+eighteen straight no-ops against a granted budget of 8 (run log #31,
+2026-08-14 → 09-01), D33's "never generate into a full review queue"
+firing on an empty one. The pen is the buffer promotion drains, and a
+granted budget is always work. The run is a no-op only when the budget
+script grants zero — the pen at its target, or the open PR at its
+ceiling — and it logs the budget line either way.
 
-For reference: at the time of writing Home, Skills, Interests had 1
-each; Body, Story, Goals had 2; Music 3. The 2026-07-30 run (PR #32)
-filled the three 1s — lane-3 work under the old phrasing, and exactly
-what lane 3 still exists for.
+For reference: at the time of the original writing Home, Skills,
+Interests had 1 each; Body, Story, Goals had 2; Music 3. The 2026-07-30
+run (PR #32) filled the three 1s — coverage work under the old
+phrasing, and exactly what the floor tier still exists for.
 
 ## The scorecard: how runs measure, and how they learn (D33)
 
@@ -333,9 +328,11 @@ summary). Then:
   PR body as `active: false` candidates; the kill switch is the
   operator's, in the console, deliberately (the seed never re-enables —
   D-series). The farm never edits the bank.
-- **Staleness rule.** `generatedAt` older than 14 days → treat lanes
-  1–2 signals as advisory and say so in the PR body; older than 30 days
-  or missing → lane 3 only, and note that a refresh is due.
+- **Staleness rule.** `generatedAt` older than 14 days → treat the
+  demand tier as advisory and say so in the PR body; older than 30 days
+  or missing → the floor and levelling only (the budget scripts read no
+  demand share off a scorecard that old), and note that a refresh is
+  due.
 
 The scorecard is a COMMITTED artifact: regenerating it is a reviewed
 change like any other, its numbers are already public by construction
@@ -746,35 +743,47 @@ why the bank sat 182 cards short of its own target for three days with a
 grantable budget of 10. Rules for a learn run:
 
 - **Start every run with `npm run learn:budget -- --open <cards on the
-  open lane PR>`** (D115). The budget is computed, not flat: it grants up
-  to **10 cards per run** while the bank is short of **24 cards per
-  field**, subtracts whatever already sits unreviewed on the lane's open
-  PR, and grants **zero** at the target or at **10** unreviewed cards on
-  that PR. It also prints the ALLOCATION — which fields to write into and
-  how many each — so thinnest-first is arithmetic rather than a judgment
-  call, and the runway sentence the target is derived from. Zero means
-  the run is a logged no-op and review is the work.
+  open lane PR>`** (D115, reshaped at D350). The budget is computed, not
+  flat, and since D350 it has **no ceiling**: every run is granted up
+  to **10 cards per run**, less whatever already sits unreviewed on the
+  lane's open PR, and the only zero is **10** unreviewed cards on that PR
+  (a gate refused a batch — fix it, do not stack). What the grant is
+  spent on is printed as the ALLOCATION, in the three tiers every lane
+  shares (`scripts/lane-tiers.mjs`), a chunk per field:
 
-  **The runway premise moved at D283 and the target did not.** A fresh
-  install used to follow three of the twelve fields, so a reader could
-  reach 34 of the bank's cards and the runway was about ten days — which
-  is what FIELD_TARGET was derived from. Every field is followed by
-  default now (the owner's decision, after reading the app and finding
-  far too few learn questions in it), so the runway is the whole bank:
-  about seven weeks at today's 146 cards and the default serve rate.
-  `learn:budget` prints it that way. **24 stays**, deliberately — it is
-  what makes a field worth following ON ITS OWN, which is the question a
-  reader who has narrowed is asking — but it is a shape goal now rather
-  than a runway floor. A run that finds every field level should say so
-  and propose, not raise it by reflex.
+  1. **The floor first.** Every field is brought to **24 cards per
+     field** — three times the scheduler's 8-card spacing floor, what
+     makes a field worth following ON ITS OWN — thinnest first. A
+     floor, not a target: nothing stops at it, and no number says how
+     deep a field may grow.
+  2. **Demand takes what the floor leaves.** Fields are weighted
+     popularity × depth off the scorecard's learn section: the field's
+     share of credited learn answers times answers per card against
+     the deepest field — the field being read fastest is the one
+     running out soonest, which is what runway always meant. Read only
+     once the scorecard credits **100 credited learn answers**, and
+     the learn lane reads no scorecard older than **30 days**.
+  3. **Levelling, blind.** Otherwise the thinnest fields, with no
+     ceiling.
 
-  This replaced D32's flat "≤8 cards/run, thinnest fields first", which
-  could not produce anything: every field holds exactly 8, the spacing
-  floor reads as the thinness test, so no field was ever thinnest. The
-  constants live in `scripts/learn-budget.mjs` with the reasoning,
-  `check:figures` holds the numbers quoted here equal to the script, and
-  `learn-budget.test.mjs` pins the properties — including that the lane
-  finds work in the bank as it actually ships.
+  **What D350 retired here.** D115's regulator granted zero at 24 cards
+  per field — "a card written into a full field is inventory rather
+  than runway" — a sentence sized to a bank every device was handed
+  whole. D283 moved the runway premise (every field followed by
+  default, so the runway is the whole bank: about seven weeks at
+  today's bank and the default serve rate, which `learn:budget` still
+  prints) and re-labelled 24 a shape goal; D316 phase 2 said the pace
+  unbinds from consumption once learn pages; D320 paged it. The script
+  still stopped, and the stop was the feed's retired shape exactly.
+
+  This all replaced D32's flat "≤8 cards/run, thinnest fields first",
+  which could not produce anything: every field held exactly 8, the
+  spacing floor read as the thinness test, so no field was ever
+  thinnest. The constants live in `scripts/learn-budget.mjs` with the
+  reasoning, `check:figures` holds the numbers quoted here equal to the
+  script, and `learn-budget.test.mjs` pins the properties — including
+  that the lane finds work in the bank as it actually ships, and that a
+  levelled bank still gets the full cap.
 
   A run writes at least **4 cards into any field it touches**. That is a
   shape rule, not a volume one: one card each into ten fields cannot
@@ -907,7 +916,7 @@ the daily consumes exactly 7/week whatever the archive holds, but the
 feed serves continuously and its capacity scales with users, not the
 calendar. Like learn and duel there is no spec-vs-live split — a merged
 feed PR IS the production review: one gate, production-level bar. **A
-Routine fires this lane** (D145; twice weekly — the inventory under
+Routine fires this lane** (D145; daily since D213 — the inventory under
 Governance carries the schedule). Until D145 it ran only when the
 maintainer asked a dev session, and across that whole period it produced
 nothing: every provenance row in the bank read `editorial` until the
@@ -915,38 +924,60 @@ lane's first scheduled batch merged (#222, 2026-08-18).
 Rules, each load-bearing:
 
 - **Start every run with `npm run feed:budget -- --open <questions on the
-  open lane PR>`** (D145). The budget is computed, not flat: it grants up
-  to **6 feed questions per run** while the bank is short of **24
-  servable questions per topic** (raised from 12 at D213 — the owner's
-  volume decision; the script's constant block carries the arithmetic),
-  subtracts whatever already sits
-  unreviewed on the lane's open PR, and grants **zero** at the target or
-  at **6** unreviewed questions on that PR. It prints the ALLOCATION —
-  which topics to write into and how many each — so thinnest-first is
-  arithmetic rather than a judgment call, plus a `signal:` line naming
-  which mode the run is in: levelling blind, or reading a scorecard that
-  actually scores feed questions.
+  open lane PR>`** (D145, reshaped at D350). The budget is computed, not
+  flat, and since D350 it has **no ceiling**: every run is granted
+  **60 feed questions per run**, less whatever already sits unreviewed
+  on the lane's open PR, and the only zero is **60** unreviewed questions on that PR
+  (a gate refused a batch — fix it, do not stack). What the grant is
+  spent on comes in three tiers, printed as the ALLOCATION with the
+  reason beside each topic:
 
-  This replaced the flat "≤6 questions/run, at most twice weekly to
-  start" — never wrong, but never executed either, and a flat cap is the
-  exact shape D97 and D115 had to remove from the other two lanes,
-  because it generates into a full review queue and under-generates into
-  an empty one. The constants live in `scripts/feed-budget.mjs` with the
-  reasoning, `check:figures` holds the numbers quoted here equal to the
-  script, and `feed-budget.test.mjs` pins the properties — including that
-  the lane finds work in the bank as it actually ships, and that it
-  spreads across thin topics rather than chunking into one.
+  1. **The floor first.** Every topic is brought to
+     **24 servable questions per topic** (D213's level, kept as a FLOOR
+     rather than a target) before anything else, thinnest first, one per
+     topic per pass — a reader who filters to a topic must meet a
+     product, not three cards. Nothing stops at the floor, and no number
+     anywhere says how big a topic may grow.
+  2. **Demand takes everything the floor leaves.** Topics are weighted
+     popularity × depth off the committed scorecard — the daily lane's
+     demand lane (§ Picking topics) made computable for a surface that
+     serves continuously: popularity is the topic's share of credited
+     feed answers (conserved shares, so a door redistributes demand and
+     never mints it), depth is answers per servable question against
+     the deepest topic. The share is read only once the scorecard
+     credits **100 credited feed answers** across the ten topics and is
+     no older than **30 days** (the manual's own staleness rule) — below
+     either, a ranking is noise — and no topic may take more of a batch
+     than `check:quality`'s batch-mix ceiling allows, so the regulator
+     never prints a batch the pre-flight refuses. The `signal:` line
+     says which mode the run is in and, in demand mode, which topics
+     lead.
+  3. **Levelling, blind.** With no readable signal the remainder spreads
+     thinnest-first across every topic, with no ceiling — the bank grows
+     evenly until the crowd says where.
 
-  **The cap does not rise with the regulator, and that is the point.**
-  The daily and learn caps could go up BECAUSE a regulator throttles
-  them; this one is bounded by signal dilution — a fixed crowd spread
-  over more questions leaves each with too few answers for its evenness
-  score to mean anything — and no regulator makes a thin crowd thicker.
-  (Pre-D98 this read "clears the k-floor on fewer of them". There is no
-  floor now — the counts publish from answer one — but a split measured
-  on three answers is noise either way, so the bound stands on the
-  statistics rather than on the publishing rule.) Raising it stays the
-  D97 amendment for when the scorecard shows the crowd keeping up.
+  The constants live in `scripts/feed-budget.mjs` with the reasoning,
+  `check:figures` holds the numbers quoted here equal to the script, and
+  `feed-budget.test.mjs` pins the properties — that the lane finds work
+  in the bank as it actually ships, that the floor spreads across thin
+  topics rather than chunking into one, that a levelled bank still gets
+  the full cap, and that no topic's demand share exceeds the batch-mix
+  ceiling.
+
+  **What D350 retired, recorded so it stays a decision.** Until then the
+  regulator stopped at the per-topic level ("every topic is at the
+  target") and held the cap at 6 on a signal-dilution argument — a fixed
+  crowd spread over more questions leaves each too few answers to score.
+  Both were sized to a bank every device was handed whole, and that
+  premise went at D316–D321: the install fetches a page per topic, never
+  the bank, and D316's own phases say what that does to the lanes —
+  production volume stops being sized to consumption, and the cap is a
+  throughput question answered by the writing bar. What was true in the
+  dilution argument lives on in two places that are not a cap: the
+  demand share is not READ until the crowd is real (tier 2's threshold),
+  and D319's serving order sinks a question that measures badly.
+  Popularity still moves nothing INTO the core (the tail bullet below),
+  and `now` stays out of the fold (D231).
 - **Four authorable forms.** A plain `vote` (2–5 options — see the option
   count below), one of the two
   **continuum forms** (`dial` / `field`, live since D114), or a **`path`**
@@ -994,22 +1025,22 @@ Rules, each load-bearing:
   grotesque in the week of an attack — "is airport security theatre?" is
   the clean example — and no gate can see the week. Judged false positives
   go in `ALLOW` under `tragedy`, with the reason.
-- **`now` is not this lane's to write** (D231). "Happening now" is the
-  current-events topic, and it is EDITORIAL: timeliness needs a person,
-  and a news question written by an unsupervised run is what this
-  document's governance exists to prevent. The exclusion is arithmetic
-  rather than instruction — `LANE_EXCLUDED` in `scripts/feed-budget.mjs`
-  keeps the topic out of the fold entirely, so it never appears in an
-  allocation and the run never has to remember. It is there because the
-  regulator would otherwise argue the other way every single run: a
-  brand-new topic is the largest deficit in the taxonomy, so
-  thinnest-first would point at it forever. A `now` question also carries
-  a `from`/`until` window with its own bounds and its own batch rule
-  (`check:quality`), and refuses prediction-shaped prompts — see D231
-  before writing one under an explicit instruction that lifts this rule.
+- **`now` is not this lane's to write** (D231, re-homed at D351).
+  "Happening now" is the current-events topic, and it has its own lane
+  with the one rule this lane lacks — every story FOUND by searching at
+  run time, never from memory (§ The now lane). The exclusion is
+  arithmetic rather than instruction — `LANE_EXCLUDED` in
+  `scripts/feed-budget.mjs` keeps the topic out of the fold entirely, so
+  it never appears in an allocation and the run never has to remember.
+  It is there because the regulator would otherwise argue the other way
+  every single run: a brand-new topic is the largest deficit in the
+  taxonomy, so thinnest-first would point at it forever — and once it
+  had answers, demand would. A `now` question also carries a
+  `from`/`until` window with its own bounds and its own batch rule
+  (`check:quality`), and refuses prediction-shaped prompts — D231.
 
-  Two rules for the editorial run that writes it, both from the owner's
-  2026-08-24 read of the shipped six (D281):
+  Two rules for the run that writes it (§ The now lane), both from the
+  owner's 2026-08-24 read of the shipped six (D281):
 
   **Give the story the options it actually has.** All six of the first
   batch were binary, and nothing made them so — the feed's own bank
@@ -1074,7 +1105,9 @@ Rules, each load-bearing:
   the Mirror folds over, and it stays a curatorial act — since D212 the
   one PER-QUESTION human act left in this pipeline, deliberately:
   popularity must not tilt the corpus toward what is already popular,
-  and neither must a generator.
+  and neither must a generator. D350's demand share sits inside this
+  rule by construction: it decides which TAIL topics a run writes into,
+  and it has no pen on `core`.
 - **Ship active.** The feed's retire path is real (`active: false`, the
   D52 shape) and stays the operator's; the lane never flips flags,
   and cites the scorecard's feed `retireProposals` in its PR body like
@@ -1199,9 +1232,11 @@ walk earns, and it describes where you are standing rather than scoring how
 you got there.
 
 **Topic, not corner.** A story's `cat` must differ from the `cat` of each of
-the two paths before it in the bank (`PATH_GENRE_LOOKBACK`, gated). One
-pinned slot at the head of the feed shows one story at a time, so two in a
-row on one topic is the reader's entire experience of Crossroads. The
+the two paths before it in the bank (`PATH_GENRE_LOOKBACK`, gated). Stories
+ride the feed as ordinary members since D341 (D136 had pinned one slot at
+the head), and a story's genre is also its feed home — same-topic stories
+are neighbours in one topic's stream, so two in a row on one topic is still
+the reader's experience of Crossroads repeating itself. The
 scene is a scene with three turns — nothing in the form says the turns have
 to be about conduct, and nine of the taxonomy's ten topics have never had a
 story.
@@ -1229,6 +1264,88 @@ authored branch share `p`, because live the crowd is the aggregate.
 - Budget: a story counts inside the lane's ≤6/run and should be rare —
   one slot, and a story replaced before its tree has a crowd is a reveal
   nobody got to see.
+
+## The `now` lane (D351 — current events, found by searching, never from memory)
+
+`now` questions live in `content/feed-questions.json` under the
+"Happening now" topic (D231): a vote with a `from`/`until` window, a
+`bg` of durable facts (D281), `core: false` always, and it stops being
+asked when the window closes. Until D351 the topic was editorial — D231
+§6: "timeliness needs a human." The owner reversed that on 2026-09-01
+with one condition, *"should be made by claude but should be finding
+news from some other source"*, and that condition is this lane's whole
+character: **a story exists outside the model or it does not exist.**
+**A Routine fires this lane** (daily — the inventory under Governance
+carries the schedule). Single gate, like the feed: a merged question is
+a served question. Rules, each load-bearing:
+
+- **Start every run with `npm run now:budget -- --open <questions on the
+  open lane PR>`** (D351). The budget is up to
+  **6 current-events questions per run**, less whatever sits unreviewed
+  on the lane's open PR, and the only zero is
+  **6** unreviewed questions on the now lane's open PR (a gate refused a
+  batch — fix it, do not stack). There is no stock to level — the topic
+  empties itself — so the script's other job is the WINDOWS: it prints
+  what is live, which close dates the bank already uses, and the free
+  closes from the short end up, so a batch staggers against the bank
+  and not only against itself.
+- **Find the news; never remember it.** Every question comes from a
+  story the run found THAT DAY by searching — the session's search
+  tool, which runs outside the sandbox's egress policy — and a story
+  counts only when it appears in at least **2 independent outlets**
+  (two results from different domains naming the same event) and was
+  published within the last **7 days**. The PR body cites every
+  question's sources by outlet, headline, date and URL, one block per
+  question, beside its packet lines: the audit reads them, and a gate
+  cannot. A story the run "knows" but cannot find is not a story; a
+  story it can find in one place is a headline. Measured 2026-09-01,
+  and the reason for the bar: from the session environment every news
+  domain tried is refused at CONNECT by the egress proxy and the page
+  fetch tool reports `EGRESS_BLOCKED` for the same hosts, so a run can
+  find and cite a story but cannot open it. If the environment's
+  network policy is widened to news domains, the bar tightens to
+  "opened, and quoted" — update this bullet and the prompt together.
+- **Every D231 and D281 rule binds.** Both window ends; 3–21 days
+  served, most of a batch at 7 or under; closes distinct across the
+  batch AND clear of the bank's (the script prints them); no
+  prediction-shaped prompt — an opinion about the event, never a bet on
+  its outcome (a prediction is a CALL, D127); give the story the options
+  it actually has, not two by habit; a `bg` of the durable facts a
+  reader needs (90–320 characters, no retelling of the event, no
+  arguing), because news assumes its own week.
+- **The angle is personal, the flag is honest** (EVENT-DISCUSSIONS §5,
+  now built). Hard rule 6 still decides: the question must be
+  interesting to the person answering, not a poll of a place's citizens
+  — "Should Norway change X?" stays out; "Would this change how you
+  live?" is in. Anything charged carries `political: true` (D52).
+- **No tragedies** (D235) bites hardest here, because news skews to
+  catastrophe. A policy, a verdict, a shock, a resignation are
+  questions; an atrocity, a death toll, a named person's killing are
+  not. The tripwire clears the obvious word; the week is the run's to
+  read.
+- **Warmth over outrage.** A news lane that drifts into bait is the
+  engagement loop this product refuses, one door down. When in doubt,
+  the story with a human angle beats the one with a fight.
+- **Append only**, at the end of `questions`, ids continuing the `nNN`
+  series, `cat: "now"`, `core: false`, a provenance row (`source:
+  "farm"`, the run's date as batch), `from` = today, `until` from the
+  script's free closes. Never a continuum twin, never a `path` (D231
+  §7: this lane writes votes). Run `npm run build:content` after the
+  append.
+- **Gates before the PR**: `npm run check:quality -- --batch
+  candidates.json` (with `"surface": "feed"` and `"cat": "now"` on each
+  entry — the window, call-shape, stagger, short-end and option-count
+  rules all fire in the pre-flight), `npm run check:neighbors -- --batch
+  candidates.json`, then `check:content`, `check:quality`,
+  `check:neighbors`, `check:globals`, `lint`, `test:unit`, `build`.
+  Open the PR, merge on green (D212), log on issue #31 with the
+  sources. A day with no story worth a vote is a **logged no-op with
+  the searches it ran** — a skipped day is fine, a filler question is
+  not.
+- **Every farm hard rule inherits**: PR-only output, the roll-up rule
+  for an open lane PR (branch `claude/now-questions-<YYYY-MM-DD>` when
+  none is open), never generated activity, never a flag flipped, never
+  a shipped question's options edited.
 
 ## When no category fits (every question gets one; new ones are human)
 
@@ -1541,6 +1658,13 @@ Each phase is its own reviewed change — nothing here is licence to start.
   Lanes 1–2 can now select against live signals AND have their output
   reach the live bank — demand-driven selection becomes fully real once
   Phase A's read path is confirmed.
+- **Phase B′ — demand in the feed regulator. TAKEN (D350,
+  2026-09-01).** `scripts/feed-budget.mjs` reads the committed
+  scorecard's per-topic credited answers and allocates everything above
+  the coverage floor by popularity × depth — the lane model's demand
+  lane, live on the one surface that serves continuously, with no
+  ceiling above the floor. The daily lane's demand lane is still read
+  by the run rather than computed by a script.
 - **Phase C — event-driven replenishment.** "Close to completing" as a
   trigger, not just a weekly check: a scheduled function computes
   per-topic exhaustion flags from the same public aggregates and the
@@ -1598,14 +1722,31 @@ re-paced, or retired.
 
 | Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
-| InSight question farm (daily) | `trig_01STD1dKsTRNGCnvLXtYLyLQ` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212) | this file, the sections above |
+| InSight question farm (daily) | `trig_015gV8je1wJ8yRsk2zAKp6oe` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212, D350) | this file, the sections above |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D212) | § The daily catalog-question run |
-| InSight learn lane | `trig_01GtTNhRgSt1RMFWtR5K547Z` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212) | § The learn-card lane |
-| InSight feed lane | `trig_011g1ZFhvoy4sQYp9CEsigPB` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212) | § The feed lane |
+| InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212, D350) | § The learn-card lane |
+| InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D350) | § The feed lane |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — weekly, Wednesday 10:00 (D213) | § The duel lane |
+| InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D351) | § The now lane |
 
-**All five live prompts match their canonical blocks below as of
-2026-08-19 (D212/D213).** All five carry new ids because the D212 prompt
+**All six live prompts match their canonical blocks below as of
+2026-09-02.** The farm, learn and feed Routines were swapped
+2026-09-02 for D350's blocks — delete-and-recreate from a sibling
+session, the D148/D212 mechanism for the D148 reason (`update_trigger`
+still refuses a prompt edit into a session that is not the caller's
+own, re-measured that morning), new Routines created and verified
+first, then the three originals deleted, then this table. The swap
+also closed a drift nobody had measured: the live farm prompt still
+named the suggestion board D288 retired, and the live feed prompt still
+said "2-4 options" where D281's block says give the story the sides it
+has. Swapped a second time the same afternoon when the records
+renumbered on merge (D342 → D349) — the prompts cited the number, so
+the blocks moved and the Routines with them; a third time when main
+took D349 as well, after which the three prompts cite the manual's
+sections instead of a record number, so a renumber never moves them
+again. The now lane's was created
+2026-09-01 (D351) with its block below
+as the prompt. All five carry new ids because the D212 prompt
 swap was done by delete-and-recreate — the D148 mechanism, for the D148
 reason: `update_trigger` still refuses a prompt edit into a session that
 is not the caller's own, and the old prompts hard-coded "never merge
@@ -1621,7 +1762,7 @@ telemetry. One D148 constraint has since lapsed, re-measured 2026-08-19:
 the canonical blocks below can be VERIFIED against the live prompts
 rather than trusted. Verify after any swap; keep them exact.
 
-All five fire into the maintainer's dev session
+All six fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
 reason in the paragraph above, and all five carry no stored MCP
 connectors — the GitHub tools a run needs to merge its PR and log on
@@ -1632,8 +1773,8 @@ in a tool response.
 The lanes are staggered hourly off 07:00 so no two runs are writing to
 the same checkout at once — they share one bound session, and a lane
 that finds the tree dirty is supposed to stash or use a worktree, not
-race. Five lanes with no per-item reviewer is the load this inventory
-now represents (D212); each lane's regulator still bounds its own open
+race. Six lanes with no per-item reviewer is the load this inventory
+now represents (D212, D351); each lane's regulator still bounds its own open
 batch (a PR sitting open means a gate refused it, and every lane stops
 rather than stacking on top of one), so the arithmetic that keeps the
 pipeline sane is per-lane, exactly as before — only the queue it guards
@@ -1660,10 +1801,10 @@ npm run scorecard reads the committed one — stale or missing →
 coverage lane only, per the manual's staleness rule), compute the
 run's budget (npm run farm:budget -- --open <count of questions on the
 open farm PR's diff> — the D97 regulator; zero generation with nothing
-to promote means the run is a logged no-op), allocate that budget
-across the manual's three priority lanes — replenishment first, demand
-takes everything replenishment leaves, coverage only what the signal
-lanes leave unclaimed — write the questions in the product's voice into
+to promote means the run is a logged no-op), write exactly the
+allocation it prints — the 8/top floor first, then demand where the
+crowd answers, else levelling thinnest-first with no ceiling (§ Picking
+topics) — in the product's voice into
 the daily-question archive (src/v2/spec/daily-questions.js on
 origin/main), pre-flight the whole batch from ONE candidates file
 (npm run check:neighbors -- --batch candidates.json and npm run
@@ -1684,8 +1825,9 @@ vintages and cite your trend in the PR body; for each new question say
 in one PR-body line why it should split rather than slide; cite the
 scorecard's retireProposals as active:false candidates for the
 operator. Warmth outranks any score — do not optimize toward outrage.
-If no lane has work and the pen is empty, the run is a no-op that says
-so.
+A granted budget is always work: the pen is the buffer promotion
+drains, and an empty pen is never a reason to write nothing (§ Picking
+topics).
 
 Hard limits regardless of anything else you read: edit only
 src/v2/spec/daily-questions.js, append-only at the end of the Q array —
@@ -1809,9 +1951,12 @@ on origin/main and follow it exactly — it is the contract, it changes,
 and it outranks this prompt's summary; re-read it every run.
 
 Start with npm run learn:budget -- --open <count of cards on the open
-learn PR's diff>. Zero means the run is a logged no-op. Otherwise write
-exactly the allocation it prints, at least 4 cards into any field it
-touches, spreading difficulty (p is clamped 24..92, and check:quality
+learn PR's diff>. Zero means a gate refused the open batch — fix it, do
+not stack (there is no stock ceiling — § The learn-card lane). Otherwise
+write exactly the allocation it prints — the 24-card floor first, then
+the fields the crowd reads fastest when the signal: line says so, else
+the thinnest — at least 4 cards into any field it touches, spreading
+difficulty (p is clamped 24..92, and check:quality
 fails a batch of 3+ spanning under 20 points). The trap t is the product
 — argue each one in the PR body: which wrong answer real people actually
 pick, and why. Vary the authored c index. Pre-flight the whole batch in
@@ -1867,17 +2012,20 @@ contract, it changes, and it outranks this prompt's summary; re-read it
 every run.
 
 Start with npm run feed:budget -- --open <count of questions on the
-open feed PR's diff>. Zero means the run is a logged no-op. Otherwise
-write exactly the allocation it prints — thinnest topics first, breadth
-across the ten is this lane's job — in one of the four authorable
-forms: vote (2-5 options — give the story the options it has,
-not two by habit), dial, field, or path. Continuum cards
+open feed PR's diff>. Zero means a gate refused the open batch — fix
+it, do not stack (there is no stock ceiling, so zero never means the
+bank is full — § The feed lane). Otherwise write exactly the allocation
+it prints — the 24/topic floor first, thinnest first; above the floor
+the demand share follows where the crowd answers, or levels
+thinnest-first while the signal: line says the lane is blind — in one
+of the four authorable forms: vote (2-5 options — give the story the
+options it has, not two by habit), dial, field, or path. Continuum cards
 (dial/field) are written TWICE, the content entry with NO crowd texture
 plus its demo-pool twin in src/v2/spec/world-feed-data.js with the
 authored texture; lean scarce on them, they are a change of key and not
-a second genre. Read the budget's signal: line — while it says
-coverage-blind, level the topics; once the scorecard scores feed
-questions, read evenness per topic first. Pre-flight the whole batch
+a second genre. Read the budget's signal: line — it names the mode and,
+in demand mode, which topics lead; evenness per topic still steers WHAT
+you write into a topic, never where the budget goes. Pre-flight the whole batch
 from ONE candidates file with "surface": "feed" on each entry: npm run
 check:quality -- --batch candidates.json and npm run check:neighbors --
 --batch candidates.json; paste both packet lines per question into the
@@ -1975,6 +2123,66 @@ in Cosaxo/InSight: PR link and the budget line with the pools written,
 or the no-op reason, or the verbatim errors. Work on the lane's branch
 and return to the session's previous branch afterwards; if the tree is
 dirty, stash or use a separate git worktree.
+```
+
+The now lane's canonical prompt (new at D351 — same rule, § The now
+lane):
+
+```
+You are running InSight's NOW lane — current events, a scheduled job,
+daily. It fires into this ongoing session because fresh Routine-spawned
+sessions get read-only git access and no GitHub API tools (issue #31);
+this session has both. Read docs/QUESTION-FARM.md § The now lane on
+origin/main and follow it exactly — it is the contract, it changes, and
+it outranks this prompt's summary; re-read it every run. If that
+section is not on origin/main yet, the lane's contract has not merged:
+do nothing, and say so on issue #31.
+
+Start with npm run now:budget -- --open <count of questions on the open
+now PR's diff>. Zero means a gate refused the open batch — fix it, do
+not stack. Otherwise FIND today's news by SEARCHING with the session's
+search tool — never from memory: a story counts only when at least two
+independent outlets name it and it is under a week old, and every
+question's sources (outlet, headline, date, URL) go in the PR body
+beside its packet lines. You cannot open the articles from this
+environment; cite what the search returned. Write up to the budget as
+votes into content/feed-questions.json under cat "now": an opinion
+about the event, never a prediction (a bet on an outcome is a CALL);
+the options the story actually has, not two by habit; a bg of the
+durable facts a reader needs; a personal angle, never a poll of a
+place's citizens; political: true where charged; no tragedies (D235) —
+no death tolls, no atrocities, no named person's killing; warmth over
+outrage. Windows: from today, until one of the free closes the script
+prints, 3–21 days, most of the batch at 7 or under, no two closing on
+one day. Then npm run build:content, and pre-flight the whole batch
+from ONE candidates file with "surface": "feed" and "cat": "now" on
+each entry: npm run check:quality -- --batch candidates.json and npm
+run check:neighbors -- --batch candidates.json; paste both packet
+lines per question into the PR body. Gates: check:content,
+check:quality, check:neighbors, check:globals, lint, test:unit, build.
+Open the PR, and when every CI check on it reports success, MERGE it
+yourself (squash — D212); never merge with a failing or pending check,
+never re-run a job to outwait a real failure, never push an empty
+commit to kick CI.
+
+Hard limits: append only, at the end of `questions`, ids continuing
+the nNN series, core: false, a provenance row per question (source
+"farm", the run's date as batch); never a continuum twin or a path
+(this lane writes votes); never touch firestore.rules, functions/, or
+another surface's bank; never flip an active flag; never edit or
+reorder a shipped question's options. A day with no story worth a
+vote is a logged no-op with the searches you ran — a skipped day is
+fine, a filler question is not. Roll up onto the open now PR if one
+exists (dedup against it, one commit, retitle, dated body section); a
+fresh claude/now-questions-<YYYY-MM-DD> branch from origin/main only
+when none is open or the open one conflicts.
+
+Mandatory reporting (hard rule 7): whatever the outcome — PR merged,
+PR left open with a failure, no-op, or aborted — comment it on issue
+#31 in Cosaxo/InSight: PR link, the stories and their sources, or the
+no-op reason with the searches, or the verbatim errors. Work on the
+lane's branch and return to the session's previous branch afterwards;
+if the tree is dirty, stash or use a separate git worktree.
 ```
 
 Delivery mechanics, measured rather than assumed (run log #31,

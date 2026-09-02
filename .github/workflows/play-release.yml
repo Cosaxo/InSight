@@ -1,0 +1,325 @@
+# Signed Android App Bundle → Google Play, from CI.
+#
+# WHY THIS EXISTS. ios-release.yml exists because a Mac was the only hard
+# dependency between this tree and a live app. Android never had that
+# dependency, which is why this file was never written — and why, when D42
+# parked Play, the release path was simply absent rather than deferred.
+# D345 un-parked it (owner: an ENK, so D41's organization account), and
+# this is the missing half.
+#
+# It is much cheaper than its sibling: ubuntu rather than macOS at 10x
+# billing, no cloud signing, no provisioning profiles, and none of the
+# signing archaeology ios-release.yml's comments preserve across four runs.
+# What it does share is the shape — dispatch-only, upload behind a flag,
+# and every gate that can fail cheaply placed before the one that cannot.
+#
+# workflow_dispatch ONLY, for the second of ios-release.yml's two reasons.
+# The billing one does not apply here. The irreversibility one does, and
+# more sharply: a bundle that reaches Play cannot be un-uploaded, only
+# superseded by a higher versionCode, and `production` reaches every user
+# at full rollout the moment the edit commits.
+#
+# RUN IT WITH upload=false FIRST. That builds and signs the bundle, runs
+# every assertion below, and attaches the .aab — without Play seeing
+# anything. It is how you find out whether signing works before it matters.
+#
+# ── Secrets ─────────────────────────────────────────────────────────
+#   ANDROID_KEYSTORE_BASE64     base64 of the upload keystore (.jks)
+#   ANDROID_KEYSTORE_PASSWORD   its store password
+#   ANDROID_KEY_ALIAS           the key alias inside it
+#   ANDROID_KEY_PASSWORD        that key's password
+#   GOOGLE_SERVICES_JSON        base64 of android/app/google-services.json
+#   PLAY_SERVICE_ACCOUNT_JSON   the whole service-account key file, as JSON
+#   VITE_SENTRY_DSN             optional; without it the release ships with
+#                               no crash reporting (sentryInit no-ops)
+#
+# ── Variables (same page → Variables) ───────────────────────────────
+#   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN,
+#   VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID
+#                       REQUIRED. With any one empty the bundle is the
+#                       mock-mode demo app, signed and uploadable.
+#                       `npm run check:web-firebase` fails the job instead.
+#   VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID,
+#   VITE_FIREBASE_MEASUREMENT_ID
+#                       optional; each costs a feature, not the backend.
+#
+# THE KEYSTORE IS THE UPLOAD KEY, NOT THE APP SIGNING KEY. Enroll in Play
+# App Signing: Google then holds the key users' installs are verified
+# against, and this one only proves uploads come from you. That is the
+# difference between "lost the keystore, generate a new one and tell
+# Google" and "lost the keystore, the app can never be updated again".
+#
+# docs/PLAY-RELEASE.md says where each value comes from.
+name: Play release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload to Play (false = build + artifact only)"
+        type: boolean
+        default: false
+      track:
+        description: "Play track to publish to"
+        type: choice
+        options: [internal, alpha, beta, production]
+        default: internal
+      first_upload:
+        description: "First ever upload — excuses the unfilled assetlinks fingerprint ONCE"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: play-release
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # Same reasoning as ci.yml's android-build: one fewer third-party
+      # action to pin and audit, and the wrapper already handles the Gradle
+      # distribution.
+      - name: Cache Gradle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - run: npm ci
+
+      # Fail before spending runner minutes on a build that cannot ship.
+      #
+      # check:store-copy runs BARE here — no --ios. That flag excuses the
+      # Play fingerprint, which is the one value this path exists to make
+      # obtainable, so excusing it would defeat the check. The one genuine
+      # exception is the very first upload, when Play Console has no
+      # fingerprint to give because nothing has been uploaded yet:
+      # --first-upload covers exactly that run and says loudly that it is
+      # good for one. Every run after fails until assetlinks.json is filled.
+      #
+      # check:public-copy is here for the same reason ios-release.yml runs
+      # it: the privacy panel is COMPILED INTO THIS BUNDLE, and the store
+      # description this build ships against is in the same gate.
+      - name: Pre-flight — placeholders, public copy and version lockstep
+        run: |
+          if [ "${{ inputs.first_upload }}" = "true" ]; then
+            echo "::warning::first_upload is set — the assetlinks fingerprint is excused for THIS RUN ONLY."
+            node scripts/check-store-copy.mjs --first-upload
+          else
+            node scripts/check-store-copy.mjs
+          fi
+          npm run check:public-copy
+          npm run check:versions
+
+      # The JavaScript half of the Firebase config. Every comment on
+      # ios-release.yml's equivalent step applies unchanged, including the
+      # one that matters most: this used to be a bare `npm run build` there,
+      # and the archive it produced was the mock-mode demo app — it builds,
+      # signs, uploads, installs, and shows the demo deck to whoever
+      # installs it.
+      #
+      # CAPACITOR_BUILD=1 tells vite.config.ts this is a native bundle,
+      # which is why no reCAPTCHA site key is needed: Android attests
+      # through Play Integrity and never reads it (D337).
+      - name: Build the web bundle with the production config
+        env:
+          CAPACITOR_BUILD: "1"
+          VITE_V2_LIVE: "true"
+          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'false' }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_RELEASE_TAG: ${{ github.sha }}
+        run: |
+          npm run build
+          # Assert against dist/ rather than the environment: the question
+          # is whether THIS build saw the config. Both run before cap sync
+          # so a demo bundle is never copied into the shell — fail while the
+          # mistake is still in dist/, not after it is inside an .aab.
+          npm run check:web-firebase
+          npm run check:bundle
+
+      - run: npx cap sync android
+
+      # google-services.json is a secret and is gitignored, so it is written
+      # here and never committed. Its ABSENCE is silent in the worst way:
+      # the app builds, signs, uploads, installs, and has no Firebase — the
+      # exact mirror of ios-release.yml's plist step.
+      #
+      # The package_name assertion is not ceremony. The file is a snapshot
+      # of one Firebase Android app; downloading it from the wrong app in a
+      # multi-app project yields a valid file for the wrong package, which
+      # builds cleanly and fails at runtime.
+      - name: Write google-services.json
+        env:
+          GS_B64: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GS_B64" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON secret is empty. Without it the bundle ships with no Firebase config — see docs/PLAY-RELEASE.md §2.4."
+            exit 1
+          fi
+          printf '%s' "$GS_B64" | base64 --decode > android/app/google-services.json
+          node -e '
+            const j = JSON.parse(require("fs").readFileSync("android/app/google-services.json","utf8"));
+            const pkgs = (j.client ?? []).map((c) => c.client_info?.android_client_info?.package_name);
+            if (!pkgs.includes("com.cosaxo.insight")) {
+              console.error("::error::google-services.json has no client for com.cosaxo.insight (found: " + pkgs.join(", ") + ")");
+              process.exit(1);
+            }
+            // The Google sign-in trap from SHIP-CHECKLIST §2, made visible.
+            // A client_type 1 entry exists only if a SHA-1 was registered
+            // when the file was downloaded; without one signInWithGoogle
+            // fails with DEVELOPER_ERROR on a build that compiled — and
+            // D3s only account-upgrade path dies with it.
+            const oauth = (j.client ?? []).flatMap((c) => c.oauth_client ?? []);
+            if (!oauth.some((o) => o.client_type === 1)) {
+              console.error("::error::google-services.json carries no Android oauth_client (client_type 1). A SHA-1 was not registered when it was downloaded, so Google sign-in would fail with DEVELOPER_ERROR. Register the Play App Signing SHA-1 and re-download — see docs/PLAY-RELEASE.md §2.4.");
+              process.exit(1);
+            }
+            console.log("google-services.json is for com.cosaxo.insight and carries an Android oauth_client");
+          '
+
+      - name: Install the upload keystore
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is empty. Without it the release build is UNSIGNED and Play rejects it — see docs/PLAY-RELEASE.md §2.1."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$KS_B64" | base64 --decode > "$RUNNER_TEMP/keys/upload.jks"
+          chmod 600 "$RUNNER_TEMP/keys/upload.jks"
+          # Prove it decoded to a keystore rather than to base64 of an error
+          # message, before it is used to sign something uploadable.
+          keytool -list -keystore "$RUNNER_TEMP/keys/upload.jks" \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >/dev/null
+          echo "keystore decoded and opens"
+
+      - name: Build the signed bundle
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/keys/upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon --stacktrace
+
+      # THREE ASSERTIONS ON THE ARTIFACT ITSELF, each for a failure that is
+      # silent up to the moment it is not. Same posture as ios-release.yml's
+      # two entitlement checks: ask the built thing, not the environment
+      # that was supposed to configure it.
+      - name: Verify the bundle is signed, configured, and 16 KB compliant
+        run: |
+          AAB=$(ls android/app/build/outputs/bundle/release/*.aab | head -1)
+          [ -f "$AAB" ] || { echo "::error::no .aab was produced"; exit 1; }
+          echo "checking $AAB"
+          WORK="$RUNNER_TEMP/aab"; rm -rf "$WORK"; mkdir -p "$WORK"
+          unzip -q "$AAB" -d "$WORK"
+
+          # 1. SIGNED. android/app/build.gradle leaves signingConfig null
+          #    when no keystore is configured, so an unsigned bundle is a
+          #    perfectly successful Gradle build. Play refuses it, but only
+          #    after the upload — which spends a versionCode.
+          if ! unzip -l "$AAB" | grep -qiE 'META-INF/.*\.(RSA|DSA|EC)$'; then
+            echo "::error::the .aab carries no signature block — the keystore did not reach Gradle. See docs/PLAY-RELEASE.md §2.1."
+            exit 1
+          fi
+          echo "signed"
+
+          # 2. FIREBASE CONFIG BAKED IN, not merely present on disk. The
+          #    google-services plugin turns the JSON into string resources;
+          #    google_app_id exists only if it actually ran. Measured: a
+          #    build with no google-services.json has firebase_common_keep
+          #    in resources.pb from the SDK itself but no google_app_id, so
+          #    a looser grep for "firebase" would pass on a config-less
+          #    bundle. That is why this matches the exact resource name.
+          if ! strings "$WORK/base/resources.pb" | grep -qx 'google_app_id'; then
+            echo "::error::the bundle has no google_app_id resource — the google-services plugin did not run, and this app would have no Firebase. See docs/PLAY-RELEASE.md §2.4."
+            exit 1
+          fi
+          echo "Firebase config compiled into the bundle"
+
+          # 3. 16 KB PAGE SIZE. Play BLOCKS the release of an app targeting
+          #    Android 15+ whose 64-bit native libraries are not aligned to
+          #    16 KB, and the error arrives in the Console rather than here.
+          #    Managed code is compliant by construction; this app carries
+          #    native libraries anyway, from Sentry and androidx.datastore.
+          #    Measured 2026-09-01: all six 64-bit libraries report 0x4000,
+          #    so this passes today and exists to catch the dependency bump
+          #    that regresses it.
+          bad=0
+          for so in "$WORK"/base/lib/arm64-v8a/*.so "$WORK"/base/lib/x86_64/*.so; do
+            [ -f "$so" ] || continue
+            for a in $(readelf -lW "$so" | awk '$1=="LOAD"{print $NF}' | sort -u); do
+              if [ "$(printf '%d' "$a")" -lt 16384 ]; then
+                echo "::error::$(basename "$so") has a LOAD segment aligned to $a (< 16384). Play will refuse this bundle. See docs/PLAY-RELEASE.md §2.6."
+                bad=1
+              fi
+            done
+          done
+          [ "$bad" = "0" ] || exit 1
+          echo "every 64-bit native library is 16 KB aligned"
+
+      # Kept before the Play step so a bundle that builds correctly but
+      # fails to upload is still in hand — the expensive part is the build.
+      - name: Keep the .aab as an artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: InSight-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to Google Play
+        if: ${{ inputs.upload }}
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          AAB=$(ls android/app/build/outputs/bundle/release/*.aab | head -1)
+          node scripts/play-upload.mjs --aab "$AAB" --track "${{ inputs.track }}"
+
+      - name: What happens next
+        run: |
+          if [ "${{ inputs.upload }}" != "true" ]; then
+            echo "Build-only run. The signed .aab is attached as an artifact."
+            echo "Re-run with upload=true when you are ready to send it to Play."
+            exit 0
+          fi
+          echo "Uploaded to the ${{ inputs.track }} track."
+          echo "Bump appBuild in package.json before the next run — a versionCode cannot be reused."
+          if [ "${{ inputs.first_upload }}" = "true" ]; then
+            echo ""
+            echo "FIRST UPLOAD — two things exist now that did not before:"
+            echo "  1. Play Console -> Setup -> App signing has the SHA-256. Put it in"
+            echo "     web/.well-known/assetlinks.json and deploy hosting, or /join links"
+            echo "     keep falling back to the hosted page. The next run fails until you do."
+            echo "  2. The same screen has the SHA-1. Add it to the Firebase Android app and"
+            echo "     re-download google-services.json, or Google sign-in stays dead on Android."
+          fi

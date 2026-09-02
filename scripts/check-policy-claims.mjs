@@ -57,6 +57,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
+  // D236 · the page must NAME the notifications, not just count them.
+  // check:figures holds the count against v2social.ts's own call sites;
+  // this holds the list, because a fifth kind added as "and others" would
+  // satisfy a count and tell the reader nothing. The sentence said "the
+  // one notification this app sends" for the nine days after D236 shipped
+  // three more — the exact shape this file's header names: not a promise
+  // thinned on purpose, a promise left behind by a change three commits
+  // away.
+  ["D236 · the token is used for the reveal AND the three circle notices",
+    /revealed,\s*someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
   // One pattern, not an alternation. It shipped as
   // `/…from the first answer|no minimum, no delay/` and the gate's own
   // test caught it inside an hour: with two spellings of one claim, either
@@ -96,6 +106,21 @@ export const CLAIMS = [
     /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
+  // The row above pins the SEAL and says nothing about who reads the
+  // reveal once it opens, which is how the page went on promising "the
+  // people in that group" for a year after D98 removed the membership
+  // arm from `match /reveals/{day}` (it is `request.auth != null`, and
+  // rules.test.ts asserts a stranger, a late joiner and someone who left
+  // all read a day). Two rows, because the page states the audience
+  // twice and a half-corrected promise is the same failure.
+  ["D98 · a revealed duel day is readable by anyone holding the circle's id",
+    /anyone signed in who has that circle&rsquo;s id can see them/i],
+  ["D98 · the audience summary says the same thing",
+    /reveal, then anyone signed in who has that circle&rsquo;s id/i],
+  ["D98 · the retired circle-scoped reveal audience is gone",
+    (src) => !/(picks to the people in that group|then the members of that group)/i.test(src)],
+  ["D98 · group takes are world-readable too, not circle-scoped",
+    (src) => !/group takes: that group/i.test(src)],
   ["D9 · coordinates are never transmitted or stored",
     /coordinates are not sent to us, not stored/i],
   ["D175 · the presence square's SIZE tracks the grid (~200 m, not km)",
