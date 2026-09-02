@@ -1,8 +1,12 @@
 # Ops runbook — the routines that keep the routine program honest, and the list worker
 
-**Status: plan only — none of these Routines exists yet.** This file is
-the contract each one defers to from its first fire, written before the
-first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
+**Status: mixed — four of the eight Routines exist (the roll call, the
+production reader, the release recorder and the list worker, created
+2026-09-02 and bound to the ops dispatcher); the probe, the PR
+shepherd, the pulse responder and the dependency shepherd do not yet.**
+§ The account-side inventory has the ids and what stopped the other
+three. This file is the contract each one defers to from its first
+fire, written before the first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
 against a contract that was not on `main`, and its first two runs
 aborted correctly and to no effect (PR #335, run log #336). When a
 Routine below is created, its row in § The account-side inventory gets
@@ -145,6 +149,17 @@ one per lane, so the morning read is one page.
    deliberately does not carry it (that file reaches every session in
    the repo; the grant here is per PR, by label, and per session, by
    the owner's word).
+
+   **Taken 2026-09-02, at the owner's direction and ahead of the
+   probe.** The ops dispatcher is `session_01RQvTPyNEFgX5yNUPqkDPnS`
+   (model `claude-sonnet-5`, tag `ops-dispatcher`, charter in its first
+   turn: relay each firing verbatim into a fresh session titled
+   `<Lane> — <UTC date>`, tagged `ops-lane`, on the lane's model from
+   §1, with the provisioning and reporting tools pre-approved; never
+   do a lane's work). Four lanes were bound to it the same hour; the
+   session's permission classifier refused to create the other three
+   from a session, so those are created from the web UI. The probe's
+   row still decides whether the four are rebound.
 4. **The API-triggered lanes need two secrets each** before their
    workflow steps do anything: repository *variables*
    `ROUTINE_PULSE_FIRE_URL` and `ROUTINE_RELEASE_FIRE_URL` (the
@@ -766,14 +781,19 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 
 | Routine | Trigger id | Model | Binding | Created |
 | --- | --- | --- | --- | --- |
-| InSight platform probe | — | — | — | — |
-| InSight roll call | — | — | — | — |
-| InSight PR shepherd | — | — | — | — |
-| InSight production reader | — | — | — | — |
-| InSight release recorder | — | — | — | — |
-| InSight pulse responder | — | — | — | — |
-| InSight dependency shepherd | — | — | — | — |
-| InSight list worker | — | — | — | — |
+| InSight platform probe | — | `claude-sonnet-5` | web UI, fresh session per run — the owner creates it | not yet |
+| InSight roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `claude-sonnet-5`, set by the dispatcher | ops dispatcher → fresh session | 2026-09-02 |
+| InSight PR shepherd | — | `claude-opus-5` | — | not yet: creation from a session refused by the permission classifier on 2026-09-02; create from the web UI, then add its GitHub `pull_request` triggers there |
+| InSight production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `claude-sonnet-5`, set by the dispatcher | ops dispatcher → fresh session | 2026-09-02 |
+| InSight release recorder | `trig_01Vr2QLmWAGBaBsnT6yTusnr` | `claude-opus-5`, set by the dispatcher | ops dispatcher → fresh session; poke-only until its API trigger is added in the web UI | 2026-09-02 |
+| InSight pulse responder | — | `claude-opus-5` | — | not yet: same refusal as the shepherd; create from the web UI with an API trigger |
+| InSight dependency shepherd | — | `claude-opus-5` | — | not yet: same refusal; create from the web UI |
+| InSight list worker | `trig_01USe4xEhJ57MRjgThykdRzM` | `claude-fable-5-1`, set by the dispatcher | ops dispatcher → fresh session | 2026-09-02 |
+
+The dispatcher-bound rows carry no stored connectors of their own
+(the creation tool said so); their sessions' tools come from the
+dispatcher's `create_session` call, which the first fire measures. The
+roll call's first fire is the same day it was created.
 
 ## 6 · What this program does not include, and why
 
