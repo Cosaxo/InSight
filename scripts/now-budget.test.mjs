@@ -55,6 +55,28 @@ describe("nowLive", () => {
 });
 
 describe("suggestCloses", () => {
+  it("walks past the short end when the bank holds it, and the batch rule then refuses that batch", () => {
+    // The arithmetic written down rather than assumed. suggestCloses walks
+    // outward from the short end and stops when it has `n` — so once the
+    // bank already closes on the near dates it keeps going into the long
+    // ones and hands back a batch check:quality will not take, because that
+    // rule wants MOST of a batch of three or more at the short end.
+    //
+    // Four near dates taken, asking for six: one short close and five long.
+    // The helper is right about which dates are free and cannot be right
+    // about the batch — that is the conflict this pins, and the CLI now
+    // says it out loud instead of leaving it to a red gate.
+    const closes = suggestCloses(
+      { "2026-09-04": 1, "2026-09-05": 1, "2026-09-06": 1, "2026-09-07": 1 },
+      "2026-09-02",
+      6,
+    );
+    expect(closes.length, "the helper stopped short of the asked-for count").toBe(6);
+    const short = closes.filter((c) => c.short).length;
+    expect(short, "the short end is no longer scarce in this fixture — the case has stopped testing anything").toBe(1);
+    expect(short * 2, "a batch of this many would pass the mix rule, so there is nothing to warn about").toBeLessThan(closes.length);
+  });
+
   it("starts at the short end, inside the gate's window bounds, and skips taken closes", () => {
     const closes = suggestCloses({ "2026-09-03": 1, "2026-09-05": 2 }, "2026-09-01", 6);
     expect(closes).toHaveLength(6);
