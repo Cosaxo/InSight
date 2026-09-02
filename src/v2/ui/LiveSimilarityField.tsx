@@ -633,14 +633,21 @@ export function NearField() {
   // says "Nobody here has taken the test — N in the room" about a room
   // where everybody may have. Compare is behind a tab; Near OPENS on this.
   //
+  // `roomLoading()` does not cover it: that is the ROSTER's flag, and the
+  // roster has already arrived by the time this matters.
+  //
   // A no-op on a warm open: the fetch resolves without a round trip when
   // the cache already holds the roster, so the flag never becomes visible.
   const [reading, setReading] = React.useState(false);
   React.useEffect(() => {
+    // Clearing on the way OUT matters as much as setting on the way in:
+    // the cleanup drops `live`, so a fetch in flight when the key empties
+    // never runs its setReading(false), and this arm would return without
+    // clearing it either — leaving the flag up for the life of the mount.
+    if (!rosterKey) { setReading(false); void LIVE.loadNames([]); return; }
     let live = true;
     setReading(true);
-    void LIVE.loadNames(rosterKey ? rosterKey.split(",") : [])
-      .finally(() => { if (live) setReading(false); });
+    void LIVE.loadNames(rosterKey.split(",")).finally(() => { if (live) setReading(false); });
     return () => { live = false; };
   }, [rosterKey]);
   // AFTER the hooks, never before: an early return above them changes the
@@ -687,8 +694,12 @@ export function NearField() {
   // about six people standing next to them. The sort comment above already
   // says the slice is "a real choice"; the caption contradicted it.
   const placed = placeable.slice(0, NEAR_FIELD_CAP);
-  // Nobody is "untested" while their profile is still in flight — that is
-  // the same conflation one line up, in the caption instead of the arm.
+  // Nobody is "untested" while their profile is still in flight — the same
+  // conflation the empty arm below guards against, in the caption instead.
+  // The `!placed.length` arm below returns FIRST, so this number is only
+  // ever read in a PARTIALLY read room: some members' scores already in
+  // the profile cache, the rest still on the wire. Those in flight would
+  // be counted as people who have not taken it.
   const untested = reading ? 0 : roster.length - placeable.length;
   const capped = placeable.length > placed.length;
 

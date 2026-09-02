@@ -401,9 +401,11 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.near.room = () => ({ people: room, qs: {} });
     LIVE.scoresFor = () => big5(50, 50, 50, 52, 48);
     render(<NearField />);
+    // Settle FIRST. While the profile read is in flight the caption is
+    // silent by design, so asserting its absence before that would pass
+    // on the loading state rather than on the fix.
+    expect(await screen.findByText(/closest 14 of 20 who have/)).toBeTruthy();
     expect(screen.queryByText(/have not taken it/)).toBeNull();
-    // …and it says what did happen instead.
-    expect(screen.getByText(/closest 14 of 20 who have/)).toBeTruthy();
   });
 
   it("does not count people still being fetched as people without a test", async () => {

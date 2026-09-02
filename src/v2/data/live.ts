@@ -1693,7 +1693,7 @@ async function hydrate(): Promise<void> {
     // What this boot's queries handed back, in the cache's own string
     // form — the write-back below is sized by this, not by the archive.
     const fetchedRows: Array<[string, string]> = [];
-    const fold = (d: { id: string; get: (f: string) => unknown }, raiseEdit = true) => {
+    const fold = (d: { id: string; get: (f: string) => unknown }, raiseEdit = true, raiseAnswered = true) => {
       // Catalog answers carry `entity` and rank answers carry `order` —
       // never `optionIdx` (D14/D233). All three join the same map in
       // string form (the entity's digits; the order joined with commas) —
@@ -1713,8 +1713,29 @@ async function hydrate(): Promise<void> {
         state.votes[d.id] = val;
         fetchedRows.push([d.id, val]);
       }
-      const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
-      if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
+      // AND THE ANSWERED WATERMARK IS NOT RAISED BY EVERY PAGE EITHER —
+      // the same rule as the edit watermark below, pointed the other way,
+      // and it was missing here for exactly as long as that one existed.
+      //
+      // A page may raise this only if it is a complete account of the
+      // CREATES in the range it covers. The cold pull is. The answered
+      // delta is (it asks for exactly this field, and when it truncates it
+      // truncates ASCENDING, which is why it self-heals across boots). The
+      // EDIT delta is not: it returns the docs whose editedAt moved, and
+      // their answeredAt can be far newer than the oldest create the
+      // answered delta had to defer.
+      //
+      // Raising from it therefore sealed real answers out. Answered delta
+      // truncates at 400 and leaves the cursor at the 400th create; the
+      // edit delta then returns one doc edited yesterday but created after
+      // that cutoff, lifts this past every deferred create, and persists
+      // it. Those answers are never fetched on that device again — the
+      // deck re-offers their questions and the create-only rule refuses
+      // every re-vote, so each card silently un-votes itself.
+      if (raiseAnswered) {
+        const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
+        if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
+      }
       // THE EDIT WATERMARK IS NOT RAISED BY EVERY PAGE, and which pages
       // may raise it is the whole correctness of the second delta below.
       //
@@ -1832,7 +1853,8 @@ async function hydrate(): Promise<void> {
         limit(400),
       ));
       state.stats.answersFetched += esnap.size;
-      esnap.docs.forEach((d) => fold(d));
+      // …and NOT the answered watermark: see `raiseAnswered` in fold above.
+      esnap.docs.forEach((d) => fold(d, true, false));
     }
     const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
     if (answersFrom === "idb") {
@@ -2653,7 +2675,18 @@ const SOCIAL = {
    * keystrokes.
    */
   async searchPeople(raw: string): Promise<DirectoryPerson[]> {
-    const key = raw.trim().toLowerCase();
+    // ASCII-ONLY, and it must stay identical to `foldName` in
+    // ./socialFetch — the key it builds is compared against `nameKey`,
+    // which `firestore.rules` forces to equal `name.lower()`, and the
+    // rules engine's `.lower()` touches A-Z and nothing else.
+    // `toLowerCase()` here is full Unicode, so it lowered "Ó" to "ó"
+    // before socialFetch could fold anything, and the stored key still
+    // says "Ó": the prefix query matched nothing and the fold one layer
+    // down was dead code. Written out rather than imported because the
+    // line has to run BEFORE the dynamic import below — that import is
+    // what keeps socialFetch out of the entry chunk, and this is also
+    // the session cache's key, which is looked up without awaiting.
+    const key = raw.trim().replace(/[A-Z]/g, (c) => c.toLowerCase());
     if (!key) return [];
     const hit = state.peopleSearch.get(key);
     if (hit) return hit;

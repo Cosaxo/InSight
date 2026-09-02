@@ -3263,3 +3263,64 @@ describe("hydrate's edit-delta watermark", () => {
     ).toBeLessThanOrEqual(10_05);
   });
 });
+
+// The SAME rule, pointed the other way, and it was missing for exactly as
+// long as the one above existed.
+//
+// A page may raise the ANSWERED cursor only if it is a complete account of
+// the creates in the range it covers. The answered delta is: it truncates
+// ascending, so the cursor lands on the oldest unread create and the next
+// boot picks up where this one stopped. The EDIT delta is not — it returns
+// the docs whose editedAt moved, and their answeredAt can be far newer
+// than the creates the answered page had to defer.
+//
+// Raising from it seals those creates out permanently: the deck re-offers
+// their questions, the create-only rule refuses every re-vote, and each
+// card silently un-votes itself.
+describe("hydrate's answered-delta watermark", () => {
+  const stamp = (ms: number) => ({ toMillis: () => ms });
+
+  it("does not let the edit page carry the answered cursor past a deferred create", async () => {
+    // The stub serves one document per query and shares its cursor across
+    // both, so this fixture is built to that: the answered query takes the
+    // first matching row, the edit query the second.
+    //
+    //   q_seen     created 09:00, edited 08:50  -> the answered page's one row
+    //   q_deferred created 20:00, never edited  -> truncated away, the victim
+    //   q_edited   created 30:00, edited 40:00  -> the edit page's one row
+    h.answerPageSize = 1;
+    h.answerDocs.push(
+      {
+        id: "q_seen",
+        data: {
+          qid: "q_seen", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(9_00), editedAt: stamp(8_50),
+        },
+      },
+      {
+        id: "q_deferred",
+        data: {
+          qid: "q_deferred", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(20_00),
+        },
+      },
+      {
+        id: "q_edited",
+        data: {
+          qid: "q_edited", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(30_00), editedAt: stamp(40_00),
+        },
+      },
+    );
+    await seedAnsCache({ uid: "uid_test", votes: {}, maxTs: 8_00, maxEditTs: 8_00 });
+
+    await bootLive();
+
+    const meta = await readAnsCache();
+    expect(
+      meta?.maxTs,
+      "the edit page carried the ANSWERED cursor past a create the answered page "
+        + "deferred — that answer is now unreachable on this device forever",
+    ).toBeLessThan(20_00);
+  });
+});
