@@ -35893,3 +35893,53 @@ cadence, all three retired. The night replaced the dead reasoning with
 the live one (these files decide what a published number SAYS) and said
 plainly that whether `paid.ts` or the moderation queue now belongs in
 scope is open. It is.
+
+## D349 amendment (2026-09-02) · The figure collision is not about composing branches; it is about two merges thirty seconds apart
+
+The record above says shift B's closing flow reproduced D336's finding —
+`night-20260901` quoting bank counts main had since moved, git merging
+both sides without a conflict because the numbers are on one side and
+the bank is on the other. It happened a third time within the hour, and
+by a mechanism neither record had named: not a composition at all.
+
+**#356 (six feed questions) merged at 10:04:29 and #357 at 10:04:59.**
+Both were green. Neither touched a file the other touched. GitHub
+computed `mergeable_state: clean` for #357 against the base #356 had
+already left, merged it without a conflict, and `main` came out red:
+
+    politicalConsent.ts   332 -> 338 on the daily and the feed
+    engagement.ts         744 -> 750 in the bank
+
+Both entries are ones the night ADDED that night, which is the part
+worth keeping. `check:figures` did not fail here; it worked. A figure
+that nothing derives cannot collide, because nothing notices — the two
+sentences would simply have gone on being wrong, which is the state the
+gate exists to end. What the third occurrence shows is that the window
+is not "a branch that sat unmerged for a day". It is any two pull
+requests where one moves a counted thing and the other quotes it, and it
+is as short as the time between two merges. No pre-merge check can close
+it: each PR is green against the base it was tested on, and the
+collision exists only in their sum.
+
+So the answer is not a gate. It is that `check:figures` red on `main`
+after a merge is a NORMAL outcome rather than an incident — one commit,
+prose only, computed by the gate's own `fix:` output — and that the
+person merging a figure-bearing branch should run it on the merged tree
+rather than trusting either PR's green. That is what happened here.
+
+### And the fix found the sentence the number was holding up
+
+`engagement.ts` read "The bank is 744 questions today, so the bank can
+double before this truncates anything real", against a fence of 1,500.
+At 750 doubling lands exactly ON the fence; the claim had been true by
+twelve questions and expired with this merge. The gate kept the number
+current underneath a sentence that was about a RATIO between that number
+and a constant, and nothing held the ratio — the same shape as the
+runbook box in the record above, where a swept count sat under an
+inspection it did not cover.
+
+Rewritten to state the condition rather than a multiple, and the
+headroom is deliberately not restated as one: a ratio between a gated
+figure and a constant is a claim nothing can hold. It also now names
+what the old sentence quietly omitted — a day's qids are bank questions
+PLUS any `paidq-` ones, so the bank is not the only way to the fence.
