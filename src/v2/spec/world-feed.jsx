@@ -4039,18 +4039,24 @@ class WorldFeed extends React.Component {
     // What the expander holds, in the same order the feed would have
     // shown it: the world's record first, then the test and lens streams'.
     const doneList = [...worldSplit.done, ...testSplit.done, ...lensSplit.done];
-    // The weave walks the FULL world list — answered cards included — and
-    // the answered ones are filtered out of the OUTPUT below. Weaving the
-    // fresh half alone reads simpler but starves the side streams: the
-    // test/lens slots fire on world indices, the bank is finite, and the
-    // fresh half only ever shrinks — at eight fresh world cards the lens
-    // stream (every 9th) would strand its remaining questions FOREVER,
-    // not "until later". Walking the full list keeps every cadence
-    // position alive at the cost of the slots landing a little closer
-    // together on screen as the fresh half thins — which at the fully
-    // caught-up end degrades into exactly the right thing: the remaining
-    // fresh test/lens cards, in cadence order, with no world cards
-    // between them.
+    // The weave walks the FRESH world list, and its cadences walk the FULL
+    // list's depth (D348). It used to walk the full list — answered cards
+    // included — and drop the answered ones from the output below, so the
+    // side streams could not be starved: the test/lens slots fire on
+    // world indices, the bank is finite, and the fresh half only ever
+    // shrinks — at eight fresh world cards the lens stream (every 9th)
+    // would have stranded its remaining questions FOREVER. That kept the
+    // counts right and the order wrong. A returning device's answered
+    // cards are a PREFIX of the stable order (you answer from the top),
+    // so every slot that fired against the prefix survived the drop as a
+    // solid block at the head of the feed: sixteen answered put seven
+    // side cards before the first topic card, forty put nineteen, and
+    // the owner's "when you first open the app it never seems to add
+    // topics that are not tests or learn" was this, not the depletion
+    // D309 read it as. So the fresh list is what gets woven, and `depth`
+    // carries the full length: the same side cards land, at the designed
+    // rhythm among the fresh topics, with the surplus after them — which
+    // at the fully caught-up end is exactly what the full walk produced.
     // The paid slot (D195). Every sponsored card leaves the ordinary
     // stream and at most ONE comes back, at a fixed depth — the cap is the
     // unit of sale, so it has to be a property of the code rather than of
@@ -4084,15 +4090,18 @@ class WorldFeed extends React.Component {
     const paidCard = paidSplit.ad
       ? { id: paidSplit.ad.id, ad: paidSplit.ad }
       : paidSplit.sponsored;
-    const woven = interleaveFeed(ordered, {
+    const dropWorld = new Set(worldSplit.done.map((q) => q.id));
+    const woven = interleaveFeed(ordered.filter((q) => !dropWorld.has(q.id)), {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
       sponsored: paidCard, sponsorAt: SPONSOR_AT,
+      depth: ordered.length,
     });
-    // …and only now do the answered world cards leave the feed (fresh
-    // questions only — release feedback; they park behind the Answered
-    // expander below). Stream cards never match a world id, so the filter
-    // touches exactly the world's done half.
-    const dropWorld = new Set(worldSplit.done.map((q) => q.id));
+    // The one answered world card that can still be in the weave is the
+    // paid one: partitionSponsored picks it off the full list, so a
+    // sponsored question the viewer has already answered parks behind the
+    // Answered expander like every other answered card instead of
+    // spending the day's slot on a result. Stream cards never match a
+    // world id, so this touches nothing else.
     const feedList = woven.filter((q) => !dropWorld.has(q.id));
     // Read by the two growth checks above, which run outside render and so
     // cannot see this local. Assigned rather than derived there because the

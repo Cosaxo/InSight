@@ -130,7 +130,7 @@ NIGHT_TASKS.md
 MORNING_SUMMARY.md
 .night-shift/
 
-# Night shift B's, which are the same files under different names (D348).
+# Night shift B's, which are the same files under different names (D349).
 # The names differ on purpose: two shifts audit this tree on the same nights
 # from two containers, and a person opening either one has to be able to tell
 # whose notes these are without reading them. The entries are load-bearing
