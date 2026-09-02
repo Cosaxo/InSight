@@ -35762,10 +35762,10 @@ Every runner and every gate, on the composed tip, in this environment:
 | `test:e2e:all` | all three drivers — loop, erasure, moderation |
 | `test:e2e` · `:erasure` · `:moderation` | each standalone, after the fix below |
 | `tsc -b` · `tsc -p functions` · `npm run lint` | 0 · 0 · 0 |
-| 39 `check:*` gates | pass, including `check:figures` on the composed tree |
+| `check:*` gates | 40 of 42 pass, `check:figures` among them on the composed tree |
 | `check:bundle` | OK on a SHIPPING build — 2160 KB / 763 KB eager |
 
-Two gates did **not** run, and are named rather than claimed (D1):
+The two that did not pass are the two named rather than claimed (D1):
 `check:web-firebase` needs the release Firebase secrets, which this
 environment does not hold; `check:store-copy` is red on `origin/main`
 too, on `REPLACE_WITH_PLAY_SIGNING_SHA256` in
