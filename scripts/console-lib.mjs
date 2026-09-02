@@ -90,7 +90,11 @@ const trunc = (s, n) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + "…"
 const clean = (s) => s.replace(/^[*_]+|[*_]+$/g, "").replace(/\s+/g, " ").trim();
 
 export function whatHow(body) {
-  const text = String(body || "").replace(/<!--[\s\S]*?-->/g, "");
+  // Dependabot writes its body as HTML (<details>, <summary>, release notes);
+  // stripped of tags it is still a changelog, not a what — prRow substitutes
+  // the title for those rows. Tags are stripped here for every body so a
+  // hand-written one with a <br> or an <img> reads as prose.
+  const text = String(body || "").replace(/<!--[\s\S]*?-->/g, "").replace(/<[^>]+>/g, " ");
   const lines = text.split("\n").map((l) => l.trim().replace(/^[-*]\s+/, ""));
   const find = (key) => {
     const re = new RegExp(`^[*_]{0,2}\\s*${key}\\s*[*_]{0,2}:\\s*[*_]{0,2}\\s*(.+)$`, "i");
@@ -114,12 +118,17 @@ export function whatHow(body) {
 }
 
 // ── checks ──────────────────────────────────────────────────────────
+// A cancelled run is not a failure: the console's own workflow cancels its
+// superseded runs by design (concurrency, cancel-in-progress), and a
+// cancelled CI job says nothing about the code. The console's own runs are
+// left out of the grade altogether — a page that graded main by itself
+// would be reading its own pulse.
 export function checksSummary(checkRuns) {
-  const runs = checkRuns || [];
+  const runs = (checkRuns || []).filter((r) => (r.name || "").toLowerCase() !== "console");
   let passed = 0, failed = 0, pending = 0;
   for (const r of runs) {
     if (r.status !== "completed") pending++;
-    else if (["success", "neutral", "skipped"].includes(r.conclusion)) passed++;
+    else if (["success", "neutral", "skipped", "cancelled"].includes(r.conclusion)) passed++;
     else failed++;
   }
   const total = runs.length;
@@ -152,7 +161,9 @@ export const SHIFT_BLOCKED = /^merge shift:.*could not/i;
 export function prRow(pr, extras = {}) {
   const { lane, selfMerge } = laneOfBranch(pr.head?.ref || pr.head);
   const from = pr.user?.login === "dependabot[bot]" ? "dependabot" : lane;
-  const { what, how } = whatHow(pr.body);
+  const { what, how } = from === "dependabot"
+    ? { what: trunc(String(pr.title || ""), 180), how: "a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md)" }
+    : whatHow(pr.body);
   const checks = checksSummary(extras.checkRuns);
   return {
     kind: "pr",
