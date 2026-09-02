@@ -1443,7 +1443,7 @@ export function checkProvenance(corpus) {
 }
 
 // ── headroom tripwires ──
-export function checkHeadroom(corpus) {
+export function checkHeadroom(corpus, { contentSrc } = {}) {
   const errs = [];
   const warn = [];
   const maxDailyId = Math.max(...corpus.seed.map((q) => Number(q.id)));
@@ -1455,7 +1455,9 @@ export function checkHeadroom(corpus) {
     warn.push(`daily ids at ${maxDailyId} of 999 — an id-scheme decision is approaching`);
   }
 
-  const v2content = readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
+  // `contentSrc` is for the case below that cannot otherwise be reached:
+  // a bank the parser refuses. Defaults to the real file.
+  const v2content = contentSrc ?? readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
   // Measured, not assumed: the same wire-size scan check-figures runs, so
   // the estimate moves when the documents do (adding `core` to 82 entries
   // moved it by ~1 KiB and check:figures caught that on COSTS.md).
@@ -1476,8 +1478,21 @@ export function checkHeadroom(corpus) {
   const bankSize = rows ? rows.length : (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
   const bankBytes = rows ? JSON.stringify(rows).length : bankSize * 250;
   const mb = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
-  const install = rows ? installDocs(rows) : 0;
-  if (install >= INSTALL_WARN) {
+  const install = rows ? installDocs(rows) : null;
+  // A PARSE FAILURE IS NOT A SMALL INSTALL. `install` was 0 on this path,
+  // so `0 >= INSTALL_WARN` was false and the one tripwire watching the
+  // first fetch could never fire when the parser broke — while `bankSize`
+  // above kept a regex fallback and carried on. That asymmetry is what
+  // the retired BANK_FAIL/BANK_WARN pair did NOT have: they counted
+  // `bankSize`, so they still fired through a parse failure. D197's shape,
+  // one function over.
+  if (install == null) {
+    warn.push(
+      "the install-fetch count could not be computed — bankArray refused this bank, so the wire "
+      + "size above is a regex estimate and the INSTALL_WARN tripwire did not run. Fix the parser "
+      + "(scripts/v2content-lib.mjs); a tripwire that reads zero from a broken parse is worse than none",
+    );
+  } else if (install >= INSTALL_WARN) {
     warn.push(
       `a fresh install is handed ${install} docs whole ≈ ${mb(install)} MB (the boot surfaces plus the feed's core) — `
       + "the first fetch wants re-arguing before this doubles (BANK-DELIVERY §4). The paged surfaces are not "
