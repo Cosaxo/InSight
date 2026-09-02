@@ -52,7 +52,7 @@ export interface LiveFixtureOptions {
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
   /**
-   * A warm-painted session whose reconcile failed (D353): the REAL deck
+   * A warm-painted session whose reconcile failed (D354): the REAL deck
    * off this device's caches, `attached` false, a boot reason set. The
    * daily's last-sync pill is the only thing that reads the combination.
    */
@@ -426,7 +426,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     ready: true,
     // Attached and not stale by default: a session the server has been
     // heard from. `stale` models the warm paint whose reconcile failed
-    // (D353) — the store's own transitions between the two are pinned in
+    // (D354) — the store's own transitions between the two are pinned in
     // data/warm-boot.test.ts against the real store, not here.
     attached: !opts.stale,
     stale: !!opts.stale,

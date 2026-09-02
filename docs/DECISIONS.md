@@ -36343,7 +36343,7 @@ in both directions); `check:figures` green; `test:scripts` green. The
 contracts carry no counts a gate would have to hold — every figure in
 them is recomputed by the lane that quotes it, the runbook's own rule.
 
-## D353 · First paint comes off the device: the warm boot, and `ready` splits from `attached`
+## D354 · First paint comes off the device: the warm boot, and `ready` splits from `attached`
 
 **2026-09-01.** **Status:** binding. Amends the boot's order of operations
 in `src/v2/data/live.ts` and the meaning of one flag; changes no read
@@ -36433,7 +36433,7 @@ refused. The deck poll starts inside hydrate now, beside the answers
 reads, and those are the unguarded ones — so `refreshLive` stops the
 poll when hydrate throws, and `startAggPoll` carries a generation so a
 stop that lands inside its awaited read wins over the arm that follows
-(a hide during that read had the same race before D353). The profile
+(a hide during that read had the same race before D354). The profile
 block no longer wipes `state.profile` when the document does not exist:
 the read is issued at the top of hydrate, the setup screen can collect a
 name and anchors on a warm-painted device before the block runs, and
@@ -36522,7 +36522,7 @@ reconcile never flashes a label on launch.
 - For the length of the auth restore, the account on screen is the one
   this device last confirmed. If that is not the account auth restores,
   the person sees their own previous account's deck for that window and
-  then the purge; the pre-D353 boot showed the demo deck for longer and
+  then the purge; the pre-D354 boot showed the demo deck for longer and
   then kept the previous account's device trace under the new uid.
 - A write made behind the provisional gate lives in this process, not
   in the SDK's persisted queue — there is no session to hand it to. If
@@ -36611,9 +36611,9 @@ against 880.
   state too; today `linked` is false until auth speaks, which only the
   account panel reads, and only as copy.
 
-## D354 · An answer the server has not acknowledged survives the relaunch
+## D355 · An answer the server has not acknowledged survives the relaunch
 
-**2026-09-01.** **Status:** binding. Closes the gap D353 made reachable;
+**2026-09-01.** **Status:** binding. Closes the gap D354 made reachable;
 amends nothing in D312's cache doctrine, which it leaves exactly as
 strict as it was.
 
@@ -36630,7 +36630,7 @@ question the queue was about to answer, and the second tap was refused
 by the create-only rule — the exact failure hydrate's own comment on the
 answers read warns against ("proceeding with a partial vote set makes
 the app offer questions the user already answered, and the create-only
-rule then refuses every one of those re-votes"). Before D353 an offline
+rule then refuses every one of those re-votes"). Before D354 an offline
 relaunch showed the demo deck, which hid the gap by showing nothing;
 the online relaunch had it too, as a race between the delta read and
 the queue's flush, and nobody had seen it.
@@ -36771,7 +36771,7 @@ pending answer in the cold rewrite, settling every pending id instead
 of the restored ones, and clearing the bump from the deck read. The
 file tears its instance down after every case (`_teardownForTest`):
 the 2.5 s aggregate re-read a confirm arms, left running, fired into a
-later case's exact-set pins as a read nobody issued. D353's own file
+later case's exact-set pins as a read nobody issued. D354's own file
 gained the sign-in failure paths and the profile-edit and hide-during-
 read orderings alongside, each probed the same way. `test:unit` green in full; lint, `tsc -b`,
 check:purge (live.ts is the dispatcher and owner-stamps the key),
@@ -36787,7 +36787,7 @@ document — rather than the read being renamed around the scan.
 
 - If a surface ever writes an answer outside the five paths above, it
   marks and clears the mirror the same way, or its offline answer is the
-  pre-D354 answer.
+  pre-D355 answer.
 - `learnAnswer` is deliberately not on the list: a learn card's first
   attempt is its own contract (`learnSent`, D157), and an offline learn
   answer relaunched is a card re-asked, not a rule refused. If that ever

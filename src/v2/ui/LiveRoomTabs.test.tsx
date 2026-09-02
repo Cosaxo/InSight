@@ -330,7 +330,7 @@ describe("LiveRoomTabs · People draws faces and can report one", () => {
     // The store rolls a refused report back and reports it, then rethrows
     // for callers that await it. This one does not await — a `void` tap
     // handler — so the rejection has to be caught here, or it surfaces
-    // as an unhandled one (and D353's gate gave the method a second way
+    // as an unhandled one (and D354's gate gave the method a second way
     // to reject: a failed sign-in). vitest fails the file on an unhandled
     // rejection, which is the assertion.
     // A PLAIN function, not a vi.fn: the mock wrapper records a returned

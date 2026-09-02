@@ -445,7 +445,7 @@ an emergency rules fix.
   all three suites pass. Environmental, not a broken test, and **not a
   reason to widen an egress allowlist** before trying the variable.
   docs/LOCAL-TESTING.md § Sandbox/CI note has the failure text.
-- **`LIVE.ready` does not mean the server has been heard from (D353).**
+- **`LIVE.ready` does not mean the server has been heard from (D354).**
   A returning device paints its real deck off its own caches before the
   first network read is answered, so `ready` and `enabled` flip on disk;
   `attached` is the network boot completing, and `stale` is the gap
@@ -457,7 +457,7 @@ an emergency rules fix.
   would file votes into no cohort. The boot-driven test helpers wait on
   `attached` for the same reason. And an answer written before the
   server's ack is NOT in the answers cache on purpose (D312) — it lives
-  in `insight.pendingAnswers.v1` until the queue drains (D354), so a new
+  in `insight.pendingAnswers.v1` until the queue drains (D355), so a new
   optimistic write path marks and clears that mirror or its offline
   answer is re-offered after a relaunch.
 
