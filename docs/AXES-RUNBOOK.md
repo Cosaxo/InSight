@@ -61,9 +61,12 @@ Created 2026-08-25 (D289), rebound 2026-08-26; model
 `claude-fable-5-1` on every Routine since 2026-09-01 (the owner's
 direction, from `claude-fable-5`). One caveat, stated by the Routine
 tooling itself: a Routine bound to a persistent session runs on that
-session's model, so a spawned lane inherits 5.1 only once the
-dispatcher session below is moved too — it was created on
-`claude-fable-5` and stays there until the owner switches it.
+session's model, so a spawned lane inherits 5.1 only because the
+dispatcher session below moved too — created on `claude-fable-5`, it
+was switched to `claude-fable-5-1` by the owner that evening, its
+record reads "standing rule adopted: lanes spawn on claude-fable-5-1",
+and the first fire after the switch (the database lane, 2026-09-02
+08:02 UTC) was created on 5.1 — the check that closed the move.
 Completion notifications off. Update this table whenever a lane is
 added, rebound, re-paced, or retired — the farm's convention.
 

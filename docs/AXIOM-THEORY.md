@@ -93,9 +93,10 @@ All nine fire a **fresh session per run**; every Routine carries model
 `claude-fable-5-1` since 2026-09-01 (the owner's direction, from
 `claude-fable-5`; the 2026-08-25 direction stands: Fable orchestrates,
 subagents are Opus at matched effort, never lower). A spawned run
-inherits the dispatcher session's model, and that session was created
-on `claude-fable-5` — it runs the lanes there until the owner moves it
-(`AXES-RUNBOOK.md` § The account-side inventory has the caveat).
+inherits the dispatcher session's model; that session was created on
+`claude-fable-5` and the owner switched it to `claude-fable-5-1` the
+same day — the database lane of 2026-09-02 was the first run created
+on 5.1 (`AXES-RUNBOOK.md` § The account-side inventory has the record).
 Completion notifications off — the digest is the legibility channel.
 
 The lanes were rebound on the evening of 2026-08-25 (the first day's
