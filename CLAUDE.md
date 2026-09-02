@@ -448,6 +448,16 @@ an emergency rules fix.
 - **A deferral on privacy grounds is the one you may not take alone.**
   Record the arithmetic as above, then ask the owner rather than writing
   it down as settled — D334, and the privacy section has what to bring.
+- **A pull request is merged by the PR shepherd, not by hand.** The
+  owner's merge instruction is the `merge-when-green` label; the shepherd
+  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
+  brings the branch current with `main`, moves colliding decision numbers,
+  waits for green and squash-merges. What a session owes it before the
+  label goes on: a green head with `main` already merged in and its
+  decision numbers already moved (D299) — and then no push, because a
+  commit by anyone but the shepherd after the label spends the grant.
+  `no-shepherd` is the opt-out. Neither label is a session's to apply on
+  its own judgement; the owner's word is what puts it there.
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own

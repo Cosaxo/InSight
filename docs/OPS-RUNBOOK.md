@@ -1,6 +1,9 @@
 # Ops runbook — the routines that keep the routine program honest, and the list worker
 
-**Status: plan only — none of these Routines exists yet.** This file is
+**Status: mixed — four of the eight Routines exist since 2026-09-02 (the
+roll call, the production reader, the release recorder and the list
+worker; § 5 has their ids), and the platform probe, the PR shepherd, the
+pulse responder and the dependency shepherd do not yet.** This file is
 the contract each one defers to from its first fire, written before the
 first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
 against a contract that was not on `main`, and its first two runs
@@ -601,13 +604,30 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 | Routine | Trigger id | Model | Binding | Created |
 | --- | --- | --- | --- | --- |
 | InSight platform probe | — | — | — | — |
-| InSight roll call | — | — | — | — |
+| InSight roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | not set (session default) | persistent session `session_01RQvTPyNEFgX5yNUPqkDPnS` — the ops dispatcher, §2 step 3, created over MCP | 2026-09-02 |
 | InSight PR shepherd | — | — | — | — |
-| InSight production reader | — | — | — | — |
-| InSight release recorder | — | — | — | — |
+| InSight production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | not set (session default) | same dispatcher | 2026-09-02 |
+| InSight release recorder | `trig_01Vr2QLmWAGBaBsnT6yTusnr` | not set (session default) | same dispatcher; no schedule — API fire from `ios-release.yml` | 2026-09-02 |
 | InSight pulse responder | — | — | — | — |
 | InSight dependency shepherd | — | — | — | — |
-| InSight list worker | — | — | — | — |
+| InSight list worker | `trig_01USe4xEhJ57MRjgThykdRzM` | not set (session default) | same dispatcher | 2026-09-02 |
+
+Two things the table cannot say, recorded 2026-09-02 by the session that
+filled it (D352's), for the next one that looks here:
+
+- **The PR shepherd's row is empty although the shepherd is real.** The
+  owner has said the shepherd is a Routine and the repository carries the
+  `merge-when-green` label (created; `no-shepherd` is not yet). No
+  Routine by that name was on this account's `list_triggers` when the
+  four rows above were read — a Routine created in the web UI under
+  another account is outside an MCP session's sight, the content lanes'
+  situation. Whoever can see it at claude.ai/code/routines fills the id;
+  until a row is here, a labelled PR waits for a human merge and says
+  so, and the roll call cannot count the shepherd's fires.
+- **The four rows carry no model.** The MCP path creates a Routine with
+  the session's default model rather than the §1 column's; the roll
+  call's Sunday ledger is where that shows up as a diff, and
+  `update_trigger` only moves a model on a human's word.
 
 ## 6 · What this program does not include, and why
 
