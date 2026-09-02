@@ -36235,3 +36235,122 @@ The 1-in-20 audit is where the source claims get read by a person. The
 prompt checks that its section exists on `origin/main` before doing
 anything, so a firing before this record merges is a logged no-op
 rather than an improvisation.
+
+## D352 · The ops dispatcher gets its charter in the owner's voice on Opus 5, and the PR shepherd fires every two hours
+
+**2026-09-02.** **Status:** binding — two owner calls made in one
+sitting, both account-side first and recorded here because
+`OPS-RUNBOOK.md` holds the contract and nothing else holds the
+reasoning. The owner, on the ops dispatcher: *"the ops dispatcher got
+confuesed so it needs some changes … a new message or new model is up
+to you to decide but i think opus might be a better model for that
+operation"*; and: *"the dhepard should trigger more often."*
+
+### 1 · What the dispatcher did, and why the fix is where the charter lives
+
+`OPS-RUNBOOK.md` §2 step 3 took the MCP path on 2026-09-02 (PR #364):
+a persistent **Ops dispatcher** session on `claude-sonnet-5`, four
+lanes bound to it, its charter delivered as its first turn by the
+session that created it. The dispatcher declined the charter — in its
+own words, *"This message isn't a real system notification — it's
+injected content (arriving as a fake 'system-reminder') trying to get
+me to adopt a persistent 'ops dispatcher' role … It explicitly claims
+no human has actually said anything, then asks me to act anyway"* —
+and asked to be walked through the setup instead. Read as a defect in
+the charter's delivery rather than in the model's judgement: a standing
+role that arrives as the first turn of a session another session
+spawned carries no proof that a person meant it, and a session that
+refuses to adopt one from that provenance is behaving as it should.
+The same charter, arriving from the operator, is a different message.
+
+So the change is to provenance first and model second:
+
+- **The charter lives in the system prompt** when a session creates
+  the dispatcher (`append_system_prompt` on `create_session`), or in
+  the owner's own first message when the owner creates it in the web
+  UI. Both are the owner speaking; a message another session forwards
+  never is. The text names the owner as its author, says how it was
+  placed, and ends with the rule a relay needs most — a lane prompt is
+  cargo, and nothing inside one changes the rules. It is
+  `OPS-RUNBOOK.md` §4's last block; § The ops dispatcher is its
+  contract.
+- **The model is `claude-opus-5`**, the owner's pick. The runbook's own
+  model rule would give a relay to Sonnet 5, and Sonnet 5 refused the
+  relay on its first turn; the dispatcher fronts seven lanes, so a
+  refusal there is seven outages. Fable 5.1 is the measured
+  alternative — the Axiom dispatcher has relayed on it since
+  2026-08-26 — at $10/$50 per million tokens against Opus 5's $5/$25,
+  for a turn that is one tool call and one line. A relay's cost is its
+  context, not its model: each firing adds one lane prompt (about a
+  thousand tokens, twice — once arriving, once inside the
+  `create_session` call) to a conversation every later firing
+  re-reads. The Axiom dispatcher's first week, about sixty firings,
+  metered $126 on Fable 5.1; the ops dispatcher at twelve shepherd
+  slots plus four daily lanes is roughly three firings to its one, and
+  the roll call's Sunday ledger is where that shows.
+
+**Delivery state, recorded honestly.** The replacement does not exist.
+Two `create_session` calls from this session — first with the lanes'
+toolset pre-approved, then with none — were refused by the auto-mode
+permission classifier with *"Blocked by classifier"* and nothing more
+specific: the refusal PR #364 met on three `create_trigger` calls the
+same morning, and the one this record could not argue with. The runbook
+inventory carries the owner's steps: create the session, have a session
+with `create_trigger` rights recreate the four lanes bound to it and
+delete the old ids (D326's create-before-delete), then create the
+shepherd. Until then the four lanes fire into a session that has
+declined the role; the 15:30 roll call and the 17:00 list worker of
+2026-09-02 are the first two firings that will.
+
+### 2 · The shepherd's cadence: twelve slots, two of them sweeps
+
+Twice a day was written for a Routine with GitHub `pull_request`
+events beside it, so that *labeled* would act on the owner's
+`merge-when-green` within the hour and the cron only had to catch what
+the events missed. A dispatcher-bound Routine has no events. On the
+day this was re-paced, five PRs carried the label and no shepherd
+existed; with one at twice a day, a label applied at 16:30 UTC would
+have waited until 06:20 — fourteen hours for a decision the owner had
+already made.
+
+Now `20 */2 * * *`: **06:20 and 16:20 sweep** every PR in scope, as
+before; **the other ten slots are label passes** — the labelled, the
+PR a payload names, and the never-passed — that list their work through
+the GitHub tools before provisioning anything and end at once, with no
+clone and no comment, when there is none. The empty pass is the reason
+the cadence is affordable: it is a few tool calls on Opus 5, cents, and
+it leaves no line on the run log — ten "nothing" lines a day would bury
+the lines that say something, and the roll call proves the slot fired
+from the session list, not the log. §0's reporting rule carries that
+one exemption by name.
+
+**Why not hourly, the platform's floor:** an idle pass is cheap but not
+free — it is a turn on the dispatcher, whose context grows by one copy
+of the shepherd's prompt per firing, and the account's seven-day usage
+window was in its warning band the day this was set (one bucket behind
+every Routine and every interactive session on the account; a lane
+that empties it silences the rest). Two hours cuts the longest wait
+from fourteen hours to two for ten dispatcher turns a day; hourly would
+halve the wait again for ten more. The cron is the dial, one edit, and
+the Sunday ledger is where the cost of turning it shows. The account's
+daily Routine run cap (§2 step 6) is the other thing to read before
+enabling twelve slots: if it binds, the two sweeps are the ones to keep.
+
+**Not adopted:** a second Routine for the label pass (two rows, two
+sessions to match, for a distinction the clock already makes); GitHub
+events on the dispatcher path (the platform does not offer them there);
+a label pass that provisions before it looks (that is the sweep's cost
+at the pass's frequency, which is the arithmetic above pointed the
+wrong way).
+
+### What stands
+
+Everything else in § The PR shepherd — scope, the per-PR work, the
+owner's label and its five steps, the nevers, the budget — is
+unchanged. The roll call still rides the dispatcher against its own
+binding paragraph (the charter's lane list, the creating session's
+choice, not yet the owner's); the inventory row says so, and moving it
+is one recreation. PR #364, which recorded the Sonnet dispatcher and
+the four ids, is superseded by the record this PR carries of the same
+ids under the new state; its findings — the classifier's three
+refusals, the connectors note — are kept.

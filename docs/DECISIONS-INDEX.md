@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 365 lines instead of
-36,238. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 366 lines instead of
+36,357. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -348,7 +348,7 @@ detect it.
 | **D323** | [The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded](DECISIONS.md#d323--the-2026-08-27-night-audit-reviewed--21-fixes-kept-five-limits-recorded) | D336 (+3) | 32537 |
 | **D324** | [Build 26's pre-flight: run as-is, and the one surface no release gate can see](DECISIONS.md#d324--build-26s-pre-flight-run-as-is-and-the-one-surface-no-release-gate-can-see) | D339 | 32652 |
 | **D325** | [The bridge's first crossing: the fit publishes its own scorecard](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard) | — | 32804 |
-| **D326** | [The genetic axiom's ambition widens, and the night shift gets a closing hour](DECISIONS.md#d326--the-genetic-axioms-ambition-widens-and-the-night-shift-gets-a-closing-hour) | D347 (+2) | 32880 |
+| **D326** | [The genetic axiom's ambition widens, and the night shift gets a closing hour](DECISIONS.md#d326--the-genetic-axioms-ambition-widens-and-the-night-shift-gets-a-closing-hour) | D352 (+3) | 32880 |
 | **D327** | [The console kept selling the floor: twelve captions that outlived the arithmetic](DECISIONS.md#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic) | D331 (+3) | 32961 |
 | **D328** | [Profession becomes a dim, through a field — and the reason it was not one had stopped being true](DECISIONS.md#d328--profession-becomes-a-dim-through-a-field--and-the-reason-it-was-not-one-had-stopped-being-true) | D331 | 33061 |
 | **D329** | [Three of D269's seven refusals are lifted, and the bundle becomes a list](DECISIONS.md#d329--three-of-d269s-seven-refusals-are-lifted-and-the-bundle-becomes-a-list) | D334 (+1) | 33171 |
@@ -379,3 +379,4 @@ detect it.
 | **D350** | [The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory](DECISIONS.md#d350--the-lane-regulators-lose-their-ceilings-floors-demand-shares-and-the-holdover-inventory) | — | 35947 |
 |  | ↳ *amendment 2026-09-01* — [The bank-size failure was a question limit in everything but name](DECISIONS.md#d350-amendment-2026-09-01--the-bank-size-failure-was-a-question-limit-in-everything-but-name) | — | 36154 |
 | **D351** | [Current events get their lane: found by searching, never from memory](DECISIONS.md#d351--current-events-get-their-lane-found-by-searching-never-from-memory) | — | 36184 |
+| **D352** | [The ops dispatcher gets its charter in the owner's voice on Opus 5, and the PR shepherd fires every two hours](DECISIONS.md#d352--the-ops-dispatcher-gets-its-charter-in-the-owners-voice-on-opus-5-and-the-pr-shepherd-fires-every-two-hours) | — | 36239 |
