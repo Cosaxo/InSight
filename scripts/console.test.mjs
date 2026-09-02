@@ -374,3 +374,39 @@ describe("act, when GitHub refuses", () => {
     expect(state.rows[0].labels).toEqual(["approved"]);
   });
 });
+
+// ── the second door onto the same loss ──────────────────────────────
+//
+// A failed action is one way an owner's tick goes unmirrored. A run that
+// never TRIED is the other: without --refresh or without a token the
+// console computes the actions, logs them as pending, and used to rewrite
+// the list anyway — drawing the row unticked and dropping it from the
+// marker, so the next run saw neither a new tick nor a withdrawal.
+//
+// `console.yml`'s push-retry rides exactly that door: on a rejected push
+// it resets to main, picking up any tick pushed meanwhile, and re-runs the
+// console WITHOUT --refresh. Reproduced with the real parser and renderer:
+// box ticked on disk, one action pending, row draws unticked, and after a
+// rewrite the next run's action list is empty.
+describe("when the list must be left alone", () => {
+  const A = [{ type: "label-add", key: "#1" }];
+
+  it("holds it when an action failed", async () => {
+    const { holdsTheList } = await import("./console.mjs");
+    expect(holdsTheList({ failed: A, actions: A, canApply: true })).toBe(true);
+  });
+
+  it("holds it when the run could not even try — the door that stayed open", async () => {
+    const { holdsTheList } = await import("./console.mjs");
+    expect(holdsTheList({ failed: [], actions: A, canApply: false })).toBe(true);
+  });
+
+  it("writes it when everything landed, and when there was nothing to do", async () => {
+    // The control. Every case above asserts TRUE, so a predicate that
+    // always held the list would satisfy them — and would freeze the
+    // merge list forever, which is a different way to lose the owner.
+    const { holdsTheList } = await import("./console.mjs");
+    expect(holdsTheList({ failed: [], actions: A, canApply: true })).toBe(false);
+    expect(holdsTheList({ failed: [], actions: [], canApply: false })).toBe(false);
+  });
+});

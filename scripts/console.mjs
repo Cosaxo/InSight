@@ -234,6 +234,22 @@ async function ensureLabel(api = gh) {
  * `api` is injectable so the failure path can be tested; it defaults to
  * the real GitHub call.
  */
+/**
+ * Should this run leave the merge list and the Console issue ALONE?
+ *
+ * Yes whenever an owner tick has not been mirrored — whether the call
+ * failed, or the run never tried. Rewriting either surface then draws the
+ * row from its labels, which is to say unticked, and drops it from the
+ * ticks marker; the next run sees neither a new tick nor a withdrawal and
+ * the approval is gone from both places.
+ *
+ * Extracted so the truth table can be pinned: `main` does enough I/O that
+ * the decision would otherwise be untestable, which is how the second door
+ * (a render-only run) stayed open after the first was closed.
+ */
+export const holdsTheList = ({ failed, actions, canApply }) =>
+  failed.length > 0 || (actions.length > 0 && !canApply);
+
 export async function act(state, actions, log, api = gh) {
   const failed = [];
   if (!actions.length) return failed;
@@ -319,11 +335,24 @@ async function main() {
   // must not report success. A persistent refusal then shows as a red
   // run over a stale list, which is visible — the alternative is green
   // over a list that is quietly wrong.
-  if (failed.length) {
+  // …AND SO DOES ONE THAT WAS NEVER ATTEMPTED. A run without --refresh or
+  // without a token computes the actions, logs them as pending, and used
+  // to rewrite the list anyway — drawing the row unticked and dropping it
+  // from the marker, which is the identical loss through a different
+  // door. `console.yml`'s push-retry rides exactly that door: on a
+  // rejected push it resets to main (picking up any tick pushed
+  // meanwhile) and re-runs the console WITHOUT --refresh.
+  //
+  // Not an error, though: render-only is a legitimate mode and the retry
+  // uses it deliberately, so this leaves the files alone and exits 0. The
+  // loop's own `git diff --quiet` then finds nothing to commit and stops,
+  // which leaves the owner's box exactly as main holds it.
+  if (holdsTheList({ failed, actions, canApply: !!(REFRESH && TOKEN) })) {
     for (const f of failed) log(`did not apply: ${f.type} ${f.key} — ${f.error}`);
-    log(`left docs/MERGE-LIST.md and the Console issue untouched so ${failed.length} tick(s) are retried next run`);
+    const n = failed.length || actions.length;
+    log(`left docs/MERGE-LIST.md and the Console issue untouched so ${n} tick(s) are retried next run`);
     if (state.missing.length) log(`sources that did not answer: ${state.missing.join("; ")}`);
-    process.exitCode = 1;
+    if (failed.length) process.exitCode = 1;
     return;
   }
 
