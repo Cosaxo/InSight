@@ -25,7 +25,7 @@ import {
   decideActions, isTicked, renderMergeList, parseWorklist, parseOwnerList, parseAxioms,
   parseVisualRequests, parsePermissions, parseRegister, ownerSteps, uncheckedSteps,
   theorySummary, rollCalls, lastSeen, foldOwnerList, notAlreadyListed, trailRow, mergeTrail,
-  renderConsole,
+  renderConsole, listProblem, LIST_SECTIONS,
 } from "./console-lib.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -214,6 +214,39 @@ describe("the lists on this tree", () => {
   });
 });
 
+// ── a list file that is not there ───────────────────────────────────
+//
+// The page's own preamble promises "a source that did not report is
+// drawn as absent, never as a number", and every list panel broke it:
+// `read()` returned null for an absent file, `collect()` turned that
+// into `""`, and an empty string parses to zero of everything. With all
+// five gone the page printed "0 axioms", "requested 0 · planned 0",
+// "(none open)" — and then, at the foot, "Sources that did not answer
+// this run: none."
+describe("a list the console could not read", () => {
+  it("names an absent file rather than parsing it to nothing", () => {
+    for (const file of Object.keys(LIST_SECTIONS)) expect(listProblem(file, null)).toBe(`${file} (not on main)`);
+  });
+  it("names a file with no sections at all", () => {
+    expect(listProblem("docs/AXIOMS.md", "just some prose\n")).toMatch(/no `## ` sections/);
+  });
+  it("names EVERY heading a parser needs and cannot find", () => {
+    // The half-open case: one heading renamed, the rest intact, so the
+    // file still looks like itself while one panel silently empties.
+    const drifted = read("docs/PERMISSIONS.md").replace(/^## Open$/m, "## Requests");
+    expect(listProblem("docs/PERMISSIONS.md", drifted)).toBe("docs/PERMISSIONS.md (no `## Open` section)");
+    expect(listProblem("docs/VISUAL-REQUESTS.md", "## Requested\n")).toBe("docs/VISUAL-REQUESTS.md (no `## Planned`, no `## Drafted`, no `## Designed`, no `## Built` section)");
+  });
+  it("passes every list file on this tree", () => {
+    // The other half of the check above: it must be able to say yes, and
+    // it is the only thing holding LIST_SECTIONS to the real headings.
+    for (const file of Object.keys(LIST_SECTIONS)) expect(listProblem(file, read(file))).toBeNull();
+  });
+  it("hands a null through every parser instead of an empty parse", () => {
+    for (const fn of [parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions]) expect(fn(null)).toBeNull();
+  });
+});
+
 describe("the register", () => {
   const fixture = `# The routine register\n\n## 2 · Session 1 — the content lanes\n\n| Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |\n| --- | --- | --- | --- | --- | --- |\n| InSight feed lane | \`trig_1\` | \`30 9 * * *\` — daily 09:30 | dev | x | self |\n\n## 3 · Session 2 — the axes program\n\n| Lane | Trigger id | Slot (UTC) | Dates |\n| --- | --- | --- | --- |\n| Genetic | \`trig_2\` | \`2 9 1-31/2 * *\` — 09:02 | odd |\n`;
   it("reads every table row under its session heading", () => {
@@ -315,6 +348,26 @@ describe("the trail and the page", () => {
     expect(page).toContain("| Claude 3 | **no row ever** |");
     expect(page).toContain("*(not reported)*");
     expect(page).toContain("Sources that did not answer this run: open PRs (403)");
+  });
+  it("draws an unreadable list as absent and puts no count in the trail", () => {
+    const s = base();
+    s.worklist = null; s.owner = null; s.axioms = null; s.visuals = null; s.permissions = null;
+    s.missing = ["docs/AXIOMS.md (not on main)"];
+    const row = trailRow(s);
+    for (const k of ["worklist", "inFlight", "ownerOpen", "permissionsOpen", "axioms", "visuals"]) expect(row[k], k).toBeNull();
+    const page = renderConsole(s, "");
+    // Five panels, each pointing at the foot — and none of them a zero.
+    for (const file of Object.keys(LIST_SECTIONS)) expect(page).toContain(`\`${file}\` could not be read this run`);
+    expect(page).not.toContain("(none open)");
+    expect(page).not.toContain("requested 0");
+    expect(page).toContain("Sources that did not answer this run: docs/AXIOMS.md (not on main)");
+  });
+  it("still draws the counts when the lists are there", () => {
+    const page = renderConsole(base(), "");
+    expect(page).not.toContain("could not be read this run");
+    expect(page).toContain("| claude-2 | 5 |");
+    expect(page).toContain("1 open: p");
+    expect(page).toContain("requested 1");
   });
   it("lists the ticked rows in the page's marker", () => {
     const s = base();

@@ -30,7 +30,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   prRow, branchRow, isNoPrBranch, decideActions, renderMergeList, parseTicks,
-  parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions,
+  parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions, listProblem,
   parseRegister, ownerSteps, uncheckedSteps, theorySummary, rollCalls, lastSeen,
   foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay,
   checksSummary, SHIFT_BLOCKED,
@@ -176,11 +176,25 @@ export async function collect({ now = new Date() } = {}) {
     ...github.prs.map(({ pr, extras }) => prRow(pr, extras)),
     ...github.branches.map((b) => branchRow(b)),
   ];
-  const worklist = parseWorklist(read("docs/WORKLIST.md") || "");
-  const owner = parseOwnerList(read("docs/OWNER-LIST.md") || "");
-  const axioms = parseAxioms(read("docs/AXIOMS.md") || "");
-  const visuals = parseVisualRequests(read("docs/VISUAL-REQUESTS.md") || "");
-  const permissions = parsePermissions(read("docs/PERMISSIONS.md") || "");
+  // The `|| ""` these five lines used to carry turned "the file is not
+  // there" into "the file is empty", and an empty file parses to zero of
+  // everything — so the page drew "0 axioms" and "(none open)" and then
+  // reported, at its foot, that every source had answered. `listProblem`
+  // asks whether the text is there AND whether the headings the parser
+  // needs are; either way the panel gets a null and `missing` gets the
+  // reason. (`parseRegister` below never had the bug — it takes `read()`'s
+  // null straight and the routine panel has always drawn its absence.)
+  const list = (file, parse) => {
+    const text = read(file);
+    const why = listProblem(file, text);
+    if (why) { missing.push(why); return null; }
+    return parse(text);
+  };
+  const worklist = list("docs/WORKLIST.md", parseWorklist);
+  const owner = list("docs/OWNER-LIST.md", parseOwnerList);
+  const axioms = list("docs/AXIOMS.md", parseAxioms);
+  const visuals = list("docs/VISUAL-REQUESTS.md", parseVisualRequests);
+  const permissions = list("docs/PERMISSIONS.md", parsePermissions);
   const register = parseRegister(read("docs/ROUTINES.md"));
   const theory = readTheory(missing);
   const trailText = read("monitoring/pulse-trail.jsonl");
@@ -364,7 +378,10 @@ async function main() {
   } else log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
 
   // The owner list's folded blocks.
-  const ownerText = read("docs/OWNER-LIST.md");
+  // `state.owner` null means the file is absent or its headings drifted;
+  // folding then would rewrite the owner's own file from a parse that
+  // found nothing in it. Leave it alone and let the page say why.
+  const ownerText = state.owner ? read("docs/OWNER-LIST.md") : null;
   if (ownerText) {
     // OPEN AND DONE. A row the owner ticked is still something they have
     // said by hand — more so — and leaving it out meant the fold
