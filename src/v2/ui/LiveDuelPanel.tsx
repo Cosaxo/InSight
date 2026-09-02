@@ -100,6 +100,27 @@ const ROMANCE = "oklch(0.55 0.13 12)";
  */
 const dayKeyUTC = (offsetDays = 0): string =>
   new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+// How long ago a browsed reveal actually was.
+//
+// NOT the dot's position. `revealHistory` COMPACTS: a day with no reveal
+// doc — a duo where only one of them played — or one this account may not
+// read, because it joined after that day, is ABSENT from the list rather
+// than present as a hole. So the third dot is not "three days ago", it is
+// the third reveal that exists, and after a single skipped day every label
+// behind it is wrong by the size of the gap.
+//
+// The reveal carries the day it was played, so it can say for itself. The
+// index is kept only as the fallback for a reveal with no day key: the
+// live `revealFor` entry is minted for yesterday by construction, which is
+// exactly what the fallback reports for position 1.
+const agoLabel = (key: string | undefined, index: number): string => {
+  const at = key ? Date.parse(key + "T00:00:00Z") : NaN;
+  const days = Number.isFinite(at)
+    ? Math.round((Date.parse(dayKeyUTC(0) + "T00:00:00Z") - at) / 86400000)
+    : index;
+  if (days <= 0) return "Today";
+  return days === 1 ? "Yesterday" : days + " days ago";
+};
 const streakIsLive = (g: { lastRevealDay?: string }): boolean =>
   typeof g.lastRevealDay === "string" && g.lastRevealDay >= dayKeyUTC(-2);
 const GOOD = "var(--c-likeness)";
@@ -1092,11 +1113,15 @@ function LdCard({ g, vh, nextName, newest }: {
       )}
       {/* oldest left, today right — the row is time, so it has to run that
           way even though `past` arrives newest first */}
-      {past.map((_, i) => i + 1).reverse().map((n) => {
+      {past.map((r, i) => ({ n: i + 1, r })).reverse().map(({ n, r }) => {
         const cur = n === day;
         return (
+          // Labelled from the reveal's own day, like the card it opens —
+          // see `agoLabel`. Kept in step deliberately: a dot that says one
+          // thing and a card that says another is worse than both being
+          // wrong together, and that is what fixing only one of them gives.
           <button key={n} className="tap44 is-tight" onClick={() => setDay(n)} aria-current={cur ? "true" : undefined}
-            aria-label={(n === 1 ? "Yesterday" : n + " days ago") + " — revealed"}
+            aria-label={agoLabel(r.day, n) + " — revealed"}
             style={{ width: 22, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitAppearance: "none" }}>
             <span style={{ width: cur ? 18 : 6, height: 6, borderRadius: 999,
               background: cur ? tint : `color-mix(in oklch, ${tint} 45%, var(--surface-3))`,
@@ -1141,7 +1166,7 @@ function LdCard({ g, vh, nextName, newest }: {
           <button onClick={() => setDay(0)}
             style={{ border: "none", background: "none", padding: 0, cursor: "pointer", fontWeight: 700, fontSize: 12, color: "var(--ink-2)", WebkitAppearance: "none" }}>{"‹"} today</button>
         </div>
-        <LdReveal g={g} reveal={shown} day={day === 1 ? "Yesterday" : day + " days ago"} />
+        <LdReveal g={g} reveal={shown} day={agoLabel(shown.day, day)} />
       </div>
     );
   } else if (duo && members.length < 2) {
