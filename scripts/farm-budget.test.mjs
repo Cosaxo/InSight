@@ -100,7 +100,7 @@ describe("laneBudget", () => {
   });
 });
 
-// D349: where a granted budget GOES is arithmetic now. The property that
+// D350: where a granted budget GOES is arithmetic now. The property that
 // matters is the one the run log measured the absence of — eighteen straight
 // no-ops against an empty pen because "no lane has work" — so the first
 // claim is that a granted budget always lands somewhere.

@@ -68,7 +68,7 @@ export const RUN_CAP = 8;
 export const PEN_TARGET = 56;
 export const OPEN_MAX = 12;
 export const PROMOTE_PACE = 2;
-// D349: what the budget is SPENT on is arithmetic now, not the run's reading
+// D350: what the budget is SPENT on is arithmetic now, not the run's reading
 // of "is any topic thin". Until then § Picking topics wrote only where a
 // signal pointed or a top sat under four questions, and with the crowd too
 // small to give a signal and every top past four the lane logged eighteen
@@ -119,7 +119,7 @@ export function laneBudget({ unpromoted, open = 0 }) {
   };
 }
 
-// Where a granted budget goes (D349): lane-tiers' unit mode over the
+// Where a granted budget goes (D350): lane-tiers' unit mode over the
 // archive's tops. `tops` is [{ id, questions }] — every CAT_META top, thin or
 // not — and `demand` is farmSignal's weights or null. The daily's batch-mix
 // rule is a spread of tones and forms, not of topics, so there is no chunk
@@ -197,7 +197,7 @@ if (invokedDirectly) {
     + `${openIdx < 0 ? " (assumed — pass --open with the real count)" : ""} = ${supply} of ${PEN_TARGET}`);
   console.log(`  ${reason}`);
 
-  // D349: where the budget goes, as arithmetic. The scorecard's daily rows
+  // D350: where the budget goes, as arithmetic. The scorecard's daily rows
   // steer it once the crowd is real; until then the tops level.
   const tops = await loadDailyTops();
   let scorecard = null;

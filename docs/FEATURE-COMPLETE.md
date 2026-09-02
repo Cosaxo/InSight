@@ -87,13 +87,13 @@ the live figures: `node scripts/farm-budget.mjs`,
 - **Refill the daily pen**: the unpromoted archive is the promotion
   buffer and runs against `PEN_TARGET` in `scripts/farm-budget.mjs`;
   promotion carries a weekly floor (D30) and a catch-up target while the
-  pen has stock (D97). Since D349 the script also prints where a
+  pen has stock (D97). Since D350 the script also prints where a
   granted budget goes — the per-top floor, then demand, then levelling
   with no ceiling — so an empty pen is never a no-op.
   [`QUESTION-FARM.md`](QUESTION-FARM.md).
 - **Grow the feed bank**: every topic is brought to `TOPIC_FLOOR`
   (`scripts/feed-budget.mjs`) first, and above it the budget follows
-  demand with no ceiling (D349) — vote, dial, field, path and rank count
+  demand with no ceiling (D350) — vote, dial, field, path and rank count
   as servable; duel-type cards do not. The lane is scheduled daily
   (D145, D213) and producing — the majority of feed provenance rows now
   read `farm`; `npm run feed:budget` prints the live split. What is
@@ -101,7 +101,7 @@ the live figures: `node scripts/farm-budget.mjs`,
   yet credit enough of, so the lane levels blind until it does.
 - **Grow the learn fields**: every field is brought to `FIELD_FLOOR`
   (`scripts/learn-budget.mjs`) first, then the budget follows the
-  fields being read fastest, with no ceiling (D349) and the
+  fields being read fastest, with no ceiling (D350) and the
   minimum-chunk and spread rules (D115).
 - **Grow the tail** (decided, D161): once review throughput rises, new
   feed questions default `core: false` — the tail is the thing being
@@ -144,7 +144,7 @@ the live figures: `node scripts/farm-budget.mjs`,
   `content/event-topics.json`, the discussion-window rules arm, the
   feed card — has no code. Its farm lane's two rules (a named published
   source found by searching, never memory; personal angle, honest
-  `political` flag) are BUILT for the `now` topic at D350 as the now
+  `political` flag) are BUILT for the `now` topic at D351 as the now
   lane, sized to what a session can reach: two outlets, a week old,
   cited in the PR body. [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md),
   [`QUESTION-FARM.md`](QUESTION-FARM.md) § The now lane.

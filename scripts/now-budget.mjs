@@ -1,5 +1,5 @@
 // now-budget.mjs — the current-events lane's budget and window arithmetic
-// (D350): what a run may write into `now`, what is live already, and which
+// (D351): what a run may write into `now`, what is live already, and which
 // close dates are taken, so a batch staggers against the bank and not only
 // against itself.
 //
@@ -7,7 +7,7 @@
 // asked, three to twenty-one days, most at the short end — and left the
 // writing to a person: "timeliness needs a human, and a news question
 // written by an unsupervised job is what the farm's governance exists to
-// prevent." The owner reversed that at D350 with one condition: the news
+// prevent." The owner reversed that at D351 with one condition: the news
 // has to come from somewhere other than the model. So this lane has the
 // one rule no other lane needs — every story is FOUND, at run time, by
 // searching — and a regulator whose job is smaller than the others':

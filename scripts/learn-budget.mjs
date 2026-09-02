@@ -1,6 +1,6 @@
 // learn-budget.mjs — the learn lane's generation budget as arithmetic (D115),
 // replacing D32's flat "≤8 cards/run, thinnest fields first"; reshaped at
-// D349 around a FLOOR with no ceiling, the feed regulator's shape.
+// D350 around a FLOOR with no ceiling, the feed regulator's shape.
 //
 // WHY THIS EXISTS. The flat rule did not merely under-produce; it produced
 // NOTHING, and had to. "Thinnest fields first (a field below 8 cards cannot
@@ -10,7 +10,7 @@
 // never tested against a real firing. A lane whose selection rule can only
 // return the empty set is not a conservative lane, it is a stopped one.
 //
-// WHAT BOUNDED THIS LANE UNTIL D349, and why it no longer does. D115 gave it
+// WHAT BOUNDED THIS LANE UNTIL D350, and why it no longer does. D115 gave it
 // a TARGET of 24 cards per field and stopped there ("every field is at the
 // target — a card written into a full field is inventory rather than
 // runway"). That sentence was sized to a bank every device was handed whole
@@ -106,7 +106,7 @@ export function learnBudget({ fields, open = 0, demand = null }) {
   }
 
   // `OPEN_MAX - open` is what makes "one unreviewed batch at a time" true
-  // rather than aspirational. Never zero for stock (D316/D349).
+  // rather than aspirational. Never zero for stock (D316/D350).
   const budget = Math.min(RUN_CAP, OPEN_MAX - open);
   const tiers = allocateTiers({
     rows: fields.map((f) => ({ id: f.id, stock: f.cards })),

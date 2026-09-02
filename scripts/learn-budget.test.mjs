@@ -1,5 +1,5 @@
 // learn-budget.test.mjs — pins the learn regulator's arithmetic (D115,
-// reshaped at D349).
+// reshaped at D350).
 //
 // The first property under test is the one the old rule failed: the lane must
 // be able to return work. D32's "≤8 cards/run, thinnest fields first" could
@@ -7,7 +7,7 @@
 // thinnest and every run was a correctly-reasoned no-op. A budget function
 // that returns zero against the shipped bank is the bug, not the safeguard.
 //
-// The second, since D349, is that it must never stop for stock either: the
+// The second, since D350, is that it must never stop for stock either: the
 // D115 regulator granted zero at 24 cards per field, and the test that pinned
 // that ("throttles to zero once every field is at target") was the
 // bounded-bank premise worn as a test. 24 is a FLOOR now — reached first,
@@ -48,7 +48,7 @@ describe("learnBudget", () => {
     expect(learnBudget({ fields: level(12, 8) }).budget).toBe(RUN_CAP);
   });
 
-  it("never stops for stock — a levelled bank still gets the full cap (D316/D349)", () => {
+  it("never stops for stock — a levelled bank still gets the full cap (D316/D350)", () => {
     expect(learnBudget({ fields: level(12, FIELD_FLOOR) }).budget).toBe(RUN_CAP);
     const { budget, split } = learnBudget({ fields: level(12, FIELD_FLOOR * 10) });
     expect(budget).toBe(RUN_CAP);

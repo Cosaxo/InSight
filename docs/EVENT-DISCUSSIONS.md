@@ -138,7 +138,7 @@ existing surfaces pay nothing. Details that matter:
 
 ## 5 · The lane — a farm section, with two rules of its own
 
-> **Built for `now` at D350** (2026-09-01) as the now lane —
+> **Built for `now` at D351** (2026-09-01) as the now lane —
 > `QUESTION-FARM.md` § The now lane. Rule 1's source posture became a
 > corroboration bar sized to what a session can actually reach (found by
 > searching, at least two independent outlets, under a week old, cited

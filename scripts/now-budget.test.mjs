@@ -1,4 +1,4 @@
-// now-budget.test.mjs — pins the now lane's arithmetic (D350): the budget
+// now-budget.test.mjs — pins the now lane's arithmetic (D351): the budget
 // never stops for stock (there is none — the topic empties itself), the
 // live/pending split against a day, and the close dates a batch may use so
 // it staggers against the bank and not only against itself.

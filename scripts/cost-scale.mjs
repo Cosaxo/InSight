@@ -113,5 +113,5 @@ console.log("  device still reads the entire bank (the localStorage quota cliff 
 console.log("  D318 moved the cache to IndexedDB), so nothing errors at any size and the");
 console.log("  per-device bill just climbs until D316's paged read path lands. check:quality's");
 console.log("  INSTALL_WARN now watches what a fresh install is handed whole, as a");
-console.log("  warning in MB — no bank size fails a gate (D349 amendment).\n");
+console.log("  warning in MB — no bank size fails a gate (D350 amendment).\n");
 console.log("  docs/SCALE-PLAN.md is the plan these numbers were computed for.\n");

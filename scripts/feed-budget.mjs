@@ -1,17 +1,17 @@
 // feed-budget.mjs — the feed lane's generation budget as arithmetic: a
 // coverage FLOOR every topic reaches first, a DEMAND share above it that
-// follows where the crowd actually answers, and no ceiling (D349).
+// follows where the crowd actually answers, and no ceiling (D350).
 //
 // WHY THIS EXISTS. The feed lane shipped with a contract and a flat cap and
 // nothing calling it (D97); D145 gave it a Routine and this regulator in the
 // same change, because a scheduled job with a flat cap is the one shape D97
 // and D115 both had to remove — it generates into a full review queue and
 // under-generates into an empty one. D213 raised the per-topic level from
-// 12 to 24 and the cadence to daily. D349 is the third shape: the level
+// 12 to 24 and the cadence to daily. D350 is the third shape: the level
 // became a floor rather than a target, the stop at the level went, and the
 // budget above the floor follows demand.
 //
-// WHAT BOUNDED THIS LANE UNTIL D349, and why neither bound holds now. The
+// WHAT BOUNDED THIS LANE UNTIL D350, and why neither bound holds now. The
 // regulator stopped at a per-topic TARGET ("every topic is at the target —
 // a question written into a full topic buys breadth nobody was missing")
 // and held RUN_CAP at 6 on a SIGNAL-DILUTION argument (a fixed crowd spread
@@ -42,11 +42,11 @@
 //                      one argument per question as before. Lower it the
 //                      day a batch merges with a dupe the re-read should
 //                      have caught; it is one constant. What it costs is
-//                      recorded at D349: a device's install is O(core +
+//                      recorded at D350: a device's install is O(core +
 //                      pages) whatever the bank (D321), the nightly order
 //                      fold is a night's ordinary work at these sizes, and
 //                      the only bank-size gate left is a WARNING on what a
-//                      fresh install is handed whole (INSTALL_WARN, D349
+//                      fresh install is handed whole (INSTALL_WARN, D350
 //                      amendment) — no bank size fails a gate.
 //   TOPIC_FLOOR  = 24  servable questions every topic reaches BEFORE any
 //                      budget goes to demand — the breadth bound, kept at
@@ -148,7 +148,7 @@ export { BATCH_TOPIC_SHARE };
 // card still covers its topic for a reader.
 export const SERVABLE_TYPES = new Set(["vote", "rank", "dial", "field", "path"]);
 
-// Topics this lane may not write into (D231, re-homed at D350). `now` is
+// Topics this lane may not write into (D231, re-homed at D351). `now` is
 // the current-events lane's OWN — a scheduled run that FINDS its stories
 // by searching, corroborated across outlets, never from memory
 // (QUESTION-FARM.md § The now lane) — and this regulator has no source

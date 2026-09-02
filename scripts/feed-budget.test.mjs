@@ -1,6 +1,6 @@
 // feed-budget.test.mjs — pins the feed regulator's arithmetic.
 //
-// The property that matters most here is the one D349 turned the regulator
+// The property that matters most here is the one D350 turned the regulator
 // around on: it must NEVER stop for stock. The lane used to throttle to zero
 // at a per-topic target, and the test that pinned that ("throttles to zero
 // once every topic is at target") was the bounded-bank premise worn as a
@@ -48,7 +48,7 @@ describe("feedBudget", () => {
     expect(feedBudget({ topics: level(10, 0) }).budget).toBe(RUN_CAP);
   });
 
-  it("never stops for stock — a levelled bank still gets the full cap (D316/D349)", () => {
+  it("never stops for stock — a levelled bank still gets the full cap (D316/D350)", () => {
     // The stop that used to live here was the bounded-bank premise. There
     // is no question limit: a bank at the floor, or far past it, is a bank
     // the lane keeps growing.
