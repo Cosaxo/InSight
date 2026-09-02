@@ -40,11 +40,16 @@ it is moving toward.
   the paid door's rate rows with the pricing law as scannable tokens, the
   catalog window's polish (still waiting on its owner decision), the tab
   bar's buttons losing weight.
-- **Built from it:** nothing yet — `VISION-2026-09-02.md` §7 is the
-  order, on `WORKLIST.md` tagged `[claude-3]`.
-- **Requests it closed:** none. It **reopens the plan for request 1**
-  (trait-axis directions on the Map), which was written against the
-  plane the ring retires.
+- **Built from it:** all of it but the half that waits on an owner
+  decision (D354, six commits in `VISION-2026-09-02.md` §7's order): the
+  shared instrument and the three lenses, the shell's axis, the prompt
+  voice, the split ballot, the answer rows and the Crossroads tree, the
+  paid door's rate rows. Only the catalog window (§4.2) is unbuilt, on
+  VISION-2026-08-26 §2.2's seat-split sentence.
+- **Requests it closed:** none. It **re-aimed request 1** (trait-axis
+  directions on the Map), which was written against the plane the ring
+  retires: that request now states the three grammars a ring can carry
+  an axis in, and what each costs.
 
 ## The lineage
 

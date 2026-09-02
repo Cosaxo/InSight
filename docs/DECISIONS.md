@@ -36422,3 +36422,85 @@ and `patterns.css`, the README), the plan, the vision page moved with
 its lineage row and the second path written into its last section,
 `design/README.md`'s series paragraph, the `ORIENTATION.md` row, two
 owner-list rows, seven worklist lines and the note on request 1.
+
+## D354 · The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot
+
+**2026-09-02.** `VISION-2026-09-02.md` §7 steps 1–6 and the §7 step 7
+re-plan, built exactly as scoped: every item of the seventh standalone
+that needed no owner decision, no new read, no rules change and no
+schema. The one gate the plan named stays shut — the catalog window
+(§4.2) waits on VISION-2026-08-26 §2.2's seat-split sentence, which the
+owner has not said, so nothing of it is here. Written on
+`claude/new-visual-vision-mapping-ealrob`, the same branch as D353, which
+extracted the design and made it the vision.
+
+### What shipped
+
+Six commits, in the plan's own order: the shared lens instrument and the
+three Patterns lenses (§1.1–§1.4); the shell's meta line, topic control
+and swipe axis (§1.5); the prompt voice and the tab bar (§2.1, §2.3);
+the split ballot on the daily and the feed (§2.2); the topic-hued answer
+rows and the quieter Crossroads tree (§3); the paid door's rate rows and
+its pricing tokens (§4.1). The tab remains behind D265's gate, the trial
+remains live-data-only (D166 §1), and the seal's pin never moved —
+`data/patterns.test.ts` is byte-identical.
+
+### The six things the build settled, which a plan could not
+
+1. **`planeOf` is deleted**, with `MapPoint`, `PATTERNS_MIN_GAP` and its
+   two tests. §1.2 left the choice to the PR: the ring took its last
+   consumer, and a 110-line layout engine kept alive by its own tests is
+   residue rather than a spare. Git history holds it, and the module
+   header says where it went and why.
+2. **The ring's honesty cost is paid in sentences, not hidden.** On the
+   plane, position was a claim — D310's "close together = answers that
+   predict each other". On a ring it is topic membership, so that line
+   is gone and the field's own sentence replaces it. Every counted
+   claim is unchanged: `PATTERNS.say`'s bounded 2×2s, each stating its
+   basis (D146), and the live scope ("the people in both samples")
+   still overrides the prototype's "everyone who answered both".
+3. **The font ceiling is a gate, not a note.** The plan said to measure
+   the woff2 cost by hand; `check:bundle` has had a FONT ceiling since
+   D223 (96 KB against 64 in the tree), so two weights × two subsets
+   would have failed it. **One face ships — Spectral 500, latin** (86 KB
+   measured), and what that costs is written beside the face in
+   `styles.css`: a Central-European letter in a prompt falls back to
+   Georgia for that glyph, and the one place the design asks for 600 is
+   drawn at 500 rather than letting the browser synthesise a bold serif.
+   More faces is a font-ceiling conversation, not a silent import.
+4. **Three prototype shapes did not port as drawn**, each for a reason
+   the live app has and the prototype does not: the Oracle's option
+   labels are uppercased by CSS rather than by `String.toUpperCase` (the
+   accessible name stays the bank's own word); the People rail's chips
+   are buttons wrapped in `listitem` spans rather than buttons carrying
+   the role, which `check:a11y` refuses and is a real reading bug; and
+   the rail lists only NAMED people, because chipping a nameless account
+   with an initial avatar is the invented identity D167 refuses.
+5. **The Oracle stopped keeping device state.** The one-time hints
+   retired into the card's standing sentence and the record's kicker, so
+   `insight.oracle.hints.v1` went with them — `check:purge`'s subject
+   set is derived, so the sweep simply stops naming that file, and a
+   test pins that the lens writes nothing at all.
+6. **`check:figures` caught the ninth mount suite.** The split ballot's
+   own suite made CLAUDE.md's "eight suites mount the whole App" false
+   the moment it landed, and the gate said so with the corrected
+   sentence — the documentation error this repo keeps re-committing,
+   caught by the thing built to catch it.
+
+### What did not port, and stays not ported
+
+The prototype's boot splash and fast-boot bundle (the app has a native
+splash and Vite); `.lens-paper` as a setting (the tokens ship, the
+toggle is a control nobody asked for); the invented crowd's names; the
+ring bullseye in `map-tab.js`, still declared by nothing (the 08-24
+verdict, third time stated); the oracle sub-row's "N from feed votes"
+(D287); and the demo `CATALOG`/`SUB` seeds (D167).
+
+### The request that moved
+
+`VISUAL-REQUESTS.md` request 1 — trait-axis directions — was written to
+draw an axis as a DIRECTION in the plane the ring retires. It is re-aimed
+rather than dropped: the request now names the three grammars a ring can
+carry an axis in (a leaning set, an inner arc, a polarity split), states
+what each costs, and keeps its data, states and basis rules. Still
+`requested`; the drafting step is unchanged.
