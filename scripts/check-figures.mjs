@@ -450,6 +450,24 @@ const harnessFiles = readdirSync(join(root, "src/v2/test"))
     readFileSync(join(root, "src/v2/test", f), "utf8"),
   )).length;
 
+// Storage's byte cap, read off storage.rules itself. The suite that pins
+// that rule described it as an "8MB cap" for as long as the number had
+// been 256 KB — the 8 MB was the retired dailyPhotos cap, stranded by the
+// sweep that removed the surface, while the file's own cases used 300 KB
+// and 200 KB against the real rule. Exactly this table's class: a number
+// beside a thing that moved.
+const storageCapKb = (() => {
+  const src = readFileSync(join(root, "storage.rules"), "utf8");
+  const m = /request\.resource\.size\s*<\s*(\d+)\s*\*\s*1024/.exec(src);
+  if (!m) {
+    throw new Error(
+      "check-figures: no `request.resource.size < N * 1024` in storage.rules — "
+      + "the cap moved or changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return Number(m[1]);
+})();
+
 // The city catalogue's size, read off the generated file's own header — the
 // same line check-cities.mjs parses. It is quoted exactly once in live
 // documentation and was quoted in seven code comments besides, none of them
@@ -536,6 +554,13 @@ const FIGURES = [
     re: /all but one of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
     fix: (n) => `"all but one of the **${n}** \`smoke-*.test.jsx\`"`,
+  },
+  {
+    file: "firestore-tests/storage.rules.test.ts",
+    what: "the storage byte cap the suite says it pins",
+    re: /owner-only path match, (\d+) KB cap, image content-type/,
+    actual: String(storageCapKb),
+    fix: (n) => `"owner-only path match, ${n} KB cap, image content-type"`,
   },
   {
     file: "CLAUDE.md",
