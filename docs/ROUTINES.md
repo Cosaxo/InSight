@@ -366,17 +366,30 @@ lane in this register any session can read the state of directly.
 **How to tell whether the rest are firing**, since no session here can
 read their trigger state. The ops program's run log is one issue titled
 **Ops run log**, created by the first lane that needs it — the doc
-sweep's precedent, issue #336. At **16:35 UTC on 2026-09-02** it still
+sweep's precedent, issue #336. At **17:45 UTC on 2026-09-02** it still
 does not exist, and neither does `no-shepherd`, the label
 `OPS-RUNBOOK.md` §2.7 pairs with `merge-when-green`; the PR shepherd's
 06:20 and 16:20 slots have both passed with no comment on either
-labelled PR. On traces alone, no ops lane has completed a run. That is a
-statement about traces and not about the Routines, and it is precisely
-the ambiguity the run-log convention exists to remove — the farm's issue
-#31 was created because two fires *finished* and left nothing behind,
-which made correctly-idle and silently-broken identical from the
-repository. Whoever owns these lanes can tell the two apart in one
-`list_triggers` call; nobody else can.
+labelled PR. On traces alone, no ops lane has completed a run.
+
+**And for once the reason is written down rather than invisible**, which
+is the whole point of the exercise. Both remaining links of §6's merge
+chain are blocked on one human turn each, and `OWNER-LIST.md` carries
+both:
+
+- **The program dispatcher refused its charter** when it arrived through
+  automation — *"no standing dispatcher setup without direct approval"* —
+  so **nothing bound to it relays**, the merge shift included. It asks
+  for one line from the owner in its own session.
+- **The GitHub merge tool has never been approved** in the ops
+  dispatcher's own history on Claude 2, and under that binding the PR
+  shepherd cannot merge at all (`OPS-RUNBOOK.md` §2.3).
+
+So the lanes exist, are correctly idle, and say why — the state the
+farm's issue #31 was created to make legible, reached here through the
+owner list instead of a run log. A reader who only had the traces would
+have concluded the opposite. That gap is what this register is for, and
+the run log will close the rest of it the first time a lane completes.
 
 **One measurement, taken while labelling PR #365.** Applying
 `merge-when-green` through the GitHub API **created the label** — default
