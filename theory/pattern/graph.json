@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "pattern",
-  "updated": "2026-09-01",
+  "updated": "2026-09-02",
   "nodes": [
     {
       "id": "pat-1",
@@ -88,18 +88,39 @@
     },
     {
       "id": "pat-4",
-      "claim": "Coupling capacity is bounded by the paired population, and the perfect engine budgets it explicitly.",
-      "status": "argued",
-      "detail": "A cross-axiom coupling's n is the intersection of the axioms' populations — always smaller than either. Answers per day are conserved (density cannot be manufactured by adding questions or axioms), so the perfect engine maintains an explicit information budget: which pairs get density, which readings are affordable at current pairing, and what the marginal value of one more paired person is per pair. This turns 'what should we collect next' from taste into arithmetic — and is the pattern axiom's main gift to central's portfolio ranking.",
-      "sources": [],
+      "claim": "Coupling capacity is bounded by the paired population because pairing is what identifies a cross-axiom coupling: two axes never observed jointly on the same people pin their coupling down only to a conditional Fréchet set, and a point needs further structure — the conditional-independence assumption, an exclusion restriction, or a sample holding the two jointly — so the paired count, never larger than either population, buys identification first and precision second, and the perfect engine budgets both explicitly.",
+      "status": "cited",
+      "detail": "Raised 2026-09-02; the seed's 'intersection n' was complete-case bookkeeping. With X answered by everyone, Y on axis A only, Z on B only, P(X,Y) and P(X,Z) are identified and P(Y,Z|X) is not — only the set of joints with the right conditional margins, the conditional Fréchet bounds Σ_i p_{X=i}·max{0; p_{j|i}+p_{k|i}−1} ≤ p_jk ≤ Σ_i p_{X=i}·min{p_{j|i}; p_{k|i}} (full-text-grade, StatMatch manual). The conditional-independence assumption P(Y,Z,X)=P(Y|X)P(Z|X)P(X) selects one point, and is an assumption, not an estimate (D'Orazio, Di Zio & Scanu 2006; StatMatch comb.samples). Ridder & Moffitt: 'without further assumptions the (conditional) Fréchet bounds ... is all that can be learned' (snippet-grade); Cross & Manski give the sharp identification region for the long regression from two short ones — the unpaired case exactly — shrunk by exclusion restrictions, sometimes to a point (abstract-grade); in a parametric setup ranges 'are the only estimable items' absent restrictive assumptions on the relationship between the non-jointly-observed variables (Conti, Marella & Scanu 2017); Ahfock et al.: partially identified (Manski's frame). This lane's entailment, marked, no source saying it so: at fixed X the set is a functional of population margins, so unpaired respondents shrink sampling error AROUND the bounds, never their width — volume narrows it only by making a finer X estimable. Two nuances: shared covariates narrow without closing (the X-subset most associated with both Y and Z reduces average bound width — StatMatch Fbwidths.by.x; Ridder & Moffitt: bounds 'usually not sufficiently narrow' unless common variables correlate highly with both); and joint observation buys identification — an auxiliary sample holding Y and Z together corrects the CIA table (Renssen 1998, secondary via the StatMatch manual), the split-questionnaire design its constructive version (Raghunathan & Grizzle 1995; Ali & Kauermann 2021) — pat-12's subject. CONSEQUENCES, this lane's, marked. Conserved density stands (db-8). The budget is two ledgers: identification — which axis pairs have ANY joint observation, a pair with none publishing its Fréchet interval under declared X, never a CIA point (pat-2's contract extended to interval and assumption) — and precision, the paired count per pair. The marginal value of one more paired person peaks at zero, a step from set to point; above zero cen-2's 'pairing governs precision, not definition' holds; at zero value is unidentified, not imprecise — a boundary contradiction of cen-2's 'does not zero value', carried to central via the LOG. Verification: full texts egress-blocked except the StatMatch manual; the rest search-index-corroborated, graded per string.",
+      "sources": [
+        "Cross & Manski, 'Regressions, Short and Long', Econometrica 70(1):357–368 (2002), DOI 10.1111/1468-0262.00279 (metadata snippet-grade across Econometric Society, Wiley, RePEc; identification-region claim abstract-grade)",
+        "Ridder & Moffitt, 'The Econometrics of Data Combination', Handbook of Econometrics vol. 6B, ch. 75, pp. 5469–5547, Elsevier 2007 (metadata snippet-grade via ScienceDirect/RePEc eee:ecochp:6b-75; the Fréchet sentence snippet-grade, identical across two searches; section numbers not verified)",
+        "D'Orazio, Di Zio & Scanu, 'Statistical Matching: Theory and Practice', Wiley Series in Survey Methodology, 2006, ISBN 978-0-470-02353-2, DOI 10.1002/0470023554 (metadata snippet-grade; content secondary-grade via the StatMatch manual; no page numbers relied on)",
+        "D'Orazio, StatMatch R package manual (CRAN): Frechet.bounds.cat, comb.samples, Fbwidths.by.x, read as source at github.com/cran/StatMatch/blob/master/man/ (full-text-grade: Fréchet formulas, the CIA factorisation, the auxiliary-sample correction, the bound-width criterion)",
+        "D'Orazio, Di Zio & Scanu, 'Statistical Matching for Categorical Data: Displaying Uncertainty and Using Logical Constraints', Journal of Official Statistics 22:137–157 (2006) (snippet-grade, corroborated by the StatMatch manual's reference block)",
+        "Conti, Marella & Scanu, 'How far from identifiability? A systematic overview of the statistical matching problem in a non parametric framework', Communications in Statistics — Theory and Methods 46(2):967–994 (2017), DOI 10.1080/03610926.2015.1010005 (abstract-grade)",
+        "Conti, Marella & Scanu, 'Uncertainty Analysis in Statistical Matching', Journal of Official Statistics 28(1):69–88 (2012) (abstract-grade)",
+        "Ahfock, Pyne, Lee & McLachlan, 'Partial identification in the statistical matching problem', Computational Statistics & Data Analysis 104:79–90 (2016), DOI 10.1016/j.csda.2016.06.005, PMID 28496285 (abstract-grade)",
+        "Manski, 'Partial Identification of Probability Distributions', Springer Series in Statistics, 2003, ISBN 978-0-387-00454-9, DOI 10.1007/b97478 (metadata snippet-grade; used for the identification/inference frame only, no quotation)",
+        "Renssen, 'Use of Statistical Matching Techniques in Calibration Estimation', Survey Methodology 24:171–183 (1998) (secondary-grade: cited via the StatMatch comb.samples manual page, not independently reached)",
+        "Raghunathan & Grizzle, 'A Split Questionnaire Survey Design', Journal of the American Statistical Association 90(429):54–63 (1995), DOI 10.1080/01621459.1995.10476488 (snippet-grade)",
+        "Ali & Kauermann, 'A split questionnaire survey design in the context of statistical matching', Statistical Methods & Applications 30(4):1219–1236 (2021), DOI 10.1007/s10260-020-00554-2 (abstract-grade)"
+      ],
       "edges": [
         {
           "to": "cen-2",
+          "type": "refines"
+        },
+        {
+          "to": "que-5",
           "type": "supports"
+        },
+        {
+          "to": "pat-2",
+          "type": "refines"
         }
       ],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-09-02"
     },
     {
       "id": "pat-5",
@@ -187,7 +208,7 @@
       "id": "pat-8",
       "claim": "The information budget is two-dimensional — persons and occasions-per-person — and the dimensions substitute only for population-level estimands: a person-specific coupling is bounded by that person's own occasions, which no crowd size can supply.",
       "status": "cited",
-      "detail": "Added 2026-08-28 as pat-4's second dimension. pat-4 budgets pairs by intersection n — a persons count; within-person estimands (pat-3) add an orthogonal resource, occasions per person, and the substitution law between the two is itself measured. For population-average dynamic parameters N and T compensate: estimation performance rises with more persons at constant T and with more time points at constant N — named and mapped as the N/T compensation effect (Hecht & Zitzmann 2021, abstract-grade, in continuous-time modeling), and the DSEM simulation study built for exactly this question is REPORTED to find large-N/small-T outperforming small-N/large-T — an ordering that circulates secondary-grade via citing papers (McNeish 2019, 'Two-Level Dynamic Structural Equation Models with Small Samples', SEM 26(6):948–966, DOI 10.1080/10705511.2019.1578657, is the reachable carrier), whose specific numbers DISAGREE across carriers (N=200/T=10 vs N=200/T=100 vs T≤20 at N≥250) — so the ordering is carried and the number is not (Schultzberg & Muthén 2018 — design verified abstract-grade: two-level AR(1) models, Bayesian in Mplus 8, varying model complexity, number of subjects and number of time points; its headline figures stay flagged for a primary read and nothing here leans on them). For PERSON-SPECIFIC estimands the compensation fails structurally: another person's stream carries no information about this person's dynamics beyond a group prior — which is precisely what the group-pooled machinery at pat-10 (GIMME; fissioned from pat-3, 2026-09-01) formalizes as a starting structure, partial relief rather than substitution — and the feasibility study for idiographic networks prices the demand upward, not downward: the ≥75-timepoints-for-6-nodes figure circulating as the field's floor is one the study's own simulation does not clear — sensitivity was LOW at the 75 and 100 timepoint conditions feasible in practice — and, sharpest, under short series the CORRECTLY SPECIFIED VAR(1) lost predictive accuracy to simpler models through overfitting (Mansueto et al. 2023, snippet-grade figures; the overfitting sentence corroborated this run from a single index paraphrase only, and is flagged as a named scout item for a primary read before anything leans further on it). If it holds at first hand, that result is this node's teeth: an engine built for a within-person estimand its data cannot pay for produces confidently wrong personalized couplings — a worse failure than level conflation, because it is personalized. Design consequence: when occasions are the binding resource, density is bought by design rather than volume — the measurement-burst design concentrates intensive occasions into repeated bursts precisely to fund within-person estimands over the long run (Nesselroade 1991, metadata-grade, an unread chapter cited as the design's origin; Sliwinski 2008, abstract-grade) — which for an InSight-shaped system means within-person coupling capacity concentrates where an axis repeats by nature (sensors, daily self-report), while the question axis buys occasions only by re-asking, under pat-5's retest discipline. Scope against db-8, drawn deliberately: db-8 owns the read side — which cells are publishable under the density budget, and sampling-design-as-meaning; this node is the estimand-side refinement of that density law — which ESTIMANDS are affordable at a given (N, T) allocation and what the marginal observation buys per dimension, the term cen-2's portfolio inherits through pat-4.",
+      "detail": "Added 2026-08-28 as pat-4's second dimension. pat-4 budgets pairs by the paired count — the resource that first identifies a coupling and then sharpens it; within-person estimands (pat-3) add an orthogonal resource, occasions per person, and the substitution law between the two is itself measured. For population-average dynamic parameters N and T compensate: estimation performance rises with more persons at constant T and with more time points at constant N — named and mapped as the N/T compensation effect (Hecht & Zitzmann 2021, abstract-grade, in continuous-time modeling), and the DSEM simulation study built for exactly this question is REPORTED to find large-N/small-T outperforming small-N/large-T — an ordering that circulates secondary-grade via citing papers (McNeish 2019, 'Two-Level Dynamic Structural Equation Models with Small Samples', SEM 26(6):948–966, DOI 10.1080/10705511.2019.1578657, is the reachable carrier), whose specific numbers DISAGREE across carriers (N=200/T=10 vs N=200/T=100 vs T≤20 at N≥250) — so the ordering is carried and the number is not (Schultzberg & Muthén 2018 — design verified abstract-grade: two-level AR(1) models, Bayesian in Mplus 8, varying model complexity, number of subjects and number of time points; its headline figures stay flagged for a primary read and nothing here leans on them). For PERSON-SPECIFIC estimands the compensation fails structurally: another person's stream carries no information about this person's dynamics beyond a group prior — which is precisely what the group-pooled machinery at pat-10 (GIMME; fissioned from pat-3, 2026-09-01) formalizes as a starting structure, partial relief rather than substitution — and the feasibility study for idiographic networks prices the demand upward, not downward: the ≥75-timepoints-for-6-nodes figure circulating as the field's floor is one the study's own simulation does not clear — sensitivity was LOW at the 75 and 100 timepoint conditions feasible in practice — and, sharpest, under short series the CORRECTLY SPECIFIED VAR(1) lost predictive accuracy to simpler models through overfitting (Mansueto et al. 2023, snippet-grade figures; the overfitting sentence corroborated this run from a single index paraphrase only, and is flagged as a named scout item for a primary read before anything leans further on it). If it holds at first hand, that result is this node's teeth: an engine built for a within-person estimand its data cannot pay for produces confidently wrong personalized couplings — a worse failure than level conflation, because it is personalized. Design consequence: when occasions are the binding resource, density is bought by design rather than volume — the measurement-burst design concentrates intensive occasions into repeated bursts precisely to fund within-person estimands over the long run (Nesselroade 1991, metadata-grade, an unread chapter cited as the design's origin; Sliwinski 2008, abstract-grade) — which for an InSight-shaped system means within-person coupling capacity concentrates where an axis repeats by nature (sensors, daily self-report), while the question axis buys occasions only by re-asking, under pat-5's retest discipline. Scope against db-8, drawn deliberately: db-8 owns the read side — which cells are publishable under the density budget, and sampling-design-as-meaning; this node is the estimand-side refinement of that density law — which ESTIMANDS are affordable at a given (N, T) allocation and what the marginal observation buys per dimension, the term cen-2's portfolio inherits through pat-4.",
       "sources": [
         "Hecht & Zitzmann, 'Sample size recommendations for continuous-time models: Compensating shorter time series with larger numbers of persons and vice versa', Structural Equation Modeling 28(2):229–236 (2021), DOI 10.1080/10705511.2020.1779069",
         "Schultzberg & Muthén, 'Number of subjects and time points needed for multilevel time-series analysis: A simulation study of dynamic structural equation modeling', Structural Equation Modeling 25(4):495–515 (2018), DOI 10.1080/10705511.2017.1392862",
@@ -214,7 +235,7 @@
         }
       ],
       "created": "2026-08-28",
-      "updated": "2026-09-01"
+      "updated": "2026-09-02"
     },
     {
       "id": "pat-9",
@@ -278,6 +299,55 @@
       ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
+    },
+    {
+      "id": "pat-12",
+      "claim": "Pairing is a design variable, not a given: the conserved answer budget is allocated by planned-missing design — matrix sampling for population estimands, the two-method design for expensive axes — under full-information estimation, so the marginal value of one more paired person on a declared target coupling is the quantity a design criterion would have to compute — information per cost, not taste; the design buys precision-not-bias only for the missingness the engine itself assigns, pays in efficiency where the coupling is manifest rather than latent, and buys a model-free coupling only by co-service.",
+      "status": "cited",
+      "detail": "pat-4's constructive half (2026-09-02): if pairing identifies a coupling, the engine designs it. FOUR PIECES. (1) Matrix sampling is the operating principle under a conserved budget: a pool no person finishes, forms to random subgroups (Shoemaker 1973), population characteristics estimated with plausible values where nobody answers enough to be scored (Mislevy, Beaton, Kaplan & Sheehan 1992; Mislevy 1991 — tst-7's machinery, here as design; PISA/TIMSS, González & Rutkowski 2010). (2) Designer-assigned missingness is MCAR by construction, so under full-information estimation (Arbuckle 1996; Little & Rubin; Enders) it costs precision, not bias (Rioux et al. 2020; Graham et al. 2006). (3) The two-method design (gold standard on a subset, a cheap same-construct indicator on everyone) beats a SAME-COST complete-cases design on standard errors and effective n, most where the cost differential is large and the effect small (Graham et al. 2006, abstract-grade), given random assignment — a genome or sensor against the daily stream. (4) Design is a decision problem solved by maximising expected utility (Chaloner & Verdinelli 1995, abstract-grade); cost inside the utility and criteria on the Fisher information matrix are textbook optimal-design practice (Atkinson, Donev & Tobias 2007; Berger & Wong 2009 — index-grade, content not read). TWO BOUNDARIES. Planned missingness is not efficiency-neutral: at equal data points a reduced-n complete design can win, manifest-variable regression coefficients markedly so, latent models being where the design pays (Rhemtulla, Savalei & Little 2016, abstract-grade) — the advantage is claimed cost-matched only. And two items never served together carry no MODEL-FREE information about their own coupling — nonparametrically, pat-4's Fréchet case; a latent model with an everyone-block identifies it through shared loadings, which is why the design pays for latent and loses for manifest — so for an engine whose product IS couplings co-service buys the model-free coupling: the everyone-block is que-1's spine, a tail–tail coupling model-free only at its co-service rate (this lane's inference, marked; que-5 agrees: spine items raise no coupling's n). The MCAR guarantee covers only what the engine assigns — genome upload or sensor wear is self-selected, MAR at best: pat-5's and db-8's territory. SYNTHESIS, this lane's own, marked — no verified source computes it for a coupling matrix: one more paired person's marginal value is expected information gain on the declared target coupling per cost, defined only against a declared model and target, which cen-2's currency supplies. Verification: full texts egress-blocked; sources search-index-corroborated, graded per string.",
+      "sources": [
+        "Graham, Taylor, Olchowski & Cumsille, 'Planned missing data designs in psychological research', Psychological Methods 11(4):323–343 (2006), DOI 10.1037/1082-989X.11.4.323 (metadata index-grade via ERIC EJ751115/PubMed 17154750; the three-form, two-method and same-cost claims abstract-grade)",
+        "Rioux, Lewin, Odejimi & Little, 'Reflection on modern methods: planned missing data designs for epidemiological research', International Journal of Epidemiology 49(5):1702–1711 (2020), DOI 10.1093/ije/dyaa042 (metadata index-grade; design-MCAR statement abstract-grade)",
+        "Rhemtulla, Savalei & Little, 'On the Asymptotic Relative Efficiency of Planned Missingness Designs', Psychometrika 81(1):60–89 (2016), DOI 10.1007/s11336-014-9422-0 (metadata index-grade; the equal-data-points efficiency loss abstract-grade, qualitative only)",
+        "Shoemaker, 'Principles and Procedures of Multiple Matrix Sampling', Ballinger, 1973, ISBN 0-88410-153-3 (index-grade: bookseller and Semantic Scholar records)",
+        "Mislevy, Beaton, Kaplan & Sheehan, 'Estimating Population Characteristics From Sparse Matrix Samples of Item Responses', Journal of Educational Measurement 29(2):133–161 (1992), DOI 10.1111/j.1745-3984.1992.tb00371.x (metadata index-grade via ERIC EJ448021; abstract-grade)",
+        "Mislevy, 'Randomization-based inference about latent variables from complex samples', Psychometrika 56(2):177–196 (1991), DOI 10.1007/BF02294457 (metadata index-grade via Springer/RePEc; abstract-grade)",
+        "González & Rutkowski, 'Principles of multiple matrix booklet designs and parameter recovery in large-scale assessments', IERI Monograph Series vol. 3, ch. 6 (2010), ierinstitute.org (index-grade: chapter PDF listing; pagination not relied on)",
+        "Arbuckle, 'Full Information Estimation in the Presence of Incomplete Data', in Marcoulides & Schumacker (eds.), Advanced Structural Equation Modeling, Erlbaum 1996 (chapter existence index-grade via the Taylor & Francis chapter record; chapter number and page range secondary-grade, not relied on)",
+        "Little & Rubin, 'Statistical Analysis with Missing Data', 3rd ed., Wiley (2019/2020), ISBN 978-0-470-52679-8, DOI 10.1002/9781119482260 (index-grade)",
+        "Enders, 'Applied Missing Data Analysis', 2nd ed., Guilford 2022, ISBN 978-1-4625-4986-3 (index-grade: Guilford/WorldCat records)",
+        "Chaloner & Verdinelli, 'Bayesian Experimental Design: A Review', Statistical Science 10(3):273–304 (1995), DOI 10.1214/ss/1177009939 (metadata index-grade via Project Euclid; abstract-grade)",
+        "Atkinson, Donev & Tobias, 'Optimum Experimental Designs, with SAS', Oxford Statistical Science Series 34, OUP 2007, ISBN 978-0-19-929660-6 (index-grade, verified via the Statistics in Medicine review DOI 10.1002/sim.3395)",
+        "Berger & Wong, 'An Introduction to Optimal Designs for Social and Biomedical Research', Wiley 2009, ISBN 978-0-470-69450-3, DOI 10.1002/9780470746912 (index-grade)"
+      ],
+      "edges": [
+        {
+          "to": "pat-4",
+          "type": "refines"
+        },
+        {
+          "to": "tst-7",
+          "type": "depends"
+        },
+        {
+          "to": "que-5",
+          "type": "supports"
+        },
+        {
+          "to": "cen-2",
+          "type": "supports"
+        },
+        {
+          "to": "pat-5",
+          "type": "depends"
+        },
+        {
+          "to": "db-8",
+          "type": "refines"
+        }
+      ],
+      "created": "2026-09-02",
+      "updated": "2026-09-02"
     }
   ]
 }

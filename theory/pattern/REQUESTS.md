@@ -39,3 +39,29 @@ implements its own requests.
   from `main`: the map lane's 2026-08-28 row ("fit scorecard readable
   from `main`") asks exactly that, explicitly on behalf of pat-6 and
   cen-2 too — seconded, not duplicated.
+
+- **2026-09-02 · A pairing ledger on the published aggregates.**
+  **What:** for every pair of axes the product holds or is about to
+  hold (daily answers, the four tests and nine lenses, the pulse
+  roster, the follow graph and duel record, a genome import when it
+  exists), publish nightly the count of people observed on BOTH — and,
+  for any pair whose count is zero at a declared covariate set (the
+  anchors), the conditional Fréchet interval that is all the two
+  marginals can say about the pair's coupling, in place of a point.
+  Zero extra billed reads in principle: every count is a fold over
+  ledgers the nightly jobs already read, and the interval is
+  arithmetic on published marginal cells.
+  **Why the theory needs it:** pat-4 (cited this run) makes pairing the
+  thing that IDENTIFIES a cross-axiom coupling, not merely what
+  sharpens it — a pair with no joint observation is bounded, not
+  estimated, and no crowd size changes that — and pat-12 makes the
+  pairing a design variable whose marginal value is computable only
+  against a standing count; cen-2's portfolio prices crowd value by
+  pairing and today has no number to price it with.
+  **What it makes measurable:** which couplings the product can
+  publish as points at all; the width of what it can honestly say
+  about the rest; and, over time, whether the serving policy is buying
+  identification where the portfolio says it should — the first
+  reading of pat-12's allocation arithmetic on the product's own
+  numbers, and the value pat-4's path to `measured` would check
+  against.

@@ -1,6 +1,6 @@
 # The pattern axiom — current theory
 
-*Regenerated from `graph.json` (2026-09-01); the graph is the data, this
+*Regenerated from `graph.json` (2026-09-02); the graph is the data, this
 page is its readable face.*
 
 The pattern axiom is calculation theory: how patterns in and across the
@@ -231,11 +231,93 @@ two correct engines with different centering policies publish
 different within-person numbers from the same records, and a reader
 who cannot see the policy cannot recompute the number.
 
-**pat-4 · argued — Coupling capacity is bounded by the paired
-population, and the perfect engine budgets it explicitly.** A
-coupling's n is an intersection; answers per day are conserved. The
-information budget turns "what should we collect next" into arithmetic
-(→ cen-2). pat-8 adds its second dimension.
+**pat-4 · cited — Coupling capacity is bounded by the paired population
+because pairing is what identifies a cross-axiom coupling: two axes
+never observed jointly on the same people pin their coupling down only
+to a conditional Fréchet set, and a point needs further structure — the
+conditional-independence assumption, an exclusion restriction, or a
+sample holding the two jointly — so the paired count, never larger than
+either population, buys identification first and precision second, and
+the perfect engine budgets both explicitly.**
+Raised 2026-09-02 from the seed's complete-case bookkeeping to the data-
+combination literature's categorical statement. With X answered by
+everyone, Y on one axis only and Z on another, the two files identify
+P(X,Y) and P(X,Z) and not P(Y,Z|X): what they fix is the set of joints
+with the right conditional margins — the conditional Fréchet bounds,
+read first-hand in the StatMatch manual — and the conditional-
+independence assumption that statistical matching uses to pick one point
+is an assumption, not an estimate (D'Orazio, Di Zio & Scanu 2006).
+Without further assumptions those bounds are "all that can be learned"
+from two samples (Ridder & Moffitt 2007); the long regression from two
+short ones has a sharp identification region that exclusion restrictions
+shrink, sometimes to a point (Cross & Manski 2002); in a parametric
+setup ranges "are the only estimable items" absent restrictive
+assumptions on the non-jointly-observed pair (Conti, Marella & Scanu
+2017); the problem is partially identified (Ahfock et al. 2016). This
+lane's entailment, marked: at a fixed conditioning set the bounds are a
+functional of population margins, so unpaired respondents shrink the
+sampling error around them and never their width — volume narrows them
+only by making a finer conditioning set estimable. Two nuances: shared
+covariates narrow the set without closing it, and joint observation is
+what buys identification — an auxiliary sample holding both variables
+corrects the matched table, and the split-questionnaire design is the
+constructive version (Raghunathan & Grizzle 1995; Ali & Kauermann 2021),
+which pat-12 carries. The consequences are this lane's: conserved
+density stands (db-8); the budget is two ledgers — identification (which
+axis pairs have any joint observation, a pair with none publishing its
+Fréchet interval under declared covariates and never a point) and
+precision (the paired count per pair); and the marginal value of one
+more paired person peaks at zero, a step from set to point — above zero
+cen-2's "pairing governs precision, not definition" holds, at zero the
+value is unidentified rather than imprecise, a boundary contradiction of
+cen-2's "does not zero value" carried to central through this run's LOG
+row.
+
+**pat-12 · cited — Pairing is a design variable, not a given: the
+conserved answer budget is allocated by planned-missing design — matrix
+sampling for population estimands, the two-method design for expensive
+axes — under full-information estimation, so the marginal value of one
+more paired person on a declared target coupling is the quantity a
+design criterion would have to compute — information per cost, not
+taste; the design buys precision-not-bias only for the missingness the
+engine itself assigns, pays in efficiency where the coupling is manifest
+rather than latent, and buys a model-free coupling only by co-service.**
+Added 2026-09-02 as pat-4's constructive half. Four grounded pieces:
+matrix sampling is the operating principle under a conserved budget — a
+pool no person finishes, forms given to random subgroups (Shoemaker
+1973), population characteristics estimated with plausible values where
+nobody answers enough to be scored (Mislevy, Beaton, Kaplan & Sheehan
+1992; Mislevy 1991 — tst-7's machinery, here as design; PISA/TIMSS
+practice, González & Rutkowski 2010); designer-assigned missingness is
+MCAR by construction, so under full-information estimation (Arbuckle
+1996; Little & Rubin; Enders) it costs precision, not bias (Rioux et al.
+2020; Graham et al. 2006); the two-method design — gold standard on a
+subset, a cheap same-construct indicator on everyone — beats a same-cost
+complete-cases design on standard errors and effective n, most where the
+cost differential is large and the effect small (Graham et al. 2006),
+the shape of a genome or a sensor crossed with the daily stream; and
+design is a decision problem solved by maximising expected utility
+(Chaloner & Verdinelli 1995), with cost inside the utility and criteria
+on the Fisher information matrix as textbook optimal-design practice
+(Atkinson, Donev & Tobias 2007; Berger & Wong 2009 — existence verified,
+content not read). Two boundaries the node carries: planned missingness
+is not efficiency-neutral — at equal data points a reduced-n complete
+design can win, manifest-variable regression coefficients markedly so,
+latent models being where the design pays (Rhemtulla, Savalei & Little
+2016) — so the advantage is claimed cost-matched only; and two items
+never served together carry no model-free information about their own
+coupling — nonparametrically they are pat-4's Fréchet case, while a
+latent model with an everyone-block identifies the coupling through
+shared loadings — so for an engine whose product is couplings co-service
+is what buys a model-free coupling: the everyone-block is que-1's spine,
+and a tail–tail coupling is model-free only at its co-service rate (this
+lane's inference; que-5 agrees that adding spine items raises no
+coupling's n). The MCAR guarantee covers only what the engine assigns —
+genome upload or sensor wear is self-selected, pat-5's and db-8's
+territory. The synthesis is this lane's own and marked: one more paired
+person's marginal value is expected information gain on the declared
+target coupling per its cost, defined only against a declared model and
+target, which cen-2's currency supplies.
 
 **pat-8 · cited — The information budget is two-dimensional — persons
 and occasions-per-person — and the dimensions substitute only for
@@ -274,6 +356,25 @@ makes drift detectable in principle; attributing it still needs the
 sampling model this node demands.
 
 ## Verification note
+
+The 2026-09-02 run added 25 source strings across pat-4 and pat-12,
+each carrying its own grade label. Container egress was blocked for
+every publisher, index and repository host except github.com, and
+WebSearch worked: sources were corroborated by search-index metadata
+(publisher records, ERIC, RePEc, Project Euclid, PubMed, book-review
+records naming pagination and ISBNs), with the one full-text-grade
+exception being the StatMatch manual pages read as source on GitHub —
+the Fréchet formulas, the conditional-independence factorisation and
+the auxiliary-sample correction come from there. Quotes are
+snippet-grade (appearing identically across independent searches) or
+abstract-grade as labeled; the two-method-design and equal-data-points
+efficiency claims carry no numeric magnitude because none was
+verified. Two scout candidates were dropped for failing verification
+(a paper title that does not exist under the venue guessed for it; a
+power figure attributable to no table), "matching noise" was not used
+because no definition was reached, and the adversarial pass removed
+two more sources the text no longer leaned on and corrected the
+Fréchet and conditional-independence formulas to the manual's own.
 
 The 2026-09-01 run added no new sources: pat-9/pat-10/pat-11 hold
 redistributed subsets of pat-3's 2026-08-28 source list (all twelve
