@@ -308,8 +308,12 @@ export function foldPeople(
   // to move a few dots apart.
   //
   // Two circles can only need pushing if their centres are within
-  // `P1.r + P2.r + 5`, and the radii here are bounded — `4.5 + t * 3` for a
-  // person, 5.75 for you — so CELL below is at or above the largest gap
+  // `P1.r + P2.r + 5`, and the radii here are bounded — read them off the
+  // two literals above rather than from here, because this sentence
+  // quoted `4.5 + t * 3` and `5.75` for a while after the commit that
+  // replaced both, and an argument that cites numbers the code no longer
+  // has is worse than one that says where to look — so CELL below is at
+  // or above the largest gap
   // that can matter. A pair further apart than one cell cannot collide,
   // which makes the 3×3 neighbourhood exhaustive rather than approximate:
   // the same pairs are tested, the ones that could never touch are not.
