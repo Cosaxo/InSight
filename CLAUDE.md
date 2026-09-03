@@ -266,8 +266,8 @@ real slipped through:
   screens no smoke case reaches — the Map's measured body, the daily's
   Circle and 1v1 modes, the demo Mirror's stops past World, the daily's
   split ballot before and after a vote, the Mirror's preview tag on
-  a live build that did not attach, and the walk a Map cue gets from the
-  shell without the caller navigating. (The sixth
+  a live build that did not attach, and the Map open on a cued group
+  after the shell's own walk, with the caller navigating nothing. (The sixth
   smoke file, `smoke-live`, mounts `App` too, through its own live fixture.
   More suites than these import the harness — `dialog` and the feed's
   direct-mount files take its helpers without mounting the app.) The three

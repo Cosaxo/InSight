@@ -22,12 +22,12 @@
 // The feed is mounted directly, as learn-reserve.test.jsx does: the
 // subject is one card's button, not the chrome around it.
 
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LEARN as L } from "../spec/learn-progress.js";
 import { cueMap, takeMapCue } from "../data/mapCue";
-import { growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app";
+import { awaitNode, growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 
@@ -80,7 +80,30 @@ describe("Learn's “See it” hands the Map a group through the typed cue", () 
 });
 
 describe("the shell answers a cue with the walk (app-shell's onMapCue)", () => {
-  it("cueMap lands on the Mirror tab without the caller navigating", () => {
+  // The Map draws nothing until its pane measures (`if (!view)` in
+  // map-tab.jsx), and jsdom measures every pane at zero — so the group
+  // assertion below needs the pane map-body-renders.test.jsx gives it, by
+  // the same route: shadow the inherited getters for this file only, and
+  // unshadow them after, because deleting an own descriptor that jsdom
+  // had moved down would strip the getters from every later suite in
+  // this worker.
+  const PANE = { width: 480, height: 720 };
+  let restore = null;
+  beforeAll(() => {
+    const saved = ["clientWidth", "clientHeight"].map((k) =>
+      [k, Object.getOwnPropertyDescriptor(HTMLElement.prototype, k)]);
+    restore = () => {
+      for (const [k, d] of saved) {
+        if (d) Object.defineProperty(HTMLElement.prototype, k, d);
+        else delete HTMLElement.prototype[k];
+      }
+    };
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get() { return PANE.width; } });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return PANE.height; } });
+  });
+  afterAll(() => { if (restore) restore(); restore = null; });
+
+  it("cueMap lands on the Mirror's You stop with the Map open on the group, the caller navigating nothing", async () => {
     const expectNoBoundary = mountApp();
     const tabs = () => [...document.querySelectorAll(".tabbar .tab-btn")];
     const current = () => tabs().filter((b) => b.getAttribute("aria-current") === "page");
@@ -91,6 +114,22 @@ describe("the shell answers a cue with the walk (app-shell's onMapCue)", () => {
 
     expect(current().length, "no tab, or more than one, is marked current").toBe(1);
     expect(current()[0].textContent, "a Map cue did not walk to the Mirror").toContain("mirror");
+    // …and to the You stop, which is the only stop that hosts the Map.
+    // The tab alone would pass with onMapCue's setTweak('mirrorPop', 'you')
+    // deleted, and the Map would then never mount to take the cue.
+    expect(document.querySelector(".app[data-mpop], [data-mpop]")?.getAttribute("data-mpop"), "the walk did not land on the You stop").toBe("you");
+
+    // The Map's own half: it mounts through the Mirror's slot and takes the
+    // cue in its openGroup initializer. Nothing pinned that before this
+    // case — deleting takeMapCue() from map-tab.jsx left every suite green.
+    // `.is-ingroup` is set past the early return, so a Map that mounted
+    // and measured but took no cue fails here, not at the root.
+    const root = await awaitNode(".mmt-root.is-ingroup");
+    expect(root, "the Map did not open on the cued group").toBeTruthy();
+    expect(
+      root.querySelector(".mmt-center-glabel")?.textContent,
+      "the open group is not Knowledge (map-groups.js: g-know)",
+    ).toBe("Knowledge");
     expectNoBoundary("map cue");
   });
 });
