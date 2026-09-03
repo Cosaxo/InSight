@@ -125,6 +125,10 @@ vi.mock("firebase/firestore", () => {
     deleteField: () => "__delete__",
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
+    // D357: the queue-drained signal settlePending awaits — required
+    // here like every other member live.ts binds, whether or not a case
+    // reaches it (vitest throws on a member the factory does not define).
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 
@@ -165,8 +169,10 @@ function bank(): FakeSnapshotDoc[] {
 async function bootLive() {
   const mod = await import("./live");
   await mod.initLive(1);
+  // `attached` (D356): the poll these cases drive is started by the
+  // network phase, and `ready` can precede it on a cached device.
   await vi.waitFor(() => {
-    expect(mod.default.ready).toBe(true);
+    expect(mod.default.attached).toBe(true);
   });
   return mod;
 }

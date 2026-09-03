@@ -109,6 +109,10 @@ vi.mock("firebase/firestore", () => {
     writeBatch: () => ({ set: () => {}, update: () => {}, delete: () => {}, commit: () => Promise.resolve() }),
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
+    // D357: the queue-drained signal settlePending awaits — required
+    // here like every other member live.ts binds, whether or not a case
+    // reaches it (vitest throws on a member the factory does not define).
+    waitForPendingWrites: () => Promise.resolve(),
     deleteField: () => ({ __del: true }),
     arrayUnion: (...a: unknown[]) => ({ __union: a }),
     arrayRemove: (...a: unknown[]) => ({ __rm: a }),
@@ -134,9 +138,10 @@ let booted: NearApi | null = null;
 
 async function bootNear(): Promise<NearApi> {
   const mod = await import("./live");
-  const LIVE = mod.default as unknown as { ready: boolean; near: NearApi };
+  const LIVE = mod.default as unknown as { attached: boolean; near: NearApi };
   await mod.initLive(1);
-  await vi.waitFor(() => { expect(LIVE.ready).toBe(true); });
+  // `attached` (D356): boot complete, not merely a deck on screen.
+  await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
   booted = LIVE.near;
   return LIVE.near;
 }

@@ -519,7 +519,25 @@ describe("spec layer mounts in live mode", () => {
     // reason box. Guards the direction the fixture makes easy to get wrong.
     const expectNoBoundary = mountLive();
     expect(screen.queryByRole("button", { name: /sample questions/i })).toBeNull();
+    // …and not the last-sync pill either (D356): an attached session has
+    // nothing to reconnect to.
+    expect(screen.queryByRole("button", { name: /last sync/i })).toBeNull();
     expectNoBoundary("daily/live/no-reason");
+  });
+
+  it("a warm paint whose reconcile failed shows the last-sync pill, with the reason one tap away", async () => {
+    // D356: the deck on screen is real — this device's caches — so the
+    // sample-questions pill would be a lie; but the counts are as of the
+    // last sync and the server has not been heard from, and that is a
+    // fact the person deserves in the same shape as the demo banner: a
+    // pill, and the reason behind a tap.
+    const expectNoBoundary = mountLive({ stale: true });
+    expect(screen.queryByRole("button", { name: /sample questions/i })).toBeNull();
+    const pill = screen.getByRole("button", { name: /last sync/i });
+    expect(screen.queryByText(/auth\/network-request-failed/)).toBeNull();
+    fireEvent.click(pill);
+    expect(await screen.findByText(/auth\/network-request-failed/)).toBeTruthy();
+    expectNoBoundary("daily/live/stale");
   });
 
   it("renders a profile that has not picked a city", () => {
