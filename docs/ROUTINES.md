@@ -70,19 +70,22 @@ which is exactly what three subscriptions produce.
 
 **Account** `014fdf19-504c-4a97-bdfb-e305156fcd9d` ·
 **environment** `env_01Ri3fw8gD9Py3LmTQ9hTYCL` ·
-**verified** 2026-09-02 09:46 UTC against `list_triggers`, nine
-Routines, all enabled.
+**verified** 2026-09-03 12:57 UTC against `list_triggers`, **eleven**
+Routines, all enabled — the nine below plus the two program lanes this
+account gained at phase 5.1.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
 | Nightly algorithm improvement | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |
-| InSight question farm (daily) | `trig_01XJqk3xyNicWH9uMG5kz8Lh` | `0 7 * * *` — daily 07:00 | dev session `session_01AvNkZgRvvMCu8zqhZtuMH5` | `claude/question-farm-<date>` — `content/daily-questions.json` | self-merge (D212) |
+| InSight question farm (daily) | `trig_015gV8je1wJ8yRsk2zAKp6oe` | `0 7 * * *` — daily 07:00 | dev session `session_01AvNkZgRvvMCu8zqhZtuMH5` | `claude/question-farm-<date>` — `content/daily-questions.json` | self-merge (D212) |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, a new domain catalogue Sunday | same dev session | `claude/catalog-question-<date>`, domains `claude/catalog-domain-<name>` — `src/v2/spec/pick-data.js`, `public/` | self-merge (D212) |
 | InSight DB scalability | `trig_01WSJVxHtUqioRRvSs6pc31E` | `0 8 * * 1-5` — weekdays, hard stop 12:00 (10:00–14:00 Oslo) | fresh session | `claude/daily-database-optimization-j03rdh` — Firestore schema, the aggregation pipeline, client read paths | no PR — the owner opens it |
-| InSight learn lane | `trig_015hWsQwfLz4evTeVkN3mtx8` | `0 9 * * 1,4` — Mon + Thu 09:00 | same dev session | `claude/learn-cards-<date>` — `content/learn-questions.json` | self-merge (D212) |
-| InSight feed lane | `trig_014BTtkCKwkJqjVmSdnUGGXC` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
+| InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 | same dev session | `claude/learn-cards-<date>` — `content/learn-questions.json` | self-merge (D212) |
+| InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — Wed 10:00 | same dev session | `claude/duel-questions-<date>` — `content/duel-questions.json` | self-merge (D212) |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
+| InSight roll call (Claude 1) | `trig_01JQiMDMk2m4SfPjCKgbCF2o` | `35 15 * * *` — daily 15:35 (17:35 Oslo) | fresh session, model `claude-sonnet-5` | nothing — read-only; one comment per day on the **Ops run log** issue | never merges; never pushes; never labels |
+| InSight list worker (Claude 1) | `trig_01JRBox3KomrnVEfeMZnrHmC` | `0 16 * * *` — daily 16:00 (18:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/worklist-<slug>` — `docs/WORKLIST.md` and whatever the item it takes names | never merges; never labels |
 | InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,22,0,2,4 * * *` — five flows; 20/22/00/02 audit at 95 min, 04:00 closing at 110 min | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
 
 **Contracts.** The five content lanes defer to `QUESTION-FARM.md` and
@@ -90,6 +93,16 @@ re-read it every run — the prompt is a summary and the manual outranks
 it. The two improvers and night shift B carry their brief in the Routine
 itself; night shift B's is the one D326 §2 records as having no product
 document at all, and that is still true of both improvers.
+
+**The two program lanes defer to `OPS-RUNBOOK.md`** — § The list worker,
+with § The to-do doers' tag rule, and § The roll call — and re-read it
+every run. Their prompts are canonical in `PROGRAM-RUNBOOK.md` § The
+other subscriptions and were pasted from those blocks byte-for-byte;
+`list_triggers` returns each stored prompt verbatim, so the roll call's
+own Sunday ledger is what will catch them drifting. Both are that
+runbook's phase 5.1, created from a session on this account at the
+owner's direction — no other account can create a Routine here, which is
+why the phase was the owner's to place.
 
 **The bound dev session is a shared checkout.** Six of the nine fire into
 `session_01AvNkZgRvvMCu8zqhZtuMH5`, which is why the content lanes are
@@ -146,6 +159,34 @@ re-verify; nothing in §2 is edited.
   by the same swap (D350), and the now lane's missing contract is
   `QUESTION-FARM.md` § The now lane (D351) — the lane that had been
   no-opping daily since 09-01 now has the block its prompt names.
+- **Three of this block's ids arrived on `main` already retired, and are
+  corrected here.** #362 landed with the farm, learn and feed rows read
+  at 09:46 UTC on 09-02 — before D350's second recreation that morning —
+  so `main` carried `trig_01XJqk3xy…`, `trig_015hWsQwf…` and
+  `trig_014BTtkCK…`, none of which `list_triggers` returns. #365 had the
+  live ones and has not merged. Re-read 2026-09-03 12:57 UTC and
+  replaced with `trig_015gV8je…`, `trig_01Qguc3P…` and
+  `trig_01MXbzJv…`. This is rule 1 rather than rule 4 — it is this
+  account's own block, and the account is the only place the answer
+  exists. The register's second demonstration of its own premise: a
+  trigger id is not a figure any gate can recompute, so a wrong one
+  survives every check in the tree until somebody reads the account.
+- **A Routine created from a session stores no MCP connectors, and both
+  new lanes need them.** Creating each of the two program lanes returned
+  the same warning: *"this trigger stores no MCP connectors, so the
+  sessions it fires will run without connector (`mcp__<server>__*`)
+  tools"*, because a trigger passes through only what the calling
+  session holds and this one held none. Both prompts open with a
+  provisioning step that needs `add_repo`, and the roll call's whole job
+  is `list_triggers` and `list_sessions` — so if the fired sessions
+  really arrive without them, the roll call cannot run at all. This is
+  the warning, not an observed failure, and it is the same class as
+  `AXES-RUNBOOK.md`'s "containers spawn empty". The first fires
+  (2026-09-03, 15:35 and 16:05 UTC) measure it; the fallback is the one
+  `PROGRAM-RUNBOOK.md` § The other subscriptions already names —
+  recreate in this account's Routines web UI with the repository
+  attached, the path its two improvers use today. **[owner]** decides
+  which, on that evidence.
 
 ---
 
@@ -439,3 +480,31 @@ behaviour still changes by PR to its own contract.
 declaration. Nothing gates the rows themselves: a Routine is account-side
 state, so no command in this tree can recompute one, which is exactly why
 rule 2 says verify and rule 4 says leave another account's rows alone.
+
+---
+
+## 7 · The overview — one sentence per routine
+
+What each routine does and for whom, beside the rows above that say when
+it fires and what it writes. `PROGRAM-RUNBOOK.md` phase 5.3 asks for this
+section so the console's routine list has prose to draw rather than a
+schedule to paraphrase. Every account extends it under the same rules as
+the blocks: you write your own account's lines and leave the others
+alone, and a line lands in the same PR as the Routine it describes. It is
+seeded here with the two lanes this PR created; the rest are their
+owners' to write.
+
+**Session 1 — the program lanes (§2)**
+
+- **InSight list worker (Claude 1)** — works the owner's to-do list for
+  this subscription: each afternoon it takes the topmost item tagged
+  `[claude-1]` in `docs/WORKLIST.md`, ships that one item as one pull
+  request, and parks anything it would have to guess at as an ask in
+  `docs/OWNER-LIST.md` rather than building it narrower. For the owner,
+  who asked to work on lists instead of on the things in them.
+- **InSight roll call (Claude 1)** — reports whether this account's
+  Routines actually fired, how late they were, and what they cost, as one
+  comment a day on the **Ops run log** issue, with a prompt-drift ledger
+  on Sundays. It writes nothing else and changes nothing. For the other
+  two subscriptions, which cannot see this account's Routines at all, and
+  for the console that joins the three.
