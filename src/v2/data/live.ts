@@ -5161,29 +5161,52 @@ const LIVE = {
   async loadLearnAggs(cardIds: readonly string[]): Promise<void> {
     if (!this.enabled) return;
     const want = [...new Set(cardIds.map((id) => "learn-" + id))]
-      .filter((qid) => !(qid in state.learnAggs));
+      .filter((qid) => !(qid in state.learnAggs) && !state.learnAggPending[qid]);
     if (!want.length) return;
-    // Claimed before the await so a second plan build in the same tick
-    // does not re-request the same ids.
-    for (const qid of want) state.learnAggs[qid] = null;
+    // CLAIMED AS PENDING, NOT AS NULL — the same correction `learnAgg`
+    // above got, applied to the path the feed actually calls.
+    //
+    // This pre-filled the cache with null, exactly as `learnAgg` used to,
+    // and for the same stated reason: to stop a second plan build in the
+    // same tick re-requesting the same ids. That claim collapses "we have
+    // not looked yet" into "nobody has answered", and `learnAggLoading`
+    // stayed false throughout — so the fourth source `'loading'` that was
+    // added for this was unreachable on the feed's own route, which is
+    // the route every learn card is drawn on.
+    //
+    // The failure case is worse than the wait. The nulls used to STAND
+    // after a dropped request, so one failed batch made every card in it
+    // say nobody had answered — for the rest of the session, even once
+    // the network came back. A read that failed is not a fact about the
+    // card; the key is left unset so a later render tries again.
+    for (const qid of want) state.learnAggPending[qid] = true;
     try {
       const db = await getDb();
       const chunks: string[][] = [];
       for (let i = 0; i < want.length; i += 30) chunks.push(want.slice(i, i + 30));
       const snaps = await Promise.all(chunks.map((chunk) =>
         getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
-      let found = 0;
+      const seen = new Set<string>();
       for (const snap of snaps) {
         for (const d of snap.docs) {
           state.learnAggs[d.id] = d.data() as AggDoc;
-          found++;
+          seen.add(d.id);
         }
         state.stats.aggsFetched += snap.size;
       }
-      if (found) notify();
+      // A MISSING DOCUMENT IS AN ANSWER — nobody has answered this card —
+      // and it is a different fact from the read being in flight. Cached
+      // as null here, once the batch has come back, rather than before it
+      // went out.
+      for (const qid of want) if (!seen.has(qid)) state.learnAggs[qid] = null;
     } catch (err) {
-      // The null entries stand: the estimate renders, labeled as one.
+      // Deliberately NOT cached, `learnAgg`'s rule: a read that failed is
+      // not a fact about the card, and leaving the keys unset lets a later
+      // render try again.
       reportError(err, { where: "loadLearnAggs" });
+    } finally {
+      for (const qid of want) delete state.learnAggPending[qid];
+      notify();
     }
   },
   enabled: false,

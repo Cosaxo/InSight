@@ -2644,16 +2644,57 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     expect(h.aggIdQueries).toEqual([["learn-cap6"], ["learn-cap7"]]);
   });
 
-  it("leaves the estimate standing when the fetch fails", async () => {
-    // A failed warm-up must cost the measurement, never the reveal: the
-    // cache keeps its null, LEARN_SPLIT falls back to the authored model,
-    // and the footer says so. Silence here would be the honest outcome
-    // rendered as a crash.
+  it("reports a warm-up in flight as a wait, not as nobody having answered", async () => {
+    // THE FOURTH SOURCE, MADE REACHABLE ON THE ROUTE THAT USES IT. This
+    // path claimed its ids by pre-filling the cache with NULL — the same
+    // shape `learnAgg` was corrected out of, for the same stated reason
+    // (one read per card) — so `learnAggLoading` stayed false throughout
+    // and `'loading'` could not occur on the feed's own route, which is
+    // where every learn card is drawn.
     const LIVE = await bootLive();
+    const p = LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAggLoading("cap6"),
+      "a read in flight was indistinguishable from a settled absence").toBe(true);
+    await p;
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+  });
+
+  it("caches a missing document as an answer once the batch is back", async () => {
+    // The control for the case above, and the fact it must not lose: a
+    // document that is not there means nobody has answered this card, and
+    // caching that is what lets the reveal say so. Cached AFTER the batch
+    // returns rather than before it goes out.
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    // …and it is settled, so nothing asks again.
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries).toEqual([]);
+  });
+
+  it("does not turn a failed warm-up into a permanent 'nobody has answered'", async () => {
+    // A read that FAILED is not a fact about the card. The nulls used to
+    // stand for the session, so one dropped batch made every card in it
+    // report an empty crowd — even after the network came back. `learnAgg`
+    // carries this rule already; this path did not.
+    //
+    // (The case here asserted the old behaviour as correct, under a
+    // comment about the authored estimate falling back — which D149
+    // removed from live builds a month ago.)
+    const LIVE = await bootLive();
+    h.aggDocs.push({ id: "learn-cap6", data: { total: 40, counts: { 0: 30, 1: 10 } } } as never);
     h.getDocsImpl = () => new Error("offline");
     await expect(LIVE.loadLearnAggs(["cap6"])).resolves.toBeUndefined();
-    expect(LIVE.learnAgg("cap6")).toBeNull();
     expect(h.reportError).toHaveBeenCalled();
+    expect(LIVE.learnAggLoading("cap6"), "the pending claim outlived the failure").toBe(false);
+    // The network comes back. The card must be readable again.
+    h.getDocsImpl = null;
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries, "the failure was cached, so nothing ever asked again").toEqual([["learn-cap6"]]);
+    expect(LIVE.learnAgg("cap6"), "the measurement never came back after one dropped request").toEqual({ total: 40, counts: { 0: 30, 1: 10 } });
   });
 
   it("does nothing at all in demo mode", async () => {

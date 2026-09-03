@@ -1539,14 +1539,26 @@ class WorldFeed extends React.Component {
                 0%" on the option they just picked. */}
             {window.LIVE && window.LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-                {src === 'measured'
-                  ? (() => {
-                    const n = tally ? tally.total : 0;
-                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
-                    if (n === 1) return 'Yours is the only answer so far.';
-                    return 'From ' + n.toLocaleString() + ' first tries.';
-                  })()
-                  : 'You’re the first.'}
+                {/* THREE SOURCES, NOT TWO. This branched on 'measured'
+                    alone, so 'loading' — a crowd read still in the air —
+                    fell into the same arm as 'none' and the footer under
+                    the answer you just tapped said "You're the first."
+                    about a card thousands have answered.
+
+                    D125's fourth source was added for exactly this and
+                    reached the who-knows-this sheet and the Map's learn
+                    card; this line is the one its commit message named
+                    and its diff did not touch. */}
+                {src === 'loading'
+                  ? 'Counting\u2026'
+                  : src === 'measured'
+                    ? (() => {
+                      const n = tally ? tally.total : 0;
+                      if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
+                      if (n === 1) return 'Yours is the only answer so far.';
+                      return 'From ' + n.toLocaleString() + ' first tries.';
+                    })()
+                    : 'You’re the first.'}
               </div>
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
