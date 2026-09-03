@@ -416,6 +416,40 @@ stall it exists for.
 
 ### The PR shepherd
 
+**The lane is in two halves since 2026-09-03, and the split is the
+capability, not the design.** The mechanical half is
+`.github/workflows/pr-shepherd.yml` — for every open PR carrying
+`merge-when-green`, if every check run on the current head concluded
+success and GitHub reports it mergeable, squash-merge it, then one line
+on this program's run log. The judgement half is everything below:
+renumbering a colliding decision record, resolving a mechanical
+conflict, bringing a branch current, reading a diff. That half is still
+a session's and still cannot merge.
+
+Why it moved. The Routine could not merge at all: a Routine minted over
+MCP hands its fired sessions no MCP tools, measured twice on 2026-09-03
+— the 16:44Z fire was told to report its tool inventory, to log
+unconditionally, and to push `OPS-DIAG.md` on a branch if it could not
+comment, and it did none of the three, because without `add_repo` it
+never had the repository. Seven labelled PRs waited on a human that day.
+An Action needs no Routine, no connector and no subscription;
+`production-reader.yml` and `console.yml` made that argument first, and
+the reader's header saying it moved *"while the shepherds could not"*
+was true of the judgement half and not of this one.
+
+What the Action will not do, and the line is load-bearing: it never
+pushes to a branch, never renumbers, never resolves a conflict, never
+applies or removes a label, never re-runs a job, and **never merges a
+PR with zero check runs** — `every()` on an empty array is true, so
+*nothing failed* and *nothing ran* are one sentence to the obvious
+implementation and only one of them is green. Every refusal is a case
+in `scripts/pr-shepherd.test.mjs`. Its schedule is the heartbeat that
+always writes a run-log line; its `check_suite` wake is what merges a
+green PR within minutes rather than within three hours, and stays
+silent unless it acted, because an idle line per completed suite would
+bury the log in its own noise.
+
+
 **The job in one sentence:** keep every open pull request in a state
 the owner can merge — current with `main`, its decision numbers
 uncollided, its checks run — and say in one line when that state
