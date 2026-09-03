@@ -762,6 +762,28 @@ export let PICK_QS;
       39562: 2,   // Michael Phelps — below the floor
       0: 11,      // Not listed — everyone's local hero
     },
+    // daily catalog-question run, 2026-09-03 — the third languages canon
+    // is FEAR: pk32 ranks what you'd use (Spanish leads) and pk33 what
+    // you'd listen to (Italian leads); this ranks what looks unclimbable.
+    // Chinese takes the top, and Hungarian and Finnish chart here without
+    // appearing on either other board.
+    pk35: {
+      182: 23,  // Chinese — the consensus mountain: tones plus the script
+      74: 18,   // Japanese — three scripts deep
+      8: 16,    // Arabic
+      61: 12,   // Hungarian — the European outlier, eighteen cases
+      44: 11,   // Finnish — the other one
+      135: 10,  // Russian
+      84: 9,    // Korean
+      71: 8,    // Icelandic
+      128: 7,   // Polish
+      32: 6,    // German — the memeable one; feared more than it deserves
+      41: 5,    // Basque — clears the floor but not the top 10; folds
+      76: 5,    // Georgian — same
+      31: 3,    // Danish — below the floor; the pronunciation vote
+      174: 2,   // Vietnamese — below the floor
+      0: 13,    // Not listed — everyone's own nemesis
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1168,6 +1190,18 @@ export let PICK_QS;
         Men: { 1426: 9, 1189: 7, 615: 6, 41421: 5, 169452: 4 },
       },
     },
+    pk35: {
+      ageBand: {
+        // the young cell has actually tried the East Asian three; the
+        // older cell fears the scripts it never started
+        '18-24': { 74: 8, 84: 7, 182: 6, 44: 5, 71: 4 },
+        '25-34': { 182: 8, 8: 7, 74: 6, 135: 5, 61: 4 },
+      },
+      gender: {
+        Women: { 182: 8, 74: 7, 44: 6, 8: 5, 84: 4 },
+        Men: { 182: 9, 8: 7, 61: 6, 135: 5, 74: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1337,6 +1371,7 @@ export let PICK_QS;
     { id: 'pk32', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The language you wish you spoke?', n: 160 },
     { id: 'pk33', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The most beautiful language to hear?', n: 152 },
     { id: 'pk34', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete whose life you’d want?', n: 150 },
+    { id: 'pk35', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The hardest language to learn?', n: 148 },
   ];
   window.PICK_QS = PICK_QS;
 })();
