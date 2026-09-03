@@ -102,6 +102,10 @@ export const LIVE_MEMBERS = [
   // said a real user was on demo content without saying why, and an
   // iPhone has no console to ask — the first device this app ran on
   // failed exactly there.
+  // D356 — the warm paint split "there is a deck on screen" (`ready`)
+  // from "the server has been heard from" (`attached`); `stale` is the
+  // gap between them, and the daily's banner reads it beside bootError.
+  "attached",
   "bootError",
   // The read breaker (D332): true while v2_meta/app.budgetMode pauses the
   // D98 social loaders above (loadVoters, loadKindred, loadCircle, takes).
@@ -180,6 +184,7 @@ export const LIVE_MEMBERS = [
   // look like a fresh account and re-asked it.
   "politicalConsented", "politicalAnswered", "setPoliticalConsent",
   "ready", "saveAnchors",
+  "stale",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is
   // typed into a browser console by hand (SHIP-CHECKLIST §1). It is listed

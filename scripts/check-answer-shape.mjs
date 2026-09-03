@@ -102,6 +102,7 @@ function payloadFor(text, callIdx) {
 const problems = [];
 let creates = 0;
 let edits = 0;
+let reads = 0;
 
 for (let i = 0; ; ) {
   const at = src.indexOf(PATH, i);
@@ -123,6 +124,22 @@ for (let i = 0; ; ) {
 
   if (/updateDoc\(/.test(callLine)) { edits++; continue; }
   if (!/setDoc\(/.test(callLine)) {
+    // A READ of the path — `collection(db, "v2_users", uid, "answers")`
+    // inside a query — is outside this gate's subject: nothing a read
+    // does can drop a field from a document. D357's settle is the first
+    // read written with the same `uid` name the write shape uses
+    // (hydrate's deltas say `uidA`, which is why they never reached this
+    // line), and it is classified rather than renamed around the scan.
+    // Tested AFTER both verbs, deliberately: a write spelled
+    // `setDoc(doc(collection(db, "v2_users", uid, "answers"), qid), …)`
+    // — the idiom the takes write already uses one collection over —
+    // carries `collection(` on its line too, and a read test ahead of the
+    // verbs would have waved its payload through unchecked. And NOT a
+    // `doc(` line: the same idiom split across lines puts
+    // `doc(collection(db, "v2_users", uid, "answers"), qid),` on a line
+    // with neither verb, which must land in `problems` below as the
+    // unclassifiable write it is, not here as a read.
+    if (/\bcollection\(/.test(callLine) && !/\bdoc\(/.test(callLine)) { reads++; continue; }
     // Neither verb on the line means the scan shape has drifted from the
     // code — a multi-line call, say. Report it: a site this cannot classify
     // is a site it is not checking, and silence there is the whole failure
@@ -184,5 +201,6 @@ if (problems.length) {
 
 console.log(
   `check-answer-shape OK — ${creates} answer-create site(s) carry ${REQUIRED.join(", ")}; `
-  + `${edits} edit site(s) exempt (D86); the rebuild still reads anchors.`,
+  + `${edits} edit site(s) exempt (D86); ${reads} read(s) outside the gate's subject; `
+  + "the rebuild still reads anchors.",
 );
