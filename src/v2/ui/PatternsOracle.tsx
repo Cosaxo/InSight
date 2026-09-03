@@ -260,7 +260,12 @@ export default function PatternsOracle({ items }: {
     setWork("pending");
     void PATTERNS.working(rec.qid)
       .then((w) => { if (on) setWork(w); })
-      .catch(() => { if (on) setWork({ rows: [], hadEv: (rec.ev ?? []).length > 0 }); });
+      // The whole call rejecting is the same fact as one crossing's read
+      // rejecting, so it is reported the same way rather than falling
+      // through to a sentence about sample sizes.
+      .catch(() => {
+        if (on) setWork({ rows: [], hadEv: (rec.ev ?? []).length > 0, thin: false, weak: false, failed: true });
+      });
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rec names the sealed record
   }, [why, rec?.qid]);
@@ -442,11 +447,17 @@ export default function PatternsOracle({ items }: {
           // the working (2026-08-26): the sealed call rebuilt in the open —
           // one row per evidence answer, its bar the crowd split it
           // contributed, the hairline the coin, ink weighted by its pull.
-          // Three empty states, each its own truth: still fetching; a call
+          // FIVE empty states, each its own truth: still fetching; a call
           // your answers never moved (the prototype says "guessed at the
           // coin" — live the call falls back to the crowd's own lean, so
-          // that is what the line says); and evidence real but below the
+          // that is what the line says); a read that refused; evidence
+          // with plenty of voters but no lean past 0.54, which is the
+          // ordinary way a row drops out; and evidence real but below the
           // 12-in-both-samples floor, which is thinness, not absence.
+          //
+          // It said three, and printed the last sentence for the middle
+          // two as well — naming a sample size of "under 12" over crossings
+          // of forty and over reads that never happened.
           <div className="or-proof" style={{ marginTop: 10 }}>
             <span className="or-proof-kick">its working</span>
             {work === "pending" ? (
@@ -467,6 +478,14 @@ export default function PatternsOracle({ items }: {
               );
             }) : work && !work.hadEv ? (
               <span className="or-ev-none">Nothing in your answers pointed either way here — the call is the crowd’s own lean, and the faint ink says so.</span>
+            ) : work && work.failed ? (
+              // Not a fact about the crowd. This used to print the sample
+              // sentence, so a refused read read as a thin one.
+              <span className="or-ev-none">Couldn’t read the crowd for this one — open it again to retry.</span>
+            ) : work && work.weak && !work.thin ? (
+              // The ORDINARY case, and the one the old sentence described
+              // as a sample size: plenty of people, no lean worth printing.
+              <span className="or-ev-none">Nothing your answers moved leaned far enough here to show as a row.</span>
             ) : (
               <span className="or-ev-none">The answers that moved it don’t have enough shared voters to count in the open — under 12 in both samples.</span>
             )}

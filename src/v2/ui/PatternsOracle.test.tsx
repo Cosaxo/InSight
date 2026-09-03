@@ -149,10 +149,38 @@ describe("the working (2026-08-26)", () => {
   });
 
   it("thin evidence is named as thinness, never dressed as absence", async () => {
-    PATTERNS.working.mockResolvedValue({ rows: [], hadEv: true });
+    PATTERNS.working.mockResolvedValue({ rows: [], hadEv: true, thin: true, weak: false, failed: false });
     await openWhy();
     expect(screen.getByText(/under 12 in both samples/)).toBeTruthy();
     expect(screen.queryByText(/crowd’s own lean/)).toBeNull();
+  });
+
+  // …AND THE TWO IT USED TO CALL THINNESS.
+  //
+  // An answer drops out of the working for three reasons and only one is
+  // a sample size: the crossing is under the 12-voter floor, the crossing
+  // is well sampled but does not lean past 0.54, or the voter-picks read
+  // rejected. The panel printed "under 12 in both samples" for all three,
+  // so a crossing of forty people split down the middle was reported as
+  // too small to count, and so was a read that never happened.
+  it("a well-sampled crossing that simply did not lean is not called thin", async () => {
+    PATTERNS.working.mockResolvedValue({ rows: [], hadEv: true, thin: false, weak: true, failed: false });
+    await openWhy();
+    expect(screen.getByText(/leaned far enough/)).toBeTruthy();
+    expect(screen.queryByText(/under 12 in both samples/)).toBeNull();
+  });
+
+  it("a read that refused says so, rather than blaming the sample", async () => {
+    PATTERNS.working.mockResolvedValue({ rows: [], hadEv: true, thin: false, weak: false, failed: true });
+    await openWhy();
+    expect(screen.getByText(/Couldn’t read the crowd/)).toBeTruthy();
+    expect(screen.queryByText(/under 12 in both samples/)).toBeNull();
+  });
+
+  it("…and the whole call rejecting is the same sentence", async () => {
+    PATTERNS.working.mockRejectedValue(new Error("permission-denied"));
+    await openWhy();
+    expect(screen.getByText(/Couldn’t read the crowd/)).toBeTruthy();
   });
 
   it("the record says its own marks, without a legend to look up", () => {

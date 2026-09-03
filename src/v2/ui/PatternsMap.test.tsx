@@ -146,4 +146,27 @@ describe("a selection", () => {
     expect(LIVE.vote).toHaveBeenCalledWith("qc", "qc:0");
     expect(container.querySelector(".qm-pop")).toBeTruthy(); // the dot pops where you voted
   });
+
+  // WHAT THE EMPTY NOTE MAY CLAIM. `say` answers null for two facts about
+  // the crowd — under the twelve-voter floor, and two questions that
+  // simply do not predict each other, which is the ordinary one — and the
+  // panel's own catch used to fold a REFUSED read into the same null. The
+  // note named a sample size for all three, so it stated "not enough
+  // people in both samples" over a hundred voters and over a read that
+  // never happened. This line had no test at all.
+  it("says nothing predicts strongly enough, rather than blaming the sample", async () => {
+    PATTERNS.say.mockResolvedValue(null);
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    fireEvent.click(container.querySelectorAll("svg g g")[0]!);
+    expect(await screen.findByText(/predicts its neighbours strongly enough/)).toBeTruthy();
+    expect(screen.queryByText(/enough people in both samples/)).toBeNull();
+  });
+
+  it("…and says the read refused when it did", async () => {
+    PATTERNS.say.mockRejectedValue(new Error("permission-denied"));
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    fireEvent.click(container.querySelectorAll("svg g g")[0]!);
+    expect(await screen.findByText(/Couldn’t read the crowd/)).toBeTruthy();
+    expect(screen.queryByText(/predicts its neighbours/)).toBeNull();
+  });
 });

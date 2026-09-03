@@ -169,13 +169,20 @@ export default function PatternsMap({ items, version, topic }: {
   // The selected question's own links, said out loud — each an exact 2×2
   // fetched on demand and cached for the session (rows shared per qid).
   const selId = sel != null && items[sel] ? items[sel].q.id : null;
-  const [says, setSays] = React.useState<{ id: string; rows: { j: number; s: PairSay | null }[] } | null>(null);
+  const [says, setSays] = React.useState<{ id: string; rows: { j: number; s: PairSay | null; failed: boolean }[] } | null>(null);
   React.useEffect(() => {
     if (selId == null || !nb) { setSays(null); return; }
     let on = true;
     setSays(null);
     void Promise.all(nb.map((x) =>
-      PATTERNS.say(selId, items[x.j].q.id).then((s) => ({ j: x.j, s })).catch(() => ({ j: x.j, s: null }))))
+      // The rejection is kept apart from the null. `say` answers null for
+      // two facts about the crowd — under twelve in both samples, or two
+      // questions that simply do not predict each other — and a refused
+      // read is neither, so folding it into the same value made the note
+      // below state a sample size over a read that never happened.
+      PATTERNS.say(selId, items[x.j].q.id)
+        .then((s) => ({ j: x.j, s, failed: false }))
+        .catch(() => ({ j: x.j, s: null, failed: true }))))
       .then((rows) => { if (on) setSays({ id: selId, rows }); });
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nb/items follow `version`; selId names the selection
@@ -359,7 +366,16 @@ export default function PatternsMap({ items, version, topic }: {
           )}
           <div className="qm-says">
             {says && says.id === q.q.id && says.rows.filter((x) => x.s).length === 0 && (
-              <span className="qm-saytext">Its strongest links don’t have enough people in both samples to say more yet.</span>
+              // WHAT THE CODE CAN ACTUALLY PROMISE. This said "don't have
+              // enough people in both samples", and `say` returns null for
+              // three different things: under the twelve-voter floor, no
+              // cell beating its own marginal — two questions that are
+              // simply independent, which is the ordinary case — and, via
+              // the catch above, a read that refused. Only the first is a
+              // sample size, and the sentence named it for all three.
+              <span className="qm-saytext">{says.rows.every((x) => x.failed)
+                ? "Couldn’t read the crowd for this one — tap it again to retry."
+                : "Nothing here predicts its neighbours strongly enough to say yet."}</span>
             )}
             {/* what a link IS, said once under the rows (2026-08-26). The
                 prototype says "over everyone who answered both"; live the

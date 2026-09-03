@@ -912,7 +912,24 @@ class WorldFeed extends React.Component {
     const total = dist.reduce((a, b) => a + b, 0);
     if (!total) return (q.lo + q.hi) / 2;
     let acc = 0;
-    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketMid(q, i); }
+    // `dialBucketShown`, NOT `dialBucketMid` — the same correction
+    // `dialVal` carries, and the reason is written out in full above it:
+    // when (hi-lo)/12 is a whole number every midpoint ends in .5 and
+    // half-up rounding lands on the TOP EDGE of its own bucket. So your
+    // own answer went through the corrected function and the crowd's
+    // through the raw midpoint, one line apart on the same card: you say
+    // 3 h, the card says "most say 4 h", out of the SAME bucket.
+    //
+    // That reasoning was written when the fix went into `dialVal`, and
+    // this is the other half of it. NO COUNT HERE, deliberately: the
+    // sentence carried over said "22 bucket-readings across the four
+    // dials whose step is a whole unit", which was the figure for the
+    // dial the original fix was measured on — the shipped bank now has 19
+    // dials, ONE with a whole-unit step, and 212 bucket-readings where
+    // the midpoint and the shown value differ. A count in a comment is
+    // the documentation error this repo keeps re-committing, and
+    // `dial-bucket.test.jsx` holds the real relationship off the tree.
+    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketShown(q, i); }
     return (q.lo + q.hi) / 2;
   }
   // one by-cell (optionIdx → count) read as a dial: how many, and where
@@ -1042,20 +1059,36 @@ class WorldFeed extends React.Component {
     const path = this.dialPath(dist, W, H);
     const frac = (v - lo) / (hi - lo);
     const medFrac = (med - lo) / (hi - lo);
+    // NO COUNTS, NO CROWD. `dialDist` adds your own bucket back so the
+    // curve is never empty right after you answer — which on a card
+    // nobody else has answered leaves a distribution of exactly ONE, and
+    // the dial drew it as a full-height curve labelled "How everyone
+    // answered", with a dashed median and a "most say" line quoting your
+    // own number back at you as the crowd's.
+    //
+    // `noCountsYet` is the flag for this and every other shape on this
+    // card already reads it — the tiles suppress their percentages and
+    // draw `renderFloorNote`, the bars the same. The dial path never
+    // asked. So it asks now, and says the same thing they do. (Two line
+    // numbers stood here and pointed at `renderMeta` instead; grep the
+    // name, which is what a citation is for.)
+    const noCrowd = !!(q.live && q.noCountsYet);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: WPAL.ink(T.color), fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, v)}</span>
           <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>you</span>
-          <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>
+          {noCrowd ? null : <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>}
         </div>
-        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
-          <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>
-          <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>
-          <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>
-          <circle cx={frac * W} cy={this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
+        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={noCrowd ? 'Where you answered, ' + endTxt[0] + ' to ' + endTxt[1] : 'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
+          {noCrowd ? null : <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>}
+          {noCrowd ? null : <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>}
+          {noCrowd ? null : <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>}
+          <line x1={0} y1={H - 1} x2={W} y2={H - 1} stroke="var(--rule)" strokeWidth="1"></line>
+          <circle cx={frac * W} cy={noCrowd ? H - 8 : this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
         </svg>
         <div style={ends}><span>{endTxt[0]}</span><span>{endTxt[1]}</span></div>
+        {noCrowd ? this.renderFloorNote(big) : null}
       </div>
     );
   }
@@ -1566,14 +1599,26 @@ class WorldFeed extends React.Component {
                 0%" on the option they just picked. */}
             {LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-                {src === 'measured'
-                  ? (() => {
-                    const n = tally ? tally.total : 0;
-                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
-                    if (n === 1) return 'Yours is the only answer so far.';
-                    return 'From ' + n.toLocaleString() + ' first tries.';
-                  })()
-                  : 'You’re the first.'}
+                {/* THREE SOURCES, NOT TWO. This branched on 'measured'
+                    alone, so 'loading' — a crowd read still in the air —
+                    fell into the same arm as 'none' and the footer under
+                    the answer you just tapped said "You're the first."
+                    about a card thousands have answered.
+
+                    D125's fourth source was added for exactly this and
+                    reached the who-knows-this sheet and the Map's learn
+                    card; this line is the one its commit message named
+                    and its diff did not touch. */}
+                {src === 'loading'
+                  ? 'Counting\u2026'
+                  : src === 'measured'
+                    ? (() => {
+                      const n = tally ? tally.total : 0;
+                      if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
+                      if (n === 1) return 'Yours is the only answer so far.';
+                      return 'From ' + n.toLocaleString() + ' first tries.';
+                    })()
+                    : 'You’re the first.'}
               </div>
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
@@ -2001,6 +2046,16 @@ class WorldFeed extends React.Component {
     const mine = this.state.votes[q.id];
     const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     const n = q.options.length;
     const v2 = this.opts.v2;
@@ -2020,7 +2075,7 @@ class WorldFeed extends React.Component {
             const tint = 8 + 24 * (p[i] / (maxP || 1));
             const isMine = mine === i;
             const fr = sides.filter((f) => f.oi === i);
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             return (
               <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, minWidth: 0, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
                 <div style={two
@@ -2118,8 +2173,17 @@ class WorldFeed extends React.Component {
   renderVoteBars(q, T, big) {
     const mine = this.state.votes[q.id];
     const counts = q.options.map((o) => o.count);
-    const { p } = wfPcts(counts, mine);
-    const maxP = Math.max(...p);
+    const { p, c } = wfPcts(counts, mine);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     // selfOnly (D50): the fill width IS the share in a different alphabet
     // (D11's phrase, same reasoning), so it is gated together with the
@@ -2133,7 +2197,7 @@ class WorldFeed extends React.Component {
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {c[i] === maxN && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
@@ -2146,10 +2210,19 @@ class WorldFeed extends React.Component {
   renderDuel(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
-    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const fresh = this._fresh === q.id;
     const v2 = this.opts.v2;
-    const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     // Below the floor there is no share to draw, and the fill height IS the
     // share — so the fill and the numeral are gated together. Drawing one
     // without the other would publish the split geometrically instead of
@@ -2173,7 +2246,7 @@ class WorldFeed extends React.Component {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {q.options.map((o, i) => {
             const chosen = mine === i;
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             // v2 drops the generated tile art for one quiet ground — the fill
             // is the only ink that moves, so it has to be the only thing there
             const bg = v2 ? 'var(--surface-2)' : wfTileArt(T.color, q.id);
@@ -3300,7 +3373,7 @@ class WorldFeed extends React.Component {
               cases here are a measurement, the demo's authored figure, and
               a live card nobody else has answered \u2014 which says so rather
               than printing a number nobody measured. */}
-          <span style={{ flex: 1, minWidth: 0 }}>{p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{rate.src === 'loading' ? 'Counting\u2026' : p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
           {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
         </div>
         {/* The cuts' honest absence, in the sheet that was built to hold

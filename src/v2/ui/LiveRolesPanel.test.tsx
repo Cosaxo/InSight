@@ -40,12 +40,19 @@ vi.mock("../data/live", () => ({
     social: {
       groups: () => ROOMS,
       revealHistory: (gid: string) => HIST[gid] || [],
-      loadRevealHistory: () => Promise.resolve(),
+      loadRevealHistory: (gid: string) => (REFUSE.has(gid)
+        ? Promise.reject(new Error("permission-denied"))
+        : Promise.resolve()),
+      revealHistoryLoading: (gid: string) => LOADING.has(gid),
     },
   },
 }));
 
 import LiveRolesPanel from "./LiveRolesPanel";
+
+/** Rooms whose history read refuses, and rooms whose read is still out. */
+const REFUSE = new Set<string>();
+const LOADING = new Set<string>();
 
 /** A duo reveal day: my (option, guess) and theirs. */
 const dday = (d: string, mine: [number, number], theirs: [number, number]) => ({
@@ -65,6 +72,7 @@ const duoRoom = (id: string) => ({ id, mode: "duo", memberUids: ["me", "them"], 
 
 beforeEach(() => {
   ROOMS = []; HIST = {};
+  REFUSE.clear(); LOADING.clear();
 });
 afterEach(cleanup);
 
@@ -102,6 +110,29 @@ describe("a setting under the floor", () => {
     render(<LiveRolesPanel />);
     expect(screen.getByText("2 of 3 days both guessed")).toBeTruthy();
     expect(screen.queryByText("The Mind Reader")).toBeNull();
+  });
+
+  // FOUR STATES BEHIND ONE EMPTY LIST. `revealHistory` answers [] for a
+  // room that has revealed nothing, for a read still in the air, and for
+  // a read that refused — and this panel said "nothing revealed yet" for
+  // all three. The loader walks rooms one at a time, so with several
+  // circles the later ones sat on that sentence while their own read was
+  // still out; a refused room sat on it for the session. The Groups stop
+  // one screen over already keeps the distinction, in the same words.
+  it("says it is READING a room whose history has not landed", async () => {
+    ROOMS = [{ id: "g1", mode: "group", name: "The Wednesday Six", memberUids: ["me", "a", "b"] }];
+    LOADING.add("g1");
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("reading\u2026")).toBeTruthy();
+    expect(screen.queryByText("nothing revealed yet")).toBeNull();
+  });
+
+  it("…and says so when the read REFUSED, instead of claiming an empty room", async () => {
+    ROOMS = [{ id: "g1", mode: "group", name: "The Wednesday Six", memberUids: ["me", "a", "b"] }];
+    REFUSE.add("g1");
+    render(<LiveRolesPanel />);
+    await screen.findByText("couldn\u2019t read this one");
+    expect(screen.queryByText("nothing revealed yet")).toBeNull();
   });
 
   it("says a room with no reveals has none, rather than counting to zero", () => {

@@ -215,6 +215,50 @@ if (reduced === undefined) {
   );
 }
 
+// …AND THE FILE THE FORMS ARE ANSWERED FROM.
+//
+// The two rules above hold app-privacy.json to the plist, and they were
+// both green while `docs/data-inventory.md` — which calls itself "the
+// audited list the store forms are answered from" — still said the app
+// declares Coarse location and that FINE is "capped at maxSdkVersion 30".
+// D175 uncapped it. So the forms were right, the source they are supposed
+// to be derived from was not, and anyone re-answering a form from it would
+// have under-declared: the direction SHIP-CHECKLIST calls the one that
+// gets an app pulled.
+//
+// That paragraph is itself a record of the SAME error made once before,
+// in the same direction. Twice is a pattern, and a pattern is what a gate
+// is for.
+if (reduced === "false") {
+  const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
+  // The CONCLUSION, not the whole paragraph. That paragraph is partly a
+  // record of the two times this went wrong, so it quotes the wordings it
+  // replaced — and a rule reading the whole thing fires on the history it
+  // is written to prevent repeating. Measured: it did, on the very commit
+  // that corrected it.
+  const para = /What is true today[\s\S]{0,1500}?App Functionality, optional\.\*\*/.exec(inv)?.[0];
+  if (!para) {
+    errors.push(
+      "docs/data-inventory.md: could not find the Location paragraph's "
+      + "\"What is true today\" conclusion. It is what a store form is answered from, "
+      + "so this rule cannot be silently skipped — fix the pattern.",
+    );
+  } else if (!/\bPrecise\b/.test(para)) {
+    errors.push(
+      "iOS asks for a PRECISE fix, and docs/data-inventory.md's Location "
+      + "paragraph does not say Precise. The store forms are answered FROM "
+      + "that file, so it under-declares even while the forms are right — "
+      + "which is exactly what that paragraph's own history records.",
+    );
+  } else if (/maxSdkVersion=?.?30/.test(para)) {
+    errors.push(
+      "docs/data-inventory.md still describes ACCESS_FINE_LOCATION as capped "
+      + "at maxSdkVersion 30. D175 uncapped it, and the manifest line says so "
+      + "in its own comment.",
+    );
+  }
+}
+
 if (privacy.tracking?.used !== false) {
   errors.push(
     "app-privacy.json has tracking.used !== false.\n"
