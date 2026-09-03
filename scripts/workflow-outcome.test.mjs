@@ -64,10 +64,37 @@ function tolerant(src, id) {
   return !!block && /continue-on-error:\s*true/.test(block.head + block.body);
 }
 
-// A status function anywhere in the condition displaces the implicit
-// success(). `cancelled()` counts: it is a deliberate choice about when
-// the step runs, not an oversight.
-const NAMES_STATUS = /\b(?:failure|always|cancelled|success)\s*\(\s*\)/;
+// A status function anywhere in the condition DISPLACES the implicit
+// success(), which is what makes the step reachable when the outcome it
+// reads is 'failure'.
+//
+// `success()` IS THE IMPLICIT CONDITION, so it displaces nothing. This
+// alternation listed it, which meant the gate written to catch this exact
+// defect passed it verbatim when spelled `if: ${{ success() && steps.gate.outcome == 'failure' }}`
+// — byte-for-byte as unreachable as the bug it was written for, and
+// called reachable. Measured: that spelling passed 3/3 before this line
+// changed. My own, from the commit that added the gate.
+//
+// `cancelled()` stays, and the difference is real rather than a judgement
+// call: it is a genuine status function that replaces the implicit
+// success(), so a step carrying it does run on a failed predecessor. It
+// is a deliberate choice about when the step runs, not an oversight.
+const NAMES_STATUS = /\b(?:failure|always|cancelled)\s*\(\s*\)/;
+
+describe("which status functions count as displacing the implicit success()", () => {
+  // The alternation above is one line and grew wrong once already, so it
+  // is pinned rather than trusted.
+  it("accepts the three that really displace it", () => {
+    for (const cond of ["failure()", "always()", "cancelled()", "!cancelled()", "success() || failure()"]) {
+      expect(NAMES_STATUS.test(cond), `${cond} should count as a status function`).toBe(true);
+    }
+  });
+  it("rejects success(), which IS the implicit condition", () => {
+    expect(NAMES_STATUS.test("success() && steps.gate.outcome == 'failure'"),
+      "success() displaces nothing — a step carrying it is skipped exactly when the outcome it reads is 'failure'").toBe(false);
+    expect(NAMES_STATUS.test("steps.gate.outcome == 'failure'")).toBe(false);
+  });
+});
 
 describe("a step that reads another step's outcome", () => {
   it("finds outcome readers at all — the scan must not pass vacuously", () => {
