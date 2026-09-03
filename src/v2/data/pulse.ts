@@ -545,6 +545,12 @@ export const PULSE = {
   steps(pid: string): PulseStep[] { return stepsOf(pid); },
   /** Live: the bank arrived and a card can render. Demo: always. */
   ready(): boolean { return !LIVE.enabled || roster().length > 0; },
+  /** The 21-day window has LANDED — which `aggFor` cannot say, because it
+   * answers null for "fetched, nobody answered" and "never fetched" alike
+   * and the reading folds both into a confident zero. Demo has no window
+   * to land: `scope()` serves DEMO_SCOPES and `ensureTrend` returns at its
+   * first line, so the reading is complete the moment it renders. */
+  trendReady(pid: string): boolean { return !LIVE.enabled || !!trendAggs[pid]; },
   days, scope, streak, fmtN,
   word(pid: string, v: number): string { return stepsOf(pid).find((s) => s.v === v)?.label ?? ""; },
   /** Today's crowd split as percentages — live from today's per-day agg

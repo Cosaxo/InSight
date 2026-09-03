@@ -197,10 +197,18 @@ function LivePrivacyPanel() {
             fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, color: "var(--ink-2)",
           }}>
             {LIVE.myFace() ? "Replace" : "Add photo"}
-            {/* A plain file input rather than a camera plugin: it opens the
-                photo library on iOS and Android inside the WebView, needs
-                no new native permission, and adds nothing to the store
-                forms beyond the photo itself. */}
+            {/* A plain file input rather than a camera plugin — but NOT,
+                as this comment used to say, one that "opens the photo
+                library and needs no new native permission". WebKit builds
+                the upload sheet from `accept`, and image MIME types make
+                it offer Take Photo, presented in-process with no check for
+                a purpose string; iOS then terminates the app on the tap.
+                Info.plist carries NSCameraUsageDescription and
+                NSPhotoLibraryUsageDescription for exactly that, with the
+                mechanism written out beside them. Android genuinely needs
+                no permission for a file input, which is why its manifest
+                says what it says. Nothing new reaches the store forms: the
+                datum is the same optional photo already declared. */}
             <input type="file" accept="image/jpeg,image/png,image/webp"
               style={{ display: "none" }}
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void pickPhoto(f); }} />

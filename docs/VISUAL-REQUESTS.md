@@ -38,30 +38,71 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ### 1 · Trait-axis directions on the patterns Map
 
+**Re-aimed 2026-09-02** at the ring the current vision draws
+(`VISUAL-VISION.md`; `VISION-2026-09-02.md` §1.2, built). What the
+request wants is unchanged — *the axes exist to be connected*, drawn on
+data that publishes today — and where it can be drawn is not: the plane
+this was written against is retired, and on a ring an axis cannot be a
+direction. The version below is the whole request, re-stated; the plane
+version is in this file's history.
+
 - **asked by** — the program plan, 2026-09-02, ahead of the axes
   build lane reaching step 1.4; the theory it serves is AXES-PLAN §2.
-- **surface** — the **patterns** tab, Map lens: the constellation of
-  core questions placed by how much each answer predicts the others
-  (D215's shapes, `design/standalone-2026-08-20/`). The directions are
-  drawn *in* that plane, not on a new screen.
+- **surface** — the **patterns** tab, Map lens as it is built: every core
+  question a dot on a rim, grouped by topic (the group's own arc outside
+  it), a tie a chord bundled through the middle, the hub carrying how
+  many you have answered (`ui/PatternsMap.tsx`,
+  `design/standalone-2026-09-02/question-map.jsx`). An axis is drawn
+  **in that field**, not on a new screen.
+- **the shape the ring asks for, and what it costs** — position on the
+  rim is topic membership, so an axis cannot be an arrow through the
+  plane. Three grammars fit the field it is; the design picks one, and
+  the request states the trade rather than hiding it:
+  1. **A leaning set.** The axis is a label above the field; tapping it
+     lights the questions whose loadings lean with it and recedes the
+     rest, thickening the chords between them. Reads as "these
+     questions are what Openness is made of" — true of the data, and it
+     never claims a geometry the ring does not have.
+  2. **An inner arc.** The axis becomes a band drawn INSIDE the rim,
+     spanning the questions that lean with it, in its own hue — several
+     axes as concentric arcs. Says the same thing plus how much of the
+     ring each axis covers; costs the field's quietest area, which the
+     hub and the callout share today.
+  3. **A polarity split.** The lit questions divide by the SIGN of their
+     loading — with the axis and against it — drawn as two arcs, or as
+     the chords between the two halves. The most informative and the
+     easiest to misread as a left/right politics of the question bank;
+     it needs the copy to carry the sign in words.
+  Whichever is drafted, the beacon, the callout and the tie card keep
+  their places: an axis is a LENS ON the ring, never a second ring.
 - **data and basis** — the `axes:` block the nightly fit would
   publish beside the `q:` rows of `v2_patterns/loadings` (AXES-RUNBOOK
   1.1–1.2): per trait axis a direction vector in the same K-space, its
-  `n`, its fit quality. An absent block draws nothing (D1); a
-  per-column fit-quality floor takes an axis back off the map (1.5).
-- **states** — no block: the Map as today; block present: labelled
-  directions ("Openness points this way; these questions lean with
-  it"), each with its basis reachable; demo: never, the block is live
-  only.
-- **interaction** — tap an axis label: the questions leaning with it
-  light, the rest recede; tap again to release; the bottom card states
-  the basis in words the way the tie panel does ("drawn from the
-  crowd's latest answers").
-- **vocabulary** — `ui/PatternsMap.tsx`, `ui/patterns.css`, the 08-26
-  polish (labels centred by grid row, the `.or-cap` one-line key).
+  `n`, its fit quality. "Leans with it" is that vector against each
+  question's own loading — a cosine the device already has everything
+  for (`data/patternsMap.ts`'s `simOf` is the same arithmetic). An
+  absent block draws nothing (D1); a per-column fit-quality floor takes
+  an axis back off the map (1.5).
+- **states** — no block: the Map exactly as it is today; block present:
+  the axis offered above the field, unlit until asked for; lit: the
+  leaning questions and their chords at full voice, everything else at
+  the ring's resting whisper; demo: never — the block is live only, like
+  every other thing this tab draws.
+- **interaction** — tap an axis: its questions light, the rest recede,
+  and the card underneath states the basis in words the way the tie card
+  does ("drawn from the crowd's latest answers · N answers behind this
+  axis"). Tap again to release. The horizontal drag still belongs to the
+  tab's own axis (`VISION-2026-09-02` §1.5), so an axis control must not
+  be a swipeable rail.
+- **vocabulary** — `ui/PatternsMap.tsx` and the `.ln-*` instrument in
+  `ui/patterns.css` (the shared field: a title, one plain sentence, a
+  legend in words, the dusk palette on `--ln-*` tokens); the two
+  palettes of D302; the copy rule D182.
 - **constraints** — zero extra reads (the block rides the loadings
-  document already fetched); labels must not collide with the
-  declutter pass; 44 px tap targets on the labels.
+  document already fetched); the ring's own labels are placed by a
+  fitting rule and an axis label must not collide with them; 44 px tap
+  targets; and the field is one square — an axis grammar that needs a
+  second field is not this request.
 - **why** — *"the axes exist to be connected"* (charter §1); AXES-PLAN
   §2: "That is the owner's sentence, drawn, on data that publishes
   today."

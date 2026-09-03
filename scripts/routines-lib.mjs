@@ -407,7 +407,9 @@ export function renderRecreate(manifest, readFile) {
     }
     out.push("");
   }
-  const notHere = manifest.routines.filter((r) => ["not-in-repo", "other-branch"].includes(resolvePrompt(r, readFile).status));
+  // A disabled Routine is not to be recreated, so a prompt it never had
+  // (the production reader, a workflow since D359) is not a gap.
+  const notHere = manifest.routines.filter((r) => r.state !== "disabled" && ["not-in-repo", "other-branch"].includes(resolvePrompt(r, readFile).status));
   out.push("## Not yet recreatable from this branch");
   out.push("");
   out.push("A Routine whose stored prompt was never written down as a block, or");

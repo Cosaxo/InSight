@@ -263,6 +263,14 @@ const fmtDay = (iso) => (iso ? String(iso).slice(0, 10) : "?");
 const fmtTime = (iso) => (iso ? `${String(iso).slice(11, 16)} UTC ${String(iso).slice(0, 10)}` : "?");
 
 export function rowLine(row, { box = true } = {}) {
+  // The tick is drawn from the LABELS, which only move on success — so a
+  // failed label call would re-render the row unticked and erase the
+  // owner's decision from the file. That is closed one level up rather
+  // than here: `holdsTheList` (console.mjs) refuses to rewrite either
+  // surface at all while any tick is unapplied, so this function is never
+  // asked to draw a row whose label call failed. The other shift closed
+  // the same door here instead, by passing the unapplied keys down and
+  // drawing them ticked; both work, and only one of them can be the path.
   const tick = isTicked(row) ? "x" : " ";
   const head = box ? `- [${tick}] ` : "- ";
   if (row.kind === "branch") {
@@ -382,7 +390,64 @@ export function sections(text) {
 const items = (body, box) =>
   String(body || "").split("\n").filter((l) => new RegExp(`^\\s*- \\[${box}\\] `).test(l)).map((l) => l.replace(/^\s*- \[.\] /, "").trim());
 
+// THE SIX LIST FILES ARE DRAWN AS ABSENT, NEVER AS A ZERO.
+//
+// The console page promises exactly that in its own preamble, and until
+// now it was the one thing the code did not do: `read()` returns null for
+// a file that is not on main, `collect()` turned that into `""`, and an
+// empty string parses cleanly to zero of everything. So a console with no
+// list files at all printed "0 axioms", "requested 0 · planned 0", "(none
+// open)" — and then, at the foot, "Sources that did not answer this run:
+// none". Every panel a confident lie, and the one line that exists to
+// catch that saying all was well.
+//
+// The heading case is the one that actually bites, because the file IS
+// there and nobody suspects it: rename "## Open" in PERMISSIONS.md and the
+// panel goes to "(none open)" with the permissions still sitting in the
+// file underneath. So this asks two questions, not one — is the text
+// there, and do any of the headings the parser needs still exist — and
+// `collect()` answers both by handing the panel a null.
+//
+// The names here are the section titles the parsers below actually read,
+// and every one of them must be present — see `listProblem`. Change a
+// heading in one of these files and change it here too, or the check
+// stops seeing its own file. OWNER-LIST.md has no fixed names (every
+// section is a block the owner may name), so an empty section map is all
+// there is to go on there.
+export const LIST_SECTIONS = {
+  "docs/WORKLIST.md": ["Open", "In flight", "Parked (needs the owner)"],
+  "docs/OWNER-LIST.md": null,
+  "docs/AXIOMS.md": ["operational", "explored", "proposed"],
+  "docs/VISUAL-REQUESTS.md": ["Requested", "Planned", "Drafted", "Designed", "Built"],
+  "docs/PERMISSIONS.md": ["Open", "Granted"],
+};
+
+/**
+ * Null when the file can be trusted; a reason for `missing` when it cannot.
+ * `text` is `read()`'s return, so null means the file is not there.
+ */
+export function listProblem(file, text) {
+  if (text == null) return `${file} (not on main)`;
+  const have = sections(text);
+  if (!have.size) return `${file} (no \`## \` sections)`;
+  // EVERY named section, not just one of them. `some` was the first
+  // draft and it left the bug half-open: rename "## Open" in
+  // PERMISSIONS.md, leave "## Granted" alone, and the file still looked
+  // fine while the panel printed "(none open)" over nine live requests.
+  // Each name below is a whole panel, so one gone is one confident zero.
+  //
+  // The cost is that deleting a section on purpose — an empty "Drafted",
+  // say — makes the console say it could not read the file. That is the
+  // right way round: loud and one word to fix, against silent and
+  // indistinguishable from a real zero.
+  const want = LIST_SECTIONS[file] || [];
+  const gone = want.filter((n) => !have.has(n));
+  if (gone.length) return `${file} (no ${gone.map((n) => `\`## ${n}\``).join(", no ")} section)`;
+  return null;
+}
+
 export function parseWorklist(text) {
+  if (text == null) return null;
   const s = sections(text);
   const open = items(s.get("Open"), " ").map((t) => {
     const m = /\[(claude-[123])\]/.exec(t);
@@ -395,11 +460,48 @@ export function parseWorklist(text) {
 }
 
 export function parseOwnerList(text) {
+  if (text == null) return null;
   const s = sections(text);
   const out = {};
   for (const [name, body] of s) {
     if (/^(How|The shape)/.test(name)) continue;
-    out[name] = { open: items(body, " ").concat(items(body, " ")).slice(0, items(body, " ").length), done: items(body, "x").length };
+    // `doneRows` as well as the count, and that is not tidiness: the fold
+    // filters its candidates against what the owner has ALREADY SAID BY
+    // HAND, and a row the owner TICKED was invisible to that filter — so
+    // it was regenerated as `- [ ]` and the whole block replaced, which
+    // un-ticked the owner within two hours of them ticking. The comment on
+    // foldOwnerList promised the opposite: "a generated row the owner
+    // ticked disappears from the next fold (it is done)."
+    //
+    // (The expression here was `items(…).concat(items(…)).slice(0, len)`
+    // — a no-op that reads like this was half-intended once.)
+    const open = items(body, " ");
+    const doneRows = items(body, "x").concat(items(body, "X"));
+    // `hand` — WHAT THE OWNER ACTUALLY SAID, which is not the same set as
+    // "every row in the section", and conflating the two made the console
+    // delete this file's Store-and-legal block on every other run for as
+    // long as it has been running.
+    //
+    // The fold filters its candidates against `hand`. When `hand` was the
+    // whole body it included the fold's OWN last output, so all 22
+    // generated rows counted as already-listed, the fold produced nothing,
+    // and the block was replaced with emptiness. The run after that saw a
+    // file without them and put all 22 back. Measured on the real file:
+    // 22, 0, 22, 0 — and every console commit on main alternates the same
+    // way, so the owner's list of what only they can do is empty half the
+    // time while 22 launch steps sit open in the runbook.
+    //
+    // So hand rows are the ones OUTSIDE the generated block — plus any
+    // TICKED row inside it, because ticking is the owner's own act
+    // wherever the row lives, and dropping those would re-open the door
+    // that un-ticked them (the comment above).
+    const outside = body.split(FOLD_BEGIN).map((p, i) => (i === 0 ? p : p.slice(p.indexOf(FOLD_END) + 1))).join("\n");
+    const inside = [...String(body || "").matchAll(new RegExp(`${FOLD_BEGIN}([\\s\\S]*?)${FOLD_END}`, "g"))].map((m) => m[1]).join("\n");
+    const hand = [
+      ...items(outside, " "), ...items(outside, "x"), ...items(outside, "X"),
+      ...items(inside, "x"), ...items(inside, "X"),
+    ];
+    out[name] = { open, doneRows, done: doneRows.length, hand };
   }
   return out;
 }
@@ -409,6 +511,7 @@ const tableRows = (body) =>
     .map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
 
 export function parseAxioms(text) {
+  if (text == null) return null;
   const s = sections(text);
   const out = {};
   for (const status of ["operational", "explored", "proposed"]) {
@@ -419,6 +522,7 @@ export function parseAxioms(text) {
 }
 
 export function parseVisualRequests(text) {
+  if (text == null) return null;
   const s = sections(text);
   const out = {};
   for (const status of ["Requested", "Planned", "Drafted", "Designed", "Built"]) {
@@ -429,6 +533,7 @@ export function parseVisualRequests(text) {
 }
 
 export function parsePermissions(text) {
+  if (text == null) return null;
   const s = sections(text);
   return { open: tableRows(s.get("Open")).map((r) => clean(r[0] || "")), granted: tableRows(s.get("Granted")).length };
 }
@@ -575,6 +680,22 @@ export function notAlreadyListed(handRows, candidates) {
 // ── the trail ───────────────────────────────────────────────────────
 export const isoDay = (d = new Date()) => new Date(d).toISOString().slice(0, 10);
 
+/**
+ * May the merge list be rewritten from this run's rows?
+ *
+ * Two questions, and treating them as one is how the third door opened.
+ * `ok` says the open-PR listing answered. `rowsComplete` says the row set
+ * is ALL of it — a failed branch listing or a failed per-branch compare
+ * leaves `ok` true and the rows short, and rewriting then drops those rows
+ * and the owner's ticks on them.
+ *
+ * Exported for the same reason `holdsTheList` is: the decision is one
+ * boolean in a script that cannot be run without a token, so the only way
+ * it can be executed at all is as a function.
+ */
+export const listIsWritable = ({ ok, rowsComplete, mergedOk }) =>
+  !!ok && rowsComplete !== false && mergedOk !== false;
+
 export function trailRow(state) {
   const rows = state.rows || [];
   const prs = rows.filter((r) => r.kind === "pr" && !r.selfMerge);
@@ -586,14 +707,22 @@ export function trailRow(state) {
     prsInShift: state.github.ok ? count("shift") : null,
     prsReady: state.github.ok ? count("ready") : null,
     prsBlocked: state.github.ok ? count("blocked") : null,
-    noPrYet: state.github.ok ? rows.filter((r) => r.kind === "branch").length : null,
+    // `listIsWritable`, not `ok` — the trail is the only record of what the
+    // program looked like on a given day, so a branch count taken from a
+    // row set the run itself declared short is a real zero nobody can tell
+    // from an empty one. That is the rule the console's own header states
+    // and the one a commit four earlier put back; this writer never asked.
+    noPrYet: listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete }) ? rows.filter((r) => r.kind === "branch").length : null,
     mergedWeek: state.github.ok ? (state.merged || []).length : null,
-    worklist: state.worklist.byTag,
-    inFlight: state.worklist.inFlight.length,
-    ownerOpen: Object.values(state.owner).reduce((n, s) => n + s.open.length, 0),
-    permissionsOpen: state.permissions.open.length,
-    axioms: { operational: state.axioms.operational.length, explored: state.axioms.explored.length, proposed: state.axioms.proposed.length },
-    visuals: Object.fromEntries(Object.entries(state.visuals).map(([k, v]) => [k, v.length])),
+    // Null, not zero, for the same reason the GitHub fields above are:
+    // the trail is the only record of what the program looked like on a
+    // given day, and a zero there is indistinguishable from a real one.
+    worklist: state.worklist ? state.worklist.byTag : null,
+    inFlight: state.worklist ? state.worklist.inFlight.length : null,
+    ownerOpen: state.owner ? Object.values(state.owner).reduce((n, s) => n + s.open.length, 0) : null,
+    permissionsOpen: state.permissions ? state.permissions.open.length : null,
+    axioms: state.axioms ? { operational: state.axioms.operational.length, explored: state.axioms.explored.length, proposed: state.axioms.proposed.length } : null,
+    visuals: state.visuals ? Object.fromEntries(Object.entries(state.visuals).map(([k, v]) => [k, v.length])) : null,
     theoryClaims: state.theory ? state.theory.byStatus : null,
     runwayDays: state.pulse?.runwayDays ?? null,
     mainCi: state.github.ok ? state.mainCi?.state ?? null : null,
@@ -607,6 +736,12 @@ export function mergeTrail(prior, row) {
 
 // ── the console page ────────────────────────────────────────────────
 export const ARTIFACT_LINE = /^\*\*Console artifact:\*\*/;
+
+// A panel whose file the console could not read. Not "(none)", not a
+// zero: the foot of the page names the file and the reason, and this
+// points at it, so a drifted heading reads as a broken pipe rather than
+// as an empty list.
+const unread = (file) => `*\`${file}\` could not be read this run — see the sources line at the foot. No count is drawn rather than a zero.*`;
 
 export function renderConsole(state, priorBody = "") {
   const L = [];
@@ -623,7 +758,8 @@ export function renderConsole(state, priorBody = "") {
   L.push("## Today — only you can do these · `docs/OWNER-LIST.md`");
   const owner = state.owner || {};
   const counts = Object.entries(owner).filter(([n]) => n !== "Done").map(([n, s]) => `${s.open.length} ${n.toLowerCase()}`);
-  L.push(counts.length ? counts.join(" · ") : "*the owner list is not on main*");
+  if (!state.owner) L.push(unread("docs/OWNER-LIST.md"));
+  else L.push(counts.length ? counts.join(" · ") : "*(nothing open)*");
   for (const [name, s] of Object.entries(owner)) {
     if (name === "Done" || !s.open.length) continue;
     L.push(`**${name}**`);
@@ -659,13 +795,16 @@ export function renderConsole(state, priorBody = "") {
   // To-do
   L.push("## To-do · `docs/WORKLIST.md`");
   const w = state.worklist;
-  L.push("| Account | Open | In flight |");
-  L.push("| --- | ---: | --- |");
-  for (const acc of ["claude-1", "claude-2", "claude-3"]) {
-    const fl = w.inFlight.filter((i) => i.toLowerCase().includes(acc));
-    L.push(`| ${acc} | ${w.byTag[acc] || 0} | ${fl.length ? fl.map((i) => trunc(i, 80)).join("; ") : "—"} |`);
+  if (!w) L.push(unread("docs/WORKLIST.md"));
+  else {
+    L.push("| Account | Open | In flight |");
+    L.push("| --- | ---: | --- |");
+    for (const acc of ["claude-1", "claude-2", "claude-3"]) {
+      const fl = w.inFlight.filter((i) => i.toLowerCase().includes(acc));
+      L.push(`| ${acc} | ${w.byTag[acc] || 0} | ${fl.length ? fl.map((i) => trunc(i, 80)).join("; ") : "—"} |`);
+    }
+    if (w.parked) L.push(`Parked, needing you: ${w.parked}`);
   }
-  if (w.parked) L.push(`Parked, needing you: ${w.parked}`);
   L.push("");
 
   // Routine health
@@ -708,14 +847,18 @@ export function renderConsole(state, priorBody = "") {
   // Axiom board
   L.push("## Axiom board · `docs/AXIOMS.md`");
   const a = state.axioms;
-  for (const s of ["operational", "explored", "proposed"]) L.push(`- **${s}** (${a[s].length}): ${a[s].join(" · ") || "—"}`);
+  if (!a) L.push(unread("docs/AXIOMS.md"));
+  else for (const s of ["operational", "explored", "proposed"]) L.push(`- **${s}** (${a[s].length}): ${a[s].join(" · ") || "—"}`);
   L.push("");
 
   // Visuals
   L.push("## Visual requests · `docs/VISUAL-REQUESTS.md`");
   const v = state.visuals;
-  L.push(Object.entries(v).map(([k, list]) => `${k} ${list.length}`).join(" · "));
-  for (const title of v.requested || []) L.push(`- requested: ${title}`);
+  if (!v) L.push(unread("docs/VISUAL-REQUESTS.md"));
+  else {
+    L.push(Object.entries(v).map(([k, list]) => `${k} ${list.length}`).join(" · "));
+    for (const title of v.requested || []) L.push(`- requested: ${title}`);
+  }
   L.push("");
 
   // Production
@@ -730,7 +873,9 @@ export function renderConsole(state, priorBody = "") {
 
   // Permissions
   L.push("## Permissions · `docs/PERMISSIONS.md`");
-  L.push(state.permissions.open.length ? `${state.permissions.open.length} open: ${state.permissions.open.map((n) => trunc(n, 60)).join(" · ")}` : "*(none open)*");
+  L.push(!state.permissions ? unread("docs/PERMISSIONS.md")
+    : state.permissions.open.length ? `${state.permissions.open.length} open: ${state.permissions.open.map((n) => trunc(n, 60)).join(" · ")}`
+    : "*(none open)*");
   L.push("");
 
   // main

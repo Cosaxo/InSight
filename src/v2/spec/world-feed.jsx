@@ -318,6 +318,21 @@ const wfFrAv = (f, D, k) => (
 );
 const wfFrNone = (txt) => <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>{txt}</div>;
 
+// The nine shapes a feed card can take, in the words a reader would use.
+// Drawn in the kicker beside the topic (2026-09-02) — a card announces
+// what it is asking for rather than making you discover it on tap.
+const WF_FORM_WORD = {
+  duel: 'this or that',
+  rank: 'rank',
+  rate: 'rate',
+  dial: 'dial',
+  field: 'place it',
+  know: 'learn',
+  pick: 'pick one',
+  predict: 'predict',
+  read: 'read the room',
+};
+
 class WorldFeed extends React.Component {
   state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
 
@@ -897,7 +912,24 @@ class WorldFeed extends React.Component {
     const total = dist.reduce((a, b) => a + b, 0);
     if (!total) return (q.lo + q.hi) / 2;
     let acc = 0;
-    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketMid(q, i); }
+    // `dialBucketShown`, NOT `dialBucketMid` — the same correction
+    // `dialVal` carries, and the reason is written out in full above it:
+    // when (hi-lo)/12 is a whole number every midpoint ends in .5 and
+    // half-up rounding lands on the TOP EDGE of its own bucket. So your
+    // own answer went through the corrected function and the crowd's
+    // through the raw midpoint, one line apart on the same card: you say
+    // 3 h, the card says "most say 4 h", out of the SAME bucket.
+    //
+    // That reasoning was written when the fix went into `dialVal`, and
+    // this is the other half of it. NO COUNT HERE, deliberately: the
+    // sentence carried over said "22 bucket-readings across the four
+    // dials whose step is a whole unit", which was the figure for the
+    // dial the original fix was measured on — the shipped bank now has 19
+    // dials, ONE with a whole-unit step, and 212 bucket-readings where
+    // the midpoint and the shown value differ. A count in a comment is
+    // the documentation error this repo keeps re-committing, and
+    // `dial-bucket.test.jsx` holds the real relationship off the tree.
+    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketShown(q, i); }
     return (q.lo + q.hi) / 2;
   }
   // one by-cell (optionIdx → count) read as a dial: how many, and where
@@ -1027,20 +1059,36 @@ class WorldFeed extends React.Component {
     const path = this.dialPath(dist, W, H);
     const frac = (v - lo) / (hi - lo);
     const medFrac = (med - lo) / (hi - lo);
+    // NO COUNTS, NO CROWD. `dialDist` adds your own bucket back so the
+    // curve is never empty right after you answer — which on a card
+    // nobody else has answered leaves a distribution of exactly ONE, and
+    // the dial drew it as a full-height curve labelled "How everyone
+    // answered", with a dashed median and a "most say" line quoting your
+    // own number back at you as the crowd's.
+    //
+    // `noCountsYet` is the flag for this and every other shape on this
+    // card already reads it — the tiles suppress their percentages and
+    // draw `renderFloorNote`, the bars the same. The dial path never
+    // asked. So it asks now, and says the same thing they do. (Two line
+    // numbers stood here and pointed at `renderMeta` instead; grep the
+    // name, which is what a citation is for.)
+    const noCrowd = !!(q.live && q.noCountsYet);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: WPAL.ink(T.color), fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, v)}</span>
           <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>you</span>
-          <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>
+          {noCrowd ? null : <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>}
         </div>
-        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
-          <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>
-          <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>
-          <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>
-          <circle cx={frac * W} cy={this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
+        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={noCrowd ? 'Where you answered, ' + endTxt[0] + ' to ' + endTxt[1] : 'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
+          {noCrowd ? null : <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>}
+          {noCrowd ? null : <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>}
+          {noCrowd ? null : <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>}
+          <line x1={0} y1={H - 1} x2={W} y2={H - 1} stroke="var(--rule)" strokeWidth="1"></line>
+          <circle cx={frac * W} cy={noCrowd ? H - 8 : this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
         </svg>
         <div style={ends}><span>{endTxt[0]}</span><span>{endTxt[1]}</span></div>
+        {noCrowd ? this.renderFloorNote(big) : null}
       </div>
     );
   }
@@ -1551,14 +1599,26 @@ class WorldFeed extends React.Component {
                 0%" on the option they just picked. */}
             {LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-                {src === 'measured'
-                  ? (() => {
-                    const n = tally ? tally.total : 0;
-                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
-                    if (n === 1) return 'Yours is the only answer so far.';
-                    return 'From ' + n.toLocaleString() + ' first tries.';
-                  })()
-                  : 'You’re the first.'}
+                {/* THREE SOURCES, NOT TWO. This branched on 'measured'
+                    alone, so 'loading' — a crowd read still in the air —
+                    fell into the same arm as 'none' and the footer under
+                    the answer you just tapped said "You're the first."
+                    about a card thousands have answered.
+
+                    D125's fourth source was added for exactly this and
+                    reached the who-knows-this sheet and the Map's learn
+                    card; this line is the one its commit message named
+                    and its diff did not touch. */}
+                {src === 'loading'
+                  ? 'Counting\u2026'
+                  : src === 'measured'
+                    ? (() => {
+                      const n = tally ? tally.total : 0;
+                      if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
+                      if (n === 1) return 'Yours is the only answer so far.';
+                      return 'From ' + n.toLocaleString() + ' first tries.';
+                    })()
+                    : 'You’re the first.'}
               </div>
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
@@ -1950,10 +2010,19 @@ class WorldFeed extends React.Component {
     // LIVE.editVote instead of the create-only vote().
     const editing = mine != null && !!this.state.editFor[q.id];
     if (mine == null || editing) {
+      // one split ballot, the daily's own grammar (2026-09-02): two sides
+      // side by side divided by a hairline seam — the seam is what moves
+      // to the crowd's split once you vote — and three or more stack as
+      // rows inside the same block. The dot carries the option's hue; the
+      // ground is neutral, so the revealed tiles are the payoff.
+      const two = q.options.length === 2;
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: two ? '1fr 1fr' : '1fr', gap: 2, height: two ? (big ? 84 : 68) : undefined, borderRadius: big ? 20 : 16, overflow: 'hidden', background: 'var(--rule)', border: WF_LINE }}>
           {q.options.map((o, i) => (
-            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ border: (editing && mine === i ? '1.5px' : '1px') + ' solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))', borderRadius: big ? 16 : 12, background: 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface))', boxShadow: 'none', padding: big ? '15px 16px' : '11px 14px', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, color: 'var(--ink)', WebkitAppearance: 'none' }}>{o.label}{editing && mine === i && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{' · your pick'}</span>}</button>
+            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ minHeight: big ? 52 : 44, border: 'none', borderRadius: 0, background: editing && mine === i ? 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface-2))' : 'var(--surface-2)', boxShadow: 'none', padding: big ? '0 16px' : '0 13px', display: 'flex', flexDirection: two ? 'column' : 'row', alignItems: two ? 'flex-start' : 'center', justifyContent: 'center', gap: two ? 7 : 11, textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, letterSpacing: '-0.01em', color: 'var(--ink)', WebkitAppearance: 'none' }}>
+              <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: this.opts.v2 ? T.color : wfOpt(T.color, i, q.options.length), flexShrink: 0 }}></span>
+              <span style={{ textWrap: 'pretty' }}>{o.label}{editing && mine === i && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{' · your pick'}</span>}</span>
+            </button>
           ))}
         </div>
       );
@@ -1977,15 +2046,28 @@ class WorldFeed extends React.Component {
     const mine = this.state.votes[q.id];
     const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     const n = q.options.length;
     const v2 = this.opts.v2;
     const sides = q.live ? [] : this.friendSides(q, q.options.map((o) => o.count));
-    // one row budget per option, so two options do not tower over four
-    const H = (big ? 58 : 46) * n + (n - 1) * 7;
+    // one row budget per option, so two options do not tower over four.
+    // Two sides keep the ballot's own row: the seam sits at the crowd's
+    // split, so their share is a width and the height is fixed.
+    const two = n === 2;
+    const H = two ? (big ? 112 : 92) : (big ? 58 : 46) * n + (n - 1) * 7;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 9, animation: !v2 && fresh ? 'popIn .32s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, height: H }}>
+        <div style={{ display: 'flex', flexDirection: two ? 'row' : 'column', gap: 7, height: H }}>
           {q.options.map((o, i) => {
             // v2: one hue per card. Tint strength tracks share, so 52/48 reads
             // as 52/48 and not as two differently-coloured teams.
@@ -1993,13 +2075,17 @@ class WorldFeed extends React.Component {
             const tint = 8 + 24 * (p[i] / (maxP || 1));
             const isMine = mine === i;
             const fr = sides.filter((f) => f.oi === i);
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             return (
-              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 }}>
-                    <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
-                    {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>{'· you'}</span>}
+              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, minWidth: 0, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
+                <div style={two
+                  ? { height: '100%', display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-start', justifyContent: 'center', gap: 3, padding: big ? '0 16px' : '0 12px' }
+                  : { height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flex: two ? 'none' : 1, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? (two ? 16 : 19) : (two ? 13.5 : 15), letterSpacing: '-0.02em' }}>{o.label}</span>
+                    {/* your mark is a stamp, not a footnote — "· you" beside
+                        a label read as punctuation at a glance */}
+                    {isMine && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: 'var(--ink)', color: 'var(--surface-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>you</span>}
                   </div>
                   {/* Friend marks: DEMO CARDS ONLY (the `sides` gate above —
                       WF_FRIENDS are invented, and on a live card this would
@@ -2087,8 +2173,17 @@ class WorldFeed extends React.Component {
   renderVoteBars(q, T, big) {
     const mine = this.state.votes[q.id];
     const counts = q.options.map((o) => o.count);
-    const { p } = wfPcts(counts, mine);
-    const maxP = Math.max(...p);
+    const { p, c } = wfPcts(counts, mine);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     // selfOnly (D50): the fill width IS the share in a different alphabet
     // (D11's phrase, same reasoning), so it is gated together with the
@@ -2102,7 +2197,7 @@ class WorldFeed extends React.Component {
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {c[i] === maxN && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
@@ -2115,10 +2210,19 @@ class WorldFeed extends React.Component {
   renderDuel(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
-    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const fresh = this._fresh === q.id;
     const v2 = this.opts.v2;
-    const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     // Below the floor there is no share to draw, and the fill height IS the
     // share — so the fill and the numeral are gated together. Drawing one
     // without the other would publish the split geometrically instead of
@@ -2142,7 +2246,7 @@ class WorldFeed extends React.Component {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {q.options.map((o, i) => {
             const chosen = mine === i;
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             // v2 drops the generated tile art for one quiet ground — the fill
             // is the only ink that moves, so it has to be the only thing there
             const bg = v2 ? 'var(--surface-2)' : wfTileArt(T.color, q.id);
@@ -3269,7 +3373,7 @@ class WorldFeed extends React.Component {
               cases here are a measurement, the demo's authored figure, and
               a live card nobody else has answered \u2014 which says so rather
               than printing a number nobody measured. */}
-          <span style={{ flex: 1, minWidth: 0 }}>{p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{rate.src === 'loading' ? 'Counting\u2026' : p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
           {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
         </div>
         {/* The cuts' honest absence, in the sheet that was built to hold
@@ -3827,7 +3931,12 @@ class WorldFeed extends React.Component {
             question is in every other respect an ordinary question. */}
         {q.sponsor
           ? <SponsorMark sponsor={q.sponsor} until={q.until}></SponsorMark>
-          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? WPAL.ink(T.color) : 'var(--ink-2)', background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>}
+          // The kicker names the topic; when it is NOT a sponsor mark it
+          // also names the card's FORM in words (2026-09-02) — "this or
+          // that", "rank", "place it". The feed serves nine shapes and a
+          // reader met each one by discovering it; a sponsor mark keeps
+          // the pill it needs and says nothing else.
+          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: mk ? 12.5 : 10.5, fontWeight: mk ? 600 : 800, letterSpacing: mk ? 0 : '.09em', textTransform: mk ? 'none' : 'uppercase', color: WPAL.ink(T.color), background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: mk ? `0.5px solid color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'none', borderRadius: 999, padding: mk ? '4px 12px 4px 10px' : 0, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}{!mk && q.type && q.type !== 'vote' ? <span style={{ color: 'var(--ink-3)' }}>{'\u00b7 ' + (WF_FORM_WORD[q.type] || q.type)}</span> : null}</span>}
         {bgText ? (
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         ) : (
@@ -3887,7 +3996,11 @@ class WorldFeed extends React.Component {
         {/* the bare skin has no box to compete with, so the question can carry
             the card on its own — it steps up a size and tightens accordingly,
             and steps back down when `hier` gives the daily the top of the page */}
-        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap || focus ? 800 : 750, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 24.5 : 30) : (this.opts.hier ? 22 : 26)) : focus ? 20 : 16.5, lineHeight: snap ? 1.14 : focus ? 1.2 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.7 : -0.5) : focus ? -0.4 : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
+        {/* the prompt voice (2026-09-02): a question a person answers is
+            set in the serif, and only where it IS the card — snap and
+            focus. A row prompt stays sans: at 16.5px in a list it is a
+            label for a card, not the card. */}
+        <div style={{ fontFamily: snap || focus ? 'var(--serif)' : 'var(--sans)', fontWeight: snap || focus ? 500 : 600, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 26 : 30) : (this.opts.hier ? 23 : 26)) : focus ? 22 : 16.5, lineHeight: snap ? 1.18 : focus ? 1.22 : 1.25, letterSpacing: snap || focus ? '-0.01em' : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}

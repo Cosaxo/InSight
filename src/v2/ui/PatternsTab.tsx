@@ -40,13 +40,13 @@
 // this device's own read succeeded.
 import React from "react";
 import LIVE from "../data/live";
+import NAV from "../data/nav";
 import PATTERNS, { ensureLive } from "../data/patterns";
+import { edgesOf, mapGeometry, type MapNode } from "../data/patternsMap";
 import PatternsMap from "./PatternsMap";
 import PatternsOracle from "./PatternsOracle";
 import PatternsPeople, { type PeoplePop } from "./PatternsPeople";
 import { countryOf } from "../data/peopleMap";
-// @ts-expect-error TS7016 — untyped spec module (named export, D189)
-import { WPAL } from "../spec/world-palette.js";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
 import { WORLD_TOPICS } from "../spec/world-feed-data.js";
 import "./patterns.css";
@@ -99,7 +99,10 @@ function Ruler({ lens, onLens }: { lens: Lens; onLens: (l: Lens) => void }): Rea
               onClick={() => { if (s.id !== lens) onLens(s.id); }}
               style={{ flex: 1, minWidth: 0, position: "relative", height: 50, border: "none", background: "none", cursor: "pointer", WebkitAppearance: "none", padding: 0 }}>
               <span style={{ position: "absolute", left: "50%", bottom: 21, transform: "translateX(-50%)", width: on ? 3 : 1.5, height: on ? 14 : tick, borderRadius: 99, background: on ? "var(--accent)" : "color-mix(in oklch, var(--ink-3), transparent 45%)", transition: "height .28s cubic-bezier(0.2,0.8,0.2,1), background .3s, width .2s" }}></span>
-              <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, textAlign: "center", whiteSpace: "nowrap", fontFamily: SANS, fontSize: on ? 15 : 13.5, fontWeight: on ? 800 : 600, letterSpacing: "-0.02em", color: on ? "var(--ink)" : "var(--ink-3)", transition: "color .2s, font-size .2s" }}>{s.label}</span>
+              {/* one size, always (2026-09-02): a label that grows on
+                  selection reflows the row it sits in, and the tick above
+                  it already says which stop is open */}
+              <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, textAlign: "center", whiteSpace: "nowrap", fontFamily: SANS, fontSize: 13.5, fontWeight: on ? 700 : 500, letterSpacing: "-0.01em", color: on ? "var(--ink)" : "var(--ink-3)", transition: "color .2s" }}>{s.label}</span>
             </button>
           );
         })}
@@ -118,14 +121,127 @@ export default function PatternsTab(): React.ReactElement {
   // mount keeps the plain fade: nothing was moved from.
   const [lensSt, setLensSt] = React.useState<{ id: Lens; dir: "" | "l" | "r" }>({ id: "map", dir: "" });
   const lens = lensSt.id;
-  const setLens = (id: Lens): void => setLensSt((cur) => {
+  // useCallback, not a plain closure: the swipe axis below holds this in
+  // an effect, and a new identity every render would tear its listeners
+  // down and re-add them on every render rather than on every lens change.
+  const setLens = React.useCallback((id: Lens): void => setLensSt((cur) => {
     if (id === cur.id) return cur;
     const a = LENSES.findIndex((s) => s.id === cur.id);
     const b = LENSES.findIndex((s) => s.id === id);
     return { id, dir: b > a ? "r" : "l" };
-  });
+  }), []);
   const [topic, setTopic] = React.useState("all");
   const [ppop, setPpop] = React.useState<PeoplePop>("world");
+  // How many links hold across the pool — the third figure on the map's
+  // meta line. The same bounded fold the Map itself runs (the pool is
+  // core-only and small, D161), memoised on the same key: the number
+  // belongs ABOVE the picture, where it says what the picture holds.
+  const ties = React.useMemo(() => {
+    if (!PATTERNS.ready() || !PATTERNS.hasLoadings()) return 0;
+    const nodes: MapNode[] = PATTERNS.pool().map((p) => ({ id: p.q.id, L: p.L, n: p.n }));
+    return edgesOf(mapGeometry(nodes).U, 3).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the pool's identity
+  }, [version]);
+
+  // The lens body drags on the SAME horizontal axis as the daily's modes
+  // and the mirror's stops (2026-09-02): the ruler is a place, so the
+  // finger can walk it. Past the far end the axis continues into the
+  // daily — `NAV.goNav` is D166's one licensed joint, used from the other
+  // side, and it ANSWERS whether it navigated, so a refusal springs back
+  // instead of leaving the stack where the finger left it. The near end
+  // has nowhere to go and always springs.
+  const wrapRef = React.useRef<HTMLDivElement | null>(null);
+  const stackRef = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    // A drag that starts inside a map, a scroller or a field belongs to
+    // it. The Oracle's field is the exception: it is tap-only, so it
+    // hands the drag back to the axis.
+    const SKIP = "svg, canvas, .h-scroll, .ln-rail, [data-nopan], input, textarea, select";
+    const skips = (t: EventTarget | null): boolean => {
+      const el2 = t instanceof Element ? t : null;
+      return !!(el2?.closest(SKIP) && !el2.closest(".or-lens"));
+    };
+    const spring = () => {
+      const b = stackRef.current;
+      if (!b) return;
+      b.style.transition = "transform .25s cubic-bezier(0.2,0.9,0.2,1), opacity .25s ease";
+      b.style.transform = "translateX(0)";
+      b.style.opacity = "1";
+    };
+    const commit = (dir: 1 | -1) => {
+      const i = LENSES.findIndex((x) => x.id === lens);
+      const ni = i + dir;
+      if (ni < 0) { spring(); return; }
+      if (ni >= LENSES.length) {
+        // the axis runs off its far end into the daily; if the shell
+        // refuses (it is not mounted, or the key is unknown) nothing moved
+        if (!NAV.goNav("track:world")) spring();
+        return;
+      }
+      const b = stackRef.current;
+      if (b) {
+        b.style.transition = "transform .16s ease, opacity .16s ease";
+        b.style.transform = `translateX(${dir > 0 ? -34 : 34}px)`;
+        b.style.opacity = "0";
+      }
+      setLens(LENSES[ni].id);
+    };
+    let sx = 0, sy = 0, dx = 0;
+    let horiz: boolean | null = null;
+    let dragging = false;
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t || skips(e.target)) { dragging = false; return; }
+      sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true;
+      const b = stackRef.current;
+      if (b) b.style.transition = "none";
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!dragging) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const mx = t.clientX - sx, my = t.clientY - sy;
+      if (horiz === null && (Math.abs(mx) > 9 || Math.abs(my) > 9)) horiz = Math.abs(mx) > Math.abs(my) * 1.4;
+      if (!horiz) return;
+      e.preventDefault();
+      dx = mx;
+      const b = stackRef.current;
+      if (b) b.style.transform = `translateX(${dx * 0.42}px)`;
+    };
+    const onEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      if (horiz && Math.abs(dx) > 56) commit(dx < 0 ? 1 : -1); else spring();
+    };
+    let wheelLock = false;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) + 4) return;
+      if (skips(e.target)) return;
+      e.preventDefault();
+      if (wheelLock || Math.abs(e.deltaX) < 24) return;
+      wheelLock = true;
+      commit(e.deltaX > 0 ? 1 : -1);
+      setTimeout(() => { wheelLock = false; }, 620);
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+      el.removeEventListener("wheel", onWheel);
+    };
+    // Re-registered per lens rather than reading a ref written during
+    // render: five listeners is nothing, and a render-written ref is what
+    // react-hooks/refs refuses (the same refusal D310 recorded for the
+    // slide's direction).
+  }, [lens, setLens]);
 
   if (!PATTERNS.ready()) {
     // Live, and the loadings doc has not answered yet (or the read failed
@@ -168,7 +284,7 @@ export default function PatternsTab(): React.ReactElement {
   const items = PATTERNS.pool();
   // only topics that actually have questions in the pool
   const cats = [...new Set(items.map((p) => p.q.cat).filter((c): c is string => !!c))];
-  const chips = [{ id: "all", label: "All" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
+  const chips = [{ id: "all", label: "All topics" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
   const answered = items.filter((p) => p.mine != null).length;
   // The population roster (D216) — the standalone's own: Circle · your
   // country's code · World. Circle always offers (the D190 posture: a row
@@ -183,18 +299,27 @@ export default function PatternsTab(): React.ReactElement {
   const pop: PeoplePop = pops.some((p) => p.id === ppop) ? ppop : "world";
 
   return (
-    <div className={"pt-wrap" + (lens === "oracle" ? " pt-oracle" : "")} style={{ padding: "6px 16px 18px" }}>
+    <div ref={wrapRef} className={"pt-wrap" + (lens === "oracle" ? " pt-oracle" : "")} style={{ padding: "6px 16px 18px" }}>
       <Ruler lens={lens} onLens={setLens} />
       <div className="pt-sub">
         {lens === "map" ? (
-          <div className="pt-pops h-scroll" role="tablist" aria-label="Topic">
-            {chips.map((p) => (
-              <button key={p.id} role="tab" aria-selected={topic === p.id}
-                className={"pt-pop" + (topic === p.id ? " is-on" : "")} onClick={() => setTopic(p.id)}>
-                {p.id !== "all" && <i className="pt-dot" style={{ background: WPAL.c(topicOf(p.id)?.color) as string }}></i>}
-                {p.label}
-              </button>
-            ))}
+          // What the picture holds, said once above it — this line does
+          // the legend's counting work, and the topic filter stops being
+          // a scroller of chips (a row you had to swipe to see the end of,
+          // on the one lens whose body now takes the horizontal drag).
+          <div className="pt-meta">
+            <div className="pt-facts" aria-label="What the map holds">
+              <i aria-hidden="true"></i><span><b>{answered}</b> answered</span>
+              <i className="is-open" aria-hidden="true"></i><span><b>{items.length - answered}</b> open</span>
+              <span className="sep">·</span>
+              <span><b>{ties}</b> ties</span>
+            </div>
+            <label className={"pt-topic" + (topic !== "all" ? " is-on" : "")}>
+              <span>{(chips.find((c) => c.id === topic) ?? chips[0]).label}</span>
+              <select value={topic} onChange={(e) => setTopic(e.target.value)} aria-label="Topic">
+                {chips.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </label>
           </div>
         ) : lens === "oracle" ? (
           <div className="pt-prog">
@@ -212,7 +337,7 @@ export default function PatternsTab(): React.ReactElement {
           </div>
         )}
       </div>
-      <div key={lens} className={(lensSt.dir ? "pt-slide-" + lensSt.dir : "fade-in") + " pt-stack"}>
+      <div key={lens} ref={stackRef} className={(lensSt.dir ? "pt-slide-" + lensSt.dir : "fade-in") + " pt-stack"}>
         {lens === "map" && <PatternsMap items={items} version={version} topic={topic} />}
         {lens === "oracle" && <PatternsOracle items={items} version={version} />}
         {lens === "people" && (

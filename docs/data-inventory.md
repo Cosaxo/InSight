@@ -83,7 +83,8 @@ reads, no hesitation timing, no anchor or Art. 9 slicing, and the daily
 and the Mirror never adapt to any of it. A future widening rewrites this
 paragraph in the same PR, as every rung here did.
 
-**Location — declare Coarse, and read why the old wording was wrong.**
+**Location — declare Coarse AND Precise, and read why both older wordings
+were wrong.**
 This paragraph used to open "the v2 app asks for no location: the manifest
 declares no location permission and nothing in `src/` writes one." Both
 halves are now false, and this file is the audited list the store forms are
@@ -91,12 +92,28 @@ answered from — so the stale version produced an **under-declaration**,
 which `docs/SHIP-CHECKLIST.md` correctly calls the direction that gets an
 app pulled.
 
-What is true today, after D9's amendment: `AndroidManifest.xml` declares
-`ACCESS_COARSE_LOCATION` outright (plus `ACCESS_FINE_LOCATION` capped at
-`maxSdkVersion="30"`, for the reason recorded beside it), `Info.plist`
-carries `NSLocationWhenInUseUsageDescription`, and `src/v2/data/locate.ts`
-calls `Geolocation.getCurrentPosition`. So: **Coarse location, linked to
-user, App Functionality, optional.**
+It happened a second time, in this same paragraph, and in the same
+direction. The version above said `ACCESS_FINE_LOCATION` was "capped at
+`maxSdkVersion="30"`" and concluded **Coarse** — and D175 uncapped it, on
+the manifest line whose own comment reads "UNCAPPED SINCE D175", because
+the venue-scale Near the owner asked for cannot be measured by a coarse
+fix. iOS asks for full accuracy too (`NSLocationDefaultAccuracyReduced` is
+`<false/>`). The store forms had already moved: `app-privacy.json` and
+`play-data-safety.json` both declare Precise, and `check:store-forms` holds
+them to the plist. This file — the audited list those forms are answered
+FROM — was the one left behind, which is the under-declaration the
+paragraph above warns about, written into the warning.
+
+What is true today: `AndroidManifest.xml` declares `ACCESS_COARSE_LOCATION`
+and an **uncapped** `ACCESS_FINE_LOCATION` (D175), `Info.plist` carries
+`NSLocationWhenInUseUsageDescription` and requests full accuracy, and
+`src/v2/data/locate.ts` calls `Geolocation.getCurrentPosition` with
+`enableHighAccuracy`. So: **Coarse and Precise location, linked to user,
+App Functionality, optional.**
+
+The coordinate itself is still folded to a ~200 m cell on the device and
+discarded — precision changes what is MEASURED, not what is sent — but a
+store form asks what the app REQUESTS, and it requests precise.
 
 `Info.plist` also carries `NSLocationAlwaysAndWhenInUseUsageDescription`
 since D107, and **it is not a declaration of anything.** Apple requires a

@@ -209,31 +209,54 @@ function SgMine({ s, SG, onResend }) {
   );
 }
 
+// A spec chip: one fact off the rate card, scannable. Quiet on purpose —
+// these are the terms, not the offer.
+function SgTok({ children }) {
+  return (
+    <span style={{
+      border: '0.5px solid var(--rule)', background: 'var(--surface)', borderRadius: 999,
+      padding: '3px 9px', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700,
+      color: 'var(--ink-2)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums',
+    }}>{children}</span>
+  );
+}
+
 // ── the rate card (PAID-PLAN §6): one row per cohort, all of it read off
 // the committed card — the posted line, the next 14 days as real ticks,
 // the demand word from the same idx the line is priced by.
-function SgRateRow({ scope, name, onPick }) {
+function SgRateRow({ scope, name, onPick, i }) {
   const booked = PRICING.cohorts[scope].booked || [];
   const nBooked = booked.filter(Boolean).length;
   const firstOpen = booked.indexOf(0);
   const word = demandWord(scope);
   return (
-    <button className="card press" onClick={onPick} style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, padding: '13px 15px 14px', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 800, letterSpacing: '-0.2px', color: 'var(--ink)' }}>{name}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>one paid slot a day</span>
-        <span style={{ flex: 1 }}></span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 800, letterSpacing: '-0.2px', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(rate(scope))}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>/ answer</span>
+    <button className="card press sg-rise" onClick={onPick} style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 11, padding: '14px 15px 15px', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', animationDelay: (i || 0) * 70 + 'ms' }}>
+      {/* the place leads, its price answers — the two things a buyer is
+          here to compare, at the two sizes that let them be compared
+          across three stacked rows rather than read line by line */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 17.5, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--ink)' }}>{name}</span>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: SG_TONE[word] }}>{word}</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{nBooked} of {booked.length} booked · ×{PRICING.cohorts[scope].idx} today</span>
+          </span>
+        </span>
+        <span style={{ flexShrink: 0, textAlign: 'right' }}>
+          <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(rate(scope))}</span>
+          <span style={{ display: 'block', marginTop: 3, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>per answer</span>
+        </span>
       </div>
-      <div aria-label={nBooked + ' of the next ' + booked.length + ' days booked'} style={{ display: 'flex', gap: 2.5 }}>
-        {booked.map((b, i) => (
-          <span key={i} aria-hidden="true" style={{ flex: 1, height: 7, borderRadius: 2, background: i === firstOpen ? 'var(--accent)' : b ? 'color-mix(in oklch, var(--ink) 72%, var(--surface-3))' : 'var(--surface-3)' }}></span>
+      {/* the fortnight, as a strip whose HEIGHT is booked: a row of equal
+          ticks in two greys asked a buyer to compare shades, where a tall
+          tick and a short one is the same fact read at a glance */}
+      <div aria-label={nBooked + ' of the next ' + booked.length + ' days booked'} style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 16 }}>
+        {booked.map((b, j) => (
+          <span key={j} aria-hidden="true" className="sg-tick" style={{ flex: 1, borderRadius: 3, animationDelay: ((i || 0) * 70 + j * 22) + 'ms', height: b ? 16 : 7, background: j === firstOpen ? 'var(--accent)' : b ? 'color-mix(in oklch, ' + SG_TONE[word] + ' 85%, var(--surface-3))' : 'var(--surface-3)' }}></span>
         ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: SG_TONE[word] }}>{word}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{nBooked} of {booked.length} days booked · ×{PRICING.cohorts[scope].idx}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>the next {booked.length} days — tall is booked</span>
         <span style={{ flex: 1 }}></span>
         {/* ONLY WHEN THERE IS ONE. `nextOpen` cannot express a sold-out
             cohort: build-pricing writes null both for "tomorrow is open"
@@ -247,7 +270,7 @@ function SgRateRow({ scope, name, onPick }) {
             count beside it already says the scope is full, and a second
             sentence saying so is the shape COPY.md deletes. */}
         {firstOpen !== -1 && (
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 750, color: 'var(--accent-ink)' }}>next open {sgNextOpen(scope)}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 999, padding: '4px 10px', background: 'color-mix(in oklch, var(--accent) 9%, transparent)', border: '0.5px solid color-mix(in oklch, var(--accent) 30%, var(--rule))', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 750, color: 'var(--accent-ink)', whiteSpace: 'nowrap' }}>next open {sgNextOpen(scope)} →</span>
         )}
       </div>
     </button>
@@ -263,11 +286,27 @@ function SgRateBoard({ SG, onPick }) {
         <span style={{ flex: 1 }}></span>
         <CurSwitch></CurSwitch>
       </div>
-      <SgRateRow scope="city" name={sgScopeName(SG, 'city')} onPick={() => onPick('city')}></SgRateRow>
-      <SgRateRow scope="country" name={sgScopeName(SG, 'country')} onPick={() => onPick('country')}></SgRateRow>
-      <SgRateRow scope="world" name="Everyone" onPick={() => onPick('world')}></SgRateRow>
-      <div style={{ margin: '0 2px', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
-        The line is {fmt(PRICING.base)} × the cohort's demand index — sold ÷ available slot-days over the trailing {PRICING.trailingDays}, floored ×{PRICING.floorX}, ceilinged ×{PRICING.ceilX}. The line you lock at booking is the line you keep; billed per answer, capped at {fmt(PRICING.capEur)}.
+      <SgRateRow scope="city" name={sgScopeName(SG, 'city')} i={0} onPick={() => onPick('city')}></SgRateRow>
+      <SgRateRow scope="country" name={sgScopeName(SG, 'country')} i={1} onPick={() => onPick('country')}></SgRateRow>
+      <SgRateRow scope="world" name="Everyone" i={2} onPick={() => onPick('world')}></SgRateRow>
+      {/* THE LAW AS TOKENS, not a paragraph (2026-09-02). Every clause
+          below is one fact off the committed rate card, and a buyer
+          checking one of them had to read four lines of prose to find it.
+          The sentence that stays is the one that is a PROMISE rather than
+          a figure — D182's own carve-out, COPY.md §3. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5, margin: '2px 2px 0' }}>
+        {[
+          fmt(PRICING.base) + ' base',
+          '× demand — sold ÷ available',
+          'over the trailing ' + PRICING.trailingDays,
+          'floor ×' + PRICING.floorX,
+          'ceiling ×' + PRICING.ceilX,
+          'billed per answer',
+          'capped at ' + fmt(PRICING.capEur),
+        ].map((t) => <SgTok key={t}>{t}</SgTok>)}
+      </div>
+      <div style={{ margin: '-3px 2px 0', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+        The line you lock at booking is the line you keep.
       </div>
     </div>
   );

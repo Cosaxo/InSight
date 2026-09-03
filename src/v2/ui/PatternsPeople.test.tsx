@@ -145,6 +145,45 @@ describe("the placed field", () => {
     });
   });
 
+  it("colours every dot by agreement, in three steps, and says so in words", () => {
+    // the viewer answered optionIdx 1 everywhere (item(mine = 1) encodes
+    // option 0)… so the five who picked 0 agree with them on all six and
+    // the five who picked 1 disagree on all six: two of the three steps,
+    // both at the extremes, with nobody in the middle.
+    const { container } = render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    const fills = [...container.querySelectorAll('svg g[role="button"] circle:last-of-type')]
+      .map((c) => c.getAttribute("fill"));
+    expect(new Set(fills).size).toBe(2);
+    expect(fills.filter((f) => f === "oklch(0.84 0.10 282)").length).toBe(5); // mostly agrees
+    expect(fills.filter((f) => f === "oklch(0.76 0.10 20)").length).toBe(5);  // mostly disagrees
+    // and the legend says the three steps rather than leaving them to be
+    // decoded — the size rule with them
+    expect(screen.getByText("mostly agrees with you")).toBeTruthy();
+    expect(screen.getByText("split")).toBeTruthy();
+    expect(screen.getByText("mostly disagrees")).toBeTruthy();
+    expect(screen.getByText(/bigger dot = more answers in common/)).toBeTruthy();
+  });
+
+  it("rails the five nearest NAMED people, each with its own basis", () => {
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    const rail = screen.getByRole("list", { name: /most like you/i });
+    const chips = [...rail.querySelectorAll("button")];
+    expect(chips.length).toBe(5); // PEOPLE_LABELS, never a sixth
+    // every chip states the count it is claiming, like the card does
+    for (const c of chips) expect(c.textContent).toMatch(/agrees \d+ of \d+/);
+    // and a chip selects the same person the field would
+    fireEvent.click(chips[0]!);
+    expect(screen.getByText(/Agrees with you on/)).toBeTruthy();
+  });
+
+  it("never rails a nameless account — no invented identity (D167)", () => {
+    LIVE.voters = () => CROWD.map((r) => ({ ...r, name: "" }));
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    expect(screen.queryByRole("list", { name: /most like you/i })).toBeNull();
+    fireEvent.click(document.querySelector('svg g[role="button"]')!);
+    expect(screen.getByText("Someone")).toBeTruthy();
+  });
+
   it("narrows to the circle without changing anyone's numbers (D216)", () => {
     LIVE.follows = () => ["ada", "gus"];
     const { container } = render(
