@@ -287,6 +287,22 @@ seventeen cards at go-live), so the old refusal to score it — "any
 qid scored today would be an invented key" — no longer holds;
 scoring it is now unblocked work, not a rule.
 
+It carries a **fit section** too (2026-09-03, D363 — Status: Proposed
+until merged): the nightly Patterns fit's own scorecard, read from the
+one world-readable loadings document on the same anonymous token the
+aggregate fetch mints — the prequential log-loss series with its
+per-question floor, the publish-to-publish displacement summary with
+its movers, how many questions are fitted on a believable basis, and a
+per-question item profile (discrimination as the loading's length in
+the fitted space, and the marginal). None of it steers a farm run — it
+is the read half of the axiom-theory bridge's first crossing (D325),
+there so a theory run can quote the fit's numbers from `main` rather
+than from a Firestore document nobody off a device can read. The raw
+loading vectors are deliberately not committed: the scorecard carries
+derived numbers, and the map is drawn elsewhere. `fit` is `null` when
+the fit has not published yet, and absent on a card generated from an
+offline dump without `--loadings`.
+
 Every run starts by reading it (`npm run scorecard` prints the
 summary). Then:
 

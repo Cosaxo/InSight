@@ -37714,3 +37714,99 @@ carry an axis in (a leaning set, an inner arc, a polarity split), states
 what each costs, and keeps its data, states and basis rules. Still
 `requested`; the drafting step is unchanged.
 
+
+## D363 · The bridge's read half: the fit's own scorecard becomes readable from `main`
+
+**2026-09-03.** **Status: Proposed** — drafted by the axiom builder
+(`PROGRAM-RUNBOOK.md` § The axiom builder, step 4's paperwork) on
+`claude/axiom-fit-scorecard`. It binds nothing until the owner's tick on
+`MERGE-LIST.md` merges the PR that carries it; the tick is the decision.
+
+**What D325 left unfinished.** D325 (2026-08-27) carried the bridge's
+first two verdicts into the nightly fit: the prequential log-loss series
+and the publish-to-publish displacement summary, both published on
+`v2_patterns/loadings`. That is the WRITE half. The theory charter
+(`axiom-theory` `CHARTER.md` §4) defines its highest rung, `measured`,
+as *checked against InSight's own published numbers — the committed
+scorecards and aggregates readable from `main`* — and a Firestore
+document a device reads is not readable from `main`. The map lane
+filed exactly that gap on 2026-08-28 and central ruled it
+worth-building as *the highest-leverage item in this queue*: three
+lanes' `measured` paths (map-3's stability thesis, pat-6's engine
+crossover baseline, cen-2's portfolio floor) dead-ended on a document
+no theory run can quote; the pattern lane seconded rather than
+duplicated. The 2026-09-01 digest named it the one item to carry that
+week. The builder's first firing today planned it and ran out of
+usage; this is the second.
+
+**What this builds.** `npm run scorecard -- --fetch` reads
+`v2_patterns/loadings` on the same anonymous token the aggregate fetch
+already mints — one more world-readable document, the same signed-in
+read a device makes, no new grant, no rules change, nothing in
+`functions/` — and writes a `fit` block onto `content/scorecard.json`
+(`scripts/fit-snapshot.mjs`, pure; `scripts/question-scorecard.mjs`
+joins it before the card writes). The block: the document's own
+stamps (`publishedAt`, `lastDay`, `k`, `folded`, the question count);
+the **basis distribution** — how many questions are fitted on the
+believable basis (`PATTERNS_MIN_BASIS`, cross-read from
+`patternsFit.ts` the way the scorecard cross-reads `DECK_EPOCH`, so a
+moved floor cannot leave a stale count here) and the min / median /
+max of per-question `n`; the **prequential series** as published, with
+the day's headline, the floor it was floored at, how many questions
+cleared it, and D325's fit-not-Oracle `note` verbatim; the
+**displacement summary** as published (`space: "loading"`, the stats
+over every compared question, the movers per question); and an **item
+profile** per fitted question — `n`, `disc` (the L2 length of the
+published loading, a model-derived discrimination in the fitted K=8
+space) and `mean` (the ±1-encoded marginal; 0 is an even split). The
+item profile is the questions lane's 2026-08-28 verdict (per-core-
+question item-information profiles, worth-building on the same
+zero-cost argument as D325) folded into the same block, with the
+honesty clause that verdict made a condition carried as `items.note`:
+this is not an IRT parameter estimate from a purpose-built calibration.
+`fit` is `null` when the document does not exist yet (a state, printed
+as such, never a failed run) and absent on a card generated from an
+offline dump without `--loadings`, so an older committed artifact and
+an offline one both still summarize.
+
+**What it deliberately does not do.** It does not commit the loading
+vectors: the scorecard carries derived numbers, and the map is drawn
+elsewhere. It does not draw anything — the reader is
+`VISUAL-REQUESTS.md` §3, a design question before it is code (the
+owner's rule, D352), and this record is the data half its row on the
+worklist was split into. It does not add a cadence: the block refreshes
+whenever the scorecard does — a farm run with the key, or an operator —
+and the verdict itself says weekly suffices. It does not touch
+`docs/AXES-RUNBOOK.md`: the retro lane carries verdicts into the lane
+contracts, and a lane contract is not the builder's to edit.
+
+**The arithmetic.** One document GET per fetch (~11 KB, D325's
+measurement), on an operator read path — `COSTS.md`'s per-device and
+per-function rows are unchanged, which is why that page does not move.
+The committed block: at most 90 series rows × 3 fields
+(`PATTERNS_QUALITY_DAYS`), three numbers per fitted question over the
+core corpus (D161's bounded half — 111 questions at D325), and the
+movers list, which is bounded by the same corpus: a few kilobytes on a
+file already committed at every refresh.
+
+**The one block, and where it sits.** The block appears on `main` only
+when someone runs the fetch with `FIREBASE_API_KEY`; no workflow does,
+and the routine environment does not carry the key (run log #31,
+`PERMISSIONS.md`). That is the owner's Clicks row on `OWNER-LIST.md`,
+and this record adds the theory lanes' `measured` rung to what the key
+unblocks. Until then the code is the read half and the committed file
+still lacks the block — honest, and exactly what the row says.
+
+**What it buys, per the verdicts.** map-3 gets the real displacement
+distribution it named as its only path to `measured`; pat-1/pat-6 get
+the crossover baseline any candidate engine is judged against; pat-5's
+per-question drift becomes quotable; cen-2 gets the baseline term its
+crowd-value metric is defined against; que-2 gets its route to
+`measured` — do live item parameters behave as IRT predicts across
+refits — with the honesty clause the verdict required. Every one of
+those rises is the theory lane's to make, from `main`, by the charter's
+own rule.
+
+**Measured before the push:** `test:scripts`, `lint`, `test:unit`,
+`build`, `check:globals`, `check:docs`, `check:figures` — the counts are
+in the PR body.

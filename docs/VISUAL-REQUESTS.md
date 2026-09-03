@@ -148,7 +148,13 @@ version is in this file's history.
   `v2_patterns/loadings` since D325: the prequential benchmark (a
   pooled, per-question-floored daily log-loss series — the fit's
   predictive power, not the Oracle's) and the inter-fit displacement
-  (loading-space and drawn-plane, reported as two numbers).
+  (loading-space and drawn-plane, reported as two numbers). Since
+  D363 (Status: Proposed) the same numbers sit on `main` as the
+  `fit` block of `content/scorecard.json` — series, floor, displacement
+  summary with its movers, the basis distribution and a per-question
+  item profile — so an operator page can read the committed copy and
+  the user-side card the live document; the block is the data half of
+  the worklist row, and this request is the reader half.
 - **states** — no history yet (the fit is young): the series as a
   short line with its basis; a per-question floor withholding a cell:
   drawn as withheld, never as zero.
