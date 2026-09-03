@@ -10,11 +10,17 @@ import { Kicker } from './primitives.jsx';
 // particular could not do without it.
 import { WPAL } from './world-palette.js';
 import NAV from '../data/nav';
+import { GDAv } from './group-daily.jsx';
+import { CompareBreakdown } from './compare-breakdown.jsx';
+import { IS_COMPARE_POP } from './compare-pop.js';
+import { GroupRoleMap } from './group-role-map.jsx';
+import { MirrorLenses } from './mirror-field.jsx';
 
 // group-mirror.jsx — the Mirror's GROUPS stop: your named circles as a cast
 // list. Pick a group → the role constellation, then the standard three lenses
 // (Answers · People · Compare), all group-focused: what the group landed on,
 // who's who inside it, and how you run against it.
+const EXPORTS = {};
 (function () {
   const { useState, useEffect, useReducer } = React;
   const LINE = '0.5px solid var(--rule)';
@@ -57,7 +63,7 @@ import NAV from '../data/nav';
       <span style={{ display: 'inline-flex', alignItems: 'center' }}>
         {shown.map((p, i) => (
           <span key={p.id} style={{ marginLeft: i ? -Math.round(size * 0.32) : 0, display: 'inline-flex', zIndex: shown.length - i, position: 'relative' }}>
-            <window.GDAv p={p} size={size}></window.GDAv>
+            <GDAv p={p} size={size}></GDAv>
           </span>
         ))}
       </span>
@@ -178,7 +184,7 @@ import NAV from '../data/nav';
             const isCon = P.contrarian && p.id === P.contrarian.id;
             return (
               <button type="button" className="btn-bare" key={p.id} aria-label={`Open ${p.name}`} onClick={() => NAV.openPerson(p)} style={{ position: 'absolute', left: x + '%', top: cy + lvl * 46, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-                <span style={{ borderRadius: '50%', display: 'inline-flex', boxShadow: isTwin ? '0 0 0 2px var(--accent)' : isCon ? '0 0 0 2px var(--ink-3)' : '0 0 0 2.5px var(--surface)' }}><window.GDAv p={p} size={28} plain></window.GDAv></span>
+                <span style={{ borderRadius: '50%', display: 'inline-flex', boxShadow: isTwin ? '0 0 0 2px var(--accent)' : isCon ? '0 0 0 2px var(--ink-3)' : '0 0 0 2.5px var(--surface)' }}><GDAv p={p} size={28} plain></GDAv></span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{p.name.split(' ')[0]}</span>
               </button>
             );
@@ -218,7 +224,7 @@ import NAV from '../data/nav';
     // this group's collective, as a compare population — the shared groups
     // baseline nudged per-group (deterministic by id) so each circle has its own grain
     const pop = React.useMemo(() => {
-      const base = (window.IS_COMPARE_POP || {}).groups;
+      const base = IS_COMPARE_POP.groups;
       if (!base) return null;
       const j = (k, v) => Math.max(6, Math.min(94, Math.round(v + (gmh('cb' + g.id + k) - 0.5) * 22)));
       const out = { label: g.name, n: ms.length };
@@ -231,7 +237,7 @@ import NAV from '../data/nav';
     }, [g.id]);
     return (
       <>
-        {pop && window.CompareBreakdown && <window.CompareBreakdown pop={pop} label={g.name} accent="var(--accent)"></window.CompareBreakdown>}
+        {pop && <CompareBreakdown pop={pop} label={g.name} accent="var(--accent)"></CompareBreakdown>}
 
         <div className="card" style={{ marginTop: 12 }}>
           <Kicker>How they see you</Kicker>
@@ -290,12 +296,13 @@ import NAV from '../data/nav';
           </div>
         </div>
         <GroupPicker gs={gs} cur={g.id} onPick={setGid}></GroupPicker>
-        <window.GroupRoleMap key={g.id} gid={g.id} gname={g.name}></window.GroupRoleMap>
+        <GroupRoleMap key={g.id} gid={g.id} gname={g.name}></GroupRoleMap>
         <MirrorLenses key={'lens-' + g.id} lenses={lenses}></MirrorLenses>
       </div>
     );
   }
 
-  Object.assign(window, { GroupsMirrorBody });
+  Object.assign(EXPORTS, { GroupsMirrorBody });
 })();
+export const { GroupsMirrorBody } = EXPORTS;
 

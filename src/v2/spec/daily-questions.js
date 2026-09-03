@@ -4,6 +4,12 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import { sharePcts } from '../data/pct';
+// The store (D354). Read at CALL time only — `myAnswer` and `liveSync`
+// below — never while this module evaluates. That is what makes the
+// import safe this early in spec-index.js: data/live.ts imports
+// test-definitions.js, and neither of the three reads another's bindings
+// during evaluation, so the order they settle in cannot matter.
+import LIVE from '../data/live';
 
 // daily-questions.js — "Daily Question" feature data + persistent answer store.
 // A new question each day (type varies). Each question carries a plausible,
@@ -379,6 +385,25 @@ export let DAILYQ;
       cat: ['Body', 'Mornings'], alts: [['Home', 'Rituals'], ['Mind', 'Rest']] },
     { type: 'binary', prompt: 'At a concert: front row, or back with space?', tag: 'Where you stand', options: ['Front row', 'Back with space'], tone: 'light',
       cat: ['Music', 'Going out'], alts: [['Interests', 'Nightlife'], ['Body', 'Comfort']] },
+    // farm 2026-09-03 — the pen-refill batch (D350: a granted budget is
+    // always work). Floor to 8/top: Film, Skills, Sport; levelling: Food,
+    // Interests.
+    { type: 'binary', prompt: 'The book or the film first?', tag: 'Which first', options: ['Book first', 'Film first'], tone: 'light',
+      cat: ['Film', 'Adaptations'], alts: [['Interests', 'Reading'], ['Film', 'How you watch']] },
+    { type: 'choice', prompt: 'What makes a villain great?', tag: 'Villains', options: ['Menace', 'Charm', 'Being half right', 'Mystery'], tone: 'light',
+      cat: ['Film', 'Villains'], alts: [['Story', 'Characters'], ['Morals', 'Grey areas']] },
+    { type: 'binary', prompt: 'Practise in private, or learn in public?', tag: 'Learning out loud', options: ['In private', 'In public'], tone: 'deep',
+      cat: ['Skills', 'How you learn'], alts: [['Mind', 'Confidence'], ['Story', 'Sharing']] },
+    { type: 'scale', prompt: 'Talent is mostly patience.', tag: 'Talent', axis: 'patience', tone: 'deep',
+      cat: ['Skills', 'Mastery'], alts: [['Values', 'Effort'], ['Goals', 'The long game']] },
+    { type: 'binary', prompt: 'Keep score, or just play?', tag: 'Keeping score', options: ['Keep score', 'Just play'], tone: 'light',
+      cat: ['Sport', 'How you play'], alts: [['Values', 'Competition'], ['Interests', 'Games']] },
+    { type: 'choice', prompt: 'What makes a great rivalry?', tag: 'Rivalries', options: ['History', 'Respect', 'High stakes', 'Closeness'], tone: 'light',
+      cat: ['Sport', 'Rivalries'], alts: [['Story', 'Drama'], ['Values', 'What you admire']] },
+    { type: 'binary', prompt: 'Dessert: every day, or a special occasion?', tag: 'Dessert', options: ['Every day', 'Special occasion'], tone: 'light',
+      cat: ['Food', 'Habits'], alts: [['Body', 'Balance'], ['Values', 'Treats']] },
+    { type: 'choice', prompt: 'What do you follow most closely?', tag: 'Following', options: ['A sport', 'A show', 'An artist', 'A subject'], tone: 'light',
+      cat: ['Interests', 'Following'], alts: [['Sport', 'Fandom'], ['Music', 'Fandom']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
@@ -492,7 +517,7 @@ export let DAILYQ;
     if (q.id in saved) return saved[q.id];
     // live mode: the demo's baked history is Mira's, not the user's —
     // only genuinely-answered questions may reach the map
-    if (window.LIVE && window.LIVE.enabled) return null;
+    if (LIVE.enabled) return null;
     return q.bakedMine;            // baked past answer, or null
   }
 
@@ -590,14 +615,14 @@ export let DAILYQ;
   // narrow and exact: the answers on this store are now the account's own,
   // so the demo calendar's `dateLabel`/`idx` no longer describe them. Read
   // through `dateOf`/`datesAreReal` above rather than by a second
-  // `window.LIVE` read — D39's meter counts those and only moves down.
+  // liveness read.
   let liveHydrated = false;
 
   function liveSync() {
-    const L = window.LIVE;
-    if (!L || !L.enabled || !L.ready || !L.dailyBank) return;
+    const L = LIVE;
+    if (!L.enabled || !L.ready) return;
     liveHydrated = true;
-    const votes = (L.confirmedVotes ? L.confirmedVotes() : (L.myVotes && L.myVotes())) || {};
+    const votes = L.confirmedVotes() || {};
     const byPrompt = {};
     const demoPrompts = new Set(QUESTIONS.map((q) => q.prompt));
     L.dailyBank().forEach((b) => {
@@ -623,7 +648,7 @@ export let DAILYQ;
       q.liveId = b.id;
       const v = votes[b.id];
       if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
-      const agg = L.aggFor && L.aggFor(b.id);
+      const agg = L.aggFor(b.id);
       const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
       if (agg && agg.counts && size) {
         const counts = []; let total = 0;

@@ -9,6 +9,7 @@
 // city = Oslo, groups = your circles, world = everyone, people = close ties.
 // Values are plausible-but-synthetic; the user (Mira, 34, f) is marked where
 // the audience contains peers so age bands can show a "you" pin.
+export let DEMOGRAPHICS;
 (function () {
   const AGE_BANDS = ['<18', '18–24', '25–34', '35–44', '45–54', '55–64', '65+'];
 
@@ -128,6 +129,6 @@
     },
   };
 
-  window.DEMOGRAPHICS = { AGE_BANDS, GENDER, byAudience: (id) => D[id], audiences: D };
+  DEMOGRAPHICS = { AGE_BANDS, GENDER, byAudience: (id) => D[id], audiences: D };
 })();
 

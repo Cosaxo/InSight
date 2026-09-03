@@ -28,7 +28,7 @@ function PSDot({ x, col, ring, dim }) {
   const s = 11;
   return <span aria-hidden="true" style={{ position: 'absolute', top: '50%', marginTop: -s / 2, left: `calc(${x}% - ${(x / 100) * s}px)`, width: s, height: s, borderRadius: '50%', boxSizing: 'border-box', background: ring ? 'var(--surface)' : col, border: ring ? `2.5px solid ${col}` : 'none', opacity: dim ? 0.42 : 1, transition: 'opacity .25s ease, left .5s var(--ease-out)' }}></span>;
 }
-function PlaceStatsCard({ scope, accent }) {
+export function PlaceStatsCard({ scope, accent }) {
   const [, tick] = React.useState(0);
   // which crowd the reading leads with — a lens, not a claim (D288 §2)
   const [fore, setFore] = React.useState('here');

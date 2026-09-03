@@ -224,6 +224,10 @@ vi.mock("firebase/firestore", () => {
     deleteField: () => "__delete__",
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
+    // D357: the queue-drained signal settlePending awaits — required
+    // here like every other member live.ts binds, whether or not a case
+    // reaches it (vitest throws on a member the factory does not define).
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 
@@ -288,7 +292,12 @@ async function bootLive() {
   // 5 s, not the 1 s default: the stuck-cursor case below writes 100
   // duplicate pages (100k rows) through the cache store, and
   // fake-indexeddb structured-clones every one of them.
-  await vi.waitFor(() => { expect(mod.default.ready).toBe(true); }, { timeout: 5000 });
+  //
+  // `attached`, not `ready` (D356): every case below asserts on what the
+  // NETWORK phase did — which queries went out, what the cache holds after
+  // — and a device with a seeded cache is `ready` off disk before the
+  // first of those queries is issued.
+  await vi.waitFor(() => { expect(mod.default.attached).toBe(true); }, { timeout: 5000 });
   return mod.default;
 }
 
@@ -508,9 +517,16 @@ describe("question-bank cache", () => {
     h.bankDocs = bulk(2000);
     await bootLive();
     // Three pages for the boot surfaces, plus one each for the core-feed
-    // (D321) and bought-question (D313) queries.
+    // (D321) and bought-question (D313) queries. Counted rather than
+    // indexed: since D356 the three cold queries go out together, so the
+    // boot's second page is issued AFTER the core and paid queries' first
+    // pages, and its position in the log depends on that interleaving.
+    // What the off-by-one would change is the NUMBER of cursor-carrying
+    // pages, and that is what is pinned.
     expect(bankFetches()).toBe(5);
-    expect(h.bankQueries[2].cons.some((c) => c.kind === "startAfter")).toBe(true);
+    const paged = h.bankQueries.filter((q) => q.cons.some((c) => c.kind === "startAfter"));
+    expect(paged).toHaveLength(2);
+    expect(paged.every((q) => q.cons.some((c) => c.kind === "where" && c.field === "surface" && c.op === "in"))).toBe(true);
     expect((await readCache()).questions).toHaveLength(2000);
   });
 
