@@ -519,6 +519,15 @@ an emergency rules fix.
   applied directly, or as a tick on the PR's row in
   [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
   into the label once the PR is green on its current head (D352).
+- **A Routine you create, re-pace, rebind or retire is registered in
+  [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
+  subscriptions run scheduled lanes against this one repository and no
+  session can read another account's Routines — `list_triggers` returns
+  the caller's and nothing else — so the register is the only surface
+  where two lanes on one hour, two branches carrying one fix, or two
+  accounts each assuming they own `main` can be seen at all. Verify from
+  `list_triggers` before you write a row; a prompt says what a run
+  believes its schedule is.
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own

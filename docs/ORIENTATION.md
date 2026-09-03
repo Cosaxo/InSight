@@ -116,6 +116,7 @@ directions.
 | [`MODERATION.md`](MODERATION.md) | Flagged takes, the scheduled reviewer, confinement. Enforcing since D83 | tree |
 | [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md) | "Favourite X" with a thousand options — how catalogue answers are keyed and validated | tree |
 | [`QUESTION-FARM.md`](QUESTION-FARM.md) | The instruction manual for the scheduled autonomous runs that deepen the archive. **If you are one of those runs, this is your brief** | tree |
+| [`ROUTINES.md`](ROUTINES.md) | Every scheduled Routine, across all three subscriptions — who owns it, when it fires, which branch it writes and who may merge it. The index over the three per-program inventories, plus the shared clock and branch namespaces none of them can see | tree |
 | [`RANK-CATALOG-LIVE.md`](RANK-CATALOG-LIVE.md) | The path back for the two once-withheld feed forms — catalogue picks (D232) and rank (D233), both shipped; kept for the plans' arguments and as-built deviations | tree |
 | [`COSTS.md`](COSTS.md) | The bill at five sizes, as a prediction with its inputs written down. Reproduce with `npm run costs` | tree |
 | [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) | The one cost decision with a deadline, and the one that cannot be revisited | tree |
