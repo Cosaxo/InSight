@@ -68,6 +68,12 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import { bankArray } from "./v2content-lib.mjs";
+// The batch-mix ceiling, from the module whose comment promises it is
+// "spelled once so the allocation and the gate agree". It was not: the
+// allocation held the constant and the GATE — this file, both batch
+// checks — held the literal twice. lane-tiers is pure and import-safe by
+// its own header, so the promise is cheap to keep.
+import { BATCH_TOPIC_SHARE } from "./lane-tiers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -1163,7 +1169,7 @@ export function checkBatch(batch) {
     const types = {};
     for (const q of daily) types[q.type] = (types[q.type] || 0) + 1;
     const [topType, topCount] = Object.entries(types).sort((a, b) => b[1] - a[1])[0];
-    if (topCount > Math.ceil(daily.length * 0.75)) {
+    if (topCount > Math.ceil(daily.length * BATCH_TOPIC_SHARE)) {
       errs.push(`${topCount} of ${daily.length} daily questions are ${topType} — vary the forms (the scorecard's optionSlots say which earn their place)`);
     }
   }
@@ -1178,7 +1184,7 @@ export function checkBatch(batch) {
   // form rule is why `dial`, `field` and `path` are authorable at all, and
   // the topic rule is the budget's own instruction ("spreads across thin
   // topics rather than chunking into one", feed-budget.mjs) said at the one
-  // moment a run can still obey it. The 0.75 ceiling is shared with daily
+  // moment a run can still obey it. The ceiling is shared with daily
   // deliberately — a batch of eight may be six votes, which is honest,
   // and may not be seven.
   // The current-events lane is not the budgeted farm lane, and the two
@@ -1251,7 +1257,7 @@ export function checkBatch(batch) {
         errs.push(`a batch of ${feed.length} feed questions declares no ${label} — the gate cannot judge the spread`);
         return;
       }
-      if (top[1] > Math.ceil(feed.length * 0.75)) {
+      if (top[1] > Math.ceil(feed.length * BATCH_TOPIC_SHARE)) {
         errs.push(`${top[1]} of ${feed.length} feed questions are ${label} ${top[0]} — ${extra}`);
       }
     };
@@ -1443,7 +1449,7 @@ export function checkProvenance(corpus) {
 }
 
 // ── headroom tripwires ──
-export function checkHeadroom(corpus) {
+export function checkHeadroom(corpus, { contentSrc } = {}) {
   const errs = [];
   const warn = [];
   const maxDailyId = Math.max(...corpus.seed.map((q) => Number(q.id)));
@@ -1455,7 +1461,9 @@ export function checkHeadroom(corpus) {
     warn.push(`daily ids at ${maxDailyId} of 999 — an id-scheme decision is approaching`);
   }
 
-  const v2content = readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
+  // `contentSrc` is for the case below that cannot otherwise be reached:
+  // a bank the parser refuses. Defaults to the real file.
+  const v2content = contentSrc ?? readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
   // Measured, not assumed: the same wire-size scan check-figures runs, so
   // the estimate moves when the documents do (adding `core` to 82 entries
   // moved it by ~1 KiB and check:figures caught that on COSTS.md).
@@ -1476,8 +1484,21 @@ export function checkHeadroom(corpus) {
   const bankSize = rows ? rows.length : (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
   const bankBytes = rows ? JSON.stringify(rows).length : bankSize * 250;
   const mb = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
-  const install = rows ? installDocs(rows) : 0;
-  if (install >= INSTALL_WARN) {
+  const install = rows ? installDocs(rows) : null;
+  // A PARSE FAILURE IS NOT A SMALL INSTALL. `install` was 0 on this path,
+  // so `0 >= INSTALL_WARN` was false and the one tripwire watching the
+  // first fetch could never fire when the parser broke — while `bankSize`
+  // above kept a regex fallback and carried on. That asymmetry is what
+  // the retired BANK_FAIL/BANK_WARN pair did NOT have: they counted
+  // `bankSize`, so they still fired through a parse failure. D197's shape,
+  // one function over.
+  if (install == null) {
+    warn.push(
+      "the install-fetch count could not be computed — bankArray refused this bank, so the wire "
+      + "size above is a regex estimate and the INSTALL_WARN tripwire did not run. Fix the parser "
+      + "(scripts/v2content-lib.mjs); a tripwire that reads zero from a broken parse is worse than none",
+    );
+  } else if (install >= INSTALL_WARN) {
     warn.push(
       `a fresh install is handed ${install} docs whole ≈ ${mb(install)} MB (the boot surfaces plus the feed's core) — `
       + "the first fetch wants re-arguing before this doubles (BANK-DELIVERY §4). The paged surfaces are not "

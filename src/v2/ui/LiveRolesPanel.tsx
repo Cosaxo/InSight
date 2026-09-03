@@ -82,6 +82,7 @@ export default function LiveRolesPanel(): React.ReactElement {
     groups: (mode?: string) => Room[];
     revealHistory: (gid: string) => Record<string, unknown>[];
     loadRevealHistory?: (gid: string) => Promise<void>;
+    revealHistoryLoading?: (gid: string) => boolean;
   };
   const uid = (LIVE.uid as string) || "";
 
@@ -104,6 +105,15 @@ export default function LiveRolesPanel(): React.ReactElement {
   const rooms = LIVE.enabled ? S.groups() : [];
   const roomIds = rooms.map((r) => r.id).join(",");
 
+  // Rooms whose history read THREW. `revealHistory` answers [] for a
+  // refusal exactly as it does for a room that has revealed nothing, so
+  // without this the panel states the second about the first — and keeps
+  // stating it for the life of the session, since a failed read is not
+  // retried. STATE, not a ref: the notes below are drawn from it, and a
+  // ref read during render is the thing react-hooks/refs refuses (it
+  // refused this file's first draft).
+  const [failed, setFailed] = React.useState<ReadonlySet<string>>(() => new Set());
+
   React.useEffect(() => {
     if (!LIVE.enabled || !S.loadRevealHistory) return;
     let live = true;
@@ -115,13 +125,32 @@ export default function LiveRolesPanel(): React.ReactElement {
       // list this run was scheduled for.
       for (const r of (LIVE.enabled ? S.groups() : [])) {
         if (!live) return;
-        try { await S.loadRevealHistory!(r.id); } catch { /* a room that refuses is simply absent below */ }
+        // A room that refuses is NOT absent below — it is listed, with a
+        // note — so the refusal is recorded and the note says so. This
+        // comment claimed the opposite for as long as the catch existed.
+        try {
+          await S.loadRevealHistory!(r.id);
+        } catch {
+          // A new Set each time: the notes read this during render, so it
+          // has to be a value React can see change.
+          if (live) setFailed((prev) => new Set(prev).add(r.id));
+        }
         if (live) bump((x) => x + 1);
       }
     })();
     const un = LIVE.subscribe?.(() => bump((x) => x + 1));
     return () => { live = false; if (un) un(); };
   }, [roomIds, S]);
+
+  /**
+   * The note for a room whose history is not a fact yet — reading, or
+   * refused — or null when the room's own numbers may be stated.
+   */
+  const roomNote = (gid: string): string | null => {
+    if (S.revealHistoryLoading?.(gid)) return "reading\u2026";
+    if (failed.has(gid)) return "couldn\u2019t read this one";
+    return null;
+  };
 
   const duos: Setting[] = [];
   const duosThin: ThinSetting[] = [];
@@ -141,18 +170,23 @@ export default function LiveRolesPanel(): React.ReactElement {
         key: r.id, label,
         // The floor's own unit, which is not "revealed days" (see
         // duoRoleDays): a pair can reveal five days and guess on two.
-        note: !them || !hist.length
+        // Four states, and two of them are not claims about the room.
+        // The loader walks rooms one at a time, so a later room sits on
+        // its note for a while — and it said "nothing revealed yet" the
+        // whole time. The Groups stop one screen over keeps the same
+        // distinction, in the same words ("Reading the days…").
+        note: roomNote(r.id) || (!them || !hist.length
           ? "nothing revealed yet"
-          : `${duoRoleDays(hist as never[], uid, them)} of ${MIN_DUO} days both guessed`,
+          : `${duoRoleDays(hist as never[], uid, them)} of ${MIN_DUO} days both guessed`),
       });
     } else {
       const res = groupRole(hist as never[], uid);
       if (res) groups.push({ key: r.id, label: r.name || "Group", res });
       else groupsThin.push({
         key: r.id, label: r.name || "Group",
-        note: !hist.length
+        note: roomNote(r.id) || (!hist.length
           ? "nothing revealed yet"
-          : `${groupRoleDays(hist as never[], uid)} of ${MIN_GROUP} days played`,
+          : `${groupRoleDays(hist as never[], uid)} of ${MIN_GROUP} days played`),
       });
     }
   }

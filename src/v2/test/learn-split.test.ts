@@ -429,6 +429,29 @@ describe("LEARN_RATE — one crowd rate, and where it came from (D133)", () => {
     // check draws something obviously broken and fails a test, rather than
     // rendering a confident bar at zero — "nobody gets this right" is a
     // much worse lie than the estimate this replaced.
+    W.LIVE = { enabled: true, learnAgg: () => null, learnAggLoading: () => false };
+    expect(LEARN_RATE(card)).toEqual({ pct: null, src: "none" });
+  });
+
+  // …AND THE STATE THAT IS NOT A STATEMENT ABOUT THE CARD.
+  //
+  // `learnAgg` returns null on a cold read too, and the case above cannot
+  // tell that apart from "nobody has answered". Two surfaces read the null
+  // and printed "Nobody else has answered this one yet" — the Map's
+  // knowledge node and the feed's reveal — so on every learn card's first
+  // paint the app made a claim about a question thousands may have
+  // answered, then replaced it with a number a beat later.
+  it("live and still reading: a fourth source, and not an empty card", () => {
+    W.LIVE = { enabled: true, learnAgg: () => null, learnAggLoading: () => true };
+    expect(LEARN_RATE(card)).toEqual({ pct: null, src: "loading" });
+    expect(LEARN_SPLIT_SRC(card)).toBe("loading");
+  });
+
+  it("a store too old to answer still says 'none', not 'loading'", () => {
+    // The member is optional on purpose: `learn-data.js` is read by the
+    // demo build and by any live store that predates this, and a missing
+    // member must degrade to the old sentence rather than leaving a card
+    // saying "Counting…" forever.
     W.LIVE = { enabled: true, learnAgg: () => null };
     expect(LEARN_RATE(card)).toEqual({ pct: null, src: "none" });
   });
@@ -478,6 +501,34 @@ describe("the who-knows-this cuts are demo furniture too (D133)", () => {
     expect(block).toMatch(/const rate = LEARN_RATE\(card\);/);
     expect(block).toMatch(/const p = rate\.pct;/);
     expect(block).toMatch(/rate\.src === 'estimate'/);
+    // …and reads the fourth source BEFORE the null. `p == null` is true
+    // while the read is in the air as well as when nobody has answered,
+    // so an arm that tests the number first prints the wrong sentence
+    // whatever the source says.
+    expect(block, "the reveal states an empty card before its read comes back")
+      .toMatch(/rate\.src === 'loading' \? '[^']+' : p == null/);
+  });
+
+  it("the reveal footer reads the fourth source too", () => {
+    // THE LINE `1afcbe1f`'s MESSAGE NAMED AND ITS DIFF DID NOT TOUCH. That
+    // commit gave the who-knows-this sheet and the Map's learn card their
+    // 'loading' arm and said it had fixed "the feed's learn reveal". The
+    // reveal footer — the line under the answer you just tapped — still
+    // branched on 'measured' alone, so a crowd read in the air fell into
+    // the same arm as a card nobody had answered and it said "You're the
+    // first." about a card thousands have answered.
+    //
+    // A source assertion, like the three above it and for the same reason:
+    // this footer is inside a method that renders only mid-reveal, and the
+    // suite that mounts the feed cannot reach it. Reverting the arm reds
+    // this, which is the property that matters.
+    const src = readFileSync(resolve(__dirname, "../spec/world-feed.jsx"), "utf8");
+    expect(src, "the reveal footer states an empty card before its read comes back")
+      .toMatch(/\{src === 'loading'\s*\n\s*\? 'Counting/);
+    // …and it is asked BEFORE 'measured', so the three sources stay three.
+    const foot = src.slice(src.indexOf("{src === 'loading'"));
+    expect(foot.indexOf("src === 'measured'"), "the fourth source is asked after the second, which makes it unreachable")
+      .toBeGreaterThan(0);
   });
 
   it("says what it cannot show instead of leaving an empty sheet", () => {

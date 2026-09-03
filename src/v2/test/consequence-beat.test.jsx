@@ -80,6 +80,22 @@ describe("the consequence beat's verdict", () => {
     expect(say([45, 45, 10], [449, 451, 100], 1)).toContain("you\u2019re with them");
   });
 
+  it("and the daily's TILES lead off the counts too, not the drawn shares", () => {
+    // Same rounding, one line down from the beat. `rp[i] === maxP` was
+    // true for both tiles on 449 against 451 — both draw 50% — so each
+    // got the winner's 25px numeral and full ink, and the chart declared
+    // a tie the votes do not have.
+    //
+    // A source assertion for the beat's reason: reaching these tiles means
+    // answering today's question inside a full app render, and what is
+    // wrong here is which array the comparison reads.
+    const src = readFileSync("src/v2/spec/daily-split.jsx", "utf8");
+    expect(src, "the daily's leading tile is decided off the rounded shares again")
+      .not.toMatch(/fontSize: rp\[i\] === maxP/);
+    expect(src, "the tiles no longer lead off the counts").toMatch(/const leads = \(i\) => counts\[i\] === maxCount;/);
+    expect(src, "the numeral stopped asking `leads`").toMatch(/fontSize: leads\(i\) \? 25 : 15/);
+  });
+
   it("and the daily's own call site passes them, which it did not", () => {
     // The cases above prove the COMPONENT reads counts. They say nothing
     // about whether the daily hands them over, and for as long as this

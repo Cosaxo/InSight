@@ -1659,9 +1659,14 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // for a further linger, which is precisely the promise the option makes.
   //
   // The rules cap `until` at PRESENCE_LINGER_MIN past write time, so a
-  // client cannot grant itself a longer stay than the design allows; the
-  // constant is imported here to keep the two definitions in one place.
-  void PRESENCE_LINGER_MIN;
+  // client cannot grant itself a longer stay than the design allows.
+  //
+  // A bare `void PRESENCE_LINGER_MIN;` stood here under a comment saying
+  // it kept the two definitions in one place. It kept nothing — the
+  // statement is a no-op, the import is used in `presenceExpiry` above,
+  // and moving the constant left every suite green. What holds them
+  // together now is `presence-linger.test.ts`, which reads the ceiling
+  // out of firestore.rules and asserts it equals the constant.
   const now = Timestamp.fromMillis(Date.now());
   // COUNTED, NOT FETCHED. This used to `.get()` the neighborhood and take
   // `snap.docs.length`, which materialises — and pays a billed read for —
