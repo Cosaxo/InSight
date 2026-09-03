@@ -53,11 +53,22 @@ describe("which side the feed draws as the winner", () => {
   });
 
   it("and no styling decision is left reading the shares", () => {
-    // The ratchet. `maxP` survives in exactly one place — the tiles' tint,
-    // where tracking the SHARE is correct and deliberate ("tint strength
-    // tracks share, so 52/48 reads as 52/48"). Anything else comparing an
-    // option against it is the defect coming back.
-    const compares = [...src.matchAll(/\[i\] === maxP/g)];
+    // The ratchet, and it is written for the CLASS rather than for one
+    // spelling — the first draft matched `[i] === maxP`, the identifier,
+    // and reverting the duel to an inline `p[i] === Math.max(...p)` sailed
+    // straight past it. (The case above caught that revert, so the file
+    // was sound; this one was narrower than its own comment, which is the
+    // defect it exists to prevent, one level up.)
+    //
+    // `maxP` itself survives in exactly one place — the tiles' tint, where
+    // tracking the SHARE is correct and deliberate ("tint strength tracks
+    // share, so 52/48 reads as 52/48"). Anything comparing an option
+    // against the shares' maximum, however spelled, is the defect back.
+    const compares = [
+      ...src.matchAll(/\[i\] === maxP/g),
+      ...src.matchAll(/p\[i\] === Math\.max/g),
+      ...src.matchAll(/=== Math\.max\(\.\.\.p\)/g),
+    ];
     expect(compares.length, "a winner is being decided from the rounded shares again").toBe(0);
   });
 });

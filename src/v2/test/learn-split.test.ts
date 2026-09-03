@@ -526,9 +526,14 @@ describe("the who-knows-this cuts are demo furniture too (D133)", () => {
     expect(src, "the reveal footer states an empty card before its read comes back")
       .toMatch(/\{src === 'loading'\s*\n\s*\? 'Counting/);
     // …and it is asked BEFORE 'measured', so the three sources stay three.
-    const foot = src.slice(src.indexOf("{src === 'loading'"));
+    // Bounded to the footer's own ternary: searching the rest of the file
+    // finds `kr.src === 'measured'` several hundred lines away and passes
+    // whatever the footer does.
+    const start = src.indexOf("{src === 'loading'");
+    const foot = src.slice(start, start + 700);
     expect(foot.indexOf("src === 'measured'"), "the fourth source is asked after the second, which makes it unreachable")
       .toBeGreaterThan(0);
+    expect(foot, "the footer's ternary is no longer inside the slice — widen it").toContain("You\u2019re the first.");
   });
 
   it("says what it cannot show instead of leaving an empty sheet", () => {

@@ -893,10 +893,15 @@ class WorldFeed extends React.Component {
     // through the raw midpoint, one line apart on the same card: you say
     // 3 h, the card says "most say 4 h", out of the SAME bucket.
     //
-    // 11 of the 0-12 h dial's 12 buckets do this; 22 bucket-readings
-    // across the four dials whose step is a whole unit. That comment was
-    // written when the fix was applied to `dialVal`, and this is the
-    // other half of it.
+    // That reasoning was written when the fix went into `dialVal`, and
+    // this is the other half of it. NO COUNT HERE, deliberately: the
+    // sentence carried over said "22 bucket-readings across the four
+    // dials whose step is a whole unit", which was the figure for the
+    // dial the original fix was measured on — the shipped bank now has 19
+    // dials, ONE with a whole-unit step, and 212 bucket-readings where
+    // the midpoint and the shown value differ. A count in a comment is
+    // the documentation error this repo keeps re-committing, and
+    // `dial-bucket.test.jsx` holds the real relationship off the tree.
     for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketShown(q, i); }
     return (q.lo + q.hi) / 2;
   }
@@ -1036,8 +1041,10 @@ class WorldFeed extends React.Component {
     //
     // `noCountsYet` is the flag for this and every other shape on this
     // card already reads it — the tiles suppress their percentages and
-    // draw renderFloorNote (:2105, :2109), the bars the same. The dial
-    // path never asked. So it asks now, and says the same thing they do.
+    // draw `renderFloorNote`, the bars the same. The dial path never
+    // asked. So it asks now, and says the same thing they do. (Two line
+    // numbers stood here and pointed at `renderMeta` instead; grep the
+    // name, which is what a citation is for.)
     const noCrowd = !!(q.live && q.noCountsYet);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
