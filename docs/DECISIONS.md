@@ -37114,3 +37114,100 @@ document — rather than the read being renamed around the scan.
   attempt is its own contract (`learnSent`, D157), and an offline learn
   answer relaunched is a card re-asked, not a rule refused. If that ever
   reads as a bug, the mechanism is here.
+## D358 · Fourteen dials get the range they should have shipped with, by retirement and replacement
+
+**2026-09-02.** **Status:** binding. The owner, with two screenshots
+from a phone — "The ideal dinner hour?" on 17–23 h, and "How old were
+you when your taste in music settled?" on 10–40 yrs with the answer on
+the floor and *most say 11 yrs* under it: *"Some of these sliders have
+akward ranges includ bigger ranges in most off them."*
+
+### What was wrong
+
+Two defects, both in the ranges and neither in the dial. **An end that
+cuts off answers people hold**: a music-taste crowd whose median sits
+one step above the floor is a floor set too high, not a crowd; a
+dinner at 16 h or at midnight could not be said; a coffee-abstainer
+could not say zero. And **a step under one unit**: `dialFmt` prints
+integers and `dialOptions` rounds the bucket edges, so 17–23 h in
+twelve buckets is a half-hour step whose voters-panel labels read
+"17–18 h", "18–18 h", "18–19 h"; 1–12 h printed "7–7 h"; 1–4 hrs was a
+quarter-hour step nothing could print at all (the recorded limit in
+`dial-bucket.test.jsx`). Both were visible the day each dial shipped,
+and every gate was green.
+
+### What shipped
+
+| was | now | prompt | range | step |
+| --- | --- | --- | --- | --- |
+| dl3 | dl30 | Daily screen time — where does "too much" start? | 1–12 h → 0–24 h | 2 |
+| dl6 | dl31 | At what age is an athlete past their peak? | 25–45 → 20–50 yrs | 2.5 |
+| dl7 | dl32 | How many coffees a day is too many? | 1–10 → 0–12 cups | 1 |
+| dl8 | dl33 | How long should a concert be? | 1–4 hrs → 30–270 min | 20 |
+| dl10 | dl34 | How many close friends does a person need? | 0–10 → 0–12 | 1 |
+| dl11 | dl35 | How many hours a day on a phone is too many? | 0–12 → 0–24 h | 2 |
+| dl12 | dl36 | Books finished last year — how many? | 0–30 → 0–60 | 5 |
+| dl13 | dl37 | Hours of live sport in a good week? | 0–20 → 0–24 h | 2 |
+| dl14 | dl38 | How old were you when your taste in music settled? | 10–40 → 5–50 yrs | 3.75 |
+| dl15 | dl39 | Meals cooked from scratch in a week? | 0–14 → 0–21 | 1.75 |
+| dl16 | dl40 | The ideal dinner hour? | 17–23 → 12–24 h | 1 |
+| dl17 | dl41 | How many years ahead do you actually plan? | 0–20 → 0–30 | 2.5 |
+| dl18 | dl42 | Minutes late before it counts as late? | 0–30 → 0–60 min | 5 |
+| dl19 | dl43 | How many songs on a perfect album? | 6–20 → 6–30 | 2 |
+
+Five stand as they are: dl1 (40–90 yrs), dl2 (0–30 %), dl4 and dl5
+(0–100) and dl9 (0–30 min) already end where answers end, and the
+first four are core. dl3 is core too and moved anyway — its floor was
+the defect — so dl30 carries `core: true` in its place. The rule the
+table follows: both ends held by real people, and a whole unit or more
+per bucket — a span of at least 12 in the printed unit, a multiple of
+12 where the unit allows (the h, cups, friends, books, min and songs
+rows), and where the honest span is under twelve units the UNIT moves
+rather than the ends (the concert, in minutes). QUESTION-FARM §
+Continuum questions and the feed lane's prompt block now say this, and
+`check:quality` holds the half of it a script can read: a dial under
+one unit per bucket fails the `step` rule (retired entries exempt),
+at the batch pre-flight as well as in the bank — so the next lane run
+cannot write a 17–23 h dial, whatever the prose says that week.
+
+**Why new ids, not an edit.** D114 synthesizes the bucket labels from
+`lo/hi/unit`, so D52's option freeze freezes the range: the seed
+refuses a changed range on a shipped question as an option edit
+(pinned in `seed.test.ts`), and it is right to — every stored answer is
+a bucket index on the OLD range, and on 0–24 h a "3 h" stored as bucket
+2 of 1–12 h would become "5 h". So each old id is retired (`active:
+false` in the bank; its doc, answers and aggregate persist — the
+archive is the product) and the same copy is appended under a new id
+at the END of the file, so every existing `seq` stands and the seed
+rewrites nothing it did not create. Provenance rows carry forward
+verbatim: the copy is the vintage's copy and only the range moved. The
+demo pool's twins carry the new ids on the new ranges with re-shaped
+texture; a retired dial has no card to draw.
+
+**Two gates learned what a replacement is.** `check:content`'s
+exact-duplicate rule and `check:neighbors`' feed domain both scored a
+replacement against its retired twin at identity — fourteen failures
+that were the design working. Both now skip `active: false` entries:
+the gates exist so the feed never asks one question twice, and a
+retired question is not asked. The retired entries stay in the bank
+file (the seed and the deck read the flag there) and in the neighbours'
+id set (a demo twin of a retired id is that id, not a new dupe). The
+closest legitimate feed pair re-pinned to dl32~dl35 @ 0.400 — the
+coffee/phone pair of 2026-08-24 under its new ids.
+
+### What is owed in production, and by whom
+
+The seed writes `active` on first create only — the console flip is
+the kill switch and the seed must not fight it in either direction
+(v2.ts, D34's shape). So the merge SEEDS dl30–dl43 and leaves dl3,
+dl6–dl8 and dl10–dl19 serving until the operator flips those fourteen
+to `active: false` in the Firebase console and reseeds with
+**bump_rev** ticked — LAUNCH-RUNBOOK §1's standing instruction, the
+same case as its 20 `test-cognitive-*` docs. Until that flip a feed can
+show both cards of a pair. Answers already on the old ids are kept,
+keyed to the old range, and the new ids start empty; at the scorecard's
+last count (2026-08-27) that is at most one answer per dial.
+
+Bank 750 → 764, feed 184 → 198 (82 core, 116 tail); `check:figures`
+moved eleven prose lines and two code comments with it, and 217.4 KiB
+is the bank's wire size now.
