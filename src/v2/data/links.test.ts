@@ -153,6 +153,13 @@ describe("web/join.html · the copy of the parser", () => {
     // silently: the browser blocks the one script that renders the "Open
     // in InSight" button, so the page still loads and simply does nothing.
     // Editing the script above without this line is the whole failure.
+    //
+    // Comparing the SOURCE file is the right comparison, and that is a fact
+    // rather than an assumption: firebase.json's `"public": "web"` serves
+    // this directory verbatim — there is no build step for it and no
+    // dist/join.html — so the bytes hashed here are the bytes the browser
+    // hashes. If that ever changes, this case has to hash the built copy
+    // instead, and it will go red rather than quiet.
     const want = "sha256-" + createHash("sha256").update(SCRIPT, "utf8").digest("base64");
     const fb = readFileSync(join(process.cwd(), "firebase.json"), "utf8");
     expect(fb, "join.html's inline script changed and firebase.json's script-src hash did not")
