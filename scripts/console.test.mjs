@@ -527,6 +527,32 @@ describe("when the list must be left alone", () => {
     expect(listIsWritable({ ok: false, rowsComplete: true })).toBe(false);
   });
 
+  it("keeps the same short row set out of the owner's list and the trail", async () => {
+    // THE HALF THE FIRST FIX MISSED, and it is the shape the closing flow
+    // exists to catch: `listIsWritable` was created to hold the merge
+    // list, used for the merge list, and not asked by the two other
+    // writers that consume the same `state.rows` on the same run. So the
+    // run that deliberately refused to rewrite the list still wrote that
+    // short branch count into the OWNER'S list as a fact, and a real zero
+    // into the trail — which a commit four earlier had just fixed for
+    // every other field, with the reason in its message: the trail is the
+    // only record of what the program looked like on a given day.
+    const { trailRow } = await import("./console-lib.mjs");
+    const base = {
+      today: "2026-09-03", github: { ok: true }, rows: [], merged: [],
+      worklist: null, owner: null, axioms: null, visuals: null, permissions: null,
+      theory: null, pulse: null, mainCi: null,
+    };
+    expect(trailRow({ ...base, rowsComplete: false }).noPrYet,
+      "a branch count from a row set the run called short was written as a fact").toBeNull();
+    // …and it is still a number when the rows are all there.
+    expect(trailRow({ ...base, rowsComplete: true }).noPrYet).toBe(0);
+    // The owner-list fold asks the same predicate, at its own call site.
+    const src = read("scripts/console.mjs");
+    expect(src, "the owner list's approvals line still counts branch rows off `ok` alone")
+      .toMatch(/const approvals = listIsWritable\(\{ ok: state\.github\.ok, rowsComplete: state\.rowsComplete \}\)/);
+  });
+
   it("still writes it when the rows are all there — the control", async () => {
     // Without this, "never writable" passes the case above and freezes the
     // merge list, which is the same loss pointed the other way.

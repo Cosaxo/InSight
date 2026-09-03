@@ -32,7 +32,7 @@ import {
   prRow, branchRow, isNoPrBranch, decideActions, renderMergeList, parseTicks,
   parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions, listProblem,
   parseRegister, ownerSteps, uncheckedSteps, theorySummary, rollCalls, lastSeen,
-  foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay,
+  foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay, listIsWritable,
   checksSummary, SHIFT_BLOCKED,
 } from "./console-lib.mjs";
 
@@ -279,20 +279,9 @@ async function ensureLabel(api = gh) {
  * the decision would otherwise be untestable, which is how the second door
  * (a render-only run) stayed open after the first was closed.
  */
-/**
- * May the merge list be rewritten from this run's rows?
- *
- * Two questions, and treating them as one is how the third door opened.
- * `ok` says the open-PR listing answered. `rowsComplete` says the row set
- * is ALL of it — a failed branch listing or a failed per-branch compare
- * leaves `ok` true and the rows short, and rewriting then drops those rows
- * and the owner's ticks on them.
- *
- * Exported for the same reason `holdsTheList` is: the decision is one
- * boolean in a script that cannot be run without a token, so the only way
- * it can be executed at all is as a function.
- */
-export const listIsWritable = ({ ok, rowsComplete }) => !!ok && rowsComplete !== false;
+// Re-exported from the library, where trailRow can reach it too — see the
+// note on its definition for why all three writers must ask the same rule.
+export { listIsWritable };
 
 export const holdsTheList = ({ failed, actions, canApply }) =>
   failed.length > 0 || (actions.length > 0 && !canApply);
@@ -434,7 +423,11 @@ async function main() {
     const hand = Object.values(state.owner).flatMap((s) => s.hand || []);
     const decisions = notAlreadyListed(hand, state.ownerSteps).map((s) => `**${s.title}** — *Source:* \`${s.file}\` ${s.id}.`);
     const launch = notAlreadyListed(hand, state.launchOpen).map((s) => `**${s.id} ${s.title}** — *Source:* \`docs/LAUNCH-RUNBOOK.md\`.`);
-    const approvals = state.github.ok
+    // THE SAME RULE THE MERGE LIST ASKS. This counted branch rows off
+    // `state.rows` gated on `ok` alone — so on the run that deliberately
+    // refused to rewrite the merge list because the branch rows were
+    // short, it wrote that short count into the OWNER'S list as a fact.
+    const approvals = listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete })
       ? [`${state.rows.filter((r) => r.kind === "pr" && !r.selfMerge && r.stage === "new").length} PR row(s) and ${state.rows.filter((r) => r.kind === "branch").length} branch row(s) waiting for a tick in \`docs/MERGE-LIST.md\` § Open (${state.today}).`]
       : [];
     writeFileSync(OWNER_LIST, foldOwnerList(ownerText, { Decisions: decisions, "Store and legal": launch, Approvals: approvals }));

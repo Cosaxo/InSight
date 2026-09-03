@@ -672,6 +672,21 @@ export function notAlreadyListed(handRows, candidates) {
 // ── the trail ───────────────────────────────────────────────────────
 export const isoDay = (d = new Date()) => new Date(d).toISOString().slice(0, 10);
 
+/**
+ * May the merge list be rewritten from this run's rows?
+ *
+ * Two questions, and treating them as one is how the third door opened.
+ * `ok` says the open-PR listing answered. `rowsComplete` says the row set
+ * is ALL of it — a failed branch listing or a failed per-branch compare
+ * leaves `ok` true and the rows short, and rewriting then drops those rows
+ * and the owner's ticks on them.
+ *
+ * Exported for the same reason `holdsTheList` is: the decision is one
+ * boolean in a script that cannot be run without a token, so the only way
+ * it can be executed at all is as a function.
+ */
+export const listIsWritable = ({ ok, rowsComplete }) => !!ok && rowsComplete !== false;
+
 export function trailRow(state) {
   const rows = state.rows || [];
   const prs = rows.filter((r) => r.kind === "pr" && !r.selfMerge);
@@ -683,7 +698,12 @@ export function trailRow(state) {
     prsInShift: state.github.ok ? count("shift") : null,
     prsReady: state.github.ok ? count("ready") : null,
     prsBlocked: state.github.ok ? count("blocked") : null,
-    noPrYet: state.github.ok ? rows.filter((r) => r.kind === "branch").length : null,
+    // `listIsWritable`, not `ok` — the trail is the only record of what the
+    // program looked like on a given day, so a branch count taken from a
+    // row set the run itself declared short is a real zero nobody can tell
+    // from an empty one. That is the rule the console's own header states
+    // and the one a commit four earlier put back; this writer never asked.
+    noPrYet: listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete }) ? rows.filter((r) => r.kind === "branch").length : null,
     mergedWeek: state.github.ok ? (state.merged || []).length : null,
     // Null, not zero, for the same reason the GitHub fields above are:
     // the trail is the only record of what the program looked like on a
