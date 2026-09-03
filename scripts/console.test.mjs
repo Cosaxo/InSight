@@ -537,6 +537,28 @@ describe("when the list must be left alone", () => {
     expect(listIsWritable({ ok: true })).toBe(true);
   });
 
+  it("refuses the write when the merged-PR page did not answer", async () => {
+    // The third read, and the one the two flags above do not watch: it
+    // fails on its own, `merged` comes back empty, and "Merged this week"
+    // is rewritten as a week in which nothing merged. Carried across from
+    // night shift B's branch when the rest of its guard was superseded.
+    const { listIsWritable } = await import("./console.mjs");
+    expect(listIsWritable({ ok: true, rowsComplete: true, mergedOk: false }),
+      "an empty merged page was written over the real week").toBe(false);
+    // …and the control, or "never writable" passes the assertion above.
+    expect(listIsWritable({ ok: true, rowsComplete: true, mergedOk: true })).toBe(true);
+    // Absent stays fine, like the other two.
+    expect(listIsWritable({ ok: true, rowsComplete: true })).toBe(true);
+  });
+
+  it("marks the merged page unanswered at the one read that can empty it", () => {
+    // Same shape as the row-set case below: the predicate is only worth
+    // having if something sets the flag. One site does.
+    const src = read("scripts/console.mjs");
+    expect([...src.matchAll(/mergedOk = false/g)].length,
+      "the read that can empty the merged section stopped reporting it").toBe(1);
+  });
+
   it("marks the row set short at both reads that can drop a row", () => {
     // The predicate is only worth having if something sets the flag. Two
     // sites do — the branch listing and the per-branch compare — and each
