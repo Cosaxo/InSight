@@ -80,3 +80,56 @@ describe("usePeopleFinder · the busy flag", () => {
     expect(result.current.busy).toBe(true);
   });
 });
+
+// "WE COULD NOT ASK" AND "NOBODY" ARE DIFFERENT FACTS, and only one of
+// them is about the person being searched for. `data/budgetMode.ts` states
+// that rule — "absent is 'we could not ask', empty is 'nobody'" — and this
+// hook broke it in the one place a user reads the answer as a sentence
+// about a stranger: a refused or offline read set `empty`, and the panel
+// drew "Nobody found for 'ada'".
+//
+// The second half is worse than a wording problem. The exact-handle branch
+// awaited a name read AFTER the name matches were already in hand, inside
+// the same try — so when that read threw, every match was discarded and
+// the panel reported nobody, over five real people held in memory.
+describe("usePeopleFinder · a search that failed is not a search that found nobody", () => {
+  it("reports a refused directory read as failed, not as empty", async () => {
+    LIVE.social.searchPeople = vi.fn(async () => { throw new Error("permission-denied"); });
+    const { result } = renderHook(() => usePeopleFinder("ada"));
+    // Waited for the FLAG, not for `busy` to fall: the debounce means busy
+    // is still false when the effect is only scheduled, so waiting for
+    // false passes before the lookup has begun and every assertion below
+    // would read the initial state. (It did; all three cases here failed
+    // on their first draft, the control included, which is what said so.)
+    await waitFor(() => {
+      expect(result.current.failed, "a refused read must not be drawn as 'nobody found'").toBe(true);
+    });
+    expect(result.current.empty).toBeNull();
+    expect(result.current.rows).toEqual([]);
+  });
+
+  it("keeps the name matches when the exact-handle name read throws", async () => {
+    const five = [1, 2, 3, 4, 5].map((n) => ({ uid: `u_${n}`, name: `Ada ${n}`, handle: `ada${n}` }));
+    LIVE.social.searchPeople = vi.fn(async () => five);
+    LIVE.social.whoIs = vi.fn(async () => "u_ada");
+    LIVE.loadNames = vi.fn(async () => { throw new Error("offline"); });
+    const { result } = renderHook(() => usePeopleFinder("ada"));
+    // Six: the five name matches, plus the exact handle hit — which is
+    // still worth a row without its name, because `nameFor` falls back.
+    await waitFor(() => {
+      expect(result.current.rows.map((r) => r.uid),
+        "the name matches were thrown away because a SECOND read failed").toEqual(["u_ada", ...five.map((r) => r.uid)]);
+    });
+    expect(result.current.failed).toBe(false);
+    expect(result.current.empty).toBeNull();
+  });
+
+  it("still reports a genuinely empty directory as empty", async () => {
+    // The control. Without it, "always failed, never empty" would pass the
+    // two cases above and be just as wrong in the other direction.
+    LIVE.social.searchPeople = vi.fn(async () => []);
+    const { result } = renderHook(() => usePeopleFinder("nobodyhere"));
+    await waitFor(() => { expect(result.current.empty).toBe("nobodyhere"); });
+    expect(result.current.failed).toBe(false);
+  });
+});
