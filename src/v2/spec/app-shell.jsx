@@ -15,7 +15,16 @@ import { reportError } from '../../lib/sentry';
 // answers with the navigation, map-tab reads the where. ESM on all three
 // sides, so the coupling ratchet never counts it.
 import { onMapCue } from '../data/mapCue.ts';
+// The Mirror chunk's handoff (D355) — see MirrorSlot below.
+import { peekMirror, rememberMirror } from '../data/mirrorChunk';
 import LIVE from '../data/live';
+// D354's sweep: the shell's own eager neighbours as imports — the daily
+// tab, the device frame, the passive meter and the feed's memory. The
+// `window.X &&` beside the meter was a load-order guard on an eager module.
+import { DailySplit } from './daily-split.jsx';
+import { IOSDevice } from './iOS.jsx';
+import { PassiveMeter } from './passive-meter.jsx';
+import { FEEDREAD } from './feed-read.js';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
@@ -41,6 +50,40 @@ import { useDialog } from './primitives.jsx';
 // viewer has answered (data/patternsReady.ts). Below that line the entry
 // is not in TABS, so nothing here ever renders and the chunk never loads.
 const PatternsTabLazy = React.lazy(() => import('../ui/PatternsTab.tsx'));
+
+// The Mirror tab, after first paint (D355) — a SLOT rather than a
+// React.lazy, for the reason mirror-tab.jsx's MapSlot gives: React.lazy
+// caches a rejection, and the tab boundary below is keyed per tab, so one
+// failed chunk fetch would make the app's main tab "This view hit a snag"
+// for the rest of the session. State and an import instead; re-entering
+// the tab re-attempts, and console.error rather than reportError because
+// main.jsx already reports a dead prewarm once.
+//
+// What differs from MapSlot is the INITIAL STATE. The Map accepts one empty
+// frame on every open because its chunk sits inside a stop the user has
+// already switched to; the Mirror IS the switch, and a tab that flashes
+// blank on every tap is the guard check:bundle's header said this tab
+// needed before it could leave the eager graph. So the slot starts from
+// data/mirrorChunk — the namespace main.jsx's prewarm remembered there —
+// and when that has landed (every open after the first second or so of a
+// session) the tab renders in the same tick as the tap. The effect covers
+// the two other cases: a tap that beats the prewarm, and a prewarm that
+// failed. test/mirror-slot.test.jsx holds all three.
+function MirrorSlot(props) {
+  const [Tab, setTab] = React.useState(() => {
+    const m = peekMirror();
+    return m ? m.MirrorTab : null;
+  });
+  React.useEffect(() => {
+    if (Tab) return undefined;
+    let live = true;
+    import('./mirror-tab.jsx')
+      .then((m) => { rememberMirror(m); if (live) setTab(() => m.MirrorTab); })
+      .catch((e) => { console.error('[InSight] mirror chunk failed to load:', e); });
+    return () => { live = false; };
+  }, [Tab]);
+  return Tab ? <Tab {...props} /> : null;
+}
 
 // The Tweaks panel is DESIGN-TIME tooling and production cannot open it —
 // its only setOpen(true) is behind `if (!import.meta.env.DEV) return`. It
@@ -248,9 +291,9 @@ export function UpdateRequiredBlocker() {
         <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 16 }}>
           This version can no longer talk to the server safely. Grab the latest and you're back in.
         </div>
-        <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+        <button className="press" onClick={() => { const u = LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
           style={{ border: 'none', borderRadius: 999, padding: '12px 24px', cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>
-          {window.LIVE.updateUrl ? 'Get the update' : 'Reload'}
+          {LIVE.updateUrl ? 'Get the update' : 'Reload'}
         </button>
       </div>
     </div>
@@ -313,7 +356,7 @@ function usePatternsTab() {
   return open;
 }
 
-function App() {
+export function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const patternsOpen = usePatternsTab();
   const TABS = tabsFor(patternsOpen);
@@ -574,13 +617,13 @@ function App() {
 
   const me = IS_DATA.me;
   // live identity: initials from the real display name (demo persona off)
-  const liveOn = window.LIVE && window.LIVE.enabled;
+  const liveOn = LIVE.enabled;
   const liveInitials = liveOn
-    ? (((window.LIVE.displayName || '').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
+    ? (((LIVE.displayName || '').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
     : null;
   const [, liveTick] = useState(0);
-  const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === String(window.LIVE && window.LIVE.latestBuild); } catch (e) { return false; } };
-  useEffect(() => (window.LIVE ? window.LIVE.subscribe(() => liveTick((t) => t + 1)) : undefined), []);
+  const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === String(LIVE.latestBuild); } catch (e) { return false; } };
+  useEffect(() => LIVE.subscribe(() => liveTick((t) => t + 1)), []);
 
   // Sync tab tweak <-> state (so Tweaks panel can drive it).
   // These are the two halves of a deliberate two-way sync, and each one
@@ -649,7 +692,7 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
-            {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
+            <PassiveMeter />
             {/* compose — the ask-a-question door (the paid path, D288 §1),
                 one tap from anywhere; same openDeferred synchronisation as
                 the cross-links that reached it before it had a button */}
@@ -662,15 +705,15 @@ function App() {
           </div>
         </header>
 
-        {liveOn && window.LIVE.updateRequired && <UpdateRequiredBlocker />}
-        {liveOn && !window.LIVE.updateRequired && window.LIVE.updateAvailable && !this_dismissedUpdate() && (
+        {liveOn && LIVE.updateRequired && <UpdateRequiredBlocker />}
+        {liveOn && !LIVE.updateRequired && LIVE.updateAvailable && !this_dismissedUpdate() && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px', background: 'color-mix(in oklch, var(--accent, var(--ink)) 9%, var(--surface-2))', borderBottom: '1px solid var(--rule)', fontSize: 12.5, fontWeight: 700 }}>
             <span style={{ flex: 1 }}>A newer version is out.</span>
-            <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+            <button className="press" onClick={() => { const u = LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
               style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 800, color: 'var(--accent, var(--ink))', fontSize: 12.5 }}>
-              {window.LIVE.updateUrl ? 'Update' : 'Refresh'}
+              {LIVE.updateUrl ? 'Update' : 'Refresh'}
             </button>
-            <button aria-label="Dismiss update notice" onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', String(window.LIVE.latestBuild)); } catch { /* best-effort */ } liveTick((t) => t + 1); }}
+            <button aria-label="Dismiss update notice" onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', String(LIVE.latestBuild)); } catch { /* best-effort */ } liveTick((t) => t + 1); }}
               style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 14, padding: 0 }}>✕</button>
           </div>
         )}
@@ -687,8 +730,8 @@ function App() {
                   the feed has read you. 8 matches MFSparse's `need`. Live
                   builds only: the demo keeps the prototype's default (full
                   field), so style-diff still compares like with like. */}
-              {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
-                firstRun={!!(window.LIVE && window.LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
+              {tab === 'mirror' && <MirrorSlot onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
+                firstRun={!!(LIVE.enabled && FEEDREAD.stats().n < 8)}
                 backKey={'track:duo'} />}
               {/* Suspense fallback null, PulseCard's rule: nothing rather
                   than a blank card — the chunk arrives inside the tap's

@@ -6,6 +6,7 @@
 import LIVE from '../data/live.ts';
 import { LEARN_RATE } from './learn-data.js';
 import { LEARN } from './learn-progress.js';
+import { LMStreak } from './learn-bits.jsx';
 
 // map-learn-card.jsx — the two cards the map shows for knowledge, as opposed to
 // opinion. An opinion node answers "what do you think, and who agrees"; a
@@ -13,7 +14,7 @@ import { LEARN } from './learn-progress.js';
 // card carries one bar — the share of the crowd who get this right — and nothing
 // else. If you had to earn it back from a miss, three filled dots say so.
 
-function MTLearnCard({ node }) {
+export function MTLearnCard({ node }) {
   const card = node.cid ? LEARN.card(node.cid) : null;
   if (!card) return null;
   const f = LEARN.field(card.f);
@@ -54,7 +55,7 @@ function MTLearnCard({ node }) {
                 ? 'about ' + rate.pct + '% get this right \u2014 our estimate'
                 : rate.pct + '% of people get this right'}
           </span>
-          {earned && window.LMStreak ? <window.LMStreak k={3} of={3} col={'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')'}></window.LMStreak> : null}
+          {earned ? <LMStreak k={3} of={3} col={'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')'}></LMStreak> : null}
         </div>
       </div>
     </div>
@@ -62,7 +63,7 @@ function MTLearnCard({ node }) {
 }
 
 // a field you hold part of — the arc, then the facts themselves
-function MTLearnSubCard({ node, rows, onPick }) {
+export function MTLearnSubCard({ node, rows, onPick }) {
   const f = node.fid ? LEARN.field(node.fid) : null;
   const s = f ? LEARN.subject(f.subject) : null;
   const stats = f ? LEARN.stats(f.id) : { known: 0, total: 0 };
@@ -89,7 +90,4 @@ function MTLearnSubCard({ node, rows, onPick }) {
   );
 }
 
-Object.assign(window, { MTLearnCard, MTLearnSubCard });
 
-;globalThis.MTLearnCard = typeof MTLearnCard === 'undefined' ? globalThis.MTLearnCard : MTLearnCard;
-;globalThis.MTLearnSubCard = typeof MTLearnSubCard === 'undefined' ? globalThis.MTLearnSubCard : MTLearnSubCard;

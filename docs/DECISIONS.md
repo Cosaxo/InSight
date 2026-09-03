@@ -35301,6 +35301,7 @@ so the default mount holds the nudge line and the absence of the dead
 "link Google below"; the linked case flips the flag, claims a handle,
 and asserts the swap. live.ts's observer comment and the fixture's
 `linked` note are updated to stop describing the defect as current.
+
 ## D345 · Play is un-parked on an ENK, and the two code items that had no owner get built
 
 **Date:** 2026-09-01 · **Status:** Adopted (owner-confirmed: *"yes, do both
@@ -36342,6 +36343,7 @@ The plan restated it and asked twelve questions; the answers:
 in both directions); `check:figures` green; `test:scripts` green. The
 contracts carry no counts a gate would have to hold — every figure in
 them is recomputed by the lane that quotes it, the runbook's own rule.
+
 ## D353 · The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse
 
 **2026-09-02.** **Status:** binding — the ops dispatcher's charter moves
@@ -36485,6 +36487,184 @@ have to hold — the grants are names, and the roll call's Sunday diff of
 the live prompts against §4 is what proves the seed on the account
 still matches the file.
 
+## D354 · The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32
+
+**2026-09-01.** Owner: *"you know have full creative controll how do you
+optemize and improve this project, aim to have big improvment as
+posible"*. Read as a mandate for the engineering work the tree already
+names as open and measures with its own gates, rather than for a new
+surface: `check:globals` rule 4 (the shared-global coupling ratchet, D39)
+and `check:bundle`'s `MAX_EAGER_KB` (first paint, D110/D144). This record
+is the ratchet's half; D355 is first paint's. Every number below is the
+gate's own output at the commit, not a hand count.
+
+### The provider view said where a third of the meter was
+
+The migration section of `src/v2/README.md` has said twice that planning
+from the per-consumer baseline is the wrong shape, and that transposing
+`spec-globals.mjs`'s own maps by PROVIDER is the right one. Done again
+here, the transpose put one name at the top by a factor of six: `LIVE`,
+**79 of 234 sites** across 13 files — the store itself, read as
+`window.LIVE` in modules that in seventeen cases already held
+`import LIVE from '../data/live'` a few hundred lines up. Next were `GDAv`
+(13), `LMStreak` (8), `MapStats` (7), and a long tail of one- and two-site
+component tags between the Mirror's own modules.
+
+### What moved, in two passes
+
+**The store (234 → 160).** Every spec-layer `window.LIVE` read became the
+import, except the four in `test-definitions.js`, which also loads under
+plain node (`scripts/report-lib.mjs` imports it; `archetype-data.js`
+imports `IS_TEST_AVG` from it) where `data/live.ts` cannot follow — it
+publishes `window.LIVE` at module scope and binds the Firebase SDK. The
+baseline entry carries that reason; the honest fix is a node-safe seam
+for `persistTestResult`'s live write, an ordinary refactor now. Cycle
+safety was read before the import went in: `live.ts` imports
+`test-definitions.js` and touches `IS_TESTS` only inside a method;
+`daily-questions.js`, the earliest new importer, reads `LIVE` only inside
+functions. Gone with the reads: the `window.LIVE &&` load-order guards
+and the member-existence guards on methods the store's literal always
+defines and `data/vote.test.ts` pins (`L.myVotes ? … : null`,
+`L.editVote && …`, `!L.dailyBank`). Kept: every data condition —
+`.enabled`, `.ready`, `.demoInProd`, `.feedReady` — which are false for
+the whole of mock mode.
+
+**The sweep (159 → 32).** Twenty-three providers, forty-seven files, 128
+sites, in one change, after the static import graph (built from the tree
+by a probe script, not from a paragraph) cleared every planned edge for
+cycles and the eager/lazy boundary cleared every edge for direction. The
+table in `src/v2/README.md` § The sweep lists them. The recurring shapes,
+recorded there in full: a provider declared inside the porter's IIFE
+cannot `export` by keyword when the export IS the inner function's name,
+so eight files hand their bindings out through a `const EXPORTS = {}`
+filled where `Object.assign(window, …)` stood; eight window copies stay
+beside their exports because a test reads them (`MapStats`, `LENSES`,
+`WORLD_TOPICS`, `MTAnchorCard`, `MTAnswerCard`, `PlaceStatsCard`,
+`ConsequenceBeat`, `App`); and four fallback renderers went with their
+reads — a whole "What makes the number" card in `person-overlay` and a
+five-topic stand-in for `WORLD_TOPICS` at `daily-split`'s module scope
+among them — because the frame they rendered in was already unreachable.
+
+### What the suite found, and the guard list learned
+
+Four tests had built a `window.LIVE`, `window.FEEDREAD` or
+`window.WF_REPORT` stand-in of their own — `feed-insight-round`,
+`map-dates`, `learn-split` (through a `W` alias) and `purge-wipe`
+(through `window as any`) — the D280 trap hand-rolled: after the
+conversion the stand-in reaches nobody. Two failed loudly (17 cases in
+`learn-split`, two in `purge-wipe`); one would have passed vacuously
+(`map-dates`' demo path IS `enabled: false`). All install onto the
+imported singleton now, as `test/live-fixture.ts` has since its header
+was written. The guard-shape list gains `typeof window.X === 'function'
+&&`, a whole `if (!window.X) return <fallback/>` block, and the
+member-existence shape on a pinned store.
+
+**The suppression count did not move** — `npm run lint` is unchanged at
+zero. D108 predicted every conversion would raise it before lowering it,
+because the React Compiler bails out of a component that reads a value
+through global scope; the three biggest consumers already held the import
+for other reads, so the compiler was never bailing out on these names'
+account.
+
+### What stays, and why it is a different kind of work
+
+**32 across 8 files**, each with its reason beside its baseline entry:
+the seven overlay tags `app-shell` mounts by name after awaiting
+`loadOverlays()`, plus that loader — the lazy-mount contract (D38/D223),
+which converts only by holding the overlay namespaces the way D355's slot
+holds the Mirror's; `WorldFeed`, `ConsequenceBeat` and `DuoBody` read
+from the eager side, where an import would drag a lazy module into first
+paint; `MAP_OPEN_GROUP` across two lazy groups; `registerBackHandler`, a
+seam `dialog.test` stubs on the window; `RMCore`, a demo-only header on a
+~20 KB module; `WORLD_FEED_QS`, four writers and a live/demo boundary —
+the design change `world-catalogs.js`'s section describes; and
+`test-definitions.js`'s four. None is a name a mechanical pass can take.
+
+**Enforcement.** `COUPLING_BASELINE` sits at 32 and only moves down; rule
+1 now fails on any `window.X` read of the fifty-odd names that no longer
+publish, which is how the two misses inside the sweep were found before
+the suite ran; the README's figure is held by `check:globals` itself.
+`check:figures` moved CLAUDE.md's off-the-bridge count 32 → 53 modules.
+
+## D355 · The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB
+
+**2026-09-01.** The other half of D354's mandate, measured by
+`check:bundle`'s `MAX_EAGER_KB` — the number its own header says to quote
+for a first-paint claim. A sourcemap attribution of the shipping bundle's
+eager set (entry + every `modulepreload`, 761 KB) put the Mirror tab's
+thirteen spec modules at ~130 KB of it, behind only react-dom (174 KB)
+and the daily tab's own spine; `check:bundle`'s header had already named
+the candidate — *"the Mirror tab is what is left of the obvious
+candidates, and it needs a guard the overlays did not."*
+
+### Why it could go
+
+The app never opens ON the Mirror: `TWEAK_DEFAULTS.tab` is `'track'` and
+nothing persists a tab across launches, so the tab is always one tap away
+and never the first frame. A reader audit over the thirteen (the
+provider-view transpose again, filtered to readers outside the group)
+found every reader of a Mirror global in the overlays group — or the
+mount tag itself. Nothing eager reads them. `MapStats`, `GDAv` and
+`relmap-lenses.jsx` looked like members and are not: eager modules read
+them on first-paint surfaces, so they stay.
+
+### The guard is a handoff, not a render guard
+
+`loadMirrorTab()` names only `mirror-tab.jsx` and that file's static
+side-effect imports carry the other twelve in the eager list's order —
+`loadMapTab()`'s shape (v28 §5). `app-shell` mounts the tab through
+`MirrorSlot`: state plus an import, `MapSlot`'s shape, because a
+`React.lazy` caches a rejection under a per-tab boundary (D207's finding)
+and one failed chunk fetch would make the app's main tab "This view hit a
+snag" for the session. What is new is the slot's INITIAL state: it reads
+`data/mirrorChunk`, where the loader remembers the resolved namespace.
+ESM has no synchronous read of the module cache; that module is one. So
+once `main.jsx`'s prewarm has landed — started right behind the feed's
+fetch — opening the Mirror renders in the tap's own tick with no blank
+frame, and the effect exists only for a tap that beats the prewarm or a
+prewarm that failed. That was the guard the overlays did not need: an
+overlay's opener awaits its chunk, a tab cannot.
+
+Three overlays read Mirror globals at render (`profile-general`'s
+`MirrorFieldBody` and `LENSES`, `profile-overlay`'s `LensesPanel`,
+`person-overlay`'s `CompareCarousel`), so `loadOverlays()` awaits
+`loadMirrorTab()` first — memoised, so that is the prewarm's own promise
+when `main.jsx` got there first and the fetch itself when a tap did. Both
+mount harnesses await it in `beforeAll` for the same reason the feed is
+awaited: the slot is same-tick only once the handoff has happened, and a
+suite that skipped it would click the tab and assert against the empty
+frame.
+
+### The arithmetic
+
+| | eager | entry chunk | total | ceiling |
+| --- | --- | --- | --- | --- |
+| before | 761 KB | 243 KB | 2154 KB | 880 |
+| the Mirror behind `loadMirrorTab()` | 633 KB | 133 KB | 2157 KB | 645 |
+| + `ui/CityPicker`, `ui/PickSearch` off the eager list (D354's sweep) | 619 KB | — | 2157 KB | 630 |
+
+−142 KB from first paint, 19%, the largest drop since D110 took the
+Firestore SDK out; the total within 3 KB, which is the shape every honest
+move here has had — a relocation, not a deletion. The ceiling came down
+with each step, band ~11 KB, the doctrine every entry in `check-bundle.mjs`
+states: the freed room is not headroom for the next eager feature.
+
+**Pinned.** `test/mirror-slot.test.jsx` holds the three slot cases
+against the real handoff (same-tick when remembered, the cold import that
+remembers, a failed chunk that costs the body and re-attempts on
+re-entry) plus a source pin on the shell's shape and the loaders; the
+existing `smoke-mirror` case — click the tab, read the ruler in the same
+breath, no await — is the same-tick claim asserted on the whole app.
+
+### What was measured and left
+
+`sample-data.js` (40 KB, demo data eager in a live build) has fifteen
+importers including live fallbacks, so it is a design change rather than
+a move; `daily-questions.js` (34 KB) is the daily tab's spine; react-dom
+is the framework. The overlay mounts in `app-shell` are the next slot
+candidates and D354 records why they are structural. The attribution
+script that produced the table is the way to re-measure: by source file,
+off the sourcemap, not by chunk name.
 ## D356 · First paint comes off the device: the warm boot, and `ready` splits from `attached`
 
 **2026-09-01.** **Status:** binding. Amends the boot's order of operations

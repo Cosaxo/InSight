@@ -783,7 +783,28 @@ const MAX_TOTAL_JS_KB = 2440;
 // the branch, before D203's pulse roster — legitimately eager, the entry
 // far above records why — joined the graph. Merged: 869 KB eager, the
 // deferral still paying for most of the roster. Band stays ~11 KB.
-const MAX_EAGER_KB = 880;
+//
+// 880 → 645 (2026-09-01, D355): the Mirror tab left the eager graph — the
+// thirteen spec modules behind the app's second tab now ride
+// loadMirrorTab(), prewarmed right behind the feed and rendered through a
+// slot that hands the module across synchronously once it has landed
+// (data/mirrorChunk), so the deferral costs no blank frame on the tab a
+// user reaches most. Measured at this commit: eager 761 → 633 (−128, the
+// largest single drop since D110 took the Firestore SDK out), entry chunk
+// 243 → 133, total 2154 → 2157 and 129 → 130 chunks — a relocation again,
+// which is the shape every honest move here has. The check:bundle header
+// had named this exact candidate ("the Mirror tab, ~168 KB, is what is
+// left of the obvious candidates, and it needs a guard the overlays did
+// not"); the guard turned out to be the same-tick handoff, not a render
+// guard. Band ~12 KB, the same posture as every entry above: the freed
+// room is not headroom for the next eager feature — a feature that wants
+// it raises this line with a measurement beside it.
+// 645 → 630 (2026-09-01, D354's sweep): ui/CityPicker and ui/PickSearch
+// left spec-index's eager list when their two consumers (profile-general,
+// world-feed — both lazy) started importing them, so each rides its
+// consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.
+// Band ~11 KB, same posture.
+const MAX_EAGER_KB = 630;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

@@ -10,15 +10,26 @@ import { WPAL } from './world-palette.js';
 import { DAILYQ } from './daily-questions.js';
 import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
-// The boot-failure label reads LIVE through the module, not through
-// window: D39's ratchet only moves down, so new coupling has to arrive as
-// an import. result-card.jsx, map-anchors.js and map-group-stats.js
-// already read it this way. The ~50 `window.LIVE` references elsewhere in
-// this file stay for now — converting them is a separate change, and each
-// one needs its `window.LIVE &&` guard re-read rather than deleted
-// wholesale, because an imported binding cannot be unset but the DATA it
-// carries can still be missing.
+// The store, through the module rather than through `window` — D39's
+// ratchet only moves down, so coupling arrives as an import. Every read in
+// this file goes through this binding since the LIVE conversion (D354).
+// The `window.LIVE &&` existence guards went with it, because an imported
+// binding cannot be unset; the DATA conditions beside them (`.enabled`,
+// `.ready`, `.demoInProd`, `.feedReady`) stayed, because those can still
+// be false — and the member-existence guards (`L.myVotes && …`) went too,
+// because the surface pin in data/vote.test.ts holds every one of those
+// methods on the store's literal.
 import LIVE from '../data/live';
+// D354's sweep. WORLD_TOPICS was a module-scope `window.` read with a
+// five-entry fallback — the fragility src/v2/README.md's feed paragraph
+// names ("deferring world-feed-data swaps the real topic set for the
+// fallback, silently"); the import makes the order a graph guarantee and
+// the fallback goes. GroupDailyBody's `|| 'div'` and PassiveTag's guard
+// were load-order guards on eager modules.
+import { GroupDailyBody } from './group-daily.jsx';
+import { PassiveTag } from './passive-meter.jsx';
+import { WORLD_TOPICS } from './world-feed-data.js';
+import { WF_REPORT } from './world-feed-report.js';
 // The one rounding rule (data/pct.ts). This file was the third split
 // surface and the one that kept the rule pct.ts was written to delete —
 // see the commit that converted it. Static, not lazy: pct.ts is a pure
@@ -74,13 +85,7 @@ import NAV from '../data/nav';
 // World topic categories — the subreddit-style subscriptions. Definitions
 // (labels + hues) live in world-feed-data.js; the chip row in the feed is the
 // subscription UI, and the same set filters the daily deck.
-const WORLD_TOPICS_V2 = window.WORLD_TOPICS || [
-  { id: 'culture', label: 'Culture' },
-  { id: 'dilemma', label: 'Dilemmas' },
-  { id: 'event', label: 'World events' },
-  { id: 'people', label: 'Famous people' },
-  { id: 'bigq', label: 'Big questions' },
-];
+const WORLD_TOPICS_V2 = WORLD_TOPICS;
 
 // ── close the loop: a vote lands on your Map ──
 // Questions with a true counterpart in the map's store (DAILYQ) place a real
@@ -102,14 +107,11 @@ export function sdSplitStageH(n) { return n <= 4 ? 244 : n * 53 + 123; }
 // Is the live store up and answering? Asked by both pending-target
 // consumers below (a tapped reveal, a tapped invitation).
 //
-// ONE shared-global read rather than three at each call site — the same
-// check written inline twice is six references to `window.LIVE` that
-// check:globals rule 4 counts, and rightly: every one of them is a name
-// resolved at render time that no import graph can see.
-const liveReady = () => {
-  const L = window.LIVE;
-  return !!(L && L.enabled && L.ready);
-};
+// One helper rather than the check inline at each call site. (It was
+// written as ONE shared-global read for rule 4's sake; the binding is an
+// import now, and the existence half of the old `L && …` went with the
+// bridge read.)
+const liveReady = () => !!(LIVE.enabled && LIVE.ready);
 
 // The mode of the circle this gid names, or null when it names none this
 // account is in. Shared by both gid-shaped pending targets — a tapped
@@ -118,15 +120,15 @@ const liveReady = () => {
 // difference check:globals rule 4 counts.
 const modeOfGroup = (gid) => {
   if (!gid || !liveReady()) return null;
-  const g = window.LIVE.social.groups().find((x) => x.id === gid);
+  const g = LIVE.social.groups().find((x) => x.id === gid);
   return g ? (g.mode === 'duo' ? 'duo' : 'group') : null;
 };
 
-class DailySplit extends React.Component {
+export class DailySplit extends React.Component {
   state = {
     mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, reportFor: null,
     idx: 0, idxG: 0,
-    votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
+    votes: (LIVE.enabled ? LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false, editHold: null,
     // Which daily has its D86 re-pick open — id, not boolean, the same
     // shape and the same reason as `liveTakes` below. The reconcile in
@@ -184,8 +186,8 @@ class DailySplit extends React.Component {
     // Reconcile (not just repaint) on live-store changes: rolled-back
     // votes must un-vote the UI, and a late live boot (timeout path)
     // must hydrate answers recorded in earlier sessions.
-    if (window.LIVE) this._unsubLive = window.LIVE.subscribe(() => {
-      const L = window.LIVE;
+    this._unsubLive = LIVE.subscribe(() => {
+      const L = LIVE;
       if (!L.enabled || !L.ready) { this.forceUpdate(); return; }
       const lv = L.myVotes();
       this.setState((s) => {
@@ -383,13 +385,12 @@ class DailySplit extends React.Component {
   // how they drift. D86: after a hold-to-change the server still holds
   // the old vote — LIVE.vote is create-only, so a re-pick routes through
   // editVote. A false return (unacked write, or the 60s cooldown) keeps
-  // the standing pick and says why on the meta line. (One window read,
-  // hoisted — the vote call used two.)
+  // the standing pick and says why on the meta line.
   castVote(S, optId) {
     let next = optId, moved = true;
-    const L = S.live ? window.LIVE : null;
+    const L = S.live ? LIVE : null;
     if (L) {
-      const prior = (L.myVotes && L.myVotes()[S.id]) || null;
+      const prior = L.myVotes()[S.id] || null;
       if (prior == null) L.vote(S.id, next);
       else if (prior === next) moved = false; // re-picked the standing vote: nothing to say
       else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
@@ -437,8 +438,7 @@ class DailySplit extends React.Component {
   // reporting a comment — same short reason list the World feed uses
   reportRow(k) {
     if (this.state.reportFor !== k) return null;
-    const R = window.WF_REPORT;
-    if (!R) return null;
+    const R = WF_REPORT;
     const h = React.createElement;
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 4 } },
       h('span', { style: { fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)' } }, 'Report this take'),
@@ -579,10 +579,10 @@ class DailySplit extends React.Component {
 
   get data() {
     // Live mode: the deck comes from Firestore (real questions, real
-    // counts) via window.LIVE; the demo deck below stays as the mock
-    // fallback and the offline dev experience.
-    const L = window.LIVE;
-    if (L && L.enabled) {
+    // counts) via LIVE; the demo deck below stays as the mock fallback
+    // and the offline dev experience.
+    const L = LIVE;
+    if (L.enabled) {
       // live mode NEVER shows the demo deck — an empty live deck (slow
       // boot, unseeded day) renders a loading card instead of fake data
       return (L.ready && L.deck()) || [];
@@ -732,9 +732,12 @@ class DailySplit extends React.Component {
     const liveTotal = total.toLocaleString();
     // Hoisted for the two gates below (the D83 takes row and the demo
     // sheets row): a live build showing the mock fallback to a real user.
-    // The window read rather than the imported LIVE binding, deliberately \u2014
-    // the smoke fixtures drive this branch through the window stand-in.
-    const demoProd = !!(window.LIVE && window.LIVE.demoInProd);
+    // This used to be a WINDOW read "deliberately — the smoke fixtures
+    // drive this branch through the window stand-in", which stopped being
+    // true when test/live-fixture.ts started defining its members onto the
+    // imported singleton: the global and the export are one object, so the
+    // import sees the fixture (its header has the failure that taught it).
+    const demoProd = !!LIVE.demoInProd;
     // noCountsYet means the aggregate has not landed yet — after your own
     // blind vote that is "you're first, the trigger is on its way", never
     // "wait for five people" (D98 removed the floor that made it a wait).
@@ -781,7 +784,7 @@ class DailySplit extends React.Component {
     const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label || S.branch;
 
     // ── the feed: answer today's question, then the feed starts ──
-    const feedEnabled = this.props.feed !== false && window.WorldFeed && (!(window.LIVE && window.LIVE.enabled) || window.LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
+    const feedEnabled = this.props.feed !== false && window.WorldFeed && (!LIVE.enabled || LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
     const feedNode = !feedEnabled ? null : h(window.WorldFeed, { cats: st.cats, onToggle: (id) => this.toggleCat(id), density: this.props.feedDensity || 'comfy', beats: this.props.beats, opts: this.props.feedOpts });
 
     // ── comments & who-voted — bottom sheets, portaled to the app screen ──
@@ -803,12 +806,11 @@ class DailySplit extends React.Component {
         h('input', { value: st.draft, onChange: (e) => this.setState({ draft: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') post(); }, placeholder: 'Add your take\u2026', style: { flex: 1, border: LINE, borderRadius: 999, padding: '10px 16px', fontSize: 13.5, fontWeight: 600, background: 'var(--surface-2)', color: INK, outline: 'none', minWidth: 0 } }),
         h('button', { onClick: post, style: { border: LINE, borderRadius: 999, padding: '0 18px', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: voted ? S.options[myIdx].color : INK, color: voted ? (S.options[myIdx].textColor || '#fff') : PAPER, WebkitAppearance: 'none' } }, 'Post')),
       filtered.map(c => {
-        const R = window.WF_REPORT;
-        if (R && R.has(c.key)) {
+        if (WF_REPORT.has(c.key)) {
           if (!this._jr || !this._jr.has(c.key)) return null;
           return h('div', { key: c.key, style: { background: 'var(--surface-2)', border: LINE, borderRadius: 14, padding: '12px 13px', display: 'flex', alignItems: 'center', gap: 10 } },
             h('span', { style: { flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' } }, 'Reported. Hidden from your feed.'),
-            h('button', { className: 'press', onClick: () => { R.undo(c.key); this._jr.delete(c.key); this.forceUpdate(); }, style: { border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: INK, cursor: 'pointer', WebkitAppearance: 'none' } }, 'Undo'));
+            h('button', { className: 'press', onClick: () => { WF_REPORT.undo(c.key); this._jr.delete(c.key); this.forceUpdate(); }, style: { border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: INK, cursor: 'pointer', WebkitAppearance: 'none' } }, 'Undo'));
         }
         const canUp = voted && c.opt === myVote;
         const rKey = S.id + '|' + c.key;
@@ -958,7 +960,7 @@ class DailySplit extends React.Component {
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
         h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
-        window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
+        h(PassiveTag, { q: S, answered: voted })),
       chipRow,
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),
       !voted
@@ -1149,9 +1151,9 @@ class DailySplit extends React.Component {
     // LdReveal's is: the chunk lands in the same frame as the mode switch on
     // anything but a cold first tap, and a flashed spinner reads as a
     // stutter.
-    const liveDuels = window.LIVE && window.LIVE.enabled;
+    const liveDuels = LIVE.enabled;
     const lazyDuel = (key, m) => h(React.Suspense, { key, fallback: null }, h(LiveDuelPanel, { mode: m }));
-    const groupBody = liveDuels ? lazyDuel('live-group', 'group') : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
+    const groupBody = liveDuels ? lazyDuel('live-group', 'group') : h(GroupDailyBody, { key: 'group-daily' });
     const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
     // ===== chrome =====
@@ -1257,6 +1259,4 @@ class DailySplit extends React.Component {
       screen);
   }
 }
-window.DailySplit = DailySplit;
 
-;globalThis.DailySplit = typeof DailySplit === 'undefined' ? globalThis.DailySplit : DailySplit;

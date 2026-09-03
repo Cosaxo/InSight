@@ -8,6 +8,10 @@
 - [ ] Tests pass for whatever this touches — `test:unit`,
       `test --prefix functions`, `test:rules`, `test:e2e`
 - [ ] New behaviour has a test that **fails without the change**
+- [ ] Ready for the shepherd (`docs/OPS-RUNBOOK.md` § The PR shepherd):
+      `main` merged in, decision numbers uncollided, green on the current
+      head — then the owner applies `merge-when-green`, and nothing pushes
+      after it
 
 ## If this touches the access surface
 

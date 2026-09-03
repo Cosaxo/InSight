@@ -638,7 +638,7 @@ export const MIN_SHARD_RATE = 0.001;
  * numbers = 8 leaves = 16 entries, against Firestore's 40,000 per
  * document, so 2,500 qids is the ceiling and 1,500 is the fence. At 64
  * characters that is also ~225 KB, comfortably inside 1 MiB. The bank is
- * 758 questions today, so a day cannot hold enough BANK qids to reach the
+ * 831 questions today, so a day cannot hold enough BANK qids to reach the
  * fence. This said "the bank can double before this truncates anything
  * real" and check:figures kept the number current underneath it until the
  * claim expired: at 750 against 1,500 doubling lands exactly ON the fence,
