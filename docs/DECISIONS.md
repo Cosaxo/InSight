@@ -37212,7 +37212,7 @@ Bank 750 → 764, feed 184 → 198 (82 core, 116 tail); `check:figures`
 moved eleven prose lines and two code comments with it, and 217.4 KiB
 is the bank's wire size now.
 
-## D359 · Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story
+## D360 · Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story
 
 **2026-09-03.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
 sixty commits are kept as written; nothing was reverted. What this review
