@@ -57,7 +57,21 @@ export function parseJoinCode(url: string): string | null {
   // and the code alone is the path — so match on host+path, not path alone.
   const fromPath = /(?:^|\/)join\/([^/?#]+)/.exec(u.hostname + u.pathname);
   const raw = (fromPath && fromPath[1]) || u.searchParams.get("c") || "";
-  const code = decodeURIComponent(raw).trim().toUpperCase();
+  // The decode is load-bearing — `/join/%41%42%43%44%45%46` is a real code
+  // once decoded — and it THROWS on a malformed escape rather than
+  // returning anything: `/join/ABCDEF%`, `insight://join/AB%ZZ` and
+  // `/join.html?c=AB%ZZ` all raise URIError, which is neither the code nor
+  // the null this function's contract promises two lines above. The `new
+  // URL` guard above catches the other half of the same class and this was
+  // simply outside it. `apply()` in initDeepLinks calls straight into here,
+  // so on the native `appUrlOpen` path the throw escapes into Capacitor's
+  // listener with no invite delivered and nothing said.
+  let code: string;
+  try {
+    code = decodeURIComponent(raw).trim().toUpperCase();
+  } catch {
+    return null;
+  }
   return CODE_RE.test(code) ? code : null;
 }
 
