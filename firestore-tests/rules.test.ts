@@ -1814,6 +1814,14 @@ describe("v2 follow graph (D101 — Circle)", () => {
     await assertSucceeds(setDoc(followRef(OWNER, OWNER, STRANGER), {
       at: serverTimestamp(), to: STRANGER,
     }));
+    // …and a SECOND setDoc on the same row is an update too, whatever the
+    // client called. That is the shape the app actually writes: `follow()`
+    // used to describe itself as idempotent, and this is the rule that
+    // says it is not — a re-follow of somebody already followed is refused,
+    // so the client has to treat that refusal as "already there".
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER,
+    }));
     // Rewriting `at` would reorder a Circle, which is the one thing the
     // stamp decides (fetchFollowing sorts oldest-first so the cap is
     // stable across sessions).

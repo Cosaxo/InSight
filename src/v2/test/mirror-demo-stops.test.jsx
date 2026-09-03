@@ -25,6 +25,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { DUELS } from "../spec/duels-data.js";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -94,5 +95,57 @@ describe("the demo Mirror's place lenses", () => {
     // An axis, so the assertion is about the rows and not just the legend.
     expect(body, "the scorecard drew no axes").toMatch(/Nature access/);
     expectNoBoundary("mirror · city · scores");
+  });
+});
+
+// ── a group's history is the group's, not a constant ──
+//
+// `histDays` in duels-data.js is explicit — "custom groups start today —
+// no fake history" — and groupDays, groupAlignment and groupPortrait all
+// bound by it. GroupAnswersCard ran to a literal 7 instead, so a group
+// made this morning drew six days of verdicts nobody had given, under a
+// header reading "0 days played" from the one count that DID honour it.
+// Both halves are asserted here: the seeded group keeps its six rows, so
+// a fix that bounded everything to zero fails too.
+describe("the demo Mirror's Groups stop · what the group landed on", () => {
+  // Found by walking `.card` rather than by getByText: `Kicker` splits the
+  // heading across elements, so a text query on it reports "broken up by
+  // multiple elements" and finds nothing.
+  const card = () => [...document.querySelectorAll(".card")]
+    .find((el) => /What the group landed on/i.test(el.textContent || ""));
+  /** The verdict rows are the only aria-expanded buttons in this card. */
+  const verdictRows = () => [...card().querySelectorAll("button[aria-expanded]")];
+
+  it("draws a seeded group's six days and a new group's none", async () => {
+    const expectNoBoundary = mountApp();
+    await toStop("Groups");
+    await toLens("Answers");
+
+    // The positive half FIRST, because a fix that bounded every group to
+    // zero would satisfy the negative half on its own.
+    expect(document.body.textContent, "the Groups stop never opened").toMatch(/aligned with you/);
+    expect(card(), "the Answers lens never opened").toBeTruthy();
+    expect(card().textContent, "the seeded group lost its day count").toMatch(/6 days played/);
+    expect(verdictRows().length, "the seeded group lost its history").toBe(6);
+
+    // …now a group created this morning. `save()` fires the store's
+    // listeners, so the picker redraws without a remount.
+    const ids = DUELS.members().slice(0, 3).map((p) => p.id);
+    expect(ids.length, "the demo circle is empty — the case cannot make a group").toBe(3);
+    DUELS.createGroup("Night Crew", ids);
+    await act(async () => { await new Promise((r) => setTimeout(r, 120)); });
+    fireEvent.click(screen.getByRole("button", { name: /Night Crew/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 120)); });
+
+    expect(document.body.textContent, "the picker never opened the new group").toMatch(/Night Crew/);
+    // MirrorLenses is keyed on the group id, so switching groups remounts
+    // it with no lens open — the same reason the place cases tap a lens
+    // after every stop.
+    await toLens("Answers");
+    expect(card().textContent, "a group made today reported days played").toMatch(/0 days played/);
+    expect(verdictRows().length, "a group made today drew verdicts nobody gave").toBe(0);
+    // …and it says why the card is empty rather than leaving a blank tab.
+    expect(document.body.textContent).toMatch(/This group starts today/);
+    expectNoBoundary("mirror · groups · answers");
   });
 });

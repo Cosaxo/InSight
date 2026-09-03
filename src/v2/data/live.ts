@@ -5717,6 +5717,28 @@ const LIVE = {
    */
   patternsSignal(): PatternsSignal {
     if (!this.enabled) return {};
+    // …and NOTHING once the account is going away. `torndown` is
+    // deleteAccount's first statement (and is unlatched again when the
+    // delete could not start), so this is exactly "there is no account
+    // here any more".
+    //
+    // Without it the purge undoes itself, in one turn and by design:
+    // deleteAccount calls purgeLocalTrace(), which removes the earned key
+    // and dispatches `insight:local-purge`; the shell's usePatternsTab
+    // hears that and setOpen(false); the effect re-runs on the changed
+    // `open` and immediately re-asks `patternsEarned(LIVE.patternsSignal())`
+    // — and the signal is still the DELETED account's, because
+    // `state.votes` is not emptied until the sign-out two statements later
+    // propagates to resetForNewUid. So the key is written straight back and
+    // the tab reopens, and the next fresh anonymous session on this device
+    // inherits a tab it never earned. That is the exact thing D265 says the
+    // purge is the only thing that closes, and has to be.
+    //
+    // patternsReady's own note reasons this cannot happen — correctly, but
+    // only about the UID-CHANGE path, where resetForNewUid empties the vote
+    // mirror before the event goes out. The two paths do not share that
+    // order; that note now says so.
+    if (torndown) return {};
     return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine: patternsMine() };
   },
   // ── Learn (D32) ──

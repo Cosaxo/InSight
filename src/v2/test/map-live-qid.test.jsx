@@ -146,7 +146,12 @@ describe("the id the Map asks the live store about", () => {
     // what had happened to the Map itself.
     const person = readFileSync("src/v2/spec/person-mindmap.jsx", "utf8");
     expect(person, "person-mindmap went back to the demo id").toMatch(/const qid = q\.liveId \|\| q\.id;/);
-    expect(person, "person-mindmap's reading went back to the demo id").toMatch(/MapStats\.dist\(qid, 'all'/);
+    expect(person, "person-mindmap's reading went back to the demo id").toMatch(/MS\.dist\(qid, 'all'/);
+    // …and its MAJORITY reading, which map-tab's half below has asserted
+    // since that map was fixed. `gd` is rounded, so deriving the majority
+    // from it breaks a real tie by index and mismarks a rare take — the
+    // twin carried the fix and this file did not.
+    expect(person, "person-mindmap's majority reading went back to the percentages").toMatch(/MS\.mode\(qid, 'all'/);
     expect(person, "person-mindmap's node carries the demo id again").toMatch(/daily: true, qid,/);
     // Resolved off the process cwd, which vitest sets to the repo root —
     // `import.meta.url` in a transformed module is not a filesystem path

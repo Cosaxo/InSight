@@ -171,6 +171,14 @@ jobs:
         # `continue-on-error` on the gate would also make it reachable and
         # is the wrong fix: it turns the scheduled run green and takes the
         # red morning email with it.
+        #
+        # `failure()` rather than `always()`, which the other shift reached
+        # independently and is the half worth keeping from it: this job sets
+        # concurrency.cancel-in-progress, so `always()` would fire a
+        # responder session for a run that was superseded. The
+        # `steps.gate.outcome` clause is what keeps it precise — if
+        # "Record today's row" is what failed, the gate is skipped, its
+        # outcome is 'skipped', and this correctly stays quiet.
         if: ${{ failure() && steps.gate.outcome == 'failure' && github.event_name == 'schedule' }}
         env:
           ROUTINE_URL: ${{ vars.ROUTINE_PULSE_FIRE_URL }}

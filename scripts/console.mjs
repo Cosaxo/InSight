@@ -99,7 +99,14 @@ async function readGithub(missing) {
   //
   // This is the door the failed-action guard cannot see: that guard is
   // anchored to the row, and the row is what goes missing.
-  const g = { ok: false, error: null, rowsComplete: true, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
+  //
+  // `mergedOk` is the same door on the OTHER read, and it is the one thing
+  // the other shift found here that this one did not: the closed-PR page
+  // is a third call that can fail on its own, and it falls back to an
+  // empty list. "Merged this week" would then be regenerated with nothing
+  // in it — a section silently emptied rather than a row silently dropped,
+  // but the same erasure, so it gates the write the same way.
+  const g = { ok: false, error: null, rowsComplete: true, mergedOk: true, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
   const step = async (name, fn) => { try { return await fn(); } catch (e) { missing.push(`${name} (${e.message.split("\n")[0].slice(0, 80)})`); return null; } };
   const prs = await step("open PRs", () => ghAll(`/repos/${REPO}/pulls?state=open&base=main`));
   if (prs === null) { g.error = missing[missing.length - 1]; return g; }
@@ -134,6 +141,7 @@ async function readGithub(missing) {
     g.branches.push({ name: b.name, aheadBy: cmp.ahead_by, lastCommitAt: last?.commit?.committer?.date || null, commits: (cmp.commits || []).map((c) => c.commit.message.split("\n")[0]) });
   }
   const closed = await step("merged PRs", () => gh(`/repos/${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=60&base=main`));
+  if (closed === null) g.mergedOk = false;
   const weekAgo = new Date(Date.now() - 7 * 86400e3).toISOString();
   g.merged = (closed || []).filter((p) => p.merged_at && p.merged_at > weekAgo).map((p) => ({ number: p.number, title: p.title, merged_at: p.merged_at, merged_by: p.merged_by?.login }));
   const issues = await step("issues", () => ghAll(`/repos/${REPO}/issues?state=open`));
@@ -232,7 +240,7 @@ export async function collect({ now = new Date() } = {}) {
     worklist, owner, axioms, visuals, permissions, register, lastSeen: seen, theory, pulse,
     rollCalls: rollCalls(ops, today), runLogs,
     productionReader: lastSeen(ops, "production reader"),
-    mainCi: github.mainCi, merges: github.merges, missing, rowsComplete: github.rowsComplete,
+    mainCi: github.mainCi, merges: github.merges, missing, rowsComplete: github.rowsComplete, mergedOk: github.mergedOk,
     ownerSteps: [
       ...ownerSteps(read("docs/AXES-RUNBOOK.md"), "docs/AXES-RUNBOOK.md"),
       ...ownerSteps(read("docs/PROGRAM-RUNBOOK.md"), "docs/PROGRAM-RUNBOOK.md"),
@@ -394,7 +402,7 @@ async function main() {
 
   // The list: only when GitHub answered — a render from nothing would erase
   // the owner's ticks with an empty page.
-  if (listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete })) {
+  if (listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete, mergedOk: state.mergedOk })) {
     writeFileSync(MERGE_LIST, renderMergeList({ rows: state.rows, merged: state.merged, generatedAt: state.generatedAt }));
     log("wrote docs/MERGE-LIST.md");
   } else if (!state.github.ok) {
@@ -403,8 +411,9 @@ async function main() {
     // Rewriting now would drop the missing rows AND their ticks. Same
     // posture as a rejected action: a red run over a stale list beats a
     // green one over a list that is quietly wrong.
-    console.log("::warning::console: a branch listing did not answer — docs/MERGE-LIST.md left untouched so no tick is lost");
-    log("left docs/MERGE-LIST.md untouched — the branch rows are incomplete");
+    const what = state.rowsComplete === false ? "a branch listing did not answer" : "the closed-PR page did not answer";
+    console.log(`::warning::console: ${what} — docs/MERGE-LIST.md left untouched so no tick is lost`);
+    log(`left docs/MERGE-LIST.md untouched — GitHub answered in part only (${state.missing.join("; ")})`);
     process.exitCode = 1;
   }
 
@@ -440,8 +449,15 @@ async function main() {
   writeFileSync(TRAIL, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
   log(`trail row for ${state.today}`);
 
-  if (REFRESH && TOKEN && state.github.ok) {
-    await upsertIssue(state, renderConsole(state, state.priorIssueBody), log);
+  // The same rule the merge list asks — and read off `state`, not off
+  // `state.github`, which carries `{ ok, error }` and nothing else. The
+  // other shift wrote this guard against `state.github.rowsComplete` and
+  // `state.github.mergedOk`: both undefined, so the whole condition was
+  // falsy on every run and the issue would have stopped being rewritten
+  // altogether. Its own suite could not see it — the tests exercise the
+  // renderers, and this is the only line that decides whether they run.
+  if (REFRESH && TOKEN && listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete, mergedOk: state.mergedOk })) {
+    await upsertIssue(state, renderConsole(state, state.priorIssueBody, failed), log);
   } else if (REFRESH) log("no token or GitHub unreachable — the Console issue was not rewritten");
   if (state.missing.length) log(`sources that did not answer: ${state.missing.join("; ")}`);
 }

@@ -263,6 +263,14 @@ const fmtDay = (iso) => (iso ? String(iso).slice(0, 10) : "?");
 const fmtTime = (iso) => (iso ? `${String(iso).slice(11, 16)} UTC ${String(iso).slice(0, 10)}` : "?");
 
 export function rowLine(row, { box = true } = {}) {
+  // The tick is drawn from the LABELS, which only move on success — so a
+  // failed label call would re-render the row unticked and erase the
+  // owner's decision from the file. That is closed one level up rather
+  // than here: `holdsTheList` (console.mjs) refuses to rewrite either
+  // surface at all while any tick is unapplied, so this function is never
+  // asked to draw a row whose label call failed. The other shift closed
+  // the same door here instead, by passing the unapplied keys down and
+  // drawing them ticked; both work, and only one of them can be the path.
   const tick = isTicked(row) ? "x" : " ";
   const head = box ? `- [${tick}] ` : "- ";
   if (row.kind === "branch") {
@@ -685,7 +693,8 @@ export const isoDay = (d = new Date()) => new Date(d).toISOString().slice(0, 10)
  * boolean in a script that cannot be run without a token, so the only way
  * it can be executed at all is as a function.
  */
-export const listIsWritable = ({ ok, rowsComplete }) => !!ok && rowsComplete !== false;
+export const listIsWritable = ({ ok, rowsComplete, mergedOk }) =>
+  !!ok && rowsComplete !== false && mergedOk !== false;
 
 export function trailRow(state) {
   const rows = state.rows || [];

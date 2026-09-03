@@ -610,6 +610,36 @@ export const deleteAccount = onCall(
           revealCursor = page.docs[page.docs.length - 1];
         }
       }
+      // …and the groups this account OWNS but is no longer in, which the
+      // membership query above cannot see. Exactly the gap 1c-bis exists to
+      // close for reveals, one field over: leaveGroupV2 removes a uid from
+      // memberUids and memberNames and deliberately leaves `ownerUid`
+      // standing (D45 — leaving is not an erasure request), so an account
+      // that created a circle and later left it keeps its raw uid on a
+      // document firestore.rules serves whole to every current member, and
+      // to everyone they invite afterwards, forever.
+      //
+      // docs/data-inventory.md enumerates what survives an erasure as a
+      // closed set of three, and web/privacy.html promises in writing that
+      // "two things intentionally survive, and neither can identify you".
+      // This was in neither list, which makes it a defect against a written
+      // promise rather than a judgement call.
+      //
+      // Single-field equality, so no composite index is needed. It runs
+      // AFTER the member loop deliberately: that loop deletes the field for
+      // every group it touches, so those documents no longer match this
+      // query and are not written twice. NOT_FOUND is tolerated for the
+      // same reason it is above — a group deleted underneath us is the
+      // outcome we wanted, and failing here would refuse the auth delete.
+      const owned = await db.collection("v2_groups").where("ownerUid", "==", uid).get();
+      for (const g of owned.docs) {
+        try {
+          await g.ref.update({ ownerUid: FieldValue.delete() });
+        } catch (err) {
+          if ((err as { code?: number | string }).code !== 5
+            && (err as { code?: string }).code !== "not-found") throw err;
+        }
+      }
     } catch (err) {
       logger.error("[deleteAccount] v2 group scrub failed:", err);
       failed.push("v2Groups");
