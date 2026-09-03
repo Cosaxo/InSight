@@ -3803,6 +3803,14 @@ const PRESENCE_BEAT_MS = 4 * 60_000; // far inside the linger, so a foreground a
 // any `until` at the same 180 minutes — three copies of one number,
 // because rules cannot import and the server must not trust the client.
 const PRESENCE_LINGER_MS = 180 * 60_000;
+/**
+ * The margin subtracted from a presence `until` so an ordinary clock
+ * difference cannot have the write refused. See the beat below — the rules
+ * ceiling is measured on the server's clock and this value on the device's,
+ * and without a margin the comparison is between the two clocks rather than
+ * between two deadlines.
+ */
+const SKEW_MS = 60_000;
 
 const nearState = {
   count: null as number | null,   // null = never fetched this session
@@ -3874,7 +3882,28 @@ async function runBeat(cell?: string): Promise<void> {
     // caps how far out this may be pushed, so the promise does not rest on
     // the client being ours.
     const deadline = nearUntil();
-    const lingerTo = Date.now() + PRESENCE_LINGER_MS;
+    // A MINUTE SHORT OF THE LINGER, AND THE MINUTE IS THE WHOLE POINT.
+    //
+    // firestore.rules caps `until` at `request.time + 180m` — the SERVER's
+    // clock — and this wrote `Date.now() + 180m` from the DEVICE's. In
+    // `always` mode there is no session deadline to clamp against, so the
+    // two 180s cancelled and the rule reduced to `deviceNow <= serverNow`:
+    // the only slack was network latency, and any phone running more than a
+    // few hundred milliseconds fast had EVERY presence beat refused with
+    // permission-denied. `runBeat`'s catch reports "unavailable", the count
+    // stays null, and the card offers a retry that cannot succeed — for the
+    // life of the install, on a four-minute loop. `always` is also what
+    // every pre-D174 opt-in upgrades into (near.ts).
+    //
+    // Recorded at D181 and parked there because the obvious fix — widening
+    // the rules ceiling — moves the only bound that enforces "your position
+    // stops counting", on the presence cell, which is one of the three
+    // labelled denies. This costs a minute of a three-hour linger instead
+    // and moves no bound at all: the cap is still hand-matched to
+    // PRESENCE_LINGER_MIN, and every comment and document saying so stays
+    // true. A device more than a minute fast is a device with a broken
+    // clock, not ordinary skew.
+    const lingerTo = Date.now() + PRESENCE_LINGER_MS - SKEW_MS;
     // `type` is the viewer's OWN Big Five archetype name (D176), and the
     // device is what computes it — the archetype table lives here, so
     // writing the NAME means the server never joins a profile and never

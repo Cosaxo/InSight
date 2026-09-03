@@ -18178,6 +18178,24 @@ write. The timed mode is unaffected (its deadline is two hours, well under
 the cap). Not the reported failure, which was in timed mode, but it is a
 real one and it is recorded here rather than fixed blind.
 
+**FIXED 2026-09-04, and the shape of the fix is the point.** The obvious
+route — widening the rules ceiling by a skew allowance — moves the only
+bound that enforces "your position stops counting", on the presence cell,
+which is one of the three labelled denies; the server trusts the doc's
+`until` (v2social.ts's `nearbyCountV2` falls back to `at + linger` only
+when it is absent), so that ceiling is the whole enforcement and widening
+it really does extend how long a modified client can stand in a room. It
+would also have turned `firestore-tests/rules.test.ts`'s `soon(181)`
+refusal red and left four "the cap equals the linger" statements stale.
+The client writes a minute short of the linger instead: ordinary skew is
+absorbed inside an UNCHANGED fence, the cap stays hand-matched to
+PRESENCE_LINGER_MIN, every comment and document saying so stays true, and
+it costs one minute of three hours. A device more than a minute fast has a
+broken clock, not skew. `near-presence.test.ts` asserts the written
+deadline sits a real margin inside the ceiling rather than on it — the
+device-clock condition itself cannot be reproduced where the emulator and
+the test share one clock, and the case says so.
+
 ## D182 · The copy pass: a visual beats a word, a word beats a sentence
 
 **2026-08-16.** Owner report, with two screenshots — the Mirror's People
