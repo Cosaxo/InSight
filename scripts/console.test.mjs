@@ -310,6 +310,52 @@ describe("the owner list fold", () => {
     expect(none).not.toContain("console:begin");
     expect(none).toContain("- [ ] **Hand row**");
   });
+  // THE CONSOLE DELETED THE OWNER'S BLOCK ON EVERY OTHER RUN, and the case
+  // above could not see it: it folds three times but never re-parses its
+  // own output in between, which is precisely the loop that bites.
+  //
+  // `hand` was built from the whole section, so it included the fold's own
+  // last output; every generated row then counted as already-listed, the
+  // fold produced nothing, and the block was replaced with emptiness. The
+  // next run saw a file without them and put them all back. On the real
+  // OWNER-LIST.md that measured 22, 0, 22, 0 — and every console commit on
+  // main alternates the same way.
+  //
+  // So this is the loop, closed: parse, fold, parse the RESULT, fold again.
+  it("keeps folding the same rows when it re-reads its own output", () => {
+    const candidates = [
+      { id: "0.3", title: "Put the protection rules on production", file: "docs/LAUNCH-RUNBOOK.md" },
+      { id: "0.4", title: "Answer the store privacy form", file: "docs/LAUNCH-RUNBOOK.md" },
+    ];
+    let doc = text;
+    const counts = [];
+    for (let run = 0; run < 4; run++) {
+      const owner = parseOwnerList(doc);
+      const hand = Object.values(owner).flatMap((sec) => sec.hand || []);
+      const rows = notAlreadyListed(hand, candidates)
+        .map((c) => `**${c.id} ${c.title}** — *Source:* \`${c.file}\`.`);
+      counts.push(rows.length);
+      doc = foldOwnerList(doc, { Decisions: rows });
+    }
+    expect(counts, "the fold emptied its own block and refilled it").toEqual([2, 2, 2, 2]);
+    expect(doc).toContain("Put the protection rules on production");
+    // The owner's own row is never swept up by any of it.
+    expect(doc).toContain("- [ ] **Hand row**");
+  });
+
+  it("still counts a row the owner ticked inside the block as theirs", () => {
+    // The other direction, and the reason `hand` is not simply "everything
+    // outside the markers": ticking is the owner's act wherever the row
+    // lives, and a ticked generated row must stay filtered out rather than
+    // being regenerated unticked two hours later.
+    const folded = foldOwnerList(text, { Decisions: ["**2.0 The custody decision** — *Source:* `docs/AXES-RUNBOOK.md`."] });
+    const ticked = folded.replace("- [ ] **2.0 The custody", "- [x] **2.0 The custody");
+    const hand = Object.values(parseOwnerList(ticked)).flatMap((sec) => sec.hand || []);
+    expect(hand.join("\n")).toContain("2.0 The custody decision");
+    expect(notAlreadyListed(hand, [{ id: "2.0", title: "The custody decision", file: "docs/AXES-RUNBOOK.md" }]))
+      .toEqual([]);
+  });
+
   it("does not repeat a row the owner already wrote by hand", () => {
     const hand = ["**The consented tier's custody decision** — consented tier versus … *Source:* `AXES-RUNBOOK.md` 2.0."];
     const kept = notAlreadyListed(hand, [

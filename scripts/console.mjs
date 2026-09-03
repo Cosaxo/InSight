@@ -386,7 +386,10 @@ async function main() {
     // OPEN AND DONE. A row the owner ticked is still something they have
     // said by hand — more so — and leaving it out meant the fold
     // regenerated it unticked on the next run.
-    const hand = Object.values(state.owner).flatMap((s) => [...s.open, ...(s.doneRows || [])]);
+    // `s.hand`, not open+done: open+done includes the fold's own previous
+    // output, which made every generated row filter itself out and emptied
+    // the block on alternate runs. parseOwnerList has the arithmetic.
+    const hand = Object.values(state.owner).flatMap((s) => s.hand || []);
     const decisions = notAlreadyListed(hand, state.ownerSteps).map((s) => `**${s.title}** — *Source:* \`${s.file}\` ${s.id}.`);
     const launch = notAlreadyListed(hand, state.launchOpen).map((s) => `**${s.id} ${s.title}** — *Source:* \`docs/LAUNCH-RUNBOOK.md\`.`);
     const approvals = state.github.ok

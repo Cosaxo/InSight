@@ -469,7 +469,31 @@ export function parseOwnerList(text) {
     // — a no-op that reads like this was half-intended once.)
     const open = items(body, " ");
     const doneRows = items(body, "x").concat(items(body, "X"));
-    out[name] = { open, doneRows, done: doneRows.length };
+    // `hand` — WHAT THE OWNER ACTUALLY SAID, which is not the same set as
+    // "every row in the section", and conflating the two made the console
+    // delete this file's Store-and-legal block on every other run for as
+    // long as it has been running.
+    //
+    // The fold filters its candidates against `hand`. When `hand` was the
+    // whole body it included the fold's OWN last output, so all 22
+    // generated rows counted as already-listed, the fold produced nothing,
+    // and the block was replaced with emptiness. The run after that saw a
+    // file without them and put all 22 back. Measured on the real file:
+    // 22, 0, 22, 0 — and every console commit on main alternates the same
+    // way, so the owner's list of what only they can do is empty half the
+    // time while 22 launch steps sit open in the runbook.
+    //
+    // So hand rows are the ones OUTSIDE the generated block — plus any
+    // TICKED row inside it, because ticking is the owner's own act
+    // wherever the row lives, and dropping those would re-open the door
+    // that un-ticked them (the comment above).
+    const outside = body.split(FOLD_BEGIN).map((p, i) => (i === 0 ? p : p.slice(p.indexOf(FOLD_END) + 1))).join("\n");
+    const inside = [...String(body || "").matchAll(new RegExp(`${FOLD_BEGIN}([\\s\\S]*?)${FOLD_END}`, "g"))].map((m) => m[1]).join("\n");
+    const hand = [
+      ...items(outside, " "), ...items(outside, "x"), ...items(outside, "X"),
+      ...items(inside, "x"), ...items(inside, "X"),
+    ];
+    out[name] = { open, doneRows, done: doneRows.length, hand };
   }
   return out;
 }
