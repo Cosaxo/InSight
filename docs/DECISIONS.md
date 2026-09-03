@@ -37211,3 +37211,179 @@ last count (2026-08-27) that is at most one answer per dial.
 Bank 750 → 764, feed 184 → 198 (82 core, 116 tail); `check:figures`
 moved eleven prose lines and two code comments with it, and 217.4 KiB
 is the bank's wire size now.
+
+## D359 · Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story
+
+**2026-09-03.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty commits are kept as written; nothing was reverted. What this review
+adds is the composition itself and eight corrections, and seven of the
+eight have one cause.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260903` | 35 | **36 behind** | shift A, Claude 2's, last 05:21 UTC |
+| `nightb-20260903` | 25 | **38 behind** | shift B, Claude 1's, last 04:04 UTC |
+
+Ten files conflicted — two composing shift A, eight composing shift B —
+and eleven were touched by both. Neither branch's own green was evidence
+about this tree: no tree had ever held both.
+
+### The one cause under seven of the eight
+
+**Both shifts branched before D354/D355 landed on main** (#363, the store
+off the bridge and twenty-three providers swept). So every fix either of
+them wrote to a swept module arrived written against `window.X`, while
+main had converted the same module to an imported binding. Git has no
+opinion about that, and the failure mode differs by site:
+
+- **`learn-data.js` — merged clean, and broke.** Shift A added a THIRD
+  `liveStore()` call site (`learnLoading`, the fix that stops a card
+  saying nobody has answered while the read is still in the air). Main's
+  sweep had deleted `liveStore` and rewritten the two call sites it knew
+  about. Neither side touched the other's lines, so both landed, and the
+  composed tree called a function that no longer exists — thirteen tests
+  red across two suites. Rewritten on the imported binding, with the
+  `L &&` and `L.learnAggLoading &&` guards dropped: an import cannot be
+  unset and `learnAggLoading` is a member `live.ts` always defines and
+  `vote.test.ts` pins.
+- **`mirror-tab.jsx`, `person-mindmap.jsx`, `profile-general.jsx` —
+  conflicted, and either side alone was wrong.** Taking main's side drops
+  the night's fix; taking the night's side references a binding main
+  deleted. Each resolved as the night's logic on main's import.
+- **`map-empty-anchors.test.jsx` — a stub that stopped reaching.** Shift
+  B's control case installs `window.MapStats = {…}` to make the group
+  reading refuse. `map-group-stats.js` assigns
+  `MapStats = window.MapStats = {…}` — ONE object under two names — so
+  replacing the window property swaps what that name points at and leaves
+  the card's imported binding on the real object. On B's branch, where
+  the card read the bridge, the stub worked. Composed, it reached
+  nothing and the control passed on the live reading. Re-pointed at the
+  imported object with `vi.spyOn`, and PROVED rather than assumed: making
+  the stub throw fails the case, which it could not do before.
+- **`scripts/check-spec-globals.mjs` and `src/v2/README.md` — the ratchet
+  figure.** Both shifts carried the pre-sweep baseline (233 across 32).
+  Main's is 32 across 8. The ratchet may only go down, so main's stands;
+  the composed tree measures 32, unmoved.
+
+The eighth is the one with a different cause, below.
+
+### The console: one defect, two shifts, two designs
+
+Both shifts spent the night on the same thing from opposite ends — the
+console losing an owner's tick. Shift A: "could lose one of the owner's
+approvals with no trace", "a third way … the guard cannot see", "un-ticked
+the owner on its next run". Shift B: "a failed label call erased the
+owner's tick", "a partial GitHub answer deleted merge-list rows", "the
+owner-list fold reads its own rows back, and oscillates". They are the
+same three doors, closed twice, and the composed tree can only have one
+of each.
+
+**Shift A's spine is what ships**, because it extracted the decision into
+predicates a truth table can pin (`holdsTheList`, `listIsWritable`) and
+because on two of the three doors it is simply more correct:
+
+- **The fold.** A's `hand` counts rows OUTSIDE the generated block plus
+  any TICKED row inside it. B's `withoutFolds` strips the block whole —
+  including the rows the owner ticked in it, which is the un-ticking A
+  closed one commit over. Taking B's here would have reopened it. B's
+  fixed-point test is kept and retargeted onto `hand`: the property was
+  worth pinning, the mechanism under it was not the one that ships.
+- **The failed tick.** A refuses to rewrite either surface while a tick is
+  unapplied; B rewrites and draws the unapplied ones ticked. A's is the
+  conservative one and makes B's `pending` threading unreachable, so it
+  went, with its test replaced by A's four-case truth table.
+- **The `::warning::` line.** A found that routing it through `log`
+  prefixes it, and GitHub parses a workflow command only at the start of
+  a line — so the one place the console reported dropping an owner
+  decision produced no annotation. B's version routes it through `log`.
+
+**Shift B contributed one door A did not have, and it is kept**: a failed
+closed-PR page (`mergedOk`). It fails on its own, falls back to an empty
+list, and "Merged this week" would be regenerated with nothing in it. It
+is now a third term in `listIsWritable`.
+
+**And shift B's own guard could never have fired.** Its write condition
+reads `state.github.rowsComplete && state.github.mergedOk`. `state.github`
+is built two hundred lines up as `{ ok: github.ok, error: github.error }`
+and carries neither field; the completeness flags are hoisted beside it,
+not inside it. `true && undefined` is falsy, so on shift B's own branch
+the condition is false on EVERY run and the merge list would simply never
+be rewritten again — the inverse of the erasure it was written to stop,
+and just as silent. Its suite could not see it: the tests exercise the
+renderers, and this is the one line that decides whether they run. The
+same shape had arrived a second time on the Console issue's own guard.
+Both now read `listIsWritable` off `state`.
+
+### The figure collision, for the third time
+
+`content/README.md`'s learn-card count: the night corrected it 106 → 166,
+main's learn lane moved the bank to 176 the same morning, and git merged
+both with no conflict — the number from one side, the bank from the
+other, on a tree neither branch produces alone. D336 found this, D349
+found it again, and the D349 amendment is right that composing is not
+what causes it. `check:figures` caught it, which is the whole point of
+the gate existing.
+
+The feed line conflicted rather than merging silently, and neither side
+was right: main had 265 questions with 10 topics, the night had 188 with
+11. The tree has 265 and 11.
+
+### Verified, not assumed
+
+Every runner and every gate, on the composed tip, in this environment:
+
+| Runner | Result |
+| --- | --- |
+| `test:unit` | 2,483 passed (172 files) |
+| `test --prefix functions` | 593 passed (27 files) |
+| `test:scripts` | 768 passed (43 files) |
+| `test:rules` | 175 passed (2 files) |
+| `test:e2e:all` | all three drivers |
+| `test:e2e` · `:erasure` · `:moderation` | each green STANDALONE — D349's fix holds |
+| `tsc -b` · `tsc -p functions` · `npm run lint` | 0 · 0 · 0 |
+| `check:*` gates | 40 of 42 pass |
+| `check:bundle` | OK on a SHIPPING build — 2173 KB / 629 KB eager |
+
+The two that do not pass are named rather than claimed (D1):
+`check:web-firebase` needs the release Firebase secrets, which this
+environment does not hold; `check:store-copy` is red on `origin/main`
+too, on `REPLACE_WITH_PLAY_SIGNING_SHA256` — an account-gated Play
+Console ID, not this tree's.
+
+**The eager graph is 1 KB under its ceiling, and that is main's, not the
+night's.** 629 KB against a 630 KB maximum. Measured on `origin/main`
+built the same way: also 629. The night moved the total 2169 → 2173 KB
+and the eager graph not at all. Recorded because the next change to the
+entry graph fails the gate, and whoever meets that red should know it was
+already one kilobyte away before this merge.
+
+### What was read closest and cleared
+
+- **`MTGroupBars`, the one function both shifts edited.** A added
+  `cohortN` (the verdict that called a crowd of one a majority); the mode
+  fix was already on main. Both applied once, composed, and the comment
+  claiming four MapStats members is right — but its second clause pointed
+  at a reason main's sweep had replaced, so it now says the reason that
+  is true.
+- **`v2social.ts`.** A at `nearbyCountV2`, B's path-injection refusal at
+  `inviteToGroupV2` — different functions, no interaction. B's is the
+  stronger change: a target went verbatim into `v2_users/${t}` and an
+  even component count RESOLVED, so a crafted target was a real document
+  read and an invite id containing slashes.
+- **`live.ts`.** A's `learnAggPending`, B's `torndown` guard on the
+  patterns signal (the purge undoing itself in one turn) — disjoint
+  regions.
+- **`map-cohort-basis.test.jsx`.** Suspected of the same inert-stub class
+  as the empty-anchors case and CLEARED by probe, not by reading: it
+  asserts `cohortN` returns the stub's own 1 and 6, and does.
+
+### The question the night wrote down rather than settled
+
+Shift A left a row on `docs/OWNER-LIST.md` asking what a tick on a
+mirrored row is FOR: ticking a folded row deletes it from the next fold
+but does not check the runbook step it mirrors, so the console raises it
+again unticked. Two one-sentence ways out, and it correctly did not pick
+one — it is about what the owner's tick means, which is not a routine's
+to decide.

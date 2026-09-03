@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  laneOfBranch, isNoPrBranch, whatHow, checksSummary, prRow, branchRow, rowLine, parseTicks, ticksMarker,
+  laneOfBranch, isNoPrBranch, whatHow, checksSummary, prRow, branchRow, parseTicks, ticksMarker,
   decideActions, isTicked, renderMergeList, parseWorklist, parseOwnerList, parseAxioms,
   parseVisualRequests, parsePermissions, parseRegister, ownerSteps, uncheckedSteps,
   theorySummary, rollCalls, lastSeen, foldOwnerList, notAlreadyListed, trailRow, mergeTrail,
@@ -103,6 +103,15 @@ describe("rows and stages", () => {
 });
 
 describe("the tick protocol", () => {
+  const list = `# Merge list\n\n${ticksMarker(["#2", "#3"])}\n\n## Open\n\n- [x] **#1** · a session · *what:* a · *how:* b · stage **new**\n- [x] **#2** · a session · … · stage **in the shift**\n- [ ] **#3** · a session · … · stage **in the shift**\n- [ ] **#4** · a session · … · stage **in the shift**\n- [x] **night-20260903** (no PR yet) · Claude 2's night shift · 12 commits\n- [ ] **#7** · the now lane · …\n`;
+  const rows = [
+    prRow(pr(1)),                                            // new tick in the file → approve
+    prRow(pr(2, { labels: ["approved"] })),                  // rendered ticked, still ticked → nothing
+    prRow(pr(3, { labels: ["approved"] })),                  // rendered ticked, now unticked → withdraw
+    prRow(pr(4, { labels: ["approved"] })),                  // labelled on GitHub, file not yet re-rendered → nothing
+    branchRow({ name: "night-20260903", aheadBy: 12 }),      // new tick on a branch → open the PR
+    prRow(pr(7, { branch: "claude/now-questions-2026-09-02" })), // self-merging: never
+  ];
   it("parses ticks and the rendered marker", () => {
     const t = parseTicks(list);
     expect(t.now.get("#1")).toBe(true);

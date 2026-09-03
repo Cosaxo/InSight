@@ -15,17 +15,31 @@
 // MTAnswerCard is published on `window` rather than exported, so the
 // module is imported for its side effect and the component read off the
 // global — which is also the only way to reach the private body at all.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, cleanup, screen } from '@testing-library/react';
 import '../spec/map-bottom-card.jsx';
+import { MapStats } from '../spec/map-group-stats.js';
 
-afterEach(() => { cleanup(); delete window.MapStats; });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 // The anchored path reaches MTGroupBars, which asks MapStats for the
 // group reading. Null is its refusal answer (D72's shape — null rather
 // than a fabricated number), so the card draws without one.
-const noStats = () => { window.MapStats = { dist: () => null, mode: () => null, cohortN: () => null, groupLabel: () => 'Age', dimVal: () => null }; };
+//
+// STUBBED ON THE IMPORTED OBJECT, not on `window.MapStats`. This case
+// arrived written the second way, and it worked on the branch it was
+// written on, where map-bottom-card read the bridge. D354's sweep made
+// that read an import — and `map-group-stats.js` assigns
+// `MapStats = window.MapStats = {…}`, ONE object under two names, so
+// reassigning the window property swaps what `window.MapStats` points at
+// and leaves the binding the card holds pointing at the real one. The
+// stub reached nothing and the control passed on the live reading, which
+// is the shape of a test that is green for a reason it does not state.
+const noStats = () => {
+  for (const m of ['dist', 'mode', 'cohortN', 'dimVal']) vi.spyOn(MapStats, m).mockReturnValue(null);
+  vi.spyOn(MapStats, 'groupLabel').mockReturnValue('Age');
+};
 
 const node = { id: 'daily-000', prompt: 'Coffee or tea?', qid: 'daily-000', n: 2, aidx: 0 };
 

@@ -225,8 +225,12 @@ function learnMeasured(card) {
  * second sentence for the first.
  */
 function learnLoading(card) {
-  const L = liveStore();
-  return !!(L && L.enabled && L.learnAggLoading && L.learnAggLoading(card.id));
+  // The store is the imported binding (D354), so the `L &&` and the
+  // `L.learnAggLoading &&` this arrived with are both dead: an import
+  // cannot be unset, and `learnAggLoading` is a member live.ts always
+  // defines and vote.test.ts pins. The `enabled` check is the data
+  // condition and stays.
+  return !!(LIVE.enabled && LIVE.learnAggLoading(card.id));
 }
 
 export function LEARN_SPLIT_SRC(card) {

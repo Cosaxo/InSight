@@ -137,8 +137,11 @@ function MTGroupBars({ node, anchor }) {
   // numbers are invented anyway. It can refuse, and a refusal here is the
   // bar's own leader: the ridge's heights are what `d` is FOR, and no
   // reading is better than a fabricated one.
-  // The fourth thing this block asks MapStats, and the comment above about
-  // binding it once is why it goes through `MS` rather than `window.MapStats`.
+  // The fourth member this block asks MapStats for. It goes through `MS`
+  // for the reason the comment at the top now gives — line length — and
+  // not the one it gave when this was written: the ratchet counted bridge
+  // references per file, and D354's sweep made the binding an import, so
+  // there is no longer a count to keep down here.
   const cohortN = MS.cohortN(node.qid, anchor.id, n, node.aidx);
   const asked = MS.mode(node.qid, anchor.id, n, node.aidx);
   const gmode = asked == null ? d.indexOf(max) : asked;
