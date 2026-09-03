@@ -218,7 +218,71 @@ Each of these is an owner action, and each has its row on
    expensive kind, on an account that is dropping runs today. The
    cheapest reduction available is the one not yet spent.
 
-## 6 · What this deliberately does not do
+## 6 · The second round, the same afternoon — where the 77% went
+
+The first round cut firings. Pricing the tokens said the firings were
+never the point: split against list pricing (a cache read is a tenth of
+input, a cache write a quarter more than input), the 90 sessions'
+own `usage` blocks decompose as
+
+| | Cost | Share |
+| --- | ---: | ---: |
+| Cache **read** — re-reading history | $2,297 | 54% |
+| Cache **write** — re-establishing it | $969 | 23% |
+| Fresh input | $328 | 8% |
+| **Output — the work product** | **$676** | **16%** |
+
+on the orchestrators' own tokens ($4,271 of the $7,011; the remaining 39%
+is subagent fan-out). **77% of the bill moves context around and 16%
+produces anything.** The per-firing figure closes on the same arithmetic:
+564,090 tokens × $5/MTok × 1.25 is **$3.53** to re-cache a cold 564k
+prefix, against ~$4 measured — so the ops dispatcher's cost was almost
+exactly the price of remembering a conversation in which it had refused
+its own charter seventeen times.
+
+Two consequences shape everything above and below. **Firings hours apart
+are always cache-cold**, so spacing them out is linear and nothing more —
+there is no cadence that recovers the prefix. And **shrinking the prefix is
+the only per-firing lever there is**, which is why the ceiling in
+`OPS-RUNBOOK.md` §0 is a rule and not a suggestion.
+
+What that round applied:
+
+| What | Where | Worth |
+| --- | --- | --- |
+| **The context ceiling** — no bound session past ~150k, crossing it is a rotation | `OPS-RUNBOOK.md` §0 | the whole class; the night worker's ~$233/day is the first case (§ 5.1) |
+| **The bounded slice** — a tail, a digest, a section, never a whole growing file | `OPS-RUNBOOK.md` §0 | the growth that makes today's cadence cut temporary |
+| **The production reader became a workflow** | `.github/workflows/production-reader.yml`, `scripts/production-reader.mjs` (+ tests) | the lane's whole cost; an Action needs no bucket |
+| **The doc sweep was disabled** — its contract has never been on `main`, so every firing since 2026-08-30 was a guaranteed no-op under `ultracode` | `OPS-RUNBOOK.md` § 5, `WORKLIST.md` | ~$5.60/day for work that could not happen |
+| **The cheap gate reached the list worker and the axes skeptic** | `OPS-RUNBOOK.md` §4, `AXES-RUNBOOK.md` | the orientation read on every idle firing |
+| **The read budget was written for the theory lanes, and not applied** | `AXIOM-THEORY.md` § The read budget, `OWNER-LIST.md` | ~$8/run if taken; the charter is the owner's |
+
+**Why the reader could move and the shepherds could not.** Everything the
+reader read is available to the default `GITHUB_TOKEN`: two workflow runs,
+an artifact, a committed file. It needed one enabling change —
+`observe.mjs` now takes `--json-out` and `observe.yml` publishes the
+payload as the `observe-json` artifact, because a reader that parses the
+probe's padded `✓ alertPolicies  5 live` lines is the
+one-parser-in-three-copies failure D197 recorded. Three rows of
+`pulse-trail.jsonl` answer "has anything moved" with no API call at all,
+so the lane does not even need yesterday's comment. The shepherds, by
+contrast, need judgement about a diff; no token substitutes for that.
+
+**Two refusals worth having in writing.** A stored prompt cannot be edited
+from another session — measured when `update_trigger` refused the gate for
+both the list worker and the skeptic, *"not your own"* including a
+dispatcher this session had itself created. So a prompt change is a
+delete-and-recreate (the list worker, which had no run history to lose:
+`trig_01VH8PvZCaqKciAwzpxmfMYW` replaces `trig_01KRuw9989n3ynLXnzEqPr4W`)
+or an owner edit in the web UI (the skeptic, now an `OWNER-LIST.md` row).
+And the theory lanes' read budget stops at the charter: no routine amends
+its own contract (`AXES-PLAN.md` §10), so the arithmetic is written where
+the owner can rule on it and the lanes still read whole files until they
+do. Saying that plainly is the point — the alternative was a prompt clause
+quietly outranking a contract, which is D148's named failure in the lane
+family that costs the most.
+
+## 7 · What this deliberately does not do
 
 - **It does not cut what a lane does.** Every contract is unchanged
   except for the cheap gate, which changes only the order in which a
@@ -235,7 +299,7 @@ Each of these is an owner action, and each has its row on
   can see, and does not edit a tick, a status word or another
   account's tag.
 
-## 7 · How it stays honest
+## 8 · How it stays honest
 
 The roll call's contract now names two lines every run must carry:
 yesterday's total metered cost across the account's sessions, and the

@@ -36572,11 +36572,59 @@ binding a session can give it. Creating it anyway would have been the
 D148 failure — a prompt quietly outranking its contract — in the one
 lane whose job is to catch that.
 
+### The second round, the same afternoon — and what it moved out of a session
+
+The first round cut firings; pricing the tokens said firings were never
+the point. Against list pricing the 90 sessions' own `usage` blocks split
+**54% cache read, 23% cache write, 8% fresh input, 16% output** — 77% of
+the bill moves context and 16% produces anything — and the per-firing cost
+falls out of the same arithmetic: 564,090 tokens × $5/MTok × 1.25 is
+$3.53 to re-cache a cold prefix, against ~$4 measured. Firings hours apart
+are always cache-cold, so cadence is linear and **the prefix is the only
+per-firing lever**. That is why `OPS-RUNBOOK.md` §0 now carries a **context
+ceiling** (~150k on any Routine-bound session; crossing it is a rotation,
+not a note) and a **bounded-slice** rule (a tail, a digest, a section —
+never a whole growing file), and why both are rules rather than cleanups
+somebody remembers.
+
+**The production reader stopped being a Routine.** Every reading it made is
+available to the default `GITHUB_TOKEN`, so it is
+`.github/workflows/production-reader.yml` plus
+`scripts/production-reader.mjs`, with `scripts/production-reader.test.mjs`
+holding the property that matters — that an absence announces itself rather
+than rendering a healthy-looking page. One enabling change went with it:
+`observe.mjs` takes `--json-out` and `observe.yml` publishes the payload as
+the `observe-json` artifact, because a reader parsing the probe's padded
+`✓ alertPolicies  5 live` lines is D197's one-parser-in-three-copies
+failure. Three rows of the committed trail answer "has anything moved", so
+the lane needs no yesterday's-comment read at all. The shepherds cannot
+follow it there: they need judgement about a diff, and no token substitutes.
+
+**The doc sweep was disabled, and that is the cheapest cut in the
+program.** `docs/DOC-SWEEP.md` has never been on `main`, its prompt
+correctly refuses without it, and it fired every second day from
+2026-08-30 under `ultracode` to do exactly nothing. §0's opening paragraph
+recorded the first two runs aborting that way; nothing recorded that it
+kept going for four days. A lane that cannot act should not be armed.
+
+**Two refusals, recorded rather than worked around.** `update_trigger`
+will not edit a stored prompt from another session — *"not your own"*
+includes a dispatcher this session created itself — so the cheap gate
+reached the list worker by delete-and-recreate (no run history to lose)
+and reached the axes skeptic only as a contract change, with its live
+prompt now an `OWNER-LIST.md` click. And the theory lanes' read budget is
+written with its arithmetic in `AXIOM-THEORY.md` § The read budget and
+**not applied**: no routine amends its own contract (`AXES-PLAN.md` §10),
+so the lanes go on reading whole files until the owner rules. The
+alternative was a prompt clause quietly outranking a contract — D148's
+named failure, in the lane family that costs the most.
+
 ### What proves it
 
 `check:docs` green (the new page has its `ORIENTATION.md` row and
 declares its own status; rule 7 holds it), `check:figures` green,
-`test:scripts` green. Every figure quoted here and in
+`test:scripts` green — 43 files and 755 cases after this round, including
+the 19 the reader and the `--json-out` flag added. Every figure quoted here and in
 `USAGE-REDUCTION.md` was read from `list_sessions` and `list_triggers`
 the same afternoon and is reproducible from them; none is retyped from
 a previous page. What it does not prove is the saving — that lands in
