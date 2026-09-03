@@ -244,13 +244,249 @@ rate that is not.
    real bound on what `cited` can mean, and today only the review
    lane's prose says so.
 
+## The theories that matter — the substance, added 2026-09-03
+
+The section below was the gap in the first pass: throughput measured,
+content unread. It is a reading of all 129 claims, and it ranks them by
+how much the product would have to change if they are right — not by
+how well they are argued. The review lane scores argument quality and
+does it better; this ranks consequence.
+
+### 1 · The levels problem — the finding five lanes reached separately
+
+The most important theory on the branch, and no single lane owns it.
+**Between-person structure does not carry within-person structure**,
+and an estimator blind to the difference returns an amalgam of the two
+that means nothing:
+
+- `pat-9`/`pat-10`/`pat-11` — level conflation is an **estimator
+  property, not a data shortage**: a level-blind cross-lagged model
+  returns an uninterpretable mixture, with documented sign reversal,
+  and native person-period machinery already exists (two-level DSEM,
+  three-network mlVAR).
+- `tst-6`/`tst-7` — ergodicity is what would license the transfer and
+  it is rarely met; person-level latent scores are **indeterminate
+  estimates** that secondary analysis cannot un-indeterminate.
+- `map-7`/`map-12` — the divergence goes as far as sign reversal, so
+  the display must draw the two as **different geometries**, with
+  exactly one seam, at the person.
+- `bod-5` — within-person change is the design-correct grain for
+  body→mind couplings, and beats between-person level where the two
+  have been compared directly.
+- `cen-1` — the combination is therefore a between-person geometry
+  **plus** within-person state geometries, not one space.
+
+**Why it matters here.** The Mirror's sentence — *here is what your
+answers say about you, against everyone* — is a between-person claim,
+and it licenses nothing about how you change. The Patterns tab's
+Oracle, the archetypes and the similarity fields all read one geometry
+and speak in a voice that sounds like the other. Five lanes converging
+from five literatures is the strongest signal the corpus contains, and
+it is a correctness argument about shipped surfaces, not a research
+direction.
+
+### 2 · Connection is bounded by pairing, not by population
+
+`pat-4` (cited) is the sharpest constraint on the app's stated core
+function. Two axes **never observed jointly on the same people** pin
+their coupling only to a conditional Fréchet **set** — an interval, not
+a number. Marginals do not identify a joint. So *"the axes exist to be
+connected"* is bounded by how many people supply **both** axes, and
+never by how many supply either.
+
+`pat-12` turns that from a limit into a design instrument: pairing is
+an **allocation decision**. Planned-missing and matrix sampling buy
+identification first and precision second, and the two-method design
+is the cost-matched shape for an expensive axis. This is the single
+most actionable theory on the branch — it says the answer budget
+should be allocated to *overlaps*, deliberately, rather than spent
+evenly and joined afterwards.
+
+### 3 · The information budget has two dimensions, and now three counts
+
+`pat-8` — the budget is **persons × occasions-per-person**, and the
+two substitute *only* for population estimands. A person-specific
+coupling is bounded by that person's **own** occasions, which no crowd
+size can supply. `cen-10` adds the tie as a second unit, so the
+portfolio needs a third count.
+
+Consequence: everything the Mirror says about the crowd scales with
+users; everything it says about **you** scales only with how often you
+answer. One answer a day is the ceiling on the personal half, and no
+amount of growth moves it.
+
+### 4 · The honesty grammar — a declared object, not a number
+
+`cen-7`, with `map-6`, `gen-11`, `bod-8` and `gen-20` as its
+instances: every published cross-axis coupling travels with its
+**level, population, basis, decomposition, instrument-validity status,
+sampling design and as-of pin**, and this is *constitutive of the
+object* rather than a caption. `gen-20` is the hardest case — a
+heritability figure is a property of an estimator, a phenotype
+definition and an ascertainment scheme, each moving it about twofold,
+so a bare h² is not a fact and may not be published or consumed.
+
+This is D1's honesty rule re-derived from measurement theory and made
+much more demanding: it constrains the *shape of the datum*, not the
+copy beside it.
+
+### 5 · Instrument validity bounds the channel — declare unmeasured, not small
+
+`bod-7`: where the body-side instrument collapses, the perfect axiom
+declares the channel **unmeasured** rather than small. `bod-9` and
+`bod-10` then apply it and the answers are counter-intuitive — trait–
+cortisol couplings near-null between persons; the cortisol awakening
+response fails the reliability gate outright; per-meal glucose
+responses fail test–retest **even under controlled feeding**; HbA1c is
+an excellent person parameter. `bod-13` is the honest positive: 
+randomized inflammatory and hormonal manipulation *does* move mood and
+social cognition — at pharmacological dose, acutely.
+
+Read as a build order this says the wearable ambition is mostly not
+where it looks: the good signals are the slow aggregates, not the
+per-event streams the hardware markets.
+
+### 6 · The relational axis is the cheapest deep asset the app already owns
+
+The newest lane, and the one whose claims are closest to shippable.
+`tie-2` — the 1v1 guess is a **second-person measurement scored
+against a key**, decomposable into perceiver, target and relationship
+variance. `tie-3` is the sharp one: **a right guess is knowledge or
+projection**, and the record can tell them apart — guess = *their*
+answer measures reading, guess = *your own* measures assumed
+similarity, and the two coincide exactly when the pair is alike, so
+accuracy is uninterpretable unless read against similarity. `tie-4`
+makes group pick days sociometry; `tie-5` notes homophily is
+measurable **today** from the public follow graph against public
+answers.
+
+Nothing here needs new collection or a new consent surface, and the
+D204 roles instrument already computes adjacent quantities — which
+makes this the shortest path from theory to a Mirror module.
+
+### 7 · The negative results, which are the easiest value to miss
+
+A lane that only accumulates is degenerating (`rev-3`). These are the
+places the corpus closed a door, and each saved work:
+
+- `gen-12` — **no independently replicated demonstration** exists of a
+  genomic sequence model beating a tuned polygenic score at individual
+  prediction; the leading claim shows near-zero uptake and is absent
+  from all three 2026 benchmarks. `gen-13` bounds the headroom anyway:
+  common-variant variance is predominantly additive.
+- `pat-6` — below a data-volume crossover the tuned classical baseline
+  **beats** the learned sequence model, so engine choice is a
+  measurement, run continuously and out of sample, not a bet.
+- `pat-7` — distillation from learned representation to auditable
+  factors is demonstrated technology whose **faithfulness is
+  unsolved**; an audit layer is a psychometric instrument with
+  measured faithfulness, never an explanation extracted after the fact.
+- `map-10` — three explicit search-negatives, including that no study
+  was found showing readers map an aggregate display onto themselves,
+  and none testing whether readers distinguish within- from
+  between-person structure in a display. The Mirror's core reading act
+  is unstudied.
+- `go-9` — the efficacy of argumentation substrates is **unproven, not
+  proven**; the literature design rationale imported its usefulness
+  claims from had failed to substantiate them. The lane wrote this
+  about its own method.
+
+### 8 · The one measured node is an indictment of the current bank
+
+`gen-21` is the only claim on the ladder's top rung, and it earned it
+by checking the theory against **this tree**. Against the committed
+corpus and scorecard, the four axes `gen-15` says buy genetic
+understanding are supplied very unequally: **integration is real** (111
+items eligible for an 8-dimension fold), **specificity is narrow** (22
+constructs at five items; every other grouping at a median of one to
+two), **latent structure is unfitted** (no measurement model over items
+and no reliability statistic exist in code), and **within-person time
+is nearly absent** (five single-item constructs; every other surface is
+one answer per question, create-only).
+
+That is the bank's shape measured against its own ambition, and it
+agrees with `pat-8` from the other side: the app is built wide and
+shallow, and the personal half of the Mirror is what pays for it.
+
+### 9 · A live product finding, verified against shipped code
+
+`tst-1` ran its own named test against `src/v2/data/similarity.ts`
+rather than a hypothetical, and its description matches the file:
+`flattenAxes` flattens 22 axes over four instruments, `rankKindred`
+prints `100 −` the mean absolute gap, `AXIS_PRIOR = 6` and
+`TYPICAL_AXIS_GAP = 17` are the shipped constants. Its finding, held
+honestly at *argued* after the adversarial pass **cut the seed draft's
+overclaim**: the equal-weight shelf metric weights each latent
+dimension in proportion to how many observed axes load on it, so
+Kindred rankings shift where factors are unevenly represented — a
+relative re-weighting, not the k-fold amplification first drafted. One
+load-bearing independence assumption survives review, in the λ=6
+calibration that chose `AXIS_PRIOR`.
+
+Worth reading as the model of what this layer is for: a specific,
+checkable claim about a live feature, with its own overclaim killed
+before landing.
+
+### 10 · The meta-findings that generalize past this project
+
+The graph-optimizer lane's claims are about running machine-written
+theory at all, and three transfer to any such program:
+
+- `go-10` — **unschematized conventions do not converge** across
+  fresh-session lanes; they proliferate and drift into homonymy.
+  Convergence needs an active channel: an enforced artifact, a relay,
+  or in-lane re-derivation. (Finding 3 above is this claim's own
+  confirmation: source grading reached two lanes of twelve.)
+- `go-6` — **a zero in the contradiction metric measures recording,
+  not harmony.** Adversarial findings that die in prose leave a graph
+  looking more agreed than the program is.
+- `go-11` — **run cadence is a health dimension no content metric can
+  see**: every other signal is a function of what the graphs say, so a
+  program that has stopped running reads as maximally healthy.
+
+`go-11` is also the mechanism behind Finding 1 of this page. A bridge
+that stops delivering is invisible to every instrument the branch owns,
+because all of them read the graphs.
+
+### What the theory is asking the product to build
+
+The sixteen worth-building verdicts are mostly small and mostly
+aggregate-side — which is the useful surprise. Grouped:
+
+| Group | Requests |
+| --- | --- |
+| Fit self-measurement | prequential benchmark · inter-fit displacement · fit scorecard readable from `main` · loading drift with a refit-noise null |
+| Item calibration | per-question item-information profiles · per-question shape-feature table · per-item repeat summaries |
+| Cross-axis structure | joint density aggregates · population cross-axis correlation artifact · a pairing ledger |
+| Database honesty | standing replay audit · serving-design field + sampled seen-denominator · fold cursor per read model |
+| New collection | percept/direct-output items on the spine · one-tap sleep micro-report · one-tap illness micro-report |
+
+Three more are `NEEDS-OWNER` and each is one sentence: era-scoped
+instrument re-serving (without it trajectories and the ergodicity test
+can never be measured at all), a consented within-family pairing flag,
+and binned crowd density published beside the loadings.
+
+Only three of the sixteen ask for **new collection**. The rest are
+folds, fields and artifacts over data that already publishes — which
+is why the closed bridge is expensive rather than merely slow.
+
 ## What this page does not claim
 
-It does not score the theory's *content* — whether gen-14's
-decomposition argument is right, whether pat-4's identification
-boundary holds. That is the review lane's job and it is doing it with
-better instruments than a one-off read. This page measures the
-system's throughput, its economics and its defects, and those are the
-three things the review lane structurally cannot see: it scores lanes
-against the charter, and the charter does not mention the bridge's
-delivery rate, the account's rate limit, or a contract file on `main`.
+It does not **adjudicate** the theory. § The theories that matter
+ranks claims by consequence — what would have to change in the product
+if they are right — and deliberately not by whether their arguments
+hold. Whether `pat-4`'s identification boundary survives, whether
+`gen-14`'s decomposition argument is sound, is the review lane's job,
+and it is doing it with better instruments than a one-off read: an
+independent source spot-check, a versioned rubric and a feedback loop
+the next review scores. Two things there are this page's own reading
+and are marked as such — that the levels problem is the corpus's most
+consequential finding, and that `tie-3` is its most shippable — and a
+reader who disagrees is disagreeing with a ranking, not a measurement.
+
+What the review lane structurally cannot see is the rest of this page:
+it scores lanes against the charter, and the charter does not mention
+the bridge's delivery rate, the account's rate limit, or a contract
+file on `main`. `go-11` is that blind spot stated by the program
+itself — every instrument on the branch reads the graphs, so a layer
+that has stopped delivering still reads healthy.
