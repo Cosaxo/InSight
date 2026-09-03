@@ -214,10 +214,17 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   return (
     <>
       <div className="card ln-card">
+        {/* "The closer two dots, the more alike their answers" stood here
+            and is not true as a rule: a dot's position is two components
+            of an eight-dimensional solve, so two people can sit together
+            while disagreeing on everything the other six dimensions
+            carry. Measured on this fold — 16px apart, agreeing on one
+            answer of twelve. What IS true is that the position comes from
+            the answers, and the chips below now carry likeness itself. */}
         <div className="ln-head">
           <div className="ln-title">Where you sit in the crowd</div>
           <div className="ln-sub">
-            Each dot is a person who answered some of the same questions as you. The closer two dots, the more alike their answers.
+            Each dot is a person who answered some of the same questions as you, placed by how they answered.
           </div>
         </div>
         <div className="ln-field">
