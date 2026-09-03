@@ -199,13 +199,17 @@ paint via `loadWorldFeed()` (D25) — still listed, still in order, just
 awaited in sequence instead of imported at the top. The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
-comment where the eager list used to hold them.
+comment where the eager list used to hold them. The Mirror's thirteen
+defer the same way since D355 (`loadMirrorTab()` names only
+`mirror-tab.jsx`), and the tab mounts through a slot that renders in the
+tap's own tick once the prewarm has landed — `src/v2/README.md` § the
+Mirror, and `data/mirrorChunk.ts` for the handoff that makes it so.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-32 modules are already off the bridge — they export and publish nothing,
+53 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -275,8 +279,11 @@ real slipped through:
   from `render()`.
 
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
-are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
-and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
+are **not** exempt from the convention: `live.ts` still publishes
+`window.LIVE` (for the mount fixtures and one node-safe reader — every
+spec module imports the binding since D354), and until D354's sweep the
+two `ui/` pickers `Object.assign`ed onto `globalThis` for render-time
+lookups. The scanner reads both directories for that reason.
 
 **The convention is shrinking, and there is a number for it.** Those four
 guards make the bridge safe, which also made it comfortable enough to keep
@@ -484,6 +491,19 @@ an emergency rules fix.
   [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
   [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
   every program lane defers to.
+- **A pull request is merged by the PR shepherd, not by hand.** The
+  owner's merge instruction is the `merge-when-green` label; the shepherd
+  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
+  brings the branch current with `main`, moves colliding decision numbers,
+  waits for green and squash-merges. What a session owes it before the
+  label goes on: a green head with `main` already merged in and its
+  decision numbers already moved (D299) — and then no push, because a
+  commit by anyone but the shepherd after the label spends the grant.
+  `no-shepherd` is the opt-out. Neither label is a session's to apply on
+  its own judgement: the owner's word puts `merge-when-green` there —
+  applied directly, or as a tick on the PR's row in
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
+  into the label once the PR is green on its current head (D352).
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own

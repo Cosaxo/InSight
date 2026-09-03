@@ -7,6 +7,7 @@ import React from 'react';
 import { RP_TESTS } from './result-rose.jsx';
 import { Kicker } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_COMPARE_POP } from './compare-pop.js';
 
 // compare-breakdown.jsx — "you vs them" across every assessment, in the SAME
 // visual language as the results profile (result-rose.jsx): per-trait hue
@@ -204,8 +205,8 @@ export function CBAssess({ dims, themV, hueOf, poles, themLabel }) {
   );
 }
 
-function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, pop: popProp }) {
-  const pop = popProp || (window.IS_COMPARE_POP || {})[scope];
+export function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, pop: popProp }) {
+  const pop = popProp || IS_COMPARE_POP[scope];
   if (!pop) return null;
   const who = label || pop.label;
 
@@ -261,7 +262,7 @@ function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, pop: popP
 // Used on person profiles where vertical space is precious. `aligns` lets the
 // caller pin each card's % to the numbers it shows elsewhere; `extra` appends
 // custom slides ({kind,title,sub,align,body}).
-function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
+export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
   const [idx, setIdx] = React.useState(0);
   const railRef = React.useRef(null);
   if (!pop) return null;
@@ -327,8 +328,5 @@ function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, ex
   );
 }
 
-Object.assign(window, { CompareBreakdown, CompareCarousel });
 
 ;globalThis.CBAlignGlyph = typeof CBAlignGlyph === 'undefined' ? globalThis.CBAlignGlyph : CBAlignGlyph;
-;globalThis.CompareBreakdown = typeof CompareBreakdown === 'undefined' ? globalThis.CompareBreakdown : CompareBreakdown;
-;globalThis.CompareCarousel = typeof CompareCarousel === 'undefined' ? globalThis.CompareCarousel : CompareCarousel;

@@ -12,9 +12,10 @@
 // line above that one — reorder those two and the card bank is silently
 // empty, with no error anywhere. That ordering is now a module-graph
 // guarantee, which is the same fragility the `daily-questions.js` conversion
-// removed for `map-branches.js`. `window.LIVE` in learnMeasured() stays: it
-// is read at CALL time, and it is what the LIVE conversion will take.
+// removed for `map-branches.js`. The store is an import too since D354 —
+// read at CALL time in learnLive()/LEARN_COUNTS, never while evaluating.
 import { sharePcts } from '../data/pct';
+import LIVE from '../data/live';
 // The DEMO SAMPLE, not the bank (D284). This import used to be
 // `learn-questions.json` — the whole thing — so every learn card was
 // compiled into the app and `check:bundle` was about thirty-nine cards from
@@ -147,10 +148,8 @@ export function LEARN_ORDER(card) {
 // below go through this rather than each reaching for the name — which is
 // what keeps check:globals rule 4 flat across D149, and leaves exactly one
 // line for the LIVE conversion to take.
-const liveStore = () => window.LIVE;
 function learnLive() {
-  const L = liveStore();
-  return !!(L && L.enabled);
+  return LIVE.enabled;
 }
 /**
  * The real per-option counts, or null when nothing has been measured.
@@ -175,11 +174,10 @@ function learnLive() {
  * where this adds a second copy of the same person.
  */
 export function LEARN_COUNTS(card) {
-  const L = liveStore();
-  if (!(L && L.enabled && L.learnAgg)) return null;
-  const agg = L.learnAgg(card.id);
+  if (!LIVE.enabled) return null;
+  const agg = LIVE.learnAgg(card.id);
   if (!agg || !agg.counts) return null;
-  const mine = L.learnMine ? L.learnMine(card.id) : null;
+  const mine = LIVE.learnMine(card.id);
   const pending = mine && !mine.folded ? mine.idx : -1;
   const n = card.a.length;
   const counts = [];

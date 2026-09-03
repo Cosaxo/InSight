@@ -12,13 +12,14 @@ import { list as anchorList } from './map-anchors.js';
 // spec-index's eager list carried these six and their order. Now the ESM
 // graph does — imports evaluate before this module's body — and one
 // dynamic import of THIS file (mirror-tab's lazy body, spec-index's
-// loadMapTab) brings the whole family in one deferred chunk. Three arrive
-// as named bindings (convert-on-touch); the first three still talk
-// through globals this file reads at render time, so their imports are
-// for the side effect.
-import './map-bottom-card.jsx';
-import './map-learn-card.jsx';
-import './map-people.jsx';
+// loadMapTab) brings the whole family in one deferred chunk. All six
+// arrive as named bindings since D354's sweep; the cards' `window.X ?`
+// guards went with the bridge reads.
+import { MTRootCard, MTAnchorCard, MTBranchCard, MTSubCard, MTAnswerCard } from './map-bottom-card.jsx';
+import { MTLearnCard, MTLearnSubCard } from './map-learn-card.jsx';
+import { MTPeopleCard, MTPersonCard } from './map-people.jsx';
+import { MapStats } from './map-group-stats.js';
+import { MapLens } from './map-branches.js';
 import { MapTabLayout } from './map-layout.js';
 import { MAP_GROUPS } from './map-groups.js';
 import { MTBranchChips } from './map-chiprow.jsx';
@@ -138,7 +139,6 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       const nOpt = Math.max(2, q.options ? q.options.length : 10);
       // Bound once — the coupling ratchet counts references, and this
       // block asks MapStats two things.
-      const MS = window.MapStats;
       // `q.liveId`, not `q.id` — see daily-questions.js's liveSync. In a
       // live build MapStats reads LIVE.aggFor, which is keyed by the
       // seeded bank id; this file's `q.id` is the demo calendar's. Passing
@@ -146,8 +146,10 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       // how the paragraph below came to describe the empty-question case
       // while still being every question on every live build. Falls back
       // on a demo build, where the demo id is the only id there is.
+      // (MapStats is the imported binding since D354's sweep; the `MS ?`
+      // existence guard that stood here was a load-order guard.)
       const qid = q.liveId || q.id;
-      const gd = MS ? MS.dist(qid, 'all', nOpt, idx) : null;
+      const gd = MapStats.dist(qid, 'all', nOpt, idx);
       // The residue, and it is a real absence rather than the old one: a
       // question NOBODY has answered yet has no typicality to read, so the
       // dot takes the neutral radius and is not called rare. What changed
@@ -162,7 +164,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       // dead; teaching MapStats to answer 'all' brought it to life WITH
       // the tie defect, in the same commit and the same block. MapStats
       // reads the counts, so it is the one that can answer.
-      const asked = MS ? MS.mode(qid, 'all', nOpt, idx) : null;
+      const asked = MapStats.mode(qid, 'all', nOpt, idx);
       const maj = asked != null ? asked === idx
         : gd ? gd.indexOf(Math.max(...gd)) === idx : true;
       let parent = meta.catId;
@@ -265,7 +267,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
 
   // active branches: any that hold at least one answer — renames applied
   const allCats = useMemo(() => {
-    const base = window.MapLens.CATS.concat(built.tops);
+    const base = MapLens.CATS.concat(built.tops);
     const seen = new Set(); const out = [];
     base.forEach((c) => {
       if (seen.has(c.id) || !(built.counts[c.id] > 0)) return;
@@ -1164,7 +1166,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
           ) : selAnchor ? (
             <MTAnchorCard anchor={selAnchor} items={anchorRows} onPick={selectItem} anchors={anchors} onAnchor={selectAnchor} key={selAnchor.id}></MTAnchorCard>
           ) : selCat ? (
-            selCat.id === 'circle-read' && window.MTPeopleCard ? (
+            selCat.id === 'circle-read' ? (
               <MTPeopleCard onPick={selectItem} key="people"></MTPeopleCard>
             ) : (
             <MTBranchCard
@@ -1174,7 +1176,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             ></MTBranchCard>
             )
           ) : selIsSub ? (
-            selNode.learn && window.MTLearnSubCard ? (
+            selNode.learn ? (
               <MTLearnSubCard
                 node={selNode}
                 rows={answers.filter((n) => n.parentId === selNode.id).sort((a, b) => a.age - b.age)}
@@ -1198,9 +1200,9 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               <MTForeLeaf node={selNode} key={selNode.id}></MTForeLeaf>
             ) : selNode.walk ? (
               <MTPathsCard node={selNode} key={selNode.id}></MTPathsCard>
-            ) : selNode.learn && window.MTLearnCard ? (
+            ) : selNode.learn ? (
               <MTLearnCard node={selNode} key={selNode.id}></MTLearnCard>
-            ) : selNode.person && window.MTPersonCard ? (
+            ) : selNode.person ? (
               <MTPersonCard node={selNode} key={selNode.id}></MTPersonCard>
             ) : (
             <MTAnswerCard

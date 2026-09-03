@@ -163,7 +163,7 @@ function PassiveRing({ k, size = 15, thick = 3, hole = 'var(--surface-2)' }) {
 }
 
 // the always-there indicator: one ring per test, filling as you answer
-function PassiveMeter() {
+export function PassiveMeter() {
   const P = usePassive();
   const [open, setOpen] = React.useState(false);
   const [closing, setClosing] = React.useState(false);
@@ -228,7 +228,7 @@ function PassiveMeter() {
 }
 
 // per-card mark on a test's own feed questions: ring + progress; only q.test cards get one
-function PassiveTag({ q, answered, style }) {
+export function PassiveTag({ q, answered, style }) {
   const P = usePassive(); if (!P) return null;
   const k = P.testFor(q); const m = k && P.META[k]; if (!m) return null;
   const done = P.done(k), n = P.needed(k), { col } = passiveStanding(k);
@@ -240,7 +240,4 @@ function PassiveTag({ q, answered, style }) {
   );
 }
 
-Object.assign(window, { PassiveMeter, PassiveTag });
 
-;globalThis.PassiveMeter = typeof PassiveMeter === 'undefined' ? globalThis.PassiveMeter : PassiveMeter;
-;globalThis.PassiveTag = typeof PassiveTag === 'undefined' ? globalThis.PassiveTag : PassiveTag;
