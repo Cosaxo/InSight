@@ -1550,7 +1550,21 @@ service cloud.firestore {
           : (request.resource.data.gid is string
             && request.auth.uid in
               get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && (!("qid" in request.resource.data) || request.resource.data.qid is string)
+            // LENGTH TOO, and the sentence below is why it was missed: the
+            // paragraph argues carefully about the id's VALUE — that a
+            // circle id must not collide with somebody's world id — and
+            // says "the id is bounded HERE too", which was true of the
+            // shape and not of the size. The world branch four lines up
+            // caps it at 120; this one only asked that it be a string, so
+            // a 400 KB qid was accepted, measured.
+            //
+            // `text` is capped at 280 on both branches, and `v2_takes` is
+            // readable by any signed-in user as a list query that pulls
+            // whole documents — so an unbounded field here is a download
+            // every reader of that thread pays for.
+            && (!("qid" in request.resource.data)
+              || (request.resource.data.qid is string
+                && request.resource.data.qid.size() <= 120))
             // The id is bounded HERE too, and not for the same reason as
             // the world branch above. A circle take is many-per-person, so
             // there is no one-take bound to enforce — but both branches

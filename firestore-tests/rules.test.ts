@@ -586,6 +586,22 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { anchors: { jobField: "x".repeat(41) } }));
     // and a non-string value is not a short string
     await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
+    // THE OTHER FIVE CAPS THIS CASE'S NAME CLAIMS. Five anchors had a cap
+    // in the rule and no case here — measured, all five widened a
+    // hundredfold in one run left every test green, inside the `it` whose
+    // name is "and holds the caps".
+    for (const [key, max] of [
+      ["country", 80], ["profession", 80], ["education", 80],
+      ["relationship", 40], ["heightBand", 20],
+    ] as const) {
+      await assertFails(
+        setDoc(mine, { anchors: { [key]: "x".repeat(max + 1) } }),
+        `the ${key} cap is not enforced`,
+      );
+      // …and the cap admits a value AT it, so a refusal of everything
+      // cannot pass for a bound.
+      await assertSucceeds(setDoc(mine, { anchors: { [key]: "x".repeat(max) } }));
+    }
   });
 
   // The political consent record (D331), and the key that left with it.
@@ -1013,6 +1029,20 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // folded is the fold's flag, never the client's
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ folded: true })));
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ sessions: 5000 })));
+    // …AND THE SEVEN BESIDE IT, which nothing held. Measured: all seven
+    // widened by three orders of magnitude in one run left all 175 tests
+    // green, while `sessions` — the one with a case — went red. Most are
+    // backstopped by the fold, which re-clamps on read; `stops` and
+    // `lenses` are not, because `foldRollups` has no term for either.
+    for (const over of [
+      { fgMin: 500 }, { quiet: 30000 }, { answers: 200000 },
+      { feedB: 500 }, { depthEnd: 100 }, { stops: 200000 }, { lenses: 200000 },
+    ]) {
+      await assertFails(
+        setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup(over)),
+        `a rollup ceiling accepted ${JSON.stringify(over)}`,
+      );
+    }
   });
 
   it("the rollup's hasOnly IS the two-channel pin: a question id is refused, and nobody reads", async () => {
@@ -2418,6 +2448,18 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // Posting INTO a circle still needs membership — that is a write.
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_takes", "t2"),
       take({ authorUid: STRANGER })));
+    // THE CIRCLE BRANCH'S `qid` HAD NO LENGTH BOUND, only a type. The
+    // world branch caps it at 120 and `text` is capped at 280 on both, so
+    // this was the one field on the collection with no ceiling —
+    // measured, a 400 KB qid was accepted. `v2_takes` is read by any
+    // signed-in user as a list query that pulls whole documents, so the
+    // cost lands on every reader of that thread.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t3"),
+      take({ qid: "q".repeat(20000) })));
+    // …and an ordinary id still posts, so the bound is a bound rather
+    // than a refusal of every circle take that names a question.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t4"),
+      take({ qid: "daily-001" })));
   });
 
   it("takes are shape-bound, immutable, and only the author's to delete", async () => {
