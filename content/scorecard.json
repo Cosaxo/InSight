@@ -1,20 +1,20 @@
 {
-  "generatedAt": "2026-08-27T07:07:09.212Z",
-  "daysSinceEpoch": 26,
+  "generatedAt": "2026-09-03T07:03:26.957Z",
+  "daysSinceEpoch": 33,
   "coverage": {
-    "questions": 270,
-    "scored": 38,
-    "unserved": 104
+    "questions": 310,
+    "scored": 54,
+    "unserved": 89
   },
   "topics": {
     "Sport": {
       "questions": 7,
-      "scored": 0,
-      "answers": 0,
-      "measured": 0,
+      "scored": 1,
+      "answers": 1,
+      "measured": 1,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Film": {
       "questions": 7,
@@ -36,12 +36,12 @@
     },
     "Values": {
       "questions": 12,
-      "scored": 0,
-      "answers": 0,
-      "measured": 0,
+      "scored": 1,
+      "answers": 1,
+      "measured": 1,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Mind": {
       "questions": 11,
@@ -54,21 +54,21 @@
     },
     "Morals": {
       "questions": 11,
-      "scored": 0,
-      "answers": 0,
-      "measured": 0,
+      "scored": 1,
+      "answers": 2,
+      "measured": 1,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Travel": {
       "questions": 8,
-      "scored": 0,
-      "answers": 0,
-      "measured": 0,
+      "scored": 1,
+      "answers": 1,
+      "measured": 1,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Music": {
       "questions": 9,
@@ -81,12 +81,12 @@
     },
     "Body": {
       "questions": 9,
-      "scored": 0,
-      "answers": 0,
-      "measured": 0,
+      "scored": 1,
+      "answers": 1,
+      "measured": 1,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Story": {
       "questions": 8,
@@ -99,21 +99,21 @@
     },
     "Goals": {
       "questions": 9,
-      "scored": 0,
-      "answers": 0,
-      "measured": 0,
+      "scored": 2,
+      "answers": 2,
+      "measured": 2,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Home": {
       "questions": 16,
-      "scored": 0,
-      "answers": 0,
-      "measured": 0,
+      "scored": 3,
+      "answers": 3,
+      "measured": 3,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Skills": {
       "questions": 7,
@@ -134,16 +134,16 @@
       "avgEvenness": null
     },
     "sport": {
-      "questions": 14,
-      "scored": 1,
-      "answers": 1,
+      "questions": 17,
+      "scored": 2,
+      "answers": 2,
       "measured": 0,
       "strong": 0,
       "landslides": 0,
       "avgEvenness": null
     },
     "tech": {
-      "questions": 14,
+      "questions": 17,
       "scored": 4,
       "answers": 3.7,
       "measured": 3,
@@ -152,25 +152,25 @@
       "avgEvenness": 0
     },
     "dilemma": {
-      "questions": 17,
-      "scored": 2,
-      "answers": 1.3,
+      "questions": 19,
+      "scored": 3,
+      "answers": 1.7,
       "measured": 1,
       "strong": 0,
       "landslides": 0,
       "avgEvenness": 0
     },
     "food": {
-      "questions": 16,
-      "scored": 2,
-      "answers": 2,
+      "questions": 20,
+      "scored": 4,
+      "answers": 4,
       "measured": 1,
       "strong": 0,
       "landslides": 0,
       "avgEvenness": 0
     },
     "movies": {
-      "questions": 15,
+      "questions": 19,
       "scored": 4,
       "answers": 4,
       "measured": 3,
@@ -179,7 +179,7 @@
       "avgEvenness": 0
     },
     "culture": {
-      "questions": 16,
+      "questions": 19,
       "scored": 1,
       "answers": 1,
       "measured": 0,
@@ -188,16 +188,16 @@
       "avgEvenness": null
     },
     "music": {
-      "questions": 14,
-      "scored": 4,
-      "answers": 4,
+      "questions": 19,
+      "scored": 5,
+      "answers": 5,
       "measured": 3,
       "strong": 0,
       "landslides": 0,
       "avgEvenness": 0
     },
     "event": {
-      "questions": 16,
+      "questions": 19,
       "scored": 4,
       "answers": 4,
       "measured": 3,
@@ -206,7 +206,7 @@
       "avgEvenness": 0
     },
     "people": {
-      "questions": 13,
+      "questions": 19,
       "scored": 5,
       "answers": 5,
       "measured": 5,
@@ -215,16 +215,16 @@
       "avgEvenness": 0
     },
     "bigq": {
-      "questions": 15,
-      "scored": 2,
-      "answers": 2,
+      "questions": 18,
+      "scored": 4,
+      "answers": 3.7,
       "measured": 1,
       "strong": 0,
       "landslides": 0,
       "avgEvenness": 0
     },
     "now": {
-      "questions": 6,
+      "questions": 10,
       "scored": 6,
       "answers": 6,
       "measured": 6,
@@ -246,21 +246,21 @@
       },
       "choice": {
         "questions": 32,
-        "scored": 0,
-        "answers": 0,
-        "measured": 0,
+        "scored": 1,
+        "answers": 1,
+        "measured": 1,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": null
+        "avgEvenness": 0
       },
       "scale": {
         "questions": 19,
-        "scored": 0,
-        "answers": 0,
-        "measured": 0,
+        "scored": 1,
+        "answers": 2,
+        "measured": 1,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": null
+        "avgEvenness": 0
       },
       "dilemma": {
         "questions": 6,
@@ -273,9 +273,9 @@
       },
       "rating": {
         "questions": 29,
-        "scored": 2,
-        "answers": 2,
-        "measured": 2,
+        "scored": 10,
+        "answers": 10,
+        "measured": 10,
         "strong": 0,
         "landslides": 0,
         "avgEvenness": 0
@@ -292,7 +292,7 @@
         "avgEvenness": null
       },
       "vote": {
-        "questions": 114,
+        "questions": 148,
         "scored": 25,
         "answers": 25,
         "measured": 25,
@@ -301,9 +301,9 @@
         "avgEvenness": 0
       },
       "dial": {
-        "questions": 14,
-        "scored": 8,
-        "answers": 8,
+        "questions": 19,
+        "scored": 13,
+        "answers": 13,
         "measured": 0,
         "strong": 0,
         "landslides": 0,
@@ -311,15 +311,15 @@
       },
       "field": {
         "questions": 4,
-        "scored": 0,
-        "answers": 0,
+        "scored": 1,
+        "answers": 1,
         "measured": 0,
         "strong": 0,
         "landslides": 0,
         "avgEvenness": null
       },
       "path": {
-        "questions": 2,
+        "questions": 3,
         "scored": 1,
         "answers": 1,
         "measured": 0,
@@ -332,7 +332,7 @@
   "optionSlots": {
     "daily": {
       "rating/10": {
-        "questions": 2,
+        "questions": 10,
         "avgMinShare": 0,
         "avgShares": [
           0,
@@ -340,11 +340,11 @@
           0,
           0,
           0,
-          0.5,
+          0.1,
           0,
-          0.5,
+          0.1,
           0,
-          0
+          0.8
         ]
       },
       "binary/2": {
@@ -361,6 +361,26 @@
         "avgShares": [
           1,
           0
+        ]
+      },
+      "scale/5": {
+        "questions": 1,
+        "avgMinShare": 0,
+        "avgShares": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "choice/3": {
+        "questions": 1,
+        "avgMinShare": 0,
+        "avgShares": [
+          0,
+          0,
+          1
         ]
       }
     },
@@ -452,65 +472,151 @@
       ]
     },
     {
-      "qid": "feed-f14",
-      "prompt": "Spicy food: worth the pain?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-f29",
-      "prompt": "Delete all your data and start clean, or keep everything forever?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-f51",
-      "prompt": "Dinner with one",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-s12",
-      "prompt": "A perfectly happy simulated life — plug in?",
-      "total": 1,
+      "qid": "daily-029",
+      "prompt": "Most people would help a stranger in need.",
+      "total": 2,
       "evenness": 0,
       "optionShares": [
         1,
+        0,
+        0,
+        0,
         0
       ]
     },
     {
-      "qid": "feed-pt1",
-      "prompt": "The Wallet — a wallet, a bus, and nobody watching",
-      "total": 1,
-      "evenness": null,
-      "optionShares": null
-    },
-    {
-      "qid": "feed-f57",
-      "prompt": "ABBA or Queen?",
+      "qid": "daily-031",
+      "prompt": "Best way to watch a final?",
       "total": 1,
       "evenness": 0,
       "optionShares": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "qid": "daily-098",
+      "prompt": "Your country's landscapes — how good are they?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "qid": "daily-099",
+      "prompt": "How safe a country is yours to live in?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "qid": "daily-100",
+      "prompt": "Work and rest in your country — how well do they balance?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "qid": "daily-101",
+      "prompt": "If you got sick tomorrow, how good would the care be?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         0,
         1
       ]
     }
   ],
   "laggards": [
+    {
+      "qid": "feed-dl17",
+      "prompt": "How many years ahead do you actually plan?",
+      "total": 1,
+      "evenness": null,
+      "grade": "middling",
+      "optionShares": null
+    },
+    {
+      "qid": "feed-dl16",
+      "prompt": "The ideal dinner hour?",
+      "total": 1,
+      "evenness": null,
+      "grade": "middling",
+      "optionShares": null
+    },
+    {
+      "qid": "feed-dl15",
+      "prompt": "Meals cooked from scratch in a week?",
+      "total": 1,
+      "evenness": null,
+      "grade": "middling",
+      "optionShares": null
+    },
+    {
+      "qid": "feed-fd4",
+      "prompt": "Human nature — place it",
+      "total": 1,
+      "evenness": null,
+      "grade": "middling",
+      "optionShares": null
+    },
+    {
+      "qid": "feed-dl14",
+      "prompt": "How old were you when your taste in music settled?",
+      "total": 1,
+      "evenness": null,
+      "grade": "middling",
+      "optionShares": null
+    },
+    {
+      "qid": "feed-dl13",
+      "prompt": "Hours of live sport in a good week?",
+      "total": 1,
+      "evenness": null,
+      "grade": "middling",
+      "optionShares": null
+    },
     {
       "qid": "feed-dl12",
       "prompt": "Books finished last year — how many?",
@@ -548,88 +654,25 @@
         1,
         0
       ]
-    },
-    {
-      "qid": "feed-n04",
-      "prompt": "Harry and Meghan move back to Britain, but keep no royal duties. Workable?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-n03",
-      "prompt": "Evergrande's founder got life for fraud and bribery. That sentence is…",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-n02",
-      "prompt": "Crude is near $94. Has the pump changed how you get around?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-n01",
-      "prompt": "Trump has labelled the Strait of Hormuz new US territory. Your read?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-dl10",
-      "prompt": "How many close friends does a person need?",
-      "total": 1,
-      "evenness": null,
-      "grade": "middling",
-      "optionShares": null
-    },
-    {
-      "qid": "feed-f82",
-      "prompt": "Paper books or an e-reader?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        0,
-        1
-      ]
     }
   ],
   "production": {
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 100,
-        "scored": 9,
-        "answers": 13,
-        "measured": 8,
+        "served": 107,
+        "scored": 19,
+        "answers": 24,
+        "measured": 18,
         "strong": 0,
         "landslides": 0,
         "avgEvenness": 0
       },
       "farm": {
-        "questions": 94,
-        "served": 66,
-        "scored": 29,
-        "answers": 29,
+        "questions": 134,
+        "served": 106,
+        "scored": 35,
+        "answers": 35,
         "measured": 21,
         "strong": 0,
         "landslides": 0,
@@ -639,10 +682,10 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 91,
-        "scored": 8,
-        "answers": 12,
-        "measured": 8,
+        "served": 98,
+        "scored": 10,
+        "answers": 15,
+        "measured": 10,
         "strong": 0,
         "landslides": 0,
         "avgEvenness": 0
@@ -670,12 +713,12 @@
       "editorial:2026-08-16": {
         "questions": 24,
         "served": 0,
-        "scored": 0,
-        "answers": 0,
-        "measured": 0,
+        "scored": 8,
+        "answers": 8,
+        "measured": 8,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": null
+        "avgEvenness": 0
       },
       "farm:2026-08-19": {
         "questions": 14,
@@ -780,6 +823,56 @@
       "farm:2026-08-26": {
         "questions": 12,
         "served": 12,
+        "scored": 3,
+        "answers": 3,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-08-27": {
+        "questions": 6,
+        "served": 6,
+        "scored": 1,
+        "answers": 1,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-08-28": {
+        "questions": 6,
+        "served": 6,
+        "scored": 1,
+        "answers": 1,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-08-29": {
+        "questions": 6,
+        "served": 6,
+        "scored": 1,
+        "answers": 1,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-09-01": {
+        "questions": 12,
+        "served": 12,
+        "scored": 0,
+        "answers": 0,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-09-02": {
+        "questions": 10,
+        "served": 10,
         "scored": 0,
         "answers": 0,
         "measured": 0,
@@ -792,7 +885,7 @@
   "retireProposals": [],
   "learn": {
     "coverage": {
-      "cards": 146,
+      "cards": 166,
       "scored": 25
     },
     "fields": {
@@ -809,7 +902,7 @@
         "avgAbsGap": 0.415
       },
       "body": {
-        "cards": 13,
+        "cards": 18,
         "scored": 4,
         "answers": 4,
         "avgAbsGap": 0.36
@@ -821,19 +914,19 @@
         "avgAbsGap": null
       },
       "solar": {
-        "cards": 8,
+        "cards": 13,
         "scored": 2,
         "answers": 2,
         "avgAbsGap": 0.545
       },
       "stars": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
       },
       "ancient": {
-        "cards": 13,
+        "cards": 18,
         "scored": 6,
         "answers": 6,
         "avgAbsGap": 0.543
@@ -2769,30 +2862,290 @@
         "trapShare": null,
         "wrongCount": 0,
         "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol9",
+        "field": "solar",
+        "n": 4,
+        "prompt": "Which planet has the most moons?",
+        "total": 0,
+        "authoredP": 0.38,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol10",
+        "field": "solar",
+        "n": 4,
+        "prompt": "The Great Red Spot is…",
+        "total": 0,
+        "authoredP": 0.62,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol11",
+        "field": "solar",
+        "n": 4,
+        "prompt": "Sunlight reaches Earth in about…",
+        "total": 0,
+        "authoredP": 0.55,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol12",
+        "field": "solar",
+        "n": 4,
+        "prompt": "Which planet spins on its side?",
+        "total": 0,
+        "authoredP": 0.45,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-sol13",
+        "field": "solar",
+        "n": 4,
+        "prompt": "How much of the solar system's mass is the Sun?",
+        "total": 0,
+        "authoredP": 0.34,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str9",
+        "field": "stars",
+        "n": 4,
+        "prompt": "When you look at a distant star, you see it…",
+        "total": 0,
+        "authoredP": 0.58,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str10",
+        "field": "stars",
+        "n": 4,
+        "prompt": "What is the Sun mostly made of?",
+        "total": 0,
+        "authoredP": 0.63,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str11",
+        "field": "stars",
+        "n": 4,
+        "prompt": "The brightest star in our night sky is…",
+        "total": 0,
+        "authoredP": 0.4,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str12",
+        "field": "stars",
+        "n": 4,
+        "prompt": "How many stars can you see at once with the naked eye, from a truly dark place?",
+        "total": 0,
+        "authoredP": 0.36,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-str13",
+        "field": "stars",
+        "n": 4,
+        "prompt": "What keeps the Sun shining?",
+        "total": 0,
+        "authoredP": 0.6,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc14",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "Pompeii was buried by…",
+        "total": 0,
+        "authoredP": 0.72,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc15",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "The oldest known writing was mostly used for…",
+        "total": 0,
+        "authoredP": 0.39,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc16",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "The Sphinx's missing nose was…",
+        "total": 0,
+        "authoredP": 0.42,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc17",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "The pyramids were built mainly by…",
+        "total": 0,
+        "authoredP": 0.4,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc18",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "The trial of Socrates was decided by…",
+        "total": 0,
+        "authoredP": 0.33,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body14",
+        "field": "body",
+        "n": 4,
+        "prompt": "Your stomach gets a new lining every…",
+        "total": 0,
+        "authoredP": 0.35,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body15",
+        "field": "body",
+        "n": 4,
+        "prompt": "The body's strongest muscle for its size is…",
+        "total": 0,
+        "authoredP": 0.44,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body16",
+        "field": "body",
+        "n": 4,
+        "prompt": "Which sense is wired most directly to memory?",
+        "total": 0,
+        "authoredP": 0.51,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body17",
+        "field": "body",
+        "n": 4,
+        "prompt": "Goosebumps are…",
+        "total": 0,
+        "authoredP": 0.57,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body18",
+        "field": "body",
+        "n": 4,
+        "prompt": "How many times does your heart beat in a day, roughly?",
+        "total": 0,
+        "authoredP": 0.62,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
       }
     ]
   },
   "duel": {
     "coverage": {
-      "questions": 78,
+      "questions": 82,
       "scored": 0,
-      "unserved": 22
+      "unserved": 24
     },
     "modes": {
       "group": {
-        "questions": 25,
+        "questions": 26,
         "scored": 0,
         "plays": 0,
         "answers": 0
       },
       "duo": {
-        "questions": 31,
+        "questions": 32,
         "scored": 0,
         "plays": 0,
         "answers": 0
       },
       "romantic": {
-        "questions": 22,
+        "questions": 24,
         "scored": 0,
         "plays": 0,
         "answers": 0
@@ -3149,6 +3502,20 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp7",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who tells the same story every time, and it still lands?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
         "signal": "no-answers"
       },
       {
@@ -3586,6 +3953,20 @@
         "signal": "no-answers"
       },
       {
+        "qid": "duel-duo-053",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Realising you're wrong mid-argument: concede on the spot, or land the plane quietly?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
         "qid": "duel-duo-020",
         "mode": "romantic",
         "kind": null,
@@ -3891,6 +4272,34 @@
         "guessMatches": 0,
         "guessMatchRate": null,
         "chance": 0.5,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-054",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "When they need help, they…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-055",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Ten years on, the two of you are known for…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
         "signal": "unserved"
       }
     ]
@@ -4327,11 +4736,11 @@
       ],
       "type": "choice",
       "prompt": "Where does your sense of self come from?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-027",
@@ -4342,11 +4751,11 @@
       ],
       "type": "binary",
       "prompt": "Relive your best day, or live a new one?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-028",
@@ -4357,11 +4766,11 @@
       ],
       "type": "choice",
       "prompt": "Pick a season for the soul.",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-029",
@@ -4372,11 +4781,18 @@
       ],
       "type": "scale",
       "prompt": "Most people would help a stranger in need.",
-      "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "served": true,
+      "total": 2,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-030",
@@ -4387,11 +4803,11 @@
       ],
       "type": "binary",
       "prompt": "Team sports or solo sports?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-031",
@@ -4402,11 +4818,16 @@
       ],
       "type": "choice",
       "prompt": "Best way to watch a final?",
-      "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "served": true,
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-032",
@@ -4417,11 +4838,11 @@
       ],
       "type": "binary",
       "prompt": "Subtitles or dubbing?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-033",
@@ -5408,10 +5829,22 @@
       "type": "rating",
       "prompt": "Your country's landscapes — how good are they?",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-099",
@@ -5423,10 +5856,22 @@
       "type": "rating",
       "prompt": "How safe a country is yours to live in?",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-100",
@@ -5438,10 +5883,22 @@
       "type": "rating",
       "prompt": "Work and rest in your country — how well do they balance?",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-101",
@@ -5453,10 +5910,22 @@
       "type": "rating",
       "prompt": "If you got sick tomorrow, how good would the care be?",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-102",
@@ -5468,10 +5937,22 @@
       "type": "rating",
       "prompt": "Do everyday services work where you are?",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-103",
@@ -5483,10 +5964,22 @@
       "type": "rating",
       "prompt": "How welcoming is your country to people who move there?",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-104",
@@ -5498,10 +5991,22 @@
       "type": "rating",
       "prompt": "The weather you live with. Be honest.",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-105",
@@ -5513,10 +6018,22 @@
       "type": "rating",
       "prompt": "Can an ordinary wage carry an ordinary life here?",
       "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-106",
@@ -6652,7 +7169,10 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "no-answers",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-s02",
@@ -6727,7 +7247,10 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "no-answers",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-s08",
@@ -6866,7 +7389,10 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "no-answers",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-s17",
@@ -6881,7 +7407,10 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "no-answers",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-dl1",
@@ -7101,7 +7630,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f61",
@@ -7120,7 +7652,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f62",
@@ -7172,7 +7707,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f65",
@@ -7191,7 +7729,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f66",
@@ -7210,7 +7751,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f67",
@@ -7260,7 +7804,10 @@
         0
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f69",
@@ -7279,7 +7826,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f70",
@@ -7300,7 +7850,10 @@
         0
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f71",
@@ -7319,7 +7872,10 @@
         0
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-dl7",
@@ -7385,7 +7941,10 @@
         0
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f74",
@@ -7419,7 +7978,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f76",
@@ -7470,7 +8032,10 @@
         0
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f79",
@@ -7485,7 +8050,10 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "no-answers",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-dl9",
@@ -7550,7 +8118,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f83",
@@ -7730,7 +8301,7 @@
       ],
       "signal": "scored",
       "grade": "middling",
-      "attnSeen": 1.5,
+      "attnSeen": 3,
       "attnConv": null,
       "attnPass": null
     },
@@ -7751,7 +8322,10 @@
         0
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-n06",
@@ -7770,7 +8344,10 @@
         1
       ],
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f88",
@@ -7937,7 +8514,10 @@
       "evenness": null,
       "optionShares": null,
       "signal": "scored",
-      "grade": "middling"
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f97",
@@ -8024,10 +8604,14 @@
       "type": "dial",
       "prompt": "Hours of live sport in a good week?",
       "served": true,
-      "total": 0,
+      "total": 1,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "scored",
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f102",
@@ -8069,10 +8653,14 @@
       "type": "dial",
       "prompt": "How old were you when your taste in music settled?",
       "served": true,
-      "total": 0,
+      "total": 1,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "scored",
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f104",
@@ -8100,10 +8688,14 @@
       "type": "field",
       "prompt": "Human nature — place it",
       "served": true,
-      "total": 0,
+      "total": 1,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "scored",
+      "grade": "middling",
+      "attnSeen": 4.5,
+      "attnConv": null,
+      "attnPass": null
     },
     {
       "qid": "feed-f105",
@@ -8134,10 +8726,622 @@
       "evenness": null,
       "optionShares": null,
       "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f107",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "A new statue for your town square: an artist, a scientist, an athlete, or nobody?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f108",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "Live album, or studio album?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl15",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "dial",
+      "prompt": "Meals cooked from scratch in a week?",
+      "served": true,
+      "total": 1,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "scored",
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
+    },
+    {
+      "qid": "feed-f109",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Cinema snacks: essential, or a racket?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f110",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "Your team is losing badly. Stay to the end, or beat the traffic?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f111",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Voice messages: a gift, or a burden?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f112",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Which expedition would you have joined?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f113",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "A song you love turns up in an ad: ruined, or fair play?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f114",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "If no one would ever know what you did, would you act differently?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f115",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "vote",
+      "prompt": "Handwritten letters: bring them back, or let them go?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f116",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "Voting at 16: about time, or too young?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl16",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "dial",
+      "prompt": "The ideal dinner hour?",
+      "served": true,
+      "total": 1,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "scored",
+      "grade": "middling",
+      "attnSeen": 3,
+      "attnConv": null,
+      "attnPass": null
+    },
+    {
+      "qid": "feed-f117",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "A stranger's kindness you still remember: tell them, or leave it?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f118",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "The villain everyone secretly roots for: fine, or a problem?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f119",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "Learning an instrument at 40: worth starting, or too late?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f120",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "Watching sport alone, or in a crowd?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f121",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Your search history, visible to one person you trust: fine, or absolutely not?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl17",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "dial",
+      "prompt": "How many years ahead do you actually plan?",
+      "served": true,
+      "total": 1,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "scored",
+      "grade": "middling",
+      "attnSeen": 1.5,
+      "attnConv": null,
+      "attnPass": null
+    },
+    {
+      "qid": "feed-f122",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl18",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "dial",
+      "prompt": "Minutes late before it counts as late?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f123",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "vote",
+      "prompt": "Never lie again — and never be lied to. Take the deal?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f124",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "A referendum on every big question: more democracy, or chaos?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f125",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Breakfast: sweet, or savoury?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f126",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Black-and-white films: a treat, or a chore?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f127",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "The band re-forms without its singer: still the band, or a tribute act?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f128",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "The teacher you'd want for one term: Aristotle, Leonardo da Vinci, Charles Darwin, or Maya Angelou?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f129",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "The Olympics: summer, or winter?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f130",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Video calls: camera on, or camera off?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f131",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "What writes more of a life: luck, or effort?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-pt3",
+      "surface": "feed",
+      "topic": "culture",
+      "topics": [
+        "culture"
+      ],
+      "type": "path",
+      "prompt": "The Reunion — twenty years, one evening",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f132",
+      "surface": "feed",
+      "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
+      "type": "vote",
+      "prompt": "Teleport anywhere instantly — but you can never travel slowly again. Take it?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f133",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "A cashless world: convenient future, or something lost?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f134",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Ketchup: fridge, or cupboard?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f135",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "One genre forever: comedy, thriller, drama, or documentary?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl19",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "dial",
+      "prompt": "How many songs on a perfect album?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f136",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "One selfie with: Beyoncé, the Pope, Lionel Messi, or Taylor Swift?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n07",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Nine-figure transfer fees: the market working, or football losing the plot?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n08",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "A $4bn telescope just left to hunt dark energy. Money well spent?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n09",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "A Grand Slam without the world No. 1: wide open, or missing something?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n10",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Awards season opens at Venice. Do festival prizes change what you watch?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     }
   ],
   "attention": {
-    "daysWithQ": 1,
+    "daysWithQ": 7,
     "truncatedDevices": 0,
     "basis": "bucket-midpoint estimates from sampled anonymous shards (D271)",
     "warning": "attention is an estimate from bucketed, sampled shards; a skip is not dislike (seen-denominators only), novelty inflates new questions, and no attention figure outranks the content rules (D33/D271)"
