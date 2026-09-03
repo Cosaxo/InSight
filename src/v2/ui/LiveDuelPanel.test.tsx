@@ -1074,6 +1074,30 @@ describe("LiveDuelPanel · a tapped invite link", () => {
     expect(await screen.findByText(/has to let you in/i)).toBeTruthy();
   });
 
+  // …AND WHEN THE LINK ARRIVES WITH THE SCREEN ALREADY OPEN.
+  //
+  // The panel read the stash once, in a `useState` initializer, which is
+  // right for the ordinary case — the deep link opens the app and the panel
+  // mounts after it. It is silently wrong for the other one: an invite
+  // tapped while the Circle screen is already up stashes a code and
+  // navigates to the tab the user is already on, so nothing remounts, the
+  // initializer never runs again, and the invitation sits unread in
+  // sessionStorage until something else happens to remount the panel.
+  // Reproduced end to end before the subscription existed.
+  it("shows an invitation that arrives while the screen is already open", async () => {
+    const { stashJoinCode } = await import("../data/links");
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.queryByText(/An invitation/i), "the case started with one already pending").toBeNull();
+
+    // The deep-link boot path, minus the navigation it does not need here:
+    // the user is already on this tab, which is the whole point.
+    stashJoinCode("ABCD2345");
+
+    expect(await screen.findByText(/An invitation/i), "an invite arriving on an open screen was swallowed").toBeTruthy();
+    // …and it is still read-and-clear: the stash must not keep re-firing it.
+    expect(sessionStorage.getItem("insight.pendingJoin")).toBeNull();
+  });
+
   // The one shortcut, and it is the circle having already consented:
   // somebody invited by handle who then taps the link is completing that
   // invitation, not opening a second queue behind it.
