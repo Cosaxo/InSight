@@ -657,18 +657,34 @@ import {
     // the mount write to save a Firestore write would leave the fabricated
     // anchors exactly where they are.
     //
-    // STILL OPEN, and named here because the seed above does not close it:
-    // `useState(loadGen)` runs exactly once, so a panel that mounts before
-    // the profile doc has hydrated seeds from an empty map however good the
-    // seeding rule is, and this write then erases the account. The guard is
-    // one line — refuse the write when the derived map is entirely empty and
-    // `LIVE.anchors()` is not — but the case written for it passed with the
-    // guard removed, so it proves nothing: some consumer reads `anchors()`
-    // before the panel does, and a stub keyed on call order hands the panel
-    // the hydrated map instead of the empty one. NIGHTB_TASKS.md carries it.
+    // …and the seed in `baseFor` does not close it on its own, because
+    // `useState(loadGen)` runs exactly once: a panel that mounts before
+    // `v2_users/{uid}` has hydrated seeds from an empty map however good the
+    // seeding rule is, and this wholesale write then erases the account.
+    // Refuse that one write. An all-empty derived map is always accidental
+    // here — every Basics select opens on a `disabled` placeholder and offers
+    // no path back to it, and the city control is a picker — so a user cannot
+    // blank all ten by hand. Clearing ONE field still writes, because the
+    // rest of the map is not empty.
+    //
+    // Not `saveAnchors({ ...LIVE.anchors(), ...anchorsFrom(v) })`, the shape
+    // that suggests itself: `anchorsFrom` returns all ten keys always, empty
+    // strings included, so the spread overwrites the account with blanks and
+    // the merge is a no-op.
+    //
+    // Residual, deliberately not chased: on that race the Basics card also
+    // DISPLAYS empty, because loadGen has already run. The account's anchors
+    // are safe and the next edit writes correctly; re-seeding state after
+    // hydration needs a subscription that could clobber a field typed in the
+    // meantime, which is the worse trade.
     useEffect(() => {
       if (anchorsJson == null) return;
-      try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
+      try {
+        const next = JSON.parse(anchorsJson);
+        const blank = Object.values(next).every((v) => !v);
+        if (blank && Object.values(LIVE.anchors() || {}).some((v) => v)) return;
+        window.LIVE.saveAnchors(next);
+      } catch (e) { /* best-effort */ }
     }, [anchorsJson]);
 
     return (

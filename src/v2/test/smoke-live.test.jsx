@@ -2005,6 +2005,41 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(last.ageBand, "a second device erased the account's age band").toBe("25-34");
   });
 
+  it("refuses the wholesale write while the profile doc is still hydrating", async () => {
+    // The seed above cannot close this one: `useState(loadGen)` runs exactly
+    // once, so a panel that mounts before `v2_users/{uid}` has landed seeds
+    // from an empty map however good the seeding rule is.
+    //
+    // KEYED ON THE PANEL'S OWN READ, not on call order. The first version of
+    // this case answered {} to the first `anchors()` read and the account map
+    // to the rest — and it PASSED WITH THE GUARD REMOVED, which is how the
+    // stack sniff below earned its ugliness. Three other consumers read the
+    // anchors before the profile panel does (WorldFeed thrice), so a counter
+    // hands `baseFor` the hydrated map and the race window is never entered.
+    // Naming `baseFor` says exactly what is being reproduced: the doc has not
+    // landed when the panel seeds, and has by the time the effect runs one
+    // commit later — which is what hydrating a microtask late looks like from
+    // here. It fails loudly if `baseFor` stops reading the anchors, which is
+    // the right way for it to break.
+    const saved = [];
+    live = installLive({ anchors: ACCOUNT });
+    let seeded = false;
+    window.LIVE.anchors = () => {
+      if ((new Error().stack || "").includes("baseFor")) { seeded = true; return {}; }
+      return { ...ACCOUNT };
+    };
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<App />);
+    await openProfile();
+
+    expect(seeded, "the panel never seeded from an empty map — the race is not reproduced")
+      .toBe(true);
+    const blanked = saved.filter((a) => Object.values(a).every((v) => !v));
+    expect(blanked.length, "the hydrate race blanked the account's anchors").toBe(0);
+  });
+
 
   // ── the Map's anchor ring, the second place the persona reached ──
   //
