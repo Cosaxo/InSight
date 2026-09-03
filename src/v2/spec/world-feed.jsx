@@ -885,7 +885,19 @@ class WorldFeed extends React.Component {
     const total = dist.reduce((a, b) => a + b, 0);
     if (!total) return (q.lo + q.hi) / 2;
     let acc = 0;
-    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketMid(q, i); }
+    // `dialBucketShown`, NOT `dialBucketMid` — the same correction
+    // `dialVal` carries, and the reason is written out in full above it:
+    // when (hi-lo)/12 is a whole number every midpoint ends in .5 and
+    // half-up rounding lands on the TOP EDGE of its own bucket. So your
+    // own answer went through the corrected function and the crowd's
+    // through the raw midpoint, one line apart on the same card: you say
+    // 3 h, the card says "most say 4 h", out of the SAME bucket.
+    //
+    // 11 of the 0-12 h dial's 12 buckets do this; 22 bucket-readings
+    // across the four dials whose step is a whole unit. That comment was
+    // written when the fix was applied to `dialVal`, and this is the
+    // other half of it.
+    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketShown(q, i); }
     return (q.lo + q.hi) / 2;
   }
   // one by-cell (optionIdx → count) read as a dial: how many, and where
@@ -1015,20 +1027,34 @@ class WorldFeed extends React.Component {
     const path = this.dialPath(dist, W, H);
     const frac = (v - lo) / (hi - lo);
     const medFrac = (med - lo) / (hi - lo);
+    // NO COUNTS, NO CROWD. `dialDist` adds your own bucket back so the
+    // curve is never empty right after you answer — which on a card
+    // nobody else has answered leaves a distribution of exactly ONE, and
+    // the dial drew it as a full-height curve labelled "How everyone
+    // answered", with a dashed median and a "most say" line quoting your
+    // own number back at you as the crowd's.
+    //
+    // `noCountsYet` is the flag for this and every other shape on this
+    // card already reads it — the tiles suppress their percentages and
+    // draw renderFloorNote (:2105, :2109), the bars the same. The dial
+    // path never asked. So it asks now, and says the same thing they do.
+    const noCrowd = !!(q.live && q.noCountsYet);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: WPAL.ink(T.color), fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, v)}</span>
           <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>you</span>
-          <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>
+          {noCrowd ? null : <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>}
         </div>
-        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
-          <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>
-          <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>
-          <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>
-          <circle cx={frac * W} cy={this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
+        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={noCrowd ? 'Where you answered, ' + endTxt[0] + ' to ' + endTxt[1] : 'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
+          {noCrowd ? null : <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>}
+          {noCrowd ? null : <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>}
+          {noCrowd ? null : <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>}
+          <line x1={0} y1={H - 1} x2={W} y2={H - 1} stroke="var(--rule)" strokeWidth="1"></line>
+          <circle cx={frac * W} cy={noCrowd ? H - 8 : this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
         </svg>
         <div style={ends}><span>{endTxt[0]}</span><span>{endTxt[1]}</span></div>
+        {noCrowd ? this.renderFloorNote(big) : null}
       </div>
     );
   }
