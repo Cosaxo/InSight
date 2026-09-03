@@ -459,16 +459,21 @@ aggregate-side — which is the useful surprise. Grouped:
 | Item calibration | per-question item-information profiles · per-question shape-feature table · per-item repeat summaries |
 | Cross-axis structure | joint density aggregates · population cross-axis correlation artifact · a pairing ledger |
 | Database honesty | standing replay audit · serving-design field + sampled seen-denominator · fold cursor per read model |
-| New collection | percept/direct-output items on the spine · one-tap sleep micro-report · one-tap illness micro-report |
+| New collection | percept/direct-output items on the spine · one-tap illness micro-report (a fifth pulse row) |
+| Artifact only, collection already shipped | the sleep micro-report — its verdict records that the pulse roster's `sleep` item already collects exactly what was asked (D139/D203), so only the published coupling artifact is buildable |
 
 Three more are `NEEDS-OWNER` and each is one sentence: era-scoped
 instrument re-serving (without it trajectories and the ergodicity test
 can never be measured at all), a consented within-family pairing flag,
 and binned crowd density published beside the loadings.
 
-Only three of the sixteen ask for **new collection**. The rest are
-folds, fields and artifacts over data that already publishes — which
-is why the closed bridge is expensive rather than merely slow.
+Only **two** of the sixteen ask for new collection — the percept items
+and one added pulse row. The sleep request reads like a third and is
+not: central's verdict corrected it on the product's facts, recording
+that the roster already collects the item so the governed process is
+not asked to re-approve what D166 §3 already weighed. Everything else
+is folds, fields and artifacts over data that **already publishes** —
+which is why the closed bridge is expensive rather than merely slow.
 
 ## What this page does not claim
 
