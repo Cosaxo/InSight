@@ -3727,27 +3727,30 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     });
   });
 
-  const arms: Array<[string, string[]]> = [
-    ["v2_question_aggs", ["v2_question_aggs", "daily-000"]],
-    ["v2_ads", ["v2_ads", "ad1"]],
-    ["v2_call_outcomes", ["v2_call_outcomes", "daily-000"]],
-    ["v2_patterns", ["v2_patterns", "loadings"]],
-    ["v2_rank", ["v2_rank", "daily-000"]],
-    ["v2_users", ["v2_users", OWNER]],
-    ["following", ["v2_users", OWNER, "following", STRANGER]],
-    ["foresight", ["v2_users", OWNER, "foresight", "q1__ageBand__25-34"]],
-    ["reveals", ["v2_groups", GROUP, "reveals", DAY]],
-    ["v2_people", ["v2_people", OWNER]],
-    ["v2_avatars", ["v2_avatars", OWNER]],
-  ];
+  // WRITTEN OUT ONE CASE PER ARM, not generated in a loop, and the reason
+  // is a gate rather than taste: `check:figures` counts test declarations
+  // statically off the tree and holds four prose figures to that count. A
+  // loop would have contributed ONE declaration for eleven tests, so the
+  // documented number would have said 165 while running the suite printed
+  // 175 — the documentation drift that gate exists to prevent, introduced
+  // by the commit that added it. (It caught this; the first draft looped.)
+  const refuses = async (path: [string, ...string[]]): Promise<void> => {
+    const [head, ...rest] = path;
+    await assertFails(getDoc(doc(asSignedOut(), head, ...rest)));
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), head, ...rest)));
+  };
 
-  for (const [name, path] of arms) {
-    it(`${name}: signed out is refused, signed in is not`, async () => {
-      const [head, ...rest] = path;
-      await assertFails(getDoc(doc(asSignedOut(), head, ...rest)));
-      await assertSucceeds(getDoc(doc(asUser(STRANGER), head, ...rest)));
-    });
-  }
+  it("v2_question_aggs refuses a signed-out read", () => refuses(["v2_question_aggs", "daily-000"]));
+  it("v2_ads refuses a signed-out read", () => refuses(["v2_ads", "ad1"]));
+  it("v2_call_outcomes refuses a signed-out read", () => refuses(["v2_call_outcomes", "daily-000"]));
+  it("v2_patterns refuses a signed-out read", () => refuses(["v2_patterns", "loadings"]));
+  it("v2_rank refuses a signed-out read", () => refuses(["v2_rank", "daily-000"]));
+  it("v2_users refuses a signed-out read", () => refuses(["v2_users", OWNER]));
+  it("following refuses a signed-out read", () => refuses(["v2_users", OWNER, "following", STRANGER]));
+  it("foresight refuses a signed-out read", () => refuses(["v2_users", OWNER, "foresight", "q1__ageBand__25-34"]));
+  it("reveals refuses a signed-out read", () => refuses(["v2_groups", GROUP, "reveals", DAY]));
+  it("v2_people refuses a signed-out read", () => refuses(["v2_people", OWNER]));
+  it("v2_avatars refuses a signed-out read", () => refuses(["v2_avatars", OWNER]));
 
   it("and the list still covers every sign-in-gated read arm", async () => {
     // The list above is hand-written, so this is what stops it going
@@ -3763,6 +3766,6 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // a helper predicate is invisible to it, and would need its own case.
     const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
     const total = (rules.match(/allow\s+read:\s*if\s+request\.auth\s*!=\s*null\s*;/g) || []).length;
-    expect(total, "the count of sign-in-gated read arms moved: list a new one above, or drop one whose own case now covers it").toBe(arms.length + 4);
+    expect(total, "the count of sign-in-gated read arms moved: add a case above and raise this number, or drop one whose own case now covers it").toBe(11 + 4);
   });
 });
