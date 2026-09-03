@@ -1,11 +1,12 @@
 # Ops runbook — the routines that keep the routine program honest, and the list worker
 
-**Status: mixed — four of the eight Routines exist (the roll call, the
+**Status: mixed — five of the eight Routines exist (the roll call, the
 production reader, the release recorder and the list worker, created
-2026-09-02 and bound to the ops dispatcher); the probe, the PR
-shepherd, the pulse responder and the dependency shepherd do not yet.**
+2026-09-02 and bound to the ops dispatcher, and the PR shepherd, created
+the same day on its own hourly schedule); the probe, the pulse responder
+and the dependency shepherd do not yet.**
 § The account-side inventory has the ids and what stopped the other
-three. This file is the contract each one defers to from its first
+two. This file is the contract each one defers to from its first
 fire, written before the first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
 against a contract that was not on `main`, and its first two runs
 aborted correctly and to no effect (PR #335, run log #336). When a
@@ -830,7 +831,7 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 | --- | --- | --- | --- | --- |
 | InSight platform probe | — | `claude-sonnet-5` | web UI, fresh session per run — the owner creates it | not yet |
 | InSight roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `claude-sonnet-5`, set by the dispatcher | ops dispatcher → fresh session | 2026-09-02 |
-| InSight PR shepherd | — | `claude-opus-5` | — | not yet: creation from a session refused by the permission classifier on 2026-09-02; create from the web UI, then add its GitHub `pull_request` triggers there |
+| InSight PR shepherd | `trig_01UuPxYjLWh5st3iUDyxKu58` | `claude-opus-5` | fresh session per fire, created over MCP by a session on this account at 15:57Z (no persistent session; its GitHub `pull_request` triggers still need the web UI); hourly at :55 since 16:55Z rather than §1's two slots | 2026-09-02 |
 | InSight production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `claude-sonnet-5`, set by the dispatcher | ops dispatcher → fresh session | 2026-09-02 |
 | InSight release recorder | `trig_01Vr2QLmWAGBaBsnT6yTusnr` | `claude-opus-5`, set by the dispatcher | ops dispatcher → fresh session; poke-only until its API trigger is added in the web UI | 2026-09-02 |
 | InSight pulse responder | — | `claude-opus-5` | — | not yet: same refusal as the shepherd; create from the web UI with an API trigger |
@@ -841,6 +842,13 @@ The dispatcher-bound rows carry no stored connectors of their own
 (the creation tool said so); their sessions' tools come from the
 dispatcher's `create_session` call, which the first fire measures. The
 roll call's first fire is the same day it was created.
+
+The PR shepherd's row is from `list_triggers` at 21:20Z, read by D354's
+session rather than the one that created it: the Routine exists on this
+account, and its 21:10Z fire was the first to reach the repository — one
+verdict comment each on #363 and #367, naming the renumber it could not
+make because `git merge` and `git checkout -B` were refused by its
+session's permission classifier.
 
 **A second account runs four of these lanes, and none of the ids above
 is on it** (measured 2026-09-03 from `list_triggers`, which returned

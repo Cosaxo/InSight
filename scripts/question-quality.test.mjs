@@ -246,6 +246,21 @@ describe("checkQuestion (feed continuum shapes)", () => {
     expect(checkQuestion(dial({ options: ["Low", "High"] }), "feed", corpus, TEX).errs.some((e) => e.rule === "type-shape")).toBe(true);
   });
 
+  it("holds a dial to a whole unit per bucket, and lets a retired one stand (D358)", () => {
+    // 17–23 h is the dinner dial that shipped: a half-hour step whose
+    // synthesized labels read "18–18 h". 1–4 hrs is the concert dial —
+    // a quarter-hour step nothing integer can print.
+    expect(checkQuestion(dial({ lo: 17, hi: 23, unit: "h", med: 19 }), "feed", corpus, TEX).errs.some((e) => e.rule === "step")).toBe(true);
+    expect(checkQuestion(dial({ lo: 1, hi: 4, unit: "hrs", med: 2 }), "feed", corpus, TEX).errs.some((e) => e.rule === "step")).toBe(true);
+    // Exactly one unit per bucket is the floor, not a failure.
+    expect(checkQuestion(dial({ lo: 12, hi: 24, unit: "h", med: 19 }), "feed", corpus, TEX).errs).toEqual([]);
+    // The rule is what retired the cramped ones; they stay in the bank
+    // with active:false so the seed reads the flag, and stay green here.
+    expect(checkQuestion(dial({ lo: 17, hi: 23, unit: "h", med: 19, active: false }), "feed", corpus, TEX).errs).toEqual([]);
+    // A lo ≥ hi range is the `range` rule's, not this one's.
+    expect(checkQuestion(dial({ lo: 90, hi: 40 }), "feed", corpus, TEX).errs.some((e) => e.rule === "step")).toBe(false);
+  });
+
   it("demands the scale be labelled — a unit or two end labels", () => {
     expect(checkQuestion(dial({ unit: "" }), "feed", corpus, TEX).errs.some((e) => e.rule === "ends")).toBe(true);
     expect(checkQuestion(dial({ unit: "", ends: ["never", "always"] }), "feed", corpus, TEX).errs).toEqual([]);

@@ -4,6 +4,11 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import { sharePcts } from '../data/pct';
+// The store (D354): `feedInsight` below reads the aggregate through it at
+// call time. Imported rather than `window.LIVE` — the load-order guard
+// that read carried is unreachable on an import.
+import LIVE from '../data/live';
+import PLACES from '../data/places';
 
 // feed-read.js — the feed's memory.
 //
@@ -95,8 +100,7 @@ export let feedInsight;
   // below, where the room baseline is built.
   feedInsight = function feedInsightImpl(q, _counts, mine) {
     if (!q || !q.live || !q.options || q.options.length < 2) return null;
-    const L = window.LIVE;
-    const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
+    const agg = LIVE.enabled ? LIVE.aggFor(q.id) : null;
     const by = agg && agg.by;
     if (!by) return null;
 
@@ -159,12 +163,9 @@ export let feedInsight;
     // City and country are stored canonically ("Oslo, NO", "NO") so one
     // cohort is one key worldwide; they read as names only after PLACES
     // turns them back (D9).
-    const P = window.PLACES;
     let label = best.group;
-    if (P) {
-      if (best.dim === 'country') label = P.countryName(best.group);
-      else if (best.dim === 'city') { const pl = P.parse(best.group); if (pl) label = pl.name; }
-    }
+    if (best.dim === 'country') label = PLACES.countryName(best.group);
+    else if (best.dim === 'city') { const pl = PLACES.parse(best.group); if (pl) label = pl.name; }
     return {
       kind: best.kind, group: label, sideIdx: best.sideIdx, dim: best.dim,
       // Rounded once, at the end, and only for the cell that won.
@@ -172,4 +173,3 @@ export let feedInsight;
     };
   };
 })();
-window.FEEDREAD = FEEDREAD;

@@ -4,6 +4,12 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import { sharePcts } from '../data/pct';
+// The store (D354). Read at CALL time only — `myAnswer` and `liveSync`
+// below — never while this module evaluates. That is what makes the
+// import safe this early in spec-index.js: data/live.ts imports
+// test-definitions.js, and neither of the three reads another's bindings
+// during evaluation, so the order they settle in cannot matter.
+import LIVE from '../data/live';
 
 // daily-questions.js — "Daily Question" feature data + persistent answer store.
 // A new question each day (type varies). Each question carries a plausible,
@@ -511,7 +517,7 @@ export let DAILYQ;
     if (q.id in saved) return saved[q.id];
     // live mode: the demo's baked history is Mira's, not the user's —
     // only genuinely-answered questions may reach the map
-    if (window.LIVE && window.LIVE.enabled) return null;
+    if (LIVE.enabled) return null;
     return q.bakedMine;            // baked past answer, or null
   }
 
@@ -609,14 +615,14 @@ export let DAILYQ;
   // narrow and exact: the answers on this store are now the account's own,
   // so the demo calendar's `dateLabel`/`idx` no longer describe them. Read
   // through `dateOf`/`datesAreReal` above rather than by a second
-  // `window.LIVE` read — D39's meter counts those and only moves down.
+  // liveness read.
   let liveHydrated = false;
 
   function liveSync() {
-    const L = window.LIVE;
-    if (!L || !L.enabled || !L.ready || !L.dailyBank) return;
+    const L = LIVE;
+    if (!L.enabled || !L.ready) return;
     liveHydrated = true;
-    const votes = (L.confirmedVotes ? L.confirmedVotes() : (L.myVotes && L.myVotes())) || {};
+    const votes = L.confirmedVotes() || {};
     const byPrompt = {};
     const demoPrompts = new Set(QUESTIONS.map((q) => q.prompt));
     L.dailyBank().forEach((b) => {
@@ -642,7 +648,7 @@ export let DAILYQ;
       q.liveId = b.id;
       const v = votes[b.id];
       if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
-      const agg = L.aggFor && L.aggFor(b.id);
+      const agg = L.aggFor(b.id);
       const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
       if (agg && agg.counts && size) {
         const counts = []; let total = 0;

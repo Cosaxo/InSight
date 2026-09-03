@@ -27,4 +27,3 @@ export const WF_REPORT = (function () {
   };
 })();
 // The mirror stays for daily-split.jsx, which has not moved.
-window.WF_REPORT = WF_REPORT;

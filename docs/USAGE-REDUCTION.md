@@ -1,6 +1,6 @@
 # Getting the routine bill down — what the program costs, and what was cut
 
-**Status: partly executed, 2026-09-03 (D354).** The owner read the
+**Status: partly executed, 2026-09-03 (D359).** The owner read the
 arithmetic below and chose *overhead plus cadence*: the dispatcher
 overhead removed where a session may remove it, the PR shepherd
 re-paced from twenty-four firings a day to eight, the twelve theory
@@ -111,15 +111,23 @@ the list says why. The new ones carry `(B)`. Ids are in
 
 The theory lanes' four-day cycle, so a reader can check a slot:
 
-| Days of the month | Lanes (UTC hour) |
-| --- | --- |
-| 1, 5, 9 … 29 | review (02), genetic (09), body (10) |
-| 2, 6, 10 … 30 | database (08), map (09), pattern (10) |
-| 3, 7, 11 … 31 | questions (11), tests (12), ties (13) |
-| 4, 8, 12 … 28 | graph optimizer (11), central (12), interests (14) |
+| Days of the month | Lanes (UTC hour) | |
+| --- | --- | --- |
+| 1, 5, 9 … 29 | review (02), genetic (09), body (10) | subject day |
+| 2, 6, 10 … 30 | database (08), map (09), pattern (10) | reader day |
+| 3, 7, 11 … 31 | questions (11), tests (12), ties (13), interests (14) | subject day |
+| 4, 8, 12 … 28 | graph optimizer (11), central (12) | reader day |
 
-A 31st followed by a 1st puts four lanes in two days once a month, and
-February drops the tail of the cycle. Both are the existing scheme's
+**The subject/reader alternation is kept, not lost.** The old odd/even
+split existed so a reader lane always works on subject output at most a
+day old (`ROUTINES.md` § The theory lanes), and the four-day cycle
+preserves it by making days 1 and 3 subject days and days 2 and 4 reader
+days. Interests moved from the fourth day to the third once that
+invariant was read back off the register — it is a subject lane, and on a
+reader day its own output would have waited two days to be read.
+
+A 31st followed by a 1st puts two subject days back to back once a month,
+and February drops the tail of the cycle. Both are the existing scheme's
 artefacts at half the rate, not new ones.
 
 ## 4 · What a session cannot cut, and the probe that proved it
