@@ -441,7 +441,6 @@ for (const name of [...defined].sort()) {
 const COUPLING_BASELINE = {
   "src/v2/spec/app-shell.jsx": 14,
   "src/v2/spec/daily-split.jsx": 6,
-  "src/v2/spec/map-tab.jsx": 2,
   "src/v2/spec/mirror-field-pops.jsx": 1,
   "src/v2/spec/search-overlay.jsx": 3,
   "src/v2/spec/segment-explorer.jsx": 1,

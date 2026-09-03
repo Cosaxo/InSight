@@ -61,6 +61,8 @@ do not want.
 The worker moves the item it is building here with its PR link, and
 back to § Open if the PR is closed unmerged.
 
+- [x] `[claude-3]` Convert one provider module off the spec-layer global bridge — this round: `MAP_OPEN_GROUP`, the feed's "See it" mailbox that `data/mapCue.ts` had already replaced, `check:globals` rule 4 at 32 → 30 with `map-tab.jsx` off the per-file list (#PRNUM) — Claude 3. The standing line stays in § Open for the next module; the meter's remaining 30 are each written beside their reason in `src/v2/README.md` § Migration path, and the next run reads them off the tree, not the paragraph.
+
 ## Parked (needs the owner)
 
 Items the worker could not take, each with the one question or the
