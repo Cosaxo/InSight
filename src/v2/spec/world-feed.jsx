@@ -17,7 +17,7 @@ import { TEST_FEED_QS } from './test-feed-data.js';
 // live build's bank items arrive through data/testFeed.ts, which is where
 // the story of why that is not a `window` read lives (D280).
 import { testFeedPool } from '../data/testFeed.ts';
-import { WORLD_CHANNELS } from './world-feed-data.js';
+import { WORLD_CHANNELS, WORLD_TOPICS } from './world-feed-data.js';
 import PLACES from '../data/places';
 import { FILMS, ARTISTS, ATHLETES, EMOJI } from '../data/catalogs';
 import POKEDEX from '../data/pokedex';
@@ -70,11 +70,25 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 // below (in the D39 baseline); convert them on touch, never re-add one.
 import ELEMENTS_CATALOG from '../data/elements.ts';
 import { COUNTRIES, DOGS, COLORS, LANGUAGES } from '../data/catalogs.ts';
-// Imported for the D89 gate rather than read off window — same meter
-// reasoning as the imports above. The window.LIVE reads elsewhere in this
-// file predate the ratchet; new ones may not join them.
+// Imported rather than read off window — same meter reasoning as the
+// imports above. Every LIVE read in this file goes through this binding
+// since D354. The `window.LIVE &&` existence guards it took with it were
+// load-order guards an import makes unreachable; the member-existence
+// guards (`L.myVotes ? … : null`, `L.editVote && …`) guarded methods the
+// store's literal always defines (the surface pin in data/vote.test.ts).
+// The data conditions — `.enabled`, `.demoInProd` — stayed.
 import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
+// D354's sweep: the feed's own group members and the eager passive tag as
+// imports. learn-bits and learn-social ride this same chunk (loadWorldFeed
+// lists them ahead of this file), consequence-beat too; PickSearch is the
+// pick card's typed picker. Every `window.X ?` beside these was a
+// load-order guard, and there is no frame in which an import is unset.
+import { PassiveTag } from './passive-meter.jsx';
+import { LMStreak, LMFriends } from './learn-bits.jsx';
+import { ConsequenceBeat } from './consequence-beat.jsx';
+import { LEARN_SOCIAL } from './learn-social.js';
+import PickSearch from '../ui/PickSearch';
 import { PASSIVE } from './passive-progress.js';
 // Crossroads (D136). Imported, not read off window — rule 4 refuses new
 // coupling. The ESM graph carries it and its store into THIS chunk, which
@@ -116,7 +130,7 @@ const WF_PASS_LS = 'insight.feedPass.v1';
 const WF_DEFER_LS = 'insight.feedDefer.v1';
 // where a vote lands on your Mirror — the ripple line after answering
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
-const WF_TOPICS = window.WORLD_TOPICS || [];
+const WF_TOPICS = WORLD_TOPICS;
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
 const WF_CHANNELS = WORLD_CHANNELS;
 const WF_CHAN_SET = Object.fromEntries(WF_CHANNELS.map((id) => [id, true]));
@@ -378,9 +392,8 @@ class WorldFeed extends React.Component {
     // mirror. Absence from myVotes() alone is not evidence of a rollback:
     // during a partial hydrate the store is legitimately incomplete, and
     // trusting it would mass-un-vote the whole feed.
-    this._unsubLive = window.LIVE && window.LIVE.subscribe
-      ? window.LIVE.subscribe(() => {
-        const mine = (window.LIVE.myVotes && window.LIVE.myVotes()) || {};
+    this._unsubLive = LIVE.subscribe(() => {
+        const mine = LIVE.myVotes() || {};
         const mirror = wfLoad();
         this.setState((s) => {
           let changed = false;
@@ -439,8 +452,7 @@ class WorldFeed extends React.Component {
           }
           return changed ? { votes } : null;
         });
-      })
-      : null;
+      });
     this._unsubSubs = SUBTOPICS.subscribe(() => this.forceUpdate());
     this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = LEARN_FEED.subscribe(() => this.forceUpdate());
@@ -638,13 +650,13 @@ class WorldFeed extends React.Component {
     // first-vote celebrations below: the beat, the ripple and the reveal
     // haptic are "your vote landed" moments, not "your vote moved" ones.
     let editing = false, refused = false;
-    if (q.live && window.LIVE && typeof val === 'number') {
-      const L = window.LIVE;
-      const prior = L.myVotes ? L.myVotes()[id] : null;
+    if (q.live && typeof val === 'number') {
+      const L = LIVE;
+      const prior = L.myVotes()[id];
       if (prior != null) {
         editing = true;
         if (Number(prior) === val) refused = true; // re-picked the standing vote
-        else if (!(L.editVote && L.editVote(id, String(val)))) {
+        else if (!L.editVote(id, String(val))) {
           refused = true;
           this.holdNote(id);
         }
@@ -693,7 +705,7 @@ class WorldFeed extends React.Component {
       wfSave(votes);
       // …and the beat replays the split as a scene, so it is the same
       // fabrication on a selfOnly card that the bars would be.
-      const beat = (!editing && this.props.beats !== false && window.ConsequenceBeat && !selfOnly) ? id : s.beat;
+      const beat = (!editing && this.props.beats !== false && !selfOnly) ? id : s.beat;
       // Ask for a reason once, while the vote is warm, and only if this
       // question has none of your takes yet. Demo cards only: a live card
       // shows no takes, so there would be nowhere for the answer to go —
@@ -1552,7 +1564,7 @@ class WorldFeed extends React.Component {
                 first-tries-only rule is invisible on a re-serve — which is
                 how a reader ends up looking at a tick beside "0 people ·
                 0%" on the option they just picked. */}
-            {window.LIVE && window.LIVE.enabled ? (
+            {LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
                 {src === 'measured'
                   ? (() => {
@@ -1566,7 +1578,7 @@ class WorldFeed extends React.Component {
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
             {this.opts.reveal ? this.renderKnowInsight(q, T) : null}
-            {window.LMFriends ? <LMFriends card={card} col={T.color}></LMFriends> : null}
+            <LMFriends card={card} col={T.color}></LMFriends>
           </div>
         ) : null}
       </div>
@@ -1599,8 +1611,8 @@ class WorldFeed extends React.Component {
   //
   // LIVE and PICKS are the IMPORTED bindings, not `window.*`. This seam
   // landed on main while this file was coming off the bridge (D249), and
-  // the header above is explicit that new window.LIVE reads may not join
-  // the ones that predate the ratchet. `return PICKS` for the same reason
+  // the header above is explicit that no window.LIVE read may join it
+  // (there are none left since D354). `return PICKS` for the same reason
   // the `PK ?` guards below are gone: an imported binding cannot be unset,
   // so the fallbacks they guarded are unreachable (D108).
   pickSrc(q) {
@@ -2056,7 +2068,7 @@ class WorldFeed extends React.Component {
   // the ONLY place the count appears. Suppressing it there would delete the
   // scale of the vote from every real card.
   footInstead(q) {
-    return this.opts.v2 && !q.live && !(window.LIVE && window.LIVE.demoInProd);
+    return this.opts.v2 && !q.live && !LIVE.demoInProd;
   }
 
   // The v2 footer: exactly ONE line under the result, in priority order —
@@ -2331,7 +2343,7 @@ class WorldFeed extends React.Component {
     // live build dropped into the mock fallback, where the synthetic
     // splits and the fake named people below would both be lies — and a
     // REAL takes composer beside fake results would be worse still.
-    if (window.LIVE && window.LIVE.demoInProd) return null;
+    if (LIVE.demoInProd) return null;
     // A selfOnly card (a lens question against a bank with no lens rows —
     // D50; seeded banks serve lens cards live now, D91) has no crowd
     // behind it: takes, who-voted and the votes-count footer would all be
@@ -3127,8 +3139,8 @@ class WorldFeed extends React.Component {
   // `friends` is absent here on purpose: a named who-voted at world scale
   // is what D1 rules out. It stays a demo-only dimension.
   liveBy(q) {
-    if (!q.live || !window.LIVE || !window.LIVE.aggFor) return null;
-    const agg = window.LIVE.aggFor(q.id);
+    if (!q.live) return null;
+    const agg = LIVE.aggFor(q.id);
     const by = agg && agg.by;
     return by && Object.keys(by).length ? by : null;
   }
@@ -3278,8 +3290,7 @@ class WorldFeed extends React.Component {
     const rate = LEARN_RATE(card);
     const p = rate.pct;
     const r = this.knowOf(q);
-    const S = window.LEARN_SOCIAL;
-    const seen = S ? S.onCard(card) : [];
+    const seen = LEARN_SOCIAL.onCard(card);
     const rows = dim === 'friends' ? [] : (() => { const gs = WF_GRP(dim, axis); return gs.map((g, i) => ({ ...g, rate: wfKnowRate(q.id, WF_CUTKEY(dim, axis) + ':' + g.label, p, wfKnowBias(dim, axis, gs.length, i)) })).sort((a, b) => b.rate - a.rate); })();
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
@@ -3861,7 +3872,7 @@ class WorldFeed extends React.Component {
         {/* A real deadline outranks the decorative one — never both (D231). */}
         {win ? this.renderWindow(T, win) : (F.closing && this.renderClock(T))}
         <span style={{ flex: 1 }}></span>
-        {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}
+        <PassiveTag q={q} answered={answered}></PassiveTag>
       </div>
     );
     const snap = !compact && !focus;

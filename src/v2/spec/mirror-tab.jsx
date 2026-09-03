@@ -16,6 +16,31 @@ import { bindSwipeBack } from './swipe-back.js';
 // the stop id) are unchanged, because those guard data, not loading.
 import NearLiveBody from '../ui/NearLiveBody';
 import NAV from '../data/nav';
+// The store, imported (D354). The two reads below were `window.LIVE` behind
+// an existence guard; an imported binding cannot be unset, so the guard is
+// gone and the data halves (`.enabled`, `.demoInProd`) stay — both are
+// false for the whole of mock mode.
+import LIVE from '../data/live';
+// THE MIRROR'S OWN MODULES, in spec-index.js's order, as side-effect
+// imports (D355). This is the file loadMirrorTab() names, so these twelve
+// ride its chunk and evaluate before this module's body — map-tab.jsx's
+// shape, which carries its six the same way. The order is semantic here
+// exactly as it was in the eager list: group-mirror reads CompareBreakdown
+// and GroupRoleMap by name at render, mirror-field-pops reads the MF*
+// family and SegmentExplorer, demographics.jsx reads DEMOGRAPHICS, and
+// each of those is a global an earlier line publishes. Do not sort these.
+import './compare-pop.js';
+import './demographics.js';
+import './compare-breakdown.jsx';
+import './lens-defs.js';
+import './lens-cards.jsx';
+import './demographics.jsx';
+import './mirror-answers.jsx';
+import './mirror-field.jsx';
+import { MirrorFieldBody } from './mirror-field-pops.jsx';
+import './group-role-map.jsx';
+import { GroupsMirrorBody } from './group-mirror.jsx';
+import './segment-explorer.jsx';
 // Three of them load AFTER first paint, and the reason is the bundle budget
 // rather than taste.
 //
@@ -42,6 +67,14 @@ import NAV from '../data/nav';
 // reaches the Mirror the chunk is in the module cache and the Suspense
 // fallback is a frame, not a wait. Near stays eager; the objection still
 // holds there.
+//
+// AND THEN THE WHOLE TAB WENT (D355). This file and its twelve siblings
+// ride loadMirrorTab() now, prewarmed by main.jsx in the same breath as the
+// Map — so "Near stays eager" above is true only relative to THIS chunk:
+// NearLiveBody is a static import of this file and arrives with it. The
+// three React.lazy bodies below still defer past this chunk, for the
+// reason already given — each needs a network round trip of its own before
+// it can draw, so its fetch overlaps work the stop does regardless.
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
 const LiveGroupsMirrorBody = React.lazy(() => import('../ui/LiveGroupsMirrorBody'));
@@ -265,12 +298,11 @@ function MirrorPopPicker({ stopId, onPick }) {
 
 // ─── the Mirror tab ───
 function MirrorPreviewTag({ popId }) {
-  const L = window.LIVE;
   // Shown in live mode (populations are still demo data) AND when a
   // live build is stuck on the mock fallback (D1: never let sample
   // people pass as real, even offline).
-  const demoInProd = !!(L && L.demoInProd);
-  if (!(L && (L.enabled || demoInProd)) || popId === 'you') return null;
+  const demoInProd = !!LIVE.demoInProd;
+  if (!(LIVE.enabled || demoInProd) || popId === 'you') return null;
   return (
     <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 6px' }}>
       <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
@@ -280,14 +312,14 @@ function MirrorPreviewTag({ popId }) {
   );
 }
 
-function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey }) {
+export function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey }) {
   const p = mirrorPop(pop);
   const zoom = WORLD_ZOOMS.some(z => z.id === worldZoom) ? worldZoom : 'world';
   const scaleId = p.id === 'world' ? zoom : p.id;
   // The axis carries the world zooms as stops of its own, so a pick has to
   // set both halves of the old two-level state. (The live City stop is
   // back since D111, so a persisted zoom === 'city' needs no resolving.)
-  const liveGeo = !!(window.LIVE && window.LIVE.enabled);
+  const liveGeo = LIVE.enabled;
   const stopId = p.id === 'world' ? zoom : p.id;
   const pick = (s) => { if (s.pop === 'world') { onPop('world'); onZoom(s.zoom); } else onPop(s.pop); };
   // one horizontal axis across the whole app: a right-swipe here falls back onto
@@ -328,7 +360,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
   // (LiveGroupsMirrorBody). No Preview tag: nothing on it is sample data,
   // which is the point of the replacement.
   const isGroupsLive = p.id === 'groups' && liveGeo;
-  const isGroups = p.id === 'groups' && !isGroupsLive && typeof window.GroupsMirrorBody === 'function';
+  const isGroups = p.id === 'groups' && !isGroupsLive;
 
   let body;
   if (isYou) {
@@ -386,7 +418,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
     // named groups — their own body: member field + accrued group portrait
     body = (
       <div key="groups-mirror" className="tab-swap mf-flex">
-        <window.GroupsMirrorBody onPerson={onPerson} />
+        <GroupsMirrorBody onPerson={onPerson} />
       </div>
     );
   } else {
@@ -417,7 +449,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
   );
 }
 
-Object.assign(window, { MirrorTab });
-
-;globalThis.MirrorTab = typeof MirrorTab === 'undefined' ? globalThis.MirrorTab : MirrorTab;
+// MirrorTab is an EXPORT and no longer a publication (D355): its one
+// reader, app-shell's MirrorSlot, takes it off the module namespace the
+// chunk resolves to — rule 5's honest shape, single writer, no residue.
 ;globalThis.mirrorPop = typeof mirrorPop === 'undefined' ? globalThis.mirrorPop : mirrorPop;

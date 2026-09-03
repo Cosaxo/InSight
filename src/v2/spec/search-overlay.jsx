@@ -32,6 +32,7 @@ import NAV from '../data/nav';
 // not first paint, and a real import is one less name resolved at render
 // time (check:globals rule 4).
 import LivePeopleSearch from '../ui/LivePeopleSearch.tsx';
+import { WORLD_TOPICS } from './world-feed-data.js';
 
 const { useState: useSrchState, useEffect: useSrchEffect, useMemo: useSrchMemo, useRef: useSrchRef } = React;
 
@@ -164,7 +165,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
   const query = q.trim().toLowerCase();
   const D = IS_DATA;
-  const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
+  const TOPIC = useSrchMemo(() => Object.fromEntries(WORLD_TOPICS.map((t) => [t.id, t])), []);
   const ST = SUBTOPICS;
 
   // the label a question wears — the leaf if it has one, else its topic

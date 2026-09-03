@@ -27,6 +27,7 @@ import { resolve } from "node:path";
 // scoped to exactly that (TS7016), the purge-wipe precedent.
 // @ts-expect-error TS7016 — untyped spec module
 import { LEARN_CARDS, LEARN_COUNTS as countsAny, LEARN_ORDER as orderAny, LEARN_RATE as rateAny, LEARN_SPLIT as splitAny, LEARN_SPLIT_SRC } from "../spec/learn-data.js";
+import LIVE from "../data/live";
 
 interface LearnCard {
   id: string;
@@ -34,9 +35,34 @@ interface LearnCard {
   p: number;
   a: string[];
 }
-// `W` survives for `LIVE` alone: learnMeasured() reads it off window at CALL
-// time, which is the seam these cases drive.
-const W = window as unknown as { LIVE?: unknown };
+// `W.LIVE = {…}` is the seam these cases drive, and since D354 it installs
+// the stand-in's members ONTO the imported store singleton rather than
+// assigning a second object to `window.LIVE`: learn-data.js imports the
+// binding now, so an object on the global would reach nobody and every
+// live case here would assert against `enabled: false` — the demo path —
+// which is the vacuous pass test/live-fixture.ts's header describes. The
+// setter keeps the seventeen call sites reading as they always did; the
+// afterEach puts the real descriptors back, so the un-booted store is
+// exactly what the demo cases see. A member a stand-in omits is therefore
+// the REAL member, not an absent one (see "no learnMine" below).
+type Store = Record<string, unknown>;
+const store = LIVE as unknown as Store;
+const realDescriptors = new Map<string, PropertyDescriptor | undefined>();
+function restoreLive() {
+  for (const [k, d] of realDescriptors) {
+    if (d) Object.defineProperty(store, k, d);
+    else delete store[k];
+  }
+  realDescriptors.clear();
+}
+function installLive(members: Store) {
+  restoreLive();
+  for (const [k, v] of Object.entries(members)) {
+    realDescriptors.set(k, Object.getOwnPropertyDescriptor(store, k));
+    Object.defineProperty(store, k, { value: v, configurable: true, writable: true, enumerable: true });
+  }
+}
+const W = { set LIVE(members: Store) { installLive(members); } };
 
 const card = (LEARN_CARDS as LearnCard[])[0]; // cell1 — correct index 0, 4 options
 
@@ -50,7 +76,7 @@ const LEARN_COUNTS: (c: LearnCard) => { counts: number[]; total: number } | null
 const ALL_CARDS = LEARN_CARDS as LearnCard[];
 
 afterEach(() => {
-  delete W.LIVE;
+  restoreLive();
 });
 
 describe("LEARN_SPLIT source seam (D32, as D149 left it)", () => {
@@ -203,8 +229,13 @@ describe("LEARN_COUNTS folds in the answer the trigger has not caught yet", () =
   });
 
   it("survives a store with no learnMine at all", () => {
-    // The member is read defensively because the spec layer looks LIVE up
-    // by name at render time, and an older shell is a real deployment.
+    // This case used to justify a defensive `L.learnMine ? … : null` read
+    // with "an older shell is a real deployment" — but the store and the
+    // spec layer ship in one bundle, so there is no version to skew, and
+    // D354 dropped the guard with the bridge read. What the case pins now
+    // is the honest version of the same sentence: a stand-in that omits
+    // `learnMine` leaves the REAL member in place, and the un-booted store
+    // has recorded no first try, so it answers null and adds nothing.
     W.LIVE = { enabled: true, learnAgg: () => ({ total: 1, counts: { "1": 1 } }) };
     expect(LEARN_COUNTS(card)).toEqual({ counts: [0, 1, 0, 0], total: 1 });
   });

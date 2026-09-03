@@ -5,14 +5,14 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
-import { loadWorldFeed, loadMapTab, loadOverlays } from './spec-index.js';
+import { loadWorldFeed, loadMirrorTab, loadMapTab, loadOverlays } from './spec-index.js';
+// The root, imported (D354's sweep) — spec-index above has already
+// evaluated app-shell by the time this binding is read, and the
+// `globalThis.App` publication stays for the mount suites.
+import { App } from './spec/app-shell.jsx';
 import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
-// side effect: publishes globalThis.PLACES for the profile's city picker.
-// Import only — the ~269 KB catalogue itself is fetched lazily on first
-// open, so this costs nothing on a cold start.
-import './data/places';
 import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';
 // The first-launch account wall, off unless VITE_REQUIRE_SIGNIN=true (D134).
@@ -35,7 +35,6 @@ initDeepLinks();
 // render so the daily deck opens on real questions; on timeout or any
 // boot failure the mock deck renders instead and live can attach later.
 initLive().finally(() => {
-  const App = globalThis.App;
   const root = createRoot(document.getElementById('root'));
   // Wrapped on every render below, not only the first: the root element
   // type has to stay identical or React remounts App and it loses its
@@ -62,20 +61,16 @@ initLive().finally(() => {
     (err) => reportError(err, { where: 'loadWorldFeed' }),
   );
 
-  // The six no-button overlays (~100 KB) follow, for the same reason and on
-  // the same schedule: nothing on the first frame can reach any of them.
-  //
-  // No re-render here, unlike the feed above, and the difference is the
-  // point. daily-split reads `window.WorldFeed` during a render nothing
-  // would re-trigger, so the feed needs one. Every overlay in this group is
-  // reachable ONLY through an app-shell opener, and those await this same
-  // memoised promise before setting the state that mounts one — so the
-  // await is the synchronisation and a re-render would buy nothing.
-  //
-  // Started AFTER loadWorldFeed rather than alongside it: both are pure
-  // parse-and-eval off local disk in a native package, so they contend for
-  // the same main thread, and the feed is the one a user reaches first.
-  loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
+  // The Mirror (D355) — the second tab, one tap from first paint, so this
+  // is a prewarm on the feed's schedule rather than a defer-until-needed:
+  // started right behind the feed's fetch, and by the time a thumb reaches
+  // the tab bar the namespace is remembered on data/mirrorChunk and
+  // app-shell's MirrorSlot renders it in the tap's own tick. No re-render
+  // from here — the slot reads the handoff on mount — and loadOverlays
+  // below awaits this same promise before any overlay that reads a Mirror
+  // global can open. A failed chunk costs the Mirror its body until the
+  // next visit re-attempts, not the app.
+  loadMirrorTab().catch((err) => reportError(err, { where: 'loadMirrorTab' }));
 
   // The Map (v28 §5) — the Mirror's landing stop, one tap away, so this is
   // a prewarm rather than a defer-until-needed: by the time a thumb reaches
@@ -88,6 +83,24 @@ initLive().finally(() => {
   // replaced a React.lazy, which cached its rejection and re-threw it on
   // every later visit.
   loadMapTab().catch((err) => reportError(err, { where: 'loadMapTab' }));
+
+  // The six no-button overlays (~100 KB) follow, for the same reason and on
+  // the same schedule: nothing on the first frame can reach any of them.
+  //
+  // No re-render here, unlike the feed above, and the difference is the
+  // point. daily-split reads `window.WorldFeed` during a render nothing
+  // would re-trigger, so the feed needs one. Every overlay in this group is
+  // reachable ONLY through an app-shell opener, and those await this same
+  // memoised promise before setting the state that mounts one — so the
+  // await is the synchronisation and a re-render would buy nothing.
+  //
+  // Started AFTER loadWorldFeed rather than alongside it — and since D355
+  // after the Mirror and the Map too: all of these are pure parse-and-eval
+  // off local disk in a native package, so they contend for the same main
+  // thread, and the order is the order a thumb reaches them. The feed is
+  // under today's card, the Mirror and its Map are one tap away, every
+  // overlay is two or more.
+  loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
 
   // The account-creation questions (D151) — the anchors every answer
   // snapshots (D8), asked once, at the top of a new account instead of

@@ -53,7 +53,7 @@ makes four smaller passes — extracted to `standalone-2026-09-02/`
 (**compiled JSX, not source** — that upload ships only its bundle, and
 the README carries the recipe that makes the diff exact), with the plan
 at [`docs/VISION-2026-09-02.md`](../docs/VISION-2026-09-02.md);
-`docs/VISUAL-VISION.md` names it the current vision (D353). Each
+`docs/VISUAL-VISION.md` names it the current vision (D359). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

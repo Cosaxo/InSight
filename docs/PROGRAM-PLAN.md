@@ -174,7 +174,7 @@ A seeded row, as it would read today:
 
 | PR | From | What | How | State | Stage |
 | --- | --- | --- | --- | --- | --- |
-| #367 | an interactive session (which account, the row would say) | a returning device paints its real deck from disk before the network; an offline answer survives relaunch | the PR body's mechanism, one line, D352/D353 | as GitHub reports it at render time | `ready` — the owner labelled it `merge-when-green` at 11:23 UTC, and it waits on a shepherd that does not exist yet |
+| #367 | an interactive session (which account, the row would say) | a returning device paints its real deck from disk before the network; an offline answer survives relaunch | the PR body's mechanism, one line, D352/D354 | as GitHub reports it at render time | `ready` — the owner labelled it `merge-when-green` at 11:23 UTC, and it waits on a shepherd that does not exist yet |
 
 ### 2.2 The to-do list — `docs/WORKLIST.md`, extended
 

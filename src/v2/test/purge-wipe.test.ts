@@ -23,7 +23,8 @@
 // on. This file covers the module-scope stores.
 import { beforeEach, describe, expect, it } from "vitest";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, patternsEarned } from "../data/patternsReady";
-import "../spec/feed-read.js";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { FEEDREAD } from "../spec/feed-read.js";
 import "../spec/follows.js";
 // Imported by NAME since D246 — learn-feed.js no longer publishes to
 // window, so `W.LEARN_FEED` would be undefined.
@@ -37,7 +38,8 @@ import { PICKS } from "../spec/pick-data.js";
 import { PLACESTATS } from "../spec/place-stats.js";
 import "../spec/world-subtopics.js";
 import "../spec/suggestions.js";
-import "../spec/world-feed-report.js";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { WF_REPORT } from "../spec/world-feed-report.js";
 // Named imports from untyped .js spec modules — the suppressions are
 // scoped to exactly that (TS7016); the .jsx suites import these freely.
 // @ts-expect-error TS7016 — untyped spec module
@@ -71,9 +73,9 @@ import { SUGGESTIONS } from "../spec/suggestions.js";
 // @ts-expect-error TS7016 — untyped spec module
 import { SUBTOPICS } from "../spec/world-subtopics.js";
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
-   window surface is untyped by design; these tests drive it as consumers do */
-const W = window as any;
+// No `window as any` handle any more: the last two stores this file drove
+// through the window (FEEDREAD, WF_REPORT) became imports with D354's
+// sweep, the way every other store here already was.
 
 // Exactly purgeLocalTrace's behaviour: remove every insight.* key, then
 // announce it.
@@ -97,13 +99,13 @@ beforeEach(() => {
 
 describe("module stores drop their memory on the purge (D51)", () => {
   it("FEEDREAD: the read-room log", () => {
-    W.FEEDREAD.log("purge-w-1", { maj: true });
-    expect(W.FEEDREAD.stats().n).toBe(1);
+    FEEDREAD.log("purge-w-1", { maj: true });
+    expect(FEEDREAD.stats().n).toBe(1);
     expect(stored("insight.readRoom.v1")).toContain("purge-w-1");
     purge();
-    expect(W.FEEDREAD.stats().n).toBe(0);
+    expect(FEEDREAD.stats().n).toBe(0);
     expect(stored("insight.readRoom.v1")).toBeNull();
-    W.FEEDREAD.log("purge-w-2", { maj: false });
+    FEEDREAD.log("purge-w-2", { maj: false });
     expect(stored("insight.readRoom.v1")).toContain("purge-w-2");
     expect(stored("insight.readRoom.v1")).not.toContain("purge-w-1");
   });
@@ -177,7 +179,7 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("SCENES: the follow list returns to the sample default", () => {
-    const dflt = (IS_DATA.groups || []).filter((g: any) => g.joined).map((g: any) => g.id).sort();
+    const dflt = (IS_DATA.groups || []).filter((g: { joined?: boolean }) => g.joined).map((g: { id: string }) => g.id).sort();
     SCENES.follow("purge-scene");
     expect(SCENES.has("purge-scene")).toBe(true);
     purge();
@@ -230,12 +232,12 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("WF_REPORT: the report history", () => {
-    W.WF_REPORT.report("purge-take", "Spam");
-    expect(W.WF_REPORT.has("purge-take")).toBe(true);
+    WF_REPORT.report("purge-take", "Spam");
+    expect(WF_REPORT.has("purge-take")).toBe(true);
     purge();
-    expect(W.WF_REPORT.has("purge-take")).toBe(false);
+    expect(WF_REPORT.has("purge-take")).toBe(false);
     expect(stored("insight.reports.v1")).toBeNull();
-    W.WF_REPORT.report("purge-take2", "Spam");
+    WF_REPORT.report("purge-take2", "Spam");
     expect(stored("insight.reports.v1")).not.toContain("purge-take\"");
   });
 

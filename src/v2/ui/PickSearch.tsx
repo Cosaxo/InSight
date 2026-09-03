@@ -318,7 +318,4 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
   );
 }
 
-// Render-time lookup bridge for the spec layer (world-feed.jsx).
-Object.assign(globalThis, { PickSearch });
-
 export default PickSearch;

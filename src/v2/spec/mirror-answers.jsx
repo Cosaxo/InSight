@@ -11,6 +11,7 @@ import { TabSection } from './primitives.jsx';
 // answered by the population the mirror currently reflects. Category chips
 // filter; sort by newest / most divisive / most agreed; a row expands into
 // the full answer distribution with your own answer marked.
+const EXPORTS = {};
 (function () {
   const { useState, useEffect, useReducer } = React;
 
@@ -261,6 +262,7 @@ import { TabSection } from './primitives.jsx';
     );
   }
 
-  Object.assign(window, { MirrorAnswers });
+  Object.assign(EXPORTS, { MirrorAnswers });
 })();
+export const { MirrorAnswers } = EXPORTS;
 

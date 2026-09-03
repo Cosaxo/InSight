@@ -19,7 +19,7 @@ it is moving toward.
   differently: it ships compiled JSX, so the README carries the recipe
   that makes the diff exact). Made the vision on the owner's sentence
   of that day — *"new visual should be added as the new visual vision
-  until i update it with new visuals"* (D353) — not through a request.
+  until i update it with new visuals"* (D359) — not through a request.
 - **The plan built on it:** `VISION-2026-09-02.md` — every item
   measured against the tree with its backend half named, §7 the build
   order as worklist lines, §8 the gate per step.
@@ -41,7 +41,7 @@ it is moving toward.
   catalog window's polish (still waiting on its owner decision), the tab
   bar's buttons losing weight.
 - **Built from it:** all of it but the half that waits on an owner
-  decision (D354, six commits in `VISION-2026-09-02.md` §7's order): the
+  decision (D360, six commits in `VISION-2026-09-02.md` §7's order): the
   shared instrument and the three lenses, the shell's axis, the prompt
   voice, the split ballot, the answer rows and the Crossroads tree, the
   paid door's rate rows. Only the catalog window (§4.2) is unbuilt, on
@@ -61,7 +61,7 @@ it is moving toward.
 | 2026-08-22 | `design/standalone-2026-08-22/` | the paid question report | D251 |
 | 2026-08-24 | `design/standalone-2026-08-24/` | the suggestion board becomes the paid door; the buyer's room; locals and visitors | `VISION-2026-08-24.md`, D287–D288 |
 | 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
-| **2026-09-02** | `design/standalone-2026-09-02/` | **the current vision** — above | `VISION-2026-09-02.md`, D353 |
+| **2026-09-02** | `design/standalone-2026-09-02/` | **the current vision** — above | `VISION-2026-09-02.md`, D359 |
 
 ## How the next one arrives
 
@@ -73,7 +73,7 @@ to that design, the lineage gains a row, and the one before keeps its
 row. A design that is drafted and never accepted is not a vision and
 gets no row.
 
-**The owner's own upload moves it too** (D353, 2026-09-02). A new
+**The owner's own upload moves it too** (D359, 2026-09-02). A new
 standalone the owner drops — the `InSight_N.html` series — is a vision
 without a request: it is extracted under `design/` with a README in the
 family's shape, measured against the tree in a `VISION-<date>.md`, and

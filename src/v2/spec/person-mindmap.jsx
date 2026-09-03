@@ -19,6 +19,8 @@ import { MTSwipeRow } from './map-bottom-card.jsx';
 import { MapTabLayout } from './map-layout.js';
 import { MAP_GROUPS } from './map-groups.js';
 import { MTBranchChips } from './map-chiprow.jsx';
+import { MapStats } from './map-group-stats.js';
+import { MapLens } from './map-branches.js';
 
 // InSight — PersonMindMap: a read-only map of someone else's answers, grown
 // from the SAME daily-question pool as your own map: same branches, same
@@ -65,7 +67,7 @@ const PMM_POOLS = {
 // ── their node set — the real question pool, answered deterministically ─────
 function pmmBuild(p) {
   const D = DAILYQ;
-  const seedCats = (window.MapLens ? window.MapLens.CATS : []).slice();
+  const seedCats = MapLens.CATS.slice();
   const seed = String(p.id || p.init || p.name || 'x');
   const H = (s) => pmmHash(seed + '|' + s);
   const nodes = [];
@@ -88,9 +90,9 @@ function pmmBuild(p) {
     // returns null for every question, so `typ` and `maj` both fell back
     // to the deterministic hash and this map placed nobody by any real
     // agreement. Falls back on a demo build, where the demo id is the only
-    // id there is.
+    // id there is. (MapStats is the imported binding since D354's sweep.)
     const qid = q.liveId || q.id;
-    const gd = window.MapStats ? window.MapStats.dist(qid, 'all', n, mineIdx) : null;
+    const gd = MapStats.dist(qid, 'all', n, mineIdx);
     const majIdx = gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
     let aidx;
     if (mineIdx != null && H('agree' + q.id) < agreeP) aidx = mineIdx;
