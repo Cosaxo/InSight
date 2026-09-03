@@ -214,32 +214,36 @@ has no rows.
 
 ### The theory lanes — twelve, on the orphan `axiom-theory` branch
 
-Six subject lanes on odd UTC dates, five reader lanes on even ones so a
-reader always works on subject output at most a day old, and the review
-lane six hours ahead of the earliest slot. All twelve dispatch through
-the Axiom dispatcher into a fresh session, write the `axiom-theory`
-branch and nothing else, and never touch `main`.
+**Re-paced 2026-09-03 to a four-day cycle** (D359): every lane runs every
+fourth date instead of every second, and the subject/reader alternation the
+old odd/even split gave is kept rather than lost — subject days are the 1st
+and 3rd of each cycle, reader days the 2nd and 4th, so a reader still works
+on subject output at most a day old. Three or four lanes share a date
+instead of seven, which also keeps a day's lanes out of one five-hour
+rate-limit window. All twelve dispatch through the Axiom dispatcher into a
+fresh session, write the `axiom-theory` branch and nothing else, and never
+touch `main`.
 
-| Lane | Trigger id | Slot (UTC) | Dates |
+| Lane | Trigger id | Slot (UTC) | Dates of the month |
 | --- | --- | --- | --- |
-| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/2 * *` — 02:02 | odd |
-| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/2 * *` — 09:02 | odd |
-| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/2 * *` — 10:02 | odd |
-| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 1-31/2 * *` — 11:02 | odd |
-| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 1-31/2 * *` — 12:02 | odd |
-| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 1-31/2 * *` — 13:02 | odd |
-| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 1-31/2 * *` — 14:02 | odd |
-| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/2 * *` — 08:02 | even |
-| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/2 * *` — 09:02 | even |
-| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/2 * *` — 10:02 | even |
-| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 2-30/2 * *` — 11:02 | even |
-| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 2-30/2 * *` — 12:02 | even |
+| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/4 * *` — 02:02 | 1, 5, 9 … 29 — subject day |
+| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/4 * *` — 09:02 | 1, 5, 9 … 29 — subject day |
+| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/4 * *` — 10:02 | 1, 5, 9 … 29 — subject day |
+| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 3-31/4 * *` — 11:02 | 3, 7, 11 … 31 — subject day |
+| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 3-31/4 * *` — 12:02 | 3, 7, 11 … 31 — subject day |
+| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 3-31/4 * *` — 13:02 | 3, 7, 11 … 31 — subject day |
+| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 3-31/4 * *` — 14:02 | 3, 7, 11 … 31 — subject day |
+| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/4 * *` — 08:02 | 2, 6, 10 … 30 — reader day |
+| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/4 * *` — 09:02 | 2, 6, 10 … 30 — reader day |
+| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/4 * *` — 10:02 | 2, 6, 10 … 30 — reader day |
+| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 4-30/4 * *` — 11:02 | 4, 8, 12 … 28 — reader day |
+| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 4-30/4 * *` — 12:02 | 4, 8, 12 … 28 — reader day |
 
 ### The doc sweep and the night shift
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
-| InSight doc sweep | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always |
+| InSight doc sweep — **disabled 2026-09-03** | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always · **held until `docs/DOC-SWEEP.md` is on `main`**: every firing since 2026-08-30 refused correctly and to no effect, which is a guaranteed no-op waking a dispatcher under `ultracode` (D359, `WORKLIST.md`) |
 | InSight night shift | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `0 21,23,1,3,5 * * *` — four audit flows at 95 min, the 05:00 firing is the closing flow at 50 | persistent worker `session_013UfS4opexyJsoD3K9NxqFF`, which is where the owner's push authorization lives | `night-YYYYMMDD` — anywhere a verified defect is | never merges, never opens a PR, never pushes `main`; the owner merges or cherry-picks in the morning |
 
 **Contracts.** The axes lanes read `docs/AXES-RUNBOOK.md` on
@@ -269,6 +273,58 @@ shift is the exception to the whole pattern. It does not dispatch; it
 **is** the worker, woken five times a night in the same container so
 each flow continues where the last one stopped, which is also why its
 authorization can live in that session's history at all.
+
+### The four ops lanes — created after this block's verification
+
+Created 2026-09-02 19:55–20:05 UTC, so the seventeen above do not include
+them, and re-created 2026-09-03 against a dispatcher that starts empty
+(D359). Their contracts are `OPS-RUNBOOK.md` §§ The PR shepherd, The list
+worker, The roll call, The production reader.
+
+| Routine | Trigger id | Schedule (UTC) | Binding | State |
+| --- | --- | --- | --- | --- |
+| InSight PR shepherd (B) | `trig_01MuYGKG82KdEXnqNuXkdviz` | `55 */3 * * *` — eight a day, from twenty-four | ops dispatcher B `session_01XhD4kBN7fXgeBdFPZEyPY6` (`claude-haiku-4-5`) → fresh session | enabled |
+| InSight list worker (B) | `trig_01VH8PvZCaqKciAwzpxmfMYW` | `0 17 * * *` | same dispatcher | enabled |
+| InSight roll call (B) | `trig_017cQ4WECG5mHeFGFnmkVrYQ` | `30 15 * * *` | same dispatcher | **disabled** — § The roll call forbids a dispatcher binding and that is the only one a session can give it; the owner creates it in the web UI |
+| InSight production reader (B) | `trig_01FD7t9MySRfZd19BD9YyEDQ` | `40 6 * * *` | same dispatcher | **retired** — the lane is `.github/workflows/production-reader.yml`, which needs no account bucket |
+
+The four Routines these replace (`trig_01KZYMFk5gUQ1QSFbzhm71FD`,
+`trig_019FC9GMebK5Afq3eQQaY2sG`, `trig_01NwV9t6Xh2f6oH5o36DJWGi`,
+`trig_011oH9LvFvbcoBtsDooK6t2f`) are **disabled rather than deleted** and
+renamed so the list says why; their old dispatcher,
+`session_01GfASn8KdwPk3GDHWPtbZ9c`, had reached 564,090 tokens.
+
+### Corrections and observations, 2026-09-03
+
+- **This block's own sentence was the finding.** *"Every one of the
+  seventeen wakes a persistent session — none of them starts a fresh one
+  directly"* is true, and priced it is where the money went: against list
+  pricing the account's 90 metered sessions split **54% cache read, 23%
+  cache write, 8% fresh input, 16% output**. A cold 564k prefix costs
+  564,090 × $5/MTok × 1.25 = **$3.53** to re-cache, against ~$4 measured
+  per firing — so a relay that had adopted nothing and relayed nothing was
+  the second most expensive thing on the account. `USAGE-REDUCTION.md` is
+  the arithmetic; D359 is the record.
+- **The night shift is the largest single line in the program.**
+  `session_013UfS4opexyJsoD3K9NxqFF` has metered **$2,325.68** since
+  2026-08-24 against 968.8M cache-read tokens — two thirds of everything
+  routine-side on this account — precisely *because* it is the exception
+  this block describes: the worker woken five times a night in the same
+  container, so every flow re-reads every earlier flow. Rotating it is an
+  `OWNER-LIST.md` decision and not a routine's, because the push
+  authorization lives in that session's own history (D326 §2) and a new
+  session does not inherit it.
+- **Re-verified 2026-09-03 15:45 UTC against `list_triggers`:** **18
+  enabled Routines firing 17.43 times a day**, down from 21 firing 38.98,
+  plus five disabled and kept for their history. The counts moved by
+  cadence and binding only; no lane's work changed.
+- **A stored prompt cannot be edited from another session.**
+  `update_trigger` refuses it — *"not your own"* includes a dispatcher the
+  calling session created itself — so cadence, name and enabled state are
+  editable from here and a prompt is not. That is why the list worker was
+  delete-and-recreated to carry the cheap gate and the axes skeptic's
+  prompt is an owner click. `OPS-RUNBOOK.md` § Platform measurements has
+  the row.
 
 ### Corrections and observations, 2026-09-02
 

@@ -89,7 +89,22 @@ jobs:
           ARGS=()
           [ "${{ inputs.functions }}" = "true" ] && ARGS+=(--functions)
           [ "${{ inputs.metrics }}" = "true" ] && ARGS+=(--metrics)
-          node scripts/observe.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/observe.txt"
+          node scripts/observe.mjs "${ARGS[@]}" --json-out "$RUNNER_TEMP/observe.json" 2>&1 | tee "$RUNNER_TEMP/observe.txt"
+
+      # The same payload, machine-readable, for the production reader
+      # workflow — which exists because a reader that parses the padded
+      # `✓ alertPolicies  5 live` lines above is the one-parser-in-three-
+      # copies failure D197 recorded (docs/USAGE-REDUCTION.md § 5). Uploaded
+      # even when the probe failed: the reader's headline is "the probe did
+      # not happen", and it can only say that if the absence is visible.
+      - name: Publish the machine-readable reading
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: observe-json
+          path: ${{ runner.temp }}/observe.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Summary
         if: always()
