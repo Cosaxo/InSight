@@ -169,6 +169,17 @@ function MTGroupBars({ node, anchor }) {
 // ── answer body: question · “compare with” chips · group bars ──
 function MTAnswerBody({ node, anchors, activeA, onFilter }) {
   const A = anchors.find((a) => a.id === activeA) || anchors[0];
+  // AN EMPTY RING IS A LEGITIMATE LIVE RESULT. map-anchors.js says so in
+  // as many words and names the two callers that handle it — this was the
+  // third, and it did not: with no anchors, `A` is undefined and `A.id`
+  // below throws before anything renders, which app-shell's boundary
+  // catches as the whole Mirror tab.
+  //
+  // Reachable on an ordinary account: somebody who skipped the Basics
+  // card and has taken no test has nothing to filter by, so the chips
+  // have nothing to draw and the bars have no anchor to ask MapStats
+  // about. The question on its own is the honest card there.
+  if (!A) return <div className="mmt-q">{node.prompt}</div>;
   return (
     <React.Fragment>
       <div className="mmt-q">{node.prompt}</div>
