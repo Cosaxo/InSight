@@ -5341,7 +5341,19 @@ const LIVE = {
     await setDoc(
       doc(db, "v2_users", uid),
       {
-        consent: { political: rec },
+        // A MERGE ON A NESTED MAP MERGES ITS FIELDS. `off` is present-or-
+        // absent by design (politicalConsent.ts says why, and it is a good
+        // reason), so the record for a grant simply omits it — and omitting
+        // a field in a merge does not remove it. A withdrawal followed by a
+        // re-grant therefore left the earlier `off` sitting on the server;
+        // `mayPublishPolitical` reads it and returns false, so the consent
+        // could be withdrawn and never granted again. It LOOKED like it
+        // worked, because the local copy above replaces `political`
+        // wholesale — until the next hydrate read the stored record back.
+        //
+        // Removed explicitly, with the same `deleteField()` this write
+        // already uses one line down for the published coordinate.
+        consent: { political: on ? { ...rec, off: deleteField() } : rec },
         ...(on ? {} : { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } }),
       },
       { merge: true },
