@@ -2003,6 +2003,16 @@ class WorldFeed extends React.Component {
     const mine = this.state.votes[q.id];
     const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     const n = q.options.length;
     const v2 = this.opts.v2;
@@ -2019,7 +2029,7 @@ class WorldFeed extends React.Component {
             const tint = 8 + 24 * (p[i] / (maxP || 1));
             const isMine = mine === i;
             const fr = sides.filter((f) => f.oi === i);
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             return (
               <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
@@ -2113,8 +2123,17 @@ class WorldFeed extends React.Component {
   renderVoteBars(q, T, big) {
     const mine = this.state.votes[q.id];
     const counts = q.options.map((o) => o.count);
-    const { p } = wfPcts(counts, mine);
-    const maxP = Math.max(...p);
+    const { p, c } = wfPcts(counts, mine);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     // selfOnly (D50): the fill width IS the share in a different alphabet
     // (D11's phrase, same reasoning), so it is gated together with the
@@ -2128,7 +2147,7 @@ class WorldFeed extends React.Component {
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {c[i] === maxN && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
@@ -2141,10 +2160,19 @@ class WorldFeed extends React.Component {
   renderDuel(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
-    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const fresh = this._fresh === q.id;
     const v2 = this.opts.v2;
-    const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     // Below the floor there is no share to draw, and the fill height IS the
     // share — so the fill and the numeral are gated together. Drawing one
     // without the other would publish the split geometrically instead of
@@ -2168,7 +2196,7 @@ class WorldFeed extends React.Component {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {q.options.map((o, i) => {
             const chosen = mine === i;
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             // v2 drops the generated tile art for one quiet ground — the fill
             // is the only ink that moves, so it has to be the only thing there
             const bg = v2 ? 'var(--surface-2)' : wfTileArt(T.color, q.id);
