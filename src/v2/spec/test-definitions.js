@@ -3,8 +3,13 @@
 //
 // CONVERTED off the shared-global bridge (D39): the four names below are
 // plain named exports and this file publishes nothing to globalThis.
-// `window.LIVE` stays a global read — that one is data/live.ts's published
-// surface, which is the convention working as intended, not legacy.
+// `window.LIVE` stays a global read HERE, and here alone: D354 converted
+// every other reader to `import LIVE from '../data/live'`. This module
+// also loads under plain node — scripts/report-lib.mjs imports it, and
+// archetype-data.js imports IS_TEST_AVG — and data/live.ts cannot follow
+// it there: it publishes `window.LIVE` at module scope and binds the
+// Firebase SDK. So persistTestResult keeps its guarded window read until
+// the store's write half has a node-safe seam.
 //
 // It was listed in src/v2/README.md's "what NOT to start with" as half of a
 // `test-definitions.js ↔ daily-split.jsx` cycle. That cycle did not exist:
