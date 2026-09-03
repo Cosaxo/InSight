@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 373 lines instead of
-37,403. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 374 lines instead of
+37,548. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -14,7 +14,7 @@ detect it.
 
 | # | Decision | Cited later by | Line |
 | --- | --- | --- | --- |
-| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D359 (+46) | 14 |
+| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D360 (+46) | 14 |
 | **D2** | ["Near" means geohash5 (~5 km), reusing the existing geo system](DECISIONS.md#d2--near-means-geohash5-5-km-reusing-the-existing-geo-system) | D84 (+3) | 29 |
 | **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D356 (+24) | 97 |
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
@@ -166,7 +166,7 @@ detect it.
 | **D145** | [Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues](DECISIONS.md#d145--four-question-lanes-two-of-which-had-never-run-the-learn-and-feed-routines-a-feed-regulator-and-a-weekday-for-catalogues) | D350 (+5) | 14370 |
 | **D146** | [The type cut — how each type answered, folded on the client, retroactive by construction](DECISIONS.md#d146--the-type-cut--how-each-type-answered-folded-on-the-client-retroactive-by-construction) | D310 (+8) | 14484 |
 | **D147** | [The functions tsconfig moves to `node16`, and the emit format is the part that mattered](DECISIONS.md#d147--the-functions-tsconfig-moves-to-node16-and-the-emit-format-is-the-part-that-mattered) | D153 | 14610 |
-| **D148** | [The Routine prompts catch up with their contracts, by the only mechanism that works](DECISIONS.md#d148--the-routine-prompts-catch-up-with-their-contracts-by-the-only-mechanism-that-works) | D351 (+3) | 14660 |
+| **D148** | [The Routine prompts catch up with their contracts, by the only mechanism that works](DECISIONS.md#d148--the-routine-prompts-catch-up-with-their-contracts-by-the-only-mechanism-that-works) | D359 (+4) | 14660 |
 | **D149** | [Sides, friends and real counts: three surfaces stop guessing](DECISIONS.md#d149--sides-friends-and-real-counts-three-surfaces-stop-guessing) | D304 (+4) | 14734 |
 | **D150** | [Near is a field again, and nobody in it is named](DECISIONS.md#d150--near-is-a-field-again-and-nobody-in-it-is-named) | D181 (+1) | 14829 |
 | **D151** | [The general info is asked at the start, because an answer cannot be re-filed](DECISIONS.md#d151--the-general-info-is-asked-at-the-start-because-an-answer-cannot-be-re-filed) | D331 (+4) | 14869 |
@@ -215,7 +215,7 @@ detect it.
 | **D194** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D258 (+7) | 19890 |
 | **D195** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D348 (+10) | 20063 |
 | **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | D341 (+4) | 20176 |
-| **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D350 (+7) | 20284 |
+| **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D359 (+8) | 20284 |
 | **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D339 (+5) | 20433 |
 | **D199** | [Build 21 is in TestFlight, and the number moved with it](DECISIONS.md#d199--build-21-is-in-testflight-and-the-number-moved-with-it) | D202 (+1) | 20629 |
 | **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D344 (+4) | 20711 |
@@ -308,7 +308,7 @@ detect it.
 | **D286** | [An account switch cannot delete the outgoing account's presence cell](DECISIONS.md#d286--an-account-switch-cannot-delete-the-outgoing-accounts-presence-cell) | D326 | 28960 |
 | **D287** | [The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners](DECISIONS.md#d287--the-2026-08-24-visual-passes-ship-the-paid-door-and-the-two-crowd-scorecards-wait-on-their-owners) | D310 (+1) | 29023 |
 | **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D313 (+1) | 29105 |
-| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D353 (+4) | 29160 |
+| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D359 (+5) | 29160 |
 | **D290** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d290--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D356 (+5) | 29228 |
 |  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d290-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 29445 |
 |  | ↳ *amendment 2026-08-25* — [The other two fold arms, so the thesis stops being one third true](DECISIONS.md#d290-amendment-2026-08-25--the-other-two-fold-arms-so-the-thesis-stops-being-one-third-true) | — | 29776 |
@@ -359,7 +359,7 @@ detect it.
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D335 | 33680 |
 | **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D357 (+3) | 33836 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D336 | 33951 |
-| **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D359 (+2) | 34120 |
+| **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D360 (+2) | 34120 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D339 | 34251 |
 | **D338** | [The 2026-08-31 night audit, reviewed and merged — 35 commits kept, two hand-written figures corrected, and one live bias that is the owner's call](DECISIONS.md#d338--the-2026-08-31-night-audit-reviewed-and-merged--35-commits-kept-two-hand-written-figures-corrected-and-one-live-bias-that-is-the-owners-call) | D339 | 34329 |
 | **D339** | [Build 27 was delivered and unrecorded; the pre-flight opened on a spent number, and the counts are level](DECISIONS.md#d339--build-27-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-and-the-counts-are-level) | — | 34456 |
@@ -374,16 +374,17 @@ detect it.
 | **D346** | [The review lane: every second night, every axiom lane's work is scored and told how to be more useful](DECISIONS.md#d346--the-review-lane-every-second-night-every-axiom-lanes-work-is-scored-and-told-how-to-be-more-useful) | D347 | 35439 |
 | **D347** | [Ties and Interests are chartered: the relational axis gets its row and its lane, and the interests axis gets the lane it never had](DECISIONS.md#d347--ties-and-interests-are-chartered-the-relational-axis-gets-its-row-and-its-lane-and-the-interests-axis-gets-the-lane-it-never-had) | — | 35513 |
 | **D348** | [The feed weaves its fresh topics, not its answered ones — the returning device stops opening on tests and learn](DECISIONS.md#d348--the-feed-weaves-its-fresh-topics-not-its-answered-ones--the-returning-device-stops-opening-on-tests-and-learn) | — | 35596 |
-| **D349** | [Two night shifts and a night nobody had read, merged as one tree — 81 commits kept, four added, and a standalone suite that could not stand alone](DECISIONS.md#d349--two-night-shifts-and-a-night-nobody-had-read-merged-as-one-tree--81-commits-kept-four-added-and-a-standalone-suite-that-could-not-stand-alone) | D359 | 35710 |
+| **D349** | [Two night shifts and a night nobody had read, merged as one tree — 81 commits kept, four added, and a standalone suite that could not stand alone](DECISIONS.md#d349--two-night-shifts-and-a-night-nobody-had-read-merged-as-one-tree--81-commits-kept-four-added-and-a-standalone-suite-that-could-not-stand-alone) | D360 | 35710 |
 |  | ↳ *amendment 2026-09-02* — [The figure collision is not about composing branches; it is about two merges thirty seconds apart](DECISIONS.md#d349-amendment-2026-09-02--the-figure-collision-is-not-about-composing-branches-it-is-about-two-merges-thirty-seconds-apart) | — | 35898 |
 | **D350** | [The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory](DECISIONS.md#d350--the-lane-regulators-lose-their-ceilings-floors-demand-shares-and-the-holdover-inventory) | — | 35948 |
 |  | ↳ *amendment 2026-09-01* — [The bank-size failure was a question limit in everything but name](DECISIONS.md#d350-amendment-2026-09-01--the-bank-size-failure-was-a-question-limit-in-everything-but-name) | — | 36155 |
 | **D351** | [Current events get their lane: found by searching, never from memory](DECISIONS.md#d351--current-events-get-their-lane-found-by-searching-never-from-memory) | — | 36185 |
 | **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | — | 36240 |
-| **D353** | [The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse](DECISIONS.md#d353--the-dispatchers-charter-becomes-a-contract-a-standing-instruction-a-session-cannot-verify-is-one-it-should-refuse) | — | 36347 |
-| **D354** | [The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32](DECISIONS.md#d354--the-store-leaves-the-bridge-and-the-sweep-behind-it-takes-the-coupling-ratchet-234--32) | D359 (+1) | 36490 |
-| **D355** | [The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB](DECISIONS.md#d355--the-mirror-leaves-the-eager-graph-through-a-same-tick-slot-761--619-kb) | D359 | 36589 |
+| **D353** | [The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse](DECISIONS.md#d353--the-dispatchers-charter-becomes-a-contract-a-standing-instruction-a-session-cannot-verify-is-one-it-should-refuse) | D359 | 36347 |
+| **D354** | [The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32](DECISIONS.md#d354--the-store-leaves-the-bridge-and-the-sweep-behind-it-takes-the-coupling-ratchet-234--32) | D360 (+1) | 36490 |
+| **D355** | [The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB](DECISIONS.md#d355--the-mirror-leaves-the-eager-graph-through-a-same-tick-slot-761--619-kb) | D360 | 36589 |
 | **D356** | [First paint comes off the device: the warm boot, and `ready` splits from `attached`](DECISIONS.md#d356--first-paint-comes-off-the-device-the-warm-boot-and-ready-splits-from-attached) | D357 | 36668 |
 | **D357** | [An answer the server has not acknowledged survives the relaunch](DECISIONS.md#d357--an-answer-the-server-has-not-acknowledged-survives-the-relaunch) | — | 36936 |
 | **D358** | [Fourteen dials get the range they should have shipped with, by retirement and replacement](DECISIONS.md#d358--fourteen-dials-get-the-range-they-should-have-shipped-with-by-retirement-and-replacement) | — | 37117 |
-| **D359** | [Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story](DECISIONS.md#d359--two-night-shifts-merged-as-one-tree--60-commits-kept-and-the-sweep-they-both-branched-before-is-the-whole-story) | — | 37215 |
+| **D359** | [The routine bill is context times turns: four sessions, not thirty-nine firings, were the spend](DECISIONS.md#d359--the-routine-bill-is-context-times-turns-four-sessions-not-thirty-nine-firings-were-the-spend) | — | 37215 |
+| **D360** | [Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story](DECISIONS.md#d360--two-night-shifts-merged-as-one-tree--60-commits-kept-and-the-sweep-they-both-branched-before-is-the-whole-story) | — | 37360 |

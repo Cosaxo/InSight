@@ -156,6 +156,40 @@ checker's path set, nine seeded `FEEDBACK.md` files — landed on
 staged on a branch first because a change to a lane's contract passes
 the owner (D289 §4). The first review is the Routine's first firing.
 
+## The read budget — a charter amendment to approve, not a rule this page sets
+
+**Proposed 2026-09-03, unapplied.** The charter is canonical for how the
+lanes behave and no routine may amend it (`AXES-PLAN.md` §10: no lane edits
+its own contract), so this section is the arithmetic and the wording, and
+the row on `OWNER-LIST.md` is the decision.
+
+**What was measured.** A theory run costs **$24.44** against the charter's
+own $20 estimate, and 77% of every dollar this account meters goes on
+cache reads and cache writes rather than output (`USAGE-REDUCTION.md`
+§§ 1–2). The lanes' inputs are what get read, and they grow every run: the
+branch is 1.27MB, `theory/genetic/graph.json` alone is 132KB and its
+`THEORY.md` 36KB, and `theory/central/` is chartered to read **every**
+lane's `graph.json` and `THEORY.md` — which is why central is the most
+expensive lane on the account at $39.47 a run. Nothing about that trend
+stops on its own: the ratchet adds nodes, the graphs get bigger, and every
+byte is billed once to write the cache and again on every later turn.
+
+**The wording proposed for §3's orient step**, as a refinement of what it
+already says rather than a new rule:
+
+> Orient from a **bounded** slice: the last twenty `LOG.md` rows rather
+> than the file; `node graph/health.mjs --json` for structure rather than a
+> sibling's whole `graph.json`; a sibling's `THEORY.md` by the headings the
+> step needs. Your own `graph.json` is read whole — it is what you write.
+> A run that needs more names what it needed in its log row.
+
+**What it would not change.** The ratchet, the citation ladder, the
+adversarial pass, the subagent floor (*never any model below opus*), and
+central's licence to read across lanes — only how much of each sibling it
+reads to do it. And it is not a cost rule dressed as a quality rule: a lane
+that genuinely needs a whole graph says so in its log, which is also how
+the review lane would notice the budget hurting the work.
+
 ## The owner's controls
 
 Pause any lane in the claude.ai Routines UI; re-pace with one
