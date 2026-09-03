@@ -396,6 +396,9 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const [hlCat, setHlCat] = useState(null); // spotlit branch id
   const [pairA, setPairA] = useState(null); // active group filter on the answer card
 
+  // Whether `age` means "days ago" at all — see the two readings below
+  // that used to draw it as though it always did.
+  const datesReal = DAILYQ.datesAreReal ? DAILYQ.datesAreReal() : true;
   const selCat = cats.find((c) => c.id === sel) || null;
   const selAnchor = sel && String(sel).indexOf('ax-') === 0 ? anchors.find((a) => 'ax-' + a.id === sel) : null;
   const selNode = sel && sel !== 'root' && !selCat && !selAnchor ? byId[sel] : null;
@@ -1091,10 +1094,25 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             const cat = cats.find((c) => c.id === catId);
             const dim = hlSet && !hlSet.has(n.id);
             const age = n.age ?? 30;
-            const fresh = recency && n.daily && age <= 7;
+            // RECENCY IS A CLAIM ABOUT WHEN, AND `age` IS ONLY A POSITION.
+            //
+            // `daily-questions.js` added `datesAreReal()` for exactly this
+            // and says so in its own docstring — "in a live build it is
+            // the demo bank's fixed position, which is not the order this
+            // account answered in". The node builder consults it for
+            // `today`, one field along from where it sets `age`, and the
+            // two readings drawn FROM age never asked: on a live build the
+            // first eight questions of the demo bank were drawn enlarged
+            // and marked fresh whatever order you actually answered in.
+            //
+            // The Mirror's Answers lens refuses "newest" for this same
+            // reason (docs/MIRROR.md §339). Ordering by position is still
+            // deterministic and is left alone; what stops is DRAWING a
+            // position as a date.
+            const fresh = recency && datesReal && n.daily && age <= 7;
             const off = hidden && hidden.has(n.id);
             // strict size ladder — hub > answer > topic; new dots land large and settle
-            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
+            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && datesReal && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
             const showLab = !n.quiet && labKeep.has(n.id);
             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             return (

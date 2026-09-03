@@ -148,6 +148,20 @@ describe("the Map draws its body once its pane can be measured", () => {
       "the anchor card drew nothing at all, so the absence above is vacuous").toBeGreaterThan(0);
   });
 
+  // The demo half of the recency claim; the live half needs a live store
+  // and lives in map-recency-live.test.jsx. Kept here because this is the
+  // only suite that can measure the pane, and because it is the CONTROL:
+  // demo dates are real, so the marks must still be drawn. Without it, a
+  // fix that simply stopped marking anything would pass the live case and
+  // remove a feature instead of a lie.
+  it("still marks recent answers when the dates really are dates", async () => {
+    mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    await awaitNode(RAIL);
+    expect(document.querySelectorAll(".is-fresh").length,
+      "the demo build drew no recency at all").toBeGreaterThan(0);
+  });
+
   it("…and draws none of it when the pane measures zero, which is every other suite", async () => {
     // The control. Without it the case above passes the day someone makes
     // the rail render unconditionally, and this file would then be
