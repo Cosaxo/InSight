@@ -86,7 +86,7 @@ export const fsApi = {
   clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, deleteField,
   doc, documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
   serverTimestamp, setDoc, startAfter, terminate, Timestamp, updateDoc,
-  // D355: the SDK's own word that its persisted mutation queue has
+  // D357: the SDK's own word that its persisted mutation queue has
   // drained — what settles an answer a relaunch restored unacknowledged.
   waitForPendingWrites, where,
 };

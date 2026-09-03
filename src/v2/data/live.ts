@@ -4,9 +4,9 @@
 //
 //   LIVE.enabled      flag: firebase configured AND VITE_V2_LIVE=true
 //   LIVE.ready        there is a deck to draw — off this device's caches
-//                     (the warm paint, D354) or off the network
+//                     (the warm paint, D356) or off the network
 //   LIVE.attached     the network boot completed this session; what
-//                     `ready` meant before D354, and what re-entry keys on
+//                     `ready` meant before D356, and what re-entry keys on
 //   LIVE.stale        ready off disk and not yet attached
 //   LIVE.deck()       today's daily questions in the UI's "S" shape;
 //                     counts come from the k-floored public aggregates
@@ -102,7 +102,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
     startAfter, terminate, Timestamp, updateDoc, waitForPendingWrites, where,
   } = fs);
   ({ getFunctions, httpsCallable } = fns);
-  // NOTHING REACHES FIRESTORE WHILE THE UID IS THE MIRROR'S (D354). The
+  // NOTHING REACHES FIRESTORE WHILE THE UID IS THE MIRROR'S (D356). The
   // warm paint puts a live deck on screen before Auth has restored the
   // session, and every mutator here comes through this function — so
   // this is the one choke point. It is not tidiness: a write handed to
@@ -245,7 +245,7 @@ export type LivePathQ = QuestionDoc & { id: string; counts: number[] };
 
 const state = {
   // The store can serve a deck. TWO things flip it, and the difference is
-  // D354: the WARM paint (everything below read off this device's own
+  // D356: the WARM paint (everything below read off this device's own
   // caches, before any network read) and the network attach. `attached`
   // is the second alone — what `ready` used to mean — and it is the flag
   // that gates re-entry (wake, resubscribe) and the stale label, because
@@ -256,7 +256,7 @@ const state = {
   // The deck on screen came off disk and the network has not confirmed it
   // yet. Cleared by the attach; `LIVE.stale` reads it.
   warm: false,
-  // `uid` is the profile mirror's, not yet auth's (D354): the warm paint
+  // `uid` is the profile mirror's, not yet auth's (D356): the warm paint
   // runs before the SDK has restored the session, so the account it
   // paints for is the one this device last confirmed. Cleared the moment
   // sign-in resolves; while it stands, a null auth state means "not
@@ -724,17 +724,17 @@ function cacheVote(aid: string, stored: number | string): void {
   void cacheStore.write("answers", [[aid, String(stored)]]);
 }
 
-// ── answers the server has not yet acknowledged, mirrored on disk (D355) ──
+// ── answers the server has not yet acknowledged, mirrored on disk (D357) ──
 //
 // The answers cache above mirrors ACKED documents only, and vote() is
 // careful about that: an optimistic row there would let a write the
 // server later refused come back on every boot with nothing left to
 // reconcile it. The other half of that discipline had a hole the warm
-// boot (D354) made reachable. An answer written offline lives in the
+// boot (D356) made reachable. An answer written offline lives in the
 // SDK's persisted mutation queue and in this process's memory; a relaunch
 // before the ack has the queue but not the memory — so the deck re-offered
 // a question the queue was about to answer, and the second tap was refused
-// by the create-only rule. Before D354 an offline relaunch showed the
+// by the create-only rule. Before D356 an offline relaunch showed the
 // demo deck, which hid the gap by showing nothing.
 //
 // So the unacked answers keep a small mirror of their own: written on
@@ -1431,7 +1431,7 @@ const AGG_POLL_MS = 60_000;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
 // Which start the armed interval belongs to. startAggPoll awaits the
 // deck's read before it arms, and a stop can land inside that await — a
-// hide, or (since D354, when the poll starts beside the boot's unguarded
+// hide, or (since D356, when the poll starts beside the boot's unguarded
 // answers reads) a boot that failed. Arming past such a stop would
 // resurrect the poll it dropped; the generation is how the start notices.
 let aggPollGen = 0;
@@ -1460,7 +1460,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       // trigger has (very likely) folded the vote in, so stop
       // double-counting it. A premature clear self-heals on the next read.
       // …unless the write itself is still unacknowledged — a restored
-      // pending answer at boot (D355) — which this aggregate cannot hold
+      // pending answer at boot (D357) — which this aggregate cannot hold
       // yet. drainAggRefresh has carried the same guard since the
       // optimistic split; here it was unreachable until restorePending
       // put an inflight answer in front of the boot's deck read.
@@ -1561,11 +1561,11 @@ function toLearnCards(rows: Array<QuestionDoc & { id: string }>): LearnCard[] {
   });
 }
 
-// ── the warm paint (D354) ────────────────────────────────────────────
+// ── the warm paint (D356) ────────────────────────────────────────────
 //
 // A returning device holds, on its own disk, everything the first frame
 // draws: the bank (D312's rows), the account's answers, the aggregates it
-// last saw, and — since D354 — a mirror of the account's own profile. The
+// last saw, and — since D356 — a mirror of the account's own profile. The
 // boot used to read all of that only AFTER the meta document had come
 // back from the server, and it published nothing until the last of five
 // or six serial round trips had landed; first paint waited on the whole
@@ -1591,7 +1591,7 @@ function toLearnCards(rows: Array<QuestionDoc & { id: string }>): LearnCard[] {
 // A vote cast on a warm-painted deck before that read lands would be
 // filed under NO cohort — a correct-looking answer that no breakdown can
 // ever count. The mirror is written whenever the profile is read or
-// changed, so a device that has booted once since D354 always paints
+// changed, so a device that has booted once since D356 always paints
 // with the anchors it will stamp; a device that has not simply boots the
 // old way, once.
 interface BankEntry extends QuestionDoc {
@@ -1695,7 +1695,7 @@ async function readDiskCaches(uid: string | null): Promise<DiskCaches> {
   return out;
 }
 
-// ── the account's own profile, mirrored on this device (D354) ─────────
+// ── the account's own profile, mirrored on this device (D356) ─────────
 //
 // The profile document is the source of truth; this is the copy the warm
 // paint reads so that the anchors an answer snapshots are on the device
@@ -1951,14 +1951,14 @@ async function warmFromDisk(uid: string | null): Promise<DiskCaches> {
   // phase only ever ADDS to them. The cursors ride `disk.answers` down to
   // the delta queries.
   if (disk.answers) Object.assign(state.votes, disk.answers.votes);
-  // …and over them, the answers the server has not acknowledged (D355):
+  // …and over them, the answers the server has not acknowledged (D357):
   // newer than the disk copy, still inflight, and what the deck must not
   // re-offer.
   if (uid) restorePending(uid);
   // The paint needs BOTH halves — a bank to draw and the profile mirror
   // whose anchors the first tap will stamp (the header above has why).
   // Without the mirror nothing is published here at all, and the boot is
-  // the pre-D354 boot: the feed globals in particular must not go out
+  // the pre-D356 boot: the feed globals in particular must not go out
   // before `enabled` is true, or loadWorldFeed's demo join would land on
   // top of the live pool.
   const warmBank = disk.bank && uid && loadOwnProfile(uid) ? disk.bank : null;
@@ -2005,7 +2005,7 @@ async function hydrate(): Promise<void> {
   // Where the profile stood when that read went out — see profileChanged.
   const profileDirtyAt = profileDirty;
 
-  // ── the disk first, and the warm paint (D354) ──
+  // ── the disk first, and the warm paint (D356) ──
   // Read before the meta document, not after it: nothing here depends on
   // the server, and every millisecond between the sign-in and this point
   // was first paint waiting. The rev check the cache used to be read
@@ -2100,7 +2100,7 @@ async function hydrate(): Promise<void> {
   // The rev check, where the cache read used to be. A cache under another
   // contentRev is what the warm paint may already have drawn from — that
   // is a deck one reseed old for the second or so the full fetch below
-  // takes, which is the trade D354 makes on purpose: the screen the lost
+  // takes, which is the trade D356 makes on purpose: the screen the lost
   // race showed instead was the DEMO deck.
   if (disk.bank && disk.bank.rev === contentRev) {
     all = disk.bank.rows;
@@ -2272,7 +2272,7 @@ async function hydrate(): Promise<void> {
     // always, while the tail pages behind the published order like learn
     // does. Each query's rows are filtered by its own constraint's
     // client-side mirror, the pulse/call lesson.
-    // THE THREE RUN AT ONCE (D354). They read disjoint slices of one
+    // THE THREE RUN AT ONCE (D356). They read disjoint slices of one
     // collection and share nothing but `maxCursor`, which each page folds
     // with Math.max — so a cold boot pays one round trip for the three
     // rather than three in a row. Issue order is unchanged (the first page
@@ -2354,7 +2354,7 @@ async function hydrate(): Promise<void> {
   }
   computeDeck();
   // The deck's aggregates, started the moment there is a deck to ask
-  // about (D354) and awaited where the poll used to be started, past the
+  // about (D356) and awaited where the poll used to be started, past the
   // profile block: they depend on the bank alone, so the round trip
   // overlaps the answers below instead of following them.
   const aggPollP = startAggPoll();
@@ -2404,7 +2404,7 @@ async function hydrate(): Promise<void> {
         // (latency compensation: such a query result carries
         // `hasPendingWrites`). Folding it into the cache, or letting the
         // settle read it as proof, would confirm a write the rules may
-        // yet refuse — D355's second review, reasoned from the SDK's
+        // yet refuse — D357's second review, reasoned from the SDK's
         // source. In memory it is harmless: it is the value the pending
         // mirror restored anyway.
         if (!d.metadata?.hasPendingWrites) fetchedRows.push([d.id, val]);
@@ -2486,7 +2486,7 @@ async function hydrate(): Promise<void> {
     // past everything.
     let fetched = 0;
     // The edit delta's page, when the warm path issues one. Fetched in the
-    // SAME round trip as the answered delta (D354): the two queries share
+    // SAME round trip as the answered delta (D356): the two queries share
     // no input — the answered delta does not raise `maxEditTs` (see
     // `raiseEdit` above), and the edit delta does not read `maxTs` — so
     // nothing the first returns can change what the second asks. They are
@@ -2559,7 +2559,7 @@ async function hydrate(): Promise<void> {
     // Warm boots only: the cold-cache
     // full pull above already reads every doc's current optionIdx (and
     // seeds this cursor through fold()). The page itself was fetched
-    // beside the answered delta above (D354); this is where it folds.
+    // beside the answered delta above (D356); this is where it folds.
     if (editPage) {
       state.stats.answersFetched += editPage.size;
       // …and NOT the answered watermark: see `raiseAnswered` in fold above.
@@ -2574,7 +2574,7 @@ async function hydrate(): Promise<void> {
       // Cold pull or legacy blob: everything in state.votes is current,
       // so rewrite the store whole and retire the localStorage copy only
       // after the commit (the bank cache above has the ordering argument).
-      // …minus what is still INFLIGHT (D355): a restored pending answer is
+      // …minus what is still INFLIGHT (D357): a restored pending answer is
       // in state.votes and not yet the server's, and a row for it here
       // would be the phantom the ack-only cache exists to refuse — the
       // settle caches it when the server confirms it.
@@ -2594,7 +2594,7 @@ async function hydrate(): Promise<void> {
     // store whose meta still names the previous account.
     answersCacheOwner = uidA;
     // What a relaunch restored, settled against what was just read and
-    // then against the drained queue (D355). Not awaited: the boot has
+    // then against the drained queue (D357). Not awaited: the boot has
     // nothing to learn from it, and offline it waits for the queue.
     void settlePending(db, uidA, fetchedRows);
   }
@@ -2682,7 +2682,7 @@ async function hydrate(): Promise<void> {
         ? await profileP
         : await getDoc(doc(db, "v2_users", uid0));
       // A document that does not exist leaves state.profile ALONE — the
-      // pre-D354 behaviour, restored after a review: the read was issued
+      // pre-D356 behaviour, restored after a review: the read was issued
       // at the top of hydrate, and on a warm-painted device the setup
       // screen can have collected a name and anchors in the meantime.
       // Wiping to "what the server said a second ago" threw those away
@@ -4448,7 +4448,7 @@ const LIVE = {
     state.myFlags[takeId] = true;
     notify();
     try {
-      // Inside the try since D354: getDb() holds while the uid is the
+      // Inside the try since D356: getDb() holds while the uid is the
       // mirror's and FAILS if the sign-in does, and a failure there has
       // to roll the optimistic flag back like any other.
       const db = await getDb();
@@ -5909,7 +5909,7 @@ const LIVE = {
     // the `attached` half this read "still connecting" for the rest of a
     // session that had long since attached; invisible while the only
     // reader sat behind demoInProd, and wrong the moment the stale banner
-    // (D354) started reading it on a live screen.
+    // (D356) started reading it on a live screen.
     if (state.raceLost && !state.attached) {
       return state.bootStage
         ? `still connecting — ${state.bootStage}`
@@ -5920,7 +5920,7 @@ const LIVE = {
   get ready() {
     return state.ready;
   },
-  // The network boot has completed this session (D354). `ready` can be
+  // The network boot has completed this session (D356). `ready` can be
   // true before this on a device with a cache — see the state comment.
   get attached() {
     return state.attached;
@@ -6765,7 +6765,7 @@ function purgeLocalTrace(): void {
 // startAggPoll refreshes the whole deck and re-arms the timer on the new
 // day's question, so a rollover needs no separate teardown.
 async function resubscribeForToday(): Promise<void> {
-  // `attached` rather than `ready` (D354): before the attach the boot
+  // `attached` rather than `ready` (D356): before the attach the boot
   // itself is still the thing that will start the poll and the reveal
   // listeners, and a second starter here would double them.
   if (torndown || !state.attached) return;
@@ -6838,7 +6838,7 @@ export function refreshLive(): Promise<void> {
     // exotic one. Each stage is published before it is awaited.
     state.bootStage = "signing in";
     notify();
-    // THE WARM PAINT DOES NOT WAIT FOR THE SDK EITHER (D354). anonSignIn is
+    // THE WARM PAINT DOES NOT WAIT FOR THE SDK EITHER (D356). anonSignIn is
     // the first thing that imports firebase — ~400 KB of Firestore and
     // Auth to parse — and then the auth restore's own IndexedDB read; on a
     // mid-range phone that pair is the longest LOCAL wait a warm boot has
@@ -6856,7 +6856,7 @@ export function refreshLive(): Promise<void> {
     // fails (the deck stays, the last-sync pill says why, the next wake
     // retries). What the mirror can name is only ever an account this
     // device confirmed; a mismatch is a lost session, and the purge it
-    // now triggers is what D51 asks for and what the pre-D354 boot could
+    // now triggers is what D51 asks for and what the pre-D356 boot could
     // not do, because it never knew the previous uid.
     //
     // First boot of the process only: a reconnect already has a confirmed
@@ -6897,11 +6897,11 @@ export function refreshLive(): Promise<void> {
     try {
       await hydrate();
     } catch (err) {
-      // The deck poll starts INSIDE hydrate since D354 — the moment there
+      // The deck poll starts INSIDE hydrate since D356 — the moment there
       // is a deck, beside the answers — so a boot that fails past that
       // point (the answers reads are the unguarded ones) would otherwise
       // leave a read-per-minute armed on a session that never attached.
-      // Before D354 the poll started after the answers block and this
+      // Before D356 the poll started after the answers block and this
       // could not happen; the next successful refresh re-arms it.
       stopAggPoll();
       throw err;
@@ -6911,7 +6911,7 @@ export function refreshLive(): Promise<void> {
     await hydrateSocial();
     state.bootStage = "";
     state.ready = true;
-    // The attach (D354): the network has been heard from this session. A
+    // The attach (D356): the network has been heard from this session. A
     // warm paint that preceded it stops being stale here, and every
     // re-entry point below (wake, resubscribe) keys on this rather than
     // on `ready`, which the warm paint may have flipped an age ago.
@@ -6996,7 +6996,7 @@ function wake(): void {
   if (torndown) return;
   cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-  // `attached`, not `ready` (D354): a warm-painted session whose network
+  // `attached`, not `ready` (D356): a warm-painted session whose network
   // phase failed — or is still running — is `ready` and must still get
   // the full refresh here, which is the only path that retries the
   // reconcile. refreshLive shares its in-flight promise, so a wake during
@@ -7079,7 +7079,7 @@ function detachIdleListeners(): void {
 // makes them. vi.resetModules() gives the next case a fresh instance but
 // does not stop the old one's 2.5 s aggregate re-read or a boot parked on
 // a gate — and those leaked into later cases' exact-set pins as reads
-// nobody issued (warm-boot.test.ts found it as a flake, D355).
+// nobody issued (warm-boot.test.ts found it as a flake, D357).
 export function _teardownForTest(): void {
   torndown = true;
   stopAggPoll();
@@ -7150,7 +7150,7 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       if (!uid) throw new Error("no session");
       await setDoc(doc(db, "v2_users", uid, "engagement", rollup.day), rollup);
     },
-    // Confirmed, not provisional (D354): a rollup handed over while the
+    // Confirmed, not provisional (D356): a rollup handed over while the
     // uid is still the mirror's would clear its local copy on the way to
     // a write the gate in getDb holds until the session is known.
     hasUid: () => !!state.uid && !state.uidProvisional,
@@ -7209,7 +7209,7 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       return;
     }
     if (linkedChanged) notify();
-    // While the uid is the mirror's (D354), a null state is the SDK
+    // While the uid is the mirror's (D356), a null state is the SDK
     // reporting "no restored session yet" on the way to refreshLive's own
     // sign-in — the recovery below would start a SECOND anonymous sign-in
     // beside it and mint two accounts.
@@ -7283,7 +7283,7 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     notify();
     reportError(err, { where: "boot" });
   });
-  // THREE runners, not two (D354). The warm paint — hydrate publishing a
+  // THREE runners, not two (D356). The warm paint — hydrate publishing a
   // deck off this device's caches — releases the render the moment it
   // happens, which on a returning device is before the first network
   // read has been issued. The deadline is a plain timer rather than a
@@ -7314,7 +7314,7 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // unheard from after the same budget it always had. So: the same
   // timeoutMs, and the same question, asked when it expires, whichever
   // runner released the render. Keyed on `attached` rather than
-  // `enabled` for D354's reason: a warm-painted session is enabled and can
+  // `enabled` for D356's reason: a warm-painted session is enabled and can
   // still be waiting on the server.
   void deadline.then(() => {
     if (torndown || state.attached || state.bootError) return;
