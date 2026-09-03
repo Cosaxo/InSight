@@ -2643,6 +2643,166 @@
       "t": 0,
       "p": 62,
       "k": "100,000 beats a day"
+    },
+    {
+      "id": "c214",
+      "f": "c20",
+      "q": "The first successful heart transplant was performed in…",
+      "a": [
+        "The United States",
+        "South Africa",
+        "The Soviet Union",
+        "The United Kingdom"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 38,
+      "k": "First heart transplant: Cape Town",
+      "w": "Christiaan Barnard, Groote Schuur Hospital, 1967 — the patient lived eighteen days; the technique lived on."
+    },
+    {
+      "id": "c215",
+      "f": "c20",
+      "q": "Television was first demonstrated publicly in the…",
+      "a": [
+        "1900s",
+        "1920s",
+        "1940s",
+        "1950s"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 44,
+      "k": "TV demoed in the 1920s",
+      "w": "John Logie Baird showed working television in 1926 — two decades before most homes saw one."
+    },
+    {
+      "id": "c216",
+      "f": "c20",
+      "q": "The Empire State Building went up in about…",
+      "a": [
+        "Fourteen months",
+        "Three years",
+        "Five years",
+        "A decade"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 33,
+      "k": "Empire State: ~14 months",
+      "w": "First steel to opening day in under fourteen months, 1930 to 1931 — Depression labour, round-the-clock shifts."
+    },
+    {
+      "id": "c217",
+      "f": "c20",
+      "q": "The first email was sent in…",
+      "a": [
+        "1971",
+        "1983",
+        "1990",
+        "1995"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 47,
+      "k": "Email: 1971",
+      "w": "Ray Tomlinson sent the first networked email on ARPANET in 1971 — the web came nineteen years later."
+    },
+    {
+      "id": "c218",
+      "f": "c20",
+      "q": "Concorde crossed the Atlantic in about…",
+      "a": [
+        "Three and a half hours",
+        "Five hours",
+        "Seven hours",
+        "Nine hours"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 56,
+      "k": "Concorde: ~3.5 hours",
+      "w": "London to New York at twice the speed of sound — no airliner has come close since its 2003 retirement."
+    },
+    {
+      "id": "cap14",
+      "f": "capitals",
+      "q": "The capital of Pakistan is…",
+      "a": [
+        "Karachi",
+        "Islamabad",
+        "Lahore",
+        "Peshawar"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 51,
+      "k": "Pakistan: Islamabad",
+      "w": "Purpose-built in the 1960s to take the government from Karachi — the port kept the size, the new city took the state."
+    },
+    {
+      "id": "cap15",
+      "f": "capitals",
+      "q": "The capital of Kazakhstan is…",
+      "a": [
+        "Almaty",
+        "Tashkent",
+        "Astana",
+        "Bishkek"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 34,
+      "k": "Kazakhstan: Astana",
+      "w": "The capital moved north from Almaty in 1997; the city has since been renamed twice — Astana, Nur-Sultan, Astana again."
+    },
+    {
+      "id": "cap16",
+      "f": "capitals",
+      "q": "The capital of Ivory Coast is…",
+      "a": [
+        "Abidjan",
+        "Yamoussoukro",
+        "Accra",
+        "Dakar"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 29,
+      "k": "Ivory Coast: Yamoussoukro",
+      "w": "The official capital since 1983 — the first president's home village, with a basilica bigger than St Peter's; Abidjan kept the ministries."
+    },
+    {
+      "id": "cap17",
+      "f": "capitals",
+      "q": "Bolivia's constitutional capital is…",
+      "a": [
+        "La Paz",
+        "Santa Cruz",
+        "Quito",
+        "Sucre"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 32,
+      "k": "Bolivia: Sucre (on paper)",
+      "w": "Sucre holds the constitutional title and the supreme court; the government sits in La Paz — both answers win arguments."
+    },
+    {
+      "id": "cap18",
+      "f": "capitals",
+      "q": "The capital of Sri Lanka is…",
+      "a": [
+        "Colombo",
+        "Anuradhapura",
+        "Sri Jayawardenepura Kotte",
+        "Nuwara Eliya"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 26,
+      "k": "Sri Lanka: Kotte",
+      "w": "The legislative capital since 1982, swallowed by greater Colombo — which is why everyone says Colombo."
     }
   ]
 }
