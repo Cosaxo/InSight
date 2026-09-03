@@ -190,14 +190,19 @@ describe("the live corpus", () => {
     // scaffold — re-read, different canons, kept. Re-pinned 2026-09-02
     // (D358): the same pair under its widened ids, dl32 and dl35 — the
     // retired dl7/dl11 left the domain, and their replacements carry the
-    // same two prompts.
+    // same two prompts. Re-pinned again on the merge of D358 into main:
+    // main's own dl23 ("Too late for coffee — from what hour?") ties the
+    // same 0.400 against dl32 ("How many coffees a day is too many?") and
+    // sorts first, so the pair that spends the margin changed while the
+    // margin did not. Re-read: one asks the hour to stop, the other the
+    // count that is too many — different canons on a shared noun, kept.
     const worst = ["daily", "feed", "duel", "pick", "learn"]
       .map((name) => ({ name, ...scanDomain(domains[name]).closest }))
       .sort((a, b) => b.s - a.s)[0];
     expect(
       `${worst.name} ${worst.a.id}~${worst.b.id} @ ${worst.s.toFixed(3)}`,
       "the closest legitimate pair moved — re-read it, then re-pin this",
-    ).toBe("feed dl32~dl35 @ 0.400");
+    ).toBe("feed dl23~dl32 @ 0.400");
     expect(worst.s).toBeLessThan(GATE);
   });
 
