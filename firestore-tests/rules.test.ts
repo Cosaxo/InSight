@@ -2644,6 +2644,10 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
           token: "gone0token00", at: new Date(), hidden: true,
           hiddenMeta: { by: "mod", policyLine: "H2" },
         });
+        // A THIRD LIVE FACE, and it is the whole point of the last case
+        // below — see the note there. Without it there is no way to send a
+        // takeId/target mismatch that every OTHER clause admits.
+        await setDoc(doc(db, "v2_avatars", STRANGER), { token: "live1token00", at: new Date(), hidden: false });
       });
       const avFlag = (target: string, by: string) => ({
         takeId: "av_" + target, gid: "avatar", uid: by, target, at: serverTimestamp(),
@@ -2662,9 +2666,28 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       // And the id still has to name its target: `target` is what the rule
       // reaches the avatar document with, so a mismatch is a flag pointed
       // at one face and counted against another.
+      //
+      // THIS CASE COULD NOT REACH THE CLAUSE IT NAMES. It sent
+      // `target: FRIEND`, and FRIEND's avatar is seeded `hidden: true`
+      // three lines up — so the `hidden == false` clause refused it first
+      // and the id equality was never evaluated. Measured: replacing that
+      // clause with `true` left all 175 tests green, and removing it lets
+      // a viewer flag their OWN live face, re-report a face a moderator
+      // has already removed, and stack flags against a takeId no avatar
+      // document backs.
+      //
+      // Every other clause has to ADMIT the write for this one to be the
+      // one that refuses: the flagger is OWNER, the target is STRANGER —
+      // live, and not the flagger — and only the takeId names someone
+      // else. That is why the fixture above seeds a third live face.
       await assertFails(setDoc(
-        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`),
-        { ...avFlag(OWNER, STRANGER), target: FRIEND }));
+        doc(asUser(OWNER), "v2_flags", `av_${OWNER}_${OWNER}`),
+        { takeId: `av_${OWNER}`, gid: "avatar", uid: OWNER, target: STRANGER, at: serverTimestamp() }));
+      // …and the same write with the id agreeing is admitted, so the case
+      // above cannot pass because something else refused it.
+      await assertSucceeds(setDoc(
+        doc(asUser(OWNER), "v2_flags", `av_${STRANGER}_${OWNER}`),
+        { takeId: `av_${STRANGER}`, gid: "avatar", uid: OWNER, target: STRANGER, at: serverTimestamp() }));
     });
   });
 
