@@ -1080,13 +1080,24 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
             const showLab = !n.quiet && labKeep.has(n.id);
             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
+            // `is-rare` is "you answered against the crowd", so it may only
+            // be drawn where a crowd majority was actually folded. It read
+            // `n.daily && !n.learn && !n.maj` and therefore rang every
+            // Crossroads walk and every pulse leaf — neither fold computes a
+            // majority at all; a pulse's `typ` is your own consistency — and
+            // every SEALED Foresight call, whose `maj` is false because
+            // nothing has been judged yet, not because the reader was wrong.
+            // `fore` is deliberately NOT excluded: foreTree computes `maj` on
+            // purpose for reads and for graded calls, so a blind-spot read
+            // and a genuinely missed call keep their ring.
+            // mapTrees.test.ts holds this line.
             return (
               <button
                 type="button"
                 key={n.id}
                 className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (n.person ? ' is-person' : '') + (sel === n.id ? ' is-sel' : '')
                   + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (off ? ' is-off' : '') + (labL ? ' is-labL' : '')
-                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')}
+                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.walk && !n.pulse && !n.sealed && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
                   width: sz, height: sz,
