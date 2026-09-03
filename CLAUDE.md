@@ -260,7 +260,7 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/mount-app.jsx` is the harness, and **nine** suites mount
+- `src/v2/test/mount-app.jsx` is the harness, and **ten** suites mount
   the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
   walk both tabs and every overlay, and four that go PAST first paint into
   screens no smoke case reaches — the Map's measured body, the daily's
