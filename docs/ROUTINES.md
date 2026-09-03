@@ -425,26 +425,25 @@ PR that creates one (rule 6).
 
 ## 5 · The ops and program lanes — chartered, part-created, and relaying nothing
 
-**Corrected 2026-09-02 evening, and the correction is the point.** This
-section first read *"live on an account this one cannot see"* on the
-owner's word that the ops Routines existed. D353 and PR #364 say what
-that word actually covered: **four** ops lanes were created on Claude 2
-— the roll call, the production reader, the release recorder and the
-list worker — bound to an ops dispatcher session
-(`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The PR shepherd is not among
-them.** So this section previously told a reader the shepherd was live
-and gave its next fire time; that was wrong, and the label on PR #365
-has had nothing to act on it from the first minute. PR #364 has since
-filled four rows of `OPS-RUNBOOK.md`'s inventory with real ids and
-written the reason into the rest: **three lanes could not be created
-from a session at all** — the shepherd, the pulse responder and the
-dependency shepherd were refused by the permission classifier, and are
-the owner's to create in Claude 2's web UI.
+**This section has been wrong twice, in opposite directions, and the
+record of that is more useful than a clean paragraph.** It first read
+*"live on an account this one cannot see"* on the owner's word that the
+ops Routines existed. D353 and PR #364 said what that word actually
+covered — **four** lanes created on Claude 2 (roll call, production
+reader, release recorder, list worker), bound to an ops dispatcher
+session (`session_01RQvTPyNEFgX5yNUPqkDPnS`), with the PR shepherd not
+among them and refused by the permission classifier when a session tried
+to create it. So this section was rewritten to say the shepherd did not
+exist. **It then stayed that way while the shepherd was created,
+armed on this very PR, pushed to this very branch, and was re-paced by
+D359** — three events the file should have carried and did not.
 
-The lesson is rule 2's, one rung up: **the owner's word establishes that
-a Routine exists, not which one.** Only `list_triggers` from the owning
-account settles that, and no account here can run it against Claude 2 or
-Claude 3.
+Both errors have the same root and it is not carelessness: **the tree
+records a lane's contract, and only `list_triggers` from the owning
+account records whether it is running.** Neither is readable from here,
+so this section is transcription, and transcription lags. Read it for
+what the lanes are FOR; read `OPS-RUNBOOK.md`'s inventory for whether
+they exist, and only that account for whether they fire.
 
 What follows is `OPS-RUNBOOK.md` §1 and `PROGRAM-RUNBOOK.md` § The lanes
 reproduced — the contracts, not the account state — so a session that
@@ -456,19 +455,30 @@ transcribed id is a belief about the tree rather than about the account.
 
 | Lane | Trigger id | Fires (UTC) | Merge authority |
 | --- | --- | --- | --- |
-| **PR shepherd** | **none — refused from a session; the owner's to create in the web UI** | `20 6,16 * * *`, plus GitHub `pull_request` events — opened, ready_for_review, reopened, **labeled**, closed-and-merged, base `main` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner approved, only while the grant is intact |
+| **PR shepherd** | `trig_01UuPxYjLWh5st3iUDyxKu58` | hourly at :55, plus GitHub `pull_request` events once its triggers are added in the web UI | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner approved, only while the grant is intact |
+| **PR shepherd (B)** | `trig_01MuYGKG82KdEXnqNuXkdviz` | `55 */3 * * *` — **eight a day, down from twenty-four** (D359) | as above; bound to ops dispatcher B |
 | Roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `30 15 * * *` | none — read-only |
+| Roll call (B) | `trig_017cQ4WECG5mHeFGFnmkVrYQ` | `30 15 * * *` — **disabled on creation**: a dispatcher is the only binding a session can give it, and its own contract forbids that binding | none — read-only |
 | Production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `40 6 * * *` | none — read-only |
+| Production reader (B) | `trig_01FD7t9MySRfZd19BD9YyEDQ` | **disabled 2026-09-03** — the lane is now `.github/workflows/production-reader.yml`, which needs no bucket at all | none — read-only |
 | List worker | `trig_01USe4xEhJ57MRjgThykdRzM` | `0 17 * * *` | never |
+| List worker (B) | `trig_01VH8PvZCaqKciAwzpxmfMYW` | `0 17 * * *` | never |
 | Release recorder | `trig_01Vr2QLmWAGBaBsnT6yTusnr` | API, from `ios-release.yml` — poke-only until its API trigger is added in the web UI | never |
-| Dependency shepherd | none — same refusal | `30 8 * * 1` — Mondays | never, absent a dated grant in its own contract |
+| Dependency shepherd | none — refused from a session | `30 8 * * 1` — Mondays | never, absent a dated grant in its own contract |
 | Pulse responder | none — same refusal | API, from `pulse.yml` when the operator gate is red | never |
 | Platform probe | none — the owner's, in the web UI | one-off, Run now | never |
 
-Four exist and are bound to the ops dispatcher; four do not, and each of
-those four says why in its own row rather than leaving a reader to
-guess. That is the shape this register asks for, arriving in the runbook
-first.
+**This table has been wrong twice, in opposite directions, and both are
+kept in view rather than quietly fixed.** It first said the shepherd was
+live when it did not exist; it then said it did not exist — *"refused
+from a session; the owner's to create in the web UI"* — after the
+refusal was recorded, and stayed that way while the shepherd was
+created, armed on this very PR, and pushed to this very branch. A `(B)`
+row is a lane re-created against a second, empty dispatcher under D359,
+not a duplicate; two lanes are disabled on purpose and say why in their
+own row. The three that still read `none` are the owner's to create in
+Claude 2's web UI, which is a permission boundary rather than an
+oversight.
 
 Six more were chartered on the same account the same day, by D352's
 `PROGRAM-RUNBOOK.md` § The lanes, every inventory row a dash:
@@ -489,11 +499,18 @@ lane in this register any session can read the state of directly.
 **How to tell whether the rest are firing**, since no session here can
 read their trigger state. The ops program's run log is one issue titled
 **Ops run log**, created by the first lane that needs it — the doc
-sweep's precedent, issue #336. At **17:45 UTC on 2026-09-02** it still
-does not exist, and neither does `no-shepherd`, the label
-`OPS-RUNBOOK.md` §2.7 pairs with `merge-when-green`; the PR shepherd's
-06:20 and 16:20 slots have both passed with no comment on either
-labelled PR. On traces alone, no ops lane has completed a run.
+sweep's precedent, issue #336.
+
+**The shepherd is the one lane whose firing is now visible from here, and
+the way it became visible is the lesson.** It left three comments on PR
+#365 on 2026-09-02 — armed at 21:04, grant spent at 21:10, label removed
+at 21:58 — and a `shepherd:` merge commit on that branch the next
+afternoon. None of it was noticed for eighteen hours, because the
+session watching the PR was grepping git for `shepherd:` commits instead
+of reading the PR's comments, and a lane that comments but does not
+commit is invisible to that check. **Read the comments.** A lane's own
+report is the channel it was given; the commit log is not a substitute
+for it.
 
 **And the reason is written down rather than invisible**, which is the
 whole point of the exercise. **Both dispatchers refused their charters
@@ -692,7 +709,7 @@ rule 2 says verify and rule 4 says leave another account's rows alone.
 
 ---
 
-## 7 · The overview — one sentence per routine
+## 8 · The overview — one sentence per routine
 
 What each routine does and for whom, beside the rows above that say when
 it fires and what it writes. `PROGRAM-RUNBOOK.md` phase 5.3 asks for this
