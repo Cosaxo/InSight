@@ -1990,6 +1990,79 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(localStorage.getItem("insight.profileGeneral.v1")).toBeNull();
   });
 
+  // ── the same write, pointed at a SECOND device ──
+  //
+  // The two cases above are about a demo persona reaching a live account.
+  // These two are the reverse and were live for as long: the live branch of
+  // `baseFor` returned `{ vitals: {} }`, which is not "no opinion" but a
+  // complete profile whose every field is blank, and the effect above writes
+  // the map derived from it WHOLESALE. So opening the profile on a phone
+  // that had never seen the panel erased the anchors the laptop wrote — and
+  // because answers are create-only (D5), every answer written after that
+  // carried no cohort and none of them can be corrected.
+  const ACCOUNT = {
+    age: "29", ageBand: "25-34", gender: "Woman",
+    city: "Oslo, NO", country: "NO",
+    education: "MA Literature", profession: "Baker", jobField: "Food & hospitality",
+    relationship: "Single", heightBand: "170–179 cm",
+  };
+
+  it("seeds a fresh device from the account's own anchors instead of blanking them", async () => {
+    const saved = [];
+    live = installLive({ anchors: ACCOUNT });
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // No local blob at all — a device that has never opened the panel. This
+    // is the ordinary second-device path, not a race.
+    render(<App />);
+    await openProfile();
+
+    expect(saved.length, "the anchors effect never ran — assertion is vacuous")
+      .toBeGreaterThan(0);
+    const last = saved[saved.length - 1];
+    expect(last.profession, "a second device erased the account's profession").toBe("Baker");
+    expect(last.education, "a second device erased the account's education").toBe("MA Literature");
+    expect(last.city, "a second device erased the account's city").toBe("Oslo, NO");
+    expect(last.ageBand, "a second device erased the account's age band").toBe("25-34");
+  });
+
+  it("refuses the wholesale write while the profile doc is still hydrating", async () => {
+    // The seed above cannot close this one: `useState(loadGen)` runs exactly
+    // once, so a panel that mounts before `v2_users/{uid}` has landed seeds
+    // from an empty map however good the seeding rule is.
+    //
+    // KEYED ON THE PANEL'S OWN READ, not on call order. The first version of
+    // this case answered {} to the first `anchors()` read and the account map
+    // to the rest — and it PASSED WITH THE GUARD REMOVED, which is how the
+    // stack sniff below earned its ugliness. Three other consumers read the
+    // anchors before the profile panel does (WorldFeed thrice), so a counter
+    // hands `baseFor` the hydrated map and the race window is never entered.
+    // Naming `baseFor` says exactly what is being reproduced: the doc has not
+    // landed when the panel seeds, and has by the time the effect runs one
+    // commit later — which is what hydrating a microtask late looks like from
+    // here. It fails loudly if `baseFor` stops reading the anchors, which is
+    // the right way for it to break.
+    const saved = [];
+    live = installLive({ anchors: ACCOUNT });
+    let seeded = false;
+    window.LIVE.anchors = () => {
+      if ((new Error().stack || "").includes("baseFor")) { seeded = true; return {}; }
+      return { ...ACCOUNT };
+    };
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<App />);
+    await openProfile();
+
+    expect(seeded, "the panel never seeded from an empty map — the race is not reproduced")
+      .toBe(true);
+    const blanked = saved.filter((a) => Object.values(a).every((v) => !v));
+    expect(blanked.length, "the hydrate race blanked the account's anchors").toBe(0);
+  });
+
+
   // ── the Map's anchor ring, the second place the persona reached ──
   //
   // The profile panel above was fixed; the ring at the centre of Mirror ·

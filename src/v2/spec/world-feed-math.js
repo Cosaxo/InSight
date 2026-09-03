@@ -48,8 +48,14 @@ export function wfPcts(counts, mineIdx) {
   // and the voter on 449 was told they were "with the majority". Measured
   // over 400k random vectors: 3.5% of cards carried at least one wrong
   // reading, 1.0% of readings claimed a majority that was not one.
-  // Returning the counts is what lets the two callers that make that claim
-  // ask the right vector.
+  // Returning the counts is what lets every caller that makes that claim
+  // ask the right vector. It said "the two callers" and there were more
+  // than two even then: the sentence (renderMeta) was converted and the
+  // three that decide the winner's STYLING — the feed's tiles, bars and
+  // duel — were not, so a near tie drew both sides as the winner under a
+  // sentence that named one. Deliberately not a number here; a count in a
+  // comment is the documentation error this repo keeps re-committing, and
+  // feed-near-tie.test.jsx holds the real one off the tree.
   return { p: sharePcts(c), c, total };
 }
 

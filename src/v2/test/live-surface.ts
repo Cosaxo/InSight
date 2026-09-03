@@ -127,7 +127,12 @@ export const LIVE_MEMBERS = [
   // to precede every tap in it. `learnMine` is the other half of the same
   // timing problem (D157): the write lands, the trigger has not folded it
   // yet, and without this the reveal counts the crowd minus the reader.
-  "latestBuild", "learnAgg", "learnAnswer", "learnMine", "loadLearnAggs",
+  // `learnAggLoading` is the third state the cache used to swallow: its
+  // first call for a card returns null both while the read is in the air
+  // and once it has come back empty, and two surfaces printed "Nobody
+  // else has answered this one yet" for the first of those.
+  "latestBuild", "learnAgg", "learnAggLoading", "learnAnswer", "learnMine",
+  "loadLearnAggs",
   // D91: the live half of a lens card — counts for a seeded lens question,
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",

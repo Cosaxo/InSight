@@ -1156,7 +1156,21 @@ freezes the range with the labels: never touch a shipped `lo`/`hi`/
 the same range and the interesting fact is *where* the numbers sit — a
 threshold ("when does old age begin?"), a norm ("the right tip"), a
 share ("how much of your life is in your control?"). The range must be
-the honest span of real answers, not drama: ends people actually hold.
+the honest span of real answers, not drama: ends people actually hold —
+BOTH ends, and generously. A crowd sitting on a floor is a floor set too
+high, not a crowd: the first live music-taste dial (10–40 yrs) had its
+median at 11, and D358 retired it with thirteen others. And a step of
+at least one unit per bucket: the span in the printed unit is at least
+12, and a multiple of 12 where the unit allows, because `dialFmt`
+prints integers and the twelve synthesized labels round their edges — a
+half-hour step reads "18–18 h" in the voters panel. Where the honest
+span is under twelve units, change the UNIT (a concert in minutes, not
+hours) rather than stretch the ends. A shipped range cannot be edited
+(the freeze above): widening one is a retire-and-append, D358's shape —
+same copy, new `dlN` appended at the end so every `seq` stands, the old
+id `active: false`, its provenance row carried forward, the demo twin
+moved to the new id — and the operator's console flip is what stops the
+old card serving (LAUNCH-RUNBOOK §1).
 A field earns its place when two judgments are independent enough to
 disagree — taste × legitimacy, feeling × importance — and the corners
 are all inhabitable positions. Axis ends are judgments, not facts, and
@@ -2023,7 +2037,12 @@ options it has, not two by habit), dial, field, or path. Continuum cards
 (dial/field) are written TWICE, the content entry with NO crowd texture
 plus its demo-pool twin in src/v2/spec/world-feed-data.js with the
 authored texture; lean scarce on them, they are a change of key and not
-a second genre. Read the budget's signal: line — it names the mode and,
+a second genre. A dial's range holds BOTH ends real people answer at,
+generously, with at least a whole unit per bucket — a span of 12 or
+more in the printed unit, a multiple of 12 where the unit allows; under
+twelve units change the unit (minutes, not hours), never stretch the
+ends (§ Continuum questions, D358 — check:quality's step rule refuses
+the rest). Read the budget's signal: line — it names the mode and,
 in demand mode, which topics lead; evenness per topic still steers WHAT
 you write into a topic, never where the budget goes. Pre-flight the whole batch
 from ONE candidates file with "surface": "feed" on each entry: npm run

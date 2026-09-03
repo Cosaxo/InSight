@@ -1,0 +1,64 @@
+--- recorded/tokens.css
++++ 2026-09-02/tokens.css
+@@ -8,7 +8,7 @@
+   --rule: oklch(0.905 0.006 74);
+   --ink: oklch(0.216 0.011 70);
+   --ink-2: oklch(0.41 0.011 68);
+-  --ink-3: oklch(0.51 0.010 68);
++  --ink-3: oklch(0.472 0.010 68); /* was 0.51 — lifted for AA contrast on the 10-11px captions it carries */
+   --accent: var(--c-around);
+   /* One accent family: every tab hue shares the same oklch lightness+chroma,
+      so switching tabs reads as one app changing mood, not four apps. */
+@@ -43,6 +43,9 @@
+   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+   --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1);
+   --sans: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
++  /* The prompt voice — the one place the app speaks in a second face. Every
++     question people answer is set in it; UI, figures and captions stay sans. */
++  --serif: 'Spectral', Georgia, 'Times New Roman', serif;
+   /* One instrument, one hue: everything the daily pulse draws — its inputs, its
+      line, its streak — is this and nothing else. Neutral greys carry the
+      population it is held against, so the two are never confused. */
+@@ -270,16 +273,15 @@
+   color: var(--ink-3);
+   font-family: var(--sans);
+   font-size: 13px;
+-  font-weight: 600;
++  font-weight: 500;
+   letter-spacing: 0.01em;
+   text-transform: capitalize;
+   position: relative;
+   transition: color 0.25s ease, background 0.25s ease;
+ }
+ .tab-btn.is-active {
+-  font-weight: 750;
++  font-weight: 700;
+   background: color-mix(in oklch, var(--accent) 13%, var(--surface-2));
+-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 20%, transparent);
+ }
+ .tab-btn .glyph {
+   height: 22px;
+@@ -424,7 +426,8 @@
+ 
+ /* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
+    filled result reveal after answering feels like a real payoff. */
+-.sd-opt:hover { background: color-mix(in oklch, var(--opt, var(--ink)) 6%, var(--surface)) !important; border-color: color-mix(in oklch, var(--opt, var(--rule)) 28%, var(--rule)) !important; }
++.sd-opt:hover { background: color-mix(in oklch, var(--opt, var(--ink)) 6%, var(--surface)) !important; }
++.sd-opt:hover .sd-mark { border-color: var(--opt, var(--ink)) !important; }
+ 
+ /* Pill (wax-seal) */
+ .pill {
+@@ -631,6 +634,13 @@
+ .press:active { transform: scale(0.95); }
+ @media (hover: hover) { button.press:hover { transform: translateY(-1px); } button.press:active { transform: scale(0.95); } }
+ 
++/* Paid door & catalog — entrance rise and day-strip tick pop */
++.sg-rise { animation: sgRise 0.44s var(--ease-out) both; }
++@keyframes sgRise { from { opacity: 0; transform: translateY(10px); } }
++.sg-tick { transform-origin: bottom; animation: sgTick 0.5s var(--ease-spring) both; }
++@keyframes sgTick { from { transform: scaleY(0.15); } }
++@media (prefers-reduced-motion: reduce) { .sg-rise, .sg-tick { animation: none !important; } }
++
+ /* Vote reveals — result settles in, bars grow, chips pop.
+    One stagger constant for the whole app: every reveal beat is a multiple of
+    --rv-step, so the frame, the bars and the numbers arrive as ONE motion in

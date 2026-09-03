@@ -36,7 +36,7 @@ const REGION = FUNCTIONS_REGION;
 // Drafted in docs/MODERATION.md as open questions; live here as the
 // operator-tunable answers until the maintainer settles them.
 const MOD_QUEUE_MIN_FLAGS = 3;
-const MOD_QUEUE_SIZE = 25;
+export const MOD_QUEUE_SIZE = 25;
 const MOD_RUN_CAP = 50;
 // How many over-threshold takes the build will CONSIDER to fill those 25.
 //

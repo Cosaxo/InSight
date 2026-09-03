@@ -273,3 +273,21 @@ describe("answers are per pulse", () => {
     expect(PULSE.word("pulse-sleep", 1)).toBe("Badly");
   });
 });
+
+// ── the demo arm of trendReady ──
+//
+// The live arm is pinned in pulse-ensure.test.ts, which needs a store that
+// fetches. This is the half that file cannot reach: demo has no window to
+// land, so the reading is complete the moment it renders, and a latch that
+// forgot to say so would hold every demo build at "Reading the world…"
+// forever — the panel's own guard turned into the bug it was added to fix.
+describe("trendReady — demo has no window to wait for", () => {
+  it("answers opposite ways for the same unfetched pulse, and the store's mode is the reason", () => {
+    expect(liveOn, "the file's default flipped — this case proves nothing").toBe(false);
+    expect(PULSE.trendReady("pulse-pace"), "a demo build was held at 'reading'").toBe(true);
+    liveOn = true;
+    try {
+      expect(PULSE.trendReady("pulse-pace"), "an unfetched live window read as landed").toBe(false);
+    } finally { liveOn = false; }
+  });
+});
