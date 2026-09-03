@@ -256,11 +256,12 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/mount-app.jsx` is the harness, and **eight** suites mount
+- `src/v2/test/mount-app.jsx` is the harness, and **nine** suites mount
   the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
-  walk both tabs and every overlay, and three that go PAST first paint into
+  walk both tabs and every overlay, and four that go PAST first paint into
   screens no smoke case reaches — the Map's measured body, the daily's
-  Circle and 1v1 modes, and the demo Mirror's stops past World. (The sixth
+  Circle and 1v1 modes, the demo Mirror's stops past World, and the
+  Mirror's preview tag on a live build that did not attach. (The sixth
   smoke file, `smoke-live`, mounts `App` too, through its own live fixture.
   More suites than these import the harness — `dialog` and the feed's
   direct-mount files take its helpers without mounting the app.) The three
