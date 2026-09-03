@@ -153,6 +153,23 @@ What moving it costs, stated plainly: an optional photo, off by default,
 one 256px object per account, deleted with the account (bytes included —
 `deleteAccount` reaches Storage since D178, which it never did before).
 
+**The iOS purpose strings, and why there are two of them for one control.**
+The photo is added through a plain `<input type="file">` — no camera
+plugin, no code path in this app that asks for a camera. WebKit's upload
+sheet offers one regardless: it builds its menu from the `accept`
+attribute, `image/jpeg` and `image/png` conform to `public.image`, and it
+presents the system camera in-process with no check for a purpose string,
+so iOS terminates the app on the tap. `Info.plist` therefore carries
+NSCameraUsageDescription and NSPhotoLibraryUsageDescription, and the
+mechanism is written out beside them. This changes nothing in the table
+above: the datum is the same optional photo the row already declares, and
+a photo taken with the camera is the same "Photos or Videos" as a photo
+chosen from the library. It is recorded here because this is where a
+reviewer will look for it, and because §"Facial symmetry" below reasons
+about camera capture — the app can now be handed a camera photo, and still
+does no face processing of any kind, which is what that refusal was about.
+Android needs no permission for a file input, so its manifest is unchanged.
+
 Four of those are worth knowing *why*, because each looks tickable:
 
 - **Health — YES since D203, and the trip-wire is what moved it.** This
