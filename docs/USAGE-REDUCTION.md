@@ -1,292 +1,320 @@
-# Getting the routine usage down
+# Getting the routine bill down — what the program costs, and what was cut
 
-> **Status: mixed — L1 and L2 were applied on this account 2026-09-03, at
-> the owner's word; everything else is proposed.** §6 is what changed,
-> what it saves, and the one half a tool refused. The remaining levers
-> touch accounts this session cannot reach or wait on a decision, and
-> their rows are on [`OWNER-LIST.md`](OWNER-LIST.md). The routine
-> register's rule 5 still holds: cadence is the owner's, and nothing here
-> moved before they said so.
+**Status: partly executed, 2026-09-03 (D359).** The owner read the
+arithmetic below and chose *overhead plus cadence*: the dispatcher
+overhead removed where a session may remove it, the PR shepherd
+re-paced from twenty-four firings a day to eight, the twelve theory
+lanes from every second day to every fourth. What a session cannot do
+from inside a session is in § 5, as owner rows, with what each is
+worth. Nothing here changes what a lane *does* — only how often it is
+woken and how much history it re-reads when it is.
 
-[`COSTS.md`](COSTS.md) and [`COST-REDUCTION.md`](COST-REDUCTION.md) are
-about the **bill** — what Firebase charges to serve the app. This is the
-other budget: the **account usage** the routine program spends against
-three claude.ai subscriptions, which is the resource the routine
-register §6 calls *the one that does not cross* — one bucket per
-account, shared by every Routine and every interactive session on it.
+> **Different bill from `COST-REDUCTION.md`.** That page is the
+> Firebase bill — reads, writes and what a user costs at scale. This
+> one is the subscription bill: what the Routines on this account
+> spend against the account's own usage limit. They share no
+> arithmetic and neither one bounds the other.
 
-Written 2026-09-03 from the owner's sentence: *"seems like the routine
-burns too much usage, let's plan what we can reduce."*
+---
 
-**`ROUTINES.md` is cited throughout and is not on `main` yet** — the
-register of every Routine across the three subscriptions is open as PR
-#365. Every row this page takes from it is a row that PR verified
-against the account that owns it; where that matters, the sentence says
-so.
+## 1 · What it costs, measured 2026-09-03
 
-## 1 · The measurement
+Every figure here was read the same afternoon from `list_sessions`
+(the `usage` block each finished session carries — `cost_usd`,
+`cache_read_tokens`, `input_tokens`, `output_tokens`) and from
+`list_triggers`, never estimated. Ninety of the ninety-two sessions
+this account has ever run carry that block.
 
-**The account is in the warning band, a quarter of the way into its
-window.** Read at 2026-09-03 12:08 UTC with `get_session` against this
-session — `external_metadata.rate_limit_info`:
+| | Sessions | Metered | Per day |
+| --- | ---: | ---: | ---: |
+| **Everything, 2026-08-17 → 09-03** | 90 | **$7,011.27** | $390 |
+| of it, routine-side (lanes, dispatchers, the night worker) | 51 | **$3,490.90** | $194 |
+| of it, interactive (the owner's own sessions) | 39 | $3,520.37 | $196 |
 
-    rateLimitType  seven_day
-    status         allowed_warning
-    isUsingOverage false
-    resetsAt       2026-09-08 17:00 UTC
+**Two thirds of all routine spend is one session.** `InSight night
+worker` (`session_013UfS4opexyJsoD3K9NxqFF`), alive since 2026-08-24
+and woken five times a night ever since, has metered **$2,325.68** on
+its own — against 968.8M cache-read tokens, which is the number that
+explains it (§2). The whole theory roster, twelve lanes over the same
+period, is a third of that.
 
-The window it resets on opened 2026-09-01 17:00 UTC. Read at 12:08 on
-the 3rd, **26% of the window had elapsed** and the account was already
-warning. This is session 1's account (`env_01Ri3fw8gD9Py3LmTQ9hTYCL` —
-`ROUTINES.md` §2). **No session can read another account's limit**, the
-same wall that makes the register necessary, so nothing here measures
-session 2's bucket, whose seventeen Routines include a night worker the
-register records at `$2,105` of cumulative metered work.
+The rest, over the eight days 2026-08-27 → 09-03, where every run is
+inside the window:
 
-### What each lane actually costs
+| Lane family | Runs | Metered | Per run | Per day |
+| --- | ---: | ---: | ---: | ---: |
+| The twelve theory lanes | 30 | $733.13 | **$24.44** | $91.64 |
+| The ops dispatcher (relaying nothing — § 4) | 1 session, ~17 firings | $70.68 | ~$4.00 | ~$70 |
+| The doc sweep dispatcher | 1 session, 4 days | $22.39 | — | ~$5.60 |
+| The three axes lanes | 3 | $40.42 | $13.47 | $5.77 |
 
-`get_session` on a lane's bound session returns
-`external_metadata.usage` — `cost_usd`, output tokens, cache reads.
-**That is the instrument this program has been missing**, and it is why
-the table below replaced an earlier draft that ranked lanes by their
-*stated budgets*. Two of the three lanes that draft called expensive
-turned out to be nearly free, and the gap between the top row and the
-bottom is a factor of sixty-five.
+The charter's own estimate for a theory run was $20. Measured, it is
+$24.44 — the estimate was good; the count was the problem.
 
-| Lane | Session | Measured `cost_usd` | Period | What reached the repo |
-| --- | --- | ---: | --- | --- |
-| **Night shift B** | `…M9cvEjdQ` (persistent worker) | **$594.66** | since 09-01 19:54 — **two nights, ten flows** | `nightb-*`; 25–35 commits a night, and they merge |
-| Six content lanes | `…AvNkZgRv` (shared dev session) | **$160.70** | since **07-30** — 35 days | questions merged daily |
-| Nightly algorithm improvement | `…NBfvGuFn` (fresh, per fire) | **$52.64** | **one run**, 09-03, 41 min | **nothing — no branch on origin, no PR ever** |
-| DB scalability | `…JHNNtBVV` (fresh, per fire) | **$3.03** | **one run**, 09-03, 11 min | **nothing — no branch on origin, no PR ever** |
+**The limit is not theoretical any more.** Across the last 92
+sessions the rate-limit field reads *allowed* 43 times,
+***allowed_warning* 45 times and *rejected* 4**. The axiom dispatcher's
+own status is `rejected` on `seven_day_overage_included` — the bucket
+*with* overage — and the body lane's 2026-09-03 run died with the
+platform's words in its status field: *"You've reached your Fable
+limit."* The program is no longer choosing between speed and cost; it
+is dropping runs.
 
-Divided out: **night shift B is ~$297 a night** (~$59 a flow), against
-**~$4.60 a day for all six content lanes together**. The night shift
-spent 3.7× in two nights what the content program spent in five weeks.
+## 2 · The mechanism: context × turns, not runs
 
-Two caveats, because a cumulative total is not a per-run reading. The
-night worker's figure covers the whole session — the nights of 09-01
-and 09-02, five flows each; per-night is division, not a measurement.
-The content session's covers everything since 07-30, the owner's own
-turns in it included. Both are `usage.cost_usd` on the session record:
-metered work against the subscription's limit, not an invoice.
+Every one of the 21 Routines on this account was bound with
+`persist_session: true` — each firing is appended to a conversation
+that never resets, and every turn of every future run re-reads all of
+it. Four sessions carried the whole program:
 
-### The two silent lanes
+| Session | Context | Firings a day, before | What it does |
+| --- | ---: | ---: | --- |
+| `Ops dispatcher for Cosaxo/InSight` | 564,090 | 27 | relays (and has never relayed — § 4) |
+| `Axiom dispatcher` | 417,177 | ~6.4 | relays the theory lanes |
+| `InSight night worker` | 496,932 | 5 | does the night shift itself |
+| `Doc sweep dispatcher` | 283,443 | 0.5 | relays the doc sweep |
 
-The nightly improver and the DB scalability lane are the only two on
-this account that fire into a **fresh session**, which is also why they
-are the only two `list_triggers` records a `last_run` for. Both report
-`SUCCEEDED`. Neither has left anything in the repository:
+That is where the money is, and it is not in the work. A 564k-token
+session answering a firing pays 564k on every turn it takes to answer
+it; the night worker's 968.8M cache reads over ten days are 497k of
+history multiplied by every tool call of every night. **Cost tracks
+context size times turn count, not the number of runs** — which is why
+a relay that does nothing can cost $4 a firing while a fresh session
+that reads the whole tree costs a few dollars, and why every one of
+these gets more expensive every day it lives.
 
-- `claude/daily-algorithm-improvement-bnogf6` — **not on origin.** No
-  pull request from that head has ever existed (GitHub search, open and
-  closed, `total_count: 0`). No commit on `main` carries the `Next
-  night:` line its own brief makes mandatory. The lane was created
-  2026-08-27.
-- `claude/daily-database-optimization-j03rdh` — **not on origin**, same
-  three checks, same answer. Created 2026-08-27.
+The corollary is the rule now in `OPS-RUNBOOK.md` §0: a run with no
+work should not pay a full orientation to discover it. The three files
+the lane prompts open with — `CLAUDE.md`, `ORIENTATION.md` and
+`OPS-RUNBOOK.md` — are 21,482 words together (`wc -w`), read before
+the shepherd knew whether a single pull request wanted it.
 
-The 09-03 improver run spent 41 minutes and 578k output tokens to get
-there. Its brief does permit a night that ends in an investigation and
-no push — but at $52.64 a run and a week without a branch, *permitted*
-and *what is happening every night* are two different claims, and
-nothing on `main` can tell them apart. What cannot be seen from here is
-**why**: that needs the session's own transcript, or a rule that makes
-the next run say so on the run log.
+## 3 · What was cut, 2026-09-03
 
-### The shape of the day
+Read back from `list_triggers` after the change: **20 enabled Routines
+firing 18.94 times a day, down from 21 firing 38.98** — and of what is
+left, ten firings a day now wake a session that starts empty instead of
+one holding 564k tokens.
 
-Eleven recurring Routines on this account (the nine `ROUTINES.md` §2
-verified, plus the roll call and list worker from PR #373): ~13 firings
-a day. Night shift B is 5 of them and, on the numbers above, the large
-majority of the money. Program-wide, from `ROUTINES.md` §§2–5: ≈16
-firings a day on session 2 (night shift A's five, ~6 theory lanes, the
-doc sweep, the axes lanes, four ops lanes), and ≈16 chartered on Claude
-3 of which the merge shift alone is 9 — **currently relaying nothing**,
-because both dispatchers refused their charters (D353). Claude 3's usage
-today is approximately zero and its charter is the largest planned
-increase on the page.
-
-## 2 · Where the usage goes
-
-Four shapes. The first is where the money is.
-
-### A · Re-auditing to refill a cap
-
-Each night shift runs **four audit flows**, and each opens with an
-independent finder fan-out over the whole tree. The tree between flows
-changes only by the night's own commits — later flows continue the
-branch rather than re-cutting it — so the second, third and fourth
-fan-outs sweep, in the main, code the first one already swept.
-
-What forces the repeat is written in the brief: **the open list is
-capped at 8.** A flow works it down and stops; the next flow finds a
-short list and re-derives. The commits show it. Both shifts on the night
-of 2026-09-03, bucketed into their own flow windows:
-
-    night-20260903  (shift A)   8 · 8 · 8 · 8 · 3     = 35 commits
-    nightb-20260903 (shift B)   6 · 6 · 6 · 6 · 1     = 25 commits
-
-Four flows, the same number each time. A tree being exhausted does not
-produce a flat line; a cap does. **Eight fan-outs a night across two
-accounts, to land what one fan-out could have listed** — at ~$59 a flow
-on the one account that can be measured.
-
-The lever is safe in both directions, which is why it leads §3. If the
-flows are item-capped, auditing once and fixing four times gives the
-same commits for a quarter of the audit cost. If they are time-capped,
-the freed 95 minutes go into fixing and the commit count goes **up**.
-There is no reading of that table where the fourth fan-out is the thing
-producing the commits.
-
-### B · Spending without delivering
-
-The two silent lanes above. This is not usage that buys less than it
-costs; it is usage that has bought nothing the repository can see, for a
-week, at ~$1,600 a month for the pair. It is also the one reduction on
-this page that cannot cost any product, because there is no product to
-lose — only the possibility that the lane starts working later.
-
-### C · Polling for work that is not there
-
-The merge shift is chartered at `15 5,7,9,11,13,15,17,19,23 * * *` —
-**nine firings a day, `claude-opus-5` at high effort with ultracode** —
-to notice that the owner ticked a row. GitHub already pushes that fact:
-`console.yml` runs on PR label events, and the PR shepherd's own trigger
-lists `labeled`. Nine opus fan-out sessions a day are a poll for an
-event that has a webhook. Every polling lane also pays a fixed cost on a
-fire that finds nothing — the doc sweep has been doing exactly that
-every other day since 2026-08-30 (`ROUTINES.md` §3), correctly, because
-its contract is not on `main`, and expensively, because it reads its way
-there each time.
-
-### D · The per-fire fixed tax, and effort by default
-
-Almost every canonical prompt opens with *"read `CLAUDE.md` and
-`docs/ORIENTATION.md`"*. **`CLAUDE.md` is already in the session's
-context** — the harness loads it as project instructions for every
-session in this repository, measured in this one. Re-reading it buys a
-second copy of ~31 KB on every fire of every lane, and on a long
-session it is re-read through the cache on every turn: the night
-worker's record shows **764 M cache-read tokens** across two nights, so
-what sits in that context is not a rounding error. `ORIENTATION.md` (33
-KB) is a real read; the manuals are bigger — a content lane that opens
-`QUESTION-FARM.md` takes 133 KB. Naming the **section** rather than the
-file is the fix D350 already applied to three prompts for a different
-reason.
-
-And the effort dial sits at the top by default: the night worker runs
-`claude-opus-5` at **effort max**, its sibling on the other account at
-xhigh with ultracode, for the whole flow — finder sweep included.
-Finding candidates in a codebase is pattern work; deciding whether one
-is real, and whether the fix is safe, is not. The Workflow API takes a
-model per agent, so the split costs one clause in a prompt.
-
-## 3 · The levers, ranked
-
-Ranked by measured dollars saved per unit of product lost. **None of
-them reduces what the program produces** unless its row says so.
-
-| # | Lever | Measured effect | What it costs in product |
+| What | Before | After | Worth |
 | --- | --- | --- | --- |
-| **L1** | **Night shift B: audit once, fix four times.** Raise the open-item cap to ~32; only the night's first flow runs the finder fan-out; later flows work the list and re-audit only if it empties. Fold five flows into three — audit, fix, closing. | ~$297/night → **~$140** on the measured account; **~$4,700/month** | none, or negative — §2A |
-| **L2** | **The two silent lanes: disable, or make them report.** Nothing has reached the repo from either since 2026-08-27. | **~$1,600/month**, at zero output | none that is visible; the risk is switching off a lane that was about to work — which the reporting rule answers instead |
-| **L3** | **Same edit as L1 to night shift A** (session 2, the owner's). Its worker is the one the register prices at `$2,105` cumulative. | not readable from here; same shape | none |
-| **L4** | **The merge shift stops polling.** Two scheduled sweeps plus a GitHub `labeled` trigger — the shape the PR shepherd already has. Free to take now: the lane relays nothing yet. | avoids 7 opus+ultracode fires/day before they start | none; an event beats a two-hour poll on latency |
-| **L5** | **Finders on sonnet, judgement on opus**, in both night briefs. Sweep agents `{model:'sonnet'}`, verification and the fix on opus. | the fan-out half of every remaining audit | a weaker first pass; the adversarial verify is unchanged and is what earns a line |
-| **L6** | **Stop re-reading `CLAUDE.md`**, and name the manual's section rather than the manual. | ~8k tokens per fire, and the cache read that follows it on every turn | none |
-| **L7** | **Cheap exit before orientation.** Every polling lane's first act is the one read that answers *is there work* — then a run-log line and stop. | a no-op fire: full orientation → one call | none |
-| **L8** | **Delete *"token cost is not a constraint"*** from night shift B's brief; state the fan-out width instead. | one sentence licensing unbounded spend | none |
-| **L9** | **Do not double the theory lanes.** `PROGRAM-PLAN.md` §4.3 prices the second set at twice the month the twelve cost today, on session 2's bucket. | avoids +6 fires/day | the second set's output, which does not exist yet |
-| **L10** | **Instrument it.** The roll call already runs daily and already calls `get_session`: have it record each lane session's `usage.cost_usd` and the account's `rate_limit_info`. This page exists because that reading was available and nobody was taking it. | one line per day | none |
+| **PR shepherd cadence** | `55 * * * *`, 24 firings a day | `55 */3 * * *`, 8 | ~16 firings a day at ~$4 |
+| **The twelve theory lanes** | every 2nd day, 6.0 runs a day, 7 of them stacked on one date | every 4th day, 3.43 runs a day, spread 3 per date across a four-day cycle | ~$70 a day, and the daily burst no longer meets the five-hour window |
+| **The four ops lanes' binding** | the 564k dispatcher | a new dispatcher session opened empty (`session_01XhD4kBN7fXgeBdFPZEyPY6`), on `claude-haiku-4-5` — a relay is five fields and one line | ~$4 a firing → the cost of a short conversation |
+| **The shepherd's prompt** | contract, `CLAUDE.md` and `ORIENTATION.md` read before it knew if there was work | the cheap gate first; a no-op run reads nothing else | the orientation above, on every idle firing |
+| **The roll call's prompt** | cost only in the Sunday ledger | every run names yesterday's metered total and any bound session past 150k context, with its cost per firing | this page cannot go stale unwatched |
 
-**Order to apply.** L2 and L10 first — one stops a measured leak, the
-other makes every later claim checkable. L1 next; it is the money. L6,
-L7 and L8 are prompt text with no product consequence and can ride
-along. L4 lands with whoever creates the merge shift. L3, L5 and L9 are
-the other accounts'.
+The old four ops triggers are **disabled, not deleted** — their run
+history survives and re-enabling them is one field — and renamed so
+the list says why. The new ones carry `(B)`. Ids are in
+`OPS-RUNBOOK.md` § 5.
 
-## 4 · What is the owner's call
+The theory lanes' four-day cycle, so a reader can check a slot:
 
-`CLAUDE.md`'s *axiom power first* rule (D352) is why this section
-exists: **a limit does not get to shrink what the program does** without
-the owner saying so. Usage is a limit like any other, so §3 is
-deliberately the levers that keep the output and drop the repetition —
-and anything that would actually reduce production is here, as an ask.
-
-1. **Two night shifts, or one?** They audit the same tree on the same
-   night from two accounts, and the machinery that keeps them from
-   colliding — the branch-glob split, the pre-audit read of the other's
-   branch, the closing flow's `merge-tree` probe — is a cost of running
-   both. On the measured side that is ~$297 a night; the other side is
-   not readable from here but is chartered the same way. The output is
-   real: nine of the ten `night-*` branches on origin are merged into
-   `main`, and both of `nightb-*`'s closed ones are. So this is a
-   product decision, not waste. **Recommendation: keep both, apply L1 to
-   each, and re-read the band and the session costs after one window.**
-2. **The two silent lanes** (L2) — disable now and re-enable behind a
-   reporting rule, or leave them running while the rule is added?
-   **Recommendation: disable now.** A week of $52-a-night with no branch
-   is enough evidence to stop and ask, and re-enabling is one click.
-3. **The merge shift's nine firings** (L4) — free to re-shape now,
-   expensive later.
-4. **The theory lanes' second set** (L9).
-5. **Whether any of this is applied at all**, since the register's rule 5
-   puts cadence in the owner's hands and this file does not move it.
-
-## 5 · What this page does not claim
-
-- **It does not say the program is unproductive.** 9.2 PR-shaped merges
-  a day landed on `main` over the last 30 days; the night branches
-  merge; the content lanes are the cheapest thing on the account and
-  ship every day. The finding is repetition inside productive lanes, and
-  two lanes that are not producing at all.
-- **It measures one account.** The band, the eleven Routines and every
-  dollar are session 1's. Sessions 2 and 3 are read from `ROUTINES.md`,
-  which registers contracts and ids, not spend.
-- **A cumulative session total is not a per-run cost.** The night
-  worker's $594.66 and the content session's $160.70 are divided by
-  nights and days respectively to get the figures in §1; the division is
-  arithmetic, not a reading.
-- **It cannot say why the two silent lanes are silent** — only that
-  nothing they produced has reached origin, and that both report
-  success. The transcript is on the account and outside what this page
-  can read; L2's reporting rule is how the next run answers it.
-- **Nothing here is applied.** Every figure was read on 2026-09-03 and
-  the lanes are unchanged.
-
-## 6 · What was applied, 2026-09-03
-
-The owner read §3 and said *do that* to L1 and L2 on this account — the only
-one a session here can edit. Three of the four changes landed; the fourth is a
-tool refusal, recorded in `PERMISSIONS.md` and waiting on a paste.
-
-| Change | Lever | State |
+| Days of the month | Lanes (UTC hour) | |
 | --- | --- | --- |
-| Night shift B fires **3× a night, not 5** — `0 20,22,0,2,4 * * *` → `0 20,0,4 * * *` | L1 | **applied**, `trig_01GNe14hPrZcYzXkFHjPH2bW` |
-| Night shift B's brief: one fan-out, list cap 8 → 32, per-flow commit cap 8 → 16 | L1 | **refused** — `update_trigger` will not edit the prompt of a Routine bound to another session. Text on this branch at `design/night-shift-b-brief-2026-09-03.md`; the owner pastes it |
-| Nightly algorithm improvement **disabled**, brief gains a reporting rule | L2 | **applied**, `trig_014pyAWbLMVoXLY7pg6meo5i` |
-| DB scalability **disabled** | L2 | **applied**, `trig_01WSJVxHtUqioRRvSs6pc31E`. Its reporting-rule append was refused by the permission classifier minutes after the identical edit to the algorithm lane was allowed; paragraph staged in the same design file |
+| 1, 5, 9 … 29 | review (02), genetic (09), body (10) | subject day |
+| 2, 6, 10 … 30 | database (08), map (09), pattern (10) | reader day |
+| 3, 7, 11 … 31 | questions (11), tests (12), ties (13), interests (14) | subject day |
+| 4, 8, 12 … 28 | graph optimizer (11), central (12) | reader day |
 
-**What that saves, on the measured $59-a-flow figure.** Two fewer flows a night
-is ~$119, and the two disabled lanes are ~$56 a day between them: **roughly
-$175 a day, ~$5,200 a month**, against a night shift that measured ~$297 a
-night and two lanes that had delivered nothing since 2026-08-27. The paste
-takes the night from ~$178 to ~$140.
+**The subject/reader alternation is kept, not lost.** The old odd/even
+split existed so a reader lane always works on subject output at most a
+day old (`ROUTINES.md` § The theory lanes), and the four-day cycle
+preserves it by making days 1 and 3 subject days and days 2 and 4 reader
+days. Interests moved from the fourth day to the third once that
+invariant was read back off the register — it is a subject lane, and on a
+reader day its own output would have waited two days to be read.
 
-**The one thing the half-applied state costs.** The live brief still maps hour
-`00` to an audit flow, so tonight runs two fan-outs rather than one, and its
-per-flow commit cap is still 8 — two flows at 8 is a 16-commit ceiling where
-five flows gave 25. Output dips until the brief is pasted; the new brief raises
-the cap to 16 precisely so two flows carry the same 32 that four did.
+A 31st followed by a 1st puts two subject days back to back once a month,
+and February drops the tail of the cycle. Both are the existing scheme's
+artefacts at half the rate, not new ones.
 
-**Not done, deliberately.** Delete-and-recreate is the documented workaround
-for a bound-session prompt edit (`PERMISSIONS.md`, last row of § Open) and it
-was not taken: night shift B's binding is the session holding the owner's
-standing push authorization, and a recreated Routine that loses it would audit
-every night and push nothing. That is a worse failure than a slow paste.
+## 4 · What a session cannot cut, and the probe that proved it
 
-**What to read in a week.** `rate_limit_info.status` at the same point in the
-window, and `get_session` on the night worker for a fresh `cost_usd`. If the
-band has not moved, the next lever is L3 — the same edit to night shift A, on
-the account this page cannot read.
+The obvious fix is to retire the dispatchers: bind each Routine to a
+fresh session per firing and the 564k prefix disappears. `OWNER-LIST.md`
+has carried that question since D353, and `OPS-RUNBOOK.md` § The ops
+dispatcher already names the path — *"a Routine created in the web UI
+with the repository attached starts cloned and needs no relay at all."*
+
+**It was measured again today rather than assumed, and it still fails
+from inside a session.** A one-shot Routine was created here with
+`create_new_session_on_fire`, firing at 12:55 UTC with a prompt whose
+whole job was to report whether its container started with the
+repository and to push one file. The creation call answered with the
+reason in advance — *"this trigger stores no MCP connectors, so the
+sessions it fires will run without connector (`mcp__<server>__*`)
+tools"* — and the run bore it out: fired 12:55:25, finished 12:58:31,
+status SUCCEEDED, **no branch on the remote**. A trigger-spawned
+session has no `add_repo` to provision with and no clone to work in,
+which is the 2026-08-25 and 2026-08-26 measurements
+(`AXES-RUNBOOK.md` § The account-side inventory) confirmed at the API
+level a week later.
+
+So the dispatcher could not be *retired* from here. It was **rotated**
+instead: the same four lanes now wake a session that starts empty, on
+the cheapest model that can perform a five-field relay. That recovers
+almost all of the saving and none of the fragility — the queue is
+still one session, and one stall still stalls four lanes.
+
+**The ops dispatcher was also, measurably, spending that money on
+nothing.** It has relayed no firing since it was created on 2026-09-02:
+no lane session appears anywhere in the last hundred sessions, because
+its charter is unadopted and a session that refuses a charter still
+re-reads its whole history to say so. Seventeen firings, $69.74, zero
+lane sessions. The owner's one-line approval (`OWNER-LIST.md`
+§ Clicks) now points at the new session id.
+
+**The roll call was created and immediately held.** Its contract says
+*"Binding: never through a dispatcher, whatever the probe says — a
+watchdog queued behind the thing it watches is blind to exactly the
+stall it exists for"*, and a dispatcher is the only binding a session
+can give it. It is disabled with that in its name, and § 5 has it as
+the click to make first. The same contradiction sits unremarked
+in `OPS-RUNBOOK.md` § 5's roll-call row on the other account, which
+binds it to that account's dispatcher; naming it is not fixing it, and
+fixing it is a web-UI creation there.
+
+**None of the nine trigger ids already recorded in the tree is on this
+account.** `OPS-RUNBOOK.md` § 5 and `PROGRAM-RUNBOOK.md` § The
+account-side inventory between them name nine Routines; `list_triggers`
+here returns twenty-one and not one of the nine. That is consistent
+rather than broken — no account can see another's Routines, so the two
+tables describe the other subscriptions — but it means the rows in
+§ 5 below are this account's first, and the roll call's Sunday diff of
+live prompts against the canonical blocks is the only instrument that
+will ever reconcile the three.
+
+## 5 · What is left, in order of what it would save
+
+Each of these is an owner action, and each has its row on
+`OWNER-LIST.md`.
+
+1. **The night worker's session — ~$233 a day, the largest single
+   line in the program.** Five firings a night into a 497k-token
+   conversation that has been growing since 2026-08-24. A fresh
+   session per night would do the same work off a prefix twenty-five
+   times smaller. The reason it has not been rotated by a routine:
+   the owner's push authorization for that lane is a human turn in
+   *that session's own history* (D326 §2), and a new session does not
+   inherit it. Rotating it costs one sentence sent to the new session
+   — and until it is sent, the new session cannot push.
+2. **The four ops lanes on the web-UI path — the rest of the relay
+   cost, and the queue.** Created at claude.ai with the repository
+   attached, they need no dispatcher at all: no relay turn, no shared
+   queue, and a stall in one lane stops one lane. The roll call is
+   the one to create first, because its contract forbids the binding
+   it has and because it is the lane that would have shown this page's
+   arithmetic a week earlier.
+3. **The axiom dispatcher — ~$20 a day, and it is the one that is
+   already rejected.** It works, which is why a routine did not touch
+   it: rotating it means re-creating fifteen triggers against a new
+   session, and the new session's charter would need adopting before
+   the theory lanes run again. Worth doing at a moment when losing a
+   cycle is acceptable, not mid-week.
+4. **The axiom maker at one run a day, not three.** The owner's call
+   for the maker was *maker only, at 1/day*, and it cannot be created
+   from a session — the same connector limit as §4. `PROGRAM-RUNBOOK.md`
+   § The axiom builder is its contract; `30 6 * * *` is the slot; it
+   carries the bridge queue, which is the program's actual bottleneck
+   (ten verdicts ruled *worth-building*, one crossing).
+5. **The rest of `PROGRAM-PLAN.md` §4 stays uncreated.** The merge
+   shift at nine passes a day, the console keeper twice a day, the
+   improver, the second doer and — above all — the theory lanes'
+   second set would add roughly fifteen firings a day of the most
+   expensive kind, on an account that is dropping runs today. The
+   cheapest reduction available is the one not yet spent.
+
+## 6 · The second round, the same afternoon — where the 77% went
+
+The first round cut firings. Pricing the tokens said the firings were
+never the point: split against list pricing (a cache read is a tenth of
+input, a cache write a quarter more than input), the 90 sessions'
+own `usage` blocks decompose as
+
+| | Cost | Share |
+| --- | ---: | ---: |
+| Cache **read** — re-reading history | $2,297 | 54% |
+| Cache **write** — re-establishing it | $969 | 23% |
+| Fresh input | $328 | 8% |
+| **Output — the work product** | **$676** | **16%** |
+
+on the orchestrators' own tokens ($4,271 of the $7,011; the remaining 39%
+is subagent fan-out). **77% of the bill moves context around and 16%
+produces anything.** The per-firing figure closes on the same arithmetic:
+564,090 tokens × $5/MTok × 1.25 is **$3.53** to re-cache a cold 564k
+prefix, against ~$4 measured — so the ops dispatcher's cost was almost
+exactly the price of remembering a conversation in which it had refused
+its own charter seventeen times.
+
+Two consequences shape everything above and below. **Firings hours apart
+are always cache-cold**, so spacing them out is linear and nothing more —
+there is no cadence that recovers the prefix. And **shrinking the prefix is
+the only per-firing lever there is**, which is why the ceiling in
+`OPS-RUNBOOK.md` §0 is a rule and not a suggestion.
+
+What that round applied:
+
+| What | Where | Worth |
+| --- | --- | --- |
+| **The context ceiling** — no bound session past ~150k, crossing it is a rotation | `OPS-RUNBOOK.md` §0 | the whole class; the night worker's ~$233/day is the first case (§ 5.1) |
+| **The bounded slice** — a tail, a digest, a section, never a whole growing file | `OPS-RUNBOOK.md` §0 | the growth that makes today's cadence cut temporary |
+| **The production reader became a workflow** | `.github/workflows/production-reader.yml`, `scripts/production-reader.mjs` (+ tests) | the lane's whole cost; an Action needs no bucket |
+| **The doc sweep was disabled** — its contract has never been on `main`, so every firing since 2026-08-30 was a guaranteed no-op under `ultracode` | `OPS-RUNBOOK.md` § 5, `WORKLIST.md` | ~$5.60/day for work that could not happen |
+| **The cheap gate reached the list worker and the axes skeptic** | `OPS-RUNBOOK.md` §4, `AXES-RUNBOOK.md` | the orientation read on every idle firing |
+| **The read budget was written for the theory lanes, and not applied** | `AXIOM-THEORY.md` § The read budget, `OWNER-LIST.md` | ~$8/run if taken; the charter is the owner's |
+
+**Why the reader could move and the shepherds could not.** Everything the
+reader read is available to the default `GITHUB_TOKEN`: two workflow runs,
+an artifact, a committed file. It needed one enabling change —
+`observe.mjs` now takes `--json-out` and `observe.yml` publishes the
+payload as the `observe-json` artifact, because a reader that parses the
+probe's padded `✓ alertPolicies  5 live` lines is the
+one-parser-in-three-copies failure D197 recorded. Three rows of
+`pulse-trail.jsonl` answer "has anything moved" with no API call at all,
+so the lane does not even need yesterday's comment. The shepherds, by
+contrast, need judgement about a diff; no token substitutes for that.
+
+**Two refusals worth having in writing.** A stored prompt cannot be edited
+from another session — measured when `update_trigger` refused the gate for
+both the list worker and the skeptic, *"not your own"* including a
+dispatcher this session had itself created. So a prompt change is a
+delete-and-recreate (the list worker, which had no run history to lose:
+`trig_01VH8PvZCaqKciAwzpxmfMYW` replaces `trig_01KRuw9989n3ynLXnzEqPr4W`)
+or an owner edit in the web UI (the skeptic, now an `OWNER-LIST.md` row).
+And the theory lanes' read budget stops at the charter: no routine amends
+its own contract (`AXES-PLAN.md` §10), so the arithmetic is written where
+the owner can rule on it and the lanes still read whole files until they
+do. Saying that plainly is the point — the alternative was a prompt clause
+quietly outranking a contract, which is D148's named failure in the lane
+family that costs the most.
+
+## 7 · What this deliberately does not do
+
+- **It does not cut what a lane does.** Every contract is unchanged
+  except for the cheap gate, which changes only the order in which a
+  run reads things and only for runs with nothing to do.
+- **It does not touch the content lanes or the night shift's work.**
+  Those are the program's output; this page is about its overhead.
+- **It does not decide the theory program's worth.** The console trail
+  for 2026-09-03 reads `measured: 1` against `argued: 57` and
+  `cited: 65`, and the bridge has ten *worth-building* verdicts with
+  one crossing — a downstream bottleneck, not an upstream shortage,
+  which is the argument for halving the rate rather than the argument
+  for stopping. Stopping is the owner's call and is not taken here.
+- **It does not touch another account's Routines**, which no account
+  can see, and does not edit a tick, a status word or another
+  account's tag.
+
+## 8 · How it stays honest
+
+The roll call's contract now names two lines every run must carry:
+yesterday's total metered cost across the account's sessions, and the
+context size of every persistent session a Routine is bound to, with
+the cost per firing for any that has passed 150k tokens. Both come
+from fields the platform already returns. That is the instrument this
+page was written without — the arithmetic above had to be assembled by
+hand from `list_sessions` because nothing in the program was reading
+the `usage` block at all, which is exactly how a $2,325 session went
+ten days unremarked.

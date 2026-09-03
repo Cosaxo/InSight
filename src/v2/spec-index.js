@@ -1,13 +1,16 @@
-// The one import in this file that is NOT a spec module and carries no load
-// order: a pure helper for the two deferred groups at the foot of the file.
-// It sits above the ordered list rather than inside it because nothing in
-// that list reads it, and the list's order is a contract (see below).
+// The two imports in this file that are NOT spec modules and carry no load
+// order: pure helpers for the deferred groups at the foot of the file. They
+// sit above the ordered list rather than inside it because nothing in that
+// list reads them, and the list's order is a contract (see below).
 import { retryable } from './data/lazy';
+import { rememberMirror } from './data/mirrorChunk';
 
 // Load order mirrors the standalone's script tags — order is semantic, do not sort.
 import './spec/sample-data.js';
 import './spec/archetype-data.js';
-import './spec/compare-pop.js';
+// compare-pop.js stood here until D355: IS_COMPARE_POP's only readers are
+// the Mirror's Compare lens and Groups portrait, so it rides loadMirrorTab()
+// (the Mirror block further down) rather than first paint.
 import './spec/daily-questions.js';
 // suggestions.js moved to the loadOverlays group (still listed, still in
 // order — the D25 move): the door's store carries the decline furniture
@@ -16,7 +19,8 @@ import './spec/daily-questions.js';
 // loads, which is safe: purgeLocalTrace removes the insight.* keys
 // itself, and a module that never loaded holds no in-memory state for
 // the listener to clear.
-import './spec/demographics.js';
+// demographics.js stood here until D355 — DEMOGRAPHICS has one reader,
+// demographics.jsx, a Mirror module; both ride loadMirrorTab() now.
 import './spec/follows.js';
 import './spec/scenes.js';
 import './spec/glyph-icons.js';
@@ -50,7 +54,7 @@ import './spec/primitives.jsx';
 // it is a real dependency rather than a load-order relic.
 import './spec/explain-sheet.jsx';
 import './spec/viz-primitives.jsx';
-import './spec/compare-breakdown.jsx';
+// compare-breakdown.jsx stood here until D355 — the Mirror block below.
 // The relmap group SPLIT at D200, and the split is by consumer rather than
 // by size. relmap-lenses.jsx stays eager because it has a LIVE consumer —
 // vote-cuts.js reads window.RMLenses for the who-voted sheet's Type cut
@@ -149,27 +153,34 @@ import './spec/daily-split.jsx';
 import './spec/test-definitions.js';
 import './spec/passive-progress.js';
 import './spec/test-feed-data.js';
-// lens-defs' feed pool (LENS_FEED_QS) is a lazy builder now — it differs
-// between demo and live, and liveness lands only after boot — so nothing
-// here waits on a module-scope snapshot anymore; the listing itself is
-// still load-bearing (rule 2).
-import './spec/lens-defs.js';
+// lens-defs.js stood here until D355 (the Mirror block below). Its old
+// note survives in one line: its feed pool (LENS_FEED_QS) is a lazy
+// builder, so nothing ever waited on a module-scope snapshot of it.
 import './spec/passive-meter.jsx';
 // test-overlay.jsx stood here (deferred, see loadOverlays below) until D121
 // deleted it: the four core instruments fill from the feed and have no
 // sit-down flow, so there was nothing left for it to open.
-import './spec/lens-cards.jsx';
 // profile-overlay.jsx: see the note at search-overlay above.
 // person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
 // suggestions.jsx load after first paint too, from the same group.
-import './spec/demographics.jsx';
-import './spec/mirror-answers.jsx';
-import './spec/mirror-field.jsx';
-import './spec/mirror-field-pops.jsx';
-import './spec/group-role-map.jsx';
-import './spec/group-mirror.jsx';
-import './spec/segment-explorer.jsx';
-import './spec/mirror-tab.jsx';
+//
+// THE MIRROR'S THIRTEEN left this list at D355 for loadMirrorTab() at the
+// foot of this file — compare-pop.js, demographics.js and
+// compare-breakdown.jsx from higher up, then lens-defs.js, lens-cards.jsx,
+// demographics.jsx, mirror-answers.jsx, mirror-field.jsx,
+// mirror-field-pops.jsx, group-role-map.jsx, group-mirror.jsx,
+// segment-explorer.jsx and mirror-tab.jsx from here. ~130 KB of the eager
+// graph for a tab the app never opens ON: TWEAK_DEFAULTS.tab is 'track'
+// and nothing persists a tab across launches, so the Mirror is always one
+// tap away and never the first frame. Their order lives as static
+// side-effect imports at the top of mirror-tab.jsx now — the Map's shape
+// (v28 §5, below) — so one import of that file evaluates the family in the
+// order this list used to guarantee.
+//
+// What had kept them eager was one JSX tag: app-shell rendered <MirrorTab>
+// by name. It renders MirrorSlot now, which takes the module off
+// data/mirrorChunk when the prewarm has landed it — the same tick as the
+// tap, no blank frame — and imports it itself when it has not.
 // The Map's seven modules (map-bottom-card, map-learn-card, map-people,
 // map-layout, map-groups, map-chiprow, map-tab) left this list for
 // loadMapTab() at the foot of this file (v28 §5): the Map is a Mirror-tab
@@ -189,15 +200,13 @@ import './spec/mirror-tab.jsx';
 // window.GeneralPanel, so it could never be reached before that group had
 // resolved — yet it and its whole static tail sat in the modulepreload set
 // on every cold start. Measured: 20 KB of first paint.
-// These two were born in this repo (never in design/) and live as typed
-// TSX under ui/; they self-register on globalThis so the render-time
-// lookups in profile-general still work. ui/LivePrivacyPanel left this
-// list at D344: profile-overlay.jsx imports it now, so it rides the
-// loadOverlays chunk with its one consumer instead of costing first
-// paint, and a line here would drag it back into the entry chunk — the
-// exact mistake the NB below warns against for the other ui/ panels.
-import './ui/CityPicker';
-import './ui/PickSearch';
+// ui/CityPicker and ui/PickSearch stood here until D354's sweep. Born in
+// this repo (never in design/), they self-registered on globalThis for
+// render-time lookups in profile-general and world-feed, and this listing
+// was what made them eager. Both consumers import them now, so each rides
+// its consumer's chunk — the overlays', the feed's — and first paint
+// stops paying ~11 KB for a picker and a search box nothing on the first
+// frame can open. ui/LivePrivacyPanel left the same way at D344.
 // NB: no other ui/ panel is listed here, and the reason is now the same one
 // for all of them: nothing looks them up by name. Every remaining consumer
 // imports the panel it renders, so the ESM graph loads it (rule 2 asks
@@ -420,9 +429,48 @@ export const loadMapTab = retryable(async () => {
   await import('./spec/map-tab.jsx');
 });
 
+// ── the Mirror, after first paint too (D355) ───────────────────────────
+//
+// One import, not thirteen: mirror-tab.jsx carries its twelve siblings as
+// static side-effect imports in the order the eager list used to hold, so
+// the ESM graph evaluates the family in that order — loadMapTab's shape,
+// applied to the tab around the Map.
+//
+// SYNCHRONISED BY THE CONSUMER, as the Map is: app-shell's MirrorSlot
+// holds the tab's export in state and imports the same module itself, so
+// a tap that beats this prewarm still lands (one empty frame, then the
+// tab), and a failed chunk costs the tab its body until the next visit
+// re-attempts — not the app its screen. What is NEW against the Map is
+// the handoff: the resolved namespace is remembered on data/mirrorChunk,
+// and the slot's state initializer reads it, so once this has landed an
+// open renders in the tap's own tick with no blank frame between. That is
+// the guard check:bundle's header said this tab needed and the overlays
+// did not — the Mirror is one tap from first paint, and a tab that
+// flashes empty on every open would be a worse trade than the bytes.
+//
+// This loader exists so main.jsx can start the fetch right after first
+// paint, so loadOverlays below can wait on it, so the mount suites can
+// await it in beforeAll, and so check:globals rule 2 sees the
+// './spec/mirror-tab.jsx' literal that proves the family is loaded by
+// something. The twelve siblings satisfy rule 2 through mirror-tab's own
+// imports, the way map-tab's six do.
+export const loadMirrorTab = retryable(async () => {
+  const m = await import('./spec/mirror-tab.jsx');
+  rememberMirror(m);
+  return m;
+});
+
 export const loadOverlays = retryable(async () => {
-  // First, because this list is spec-index's own order with the eager
-  // modules removed and relmap.jsx sat above every other member of it.
+  // The Mirror's family first (D355): three members of this group read
+  // Mirror globals at render — profile-general's MirrorFieldBody and
+  // LENSES, profile-overlay's LensesPanel, person-overlay's CompareCarousel
+  // — so no overlay may be able to open before that chunk has landed.
+  // Memoised, so this is the prewarm's own promise when main.jsx got here
+  // first, and the fetch itself when a tap did.
+  await loadMirrorTab();
+  // Then relmap.jsx, because the rest of this list is spec-index's own
+  // order with the eager modules removed and relmap.jsx sat above every
+  // other member of it.
   await import('./spec/relmap.jsx');
   // The subtopic stock, installed for THIS group too — search-overlay.jsx
   // below reads SUBTOPICS.offers(), which is "only the stocked leaves" and

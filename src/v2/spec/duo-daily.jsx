@@ -10,6 +10,7 @@ import { RevealClock } from './reveal-clock.js';
 import { Sheet } from './primitives.jsx';
 import { takeDuelCue, onDuelCue } from '../data/duelCue';
 import ReactDOM from 'react-dom';
+import { GDAv } from './group-daily.jsx';
 
 // duo-daily.jsx — the daily tab's 1v1 mode. A vertical stack of duels, one
 // per close tie, snap-scrolling like the feed: yesterday's reveal sits quietly

@@ -148,7 +148,7 @@ function MFNode({ n, on, onTap, i, hideLabel }) {
 }
 
 // ─── the field canvas ───
-function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall = false, stretch: stretchProp, maxLabels }) {
+export function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall = false, stretch: stretchProp, maxLabels }) {
   // The field FILLS its frame: the wrapper takes the leftover column space and the
   // svg (absolutely placed, so it can never feed back into that measurement) gets a
   // viewBox matched to the measured aspect. Radii stay circular — only the amount of
@@ -254,7 +254,7 @@ function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall =
 }
 
 // ─── quiet key under the field — always shown so the distance encoding stays readable ───
-function MFKey({ items }) {
+export function MFKey({ items }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
       <span style={{
@@ -278,7 +278,7 @@ function MFKey({ items }) {
 // You + the rings + the crowd's mist are honest with no answers at all; the
 // placed dots are not, so they stay away until there is signal. Progress reads
 // as dots, not a sentence about dots.
-function MFSparse({ done = 0, need = 8 }) {
+export function MFSparse({ done = 0, need = 8 }) {
   const left = Math.max(0, need - done);
   return (
     <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
@@ -303,7 +303,7 @@ function MFSparse({ done = 0, need = 8 }) {
 }
 
 // ─── compact header above the canvas ───
-function MFHeader({ kicker, fig, unit, right }) {
+export function MFHeader({ kicker, fig, unit, right }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, margin: '4px 2px 0' }}>
       <div style={{ minWidth: 0 }}>
@@ -336,7 +336,7 @@ function MFAnonAv({ hue, size = 40 }) {
 }
 
 // ─── the tapped node, unfolded — one card, appears only on demand ───
-function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
+export function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
   if (!node) return null;
   const d = node.data || {};
   const hue = node.hue != null ? node.hue : 200;
@@ -410,7 +410,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
 }
 
 // ─── lens chips — the old sections, now opt-in layers under the field ───
-function MirrorLenses({ lenses }) {
+export function MirrorLenses({ lenses }) {
   const [open, setOpen] = React.useState(null);
   const cur = lenses.find((l) => l.id === open);
   const idx = lenses.findIndex((l) => l.id === open);
@@ -446,12 +446,5 @@ function MirrorLenses({ lenses }) {
   );
 }
 
-Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses });
 
 
-;globalThis.MFCanvas = typeof MFCanvas === 'undefined' ? globalThis.MFCanvas : MFCanvas;
-;globalThis.MFKey = typeof MFKey === 'undefined' ? globalThis.MFKey : MFKey;
-;globalThis.MFHeader = typeof MFHeader === 'undefined' ? globalThis.MFHeader : MFHeader;
-;globalThis.MFDetail = typeof MFDetail === 'undefined' ? globalThis.MFDetail : MFDetail;
-;globalThis.MirrorLenses = typeof MirrorLenses === 'undefined' ? globalThis.MirrorLenses : MirrorLenses;
-;globalThis.MFSparse = typeof MFSparse === 'undefined' ? globalThis.MFSparse : MFSparse;

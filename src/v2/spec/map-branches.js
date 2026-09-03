@@ -8,6 +8,8 @@ import { DAILYQ } from './daily-questions.js';
 // InSight — Map branches: the shared category list for the Map tab (and the
 // per-person mini-maps). The old statistical lens engine is gone — answers now
 // read against the profile anchors instead (see map-anchors.js).
+// Exported (D354's sweep) — map-tab and person-mindmap import it.
+export let MapLens;
 (function () {
   const CATS = [
     { id: 'health',    label: 'Body & Health',      hue: 150 },
@@ -35,6 +37,6 @@ import { DAILYQ } from './daily-questions.js';
     return cur ? cur.id : null;
   }
 
-  window.MapLens = { CATS, topCat, buildById };
+  MapLens = { CATS, topCat, buildById };
 })();
 

@@ -280,7 +280,7 @@ the shift has not yet acted on. Sections, and what moves a row:
 
 A row: `- [ ] **#367** · Claude 2 · *what:* a returning device paints
 its real deck from disk before the network · *how:* IndexedDB-first
-boot, queued write replay (D352, D353) · CI green · current with
+boot, queued write replay (D352, D354) · CI green · current with
 main · opened 11:21 UTC · stage **new**` — the what and how are the
 PR body's first two sentences until a lane writes them as
 `what:`/`how:` lines in its body, which every prompt here asks for.
