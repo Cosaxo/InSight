@@ -410,6 +410,20 @@ describe("v2 profile", () => {
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER), { displayName: "x" }));
     // unknown top-level field
     await assertFails(setDoc(mine, { displayName: "Mira", secretScore: 9 }));
+    // THE TWO TIMESTAMPS WERE ON THE ALLOWLIST WITH NO CHECK AT ALL — not
+    // a type, not a length. Measured on the deployed rule: a 400 KB string
+    // in either was accepted.
+    //
+    // Who reads them is why it matters. `data/voters.ts` fetches these
+    // documents WHOLE, thirty uids per query, with no field mask (the
+    // client SDK has none), on every Mirror surface that turns a uid into
+    // a name. A megabyte parked on one free anonymous profile is a
+    // megabyte every reader of that person downloads.
+    await assertFails(setDoc(mine, { createdAt: "x".repeat(20000) }));
+    await assertFails(setDoc(mine, { updatedAt: { nested: "y".repeat(20000) } }));
+    // …and a moment is still a moment, in either shape the tree uses.
+    await assertSucceeds(setDoc(mine, { createdAt: 1730000000000 }));
+    await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }));
     // unknown anchor key
     await assertFails(setDoc(mine, { anchors: { ssn: "123" } }));
     // synced test results: map allowed, non-map rejected
