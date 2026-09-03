@@ -381,7 +381,7 @@ over the one before, which requests it closed, and the line that it
 does not re-point `design/README.md`'s style-diff reference (v18 stays
 until a full sync — that file's rule). Upgraded in the PR that crosses
 a request out — or in the PR that extracts the owner's next upload,
-which moves it without a request (D359).
+which moves it without a request (D361).
 
 ---
 

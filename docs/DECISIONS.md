@@ -37212,7 +37212,7 @@ Bank 750 → 764, feed 184 → 198 (82 core, 116 tail); `check:figures`
 moved eleven prose lines and two code comments with it, and 217.4 KiB
 is the bank's wire size now.
 
-## D359 · The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward
+## D361 · The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward
 
 **2026-09-02.** **Status:** binding — the owner's sentence, on the
 seventh numbered standalone: *"new visual should be added as the new
@@ -37292,7 +37292,7 @@ its lineage row and the second path written into its last section,
 `design/README.md`'s series paragraph, the `ORIENTATION.md` row, two
 owner-list rows, seven worklist lines and the note on request 1.
 
-## D360 · The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot
+## D362 · The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot
 
 **2026-09-02.** `VISION-2026-09-02.md` §7 steps 1–6 and the §7 step 7
 re-plan, built exactly as scoped: every item of the seventh standalone
@@ -37300,7 +37300,7 @@ that needed no owner decision, no new read, no rules change and no
 schema. The one gate the plan named stays shut — the catalog window
 (§4.2) waits on VISION-2026-08-26 §2.2's seat-split sentence, which the
 owner has not said, so nothing of it is here. Written on
-`claude/new-visual-vision-mapping-ealrob`, the same branch as D359, which
+`claude/new-visual-vision-mapping-ealrob`, the same branch as D361, which
 extracted the design and made it the vision.
 
 ### What shipped
