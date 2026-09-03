@@ -269,6 +269,42 @@ maintenance. It gains a second entry kind:
 > on any other, and a `worth-building` potential entry names the
 > collection it waits on.
 
+**§1 gains the scale clause** (the owner, 2026-09-03 — *"it should not
+take into account things like current number of users as it looks at
+what it potentially can do, not what it can do now"*):
+
+> **Scale is not a constraint.** A theory assumes its axis **fully
+> populated** — everyone who could supply it does, at whatever depth and
+> cadence the perfect form asks for. Current user count, answers per
+> day, the length of the bank this month, what the crowd can support
+> this year: none of these bound a theory. A claim that holds only at
+> today's N is a measurement of today, not a theory of the perfect form.
+> Where a design genuinely needs scale, that is a **requirement it
+> generates** — stated as what the axis needs, never as a reason to want
+> less.
+
+This clause has specific work to do, because scale-boundedness is
+already in the corpus and reads as rigour: `db-8` bounds the read side
+by *"population times a small, effort-bounded number of answers per
+person-day"*, `pat-6` turns engine choice into a data-volume crossover,
+and `gen-21` — the one `measured` node — is measured against the bank as
+it stands today. Each is a fine engineering observation and none is a
+theory of a perfect form.
+
+**§2 gains the ruling that names what exists** (the owner, 2026-09-03 —
+*"nothing that has been created so far is axiom theory"*):
+
+> The 129 claims written between 2026-08-25 and 2026-09-03 are **not
+> axiom theories**. They are measurement method, negative results,
+> engineering proposals for the shipped product, and findings about
+> running this program — kept, and extracted to
+> `docs/MEASUREMENT-NOTES.md` on `main` under that name. No lane may
+> cite them as its axiom or treat them as a base to extend; a lane's
+> axiom theory starts from §1's perfect-form test and §4's
+> `demonstrated` rung. What is useful in the old corpus reaches the
+> product the way anything else does — through the bridge, as a
+> request, labelled as what it is.
+
 **§12 gains a scored dimension.** The review lane scores **Potential**
 0–10 beside its six: how much of the run went to what becomes possible
 versus what already exists — with the evidence line naming the

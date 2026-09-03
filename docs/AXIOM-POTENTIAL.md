@@ -22,6 +22,15 @@ today, and what does it make the other axes worth?"**
 The feed is **one** axis and one way in. Its answers are raw material.
 The product is what one axis says about another.
 
+**And scale is not a constraint** (the owner, 2026-09-03). An axiom
+theory assumes its axis **fully populated**: everyone who could supply
+it does, at whatever depth and cadence the perfect form asks for. How
+many users there are today, how many answers a day arrive, how long the
+bank is this month — none of these bound a theory, because the theory is
+about what the axis *can* do, not what it does now. Scale is an input to
+the build order at the end of this page; it is never a reason to shrink
+what comes before it.
+
 ## The multiplier is already running — and nobody named it
 
 Before any new axis, note what the app already does, because it is the
@@ -46,7 +55,7 @@ is what the pair makes possible that neither makes alone.
 | Cross | What it unlocks | Status |
 | --- | --- | --- |
 | **Genome × Logic test** | Directly measured cognitive ability at scale. Almost all existing cognitive genetics proxies ability through *educational attainment*, which confounds with wealth, country and schooling. InSight has a server-scored, repeatable, language-light instrument (D57) with published norms. Genotype against a real ability measurement, repeated over years, is a phenotype the field does not cheaply have | needs the import door |
-| **Genome × the question bank** | The genetics of things nobody has ever phenotyped. Biobanks have huge N and shallow phenotyping — a few items per person. InSight can be the inverse: 111+ core items, deep. `gen-17` says many items admit latent decomposition — the genetics of a factor nobody measured directly — and `gen-19` says correlated items multiply *effective* sample size, so depth partly substitutes for N | needs the import door |
+| **Genome × the question bank** | The genetics of things nobody has ever phenotyped. Biobanks are wide and shallow — a handful of items per person, because asking is what costs them. A question app is the inverse by construction: the battery is as deep as the bank is long, and the bank has no ceiling. `gen-17` says many items admit latent decomposition — the genetics of a factor nobody ever measured directly — and `gen-19` says correlated items multiply *effective* sample size, so depth is a substitute for breadth rather than a poor relation of it | needs the import door |
 | **Genome × Interests** | Genuinely first-of-its-kind. Vocational interests are twin-heritable, aggregating to factors raises the heritable signal, and — the genetic lane's own finding (`int-3`) — **no GWAS of an administered interest inventory exists**. This is not a smaller copy of existing science; it is a gap | needs the import door **and** the interest inventory |
 | **Tests × behavioural traces** | Trait signatures without a clinic. Answer latency, session shape, edit rate, streak pattern and consistency are passive and continuous. Against 22 test axes and nine lenses they compose a *profile*, not a correlation — see § The neurotype signature | traces exist; retention and a self-declared neurotype item do not |
 | **Ties × every self-report axis** | **Bias correction.** Every self-report carries a bias invisible from inside it. A friend's guess about you is an *external* measurement of the same trait, graded against your sealed answer. This converts self-report from *what you say* into *what you say, corrected by what people who know you predict* — and it is the most underrated asset in the app, because it improves every other axis at once | the record already publishes |
