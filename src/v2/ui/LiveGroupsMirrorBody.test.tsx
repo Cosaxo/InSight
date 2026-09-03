@@ -83,6 +83,10 @@ beforeEach(() => {
   LIVE.social.groups = () => [GROUP];
   LIVE.social.revealHistory = () => [];
   LIVE.social.reading = false;
+  // Restored explicitly: three cases below replace this with a per-group
+  // predicate, and a stub left in place would silently change what every
+  // later case is rendering.
+  LIVE.social.revealHistoryLoading = function (this: { reading: boolean }) { return this.reading; } as never;
   LIVE.social.bankQ = () => ({ prompt: "Who moves first?", options: ["Left", "Right"] });
   LIVE.myTestResults = () => ({});
   LIVE.scoresFor = () => null;
@@ -496,5 +500,67 @@ describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
     LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? CREW_DAYS : CLUB_DAYS.slice(0, 1))) as never;
     render(<LiveGroupsMirrorBody />);
     expect(screen.queryByText(/runs most like you/)).toBeNull();
+  });
+
+  // A CROWN HANDED TO THE WRONG CIRCLE IS WORSE THAN A BEAT OF NOTHING.
+  // `revealHistory()` answers `[]` for "never fetched", "in flight" and
+  // "genuinely nothing revealed" alike, so a circle with fifteen days
+  // reads as `daysPlayed: 0` and is dropped by the floor while it is on
+  // the wire — and the loader is a sequential fan-out over every group,
+  // so that is what the first visit looks like. The reader saw a
+  // superlative that changed its mind one round trip later.
+  //
+  // THREE circles, and that is the whole shape of the bug — my first draft
+  // used two and passed with the fix reverted, because with two the floor
+  // already suppresses the crown when one is empty. It takes a field that
+  // still has two settled members to print a superlative at all, plus a
+  // third arriving one that would have won it.
+  const GROUP3 = {
+    id: "g3", name: "Old Friends", mode: "group",
+    memberUids: ["u_me", "u_ada", "u_bo"],
+    memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" },
+  };
+  const deep15 = Array.from({ length: 15 }, (_, i) => day(`2026-07-${String(i + 1).padStart(2, "0")}`, 0, 0, 1));
+
+  it("crowns nobody while another circle's history is still being read", () => {
+    LIVE.social.groups = () => [GROUP, GROUP2, GROUP3];
+    // Crew and Book Club have landed and differ, so a crown WOULD print.
+    // Old Friends holds fifteen days and is still on the wire.
+    LIVE.social.revealHistory = ((gid: string) =>
+      (gid === "g1" ? CREW_DAYS : gid === "g2" ? CLUB_DAYS : [])) as never;
+    LIVE.social.revealHistoryLoading = ((gid: string) => gid === "g3") as never;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/runs most like you/),
+      "a circle was crowned over a field that was still arriving").toBeNull();
+  });
+
+  it("crowns the arriving circle once it lands — the control", () => {
+    // Without this, "never crowns anyone" would pass the case above. Same
+    // three circles, nothing in flight: Old Friends wins on 15 of 15 and
+    // is exactly the answer the reader would NOT have been given a moment
+    // earlier.
+    LIVE.social.groups = () => [GROUP, GROUP2, GROUP3];
+    LIVE.social.revealHistory = ((gid: string) =>
+      (gid === "g1" ? CREW_DAYS : gid === "g2" ? CLUB_DAYS : deep15)) as never;
+    LIVE.social.revealHistoryLoading = (() => false) as never;
+    render(<LiveGroupsMirrorBody />);
+    const line = screen.getByText(/runs most like you/);
+    expect(line.textContent).toContain("Old Friends");
+    expect(line.textContent).toContain("15 of the 15 days you played");
+  });
+
+  it("the People tab says it is reading, not that places await a first reveal", () => {
+    // `P.people` is built only from reveals, so with none read it is empty
+    // — and the tab explained that emptiness as a fact about the circle
+    // while the reveals were still arriving. The Answers tab beside it
+    // already said "Reading the days…" on the identical state.
+    LIVE.social.groups = () => [GROUP];
+    LIVE.social.revealHistory = (() => []) as never;
+    LIVE.social.revealHistoryLoading = (() => true) as never;
+    render(<LiveGroupsMirrorBody />);
+    openTab("People");
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/Reading the days/);
+    expect(text).not.toMatch(/Places are taken from the first shared reveal/);
   });
 });

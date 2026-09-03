@@ -440,6 +440,25 @@ describe("the corpus itself", () => {
     expect(checkHeadroom(corpus).errs).toEqual([]);
   });
 
+  // …AND A PARSER THAT REFUSES MUST SAY SO, not read zero.
+  //
+  // `install` was 0 when `bankArray` threw, so `0 >= INSTALL_WARN` was
+  // false and the one tripwire watching the first fetch could not fire on
+  // the very path where the numbers are least trustworthy. The wire-size
+  // estimate beside it kept a regex fallback and carried on regardless —
+  // and that asymmetry is precisely what the retired BANK_FAIL/BANK_WARN
+  // pair did not have: they counted a size that survived a parse failure,
+  // so they still fired through one. D197's shape, one function over.
+  it("says the install count could not be computed when the bank will not parse", () => {
+    const { warn } = checkHeadroom(corpus, { contentSrc: "export const V2_QUESTIONS = [ this is not typescript" });
+    expect(warn.join(" ")).toMatch(/install-fetch count could not be computed/);
+  });
+
+  it("…and says nothing of the kind on a bank that parses — the control", () => {
+    const { warn } = checkHeadroom(corpus);
+    expect(warn.join(" ")).not.toMatch(/could not be computed/);
+  });
+
   it("no bank size can fail the gate — the install fetch only warns (D350 amendment)", () => {
     // "Does youtube have a limit to how many videos can exist?" A seeded
     // bank of any size is not a failure. What a fresh device is handed

@@ -167,6 +167,36 @@ describe("what each instrument is allowed to say", () => {
     expect(screen.queryByText(/who-voted sheet and this fills in/i)).toBeNull();
   });
 
+  it("does not state a partial sample as a finished one", () => {
+    // THE ARM `241ed9d0` LEFT BEHIND. It gave the empty-sample branch its
+    // three states and stopped one line short: with people already read
+    // and lists still on the wire, the card stated "8 sampled here, none
+    // typed on this one yet" — a settled sentence about a population
+    // still arriving. The loader walks twelve voter lists sequentially
+    // and each landing list notifies, so this frame is most of a visit,
+    // not an edge of one.
+    //
+    // Eight people, none of them carrying a Politics result, read while
+    // the rest are still coming.
+    PEOPLE = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => person(`u${n}`, { big5: BIG5 }));
+    LOADING = true;
+    render(<TypeMixCard scope="city" />);
+    fireEvent.click(screen.getByText("Politics"));
+    expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+    expect(screen.queryByText(/sampled here, none typed/i),
+      "a partial sample was stated as a finished count").toBeNull();
+  });
+
+  it("states it once the read is done and the sample really is typed by nobody", () => {
+    // The control for the case above: same eight people, nothing in
+    // flight. The sentence is true then and is the one worth printing.
+    PEOPLE = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => person(`u${n}`, { big5: BIG5 }));
+    render(<TypeMixCard scope="city" />);
+    fireEvent.click(screen.getByText("Politics"));
+    expect(screen.getByText(/8 sampled here, none typed on this one yet/)).toBeTruthy();
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
+  });
+
   it("offers the instruction once the read is done and found nobody", () => {
     // The control for both cases above: with nothing paused and nothing
     // in flight, an empty sample really is "nobody here yet", and the one

@@ -99,7 +99,14 @@
     (function () {
       var m = /(?:^|\/)join\/([^/?#]+)/.exec(location.pathname);
       var raw = (m && m[1]) || new URLSearchParams(location.search).get("c") || "";
-      var code = decodeURIComponent(raw).trim().toUpperCase();
+      // Throws on a malformed escape (`/join/ABCDEF%`), and this line runs
+      // before `open` and `note` are read — so the whole IIFE died and the
+      // page kept its default copy with no button and no explanation. An
+      // empty string falls into the "incomplete" branch below, which is
+      // what a mangled link should say. Same shape as links.ts's guard;
+      // keep the two in step.
+      var code = "";
+      try { code = decodeURIComponent(raw).trim().toUpperCase(); } catch (e) { code = ""; }
       var open = document.getElementById("open");
       var note = document.getElementById("note");
       if (!/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6,12}$/.test(code)) {

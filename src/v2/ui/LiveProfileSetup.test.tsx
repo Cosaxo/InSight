@@ -21,7 +21,7 @@
 // profile-general.jsx, which is the file check:anchors reads.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
@@ -95,6 +95,39 @@ describe("what the answers reach", () => {
     expect(saved.gender).toBe("Woman");
     expect(saved.education).toBe("Master's");
     expect(onDone).toHaveBeenCalled();
+  });
+
+  it("does not swallow an anchor edited after a refused handle", async () => {
+    // A refused handle keeps this screen up ON PURPOSE, so the person can
+    // fix it — and anything else they fix on the way back is an EDIT. The
+    // guard that stops the second Save re-writing the first one's work was
+    // a boolean latched on the first press, while the NAME half beside it
+    // already keyed on content. So the two disagreed about what "already
+    // written" meant, and every anchor touched between the refusal and the
+    // retry was dropped without a word, on a screen that then closed as
+    // though it had saved.
+    LIVE.social.claimHandle.mockRejectedValueOnce(new Error("taken"));
+    render(<LiveProfileSetup onDone={onDone} />);
+    pick("Gender", "Woman");
+    // A handle is what makes the refusal reachable at all — the claim is
+    // the one thing on this screen that can fail visibly, and it is the
+    // reason the screen stays up for a second press.
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "olaf" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
+    await waitFor(() => expect(LIVE.saveAnchors).toHaveBeenCalledTimes(1));
+    expect(onDone, "the screen closed on a refused handle — there is no second press to test").not.toHaveBeenCalled();
+
+    // …the screen is still up, and they add the year they had skipped.
+    pick("Year", "1990");
+    fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() => expect(
+      LIVE.saveAnchors,
+      "the second Save wrote nothing — the edit made between the two presses was swallowed",
+    ).toHaveBeenCalledTimes(2));
+    const last = LIVE.saveAnchors.mock.calls[1][0];
+    expect(last.ageBand, "the year picked on the way back never reached the anchors").toBeTruthy();
+    expect(blob().vitals.born, "…nor the profile blob the next open reads from").toBe("1990");
   });
 
   it("writes the age and its band, never the birthday", () => {

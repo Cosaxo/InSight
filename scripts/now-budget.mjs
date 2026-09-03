@@ -163,6 +163,28 @@ if (invokedDirectly) {
     `  closes free (open today, short end first): ` +
       closes.map((c) => `${c.until} (${c.days}d${c.short ? "" : ", long"})`).join(", "),
   );
+  // SAY WHAT THE LIST ALREADY KNOWS. `suggestCloses` walks outward from the
+  // short end and stops when it has `n`, so once the bank holds the short
+  // dates it keeps going into the long ones — and hands back a batch that
+  // check:quality then refuses, because that rule wants most of a batch of
+  // three or more sitting at the short end. The list was correct about
+  // which dates are free and silent about the batch being illegal, so the
+  // writer found out from a red gate instead of from the tool that told
+  // them what to write.
+  //
+  // A WARNING, not a shorter list. Truncating here would quietly turn a
+  // "the bank is full at the short end" day into a smaller quota with no
+  // reason given, and the underlying conflict — the cap against how fast
+  // short close dates free up — is a design question for the owner, not
+  // something to decide from inside a suggestion helper.
+  const short = closes.filter((c) => c.short).length;
+  if (short * 2 < closes.length) {
+    console.log(
+      `  ⚠ only ${short} of these sits at the short end — check:quality refuses a batch of 3+ unless most do, ` +
+        `so today's largest legal batch is ${Math.max(2, short * 2)}. The bank holds the short dates; ` +
+        `write fewer rather than reaching for the long ones.`,
+    );
+  }
   console.log(
     `  source rule: every story FOUND by searching today, in at least ${SOURCES_MIN} independent outlets, ` +
       `published within ${FRESH_DAYS} days, cited by URL in the PR body — never from memory`,

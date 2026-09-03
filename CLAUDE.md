@@ -260,11 +260,12 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/mount-app.jsx` is the harness, and **eight** suites mount
+- `src/v2/test/mount-app.jsx` is the harness, and **nine** suites mount
   the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
-  walk both tabs and every overlay, and three that go PAST first paint into
+  walk both tabs and every overlay, and four that go PAST first paint into
   screens no smoke case reaches — the Map's measured body, the daily's
-  Circle and 1v1 modes, and the demo Mirror's stops past World. (The sixth
+  Circle and 1v1 modes, the demo Mirror's stops past World, and the
+  Mirror's preview tag on a live build that did not attach. (The sixth
   smoke file, `smoke-live`, mounts `App` too, through its own live fixture.
   More suites than these import the harness — `dialog` and the feed's
   direct-mount files take its helpers without mounting the app.) The three
@@ -327,7 +328,7 @@ Two rules for working with it:
 | `npm run test --prefix functions` | aggregate fold, reveal, streak math | nothing |
 | `npm run test:scripts` | the gates and the regulators themselves — their parsers, their budget arithmetic, their tripwires | nothing |
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
-| `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
+| `npm run test:e2e` / `:e2e:erasure` / `:e2e:moderation` — or **`test:e2e:all`**, all three on ONE emulator boot, which is what CI runs (D276) | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
 **The fifth one hides, and that has shipped breakage three times.**
 `test:scripts` runs in CI's **lint** job, beside `check:globals` and

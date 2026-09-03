@@ -215,8 +215,27 @@ function learnMeasured(card) {
  * estimate does not render there at all, so a label for it would describe
  * something that is not on screen.
  */
+/**
+ * Is the card's aggregate still being read?
+ *
+ * Only ever true in a live build — the demo has nothing to fetch — and
+ * only between the first render that asks for the card and the read
+ * coming back. It exists because `null` from the store used to mean both
+ * "in the air" and "nobody has answered", and two surfaces printed the
+ * second sentence for the first.
+ */
+function learnLoading(card) {
+  // The store is the imported binding (D354), so the `L &&` and the
+  // `L.learnAggLoading &&` this arrived with are both dead: an import
+  // cannot be unset, and `learnAggLoading` is a member live.ts always
+  // defines and vote.test.ts pins. The `enabled` check is the data
+  // condition and stays.
+  return !!(LIVE.enabled && LIVE.learnAggLoading(card.id));
+}
+
 export function LEARN_SPLIT_SRC(card) {
   if (learnMeasured(card)) return 'measured';
+  if (learnLoading(card)) return 'loading';
   return learnLive() ? 'none' : 'estimate';
 }
 
@@ -248,6 +267,12 @@ export function LEARN_RATE(card) {
   // was not a measurement. `pct` is null rather than 0 so a caller that
   // forgets the check draws nothing readable and fails a test, rather
   // than quietly claiming nobody gets the card right (the D72 shape).
+  // A fourth source, and the only one that is not a statement about the
+  // card: the read has not come back. `pct` is null here as it is for
+  // 'none', so a caller that branches on the number alone still draws
+  // nothing — but one that reads `src` can say "counting" instead of
+  // "nobody", which is the difference this exists for.
+  if (learnLoading(card)) return { pct: null, src: 'loading' };
   if (learnLive()) return { pct: null, src: 'none' };
   return { pct: card.p, src: 'estimate' };
 }
