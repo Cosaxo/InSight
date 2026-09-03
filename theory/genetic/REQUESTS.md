@@ -35,3 +35,40 @@ implements its own requests.
   research grade, the first data able to ask what the molecular
   architecture of interests is.
 - 2026-09-01 · **Consented within-family pairing flag for future genetic imports** · What: where two participants both explicitly consent, a way to record that they are first-degree relatives (sibling / parent–child) as a flag on the pairing — never as a public fact, and with participation itself staying confidential (gen-6's familial-aware consent governs the copy). · Why the theory needs it: gen-11 and gen-14 — a gene–trait coupling is only honestly publishable (and only intervention-grade) with a within-family evidence grade; within-family contrasts are the one design that separates direct effects from genetic nurture and mating structure, and every major shrinkage result the theory cites (Howe 2022, Selzam 2019, Akimova 2024, at gen-11) needed sibling or family pairs that the published literature holds only for a handful of traits on thin designs. · What it would make measurable: within-family versus population coupling shrinkage on the battery's own traits — the decomposition gen-11 mandates, computed on the system's own consented data instead of borrowed cohorts, and the numerical input gen-14 says any honest editing/selection analysis must be parameterized by.
+- 2026-09-03 · **Construct-grade repeated measurement (occasions on the
+  battery's own constructs)** · What: re-ask a small set of
+  CONSTRUCT-level items — several items per construct, not one — on a
+  schedule dense enough to resolve a trajectory, keeping every occasion
+  as its own record. The mechanism already exists and is the precedent
+  to extend, not invent: the pulse writes one document per person per
+  day keyed `{baseQid}_{day}`, create-only. The ask is to extend that
+  pattern from five single-item states to a handful of multi-item
+  constructs. Explicitly NOT a request to widen D86's edit surface — the
+  ask is additional occasions, never mutable answers, and D86's rule
+  that an edit moves which option you hold rather than adding a
+  measurement is exactly why occasions have to be new documents.
+  Distinct from the body lane's one-tap micro-reports (single-item
+  states, one of which already ships as the sleep pulse): this is the
+  trait battery measured twice, not a new state channel. · Why the
+  theory needs it: gen-18 — the genetic instrument on the time axis is
+  the DERIVED TRAJECTORY PARAMETER (slope, area under the curve, peak,
+  rebound), not the repeated measurement itself, so a construct
+  measured twice yields a slope and nothing else while peaks and
+  rebounds need sampling that brackets them; and gen-21 measured the
+  current supply against the committed corpus and found it at five
+  single-item constructs, with every world surface one answer per
+  question and the D86 edit destroying rather than archiving the prior
+  value. Without occasions on real constructs the within-person
+  geometry cen-1 separates has no phenotype-side limb this axiom can
+  pair a genome to, and gen-8's longitudinal import series has nothing
+  to be longitudinal ALONGSIDE. · What it would make measurable:
+  within-person trajectories for constructs the battery already
+  measures between persons — whether a construct's own structure holds
+  across occasions (que-4's invariance, which gen-18 names as its
+  refutation condition and which must be established BEFORE any
+  age-varying effect is believed), and, at any future pairing,
+  age-varying and state-varying genetic effects of the kind found for
+  childhood BMI under a repeated-measures framework. It is also the one
+  request in this lane's queue that pays entirely on the phenotype side
+  with no genome in the room: the trajectories are worth having whether
+  or not a genetic axis is ever built.

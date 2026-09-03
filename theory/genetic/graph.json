@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "genetic",
-  "updated": "2026-09-01",
+  "updated": "2026-09-03",
   "nodes": [
     {
       "id": "gen-1",
@@ -9,7 +9,12 @@
       "status": "argued",
       "detail": "An assay pipeline (samples, labs, clinical accreditation) is a different institution, not a harder feature. Consumer raw files (23andMe/AncestryDNA class, hundreds of thousands of genotyped positions) already exist in the hands of exactly the people most likely to bring them, and importing keeps the perfect system on the analysis side, where its comparative advantage (the phenotype battery, gen-3) actually is. Even in the no-practical-limits frame, assaying adds custody and liability without adding analytical power the imported file lacks for trait work.",
       "sources": [],
-      "edges": [{ "to": "gen-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "gen-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -19,7 +24,12 @@
       "status": "argued",
       "detail": "Device-side scoring against published weight sets gives the crowd half everything it needs (score bands) while the raw sequence never enters anyone's custody. This is not a privacy compromise on the perfect design — it IS the perfect design, because a genome is unrevokable and familial (gen-6): minimizing custody is minimizing irreversible failure modes, and a system with fewer irreversible failure modes is better on pure design grounds. Open question for a future run: what the ceiling of device-side analysis is (imputation quality without a server, structural variants, polygenic interaction terms).",
       "sources": [],
-      "edges": [{ "to": "gen-6", "type": "depends" }],
+      "edges": [
+        {
+          "to": "gen-6",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -27,7 +37,7 @@
       "id": "gen-3",
       "claim": "The scarce asset is the phenotype battery, not the genotypes; the perfect axiom is designed around that asymmetry.",
       "status": "cited",
-      "detail": "Genotypes are commodity files; deep, longitudinal, freely-given phenotypes are what biobanks cannot buy cheaply. InSight's answer corpus is an unusually rich behavioral phenotyping instrument. The perfect genetic axiom therefore optimizes for pairing quality (how many people have BOTH a scored genome and a deep phenotype record) over genotype count, and treats every phenotype-side improvement (questions axiom) as a genetic-axiom improvement. Ranking claim for central: this asymmetry is the genetic axiom's main contribution to the combination. External support arrived with gen-4's scout (2026-08-25): the education–pace-of-aging association in Framingham (DunedinPACE analysis n=3,101, drawn from a three-generation mobility database of n=14,106) holds under within-family sibling fixed effects and across four alternative clocks (Graf 2024, cited at gen-4) — behavioral phenotype carries aging signal that shared family background alone does not explain, which is this asymmetry stated by someone else's data. A future run may raise this node on that basis after full-text verification; note the stronger 'survives polygenic-index adjustment' reading of Graf did NOT survive this run's adversarial check (unconfirmable from the abstract) — the sibling-fixed-effects reading did, and it is the one recorded here. Raised argued→cited 2026-08-27: the instrument premise — that a bank of self-report items is a genetic-grade phenotyping instrument — now has direct external demonstrations. A single well-chosen self-report item carries a genetically valid phenotype at scale: musical beat synchronization, one self-report item in n=606,825, yielded 69 genome-wide-significant loci with SNP-h2 13–16%, and the item was validated against separate experimental rhythm-perception and beat-synchronization measures in independent participants (Niarchou 2022). Web-based participant-driven self-report phenotyping is the founding method of consumer-cohort genetics (Eriksson 2010: 22 self-report traits, ~10,000 participants, novel replicated associations including photic sneeze and asparagus anosmia). Aggregation raises the genetic signal: interest heritability ~32% at item level rises to ~48% at factor and ~53% at superfactor level (Lykken 1993, twin-based) — so the perfect battery scores constructs over many items, which is what a deep answer corpus does by design. And the interests half of the battery is a genuine open frontier, stated precisely after the adversarial pass (which refuted this sentence's first draft): vocational interests are heritable at twin grade (~36% genetic in the combined twin/adoption design of Betsworth 1994; ~36–50% across twin studies), and while NO GWAS of an administered interest INVENTORY (Strong/RIASEC-class) was found, behavioral and educational proxies for interests HAVE been GWASed and show the signal is there — educational-field choice across 463,134 individuals yields 17 genome-wide-significant variants across 7 of 10 fields at mean SNP-h2 ~7%, with signal specific to field choice rather than educational level, and its two recovered latent dimensions (technical-vs-social, practical-vs-abstract) are the axes underlying Holland's RIASEC interest hexagon (Cheesman 2025); STEM occupational choice gives 2 loci at SNP-h2 4.2% (Human Genomics 2023). A deep, inventory-grade interests phenotype paired with imported genotypes would still be first of its kind — and the proxies say it would find something. Provenance note for this rise: the run's environment blocked publisher pages, so sources were verified as real at record grade (consistent title/venue/identifier across independent index records) and figures are snippet-grade unless stated.",
+      "detail": "Genotypes are commodity files; deep, longitudinal, freely-given phenotypes are what biobanks cannot buy cheaply. InSight's answer corpus is an unusually rich behavioral phenotyping instrument. The perfect genetic axiom therefore optimizes for pairing quality (how many people have BOTH a scored genome and a deep phenotype record) over genotype count, and treats every phenotype-side improvement (questions axiom) as a genetic-axiom improvement. Ranking claim for central: this asymmetry is the genetic axiom's main contribution to the combination. External support arrived with gen-4's scout (2026-08-25): the education–pace-of-aging association in Framingham (DunedinPACE analysis n=3,101, drawn from a three-generation mobility database of n=14,106) holds under within-family sibling fixed effects and across four alternative clocks (Graf 2024, cited at gen-4) — behavioral phenotype carries aging signal that shared family background alone does not explain, which is this asymmetry stated by someone else's data. A future run may raise this node on that basis after full-text verification; note the stronger 'survives polygenic-index adjustment' reading of Graf did NOT survive this run's adversarial check (unconfirmable from the abstract) — the sibling-fixed-effects reading did, and it is the one recorded here. Raised argued→cited 2026-08-27: the instrument premise — that a bank of self-report items is a genetic-grade phenotyping instrument — now has direct external demonstrations. A single well-chosen self-report item carries a genetically valid phenotype at scale: musical beat synchronization, one self-report item in n=606,825, yielded 69 genome-wide-significant loci with SNP-h2 13–16%, and the item was validated against separate experimental rhythm-perception and beat-synchronization measures in independent participants (Niarchou 2022). Web-based participant-driven self-report phenotyping is the founding method of consumer-cohort genetics (Eriksson 2010: 22 self-report traits, ~10,000 participants, novel replicated associations including photic sneeze and asparagus anosmia). Aggregation raises the genetic signal: interest heritability ~32% at item level rises to ~48% at factor and ~53% at superfactor level (Lykken 1993, twin-based) — so the perfect battery scores constructs over many items, which is what a deep answer corpus does by design. And the interests half of the battery is a genuine open frontier, stated precisely after the adversarial pass (which refuted this sentence's first draft): vocational interests are heritable at twin grade (~36% genetic in the combined twin/adoption design of Betsworth 1994; ~36–50% across twin studies), and while NO GWAS of an administered interest INVENTORY (Strong/RIASEC-class) was found, behavioral and educational proxies for interests HAVE been GWASed and show the signal is there — educational-field choice across 463,134 individuals yields 17 genome-wide-significant variants across 7 of 10 fields at mean SNP-h2 ~7%, with signal specific to field choice rather than educational level, and its two recovered latent dimensions (technical-vs-social, practical-vs-abstract) are the axes underlying Holland's RIASEC interest hexagon (Cheesman 2025); STEM occupational choice gives 2 loci at SNP-h2 4.2% (Human Genomics 2023). A deep, inventory-grade interests phenotype paired with imported genotypes would still be first of its kind — and the proxies say it would find something. Provenance note for this rise: the run's environment blocked publisher pages, so sources were verified as real at record grade (consistent title/venue/identifier across independent index records) and figures are snippet-grade unless stated. RE-WARRANTED 2026-09-03 (SCHEMA's go-12 rule; flagged by the review lane's Connected finding and by the health instrument): cen-1 changed on 2026-08-28 from one shared latent space into two linked geometries — a between-person geometry every axiom measures into, plus within-person state geometries with their own loadings, published as aggregate sufficient statistics. This edge survives, narrowed to the between-person layer: the battery is the scarce asset for pairing coverage there, while the within-person geometry is funded by occasions (pat-8) and takes no genotype limb at all (gen-18). Read as a claim about the joint model entire, this node would overstate itself.",
       "sources": [
         "Niarchou M et al. 2022, Nature Human Behaviour, 'Genome-wide association study of musical beat synchronization demonstrates high polygenicity', DOI 10.1038/s41562-022-01359-x, PMC9489530 — one self-report item, n=606,825, 69 loci, SNP-h2 13–16%, item validated against experimental measures",
         "Eriksson N et al. 2010, PLoS Genetics 6(6):e1000993, 'Web-Based, Participant-Driven Studies Yield Novel Genetic Associations for Common Traits', DOI 10.1371/journal.pgen.1000993, PMID 20585627",
@@ -37,9 +47,18 @@
         "'Genetic basis of STEM occupational choice', Human Genomics 2023, PMC10170832 — UK Biobank n=178,976; 2 loci; SNP-h2 4.2%",
         "Graf GH-J et al. 2024, JAMA Network Open 7(3):e240655, DOI 10.1001/jamanetworkopen.2024.0655, PMID 38427354 — sibling-fixed-effects support described above (full reference at gen-4)"
       ],
-      "edges": [{ "to": "cen-1", "type": "supports" }, { "to": "que-1", "type": "depends" }],
+      "edges": [
+        {
+          "to": "cen-1",
+          "type": "supports"
+        },
+        {
+          "to": "que-1",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-25",
-      "updated": "2026-08-27"
+      "updated": "2026-09-03"
     },
     {
       "id": "gen-4",
@@ -61,9 +80,18 @@
         "'Associations between epigenetic age acceleration and longitudinal measures of psychosocioeconomic stress and status', Social Science & Medicine, PMID 38824837, PMC11239272"
       ],
       "edges": [
-        { "to": "gen-3", "type": "depends" },
-        { "to": "gen-7", "type": "depends" },
-        { "to": "gen-8", "type": "depends" }
+        {
+          "to": "gen-3",
+          "type": "depends"
+        },
+        {
+          "to": "gen-7",
+          "type": "depends"
+        },
+        {
+          "to": "gen-8",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
@@ -89,9 +117,18 @@
         "'Leveraging protein language models to identify complex trait associations with previously inaccessible classes of functional rare variants', Cell Genomics 2025, PII S2666-979X(25)00324-6 — association-discovery counts, not individual accuracy"
       ],
       "edges": [
-        { "to": "gen-2", "type": "supports" },
-        { "to": "gen-12", "type": "depends" },
-        { "to": "gen-13", "type": "depends" }
+        {
+          "to": "gen-2",
+          "type": "supports"
+        },
+        {
+          "to": "gen-12",
+          "type": "depends"
+        },
+        {
+          "to": "gen-13",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-25",
       "updated": "2026-08-29"
@@ -125,8 +162,14 @@
         "MIMOSA methylation-imputation models, PMC10055581 — PREPRINT-grade (medRxiv deposit in PMC; no peer-reviewed version located); average imputation correlation ~0.20"
       ],
       "edges": [
-        { "to": "gen-1", "type": "refines" },
-        { "to": "gen-4", "type": "supports" }
+        {
+          "to": "gen-1",
+          "type": "refines"
+        },
+        {
+          "to": "gen-4",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
@@ -144,10 +187,22 @@
         "Elysium Health Index and myDNAge product pages — VENDOR-grade: consumer EPIC-class methylation tests, saliva/blood"
       ],
       "edges": [
-        { "to": "gen-1", "type": "refines" },
-        { "to": "gen-4", "type": "supports" },
-        { "to": "gen-7", "type": "supports" },
-        { "to": "gen-6", "type": "depends" }
+        {
+          "to": "gen-1",
+          "type": "refines"
+        },
+        {
+          "to": "gen-4",
+          "type": "supports"
+        },
+        {
+          "to": "gen-7",
+          "type": "supports"
+        },
+        {
+          "to": "gen-6",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
@@ -156,7 +211,7 @@
       "id": "gen-9",
       "claim": "Traits the other axioms measure map onto genetic architecture — heritability, polygenicity, effect-size distribution, functional enrichment, correlation structure — not onto gene lists: for psychological and preference traits, 'which genes' has a distribution as its answer.",
       "status": "cited",
-      "detail": "Added 2026-08-27, answering the first half of the owner's 2026-08-25 cross-connection question (QUESTIONS.md): how do traits the other axioms measure map onto specific genes? For psychological and preference traits the honest answer is a distribution, not a list. The fourth law of behavior genetics is exactly this claim — a typical behavioral trait is associated with very many variants, each accounting for a very small share of variability (Chabris 2015) — and the omnigenic model gives it a mechanism: interconnected regulatory networks spread heritability across essentially all genes expressed in trait-relevant cells (Boyle 2017; contested in degree but not in polygenicity by Wray 2018; O'Connor 2019 adds the evolutionary why — negative selection purges large effects at critical genes, flattening the effect-size distribution). Twin-scale baseline: across 17,804 traits from fifty years of twin studies, mean reported heritability is ~49% and most traits are consistent with additive-only models (Polderman 2015). The measured shape, per axis-relevant trait: cognitive ability — n=269,867 gives 205 loci, SNP-h2 ~19%, and a polygenic score explaining 4.81% in independent cohorts (Savage 2018); educational attainment — n≈3M gives 3,952 lead SNPs and a PGI predicting 12–16% (Okbay 2022); neuroticism — n=449,484 gives 136 loci (Nagel 2018; the later MVP-led analysis reports 158, Gupta 2024); the other Big Five stood at 2–14 genome-wide-significant loci each as late as 2024 (extraversion 14, agreeableness 3, conscientiousness 2, openness 7 — Gupta 2024) before a 611k–1.14M-sample analysis found 1,257 lead variants with SNP-h2 4.8–9.3%, or 10.5–16.2% corrected for measurement unreliability (ReGPC 2025 — preprint-grade). The saturated contrast case: height, at n=5.4M, needed 12,111 SNPs spread over ~7,209 segments covering ~21% of the genome to capture ~40% of phenotypic variance — and only in European ancestry, 10–20% elsewhere (Yengo 2022). Even the most genetically tractable physical trait saturates to a genome-wide distribution with ancestry-conditional coverage; perfect capability yields a distribution over the genome, never a map of named genes. The gene-list alternative has a documented failure record, not merely an absence of success: 18 historical depression candidate genes performed no better than non-candidate genes across large samples (Border 2019); 1 of 32 replication tests across 12 IQ candidate genes reached even nominal significance (Chabris 2012); and FOXP2's human-specific selection story dissolved as a sample-composition artifact (Atkinson 2018) — while the KE-family FOXP2 mutation stands, which is the right lesson: monogenic DISORDERS of behavior exist; monogenic variation in normal-range traits is what does not. The one honest counterexample class is the pleiotropic hub: CADM2 associates with ~50 behavioral traits from risk-taking to diet (UK Biobank phenome-wide scan, PMID 35867259; Arends 2021) — nameable and mechanistically interpretable, but a hub of a behavioral cluster is a feature OF the architecture (a high-centrality node in the coupling structure), not a gene for a trait. What the perfect cross-connection therefore delivers per trait: an architecture vector — SNP-heritability, polygenicity and effect-size-distribution parameters, functional and cell-type enrichment (stratified LD-score partitioning, Finucane 2015; e.g. intelligence signal concentrating in striatal medium spiny and hippocampal pyramidal neurons, Savage 2018; neuroticism in dopaminergic and serotonergic lineages, Nagel 2018), and the trait's position in genetic-correlation structure (gen-11) — plus the short exception list where a named gene genuinely carries the signal (gen-10). Cell-type and tissue enrichment is itself cross-axis content: it maps question- and test-measured traits onto the body axiom's organs and cell populations without any individual-level data changing hands. Provenance: publisher pages egress-blocked this run; sources record-verified via independent index records; figures snippet-grade unless stated.",
+      "detail": "Added 2026-08-27, answering the first half of the owner's 2026-08-25 cross-connection question (QUESTIONS.md): how do traits the other axioms measure map onto specific genes? For psychological and preference traits the honest answer is a distribution, not a list. The fourth law of behavior genetics is exactly this claim — a typical behavioral trait is associated with very many variants, each accounting for a very small share of variability (Chabris 2015) — and the omnigenic model gives it a mechanism: interconnected regulatory networks spread heritability across essentially all genes expressed in trait-relevant cells (Boyle 2017; contested in degree but not in polygenicity by Wray 2018; O'Connor 2019 adds the evolutionary why — negative selection purges large effects at critical genes, flattening the effect-size distribution). Twin-scale baseline: across 17,804 traits from fifty years of twin studies, mean reported heritability is ~49% and most traits are consistent with additive-only models (Polderman 2015). The measured shape, per axis-relevant trait: cognitive ability — n=269,867 gives 205 loci, SNP-h2 ~19%, and a polygenic score explaining 4.81% in independent cohorts (Savage 2018); educational attainment — n≈3M gives 3,952 lead SNPs and a PGI predicting 12–16% (Okbay 2022); neuroticism — n=449,484 gives 136 loci (Nagel 2018; the later MVP-led analysis reports 158, Gupta 2024); the other Big Five stood at 2–14 genome-wide-significant loci each as late as 2024 (extraversion 14, agreeableness 3, conscientiousness 2, openness 7 — Gupta 2024) before a 611k–1.14M-sample analysis found 1,257 lead variants with SNP-h2 4.8–9.3%, or 10.5–16.2% corrected for measurement unreliability (ReGPC 2025 — preprint-grade). The saturated contrast case: height, at n=5.4M, needed 12,111 SNPs spread over ~7,209 segments covering ~21% of the genome to capture ~40% of phenotypic variance — and only in European ancestry, 10–20% elsewhere (Yengo 2022). Even the most genetically tractable physical trait saturates to a genome-wide distribution with ancestry-conditional coverage; perfect capability yields a distribution over the genome, never a map of named genes. The gene-list alternative has a documented failure record, not merely an absence of success: 18 historical depression candidate genes performed no better than non-candidate genes across large samples (Border 2019); 1 of 32 replication tests across 12 IQ candidate genes reached even nominal significance (Chabris 2012); and FOXP2's human-specific selection story dissolved as a sample-composition artifact (Atkinson 2018) — while the KE-family FOXP2 mutation stands, which is the right lesson: monogenic DISORDERS of behavior exist; monogenic variation in normal-range traits is what does not. The one honest counterexample class is the pleiotropic hub: CADM2 associates with ~50 behavioral traits from risk-taking to diet (UK Biobank phenome-wide scan, PMID 35867259; Arends 2021) — nameable and mechanistically interpretable, but a hub of a behavioral cluster is a feature OF the architecture (a high-centrality node in the coupling structure), not a gene for a trait. What the perfect cross-connection therefore delivers per trait: an architecture vector — SNP-heritability, polygenicity and effect-size-distribution parameters, functional and cell-type enrichment (stratified LD-score partitioning, Finucane 2015; e.g. intelligence signal concentrating in striatal medium spiny and hippocampal pyramidal neurons, Savage 2018; neuroticism in dopaminergic and serotonergic lineages, Nagel 2018), and the trait's position in genetic-correlation structure (gen-11) — plus the short exception list where a named gene genuinely carries the signal (gen-10). Cell-type and tissue enrichment is itself cross-axis content: it maps question- and test-measured traits onto the body axiom's organs and cell populations without any individual-level data changing hands. Provenance: publisher pages egress-blocked this run; sources record-verified via independent index records; figures snippet-grade unless stated. RE-WARRANTED 2026-09-03 (SCHEMA's go-12 rule; flagged by the review lane's Connected finding and by the health instrument): cen-1 changed on 2026-08-28 from one shared latent space into two linked geometries — a between-person geometry every axiom measures into, plus within-person state geometries with their own loadings, published as aggregate sufficient statistics. This edge survives, and sharpens: a genotype is a per-person constant, so architecture enters the between-person geometry only. A within-person state geometry carries no genotype loading, and an apparent within-person genetic effect is a between-layer quantity moderating trajectory shape (gen-18) — a structural asymmetry against the body axiom, whose bands vary at both levels (bod-2, bod-5).",
       "sources": [
         "Chabris CF, Lee JJ, Cesarini D, Benjamin DJ, Laibson DI 2015, Current Directions in Psychological Science 24(4):304–312, 'The Fourth Law of Behavior Genetics', DOI 10.1177/0963721415580430",
         "Boyle EA, Li YI, Pritchard JK 2017, Cell 169(7):1177–1186, 'An Expanded View of Complex Traits: From Polygenic to Omnigenic', DOI 10.1016/j.cell.2017.05.038, PMID 28622505",
@@ -176,9 +231,18 @@
         "Finucane HK et al. 2015, Nature Genetics 47(11):1228–1235, 'Partitioning heritability by functional annotation using genome-wide association summary statistics', DOI 10.1038/ng.3404",
         "Mostafavi H 2025, Nature Reviews Genetics 26:513, 'Making sense of the polygenicity of complex traits', DOI 10.1038/s41576-025-00866-7"
       ],
-      "edges": [{ "to": "cen-1", "type": "supports" }, { "to": "gen-3", "type": "supports" }],
+      "edges": [
+        {
+          "to": "cen-1",
+          "type": "supports"
+        },
+        {
+          "to": "gen-3",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-27",
-      "updated": "2026-08-27"
+      "updated": "2026-09-03"
     },
     {
       "id": "gen-10",
@@ -201,7 +265,16 @@
         "Keller A, Zhuang H, Chi Q, Vosshall LB, Matsunami H 2007, Nature, 'Genetic variation in a human odorant receptor alters odour perception', PMID 17873857 — OR7D4/androstenone",
         "Eriksson N et al. 2010, PLoS Genetics 6(6):e1000993, 'Web-Based, Participant-Driven Studies Yield Novel Genetic Associations for Common Traits', DOI 10.1371/journal.pgen.1000993, PMID 20585627 — photic sneeze (intergenic hits near ZEB2/NR2F2), asparagus anosmia (OR2M7)"
       ],
-      "edges": [{ "to": "gen-9", "type": "refines" }, { "to": "que-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "gen-9",
+          "type": "refines"
+        },
+        {
+          "to": "que-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-27",
       "updated": "2026-08-27"
     },
@@ -209,7 +282,7 @@
       "id": "gen-11",
       "claim": "A population-level gene–trait coupling is a composite; the perfect cross-connection publishes every coupling with its decomposition — direct effect, genetic nurture, mating structure — because the split is real, measurable, and trait-specific.",
       "status": "cited",
-      "detail": "Added 2026-08-27, the third piece of the cross-connection answer: what a gene–trait coupling honestly IS once measured. Four measured facts force the decomposition. (1) For attainment-type traits, a large share of the population-level signal is not a direct genetic effect on the person: the polygenic score built from parents' NON-transmitted alleles carries ~30% of the transmitted score's association with educational attainment (genetic nurture — Kong 2018, 29.9% snippet-grade); within-sibship estimates shrink for EA, cognitive ability and others, with EA SNP-h2 falling 0.13→0.04 within siblings, a 76% attenuation (Howe 2022: 178,086 siblings, 25 phenotypes — snippet-grade figures); EA4's direct effects are roughly half the population PGI association (Okbay 2022); and occupational-status prediction drops 54–57% within families, decomposed as 22–27% indirect parental effects plus 21–27% assortative mating (Akimova 2024). (2) The split is trait-specific, not a law — and for personality it is genuinely unsettled, which the node records rather than resolves: the largest within-family personality analysis (611k–1.14M population, 51k within-family) reports no identifiable within-family reduction in Big Five prediction and minimal confounding from stratification, dynastic effects or assortative mating (ReGPC 2025 — preprint-grade), while a smaller peer-reviewed twin analysis found within-family neuroticism PGS prediction reduced by 80.4% relative to between-family in up to 2,366 DZ pairs (Selzam 2019 — peer-reviewed but with wide uncertainty at that n, and the gap largely closed after adjusting for socioeconomic status). The honest current reading: attainment traits are demonstrably the heavily-confounded class across multiple designs; for personality the biggest data says clean and a smaller peer-reviewed result says otherwise — the perfect system carries the tension as data. Either way, a system that showed one shrinkage number for 'genetics' would be wrong in several directions at once. (3) The genome's connective tissue across traits — genetic-correlation structure (the atlas method, Bulik-Sullivan 2015: 276 correlations among 24 traits from summary statistics alone; joint factor models over that structure, Grotzinger 2019; risk tolerance sharing lead loci with drinking, smoking, speeding and sexual-behavior phenotypes at 46 of 99 loci, Karlsson Linnér 2019; occupational status at rg 0.96–0.97 with educational attainment, Akimova 2024) — is genuinely cross-axis content: it couples traits measured by different instruments at the latent genetic level, computable from published summary statistics without any individual-level data changing hands. But it is partly mating-market artifact: cross-mate phenotypic correlations predict genetic-correlation estimates at R2=74%, and some reported psychiatric rg values are congruent with cross-trait assortative mating alone (Border 2022, Science); the EA–BMI genetic correlation attenuates toward zero within siblings (Howe 2022); and assortative mating biases marker-based heritability estimates themselves (Border 2022, Nature Communications). (4) The coupling also depends on the measurement: the same self-reported coffee-intake phenotype produced genetic correlations with cognition and psychiatric traits that flipped sign or vanished between 23andMe and UK Biobank (2024 GWAS comparison) — ascertainment and item wording change the genetic answer, which binds this axiom's couplings to the questions axiom's measurement discipline and is a direct, citable warning for any self-report-derived phenotype. Consequence: in the perfect system a cross-axis genetic coupling is never published as a bare correlation. It is a decomposed quantity — direct, genetic-nurture and mating-structure components, with a within-family evidence grade and cohort/measurement provenance attached — because whether a coupling is biology or social structure is itself first-class data, and the difference is measurable. This is the honesty constraint on cen-1's shared latent space: genetic coordinates carry decomposition labels or they mislead every axiom they touch. Provenance: publisher pages egress-blocked this run; sources record-verified via independent index records; figures snippet-grade unless stated.",
+      "detail": "Added 2026-08-27, the third piece of the cross-connection answer: what a gene–trait coupling honestly IS once measured. Four measured facts force the decomposition. (1) For attainment-type traits, a large share of the population-level signal is not a direct genetic effect on the person: the polygenic score built from parents' NON-transmitted alleles carries ~30% of the transmitted score's association with educational attainment (genetic nurture — Kong 2018, 29.9% snippet-grade); within-sibship estimates shrink for EA, cognitive ability and others, with EA SNP-h2 falling 0.13→0.04 within siblings, a 76% attenuation (Howe 2022: 178,086 siblings, 25 phenotypes — snippet-grade figures); EA4's direct effects are roughly half the population PGI association (Okbay 2022); and occupational-status prediction drops 54–57% within families, decomposed as 22–27% indirect parental effects plus 21–27% assortative mating (Akimova 2024). (2) The split is trait-specific, not a law — and for personality it is genuinely unsettled, which the node records rather than resolves: the largest within-family personality analysis (611k–1.14M population, 51k within-family) reports no identifiable within-family reduction in Big Five prediction and minimal confounding from stratification, dynastic effects or assortative mating (ReGPC 2025 — preprint-grade), while a smaller peer-reviewed twin analysis found within-family neuroticism PGS prediction reduced by 80.4% relative to between-family in up to 2,366 DZ pairs (Selzam 2019 — peer-reviewed but with wide uncertainty at that n, and the gap largely closed after adjusting for socioeconomic status). The honest current reading: attainment traits are demonstrably the heavily-confounded class across multiple designs; for personality the biggest data says clean and a smaller peer-reviewed result says otherwise — the perfect system carries the tension as data. Either way, a system that showed one shrinkage number for 'genetics' would be wrong in several directions at once. (3) The genome's connective tissue across traits — genetic-correlation structure (the atlas method, Bulik-Sullivan 2015: 276 correlations among 24 traits from summary statistics alone; joint factor models over that structure, Grotzinger 2019; risk tolerance sharing lead loci with drinking, smoking, speeding and sexual-behavior phenotypes at 46 of 99 loci, Karlsson Linnér 2019; occupational status at rg 0.96–0.97 with educational attainment, Akimova 2024) — is genuinely cross-axis content: it couples traits measured by different instruments at the latent genetic level, computable from published summary statistics without any individual-level data changing hands. But it is partly mating-market artifact: cross-mate phenotypic correlations predict genetic-correlation estimates at R2=74%, and some reported psychiatric rg values are congruent with cross-trait assortative mating alone (Border 2022, Science); the EA–BMI genetic correlation attenuates toward zero within siblings (Howe 2022); and assortative mating biases marker-based heritability estimates themselves (Border 2022, Nature Communications). (4) The coupling also depends on the measurement: the same self-reported coffee-intake phenotype produced genetic correlations with cognition and psychiatric traits that flipped sign or vanished between 23andMe and UK Biobank (2024 GWAS comparison) — ascertainment and item wording change the genetic answer, which binds this axiom's couplings to the questions axiom's measurement discipline and is a direct, citable warning for any self-report-derived phenotype. Consequence: in the perfect system a cross-axis genetic coupling is never published as a bare correlation. It is a decomposed quantity — direct, genetic-nurture and mating-structure components, with a within-family evidence grade and cohort/measurement provenance attached — because whether a coupling is biology or social structure is itself first-class data, and the difference is measurable. This is the honesty constraint on cen-1's shared latent space: genetic coordinates carry decomposition labels or they mislead every axiom they touch. Provenance: publisher pages egress-blocked this run; sources record-verified via independent index records; figures snippet-grade unless stated. RE-WARRANTED 2026-09-03 (SCHEMA's go-12 rule; flagged by the review lane's Connected finding and by the health instrument): cen-1 changed on 2026-08-28 from one shared latent space into two linked geometries — a between-person geometry every axiom measures into, plus within-person state geometries with their own loadings, published as aggregate sufficient statistics. This edge survives, with a sharper target: publication settled at model level means a coupling's sufficient statistics are INCOMPLETE without this decomposition and its within-family grade, since a consumer cannot recover the split afterwards from a bare correlation and an n. The split is a between-family object and makes no within-person claim. gen-20 extends the same requirement to heritability quantities.",
       "sources": [
         "Kong A et al. 2018, Science 359(6374):424–428, 'The nature of nurture: Effects of parental genotypes', DOI 10.1126/science.aan6877 — non-transmitted-allele PGS effect 29.9% of transmitted, on EA",
         "Howe LJ et al. 2022, Nature Genetics, 'Within-sibship genome-wide association analyses decrease bias in estimates of direct genetic effects', DOI 10.1038/s41588-022-01062-7, PMID 35534559",
@@ -224,9 +297,18 @@
         "Border R, O'Rourke S, de Candia T et al. 2022, Nature Communications 13:660, 'Assortative mating biases marker-based heritability estimators', DOI 10.1038/s41467-022-28294-9",
         "Coffee-intake cohort comparison 2024, Neuropsychopharmacology, 'Genome-wide association studies of coffee intake in UK/US participants of European ancestry uncover cohort-specific genetic associations', DOI 10.1038/s41386-024-01870-x, PMID 38858598"
       ],
-      "edges": [{ "to": "gen-9", "type": "refines" }, { "to": "cen-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "gen-9",
+          "type": "refines"
+        },
+        {
+          "to": "cen-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-27",
-      "updated": "2026-08-27"
+      "updated": "2026-09-03"
     },
     {
       "id": "gen-12",
@@ -251,8 +333,14 @@
         "Dubey & Shen 2026, Briefings in Bioinformatics 27(1):bbag022, 'Personalized gene expression prediction in the era of deep learning: a review', PMC12856953"
       ],
       "edges": [
-        { "to": "gen-5", "type": "supports" },
-        { "to": "pat-6", "type": "supports" }
+        {
+          "to": "gen-5",
+          "type": "supports"
+        },
+        {
+          "to": "pat-6",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-29",
       "updated": "2026-08-29"
@@ -272,8 +360,14 @@
         "'Benchmarking end-to-end genotype-to-phenotype prediction workflows across 80 openSNP phenotypes', arXiv 2603.06768 with companion bioRxiv 10.64898/2026.03.06.710126, which carries the divergent title 'Benchmarking 80 binary phenotypes from the openSNP dataset using deep learning algorithms and polygenic risk score tools' (2026) — PREPRINT"
       ],
       "edges": [
-        { "to": "gen-12", "type": "supports" },
-        { "to": "gen-5", "type": "supports" }
+        {
+          "to": "gen-12",
+          "type": "supports"
+        },
+        {
+          "to": "gen-5",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-29",
       "updated": "2026-08-29"
@@ -282,7 +376,7 @@
       "id": "gen-14",
       "claim": "The axiom's contribution to genetic engineering is quantitative, not conceptual: editing and embryo-selection analyses already know their outputs scale with direct-effect fidelity but consume within-family decomposition magnitudes measured on thin data for few traits — the perfect axiom supplies those magnitudes at scale across its battery, plus first gene–trait maps for domains nobody has phenotyped; the constraints engineering otherwise waits on (causal-gene assignment, per-mutation agents, delivery, law) it cannot move, and recording that bound is part of the claim.",
       "status": "cited",
-      "detail": "Added 2026-09-01, first half of the owner's 2026-08-27 widening (genetic engineering; §9 bounds how — knowledge-layer contributions over consented aggregates handed to governed research, never procedures). Two naive forms died before landing, killed by this run's own scout and adversarial passes, and the node records them as what it does NOT say. Not 'editing has outrun target knowledge': the editing field locates its own clinical bottleneck in per-mutation therapeutic agents, delivery and regulation, not target scarcity (Flugel 2025 — snippet-grade on the scout pass, unreachable on the adversarial pass, so held as attributed paraphrase; Chen & Liu 2023, whose 'virtually any substitution, small insertion and small deletion' capability sentence is about PRIME editors specifically), and the capability side is real but in-principle (prime editing could address ~89% of the 75,122 pathogenic variants then in ClinVar — an edit-type arithmetic over ClinVar, not a demonstrated correction rate; Anzalone 2019, snippet-grade). Not 'the resource refines drug-target success': the measured driver there is causal-GENE confidence — genetically supported mechanisms succeed at 2.6x, the effect improving with confidence in the causal gene and largely unaffected by genetic effect size, minor allele frequency or year of discovery (Minikel 2024, abstract-verbatim) — an axis of variant-to-gene assignment and Mendelian/coding evidence (King 2019: the >2-fold concentrates where causal genes are clear, and the GWAS estimate is sensitive to a tunable trait–indication similarity cutoff; Nelson 2015 is the line's origin, direct genetic support rising 2.0% preclinical → 8.2% approved, 'could double' stated there as projection), which a behavioral battery over consumer arrays does not supply. The whole 2x/2.6x line is observational with self-acknowledged selection confounds (Paterson 2026, preprint: pair-level OR 3.25 [2.79–3.79] attenuating to OR 2.79 at target level, plus the confound catalogue). 63% (271/428) of 2013–2022 FDA approvals already carried genetic support (Minikel & Nelson NRDD 2023, snippet-grade) — a base rate among approvals from which no scarcity inference in either direction is licensed (the first draft inferred 'target knowledge is not scarce' from it; the adversarial pass killed that as a non sequitur that also inverts the authors' own reading, 'far from reaching peak genetic insights', snippet-grade). And the variant-to-gene tooling currently shows a null over a trivial heuristic — locus-to-gene scores (OR 3.14) and nearest-gene (OR 3.08) similarly predictive of approval, eQTL colocalization not significantly predictive (2025 benchmark, preprint, snippet-grade) — a null difference, not a failure. For the heritable branch the binding constraint is law and safety: of 106 countries surveyed, 96 had relevant policy documents and 75 of those 96 prohibit heritable human genome editing — 70 outright, 5 with possible exceptions (Baylis 2020, snippet-grade); the same-day reply to the flagship feasibility analysis calls embryo editing unsafe and unproven (Carmi, Greely & Mitchell 2025); and the live landscape is contested in both directions — a multi-stakeholder call for a 10-year moratorium (2025-03-26) on one side, the first venture-funded heritable-editing startups on the other (Preventive Medicine PBC, incorporated May 2025; Manhattan Genomics, reported to have ceased work by end-2025) — news-grade items surfaced by this run's adversarial pass, primary sources an open scout task; the prohibition is reported as a fact about the world, never a constraint to engineer around. What survives as the contribution is quantitative, and this framing is itself the adversarial pass's correction — the first draft claimed the decomposition INSIGHT as the missing input, and the flagship analyses already state it: Visscher 2025 (Nature Analysis; simulations where editing up to 10 common variants cuts lifetime type-2-diabetes prevalence from 10% to 0.2%, snippet-grade via the Nature Genetics research highlight) names winner's curse, population stratification and indirect effects and works the proportional shortfall, lists feasibility, safety, variant causality, pleiotropy and epistasis among its simplifying assumptions, and drew an author correction for omitted prior simulations; Turley 2021 (NEJM) runs its embryo-selection simulations on WITHIN-family predictive power precisely because between-family signal is partly gene–environment correlation — which is where its small absolute expected gains come from (~2.5 cm expected height, −1.8% absolute risk of idiopathic short stature, best of 10 embryos, snippet-grade; the paper urges absolute-not-relative framing); Lencz 2021 measures strategy dependence (relative risk reduction often <10% under high-risk exclusion vs ~50% selecting the lowest-PRS of five viable embryos for schizophrenia, snippet-grade). What those analyses consume and cannot currently get is decomposition MAGNITUDES at breadth: within-family shrinkage and nurture/mating shares are measured for a handful of traits on thin designs (Howe 2022's 178k siblings across 25 phenotypes, Selzam 2019's 2,366 DZ pairs, Akimova 2024 — all at gen-11), and for most of what the other axioms measure no within-family estimate exists at all. The lane's own inference, marked as such: the perfect axiom's engineering contribution is (i) gen-11's decomposed couplings AT SCALE — per-trait direct/nurture/mating magnitudes with within-family evidence grades across the whole battery, the numerical input any honest editing or selection simulation must be parameterized by (REQUESTS row this run: consented within-family pairing) — and (ii) first gene–trait maps for domains nobody has phenotyped (inventory-grade interests, gen-3; direct-output percept items, gen-10), where the contribution is existence rather than refinement. What it cannot move — causal-gene assignment (functional genomics' job), per-mutation agents, delivery, law — is recorded as the bound. Provenance: publisher pages egress-blocked both passes; sources record-verified via independent index records; figures snippet-grade unless stated; the two passes disagree on Flugel quote reachability, recorded above.",
+      "detail": "Added 2026-09-01, first half of the owner's 2026-08-27 widening (genetic engineering; §9 bounds how — knowledge-layer contributions over consented aggregates handed to governed research, never procedures). Compressed 2026-09-03 alongside its new falsifier, so the addition does not raise the lane's detail maximum; no source, figure or killed framing was dropped. Two naive forms died before landing and the node records them as what it does NOT say. NOT 'editing has outrun target knowledge': the field locates its clinical bottleneck in per-mutation therapeutic agents, delivery and regulation, not target scarcity (Flugel 2025 — snippet-grade on the scout pass, unreachable on the adversarial pass, held as attributed paraphrase; Chen & Liu 2023, whose 'virtually any substitution, small insertion and small deletion' capability sentence is about PRIME editors specifically), and the capability side is real but in-principle (prime editing could address about 89% of the 75,122 pathogenic variants then in ClinVar — an edit-type arithmetic over ClinVar, not a demonstrated correction rate; Anzalone 2019, snippet-grade). NOT 'the resource refines drug-target success': the measured driver is causal-GENE confidence — genetically supported mechanisms succeed at 2.6x, the effect improving with confidence in the causal gene and largely unaffected by genetic effect size, minor allele frequency or year of discovery (Minikel 2024, abstract-verbatim); the >2-fold concentrates where causal genes are clear and the estimate is sensitive to a tunable trait–indication similarity cutoff (King 2019), over a line originating at 2.0% preclinical → 8.2% approved with 'could double' stated there as projection (Nelson 2015). A behavioral battery over consumer arrays supplies none of that axis. The line is observational with self-acknowledged selection confounds (Paterson 2026, preprint: OR 3.25 [2.79–3.79] pair-level attenuating to 2.79 target-level). 63% (271/428) of 2013–2022 FDA approvals already carried genetic support (Minikel & Nelson 2023, snippet-grade) — a base rate licensing no scarcity inference in either direction; the first draft's 'target knowledge is not scarce' was killed pre-land as a non sequitur that also inverts the authors' own 'far from reaching peak genetic insights'. And variant-to-gene tooling shows a null over a trivial heuristic: locus-to-gene OR 3.14 vs nearest-gene OR 3.08, eQTL colocalization not significantly predictive (2025 benchmark, preprint, snippet-grade) — a null difference, not a failure. For the heritable branch the binding constraint is law and safety: of 106 countries surveyed, 96 had relevant policy documents and 75 of those 96 prohibit heritable human genome editing, 70 outright and 5 with possible exceptions (Baylis 2020, snippet-grade); the same-day reply to the flagship feasibility analysis calls embryo editing unsafe and unproven (Carmi, Greely & Mitchell 2025); and the live landscape is contested in both directions — a multi-stakeholder call for a 10-year moratorium (2025-03-26) against the first venture-funded heritable-editing startups (Preventive Medicine PBC, incorporated May 2025; Manhattan Genomics, reported to have ceased work by end-2025), news-grade items with primary sources still an open scout task. The prohibition is reported as a fact about the world, never a constraint to engineer around. WHAT SURVIVES is quantitative, and the framing is itself the adversarial pass's correction — the first draft claimed the decomposition INSIGHT as the missing input, which the flagship analyses already state. Visscher 2025 (simulations where editing up to 10 common variants cuts lifetime type-2-diabetes prevalence from 10% to 0.2%, snippet-grade via the Nature Genetics research highlight) names winner's curse, population stratification and indirect effects, lists feasibility, safety, variant causality, pleiotropy and epistasis among its simplifying assumptions, and drew an author correction for omitted prior simulations; Turley 2021 runs its embryo-selection simulations on WITHIN-family predictive power precisely because between-family signal is partly gene–environment correlation, which is where its small absolute gains come from (about 2.5 cm expected height, −1.8% absolute risk of idiopathic short stature, best of 10 embryos; the paper urges absolute-not-relative framing); Lencz 2021 measures strategy dependence (relative risk reduction often <10% under high-risk exclusion vs about 50% selecting the lowest-PRS of five viable embryos for schizophrenia). What those analyses consume and cannot get is decomposition MAGNITUDES at breadth: within-family shrinkage and nurture/mating shares are measured for a handful of traits on thin designs (Howe 2022's 178k siblings across 25 phenotypes, Selzam 2019's 2,366 DZ pairs, Akimova 2024 — all at gen-11), and for most of what the other axioms measure no within-family estimate exists at all. The lane's own inference, marked as such: the perfect axiom's engineering contribution is (i) gen-11's decomposed couplings AT SCALE — per-trait direct/nurture/mating magnitudes with within-family evidence grades across the whole battery, the numerical input any honest editing or selection simulation must be parameterized by (REQUESTS row 2026-09-01: consented within-family pairing) — and (ii) first gene–trait maps for domains nobody has phenotyped (inventory-grade interests, gen-3; direct-output percept items, gen-10), where the contribution is existence rather than refinement. What it cannot move — causal-gene assignment, per-mutation agents, delivery, law — is recorded as the bound. REFUTATION CONDITION added 2026-09-03 (the review lane's Effective item, which supplied it): this node falls if a published editing or embryo-selection analysis is already parameterized by within-family decomposition magnitudes at battery breadth — the supply it claims being in hand rather than scarce. Narrowing rather than fatal: a within-family consortium releasing direct-effect estimates across a broad phenotype panel moves the contribution from 'supplies' to 'extends'. Provenance: publisher pages egress-blocked on both 09-01 passes; sources record-verified via independent indexes; figures snippet-grade unless stated.",
       "sources": [
         "Anzalone AV et al. 2019, Nature 576(7785):149–157, 'Search-and-replace genome editing without double-strand breaks or donor DNA', DOI 10.1038/s41586-019-1711-4, PMID 31634902 — ~89% of 75,122 ClinVar pathogenic variants in principle addressable (edit-type arithmetic); snippet-grade",
         "Chen PJ, Liu DR 2023, Nature Reviews Genetics 24:161–177, 'Prime editing for precise and highly versatile genome manipulation', DOI 10.1038/s41576-022-00541-1, PMID 36344749 — the quoted capability sentence applies to prime editors",
@@ -301,38 +395,289 @@
         "Baylis F, Darnovsky M, Hasson K, Krahn TM 2020, The CRISPR Journal 3(5):365–377, 'Human Germline and Heritable Genome Editing: The Global Policy Landscape', DOI 10.1089/crispr.2020.0082, PMID 33095042 — 106 surveyed, 96 with relevant policy documents, 75 of 96 prohibit (70 outright, 5 with possible exceptions); snippet-grade"
       ],
       "edges": [
-        { "to": "gen-11", "type": "depends" },
-        { "to": "gen-3", "type": "depends" },
-        { "to": "gen-10", "type": "depends" },
-        { "to": "cen-1", "type": "supports" }
+        {
+          "to": "gen-11",
+          "type": "depends"
+        },
+        {
+          "to": "gen-3",
+          "type": "depends"
+        },
+        {
+          "to": "gen-10",
+          "type": "depends"
+        },
+        {
+          "to": "cen-1",
+          "type": "supports"
+        }
       ],
       "created": "2026-09-01",
-      "updated": "2026-09-01"
+      "updated": "2026-09-03"
     },
     {
       "id": "gen-15",
-      "claim": "The axiom's contribution to the general understanding of genetics runs on axes orthogonal to sample size — signal specificity, latent structure, within-person time, integration substrate, never-phenotyped domains — while raw locus discovery is a contested depth-versus-breadth tradeoff it does not own: shallow phenotyping at large n wins locus counts, deep homogeneous phenotyping has a measured win of its own, and the import principle rides other people's n.",
+      "claim": "The axiom's contribution to the general understanding of genetics runs on four axes orthogonal to sample size — signal specificity, latent structure, within-person time and integration substrate (gen-16 to gen-19) — while raw locus discovery is a contested depth-versus-breadth tradeoff it neither owns nor needs, because the import principle rides other people's n.",
       "status": "cited",
-      "detail": "Added 2026-09-01, second half of the owner's 2026-08-27 widening, under the phenomics program's founding statement that phenotyping must scale with genomics or genetics starves (Houle 2010). The first draft's framing negative — 'discovery scale demonstrably belongs to shallow phenotyping at large n' — did not survive the adversarial pass, and the corrected claim is a tradeoff, not an ownership. Shallow self-report at scale wins locus counts: 23andMe self-reported depression (75,607 cases / 231,747 controls) meta-analyzed with PGC clinical results and replicated in 45,773 further cases yielded 17 SNPs in 15 regions at total n=459,481 (Hyde 2016, snippet-grade — a self-report-plus-clinical meta-analysis, not pure self-report), where the 9-cohort clinical mega-analysis of 9,240 cases had found none; and a three-phenotype head-to-head inside UK Biobank concluded broad self-declared depression is the most tractable phenotype there for gene discovery (Howard 2018, near-verbatim). But deep homogeneous phenotyping has a measured win in the SAME trait: CONVERGE, with 5,303 deeply and homogeneously phenotyped severe recurrent-MDD cases and 5,337 screened controls under sparse whole-genome sequencing, identified and replicated two loci (near SIRT1 and in an LHPP intron) when >9,000 heterogeneous clinical cases had yielded nothing, with signal strengthening in the 4,509-case melancholic subset — the authors crediting recruitment of relatively homogeneous severe cases (CONVERGE Consortium, Nature 2015 523:588–591, snippet-grade; identifiers beyond volume/pages not pinned this run). The field's own current framing is that the depth/breadth choice 'remains contested' (Dahl 2023). The axiom does not own the discovery-scale axis and does not need it — the import principle rides other people's n (Eriksson 2010, at gen-3). What deep, multi-item, longitudinal phenotyping measurably buys is four axes orthogonal to n. (1) SPECIFICITY: minimal-phenotyping depression has SNP-h2 ~11% vs ~26% for MDD meeting full diagnostic criteria, genetic correlation 0.81 (SE 0.03) between them, and — the sharper fact — the minimal phenotype is genetically close to plain neuroticism (rg 0.84, SE 0.05); its GWAS preferentially finds non-specific loci, needing 80.2% of the genome to explain 90% of its genetic correlations with other traits where strict MDD needs 65.8%; and its PGS predicts well, but the predictive power 'can be explained entirely by large sample sizes rather than by specificity for MDD' (all Cai 2020; figures snippet-grade, the h2 pair stated per the published abstract after the adversarial pass found the first draft's 0.14/SE variant unconfirmable). The deep battery's genetic signal is about the construct it names; the shallow one's is partly about everything genetically correlated with it. This does not contradict gen-3's single-item results, and the reconciliation is informative: Niarchou 2022's one item was validated against separate experimental measures — a well-designed single item is a precise measurement of a narrow construct, where a minimal phenotype is a loose measurement of a broad one; what costs specificity is measurement looseness, not item count (que-1's discipline is exactly validity-at-depth). Stated plainly: this node NARROWS gen-3's ranking claim — the battery's contribution to the combination runs on these orthogonal axes, not on discovery scale. (2) STRUCTURE: multi-trait measurement admits latent genetic decomposition — GWAS-by-subtraction recovered a noncognitive-skills factor with 157 loci accounting for 57% of the genetic variance in educational attainment (Demange 2021, figures verbatim-confirmed) — with the honest caveat that that decomposition ran on two existing summary-statistics GWAS: what a battery adds is not decomposability per se but the CHOICE of measurement model — subtraction can only ask questions an existing GWAS pair happens to span, where an item bank designs the latent structure first (Grotzinger 2019, at gen-11). (3) TIME: repeated measurement exposes genetic effects one-shot phenotyping cannot see — 28 genome-wide-significant variants at 13 loci with age-varying effects on childhood BMI under a repeated-measures GWAS framework (Nature Communications 2024, snippet-grade) — so the longitudinal import series gen-8 defines is what makes the genetics of change measurable at all. (4) INTEGRATION: many correlated items are an imputation substrate — phenotype integration over already-collected UK Biobank items imputed strict MDD at R2≈40%, roughly doubling effective n (67k observed → 166k effective) with ~10-fold GWAS loci and ~2-fold PRS R2, specificity preserved (Dahl 2023, figures verbatim-confirmed). Dahl cuts both ways and the node keeps both edges: it proves the many-items substrate is powerful — the battery natively IS that substrate at item grade — and it sets the bar every proposed new item must clear: add information beyond what integration over existing items already recovers; the bar is passable exactly where gen-3 and gen-10 point, domains with no existing items to integrate from. One consumer-cohort correction rides with all of it: volunteer ascertainment biases SNP effect sizes and heritability estimates downward, and correcting for it raises both (van Alten 2025, record-grade) — participation structure is itself a phenotype the perfect system models, per gen-11's rule that social structure is separated from biology before publication. Provenance: publisher pages egress-blocked both passes; sources record-verified via independent index records; figures snippet-grade unless stated.",
+      "detail": "Added 2026-09-01 as the second half of the owner's 2026-08-27 widening, under Houle 2010's premise that phenotyping must scale with genomics or genetics starves. FISSIONED 2026-09-03 on the review lane's Legible item: the four axes carry their own claims, sources and falsifiers at gen-16 to gen-19, and this node keeps the orthogonality claim and the discovery-scale concession. No source was dropped in the split (van Alten 2025 moved to gen-20, ascertainment being one of its three bases). The tradeoff, both directions. Shallow at scale wins locus counts: 23andMe self-reported depression (75,607 cases / 231,747 controls) meta-analyzed with PGC clinical results and replicated in 45,773 further cases yielded 17 SNPs in 15 regions at n=459,481 (Hyde 2016 — a self-report-plus-clinical meta-analysis, not pure self-report), where a 9-cohort clinical mega-analysis of 9,240 cases found none; and a UK Biobank head-to-head found broad self-declared depression its most tractable discovery phenotype (Howard 2018, near-verbatim). Depth has a measured win in the same trait: CONVERGE's 5,303 deeply homogeneous severe recurrent-MDD cases and 5,337 screened controls, under sparse whole-genome sequencing, replicated two loci (near SIRT1, P=2.53e-10; LHPP intron, P=6.45e-12) where >9,000 heterogeneous cases had yielded nothing, strengthening in the melancholic subset. NEW 2026-09-03, bounding depth from the other side: BIONIC 2026 mega-analysed DSM-defined lifetime MDD, uniformly phenotyped in a homogeneous Dutch population, in 64,941 participants (25.7% cases), reporting ONE novel locus (PALMD rs3818852, P=3.26e-8) at rg 0.89 with PGC-MD — uniform depth at 65k does not approach shallow breadth at 459k for locus counts, and the high rg says the two are largely reading one between-person genetic signal. One caveat this node owes gen-20 and states rather than hides: BIONIC's 25.7% case fraction sits far above population prevalence, so its effective n is not comparable to a population sample of the same size — a depth-versus-breadth comparison run on raw n is itself basis-dependent, which is gen-20's rule applied against this node's own headline comparison. Dahl 2023's 'remains contested' is the field's own framing and this node keeps it; the axiom does not own this axis and does not need it (Eriksson 2010's import principle, gen-3). REFUTATION CONDITION (review item 2): falls if the four axes prove to be functions of n after all — if a deep battery's advantage disappears at MATCHED n against a shallow phenotype. Each child names a narrower falsifier. Provenance: publisher hosts egress-blocked; BIONIC's figures snippet-grade, corroborated across two independent searches.",
       "sources": [
         "Houle D, Govindaraju DR, Omholt S 2010, Nature Reviews Genetics 11(12):855–866, 'Phenomics: the next challenge', DOI 10.1038/nrg2897, PMID 21085204",
         "Hyde CL et al. 2016, Nature Genetics 48(9):1031–1036, 'Identification of 15 genetic loci associated with risk of major depression in individuals of European descent', DOI 10.1038/ng.3623, PMID 27479909 — 23andMe discovery 75,607/231,747 meta-analyzed with PGC, replication 45,773/106,354, total n=459,481; 17 SNPs in 15 regions; snippet-grade",
         "Howard DM et al. 2018, Nature Communications 9:1470, 'Genome-wide association study of depression phenotypes in UK Biobank identifies variants in excitatory synaptic pathways', DOI 10.1038/s41467-018-03819-3, PMID 29662059 — 'broad depression is the most tractable UK Biobank phenotype' for discovery; near-verbatim",
-        "CONVERGE Consortium 2015, Nature 523:588–591, 'Sparse whole-genome sequencing identifies two loci for major depressive disorder' — 5,303 homogeneous severe recurrent-MDD cases; two replicated loci (near SIRT1, P=2.53e-10; LHPP intron, P=6.45e-12); snippet-grade; DOI/PMID not pinned this run (title/venue/volume/pages record-verified by the adversarial pass)",
-        "Cai N et al. 2020, Nature Genetics 52(4):437–447, 'Minimal phenotyping yields genome-wide association signals of low specificity for major depression', DOI 10.1038/s41588-020-0594-5, PMID 32231276 — h2 ~11% vs ~26% (abstract); rg 0.81 (SE 0.03); rg 0.84 (SE 0.05) with neuroticism; 80.2% vs 65.8% of genome to explain 90% of cross-trait genetic correlations; 'explained entirely by large sample sizes' verbatim",
-        "Demange PA et al. 2021, Nature Genetics 53(1):35–44, 'Investigating the genetic architecture of noncognitive skills using GWAS-by-subtraction', DOI 10.1038/s41588-020-00754-2, PMID 33414549 — 157 loci; noncognitive factor 57% of EA genetic variance; verbatim-confirmed",
-        "'A framework for conducting GWAS using repeated measures data with an application to childhood BMI', Nature Communications 2024, DOI 10.1038/s41467-024-53687-3 — 28 variants at 13 loci with age-varying effects; snippet-grade",
-        "Dahl A et al. 2023, Nature Genetics 55(12):2082–2093, 'Phenotype integration improves power and preserves specificity in biobank-based genetic studies of major depressive disorder', DOI 10.1038/s41588-023-01559-9, PMC10703686 — R2≈40%; 67k→166k effective n; ~10-fold loci; ~2-fold PRS R2; 'remains contested' framing; verbatim-confirmed",
-        "van Alten S et al. 2025, Nature Communications, 'Correcting for volunteer bias in GWAS increases SNP effect sizes and heritability estimates', DOI 10.1038/s41467-025-58684-8, PMID 40234401 — record-grade"
+        "CONVERGE Consortium (Cai N, Bigdeli TB, Kretzschmar W et al.) 2015, Nature 523(7562):588–591, 'Sparse whole-genome sequencing identifies two loci for major depressive disorder', DOI 10.1038/nature14659 — 5,303 homogeneous severe recurrent-MDD cases / 5,337 controls; two replicated loci (near SIRT1, P=2.53e-10; LHPP intron, P=6.45e-12); melancholia strengthens the SIRT1 signal; DOI pinned 2026-09-03 per review item 1. See also Author Correction 2023, Nature, DOI 10.1038/s41586-023-06276-1, PMID 37567929 — a DATA-AVAILABILITY correction (sequence files withdrawn from GigaDB under changed Chinese data-sharing regulation; variant calls and summary statistics remain available), not a correction to any figure cited here; snippet-grade",
+        "BIONIC consortium 2026, Molecular Psychiatry, 'Genetics of major depressive disorder in a homogeneous population with uniform phenotyping', DOI 10.1038/s41380-026-03666-5; preprint medRxiv DOI 10.1101/2025.05.14.25325937; PMC12636711 — n=64,941 (25.7% cases), DSM lifetime MDD, uniform phenotyping; one novel locus PALMD rs3818852 P=3.26e-8 confirmed by GWAS-by-subtraction; rg 0.89 (SE 0.048) with PGC-MD; snippet-grade, corroborated across two independent searches",
+        "Dahl A et al. 2023, Nature Genetics 55(12):2082–2093, 'Phenotype integration improves power and preserves specificity in biobank-based genetic studies of major depressive disorder', DOI 10.1038/s41588-023-01559-9, PMC10703686 — cited here for the 'remains contested' framing of the depth/breadth choice; full figures at gen-19"
       ],
       "edges": [
-        { "to": "gen-3", "type": "refines" },
-        { "to": "que-1", "type": "supports" },
-        { "to": "gen-8", "type": "supports" },
-        { "to": "gen-11", "type": "depends" }
+        {
+          "to": "gen-3",
+          "type": "refines"
+        },
+        {
+          "to": "que-1",
+          "type": "supports"
+        },
+        {
+          "to": "gen-8",
+          "type": "supports"
+        },
+        {
+          "to": "gen-11",
+          "type": "depends"
+        },
+        {
+          "to": "gen-16",
+          "type": "depends"
+        },
+        {
+          "to": "gen-17",
+          "type": "depends"
+        },
+        {
+          "to": "gen-18",
+          "type": "depends"
+        },
+        {
+          "to": "gen-19",
+          "type": "depends"
+        }
       ],
       "created": "2026-09-01",
-      "updated": "2026-09-01"
+      "updated": "2026-09-03"
+    },
+    {
+      "id": "gen-16",
+      "claim": "Measurement depth buys genetic SPECIFICITY, not signal strength: loosely and strictly defined versions of one construct differ more than twofold in SNP heritability and differ in which loci they find, yet stay highly genetically correlated — so depth changes what a genetic result is ABOUT, not how much of it there is.",
+      "status": "cited",
+      "detail": "Fissioned out of gen-15 2026-09-03 (review lane's Legible item), carrying the specificity axis and the correction the review's Rigorous item demanded. THE FIGURES, restated correctly. Cai 2020 measured a ladder of depression definitions in one cohort: the three minimal-phenotyping definitions run SelfRepDep 10.96% (SE 0.85%), Psypsy 12.57% (SE 1.18%) and GPpsy 14.34% (SE 0.81%), against LifetimeMDD (DSM-based) at 26.21% (SE 2.15%), rising to 31.95% (SE 2.56%) once recurrence is required. gen-15's old sentence gave '~11% vs ~26%' and defended it 'per the published abstract'; that provenance was false, and the review lane was right to name it — the abstract's own headline is 'the genotype-derived heritability of depression defined by minimal phenotyping is 14% (SE = 0.8%), lower than strictly defined MDD at 26% (SE = 2.2%)', while 10.96% is the paper's SelfRepDep figure, one rung of the body-level ladder. This lane's first draft of the fix over-read in the other direction, asserting that the review's 14% was 'GPpsy, not the minimal phenotype'; the adversarial pass killed that. The abstract labels 14% as minimal phenotyping outright. That GPpsy (14.34%, SE 0.81%) is the definition the headline rounds from is an INFERENCE of this lane's from the matching digits, marked as such and not the paper's labelling. The node therefore states the abstract pair AND the ladder, because the ladder is what shows there is no single minimal-phenotyping heritability to quote. That h2 is basis-relative is itself now a claim, at gen-20. The specificity evidence proper, all Cai 2020: the minimal phenotype sits genetically close to strict MDD (rg 0.81, SE 0.03) and closer still to plain neuroticism (rg 0.84, SE 0.05); its GWAS preferentially finds non-specific loci, needing 80.2% of the genome to explain 90% of its genetic correlations with other traits where strict MDD needs 65.8%; and its PGS predicts well, but the predictive power 'can be explained entirely by large sample sizes rather than by specificity for MDD'. COUNTERWEIGHT, stated at full strength: BIONIC 2026's uniformly deep-phenotyped MDD GWAS correlates with PGC-MD at rg 0.89 (SE 0.048 — the correlation snippet-confirmed, the standard error not), and the sharper form the adversarial pass supplied is that its polygenic scores predict BIDIRECTIONALLY between the deep and the shallow cohort while its within-family analyses indicate minimal confounding. Cross-prediction bounds this node harder than rg alone: depth re-weights a largely shared genetic signal, it does not isolate a disjoint one. RECONCILIATION with gen-3, which holds that a single validated item is a genetic-grade phenotype: Niarchou 2022's one item was validated against separate experimental measures. A well-designed single item is a PRECISE measurement of a NARROW construct; a minimal phenotype is a LOOSE measurement of a BROAD one. What costs specificity is measurement looseness, not item count — which is que-1's validity-at-depth discipline reaching the genetic side. REFUTATION CONDITION: falls if the gaps are artifacts of n rather than of definition — if the genome-fraction and rg-with-neuroticism differences close when the strict and minimal phenotypes are compared at matched sample size. Provenance: publisher hosts egress-blocked; Cai's ladder and BIONIC's rg snippet-grade, each corroborated across two independent searches.",
+      "sources": [
+        "Cai N et al. 2020, Nature Genetics 52(4):437–447, 'Minimal phenotyping yields genome-wide association signals of low specificity for major depression', DOI 10.1038/s41588-020-0594-5, PMID 32231276 — per-definition liability SNP-h2: SelfRepDep 10.96% (SE 0.85%), Psypsy 12.57% (SE 1.18%), GPpsy 14.34% (SE 0.81%), LifetimeMDD 26.21% (SE 2.15%), recurrent 31.95% (SE 2.56%); rg 0.81 (SE 0.03) minimal vs LifetimeMDD; rg 0.84 (SE 0.05) with neuroticism; 80.2% vs 65.8% of genome to explain 90% of cross-trait genetic correlations; 'can be explained entirely by large sample sizes rather than by specificity for MDD'. Figures snippet-grade (publisher egress-blocked), corroborated across two independent searches 2026-09-03. Preprint carries a different title (bioRxiv 10.1101/440735, 'Minimal phenotyping yields GWAS hits of low/reduced specificity for major depression')",
+        "BIONIC consortium 2026, Molecular Psychiatry, 'Genetics of major depressive disorder in a homogeneous population with uniform phenotyping', DOI 10.1038/s41380-026-03666-5; medRxiv 10.1101/2025.05.14.25325937; PMC12636711 — rg 0.89 (SE 0.048) with PGC-MD; snippet-grade",
+        "Niarchou M et al. 2022, Nature Human Behaviour, 'Genome-wide association study of musical beat synchronization demonstrates high polygenicity', DOI 10.1038/s41562-022-01359-x, PMC9489530 — one self-report item validated against separate experimental measures (full reference at gen-3)"
+      ],
+      "edges": [
+        {
+          "to": "gen-15",
+          "type": "supports"
+        },
+        {
+          "to": "gen-3",
+          "type": "refines"
+        },
+        {
+          "to": "que-1",
+          "type": "supports"
+        },
+        {
+          "to": "gen-20",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
+      "id": "gen-17",
+      "claim": "Many items per person admit latent genetic decomposition — the genetics of a factor nobody measured directly — and what a battery contributes is not decomposability, which existing summary statistics already supply, but the CHOICE of measurement model: an item bank designs the latent structure before the GWAS, where subtraction can only ask what an existing pair of GWAS happens to span.",
+      "status": "cited",
+      "detail": "Fissioned out of gen-15 2026-09-03, carrying the latent-structure axis. The demonstration: GWAS-by-subtraction recovered a noncognitive-skills factor from educational attainment and cognitive performance, yielding 157 loci and accounting for 57% of the genetic variance in educational attainment (Demange 2021; both figures verbatim-confirmed on an earlier run). The honest caveat, which is what makes this a claim about measurement models rather than a claim about batteries: that decomposition ran on two EXISTING summary-statistics GWAS and needed no new item-level data at all. So the battery's contribution is not that latent genetic factors can be recovered — genomic SEM over published summary statistics does that (Grotzinger 2019, at gen-11) — but that the reachable space of factors is bounded by what has already been GWASed. Subtraction asks 'what is in EA that is not in cognitive performance'; it cannot ask a question whose two arms nobody has run. An item bank inverts the order: the latent structure is specified by the measurement model first, and the GWAS is run on the factor scores it defines, which is int-4's rule (structure derived from measured response structure, never authored as a plausible grid) reaching the genetic side. This is also the axis where gen-3's aggregation result bites — item-level interest heritability ~32% rising to ~48% at factor and ~53% at superfactor level (Lykken 1993, at gen-3) is the same phenomenon measured from the twin side: the factor is a better-measured construct than any of its items, so its genetic signal is larger. REFUTATION CONDITION: falls if the space of factors reachable by subtraction and genomic SEM over already-published summary statistics is not meaningfully narrower than the space an item bank could define — concretely, if for some target factor the lane names, a subtraction over existing GWAS pairs recovers it at comparable rg and comparable loci count to a purpose-measured factor score. That is a runnable test on public summary statistics and does not wait on any InSight data.",
+      "sources": [
+        "Demange PA et al. 2021, Nature Genetics 53(1):35–44, 'Investigating the genetic architecture of noncognitive skills using GWAS-by-subtraction', DOI 10.1038/s41588-020-00754-2, PMID 33414549 — 157 loci; noncognitive factor 57% of EA genetic variance; verbatim-confirmed 2026-09-01",
+        "Grotzinger AD et al. 2019, Nature Human Behaviour 3(5):513–525, 'Genomic structural equation modelling provides insights into the multivariate genetic architecture of complex traits', DOI 10.1038/s41562-019-0566-x, PMID 30962613 (full reference at gen-11)"
+      ],
+      "edges": [
+        {
+          "to": "gen-15",
+          "type": "supports"
+        },
+        {
+          "to": "int-4",
+          "type": "supports"
+        },
+        {
+          "to": "gen-11",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
+      "id": "gen-18",
+      "claim": "The within-person time axis works by turning a trajectory into new phenotypes: derived trajectory parameters — slope, area, peak, rebound — are the genetic instrument, not the repeated measurements themselves, and they expose age-varying genetic effects that one-shot phenotyping cannot see.",
+      "status": "cited",
+      "detail": "Fissioned out of gen-15 2026-09-03, carrying the time axis — and sharpened in the fission, because re-verifying the source changed the claim. gen-15 said repeated measurement 'exposes genetic effects one-shot phenotyping cannot see', which is true but names the wrong instrument. What the framework actually does: from 71,336 participants across six cohorts it estimates TWELVE derived phenotypes per person — the slope and the area under the BMI curve within each of four periods (infancy, early childhood, late childhood, adolescence), plus the age and BMI at the adiposity peak and at the adiposity rebound — and runs GWAS on those, identifying 28 genome-wide-significant variants at 13 loci with age-varying effects, one of them (in DAOA) never previously associated with childhood or adult BMI (Burrows 2024). The repeated measurements are the raw material; the phenotypes are the trajectory parameters fitted through them. Two consequences for the axiom. (1) The design requirement on a battery is not 'ask again' but 'ask often enough, and on a schedule dense enough, to RESOLVE the shape' — a construct measured twice yields a slope and nothing else; peaks and rebounds need the sampling to bracket them. (2) This is the one axis where the genetic axiom has no within-person limb of its own: the genotype is a constant, so what varies is the phenotype's trajectory and the genotype indexes its SHAPE (cen-8 reaches the same conclusion from the portfolio side, calling genetic's value pairing-funded with no within-person half). That is exactly why gen-8's longitudinal import series matters — methylation is a state where genotype is a constant, so the imported series is the only route by which a molecular measurement, rather than a molecular constant, enters the within-person geometry cen-1 now separates. REFUTATION CONDITION: falls if age-varying genetic effects prove to be an artifact of the measurement changing meaning across the age range rather than of the genetic effect changing — longitudinal measurement non-invariance, que-4's grading applied to time. The decisive test is establishing longitudinal invariance BEFORE estimating the age-varying effect; the BMI case is comparatively safe from this (a scale reads the same at 4 and 14) and a self-report construct is not, so the refutation bites hardest exactly where this axiom would apply it.",
+      "sources": [
+        "Burrows K, Heiskala A, Bradfield JP et al. 2024, Nature Communications 15:10067, 'A framework for conducting GWAS using repeated measures data with an application to childhood BMI', DOI 10.1038/s41467-024-53687-3, PMC11579382 — 71,336 participants across six cohorts; 12 derived phenotypes (slope and AUC across four periods, age and BMI at adiposity peak and rebound); 28 genome-wide-significant variants at 13 loci with age-varying effects; novel locus in DAOA; identifiers and design snippet-grade, corroborated across two independent searches 2026-09-03"
+      ],
+      "edges": [
+        {
+          "to": "gen-15",
+          "type": "supports"
+        },
+        {
+          "to": "gen-8",
+          "type": "supports"
+        },
+        {
+          "to": "que-4",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
+      "id": "gen-19",
+      "claim": "Many correlated items are an imputation substrate that multiplies effective sample size, and that sets the admission bar for every new item the battery proposes: it must add information beyond what integration over the items already collected recovers.",
+      "status": "cited",
+      "detail": "Fissioned out of gen-15 2026-09-03, carrying the integration axis. The demonstration: phenotype integration over already-collected UK Biobank items imputed strictly defined MDD at R2 about 40%, roughly doubling effective sample size (67k observed to 166k effective), with roughly ten-fold GWAS loci and two-fold PRS R2, and specificity preserved rather than traded away (Dahl 2023, figures verbatim-confirmed on an earlier run). The result cuts both ways and this node keeps both edges. It proves the many-items substrate is powerful, and a deep answer corpus natively IS that substrate at item grade — every item is both a phenotype and a predictor of every other. And it sets a bar that most proposed new items fail: if integration over what is already asked recovers the target at R2 40%, a new item earns its slot only by adding information that integration cannot reconstruct. The bar is passable exactly where gen-3 and gen-10 point — domains with no existing items to integrate FROM, which is why inventory-grade interests (no GWAS of an administered interest inventory exists) and the direct-output percept items (single-protein anchors nothing else predicts) are the two item classes this theory keeps asking for, and why generic additions to the bank are not genetic-axiom improvements even though gen-3 says the battery is the scarce asset. This is the discipline that keeps gen-3 from licensing indiscriminate growth: the scarce asset is battery COVERAGE of unspanned domains, not battery size. REFUTATION CONDITION: falls if imputation R2 saturates at a small item set — if integrating over a handful of well-chosen items recovers a target phenotype about as well as integrating over hundreds, the substrate argument stops being an argument for breadth and becomes an argument for a short, well-chosen core, which would leave this node's evidence intact and its consequence wrong. Dahl reports the aggregate result; the saturation curve behind it is the quantity that decides this, and the lane has not seen it.",
+      "sources": [
+        "Dahl A et al. 2023, Nature Genetics 55(12):2082–2093, 'Phenotype integration improves power and preserves specificity in biobank-based genetic studies of major depressive disorder', DOI 10.1038/s41588-023-01559-9, PMC10703686 — R2 about 40%; 67k observed to 166k effective n; about ten-fold loci; about two-fold PRS R2; verbatim-confirmed 2026-09-01"
+      ],
+      "edges": [
+        {
+          "to": "gen-15",
+          "type": "supports"
+        },
+        {
+          "to": "gen-3",
+          "type": "refines"
+        },
+        {
+          "to": "gen-10",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
+      "id": "gen-21",
+      "claim": "Measured against the product's committed corpus and its committed scorecard: the four axes are supplied very unequally — integration is real (111 items eligible for an 8-dimension fold), specificity is narrow (22 constructs at five items; every other grouping sits at a median of one to two), latent structure is unfitted (no measurement model over items and no reliability statistic exist in code) and within-person time is nearly absent (five single-item constructs; every other surface is one answer per question, create-only) — so the battery gen-3 calls the scarce asset is deep in inventory and thin on precisely the two axes that do not follow from inventory.",
+      "status": "measured",
+      "detail": "Added 2026-09-03, and the program's first node at this rung, so the warrant for the rung comes first. CHARTER §4 reserves 'measured' for claims checked against InSight's own published numbers — the committed scorecards and aggregates readable from main. Two committed artifacts qualify and both were read directly at main commit 695f78eb66e63a9406eec9b56cbc90cd8b3f0883: the generated bank functions/src/v2content.ts (V2_QUESTIONS, byte-pinned to content/*.json by check:content) and content/scorecard.json, which docs/QUESTION-FARM.md carves out of the hand-edit ban ('that file is measurement, not content') and which is written only by a live fetch against the public aggregate mirror, never by hand. The rung is claimed on those two artifacts and no further: the scorecard is a published aggregate and the generated bank is a committed count that check:content holds byte-for-byte. Everything else below — the rules, the scoring fold, the patterns constants — is a CODE READING and is labelled as such, because 'grep the repo' must not become this rung's precedent. Recomputing rather than quoting turned up something better than drift, and the first draft of this node got it wrong (an unreproducible 'feed 180' that the adversarial pass caught): the tree carries THREE committed figures for one quantity — how many questions a person can answer. docs/SCALE-PLAN.md says 644 (daily 130 · feed 190 · test 160 · learn 156 · pulse 5 · call 3); src/v2/data/circle.ts says 570 (feed 166, test 110, learn 156) and openly records that it previously said 644 and corrected itself off the committed banks, calling a hand-written figure inside the argument it supports 'this repo's most-repeated documentation error'. Against the generated bank the six world surfaces hold 676 rows, 667 active, 643 active with an option set, and 644 once catalog and rank types are excluded regardless of the active flag. So SCALE-PLAN's TOTAL is reproducible under exactly one definition, its per-surface split under none (feed is 212 rows, 206 active, 188 with options; learn is 166), and circle.ts's 570 under none. The disagreement is not arithmetic — it is that nobody wrote down which rows count. That is gen-20's basis-relativity claim instantiated inside the product's own tree, on a quantity far simpler than a heritability, and it is the strongest argument this node makes for the rule. THE CORPUS: 758 questions — daily 130, feed 212, test 160, learn 166, duo 56, group 26, pulse 5, call 3. 'core' is feed-only and 81 rows carry it, so the Mirror's corpus is 627. INTEGRATION (eligibility, not a fit — with 59 answers in the tree nothing has been fitted): PATTERNS_QIDS is computed, not authored — two-option daily plus two-option core feed — and evaluates to 111 (48 daily + 63 feed-core), folded at PATTERNS_K = 8, gated at 24 questions on 8 answers plus 8 of your own. That is a real substrate in gen-19's sense, and it is the one axis the product supplies well. SPECIFICITY: exactly 22 constructs carry five items each, and they are the four sit-down instruments' dimensions (big5, political, values, attachment). Below that the corpus is not construct-organised: 30 lens dimensions at a median of 2 items (13 are single-item), and the 130 daily items spread across 117 branch/sub paths — a median of ONE item per path. STRUCTURE: nothing fits a measurement model over items. Scoring is a mean times 25 with reverse-keyed items flipped, and no reliability coefficient, factor model or IRT routine exists anywhere in src/, functions/ or scripts/. The patterns fit is the only latent machinery and it fits QUESTIONS, excluding all 160 instrument items by construction. TIME: the pulse is the only instrument that keeps two occasions of one construct for one person — five constructs, one item each, day-keyed in the document id, create-only. Everything else forecloses it: world answers are one document per person per question, the D86 edit moves optionIdx and destroys the prior value rather than archiving it, and the logic retake overwrites its single document. THE BOUND, stated because it governs the rung: the scorecard's own numbers are 59 published answers across 310 questions, coverage 54 scored, every published optionShares vector one-hot. Even here the definition has to be named: the file's two views of 'unserved' differ, coverage saying 89 while the per-question served flag is false for 97. So the committed numbers settle INVENTORY exactly and settle nothing behavioural — no claim about how people answer, how items covary or how constructs cohere can reach this rung against this tree yet, and this node makes none. CONSEQUENCE: gen-3's scarce-asset claim survives but is now measured rather than assumed, and it is narrowed — the product's own AXES-PLAN sells 'hundreds of measured, longitudinal, freely-given trait measurements per person', and the longitudinal supply behind that sentence is five single-item constructs. REFUTATION CONDITION: this node is an as-of measurement and expires by construction — it is refuted by re-running its own counts at a later commit and getting different numbers. The time finding specifically falls the day a construct-grade repeat lands (REQUESTS row this run); the structure finding falls the day any fitted measurement model or reliability statistic enters the tree.",
+      "sources": [
+        "InSight main @ 695f78eb66e63a9406eec9b56cbc90cd8b3f0883, functions/src/v2content.ts (V2_QUESTIONS, generated from content/*.json and byte-pinned by check:content) — 758 questions; by surface daily 130, feed 212, test 160, learn 166, duo 56, group 26, pulse 5, call 3; 81 rows with core:true, all feed; 22 test dimensions at exactly 5 items each; 30 lens dimensions (13 single-item, median 2); 130 daily items over 117 branch/sub paths (median 1); pulse roster pace/energy/sleep/focus/social; one chronotype-adjacent item (daily-044, 'Morning person or night owl?') and no other direct-output percept item. Recomputed by this lane 2026-09-03",
+        "InSight main @ 695f78eb, functions/src/patterns.ts PATTERNS_QIDS filter and functions/src/patternsFit.ts / src/v2/data/patternsReady.ts constants — PATTERNS_QIDS evaluates to 111 (daily 48 + feed-core 63); PATTERNS_K = 8; PATTERNS_MIN_BASIS = 8; PATTERNS_MIN_POOL = 24; PATTERNS_MIN_MINE = 8. Recomputed by this lane 2026-09-03",
+        "InSight main @ 695f78eb, content/scorecard.json (generatedAt 2026-09-03T07:03:26.957Z; written only by `npm run scorecard -- --fetch` against the live aggregate mirror, carved out of the hand-edit ban by docs/QUESTION-FARM.md as 'measurement, not content') — coverage {questions 310, scored 54, unserved 89}; sum of per-question totals = 59; total distribution {0: 256, 1: 52, 2: 1, 5: 1}. Read by this lane 2026-09-03",
+        "InSight main @ 695f78eb, firestore.rules (world answers one document per person per question; the D86 update arm restricted to optionIdx/editedAt; pulse answers keyed {baseQid}_{day}, create-only) and functions/src/logic.ts (LOGIC_REVERIFY_DAYS = 30, the attempt document set rather than appended)",
+        "InSight main @ 695f78eb, src/v2/data/circle.ts (the WORLD_ANSWER_SURFACES comment, which states 570 and records its own earlier 644) and docs/SCALE-PLAN.md (which states 644 with a per-surface split of feed 190 / learn 156) — the three-way disagreement against the generated bank's 676 rows / 667 active / 643 active-with-options / 644 non-catalog-non-rank. Recomputed by this lane 2026-09-03"
+      ],
+      "edges": [
+        {
+          "to": "gen-3",
+          "type": "refines"
+        },
+        {
+          "to": "gen-16",
+          "type": "depends"
+        },
+        {
+          "to": "gen-17",
+          "type": "depends"
+        },
+        {
+          "to": "gen-18",
+          "type": "depends"
+        },
+        {
+          "to": "gen-19",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
+      "id": "gen-22",
+      "claim": "A banded polygenic score states something about a distribution, not about a person, and the two things that break as the person moves away from the discovery cohort break differently: ORDERING degrades gradually and stays informative, while the MAPPING from score to band can be simply wrong — so a band that travels carries its basis, and the basis is not only genetic position but also the reference distribution, the non-genetic context and, for device-side scoring, the array and imputation coverage the score was computed from.",
+      "status": "cited",
+      "detail": "Added 2026-09-03 as the honesty constraint gen-2's architecture has been missing: gen-2 sends banded quantities across the wire and never said what a band means. The draft this run began from — 'accuracy decays continuously with genetic distance, so a band without its basis is uninterpretable' — did not survive its own scout pass, and the corrections ARE the claim. (1) ORDERING degrades continuously and is well measured: prediction drops off already within European ancestries and falls in proportion to genetic distance (Privé 2022); accuracy tracks a continuous genetic-distance measure at Pearson r = −0.95 across 84 traits, the furthest genetic-distance decile of European-ancestry individuals runs 14% below the closest, and the closest Hispanic/Latino decile performs like the furthest European one (Ding 2023) — the label is not the unit of meaning, the position is. But degraded ordering is a WEAKER measurement, not a meaningless one: a 269-variant multi-ancestry prostate-cancer score validated in 107,247 cases and 127,006 controls stratifies risk in European, African and Hispanic ancestry men alike, attenuated rather than destroyed (Darst 2022 — design and multi-ancestry validation corroborated this run, the per-group odds ratios NOT, so no figure is stated). (2) GENETIC DISTANCE IS NOT THE ONLY BASIS, and privileging it is now contradicted: individual-level accuracy variation is only weakly predicted by genetic distance and explained comparably well by socioeconomic measures; several immunity-related traits drop near zero at INTERMEDIATE distances; and qualitative trends depend on the metric — for type 2 diabetes precision stays roughly constant while recall increases with genetic distance (Wang 2026). A node saying 'accuracy decays' without binding a metric would be refuted by a published counterexample. (3) THE BAND MAPPING fails categorically rather than gradually, and it is already fragile at zero genetic distance: across 13 traits in 291,273 ancestry-matched individuals, only 0.8% (s.d. 1.6%) of top-decile point estimates have 95% credible intervals contained in that decile (Ding 2022). Ancestry does not make the individual band meaningless — it was already weak, and ancestry adds bias on top. Reference implementations have drawn the conclusion: the PGS Catalog calculator emits no percentile without a declared reference panel and a projection into it (Lambert 2024), and calibrated intervals condition on context, where age, sex and income move accuracy by magnitudes comparable to genetic ancestry (Hou 2024). (4) THE LIMB THAT IS THIS SYSTEM'S OWN: device-side scoring of a consumer array makes the PLATFORM part of the basis — a 313-variant breast-cancer score computed across four arrays and low-coverage sequencing shows platform-specific variability that can reclassify individuals around clinically relevant thresholds (Ho 2025) — and no study was found varying array platform and genetic distance TOGETHER, which is exactly the combination gen-1's import principle forces. CONSEQUENCE: a band is publishable only with (a) its discovery cohort, (b) the reference distribution the percentile was taken against and the person's position in it, (c) the non-genetic context the accuracy is conditional on, (d) the array, imputation panel and realized variant coverage. That belongs in the G1 design record if G1 is ever taken; it is a constraint the architecture must satisfy, not a discovery — requiring a calibration basis is close to the field's engineering consensus and the node says so rather than claiming novelty. A failure mode this node does NOT cover: for gen-10's direct-output items ancestry changes INFORMATION CONTENT, not calibration — an rs671 carrier flushes wherever the discovery cohort was, while rs12913832 is near-monomorphic outside Europe and so carries almost no information there while staying perfectly calibrated. Conflating the two would be a category error, and it bounds the percept anchors' use as calibration references. REFUTATION CONDITION: falls if band mapping proves robust to genetic position — if recalibration against a matched reference moves few people across band boundaries in a large diverse cohort — or if the platform limb proves null, i.e. consumer arrays of differing design agree on band assignment within the uncertainty Ding 2022 already establishes for one platform. Provenance: publisher and repository hosts egress-blocked, so every figure is snippet-grade; Ding 2023, Wang 2026 and Ding 2022 were each corroborated by this lane's own independent searches, and figures the scout reported but the lane could not corroborate (Privé's per-group table, the prostate odds ratios, a platform concordance statistic) are omitted rather than restated.",
+      "sources": [
+        "Privé F, Aschard H, Carmi S, Folkersen L, Hoggart C, O'Reilly PF, Vilhjálmsson BJ 2022, American Journal of Human Genetics 109(1):12–23, 'Portability of 245 polygenic scores when derived from the UK Biobank and applied to 9 ancestry groups from the same cohort', DOI 10.1016/j.ajhg.2021.11.008, PMID 34995502 — cited for the qualitative finding (prediction drops off already within European ancestries and reduces in proportion to genetic distance), corroborated this run; the per-group partial-r2 table is NOT stated here, having been reached only at single-pass snippet grade",
+        "Ding Y, Hou K, Xu Z et al. 2023, Nature 618:774–781, 'Polygenic scoring accuracy varies across the genetic ancestry continuum', DOI 10.1038/s41586-023-06079-4, PMID 37198491, PMC10284707 — Pearson r = −0.95 between genetic distance and PGS accuracy averaged across 84 traits; furthest genetic-distance decile 14% less accurate than the closest within European ancestries; closest Hispanic/Latino decile performs like the furthest European decile; snippet-grade, corroborated across two independent searches",
+        "Wang JY, Lin N, Zietz M et al. 2026, Nature Communications 17:942, 'Three open questions in polygenic score portability', DOI 10.1038/s41467-026-68565-3, PMC12835231; preprint bioRxiv 10.1101/2024.08.20.608703, PMID 39229140, PMC11370354 — individual-level accuracy variation only weakly predicted by genetic distance and explained comparably well by socioeconomic measures; immunity-related traits near zero at intermediate distances; precision roughly constant while recall increases with genetic distance for type 2 diabetes; snippet-grade, corroborated across two independent searches",
+        "Ding Y, Hou K, Burch KS et al. 2022, Nature Genetics 54:30–39, 'Large uncertainty in individual polygenic risk score estimation impacts PRS-based risk stratification', DOI 10.1038/s41588-021-00961-5, PMID 34931067 — across 13 traits in 291,273 unrelated white British individuals, only 0.8% (s.d. 1.6%) of top-decile point estimates have 95% credible intervals fully contained in the top decile; snippet-grade, corroborated across two independent searches",
+        "Darst BF et al. 2022, eLife 11:e78304, 'Validation of a multi-ancestry polygenic risk score and age-specific risks of prostate cancer: A meta-analysis within diverse populations', PMID 35801699, PMC9322982 — 269 variants; 107,247 cases and 127,006 controls (75.8% European, 11.7% East Asian, 9.1% African, 3.4% Hispanic); cited for multi-ancestry stratification holding with attenuation; per-group odds ratios NOT corroborated this run and not stated",
+        "Lambert SA, Wingfield B et al. 2024, Nature Genetics, 'Enhancing the Polygenic Score Catalog with tools for score calculation and ancestry normalization', DOI 10.1038/s41588-024-01937-x — pgsc_calc projects the individual into a reference-panel PCA space and reports percentiles only relative to a declared reference; documentation-grade for the tool behaviour",
+        "Hou K, Xu Z, Ding Y, Mandla R, Shi Z, Boulier K, Harpak A, Pasaniuc B 2024, Nature Genetics 56(7):1386–1396, 'Calibrated prediction intervals for polygenic scores across diverse contexts' (CalPred), DOI 10.1038/s41588-024-01792-w — context-conditional prediction intervals; age, sex and income affect PGS accuracy with magnitudes comparable to genetic ancestry; snippet-grade",
+        "Ho PJ et al. 2025, Communications Medicine, 'Genomic platform specific polygenic risk scores impact breast cancer risk stratification', DOI 10.1038/s43856-025-01298-4, PMC12820083; preprint bioRxiv 10.1101/2025.04.10.648141 — a 313-variant breast-cancer PRS across four genotyping arrays and low-coverage genome sequencing in two cell lines and 92 individuals; platform-specific variability influences estimates and can reclassify individuals around clinically relevant thresholds; near-verbatim for that sentence, concordance statistics not corroborated and not stated",
+        "Martin AR, Kanai M, Kamatani Y, Okada Y, Neale BM, Daly MJ 2019, Nature Genetics 51(4):584–591, 'Clinical use of current polygenic risk scores may exacerbate health disparities', DOI 10.1038/s41588-019-0379-x, PMID 30926966 — the field's founding portability result; record-grade, per-group fold figures not corroborated this run and not stated"
+      ],
+      "edges": [
+        {
+          "to": "gen-2",
+          "type": "refines"
+        },
+        {
+          "to": "gen-10",
+          "type": "refines"
+        },
+        {
+          "to": "cen-7",
+          "type": "supports"
+        },
+        {
+          "to": "map-6",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
+    },
+    {
+      "id": "gen-20",
+      "claim": "A heritability figure is a property of an estimator, a phenotype definition and an ascertainment scheme, never of a trait: each of the three moves it by roughly twofold, so the perfect axiom publishes and consumes no bare h2, and a cross-trait or cross-axis heritability comparison means nothing unless all three are held fixed.",
+      "status": "cited",
+      "detail": "Added 2026-09-03. This is gen-11's discipline applied to the other quantity this axiom traffics in: gen-11 forbids a bare COUPLING, this forbids a bare HERITABILITY, and it is not the softer claim, because three separately measured axes each move h2 materially — by about 1.4x to 8x depending on the axis and the trait — so comparing two published figures can manufacture a large difference out of nothing. The per-axis magnitudes are stated rather than averaged, the adversarial pass having killed a first draft that claimed 'roughly twofold' for all three. (1) DEFINITION. Cai 2020 measured five definitions of one disorder in one cohort and got 10.96% (SE 0.85%) to 26.21% (SE 2.15%), reaching 31.95% (SE 2.56%) once recurrence is required — a 2.4x spread with the genotypes held constant (the ladder is at gen-16). (2) ESTIMATOR MODEL. How a variant's heritability contribution is assumed to depend on its allele frequency, LD and genotype certainty is a modelling CHOICE, and it is disputed: across 19 traits the LDAK model returns common-SNP h2 on average 43% higher than GCTA and 25% higher than GCTA-LDMS — about 1.4x, the smallest of the three axes — while the same model change moves a published functional-enrichment conclusion from DNase I hypersensitivity sites explaining 79% of SNP heritability to 24% (Speed 2017): the choice changes the scientific conclusion, not merely the level. The sharpest instance is one sample: BIONIC 2026 reports 12.0% (SE 1.4%) by LDSC at an assumed 15% lifetime prevalence and 26.6% (SE 1.1%) by LDAK-REML on individual-level genotypes — 2.2x on the same people and the same phenotype, though the contrast is not a clean isolation of the heritability model, since it also changes the estimation substrate (summary statistics versus individual genotypes) and carries an assumed prevalence. And the same paper's ABSTRACT headlines a third figure, 13.4%, so a reader checking the abstract meets a number matching neither: one sample, one phenotype, three published heritabilities. (3) ASCERTAINMENT, the largest axis of the three and the one the first draft left without a magnitude. Correcting UK Biobank for volunteer bias with inverse-probability weights raises SNP effect sizes and heritability across ten phenotypes: breast cancer 2.59% to 5.12% (about 2x) and type 1 diabetes 0.54% to 4.32% (about 8x) — at a real price the node records with it, an average 62% cut in effective sample size (van Alten 2025). Recruitment sits inside the number — not academic here, since an imported-genome population is volunteer-ascertained twice, once into consumer testing and again into consenting to pair. A fourth axis is the lane's own inference, marked as such: twin-design h2 and SNP-based h2 are different ESTIMANDS rather than competing estimates of one, so part of any missing-heritability gap is definitional; the lane asserts the distinction, not a share. CONSEQUENCE: cen-7's declared object needs a further clause wherever the quantity is heritability-like, and a 'trait X is N% heritable' column crossing axes is uninterpretable unless every entry was computed alike — which across the published literature they are not. REFUTATION CONDITION: falls if the estimator dispute resolves, i.e. if a validated consensus heritability model emerges under which LDAK, GCTA and LDSC agree within their standard errors on the same trait; axis (2) would collapse to a historical caveat and the rule would weaken to definition and ascertainment alone. It does not fall on single traits where estimators happen to agree. Provenance: publisher hosts egress-blocked; Speed 2017 and BIONIC snippet-grade, each corroborated across two independent searches this run.",
+      "sources": [
+        "Speed D, Cai N, UCLEB Consortium, Johnson MR, Nejentsev S, Balding DJ 2017, Nature Genetics, 'Reevaluation of SNP heritability in complex human traits', DOI 10.1038/ng.3865, PMID 28530675 — across 19 traits the improved LDAK model gives common-SNP h2 on average 43% higher than GCTA and 25% higher than GCTA-LDMS; DNase I hypersensitivity contribution 79% under the previous model vs 24% under LDAK; volume/pages not pinned this run; snippet-grade",
+        "BIONIC consortium 2026, Molecular Psychiatry, 'Genetics of major depressive disorder in a homogeneous population with uniform phenotyping', DOI 10.1038/s41380-026-03666-5; medRxiv 10.1101/2025.05.14.25325937; PMC12636711 — liability SNP-h2 12.0% (SE 1.4%) by LDSC at assumed 15% lifetime prevalence vs 26.6% (SE 1.1%) by LDAK-REML on individual-level genotypes, same sample; the abstract's own headline SNP-h2 is a third figure, 13.4%; snippet-grade",
+        "Cai N et al. 2020, Nature Genetics 52(4):437–447, DOI 10.1038/s41588-020-0594-5, PMID 32231276 — the five-definition heritability ladder; figures and grades at gen-16",
+        "van Alten S et al. 2025, Nature Communications, 'Correcting for volunteer bias in GWAS increases SNP effect sizes and heritability estimates', DOI 10.1038/s41467-025-58684-8, PMID 40234401, PMC12000612 — across ten phenotypes weighted GWAS raises effect sizes and heritability (breast cancer 2.59% to 5.12%; type 1 diabetes 0.54% to 4.32%) while decreasing effective sample size by 62% on average; snippet-grade, corroborated 2026-09-03",
+        "Polderman TJC et al. 2015, Nature Genetics 47(7):702–709, 'Meta-analysis of the heritability of human traits based on fifty years of twin studies', DOI 10.1038/ng.3285 — cited only for the twin-vs-SNP estimand contrast (full reference at gen-9)"
+      ],
+      "edges": [
+        {
+          "to": "gen-11",
+          "type": "refines"
+        },
+        {
+          "to": "gen-16",
+          "type": "supports"
+        },
+        {
+          "to": "cen-7",
+          "type": "supports"
+        },
+        {
+          "to": "que-4",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
     }
   ]
 }

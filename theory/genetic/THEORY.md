@@ -1,10 +1,13 @@
 # The genetic axiom — current theory
 
 *Regenerated from `graph.json` by each run; the graph is the data, this
-page is its readable face. Last regenerated 2026-09-01. Statuses follow
+page is its readable face. Last regenerated 2026-09-03. Statuses follow
 CHARTER §4: conjecture → argued → cited → measured; sources live on the
-nodes. Provenance note for the 2026-08-27, 2026-08-29 and 2026-09-01
-runs: the environment blocked publisher pages, so those runs' sources
+nodes. **The graph reached its first `measured` node on 2026-09-03**
+(gen-21) — the rung is checked against the product's own committed
+corpus and scorecard, and the node states plainly what those numbers
+can and cannot settle. Provenance note for the 2026-08-27, 2026-08-29,
+2026-09-01 and 2026-09-03 runs: the environment blocked publisher pages, so those runs' sources
 are record-verified (consistent title/venue/identifier across
 independent index records) with figures snippet-grade unless stated —
 labeled inline on the nodes; GitHub-fetched facts are record-grade.*
@@ -14,7 +17,9 @@ never assay; keep the file with the person; point everything at the one
 asymmetry that matters — the phenotype battery is the scarce asset and
 the genome a weak, fixed prior beside it; connect the axes through
 architecture, not gene lists — except at the percept boundary, where a
-named gene really does predict a person's answer; and contribute
+named gene really does predict a person's answer; publish no bare
+quantity, because a coupling, a heritability and a score band each mean
+nothing without the basis they were computed on; and contribute
 outward on the axes the resource actually owns — decomposition
 magnitudes and never-phenotyped domains for engineering, the axes
 orthogonal to sample size for genetics itself.**
@@ -296,37 +301,209 @@ contributions over consented aggregates, never procedures.
   cannot move — causal-gene assignment, per-mutation agents, delivery,
   law — is recorded as the bound.
 
-- **Understanding: the axes orthogonal to n (gen-15).** The naive
-  negative — "discovery scale belongs to shallow phenotyping at large
-  n" — did not survive the adversarial pass: shallow-at-scale wins
-  locus counts (Hyde 2016: 17 SNPs at n=459,481 where 9,240 clinical
-  cases had found none; Howard 2018: broad depression the most
-  tractable UK Biobank phenotype), **but** CONVERGE won in the same
-  trait with 5,303 deeply homogeneous severe cases (two replicated
-  loci) when >9,000 heterogeneous cases had yielded nothing, and the
-  field's own framing is that the depth/breadth choice "remains
-  contested" (Dahl 2023). The axiom doesn't own the discovery axis and
-  doesn't need it — the import principle rides other people's n. What
-  the deep battery measurably buys is four axes orthogonal to n:
-  **specificity** (minimal-phenotyping depression: h2 ~11% vs ~26%
-  strict, rg 0.84 with plain neuroticism, PGS predictive power
-  "explained entirely by large sample sizes"; a validated single item
-  is precise-narrow where a minimal phenotype is loose-broad — what
-  costs specificity is measurement looseness, not item count);
-  **structure** (GWAS-by-subtraction's noncognitive factor, 157 loci —
-  with the caveat that it ran on existing summary statistics: the
-  battery's addition is choosing the measurement model, not
-  decomposability per se); **time** (13 loci with age-varying effects
-  under repeated-measures GWAS — the genetic argument for gen-8's
-  longitudinal import series); and **integration** (Dahl 2023: item
-  integration doubled effective n, ~10x loci, ~2x PRS R2 — proving the
-  many-items substrate and simultaneously setting the bar a new item
-  must clear: add what integration over existing items cannot recover,
-  which points at the never-phenotyped domains). Volunteer-bias
-  correction (van Alten 2025) binds participation structure back into
-  gen-11's social-vs-biology honesty rule. Stated plainly, gen-15
-  **narrows gen-3's ranking claim**: the battery's contribution runs on
-  these axes, not on discovery scale.
+- **Understanding: the axes orthogonal to n (gen-15 · cited, fissioned
+  2026-09-03 into gen-16 to gen-19).** The naive negative — "discovery
+  scale belongs to shallow phenotyping at large n" — did not survive
+  the 09-01 adversarial pass, and 09-03 bounded depth from the other
+  side too. Shallow-at-scale wins locus counts (Hyde 2016: 17 SNPs at
+  n=459,481 where 9,240 clinical cases had found none; Howard 2018:
+  broad depression the most tractable UK Biobank phenotype). Depth won
+  in the same trait (CONVERGE: two replicated loci from 5,303 deeply
+  homogeneous severe cases where >9,000 heterogeneous cases yielded
+  nothing). **And depth has a measured ceiling**: BIONIC 2026 mega-
+  analysed DSM-defined lifetime MDD, uniformly phenotyped in a
+  homogeneous population, in 64,941 people and found **one** novel
+  locus, at rg 0.89 with the big shallow meta-analysis — uniform depth
+  at 65k does not approach shallow breadth at 459k, and the high rg
+  says both are largely reading one between-person signal — with one
+  caveat this theory owes its own new rule: BIONIC's **25.7% case
+  fraction** sits far above population prevalence, so comparing 65k to
+  459k on raw n is itself basis-dependent (gen-20, applied against this
+  section's own headline comparison). The field's own framing stays
+  "contested" (Dahl 2023); the axiom does not own this axis and does
+  not need it. What deep measurement buys is four
+  axes orthogonal to n, and since 2026-09-03 each is its own claim with
+  its own sources and its own falsifier:
+
+  - **Specificity (gen-16)** — depth changes what a genetic result is
+    ABOUT, not how much of it there is. Cai 2020's abstract states the
+    headline pair: minimal phenotyping **14% (SE 0.8%)** against
+    strictly defined MDD **26% (SE 2.2%)**; beneath it the paper runs a
+    per-definition ladder from **10.96% (SE 0.85%)** for self-reported
+    depression to **26.21% (SE 2.15%)** for DSM-defined MDD and
+    **31.95% (SE 2.56%)** once recurrence is required. The minimal
+    phenotype sits closer to plain neuroticism (rg 0.84) than to strict
+    MDD (rg 0.81), needs 80.2% of the genome to explain 90% of its
+    cross-trait correlations where strict MDD needs 65.8%, and its PGS
+    predicts well but "can be explained entirely by large sample sizes
+    rather than by specificity for MDD". The counterweight is stated at
+    full strength: BIONIC's rg 0.89, and the sharper form — its scores
+    predict **bidirectionally** between the deep and shallow cohorts,
+    with within-family analyses indicating minimal confounding. This is
+    where the review lane's Rigorous finding landed, and where this
+    run's own first fix was itself wrong — see the note below.
+  - **Structure (gen-17)** — many items admit latent genetic
+    decomposition (GWAS-by-subtraction's noncognitive factor: 157 loci,
+    57% of EA genetic variance), but that ran on two EXISTING
+    summary-statistics GWAS. So the battery's contribution is not
+    decomposability; it is the **choice of measurement model** —
+    subtraction can only ask what an existing GWAS pair happens to
+    span, where an item bank designs the latent structure first.
+  - **Time (gen-18)** — sharpened in the fission by re-reading the
+    source: the instrument is not "measure again" but the **derived
+    trajectory parameter**. Burrows 2024 estimates twelve phenotypes
+    per person (slope and area under the curve across four periods,
+    plus age and BMI at the adiposity peak and rebound) from 71,336
+    people in six cohorts, and finds 28 variants at 13 loci with
+    age-varying effects. The design consequence: a construct measured
+    twice yields a slope and nothing else — peaks and rebounds need
+    sampling that brackets them.
+  - **Integration (gen-19)** — item integration imputed strict MDD at
+    R2 ≈ 40%, doubling effective n (67k → 166k), ~10x loci, ~2x PRS R2,
+    specificity preserved (Dahl 2023). It cuts both ways and the node
+    keeps both edges: the battery natively IS that substrate, **and**
+    the bar every new item must clear is to add what integration over
+    existing items cannot recover — which is why the theory keeps
+    asking for the never-phenotyped domains rather than for more items.
+    The scarce asset is battery COVERAGE, not battery size.
+
+## What a published quantity must carry (gen-11 · cited, gen-20 · cited, gen-22 · cited)
+
+The axiom's honesty grammar, and as of 2026-09-03 it covers all three
+quantities this axis traffics in rather than only the first.
+
+- **A coupling (gen-11)** is never published bare: direct effect,
+  genetic nurture and mating structure, with a within-family evidence
+  grade and cohort provenance.
+- **A heritability (gen-20)** is never published bare either, and the
+  reason is measured three times over, at magnitudes stated per axis
+  rather than averaged (a first draft claiming "roughly twofold" for
+  all three was killed by the adversarial pass). **Definition**: Cai
+  2020's five definitions of one disorder move h2 across a 2.4x range
+  with the genotypes held constant. **Estimator**: how a variant's
+  contribution is assumed to depend on allele frequency, LD and
+  genotype certainty is a disputed modelling choice — across 19 traits
+  LDAK returns h2 on average 43% above GCTA (~1.4x, the smallest of the
+  three axes), while the same switch moves a published enrichment
+  conclusion from 79% to 24% (Speed 2017). On one sample and one
+  phenotype BIONIC 2026 reports **12.0% by LDSC and 26.6% by
+  LDAK-REML** — 2.2x, though that contrast also changes the estimation
+  substrate and carries an assumed prevalence, so it is not a clean
+  isolation of the model. And the same paper's **abstract headlines a
+  third figure, 13.4%**: one sample, one phenotype, three published
+  heritabilities. **Ascertainment** is the largest axis: correcting UK
+  Biobank for volunteer bias moves breast cancer 2.59% → 5.12% (~2x)
+  and type 1 diabetes 0.54% → 4.32% (~8x) across ten phenotypes, at an
+  average **62% cut in effective sample size** (van Alten 2025) — and
+  an imported-genome population is volunteer-ascertained twice, into
+  consumer testing and again into consenting to pair. Consequence: a
+  "trait X is N% heritable" column crossing axes is uninterpretable
+  unless every entry was computed alike, which in the literature they
+  are not.
+- **A score band (gen-22)** carries its basis, and the run's own first
+  draft was refuted getting there. Two things break as a person moves
+  from the discovery cohort and they break DIFFERENTLY. **Ordering**
+  degrades gradually and stays informative — accuracy tracks continuous
+  genetic distance at r = −0.95 across 84 traits, the furthest
+  genetic-distance decile of European-ancestry individuals runs 14%
+  below the closest, and the closest Hispanic/Latino decile performs
+  like the furthest European one (Ding 2023) — but a multi-ancestry
+  prostate score still stratifies risk in every group tested, so this
+  is a weaker measurement, not a meaningless one. **The band mapping**
+  is what fails categorically, and it is already fragile at zero
+  genetic distance: only **0.8%** of top-decile point estimates have
+  95% credible intervals inside that decile, in 291,273
+  ancestry-matched people (Ding 2022). And genetic distance is not the
+  only basis: individual-level accuracy is only weakly predicted by it
+  and comparably explained by socioeconomic measures, immunity traits
+  collapse at intermediate distances, and for type 2 diabetes precision
+  holds while recall *increases* with distance (Wang 2026) — so
+  "accuracy decays" without a named metric is refutable by a published
+  counterexample. The limb that is **this system's own**: device-side
+  scoring of a consumer array makes the array and imputation coverage
+  part of the basis (platform choice alone can reclassify people across
+  thresholds — Ho 2025), and no study was found varying platform and
+  genetic distance together, which is exactly what gen-1's import
+  principle forces. A band is publishable with its discovery cohort,
+  its reference distribution and the person's position in it, its
+  non-genetic context, and its platform coverage — a constraint the
+  architecture must satisfy, close to the field's engineering
+  consensus, and the node says so rather than claiming novelty.
+
+One boundary this section does **not** blur: for gen-10's direct-output
+items ancestry changes *information content*, not calibration. An ALDH2
+rs671 carrier flushes wherever the discovery cohort was; rs12913832 is
+near-monomorphic outside Europe and so says almost nothing there while
+staying perfectly calibrated. That bounds the percept anchors' use as
+calibration references.
+
+## Measured against the product (gen-21 · measured)
+
+The program's first node at the top rung, and the warrant comes first:
+CHARTER §4 reserves `measured` for claims checked against InSight's own
+published numbers — the committed scorecards and aggregates readable
+from `main`. Two committed artifacts qualify, and both were read
+directly at `main` commit `695f78eb`: the generated bank
+(`functions/src/v2content.ts`, byte-pinned to `content/*.json` by
+`check:content`) and `content/scorecard.json`, which the question-farm
+contract refreshes only by a live fetch against the public aggregate
+mirror, never by hand — "that file is measurement, not content". The
+rung is claimed on those two and no further: everything else below is a
+**code reading** and is labelled as such, because "grep the repo" must
+not become this rung's precedent.
+
+Recomputing rather than quoting turned up something better than drift —
+and this node's own first draft got it wrong, with an unreproducible
+"feed 180" that the adversarial pass caught. The tree carries **three
+committed figures for one quantity**: how many questions a person can
+answer. `docs/SCALE-PLAN.md` says **644**; `src/v2/data/circle.ts` says
+**570**, and openly records that it previously said 644 and corrected
+itself off the committed banks — calling a hand-written figure inside
+the argument it supports "this repo's most-repeated documentation
+error". Against the generated bank the six world surfaces hold **676**
+rows, **667** active, **643** active with an option set, and **644**
+once catalog and rank types are excluded regardless of the active flag.
+So SCALE-PLAN's total is reproducible under exactly one definition, its
+per-surface split under none, and circle.ts's 570 under none. The
+disagreement is not arithmetic — nobody wrote down which rows count.
+That is gen-20's basis-relativity claim instantiated in the product's
+own tree, on a quantity far simpler than a heritability.
+
+What the four axes are actually supplied with today:
+
+| Axis | Committed supply |
+| --- | --- |
+| Integration | **111 questions** (48 two-option daily + 63 two-option core feed), folded at **K = 8**, gated at 24 questions × 8 answers plus 8 of your own |
+| Specificity | **22 constructs at exactly 5 items** — the four sit-down instruments' dimensions. Below that: 30 lens dimensions at median 2 (13 single-item), and 130 daily items across **117** branch/sub paths, median **1** |
+| Structure | **0 fitted measurement models.** Scoring is a mean × 25 with inverts flipped; a search for reliability or factor machinery across `src/`, `functions/` and `scripts/` returns **zero hits in code**. The patterns fit is the only latent machinery and it fits *questions*, excluding all 160 instrument items by construction |
+| Time | **5 constructs, 1 item each** — the pulse, day-keyed in the document id, create-only. Everything else forecloses it: world answers are one document per person per question, the D86 edit moves `optionIdx` and destroys the prior value, the logic retake overwrites |
+
+Corpus totals: **758** questions (daily 130 · feed 212 · test 160 ·
+learn 166 · duo 56 · group 26 · pulse 5 · call 3); `core` is feed-only
+and 81 rows carry it, so the Mirror's corpus is **627**. Of eight named
+direct-output percept anchors, **seven are absent** and one exists as a
+single binary item ("Morning person or night owl?", `daily-044`) — the
+chronotype proxy gen-10 itself calls the weak polygenic end.
+
+**The bound, which governs the rung.** The scorecard's own numbers are
+**59 published answers across 310 questions**, 54 scored, every
+published option-share vector one-hot — and even here the definition
+has to be named, the file's two views of "unserved" differing (coverage
+says 89; the per-question `served` flag is false for 97). So the
+committed numbers settle
+*inventory* exactly and settle *nothing behavioural* — no claim about
+how people answer, how items covary or how constructs cohere can reach
+this rung against this tree yet, and gen-21 makes none.
+
+**What it does to gen-3.** The scarce-asset claim survives and is now
+measured rather than assumed — and it is narrowed. The product's own
+AXES-PLAN sells "hundreds of measured, longitudinal, freely-given trait
+measurements per person"; the longitudinal supply behind that sentence
+is five single-item constructs. The battery is deep in inventory and
+thin on exactly the two axes — structure and time — that do not follow
+from inventory. Hence this run's REQUESTS row: construct-grade repeats
+on the pulse's existing day-keyed pattern, which pays on the phenotype
+side whether or not a genetic axis is ever built.
 
 ## Open scout tasks
 
@@ -355,9 +532,41 @@ contributions over consented aggregates, never procedures.
    gen-14 (the 2025-03-26 multi-stakeholder moratorium call;
    Preventive Medicine PBC; Manhattan Genomics) — currently news-grade
    via the adversarial pass.
-10. Pin identifiers not reached this run: CONVERGE 2015 DOI/PMID and
-    Lencz 2021 PMID (gen-15, gen-14); confirm Cai 2020's in-text h2
-    pair against full text (abstract says 11% vs 26%; a 0.14/SE 0.008
-    variant circulates and was unconfirmable); Flugel 2025's
-    bottleneck sentences (snippet-grade on one pass, unreachable on
-    the second).
+10. **Partly resolved 2026-09-03.** CONVERGE's DOI is pinned
+    (10.1038/nature14659), and its 2023 Author Correction is now on the
+    node — a data-availability correction, touching no figure this
+    theory cites. On Cai 2020 the **review lane was right and this
+    lane's first fix was wrong**: the abstract does state a headline
+    pair, minimal phenotyping 14% (SE 0.8%) versus strictly defined MDD
+    26% (SE 2.2%), so the old "~11% per the abstract" provenance really
+    was false. This run's draft then over-corrected, asserting the 14%
+    was "GPpsy, not the minimal phenotype"; the adversarial pass killed
+    that. gen-16 now carries the abstract pair AND the per-definition
+    ladder, and marks the GPpsy identification (14.34%, SE 0.81%) as
+    this lane's inference from the matching digits rather than the
+    paper's labelling. Still open: Lencz 2021's PMID, and Flugel 2025's
+    bottleneck sentences (snippet-grade on one pass, unreachable on the
+    second).
+11. Confirm at verbatim grade when a machine with publisher egress is
+    available (gen-16, gen-20, gen-15): Cai 2020's five-definition
+    ladder and its standard errors; BIONIC 2026's LDSC-vs-LDAK-REML
+    pair, its rg 0.89 with PGC-MD and the PALMD locus; Speed 2017's
+    43% / 25% model-gap figures and the 79% → 24% enrichment swing.
+    All are snippet-grade, each corroborated across two independent
+    searches, none read in full text.
+12. Figures deliberately NOT stated at gen-22 for want of
+    corroboration, to be pinned or dropped: Privé 2022's per-group
+    partial-r2 table (Poland/Italy/Nigeria); the per-group top-decile
+    odds ratios in the multi-ancestry prostate score; a platform
+    concordance statistic for the breast-cancer PRS across arrays.
+13. Three of gen-22's sources rest on a single scout pass and were
+    NOT re-checked by the adversarial pass: Lambert 2024 (pgsc_calc
+    ancestry normalization), Hou 2024 (CalPred) and Martin 2019. The
+    node states no figure from Martin; the other two carry one claim
+    each. Re-verify or demote what they support.
+14. **The gap gen-22 names as this system's own**: no study was found
+    varying genotyping platform AND genetic distance together, which
+    is the exact combination device-side scoring of an imported
+    consumer file forces. Worth a dedicated scout — if it is genuinely
+    empty, it is a research direction the axiom owns rather than
+    borrows.
