@@ -113,6 +113,41 @@ describe("the Map draws its body once its pane can be measured", () => {
     expectNoBoundary("mirror · map body");
   });
 
+  // A MASTERED FACT IS AN ANSWER, BUT IT IS NOT AN OPINION.
+  //
+  // The anchor card compares your answer against people who share an
+  // anchor. `allAnswers` deliberately keeps learn nodes — you did answer
+  // them, and they belong in the count and the time scrub — and the same
+  // list was handed straight to the anchor card's rows. So the card filed
+  // knowledge cards you got RIGHT under "where you differ", each with a
+  // dash where the crowd should be, each dragging the match headline down.
+  //
+  // Live is worse than demo: a learn id has no question aggregate, so one
+  // mastered fact is enough to make the card refuse and print "isn't
+  // measured yet" where the same card without it reads a percentage.
+  //
+  // Three other places in map-tab.jsx already say `daily && !learn`. This
+  // was the one that did not.
+  it("keeps mastered knowledge cards out of the anchor card's comparison", async () => {
+    mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    await awaitNode(RAIL);
+    const chip = await awaitNode('[data-screen-label="anchor-age"]');
+    expect(chip, "the age anchor never rendered — this case lost its target").toBeTruthy();
+    fireEvent.click(chip);
+    const card = await awaitNode(".mmt-astat, .mmt-verdict, .mmt-nocohort");
+    expect(card, "the anchor card never opened").toBeTruthy();
+    const text = document.body.textContent || "";
+    // The demo bank's mastered facts, by their own prompts. Any of them in
+    // the anchor card's list is a knowledge card filed as a disagreement.
+    expect(text, "a knowledge card you got right is listed as a disagreement")
+      .not.toMatch(/The capital of (Brazil|Australia) is/i);
+    // …and the card is really drawing rows, or the assertion above is
+    // satisfied by an empty card and proves nothing.
+    expect(document.querySelectorAll(".mmt-arow, .mmt-astat, .mmt-verdict").length,
+      "the anchor card drew nothing at all, so the absence above is vacuous").toBeGreaterThan(0);
+  });
+
   it("…and draws none of it when the pane measures zero, which is every other suite", async () => {
     // The control. Without it the case above passes the day someone makes
     // the rail render unconditionally, and this file would then be

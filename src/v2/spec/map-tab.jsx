@@ -402,7 +402,24 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const selIsSub = selNode && selNode.sub;
   // the answer card's active group filter — sticky across answers
   const effFilter = selNode && selNode.daily && !selNode.learn ? (pairA || (anchors[0] && anchors[0].id)) : null;
-  const anchorRows = selAnchor ? allAnswers.slice().sort((a, b) => a.age - b.age) : [];
+  // A MASTERED FACT IS AN ANSWER, BUT IT IS NOT AN OPINION — and the
+  // anchor card is a comparison against people who share an anchor.
+  //
+  // `allAnswers` keeps learn nodes on purpose: you did answer them, so
+  // they belong in the count and in the time scrub. This row list is the
+  // other thing it feeds, and there they are wrong twice over. In demo
+  // mode the card lists them under "where you differ" — "The capital of
+  // Brazil is… · you Brasília · them —" — a fact you got RIGHT, filed as
+  // a disagreement, with a dash where the crowd should be, each one
+  // dragging the match headline down. In live mode a learn id has no
+  // question aggregate at all, so one mastered fact makes `noCohort` true
+  // and replaces the whole card with "isn't measured yet", where the same
+  // card without it reads a real percentage.
+  //
+  // The rest of this file already knows: `effFilter` above, `ringOpen`,
+  // and the node's own class list all say `daily && !learn`. This was the
+  // one place that did not.
+  const anchorRows = selAnchor ? allAnswers.filter((n) => !n.learn).sort((a, b) => a.age - b.age) : [];
 
   const hlSet = useMemo(() => {
     if (hlCat) {
