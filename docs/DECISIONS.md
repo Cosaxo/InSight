@@ -36484,3 +36484,101 @@ sections name; rule 7 is untouched, because the Status line is),
 have to hold — the grants are names, and the roll call's Sunday diff of
 the live prompts against §4 is what proves the seed on the account
 still matches the file.
+
+## D354 · The routine bill is context times turns: four sessions, not thirty-nine firings, were the spend
+
+**2026-09-03.** **Status:** binding for the cadences and bindings it
+sets — the PR shepherd at eight firings a day instead of twenty-four,
+the twelve theory lanes on a four-day cycle instead of two, the four
+ops lanes rebound off a 564k-token dispatcher onto an empty one, and
+`OPS-RUNBOOK.md` §0's cheap-gate rule. Written on
+`claude/routine-usage-reduction-g5vqeo`; `main` mints numbers while
+branches are open, so `USAGE-REDUCTION.md` cites sections and this
+number appears only here (D289's collision pattern).
+
+### What happened
+
+The owner said the routines were burning too much usage. Nothing in
+the program was reading the one field that would have said so: every
+finished session carries a `usage` block — `cost_usd`,
+`cache_read_tokens`, `input_tokens`, `output_tokens` — and ninety of
+this account's ninety-two sessions have one. Read that afternoon, they
+say **$7,011.27 since 2026-08-17**, half of it routine-side, and they
+name where it went:
+
+- **$2,325.68 in a single session.** `InSight night worker`, alive
+  since 2026-08-24, woken five times a night, 968.8M cache-read
+  tokens — two thirds of all routine spend, in one conversation that
+  has never reset.
+- **$24.44 per theory run**, thirty runs in eight days, against the
+  charter's own estimate of $20. The estimate was right; the count was
+  the problem.
+- **$69.74 for a relay that has relayed nothing.** The ops dispatcher,
+  created 2026-09-02, holds 564k tokens and was woken twenty-seven
+  times a day — twenty-four of them by the PR shepherd, whose own
+  stored prompt says it is *"fired twice a day"*. No lane session it
+  produced appears anywhere in the last hundred sessions, because its
+  charter is unadopted (D353) and a session that refuses a charter
+  still re-reads its whole history to say so. About $4 a firing.
+
+And the limit had stopped being theoretical: 45 of the last 92
+sessions read *allowed_warning* and 4 read *rejected*; the axiom
+dispatcher's status is `rejected` on the bucket *with* overage, and
+the body lane's run that morning died with *"You've reached your Fable
+limit."*
+
+### The finding
+
+**Cost tracks context size times turn count, not the number of runs.**
+All 21 Routines were bound with `persist_session: true`, so a firing
+is appended to a conversation that never resets and every turn of every
+future run re-reads all of it. Four sessions — 564k, 497k, 417k, 283k
+— carried the whole program, and the two most expensive things in it
+were a lane that does nothing and a lane that never resets. A relay
+that answers "I have not adopted my charter" cost more per firing than
+a fresh session that reads the entire tree.
+
+The corollary is a rule, now `OPS-RUNBOOK.md` §0: **a run with no work
+should not pay a full orientation to discover it.** The three files
+the lane prompts open with are 21,482 words, read before the shepherd
+knew whether one pull request wanted it.
+
+### What this changes, and what it deliberately does not
+
+Cadence and binding only — no contract's *work* is touched. The
+shepherd's canonical block in §4 gains the cheap gate and loses the
+"twice a day" line that its cron had contradicted for a day; the roll
+call's gains two usage lines every run must carry, so this arithmetic
+is measured from now on instead of assembled by hand. The four old ops
+triggers are disabled, not deleted.
+
+**Three things a session could not do, and did not pretend to.** A
+one-shot Routine with `create_new_session_on_fire` was fired at 12:55
+to re-measure the obvious fix — retire the dispatchers — and the
+creation call warned in advance (*"this trigger stores no MCP
+connectors"*); the run finished in three minutes having pushed
+nothing. So the dispatchers were **rotated**, not retired: same
+queue, empty history, cheapest model that can perform a five-field
+relay. Retiring them, rotating the night worker, and creating the
+axiom maker at one run a day are `OWNER-LIST.md` rows with their
+arithmetic, because each needs a web-UI creation or a sentence in a
+session's own history that no routine may write for the owner.
+
+**The roll call was created and held disabled in the same minute.**
+Its contract says *"Binding: never through a dispatcher, whatever the
+probe says — a watchdog queued behind the thing it watches is blind to
+exactly the stall it exists for"*, and a dispatcher is the only
+binding a session can give it. Creating it anyway would have been the
+D148 failure — a prompt quietly outranking its contract — in the one
+lane whose job is to catch that.
+
+### What proves it
+
+`check:docs` green (the new page has its `ORIENTATION.md` row and
+declares its own status; rule 7 holds it), `check:figures` green,
+`test:scripts` green. Every figure quoted here and in
+`USAGE-REDUCTION.md` was read from `list_sessions` and `list_triggers`
+the same afternoon and is reproducible from them; none is retyped from
+a previous page. What it does not prove is the saving — that lands in
+the roll call's daily usage lines a week from now, and if it does not,
+this record is where the arithmetic that predicted it can be checked.

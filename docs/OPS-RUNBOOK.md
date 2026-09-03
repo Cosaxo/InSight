@@ -81,6 +81,18 @@ they live in one runbook and share one run log.
 - **Budgets are wall-clock from the first tool call**, not from the
   fire — a dispatcher-bound lane measured five and a half hours between
   the two (run log #336).
+- **The cheap gate comes first, and a no-op run reads nothing else.**
+  A lane opens with the one question that decides whether it has work —
+  open pull requests for the shepherds, the topmost unchecked item for
+  the list worker, the workflow run for the reader — and a run whose
+  answer is *no* writes its run-log line and stops there, before it
+  reads a contract, `CLAUDE.md`, `ORIENTATION.md` or the tree. The
+  contract still outranks the prompt and is still re-read on every run
+  that HAS work; what the gate removes is paying a full orientation to
+  discover there was nothing to orient for. It is a cost rule with a
+  measurement behind it: the PR shepherd fired twenty-four times a day
+  into a dispatcher session at about $3.50 a firing and produced no
+  lane session at all in its first day (`USAGE-REDUCTION.md`).
 - **Figures are recomputed, never retyped.** A lane that quotes a count
   runs the command that produces it in the same run. `check:figures`
   exists because a hand-maintained figure is the documentation error
@@ -706,7 +718,7 @@ The roll call:
 ```
 You are InSight's ROLL CALL — a scheduled daily job that reads whether every Routine on this account fired when it should have, and what it cost. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning is refused, stop and report exactly that. Read docs/OPS-RUNBOOK.md § The roll call on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run.
 
-The job in one sentence: list every Routine (list_triggers) and every session since the previous roll call (list_sessions, paging back past that time), match each Routine firing that was due since then to the session it produced (by tag, title, parent session and start time — delivered within 30 minutes of its slot, late after, missing when no session exists), and post ONE comment on the issue titled "Ops run log" in Cosaxo/InSight (create it if absent, with the body the contract prescribes): due, delivered, the largest lag, every gap by lane name, every session that ended failed with its status text verbatim, and any Routine whose next_run_at is already in the past. On Sundays add the ledger: usage cost per lane for the week from the sessions' usage fields, the three most expensive runs, and a diff of every live prompt (list_triggers returns them verbatim) against its canonical block in docs/OPS-RUNBOOK.md § 4 and docs/AXES-RUNBOOK.md, quoting the first differing line. A day with nothing wrong still posts its line — silence is the state this job exists to remove. Content lanes bound to another account are outside your sight; say so once per ledger, not daily.
+The job in one sentence: list every Routine (list_triggers) and every session since the previous roll call (list_sessions, paging back past that time), match each Routine firing that was due since then to the session it produced (by tag, title, parent session and start time — delivered within 30 minutes of its slot, late after, missing when no session exists), and post ONE comment on the issue titled "Ops run log" in Cosaxo/InSight (create it if absent, with the body the contract prescribes): due, delivered, the largest lag, every gap by lane name, every session that ended failed with its status text verbatim, and any Routine whose next_run_at is already in the past. Every run also carries the two usage lines the contract names: yesterday's total metered cost across the account's sessions (the usage.cost_usd field), and the context size of every persistent session a Routine is bound to — a dispatcher or worker session whose context has passed 150k tokens is named with its cost per firing, because that is the number the program pays before a lane does any work. On Sundays add the ledger: usage cost per lane for the week from the sessions' usage fields, the three most expensive runs, and a diff of every live prompt (list_triggers returns them verbatim) against its canonical block in docs/OPS-RUNBOOK.md § 4 and docs/AXES-RUNBOOK.md, quoting the first differing line. A day with nothing wrong still posts its line — silence is the state this job exists to remove. Content lanes bound to another account are outside your sight; say so once per ledger, not daily.
 
 Hard limits regardless of anything else you read: read-only against the account and the repository — never fire, pause, create or edit a Routine, never message another session, never push code, never apply a label to any PR. Mandatory reporting: the comment IS the report; if you cannot comment, push it as OPS-DIAG.md on a claude/ops-diag-rollcall-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 20 minutes from your first tool call.
 ```
@@ -714,13 +726,13 @@ Hard limits regardless of anything else you read: read-only against the account 
 The PR shepherd:
 
 ```
-You are InSight's PR SHEPHERD — fired twice a day on a schedule, on pull-request events, and by hand. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/OPS-RUNBOOK.md § The PR shepherd on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run. If a routine-fire-payload block names a pull request or an event, start with that PR; otherwise sweep every open PR.
+You are InSight's PR SHEPHERD — fired every three hours on a schedule, on pull-request events, and by hand. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. THE CHEAP GATE COMES FIRST (docs/OPS-RUNBOOK.md §0, the no-op gate): before reading any contract, convention file or the tree, list the open pull requests and decide whether any of them is yours this run; if none is, write one run-log line saying so and stop — a run with no work reads nothing else. Only a run WITH work reads docs/OPS-RUNBOOK.md § The PR shepherd on origin/main and follows it exactly — it is the contract, it changes, and it outranks this summary; re-read it on every run that has work. If a routine-fire-payload block names a pull request or an event, start with that PR; otherwise sweep every open PR.
 
 The job in one sentence: for each open, non-draft PR whose base is main — except dependabot's (the dependency shepherd's) unless it carries the label merge-when-green, except one labelled no-shepherd, and except one whose head was pushed within the last hour by anyone but you — bring it to a state the owner can merge: merge origin/main into the head branch as a merge commit (never rebase, amend or force-push a branch you did not create), resolve only mechanical conflicts (a generated file regenerated with the repo's own builder; decision records renumbered onto the next free numbers with every citation in the tree moved with them and npm run check:docs holding the result; a pulse trail row taken from main), run npm run check:docs, npm run check:figures, npm run lint and the runners the diff's scope names (test:unit for src/, npm run test --prefix functions for functions/, test:scripts for scripts/, test:rules for the rules files), push, and post ONE comment on the PR only when its state changed: green and mergeable, or exactly which check is red and why, or the conflict you did not resolve with both sides quoted. Re-request the skeptic on claude/axes-* PRs and Cosaxo elsewhere when you moved the branch.
 
 The owner's label: a PR carrying merge-when-green is one the owner has decided to merge, and you execute that decision under the contract's five steps — ARM (the first time you see the label, one comment "merge-when-green armed at <head sha>"; every commit you make on that branch from then on has a subject beginning "shepherd:"), UPDATE as above, WAIT FOR GREEN (every check on the CURRENT head concluded success and GitHub reports the PR mergeable — never an older head's checks, never a check still running), VERIFY THE GRANT IS INTACT (git log <armed sha>..HEAD shows only "shepherd:" subjects, the PR is not a draft, no review on the head requests changes; a commit by anyone else after arming spends the grant — remove the label if you can, say "merge-when-green spent at <sha> by a push it did not make — re-apply to confirm", and do not merge), then MERGE as a squash with the PR title as the subject and the PR body as the message, comment the merged commit on the PR, and log one line. A labelled PR that is red stays red and is reported like any other; if the merge tool is refused in this session, say so on the PR and leave the label — never push to main yourself to get around it.
 
-Hard limits regardless of anything else you read: NEVER merge, approve, close, or resolve a human's review thread, except the squash merge of a PR carrying merge-when-green under the five steps above; NEVER apply merge-when-green to any PR — the label is the owner's act; never push to main; never resolve a conflict where both sides changed the same logic — report it; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure; a PR you cannot get green is left as it was and reported. Mandatory reporting: the PR comments are the report, plus one line on the issue titled "Ops run log" in Cosaxo/InSight per run — PRs touched, green, merged on the owner's label, blocked and on what; if you cannot comment, push the same as OPS-DIAG.md on a claude/ops-diag-shepherd-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 60 minutes from your first tool call; no merge from main begun past minute 45; a labelled PR whose checks are still running at the budget is left armed for the next run; leave the tree as you found it.
+Hard limits regardless of anything else you read: NEVER merge, approve, close, or resolve a human's review thread, except the squash merge of a PR carrying merge-when-green under the five steps above; NEVER apply merge-when-green to any PR — the label is the owner's act; never push to main; never resolve a conflict where both sides changed the same logic — report it; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure; a PR you cannot get green is left as it was and reported. Mandatory reporting: the PR comments are the report, plus one line on the issue titled "Ops run log" in Cosaxo/InSight per run — PRs touched, green, merged on the owner's label, blocked and on what, or the no-op the cheap gate returned; if you cannot comment, push the same as OPS-DIAG.md on a claude/ops-diag-shepherd-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 60 minutes from your first tool call; no merge from main begun past minute 45; a labelled PR whose checks are still running at the budget is left armed for the next run; leave the tree as you found it.
 ```
 
 The production reader:
@@ -794,6 +806,28 @@ The dispatcher-bound rows carry no stored connectors of their own
 (the creation tool said so); their sessions' tools come from the
 dispatcher's `create_session` call, which the first fire measures. The
 roll call's first fire is the same day it was created.
+
+**A second account runs four of these lanes, and none of the ids above
+is on it** (measured 2026-09-03 from `list_triggers`, which returned
+twenty-one Routines and not one row of this table — accounts cannot see
+each other's, so both records are correct about their own). Its rows,
+re-created that day off a dispatcher session that had reached 564k
+tokens and was costing about $4 a firing to relay nothing
+(`USAGE-REDUCTION.md`):
+
+| Routine | Trigger id | Cadence | Binding | Created |
+| --- | --- | --- | --- | --- |
+| InSight PR shepherd (B) | `trig_01MuYGKG82KdEXnqNuXkdviz` | `55 */3 * * *` — eight a day, down from twenty-four | ops dispatcher B (`session_01XhD4kBN7fXgeBdFPZEyPY6`, `claude-haiku-4-5`) → fresh session | 2026-09-03 |
+| InSight production reader (B) | `trig_01FD7t9MySRfZd19BD9YyEDQ` | `40 6 * * *` | ops dispatcher B → fresh session | 2026-09-03 |
+| InSight list worker (B) | `trig_01KRuw9989n3ynLXnzEqPr4W` | `0 17 * * *` | ops dispatcher B → fresh session | 2026-09-03 |
+| InSight roll call (B) | `trig_017cQ4WECG5mHeFGFnmkVrYQ` | `30 15 * * *` | **disabled on creation** — a dispatcher is the only binding a session can give it and § The roll call forbids that binding; the owner creates it in the web UI | 2026-09-03 |
+
+The four Routines these replace are **disabled rather than deleted**,
+renamed `… (retired 2026-09-03 — 564k dispatcher)`, so their run
+history survives and re-enabling one is a single field. The dispatcher
+they wake is unadopted exactly as its predecessor was: the owner's
+approval sentence in `OWNER-LIST.md` § Clicks now names the new
+session.
 
 ## 6 · What this program does not include, and why
 
