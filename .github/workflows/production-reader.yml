@@ -1,0 +1,134 @@
+# The production reader — what the instruments read, as one comment a day.
+#
+# WHY A WORKFLOW AND NOT A ROUTINE. This lane was a scheduled Claude session
+# (docs/OPS-RUNBOOK.md § The production reader) whose whole job was: fetch two
+# workflow runs, read a committed trail, compare with yesterday, post a
+# comment. Nothing in that needs judgement, and a session that does it pays
+# for its own accumulated history on every firing — measured 2026-09-03 at
+# about $4 a wake against a dispatcher that had reached 564k tokens
+# (docs/USAGE-REDUCTION.md). console.yml made this argument first, for the
+# console page: what an Action can read, an Action should read, because a
+# Routine also costs an account's usage bucket and an Action costs none.
+#
+# WHAT IT READS. The newest scheduled *Observe production* run, its
+# `observe-json` artifact (the payload `observe.mjs --json-out` publishes),
+# the newest *Pulse* run, and monitoring/pulse-trail.jsonl from the tree.
+# Every one of those is readable with the default token — which is the whole
+# reason this lane could move here while the shepherds could not.
+#
+# WHAT IT NEVER DOES. Call a Google API (the probe holds that credential and
+# this reads the probe's own output — the reader contract's `Never:` line,
+# kept), re-run a workflow, apply a budget or a monitoring policy, touch a
+# label, or write anything but its one comment.
+#
+# ABSENCE IS THE HEADLINE. A probe that did not run, an artifact that is not
+# there, a trail that has not moved — each is a line saying so, never a blank
+# and never yesterday's number carried forward (D1, and D296 is the record of
+# fifteen days of a confident zero).
+name: Production reader
+
+on:
+  schedule:
+    # After observe (06:11) and the pulse (06:00), with room for the probe's
+    # own runtime. The Routine this replaces fired at 06:40, which was inside
+    # observe's window on a slow morning.
+    - cron: "10 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+concurrency:
+  group: production-reader
+  cancel-in-progress: false
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          # Deliberately no `cache: npm` — nothing is installed.
+
+      # Same guard console.yml carries, for its reason: a workflow_dispatch
+      # or pull_request run can execute this file against a checkout of main
+      # that has no script yet. That is a state, not a failure.
+      - name: Is the reader on main?
+        id: present
+        run: |
+          if [ -f scripts/production-reader.mjs ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::scripts/production-reader.mjs is not on main yet — nothing to read until it merges"
+          fi
+
+      # Each fetch writes a file or writes nothing; nothing here fails the
+      # job, because "the probe has no run" is the reader's own headline and
+      # a red job would hide it behind a red X nobody reads.
+      - name: Gather the readings
+        if: ${{ steps.present.outputs.yes == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -u
+          mkdir -p "$RUNNER_TEMP/read"
+
+          # The newest SCHEDULED observe run — a manual dispatch with
+          # --functions off would answer a different question.
+          gh api "/repos/$REPO/actions/workflows/observe.yml/runs?event=schedule&per_page=1" \
+            --jq '.workflow_runs[0] // empty' > "$RUNNER_TEMP/read/observe-run.json" 2>/dev/null || true
+          [ -s "$RUNNER_TEMP/read/observe-run.json" ] || echo "::warning::no scheduled Observe production run found"
+
+          gh api "/repos/$REPO/actions/workflows/pulse.yml/runs?per_page=1" \
+            --jq '.workflow_runs[0] // empty' > "$RUNNER_TEMP/read/pulse-run.json" 2>/dev/null || true
+
+          # The payload, from that run's artifact. Absent until the observe
+          # change that publishes it has run once — the reader says so.
+          RUN_ID="$(jq -r '.id // empty' "$RUNNER_TEMP/read/observe-run.json" 2>/dev/null || true)"
+          if [ -n "${RUN_ID:-}" ]; then
+            gh run download "$RUN_ID" -n observe-json -D "$RUNNER_TEMP/read" 2>/dev/null \
+              || echo "::notice::run $RUN_ID published no observe-json artifact"
+          fi
+
+      - name: Render the comment
+        if: ${{ steps.present.outputs.yes == 'true' }}
+        run: |
+          node scripts/production-reader.mjs \
+            --observe "$RUNNER_TEMP/read/observe.json" \
+            --observe-run "$RUNNER_TEMP/read/observe-run.json" \
+            --pulse-run "$RUNNER_TEMP/read/pulse-run.json" \
+            --trail monitoring/pulse-trail.jsonl \
+            --today "$(date -u +%Y-%m-%d)" > "$RUNNER_TEMP/read/body.md"
+          cat "$RUNNER_TEMP/read/body.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # ONE comment on the Ops run log, which is where every lane in this
+      # program reports. The issue is found by exact title, never by a
+      # hardcoded number: the contract says create it if absent, and a
+      # number in a workflow is the hand-maintained figure this repo keeps
+      # re-committing (D39).
+      - name: Post it on the Ops run log
+        if: ${{ steps.present.outputs.yes == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          N="$(gh issue list --repo "$REPO" --state all --limit 100 --json number,title \
+                --jq '[.[] | select(.title == "Ops run log")] | first | .number // empty')"
+          if [ -z "${N:-}" ]; then
+            # `gh issue create` prints the issue URL, not JSON — the
+            # number is its last path segment.
+            URL="$(gh issue create --repo "$REPO" --title "Ops run log" \
+                  --body "One line per scheduled run, per lane. Created by the Production reader workflow because no issue with this title existed — docs/OPS-RUNBOOK.md § 1.")"
+            N="${URL##*/}"
+            echo "::notice::created the Ops run log as #$N"
+          fi
+          gh issue comment "$N" --repo "$REPO" --body-file "$RUNNER_TEMP/read/body.md"
