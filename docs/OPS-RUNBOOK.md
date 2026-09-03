@@ -52,6 +52,20 @@ they live in one runbook and share one run log.
   nothing — § The ops dispatcher, and the 2026-09-02 row in § Platform
   measurements. A standing instruction that cannot be checked against
   `origin/main` is not a contract in this program.
+- **A lane bound to a persistent session pays that session's whole
+  context on every fire.** Measured on the ops dispatcher, 2026-09-03:
+  at 581k tokens of accumulated conversation, one PR-shepherd fire read
+  **2.90M cache tokens and cost $6.96** to emit 3,396 — and the context
+  grew 17k that fire, so each one is dearer than the last. Twenty-four
+  a day is ~$167/day; the session had spent $69.74 by midday. The
+  binding is what makes a *no-op* expensive, so the two remedies are
+  independent and both apply: fire less often, and make a fire that
+  finds nothing stop before it reads anything (§ The PR shepherd). A
+  lane whose work is self-contained per run wants a **fresh session per
+  fire** — it starts near zero, needs no charter relay, and cannot
+  accumulate. Reach for a persistent binding only when a run genuinely
+  needs the previous run's conversation, which the lanes here do not:
+  their handoff is the run log.
 - **Tiers.** Read-only lanes (roll call, production reader) write one
   comment and nothing else. PR lanes (both shepherds, the recorder, the
   responder, the list worker) open or advance pull requests and **never
@@ -98,7 +112,7 @@ they live in one runbook and share one run log.
 | --- | --- | --- | --- | --- | --- |
 | **Platform probe** | one-off, Run now | `claude-sonnet-5` | its own container | one probe branch, one docs PR to § Platform measurements | never |
 | **Roll call** | daily `30 15 * * *` UTC · API | `claude-sonnet-5` | `list_triggers`, `list_sessions` | one comment a day; Sundays the ledger | n/a (read-only) |
-| **PR shepherd** | `55 * * * *` UTC — hourly, as created; the GitHub `pull_request` triggers this row specified are **not** wired (the Claude GitHub App is not installed — `PERMISSIONS.md`), and the hourly cron is what stands in for them | `claude-opus-5` | every open non-draft PR except dependabot's, plus any PR carrying `merge-when-green` | merge commits from `main`, renumbers, one verdict comment per state change; a squash merge of a PR the owner labelled `merge-when-green`, on green | **only** a PR the owner labelled `merge-when-green`, and only green — § The PR shepherd |
+| **PR shepherd** | `55 */3 * * *` UTC — every third hour, re-paced 2026-09-03 from the `55 * * * *` it was created with, because on the 564k-token dispatcher an hourly fire measured **$6.96** (2.90M cache-read tokens to emit 3,396) and thirteen of the first sixteen found no work. The GitHub `pull_request` triggers this row once specified are **not** wired (the Claude GitHub App is not installed — `PERMISSIONS.md`), so the cron is all there is | `claude-opus-5` | every open non-draft PR except dependabot's, plus any PR carrying `merge-when-green` | merge commits from `main`, renumbers, one verdict comment per state change; a squash merge of a PR the owner labelled `merge-when-green`, on green | **only** a PR the owner labelled `merge-when-green`, and only green — § The PR shepherd |
 | **Production reader** | daily `40 6 * * *` UTC | `claude-sonnet-5` | the observe and pulse runs' logs, the pulse trail | one comment a day | n/a (read-only) |
 | **Release recorder** | API, from `ios-release.yml` after an upload | `claude-opus-5` | the fire payload, the run list | one docs PR per delivery | never |
 | **Pulse responder** | API, from `pulse.yml` when the scheduled operator gate is red | `claude-opus-5` | the gate's output, `monitoring/pulse.json`, the pen | a promotion or scorecard PR, or a report | never |
@@ -399,6 +413,34 @@ there; otherwise it sweeps.
 opt-out, one label), and except one whose head was pushed within the
 last hour by anyone but the shepherd — a human mid-push is not to be
 raced.
+
+**A fire with nothing to do costs almost nothing (the owner,
+2026-09-03 — *"causing alot of usage… it should not do that"*).** The
+first sixteen fires swept all twenty open PRs every time and thirteen
+found no work; each of those cost **$6.96** and 2.90M cache-read tokens
+to emit 3,396 — 854 tokens read for every token written. The sweep is
+the expense, so it is now conditional rather than unconditional. In
+order, stopping at the first that says there is nothing:
+
+1. **One query**, not twenty: the open PRs with their labels, head shas
+   and `updatedAt`. If no PR carries `merge-when-green` and no head sha
+   or label has moved since the sha list in the last run-log line, the
+   fire writes **one line naming the shas it compared** and stops. It
+   does not fetch a diff, a check run, a comment thread or a file.
+2. **Otherwise work only what moved** — the labelled PRs first, then
+   any PR whose head or label changed since that list. A PR that is
+   green, current and unlabelled is not re-updated to keep it current;
+   `main` moves tens of commits a day and re-currenting a PR nobody is
+   about to merge spends a full CI run to change nothing a reviewer
+   sees. Bring it current when it is actually about to merge.
+3. **Never re-derive what the last line already said.** The run-log
+   line is the state handoff, which is why it carries the shas.
+
+The no-work line is the whole output of such a fire; consecutive ones
+are expected and are not a finding. Eight identical *"no change"*
+paragraphs in a row, each costing seven dollars, is the failure this
+rule exists to stop.
+
 
 **Per PR:** merge `origin/main` into the head as a merge commit — never
 a rebase, amend or force-push of a branch the shepherd did not create;
