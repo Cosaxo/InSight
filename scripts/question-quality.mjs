@@ -894,7 +894,7 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       if (!num(q.lo) || !num(q.hi) || q.lo >= q.hi) {
         err("range", `dial needs numeric lo < hi (got lo ${JSON.stringify(q.lo)}, hi ${JSON.stringify(q.hi)})`);
       } else if (q.active !== false && (q.hi - q.lo) / DIAL_BUCKETS < 1) {
-        // At least a whole unit per bucket (D352). `dialFmt` prints
+        // At least a whole unit per bucket (D358). `dialFmt` prints
         // integers and the synthesized labels round their edges, so a
         // 17–23 h dial's twelve buckets read "17–18 h", "18–18 h",
         // "18–19 h" in the voters panel, and a 1–4 hrs dial has buckets no

@@ -422,7 +422,7 @@ for (const q of entries) {
 // A retired entry (`active: false`) is not read at all, and its REPLACEMENT
 // carries the same prompt by design: a shipped dial's range is frozen with
 // its bucket labels (D114), so widening one means retiring the id and
-// appending a new one with the prompt unchanged (D352 did fourteen). The
+// appending a new one with the prompt unchanged (D358 did fourteen). The
 // retired entry stays in the bank — the seed and the deck read the flag
 // there — and stays out of this rule; check:neighbors makes the same
 // exclusion for the same reason.

@@ -21,6 +21,12 @@ import NAV from '../data/nav';
 // 1v1: a sticky rail shows every group (dot = still to play, check = done),
 // and the body is a vertical snap stack — one group card per view. Yesterday's
 // reveal (with names) sits above today's question; answer, then swipe down.
+// The two names other modules read — GDAv (duo-daily, group-mirror,
+// group-role-map) and GroupDailyBody (daily-split) — leave the IIFE as
+// named exports (D354's sweep). The functions are declared inside it and
+// close over its state, so they are handed out through this object rather
+// than re-declared; the IIFE runs before the export line below does.
+const EXPORTS = {};
 (function () {
   const { useState, useEffect, useRef, useReducer } = React;
   const LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
@@ -495,6 +501,7 @@ import NAV from '../data/nav';
     );
   }
 
-  Object.assign(window, { GroupDailyBody, GDAv });
+  Object.assign(EXPORTS, { GroupDailyBody, GDAv });
 })();
+export const { GroupDailyBody, GDAv } = EXPORTS;
 

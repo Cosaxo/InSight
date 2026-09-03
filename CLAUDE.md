@@ -148,6 +148,26 @@ What to bring when you ask: what would be exposed, to whom, which of
 those four it touches if any, the smallest shape that still gets the
 value (consent · coarsen · aggregate · defer), and what each costs.
 
+**Axiom power first (the owner, 2026-09-02 — D352).** What the axes
+can measure and connect is the project's first priority, and a
+limitation — privacy, the database, cost, a schema, a store form, a
+refusal already written down — is a design problem to be solved AROUND
+that power, never a reason to shrink it. The question to put to a
+constraint is *how is it made to work with the axiom*, not *how is the
+axiom cut to fit it*. **Nothing blocks axiom functionality on its own:
+where a limit would block something, the block goes to the owner first
+and needs their approval** — the owner's words: *"as long as they dont
+limit functionality then it has to be approved that it can be blocked
+because of a limit."* D334's ask is how the owner is told what a way
+through costs, and the ask is worded as a way through, never as a
+permission slip; a routine that meets such a block builds what does not
+depend on the answer and puts the block on `docs/OWNER-LIST.md`. What
+does not bend is met by building rather than by deciding away: a
+consent requirement in law is satisfied by BUILDING the consent (D8,
+D330, D331), D1's honesty holds, and the three denies above stand at
+their paths — none of them is about answers. The privacy page and the
+store forms move with the feature, page first (D183).
+
 Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
 and stay binding until an explicitly recorded reversal.
 
@@ -179,13 +199,17 @@ paint via `loadWorldFeed()` (D25) — still listed, still in order, just
 awaited in sequence instead of imported at the top. The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
-comment where the eager list used to hold them.
+comment where the eager list used to hold them. The Mirror's thirteen
+defer the same way since D355 (`loadMirrorTab()` names only
+`mirror-tab.jsx`), and the tab mounts through a slot that renders in the
+tap's own tick once the prewarm has landed — `src/v2/README.md` § the
+Mirror, and `data/mirrorChunk.ts` for the handoff that makes it so.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-32 modules are already off the bridge — they export and publish nothing,
+53 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -255,8 +279,11 @@ real slipped through:
   from `render()`.
 
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
-are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
-and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
+are **not** exempt from the convention: `live.ts` still publishes
+`window.LIVE` (for the mount fixtures and one node-safe reader — every
+spec module imports the binding since D354), and until D354's sweep the
+two `ui/` pickers `Object.assign`ed onto `globalThis` for render-time
+lookups. The scanner reads both directories for that reason.
 
 **The convention is shrinking, and there is a number for it.** Those four
 guards make the bridge safe, which also made it comfortable enough to keep
@@ -425,6 +452,21 @@ an emergency rules fix.
   all three suites pass. Environmental, not a broken test, and **not a
   reason to widen an egress allowlist** before trying the variable.
   docs/LOCAL-TESTING.md § Sandbox/CI note has the failure text.
+- **`LIVE.ready` does not mean the server has been heard from (D356).**
+  A returning device paints its real deck off its own caches before the
+  first network read is answered, so `ready` and `enabled` flip on disk;
+  `attached` is the network boot completing, and `stale` is the gap
+  between them. Key re-entry and is-the-network-up logic on `attached` —
+  `wake()` does, and a wake keyed on `ready` would never retry a failed
+  reconcile. The paint needs the profile mirror
+  (`insight.ownProfile.v1`) as well as the bank, because an answer
+  snapshots the anchors at write time (D8) and a warm deck without them
+  would file votes into no cohort. The boot-driven test helpers wait on
+  `attached` for the same reason. And an answer written before the
+  server's ack is NOT in the answers cache on purpose (D312) — it lives
+  in `insight.pendingAnswers.v1` until the queue drains (D357), so a new
+  optimistic write path marks and clears that mirror or its offline
+  answer is re-offered after a relaunch.
 
 ## House style
 
@@ -441,6 +483,42 @@ an emergency rules fix.
 - **A deferral on privacy grounds is the one you may not take alone.**
   Record the arithmetic as above, then ask the owner rather than writing
   it down as settled — D334, and the privacy section has what to bring.
+- **Visuals are designed in Claude Design before they are built** (the
+  owner's rule, 2026-09-02 — D352). A new screen, module, lens, card
+  family, overlay or visual language is a request in
+  [`docs/VISUAL-REQUESTS.md`](docs/VISUAL-REQUESTS.md) — written so
+  Claude Design understands it whole, planned, drafted by a routine
+  only after its plan, refined by the owner, extracted into `design/`,
+  and only then built. [`docs/VISUAL-VISION.md`](docs/VISUAL-VISION.md)
+  names the design the tree is built toward. A control added to a
+  surface that exists — a button, a toggle, a row — is not a visual in
+  this sense and needs no request.
+- **The lists are how the owner runs the program** (D352). Six files:
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) (tick a row to approve a
+  PR), [`docs/WORKLIST.md`](docs/WORKLIST.md) (items tagged by account),
+  [`docs/PERMISSIONS.md`](docs/PERMISSIONS.md),
+  [`docs/OWNER-LIST.md`](docs/OWNER-LIST.md),
+  [`docs/AXIOMS.md`](docs/AXIOMS.md) (the status word licenses what may
+  be built) and [`docs/VISUAL-REQUESTS.md`](docs/VISUAL-REQUESTS.md). A
+  routine writes to them through the PR it is already opening, or a
+  run-log line the console folds in; it never edits a tick, a status
+  word or another account's tag — those are the owner's.
+  [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
+  [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
+  every program lane defers to.
+- **A pull request is merged by the PR shepherd, not by hand.** The
+  owner's merge instruction is the `merge-when-green` label; the shepherd
+  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
+  brings the branch current with `main`, moves colliding decision numbers,
+  waits for green and squash-merges. What a session owes it before the
+  label goes on: a green head with `main` already merged in and its
+  decision numbers already moved (D299) — and then no push, because a
+  commit by anyone but the shepherd after the label spends the grant.
+  `no-shepherd` is the opt-out. Neither label is a session's to apply on
+  its own judgement: the owner's word puts `merge-when-green` there —
+  applied directly, or as a tick on the PR's row in
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
+  into the label once the PR is green on its current head (D352).
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own

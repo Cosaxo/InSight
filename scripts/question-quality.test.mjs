@@ -246,7 +246,7 @@ describe("checkQuestion (feed continuum shapes)", () => {
     expect(checkQuestion(dial({ options: ["Low", "High"] }), "feed", corpus, TEX).errs.some((e) => e.rule === "type-shape")).toBe(true);
   });
 
-  it("holds a dial to a whole unit per bucket, and lets a retired one stand (D352)", () => {
+  it("holds a dial to a whole unit per bucket, and lets a retired one stand (D358)", () => {
     // 17–23 h is the dinner dial that shipped: a half-hour step whose
     // synthesized labels read "18–18 h". 1–4 hrs is the concert dial —
     // a quarter-hour step nothing integer can print.

@@ -13,6 +13,22 @@ import { Av, TabSection, MatchRing } from './primitives.jsx';
 // coupling count, and both modules are eager so the ESM graph carries it
 // into the same chunk for free.
 import { TypeMark } from './type-marks.jsx';
+// The Mirror's own parts and the feed's memory, as imports (D354's sweep).
+// Every `window.X &&` beside these reads was a load-order guard; each of
+// these modules evaluates before this one (mirror-tab.jsx's import order,
+// or the eager list), and an imported binding cannot be unset. The two
+// cross-group cards — CircleReadCard from the Map's family, PlaceStatsCard
+// from the feed's — are pulled into this chunk by the import, which is the
+// point: their guard was the one frame in which they might not have
+// landed, and now there is no such frame.
+import { FEEDREAD } from './feed-read.js';
+import { CompareBreakdown } from './compare-breakdown.jsx';
+import { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses } from './mirror-field.jsx';
+import { SegmentExplorer } from './segment-explorer.jsx';
+import { MirrorAnswers } from './mirror-answers.jsx';
+import { DemographicsCard } from './demographics.jsx';
+import { CircleReadCard } from './map-people.jsx';
+import { PlaceStatsCard } from './place-stats.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:
@@ -281,7 +297,7 @@ function mfpConfig(pop, zoom, mine) {
 // (see the note below). The prototype kept both the dangling branch and the
 // props; taking its parameter list would have re-declared two arguments
 // nothing can read.
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
+export function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   const D = IS_DATA;
   const [selId, setSelId] = useStateMFP(null);
   const [mine, setMine] = useStateMFP(() => new Set(SCENES.list()));
@@ -353,8 +369,8 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   lenses.push({ id: 'answers', label: 'Answers', render: () => <MirrorAnswers audId={cfg.answersAud}></MirrorAnswers> });
   // Kindred + Mix travel together — one "People" lens
   const hasKindred = pop === 'near' || pop === 'world';
-  const hasMix = !!(cfg.makeupAud && window.DemographicsCard);
-  const hasRead = pop === 'circle' && !!window.CircleReadCard;
+  const hasMix = !!cfg.makeupAud;
+  const hasRead = pop === 'circle';
   // A GroupLevelBreakdown lens was guarded here on the same pattern as the
   // GroupCompare one below — and on the same broken premise: nothing in the
   // tree has ever defined GroupLevelBreakdown, so the guard could not pass.
@@ -374,22 +390,22 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   }
   // the member scorecard — city / country / world, fed by rate questions in the feed
   const rateScope = pop === 'world' ? (worldZoom === 'city' ? 'city' : worldZoom === 'country' ? 'country' : 'world') : null;
-  if (rateScope && window.PlaceStatsCard) {
+  if (rateScope) {
     lenses.push({ id: 'scores', label: 'Scores', render: () => <PlaceStatsCard scope={rateScope} accent="var(--accent)"></PlaceStatsCard> });
   }
-  if (pop === 'world' && worldZoom !== 'city' && worldZoom !== 'country' && window.SegmentExplorer) {
+  if (pop === 'world' && worldZoom !== 'city' && worldZoom !== 'country') {
     lenses.push({ id: 'explore', label: 'Explore', render: () => <SegmentExplorer></SegmentExplorer> });
   }
   // The prototype guarded a GroupCompare lens here, but its module
   // (legacy-tabs) is gone in v15 — the guard could never pass, so the
   // branch is gone rather than dead (check:globals would flag it).
-  if (cfg.compare && window.CompareBreakdown) {
+  if (cfg.compare) {
     lenses.push({ id: 'compare', label: 'Compare', render: () => <CompareBreakdown scope={cfg.compare.scope} accent="var(--accent)" label={cfg.compare.label}></CompareBreakdown> });
   }
 
   // Sparse mirror: the population is real, the likeness isn't yet. Field keeps
   // you, the rings and the crowd's mist; the placed dots and every lens wait.
-  const readN = window.FEEDREAD ? (window.FEEDREAD.stats().n || 0) : 0;
+  const readN = FEEDREAD.stats().n || 0;
   const sparse = !!firstRun;
 
   // Circle: the full relationship map IS the picture — embedded, no field canvas.
@@ -424,7 +440,5 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   );
 }
 
-Object.assign(window, { MirrorFieldBody });
 
-;globalThis.MirrorFieldBody = typeof MirrorFieldBody === 'undefined' ? globalThis.MirrorFieldBody : MirrorFieldBody;
 ;globalThis.MFP_SECTORS = typeof MFP_SECTORS === 'undefined' ? globalThis.MFP_SECTORS : MFP_SECTORS;

@@ -13,22 +13,31 @@
 //
 // A synthetic date presented as the day you answered is the shape D1
 // refuses. These pin the absence.
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const BANK = [
   { id: "daily-001", prompt: null },
 ];
 
+// A fresh module registry per case, and the stand-in defined ONTO the
+// fresh store singleton rather than assigned to `window.LIVE`:
+// daily-questions.js imports the binding (D354), so a second object on the
+// global would reach nobody (test/live-fixture.ts's header). `ready` is a
+// getter on the store's literal, hence defineProperty rather than
+// assignment — and the un-booted singleton is inert, so no case here
+// needs to undo anything: the next resetModules() starts from zero.
 async function loadStore(live) {
   vi.resetModules();
-  if (live) window.LIVE = live; else delete window.LIVE;
+  const store = (await import("../data/live")).default;
+  for (const [k, v] of Object.entries(live || {})) {
+    Object.defineProperty(store, k, { value: v, configurable: true, writable: true, enumerable: true });
+  }
   const mod = await import("../spec/daily-questions.js");
   return mod.DAILYQ;
 }
 
 describe("the Map's answer dates", () => {
   beforeEach(() => { localStorage.clear(); });
-  afterEach(() => { delete window.LIVE; });
 
   it("prints the demo calendar's date in a demo build — it is demo data there", async () => {
     const D = await loadStore(null);

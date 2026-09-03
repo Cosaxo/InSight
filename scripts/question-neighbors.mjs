@@ -431,7 +431,7 @@ export function buildDomains() {
   // gate exists so the feed never asks one question twice, and a retired
   // question is not asked at all — while its REPLACEMENT carries the same
   // prompt by design: the only way to change a shipped dial's range is to
-  // retire the id and append a new one (D114's freeze; D352 did it for
+  // retire the id and append a new one (D114's freeze; D358 did it for
   // fourteen), so scoring the pair would fail every legitimate
   // replacement at 1.000 and push each into ALLOW as a non-exception.
   // The retired entries stay in the bank file (the seed and the deck read
