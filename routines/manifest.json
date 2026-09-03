@@ -498,9 +498,10 @@
       "reports": "Ops run log",
       "branches": [],
       "trigger": "trig_01KZYMFk5gUQ1QSFbzhm71FD",
+      "retired": ["trig_01UuPxYjLWh5st3iUDyxKu58"],
       "state": "live",
       "created": "2026-09-02",
-      "note": "the live cron reads `55 * * * *` against the contract's `20 6,16 * * *` — the shepherd's own finding on the Ops run log, 2026-09-02; the owner corrects one or the other. Its GitHub pull_request triggers are added in the web UI",
+      "note": "the live cron reads `55 * * * *` against the contract's `20 6,16 * * *` — the shepherd's own finding on the Ops run log, 2026-09-02; the owner corrects one or the other. Its GitHub pull_request triggers are added in the web UI. docs/OPS-RUNBOOK.md §5 names an earlier id created fresh-per-fire at 15:57Z; every fire on the run log cites this one, bound to its session — Claude 2 verifies which exists",
       "source": "Ops run log #375, the shepherd's first fire (2026-09-02 20:55 UTC)"
     },
     {
@@ -633,9 +634,10 @@
       "reports": "Question farm — run log (#31)",
       "branches": ["claude/question-farm-<date>"],
       "trigger": "trig_015gV8je1wJ8yRsk2zAKp6oe",
+      "retired": ["trig_01XJqk3xyNicWH9uMG5kz8Lh"],
       "state": "live",
       "created": "2026-09-02",
-      "note": "self-merges on green (D212)",
+      "note": "self-merges on green (D212); re-created 2026-09-02 for D350's block, so docs/ROUTINES.md §2, verified that morning, still names the earlier id",
       "source": "docs/QUESTION-FARM.md § Scheduled runs"
     },
     {
@@ -671,9 +673,10 @@
       "reports": "Question farm — run log (#31)",
       "branches": ["claude/learn-cards-<date>"],
       "trigger": "trig_01Qguc3PyigsW7RvQLvC6X5G",
+      "retired": ["trig_015hWsQwfLz4evTeVkN3mtx8"],
       "state": "live",
       "created": "2026-09-02",
-      "note": "self-merges on green (D212)",
+      "note": "self-merges on green (D212); re-created 2026-09-02 for D350's block, so docs/ROUTINES.md §2, verified that morning, still names the earlier id",
       "source": "docs/QUESTION-FARM.md § Scheduled runs"
     },
     {
@@ -690,9 +693,10 @@
       "reports": "Question farm — run log (#31)",
       "branches": ["claude/feed-questions-<date>"],
       "trigger": "trig_01MXbzJvRuKgYpD1Hea9XE8o",
+      "retired": ["trig_014BTtkCKwkJqjVmSdnUGGXC"],
       "state": "live",
       "created": "2026-09-02",
-      "note": "self-merges on green (D212)",
+      "note": "self-merges on green (D212); re-created 2026-09-02 for D350's block, so docs/ROUTINES.md §2, verified that morning, still names the earlier id",
       "source": "docs/QUESTION-FARM.md § Scheduled runs"
     },
     {

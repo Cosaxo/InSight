@@ -199,13 +199,17 @@ paint via `loadWorldFeed()` (D25) — still listed, still in order, just
 awaited in sequence instead of imported at the top. The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
-comment where the eager list used to hold them.
+comment where the eager list used to hold them. The Mirror's thirteen
+defer the same way since D355 (`loadMirrorTab()` names only
+`mirror-tab.jsx`), and the tab mounts through a slot that renders in the
+tap's own tick once the prewarm has landed — `src/v2/README.md` § the
+Mirror, and `data/mirrorChunk.ts` for the handoff that makes it so.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-32 modules are already off the bridge — they export and publish nothing,
+53 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -275,8 +279,11 @@ real slipped through:
   from `render()`.
 
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
-are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
-and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
+are **not** exempt from the convention: `live.ts` still publishes
+`window.LIVE` (for the mount fixtures and one node-safe reader — every
+spec module imports the binding since D354), and until D354's sweep the
+two `ui/` pickers `Object.assign`ed onto `globalThis` for render-time
+lookups. The scanner reads both directories for that reason.
 
 **The convention is shrinking, and there is a number for it.** Those four
 guards make the bridge safe, which also made it comfortable enough to keep
@@ -445,6 +452,21 @@ an emergency rules fix.
   all three suites pass. Environmental, not a broken test, and **not a
   reason to widen an egress allowlist** before trying the variable.
   docs/LOCAL-TESTING.md § Sandbox/CI note has the failure text.
+- **`LIVE.ready` does not mean the server has been heard from (D356).**
+  A returning device paints its real deck off its own caches before the
+  first network read is answered, so `ready` and `enabled` flip on disk;
+  `attached` is the network boot completing, and `stale` is the gap
+  between them. Key re-entry and is-the-network-up logic on `attached` —
+  `wake()` does, and a wake keyed on `ready` would never retry a failed
+  reconcile. The paint needs the profile mirror
+  (`insight.ownProfile.v1`) as well as the bank, because an answer
+  snapshots the anchors at write time (D8) and a warm deck without them
+  would file votes into no cohort. The boot-driven test helpers wait on
+  `attached` for the same reason. And an answer written before the
+  server's ack is NOT in the answers cache on purpose (D312) — it lives
+  in `insight.pendingAnswers.v1` until the queue drains (D357), so a new
+  optimistic write path marks and clears that mirror or its offline
+  answer is re-offered after a relaunch.
 
 ## House style
 
@@ -487,6 +509,28 @@ an emergency rules fix.
   [`docs/RECREATE.md`](docs/RECREATE.md) is how any session, on any of
   the three subscriptions, puts a missing Routine back — the Routines
   are the one part of the program that does not live in git.
+- **A pull request is merged by the PR shepherd, not by hand.** The
+  owner's merge instruction is the `merge-when-green` label; the shepherd
+  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
+  brings the branch current with `main`, moves colliding decision numbers,
+  waits for green and squash-merges. What a session owes it before the
+  label goes on: a green head with `main` already merged in and its
+  decision numbers already moved (D299) — and then no push, because a
+  commit by anyone but the shepherd after the label spends the grant.
+  `no-shepherd` is the opt-out. Neither label is a session's to apply on
+  its own judgement: the owner's word puts `merge-when-green` there —
+  applied directly, or as a tick on the PR's row in
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
+  into the label once the PR is green on its current head (D352).
+- **A Routine you create, re-pace, rebind or retire is registered in
+  [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
+  subscriptions run scheduled lanes against this one repository and no
+  session can read another account's Routines — `list_triggers` returns
+  the caller's and nothing else — so the register is the only surface
+  where two lanes on one hour, two branches carrying one fix, or two
+  accounts each assuming they own `main` can be seen at all. Verify from
+  `list_triggers` before you write a row; a prompt says what a run
+  believes its schedule is.
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own

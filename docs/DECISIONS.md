@@ -35301,6 +35301,7 @@ so the default mount holds the nudge line and the absence of the dead
 "link Google below"; the linked case flips the flag, claims a handle,
 and asserts the swap. live.ts's observer comment and the fixture's
 `linked` note are updated to stop describing the defect as current.
+
 ## D345 · Play is un-parked on an ENK, and the two code items that had no owner get built
 
 **Date:** 2026-09-01 · **Status:** Adopted (owner-confirmed: *"yes, do both
@@ -36342,6 +36343,7 @@ The plan restated it and asked twelve questions; the answers:
 in both directions); `check:figures` green; `test:scripts` green. The
 contracts carry no counts a gate would have to hold — every figure in
 them is recomputed by the lane that quotes it, the runbook's own rule.
+
 ## D353 · The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse
 
 **2026-09-02.** **Status:** binding — the ops dispatcher's charter moves
@@ -36484,3 +36486,631 @@ sections name; rule 7 is untouched, because the Status line is),
 have to hold — the grants are names, and the roll call's Sunday diff of
 the live prompts against §4 is what proves the seed on the account
 still matches the file.
+
+## D354 · The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32
+
+**2026-09-01.** Owner: *"you know have full creative controll how do you
+optemize and improve this project, aim to have big improvment as
+posible"*. Read as a mandate for the engineering work the tree already
+names as open and measures with its own gates, rather than for a new
+surface: `check:globals` rule 4 (the shared-global coupling ratchet, D39)
+and `check:bundle`'s `MAX_EAGER_KB` (first paint, D110/D144). This record
+is the ratchet's half; D355 is first paint's. Every number below is the
+gate's own output at the commit, not a hand count.
+
+### The provider view said where a third of the meter was
+
+The migration section of `src/v2/README.md` has said twice that planning
+from the per-consumer baseline is the wrong shape, and that transposing
+`spec-globals.mjs`'s own maps by PROVIDER is the right one. Done again
+here, the transpose put one name at the top by a factor of six: `LIVE`,
+**79 of 234 sites** across 13 files — the store itself, read as
+`window.LIVE` in modules that in seventeen cases already held
+`import LIVE from '../data/live'` a few hundred lines up. Next were `GDAv`
+(13), `LMStreak` (8), `MapStats` (7), and a long tail of one- and two-site
+component tags between the Mirror's own modules.
+
+### What moved, in two passes
+
+**The store (234 → 160).** Every spec-layer `window.LIVE` read became the
+import, except the four in `test-definitions.js`, which also loads under
+plain node (`scripts/report-lib.mjs` imports it; `archetype-data.js`
+imports `IS_TEST_AVG` from it) where `data/live.ts` cannot follow — it
+publishes `window.LIVE` at module scope and binds the Firebase SDK. The
+baseline entry carries that reason; the honest fix is a node-safe seam
+for `persistTestResult`'s live write, an ordinary refactor now. Cycle
+safety was read before the import went in: `live.ts` imports
+`test-definitions.js` and touches `IS_TESTS` only inside a method;
+`daily-questions.js`, the earliest new importer, reads `LIVE` only inside
+functions. Gone with the reads: the `window.LIVE &&` load-order guards
+and the member-existence guards on methods the store's literal always
+defines and `data/vote.test.ts` pins (`L.myVotes ? … : null`,
+`L.editVote && …`, `!L.dailyBank`). Kept: every data condition —
+`.enabled`, `.ready`, `.demoInProd`, `.feedReady` — which are false for
+the whole of mock mode.
+
+**The sweep (159 → 32).** Twenty-three providers, forty-seven files, 128
+sites, in one change, after the static import graph (built from the tree
+by a probe script, not from a paragraph) cleared every planned edge for
+cycles and the eager/lazy boundary cleared every edge for direction. The
+table in `src/v2/README.md` § The sweep lists them. The recurring shapes,
+recorded there in full: a provider declared inside the porter's IIFE
+cannot `export` by keyword when the export IS the inner function's name,
+so eight files hand their bindings out through a `const EXPORTS = {}`
+filled where `Object.assign(window, …)` stood; eight window copies stay
+beside their exports because a test reads them (`MapStats`, `LENSES`,
+`WORLD_TOPICS`, `MTAnchorCard`, `MTAnswerCard`, `PlaceStatsCard`,
+`ConsequenceBeat`, `App`); and four fallback renderers went with their
+reads — a whole "What makes the number" card in `person-overlay` and a
+five-topic stand-in for `WORLD_TOPICS` at `daily-split`'s module scope
+among them — because the frame they rendered in was already unreachable.
+
+### What the suite found, and the guard list learned
+
+Four tests had built a `window.LIVE`, `window.FEEDREAD` or
+`window.WF_REPORT` stand-in of their own — `feed-insight-round`,
+`map-dates`, `learn-split` (through a `W` alias) and `purge-wipe`
+(through `window as any`) — the D280 trap hand-rolled: after the
+conversion the stand-in reaches nobody. Two failed loudly (17 cases in
+`learn-split`, two in `purge-wipe`); one would have passed vacuously
+(`map-dates`' demo path IS `enabled: false`). All install onto the
+imported singleton now, as `test/live-fixture.ts` has since its header
+was written. The guard-shape list gains `typeof window.X === 'function'
+&&`, a whole `if (!window.X) return <fallback/>` block, and the
+member-existence shape on a pinned store.
+
+**The suppression count did not move** — `npm run lint` is unchanged at
+zero. D108 predicted every conversion would raise it before lowering it,
+because the React Compiler bails out of a component that reads a value
+through global scope; the three biggest consumers already held the import
+for other reads, so the compiler was never bailing out on these names'
+account.
+
+### What stays, and why it is a different kind of work
+
+**32 across 8 files**, each with its reason beside its baseline entry:
+the seven overlay tags `app-shell` mounts by name after awaiting
+`loadOverlays()`, plus that loader — the lazy-mount contract (D38/D223),
+which converts only by holding the overlay namespaces the way D355's slot
+holds the Mirror's; `WorldFeed`, `ConsequenceBeat` and `DuoBody` read
+from the eager side, where an import would drag a lazy module into first
+paint; `MAP_OPEN_GROUP` across two lazy groups; `registerBackHandler`, a
+seam `dialog.test` stubs on the window; `RMCore`, a demo-only header on a
+~20 KB module; `WORLD_FEED_QS`, four writers and a live/demo boundary —
+the design change `world-catalogs.js`'s section describes; and
+`test-definitions.js`'s four. None is a name a mechanical pass can take.
+
+**Enforcement.** `COUPLING_BASELINE` sits at 32 and only moves down; rule
+1 now fails on any `window.X` read of the fifty-odd names that no longer
+publish, which is how the two misses inside the sweep were found before
+the suite ran; the README's figure is held by `check:globals` itself.
+`check:figures` moved CLAUDE.md's off-the-bridge count 32 → 53 modules.
+
+## D355 · The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB
+
+**2026-09-01.** The other half of D354's mandate, measured by
+`check:bundle`'s `MAX_EAGER_KB` — the number its own header says to quote
+for a first-paint claim. A sourcemap attribution of the shipping bundle's
+eager set (entry + every `modulepreload`, 761 KB) put the Mirror tab's
+thirteen spec modules at ~130 KB of it, behind only react-dom (174 KB)
+and the daily tab's own spine; `check:bundle`'s header had already named
+the candidate — *"the Mirror tab is what is left of the obvious
+candidates, and it needs a guard the overlays did not."*
+
+### Why it could go
+
+The app never opens ON the Mirror: `TWEAK_DEFAULTS.tab` is `'track'` and
+nothing persists a tab across launches, so the tab is always one tap away
+and never the first frame. A reader audit over the thirteen (the
+provider-view transpose again, filtered to readers outside the group)
+found every reader of a Mirror global in the overlays group — or the
+mount tag itself. Nothing eager reads them. `MapStats`, `GDAv` and
+`relmap-lenses.jsx` looked like members and are not: eager modules read
+them on first-paint surfaces, so they stay.
+
+### The guard is a handoff, not a render guard
+
+`loadMirrorTab()` names only `mirror-tab.jsx` and that file's static
+side-effect imports carry the other twelve in the eager list's order —
+`loadMapTab()`'s shape (v28 §5). `app-shell` mounts the tab through
+`MirrorSlot`: state plus an import, `MapSlot`'s shape, because a
+`React.lazy` caches a rejection under a per-tab boundary (D207's finding)
+and one failed chunk fetch would make the app's main tab "This view hit a
+snag" for the session. What is new is the slot's INITIAL state: it reads
+`data/mirrorChunk`, where the loader remembers the resolved namespace.
+ESM has no synchronous read of the module cache; that module is one. So
+once `main.jsx`'s prewarm has landed — started right behind the feed's
+fetch — opening the Mirror renders in the tap's own tick with no blank
+frame, and the effect exists only for a tap that beats the prewarm or a
+prewarm that failed. That was the guard the overlays did not need: an
+overlay's opener awaits its chunk, a tab cannot.
+
+Three overlays read Mirror globals at render (`profile-general`'s
+`MirrorFieldBody` and `LENSES`, `profile-overlay`'s `LensesPanel`,
+`person-overlay`'s `CompareCarousel`), so `loadOverlays()` awaits
+`loadMirrorTab()` first — memoised, so that is the prewarm's own promise
+when `main.jsx` got there first and the fetch itself when a tap did. Both
+mount harnesses await it in `beforeAll` for the same reason the feed is
+awaited: the slot is same-tick only once the handoff has happened, and a
+suite that skipped it would click the tab and assert against the empty
+frame.
+
+### The arithmetic
+
+| | eager | entry chunk | total | ceiling |
+| --- | --- | --- | --- | --- |
+| before | 761 KB | 243 KB | 2154 KB | 880 |
+| the Mirror behind `loadMirrorTab()` | 633 KB | 133 KB | 2157 KB | 645 |
+| + `ui/CityPicker`, `ui/PickSearch` off the eager list (D354's sweep) | 619 KB | — | 2157 KB | 630 |
+
+−142 KB from first paint, 19%, the largest drop since D110 took the
+Firestore SDK out; the total within 3 KB, which is the shape every honest
+move here has had — a relocation, not a deletion. The ceiling came down
+with each step, band ~11 KB, the doctrine every entry in `check-bundle.mjs`
+states: the freed room is not headroom for the next eager feature.
+
+**Pinned.** `test/mirror-slot.test.jsx` holds the three slot cases
+against the real handoff (same-tick when remembered, the cold import that
+remembers, a failed chunk that costs the body and re-attempts on
+re-entry) plus a source pin on the shell's shape and the loaders; the
+existing `smoke-mirror` case — click the tab, read the ruler in the same
+breath, no await — is the same-tick claim asserted on the whole app.
+
+### What was measured and left
+
+`sample-data.js` (40 KB, demo data eager in a live build) has fifteen
+importers including live fallbacks, so it is a design change rather than
+a move; `daily-questions.js` (34 KB) is the daily tab's spine; react-dom
+is the framework. The overlay mounts in `app-shell` are the next slot
+candidates and D354 records why they are structural. The attribution
+script that produced the table is the way to re-measure: by source file,
+off the sourcemap, not by chunk name.
+## D356 · First paint comes off the device: the warm boot, and `ready` splits from `attached`
+
+**2026-09-01.** **Status:** binding. Amends the boot's order of operations
+in `src/v2/data/live.ts` and the meaning of one flag; changes no read
+count and no rule. D77's label and D312's caches are the two records it
+stands on.
+
+### What was true
+
+`initLive` raced the whole network boot against a 2.5 s deadline and
+rendered when either settled. On a returning device the boot's chain
+before `ready` was: the SDK import and the auth restore (local), then
+meta → bank delta → answered delta → edit delta → [aggregate top-up] →
+deck aggregates, one round trip each, with the profile read the only
+thing in parallel. Every byte the first frame draws — the bank, the
+account's answers, the aggregates it last saw — was on the device
+already (D312), and the boot read all of it only *after* the meta
+document had come back, because the bank cache was keyed by
+`contentRev` and the rev check came first.
+
+So first paint waited on the sixth round trip or the deadline, whichever
+came first. On a 150 ms mobile RTT that is ~0.9 s of pure waiting plus
+the Firestore channel's own connection setup; on a train it was the
+deadline, and the deadline put a real user on the DEMO deck under
+"Sample questions · reconnecting…" (D77) until the boot attached and the
+screen swapped. The record of it losing was already in the tree: the
+`slowBoots` boredom input (D272) and D77's stage label both exist
+because the race was lost often enough to need them. And an offline
+launch — the case the caches were built for — showed sample questions.
+
+### What changed
+
+**The disk is read first, all of it at once, and the paint waits for
+neither the server nor the SDK.** `readDiskCaches` issues the five
+IndexedDB reads in parallel (tens of milliseconds) beside the sign-in,
+not after it: `anonSignIn` is the first thing that imports firebase —
+~400 KB of Firestore and Auth to parse, then the auth restore's own
+IndexedDB read — and on a mid-range phone that pair was the longest
+local wait a warm boot had left, none of it needed to draw a deck the
+device already holds. A device holding a bank *and* a profile mirror
+publishes the deck, the votes, the aggregates and the feed globals for
+the account the mirror names, flips `ready` and `enabled`, and resolves
+a third runner in `initLive`'s race (`paintable`). The network phase
+then runs exactly as before against the same pre-read caches — a delta
+merges, a changed rev refetches and replaces the bank whole, the profile
+document overwrites the mirror, the deck's aggregates refresh — and
+every one of those reaches the screen through the notify path that
+already served late boots. The cold path (nothing on disk) is unchanged,
+deadline and label included.
+
+**The account it paints for is provisional until auth speaks**, and the
+three ways that ends are each pinned. Auth restores the same uid (the
+common case): nothing to do, and the disk read is handed to hydrate so
+it is not paid twice. Auth names a different one — a lost session
+re-minted (D3): the observer's existing reset path runs, purging every
+trace and continuing the same boot cold for the new account; and
+because the sign-in can resolve before the observer has fired,
+`refreshLive` makes the same check itself. What the mirror can name is
+only ever an account this device confirmed, so a mismatch IS a lost
+session, and the purge it now triggers is what D51 asks for and what the
+old boot could not do, because it never knew the previous uid. The
+sign-in fails: the deck stays, the last-sync pill says why, the next
+wake retries. One guard makes the provisional state safe in the
+observer: a null auth state while the uid is provisional is the SDK
+saying "not restored yet" on its way to the sign-in already running —
+the session-lost recovery it used to trigger would have started a
+second anonymous sign-in beside the first and minted two accounts.
+And the disk read is checked against `state.uid` after its awaits, so a
+reset landing mid-read folds that read into nothing.
+
+**Nothing reaches Firestore while the uid is the mirror's.** The review
+of the first cut found the hole: a live deck on screen invites a tap,
+and a write handed to the SDK before Auth's credential listener has
+fired is filed under the UNAUTHENTICATED user's mutation queue — when
+the real user arrives the SDK swaps queues rather than re-signing what
+was pending, so the vote's promise never settles, the cache never files
+it, the server never sees it (verified against `@firebase/firestore`
+4.14.1). Every mutator reaches Firestore through `getDb()`, so that is
+the one choke point: it holds while `uidProvisional`, and the gate is
+released when the sign-in settles or a reset replaces the account —
+never rejected, because a failed sign-in keeps the writes waiting for
+the session the next wake restores, which is the offline state's own
+shape. The engagement rollup's `hasUid` is confirmed-only for the same
+reason: it clears its local copy on handing the write over.
+
+Two more things the same review moved, and one it proposed that was
+refused. The deck poll starts inside hydrate now, beside the answers
+reads, and those are the unguarded ones — so `refreshLive` stops the
+poll when hydrate throws, and `startAggPoll` carries a generation so a
+stop that lands inside its awaited read wins over the arm that follows
+(a hide during that read had the same race before D356). The profile
+block no longer wipes `state.profile` when the document does not exist:
+the read is issued at the top of hydrate, the setup screen can collect a
+name and anchors on a warm-painted device before the block runs, and
+wiping to "what the server said a second ago" mirrored the empty
+object — every later answer would have snapshotted no anchors, the
+exact fault the mirror exists to prevent. The refusal: the review
+priced the lost-session purge at the +738-read cold fetch it now costs
+the next account (the bank and aggregate stores are public content and
+the purge clears them too) and proposed clearing the account's store
+alone. Tried, and reverted on the repo's own rule: WHICH public rows a
+device cached — the paged cards chosen for one account's taste, the
+aggregates of the questions it answered — is itself a trace of what the
+previous account did, and D51 does not distinguish a public row from a
+private one on that point (two of `vote.test.ts`'s uid-change pins fail
+on the narrowing, and both were right). The cold fetch is the price of
+a lost session, paid once and only there.
+
+**Round trips before `ready`:** warm device 6 → **0**, and no SDK parse
+and no auth restore in front of it either — on a returning device the
+paint is the entry chunk plus the disk. The network phase
+itself, which still has to finish before the counts are today's: warm
+6 → 4 (the two answer deltas and the deck aggregates share one trip —
+they share no input, and they are still folded in the old order), cold
+7 → 4 (the three bank queries share one trip; the deck aggregates start
+the moment there is a deck, beside the answers, instead of after the
+profile await). Offline launch on a warm device: the real deck, with
+votes queued in the SDK's offline queue as they already were mid-session.
+
+**One flag became three, because one fact became two.** `ready` used to
+mean "the network boot completed"; it now means "there is a deck to
+draw", which the warm paint answers off disk. `attached` is the old
+meaning, and it is what every re-entry point keys on: `wake()` runs the
+full refresh while `!attached` (a wake keyed on `ready` would never
+retry a warm session whose reconcile failed — probed: reverting that one
+word fails the wake-retries case, and only that one, because
+`resubscribeForToday` refuses before the attach on its own key),
+`resubscribeForToday` refuses before the attach (the boot itself is
+still going to start the poll), and `refreshLive` shares its in-flight
+promise so a wake during a running boot joins it.
+`stale` is `warm && !attached`, the gap between the two. The `bootError`
+getter composed "still connecting — <stage>" for the rest of any session
+that had lost the race, invisible only because its one reader sat behind
+`demoInProd`; it composes only while `!attached` now. The deadline that
+sets the label is a plain timer on its own clock rather than the race's
+rejection, so a warm paint that wins the race in a few hundred
+milliseconds still gets the same question asked at the same 2.5 s: is
+the server still unheard from.
+
+**The profile mirror is a condition, not a nicety.** Every answer
+snapshots `state.profile.anchors` at write time (D8, D290), and the
+anchors arrived with the profile read some way down the chain. A vote
+cast on a warm-painted deck before that read would be filed under no
+cohort — a correct-looking answer no breakdown can count. So the warm
+paint requires `insight.ownProfile.v1`: the account's own display name,
+handle, anchors, consent record and test results, stamped with the uid,
+written on every profile read and by each of the profile's mutators,
+refused under any other uid, and inside the namespace `purgeLocalTrace`
+sweeps. A device that has not booted once since this record boots the
+old way, once. Not an ask under D334: it is the account's own data on
+the account's own device, already there in three other keys (the name,
+the answers, the profile cache), exposed to nobody.
+
+**The honest label for the new state.** A warm deck whose reconcile
+fails is real — this device's last sync — so the sample-questions pill
+would be a lie, but the counts are not today's and the server has not
+been heard from. The daily draws `Last sync · reconnecting…` for
+`enabled && stale && bootError`, the demo pill's shape (D77): the reason
+one tap away, and gated on a reason existing so the ordinary sub-second
+reconcile never flashes a label on launch.
+
+### The trade, stated
+
+- A cache under an older `contentRev` paints first and is replaced when
+  the full fetch lands: a deck one reseed old for about a second. The
+  screen the lost race showed instead was the demo deck, and the swap
+  a late attach made was demo → real. This one is real → real.
+- Counts are as of the last sync until the deck aggregates return (one
+  trip, in parallel with the answers). The same was true of every late
+  attach.
+- `slowBoots` still measures the network attach, not the paint: it is a
+  fact about the network, and it stays one. A perceived-boot number
+  would be a different input.
+- Nothing preloads the SDK, and nothing needs to: the warm paint no
+  longer waits on it. check:bundle's eager ceiling is what keeps the SDK
+  out of first paint on the demo build, and that argument stands.
+- For the length of the auth restore, the account on screen is the one
+  this device last confirmed. If that is not the account auth restores,
+  the person sees their own previous account's deck for that window and
+  then the purge; the pre-D356 boot showed the demo deck for longer and
+  then kept the previous account's device trace under the new uid.
+- A write made behind the provisional gate lives in this process, not
+  in the SDK's persisted queue — there is no session to hand it to. If
+  the sign-in FAILS, those writes fail with it, into their own catches
+  (a vote rolls back on screen the way a refused write does; anchors,
+  consent and test results stay local and mirrored, because their
+  mutators move state before the write; a display name does not, because
+  `saveDisplayName` moves state only after its write, and the panel
+  shows the error), and the next wake's sign-in re-arms the gate. Holding them would be a promise the next launch cannot keep
+  (the third review's finding; it first held them). What is lost in
+  that case is the profile edit's server write — the mirror keeps the
+  edit for the paint, and the next successful boot's profile read
+  overwrites it unless the person edits again. Known and priced: it
+  needs a device whose session cannot be restored or re-minted, offline,
+  editing the profile, killed before the network returns.
+
+Three more corrections from the same review. A profile edit made on the
+warm-painted screen while the boot's profile read is in flight is newer
+than that read, and applying the read over it reverted the city on
+screen and wrote the old anchors back over the mirror — every later
+answer would have snapshotted the old city; the block now applies the
+read only if nothing moved the profile since it was issued (a counter
+the mutators bump), and the edit's own write carries it. The sign-in's
+promise is observed the moment it is created, because a rejection while
+the disk is still being read surfaced as an unhandled one before the
+`await` further down attached. And a hide that lands during the boot's
+own deck read stops the poll before it arms — `aggPollGen`, above — and
+a foreground before the attach JOINS the boot rather than resubscribing,
+so the session attached with its counts frozen; the attach arms the
+poll if nothing did and the app is visible. And because the gate gave
+every store method a second way to reject, the one optimistic method
+whose `getDb()` stood outside its try (the avatar report) moved it
+inside so a gate failure rolls its flag back like any other, and its
+one `void` call site catches what the method rethrows.
+
+### What proves it
+
+`src/v2/data/warm-boot.test.ts` gates the network — every read parks
+until the test releases it — and the sign-in, so "the render was
+released while the server had answered nothing and the SDK had not
+signed in" is an assertion rather than a timing claim. Sixteen cases:
+the warm paint itself (ready, enabled, not attached, stale, the cached
+deck/votes/aggregates/anchors, zero reads issued with the sign-in held,
+and the delta merging behind it once released); the cold boot
+unchanged, label included, and the mirror it leaves behind; a cached
+bank without the mirror waiting (the anchors argument); another
+account's answers and mirror never reaching a paint; a changed rev
+replacing the warm deck through a full fetch and rewriting the cache; a
+failed reconcile keeping the deck, setting the reason, and a wake
+retrying it; the deadline labelling a silent server and the attach
+clearing it; a wake during the running boot issuing nothing; an account
+switch purging the mirror and keeping the public caches (the next
+account's bank query is a delta); the provisional account contradicted
+by auth in both orders (observer first, sign-in first) un-painting and
+purging with one boot and one sign-in; a null auth state while
+provisional starting no second sign-in; a vote on the warm deck reaching
+the SDK only once the session has restored; a boot failing past the
+poll's start leaving no poll armed, and the next boot re-arming it; and
+the two round-trip shapes — meta, delta, then answers ‖ aggregates in
+one trip; meta, then the three bank queries in one trip.
+`cacheStore.test.ts` pins the purge listener's narrowed scope beside
+`clearAll`'s unchanged one. `smoke-live.test.jsx` draws the
+last-sync pill against the fixture's new `stale` option and asserts a
+healthy boot shows neither pill. The seven boot-driven suites' helpers
+wait on `attached`, which is the meaning they had been relying on;
+bank-cache's paging pin counts cursor-carrying pages instead of indexing
+the log, because the interleaving moved. `test:unit` 156 files / 2316
+tests green; lint, `tsc -b`, check:globals (coupling unchanged at 236),
+check:figures, check:docs, test:scripts, check:purge and the rest of the
+client gates green; the shipping bundle's eager graph 772 → 774 KB
+against 880.
+
+### When to revisit
+
+- If a reseed that changes today's daily reads as a glitch on warm
+  devices (the card swaps under the thumb), the remedy is to hold the
+  warm deck's *today* until the first poll — not to drop the paint.
+- If the mirror's `testResults` grows past a few kilobytes it should
+  move to the cacheStore meta row beside the answers' owner stamp; it is
+  in localStorage today because a synchronous read is what the paint
+  wants and the object is small.
+- If a surface ever needs the *network* fact rather than the *deck* fact,
+  it reads `attached`. `ready` will not tell it.
+- If the provisional window ever needs to be shorter than the auth
+  restore, the mirror could carry the last-confirmed uid's `linked`
+  state too; today `linked` is false until auth speaks, which only the
+  account panel reads, and only as copy.
+
+## D357 · An answer the server has not acknowledged survives the relaunch
+
+**2026-09-01.** **Status:** binding. Closes the gap D356 made reachable;
+amends nothing in D312's cache doctrine, which it leaves exactly as
+strict as it was.
+
+### The gap
+
+`vote()` mirrors an answer into the answers cache (D312) only on the
+server's ack, and says why: an optimistic row there would let a write
+the server later refused come back on every boot with nothing left to
+reconcile it. The other half of that discipline had a hole. An answer
+written offline lives in the SDK's persisted mutation queue and in this
+process's memory (`state.votes`, `state.inflight`); a relaunch before
+the ack has the queue but not the memory. So the deck re-offered a
+question the queue was about to answer, and the second tap was refused
+by the create-only rule — the exact failure hydrate's own comment on the
+answers read warns against ("proceeding with a partial vote set makes
+the app offer questions the user already answered, and the create-only
+rule then refuses every one of those re-votes"). Before D356 an offline
+relaunch showed the demo deck, which hid the gap by showing nothing;
+the online relaunch had it too, as a race between the delta read and
+the queue's flush, and nobody had seen it.
+
+### What changed
+
+**The unacknowledged answers keep a mirror of their own**
+(`insight.pendingAnswers.v1`): written on the tap by every optimistic
+write path — `vote`, `votePick`, `voteRank`, `votePulse`, and `editVote`
+marked as an edit — removed on the ack or the rollback, owner-stamped,
+refused under any other uid, and inside the namespace `purgeLocalTrace`
+sweeps. A relaunch folds them back over the disk copy as votes that are
+still INFLIGHT — exactly the state they were in when the process died —
+so `myVotes()` carries them (the deck does not re-offer) and
+`confirmedVotes()` does not (nothing claims the server has them).
+
+**The network phase settles each one** (`settlePending`), in two steps
+that cost at most two tiny reads and only on a boot with something
+unsettled. First against what the boot just read: an answers delta that
+returns the document confirms a create; an edit is confirmed only if the
+document carries the pending VALUE, and until it does the pending value
+keeps the screen — the fold had just written the document's old option
+over it, and the newer intent is the queue's. Then, for the rest,
+against the SDK's own word: `waitForPendingWrites` resolves once every
+mutation the queue held has been acknowledged or refused (offline it
+never resolves, which is right — the next online boot asks again), and
+one `documentId() in` read of exactly those documents follows. Present
+with the value: confirmed, and cached the way the ack would have. Present
+with another value: an edit the rules refused, and the document's value
+takes the screen. Absent: a create the rules refused, or a write that
+never reached the queue — the same rollback the in-process catch
+performs, feed mirror included.
+
+Not an ask under D334: the mirror is the account's own answers on the
+account's own device, one key beside three others that already hold
+them, exposed to nobody.
+
+### What the second review moved
+
+Five findings, all kept. A create is confirmed only when the document
+carries the pending VALUE — a document that exists with another value
+is another device's answer, the create can only be refused, and
+confirming with this device's value cached one the server never held
+(executed by the review); the document's value now stands, on screen
+and in the cache. An edit is different only in timing: before the
+drain, the document's old value says nothing about a write still in
+the queue, so the pending value keeps the screen; after it, the
+document wins. Under the SDK's persistent cache a query result can
+carry this device's OWN unacknowledged mutation laid over the document
+(latency compensation, flagged `hasPendingWrites`), so the fold no
+longer counts such a document as the server's word and the settle's
+read skips one. The cold answers pull rewrote the acknowledged cache
+from `state.votes`, which the restore had just filled with pending
+answers — a refused create would have become a confirmed phantom, the
+exact failure the ack-only cache exists to refuse; still-inflight
+answers stay out of that rewrite. The settle's confirm now takes the
+ack's own path — the aggregate re-read that clears `unaggregated`, the
+engagement counters, the passive fold — where it had cleared the flag
+and cached and nothing else, so a settled feed answer read one high for
+the session. And the four inline rollbacks are the one helper the
+settle uses, so what a refused answer has to undo lives once. The
+gate's read arm moved BEHIND the two verb tests: ahead of them it would
+have waved through a write spelled `setDoc(doc(collection(…)))`, the
+idiom the takes write already uses.
+
+### What the third review moved
+
+The settle rules only on what the restore brought back (a set the
+restore fills and a reset clears). An answer tapped in THIS process has
+its own promise; the queue-drained signal does not cover a write
+requested after it, so the settle's read finds that document absent —
+and a settle that ruled on it rolled back a write still on its way,
+which its own ack then never restored. A document the read returns
+with a local mutation laid over it (a write made since the drain over a
+restored id) is skipped, not read as absent. The verdicts are applied
+only if the account is still the one the settle started for: the read
+is a round trip, and a reset landing inside it would have applied the
+old account's verdicts to the new one's votes and pending file. The
+boot's deck read (`refreshAggs`) no longer clears a still-inflight
+answer's own-vote bump — `drainAggRefresh` had carried that guard since
+the optimistic split; a restored pending daily answer put an inflight
+answer in front of the deck read for the first time, and the card read
+one voter short. And the gate's read arm is a `collection(` line that
+is not also a `doc(` line: the write idiom split across lines lands on
+a line with neither verb, which must be reported as the unclassifiable
+write it is.
+
+A fourth pass over that fix moved three more things. The restore skips
+an id that is inflight in THIS process and not already restored — on a
+re-run hydrate (a wake after a failed boot) the file holds the
+process's own taps, and restoring those let the settle confirm them off
+the delta and count their ack twice. `saveTestResult` mirrors without
+counting as an edit: the passive fold writes results on its own
+schedule, and a fold that ran while the boot's profile read was in
+flight is no reason to discard the read. And the edit counter is read
+beside whichever read is USED — a uid that changed under the boot gets
+a fresh read, and an edit made before it, the old account's even, is
+not an edit made over it. The `echoed` guard's comment now says what it
+is: defence against the SDK alone, since by this file's own rules no
+restored id can carry a mutation of this process's.
+
+### The trade, stated
+
+- One more `insight.*` key, a few hundred bytes at most, gone the moment
+  the queue is acknowledged.
+- A create the rules refuse after a relaunch is rolled back one read
+  later than the in-process catch would have managed, and only once the
+  queue reports itself drained; until then the card reads as answered
+  and unconfirmed, which is the truth.
+- `waitForPendingWrites` joins the bound SDK surface
+  (`lib/firebaseImpl.ts`'s `fsApi`), which every Firestore mock in the
+  tree lists by name; the two that build the object pin it.
+
+### What proves it
+
+`warm-boot.test.ts` gates the writes as well as the reads and the
+sign-in, and holds the queue-drained signal until a case releases it.
+Eleven cases: an answer written before the ack survives a relaunch as a
+vote that is unconfirmed and not re-offered; confirmed by the delta once
+the queue delivered (no extra read); confirmed by one read of its own
+document once the SDK reports the queue drained; rolled back — feed
+mirror included — when the queue drained and the server holds no such
+document; still pending across an offline relaunch whose boot fails; a
+pending edit keeping the newer option until the server agrees, and
+yielding to the document when the rules refused it; a create another
+device won settled to that device's answer on screen and in the cache;
+an edit's own echo in the delta (`hasPendingWrites`) proving nothing
+until the drain; a cold pull never filing a pending answer into the
+acknowledged cache; a settled answer arming the aggregate re-read the
+ack arms; an answer tapped during the drain wait left to its own
+promise (the settle's read asks for the restored id alone); the boot's
+deck read keeping a restored answer's own-vote bump; and the mirror
+going with the account on a switch. Probed, each failing exactly its
+case: dropping the restore, confirming a refused create instead of
+rolling it back, confirming the other device's document with this
+device's value, taking the echo as the server's word, filing the
+pending answer in the cold rewrite, settling every pending id instead
+of the restored ones, and clearing the bump from the deck read. The
+file tears its instance down after every case (`_teardownForTest`):
+the 2.5 s aggregate re-read a confirm arms, left running, fired into a
+later case's exact-set pins as a read nobody issued. D356's own file
+gained the sign-in failure paths and the profile-edit and hide-during-
+read orderings alongside, each probed the same way. `test:unit` green in full; lint, `tsc -b`,
+check:purge (live.ts is the dispatcher and owner-stamps the key),
+check:globals unchanged. `check:answer-shape` learned one thing: the
+settle's `documentId() in` read is the first READ of the answers path
+written with the same `uid` name the write shape uses, and the scan
+could not classify it (hydrate's deltas say `uidA`, which is why they
+never reached that line). It classifies a `collection(` read now, as
+outside its subject — nothing a read does can drop a field from a
+document — rather than the read being renamed around the scan.
+
+### When to revisit
+
+- If a surface ever writes an answer outside the five paths above, it
+  marks and clears the mirror the same way, or its offline answer is the
+  pre-D357 answer.
+- `learnAnswer` is deliberately not on the list: a learn card's first
+  attempt is its own contract (`learnSent`, D157), and an offline learn
+  answer relaunched is a card re-asked, not a rule refused. If that ever
+  reads as a bug, the mechanism is here.

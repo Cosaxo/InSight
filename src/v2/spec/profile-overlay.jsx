@@ -33,6 +33,8 @@ import { pushBackLayer } from '../data/backLayers';
 // the display form comes from the same pure module the account sheet's
 // panel uses, so "@olaf" is spelled one way everywhere.
 import { atHandle } from '../data/handles.ts';
+import { LensesPanel } from './lens-cards.jsx';
+import { GeneralPanel } from './profile-general.jsx';
 
 // The Roles tab (D204), behind a lazy boundary. When Roles shipped this
 // file was eager (spec-index imported it at top level) and MAX_EAGER_KB
@@ -83,7 +85,7 @@ function AccountSheet({ onClose }) {
 // the Roles panel and the LIVE read arrived with D204 (main). The merge
 // keeps both changes.
 function ProfileOverlay({ onClose, me }) {
-  const L = window.LIVE || {};
+  const L = LIVE;
   const dims = [
     { label: 'Openness', v: me.personality.O },
     { label: 'Conscientiousness', v: me.personality.C },
@@ -332,7 +334,7 @@ function ProfileOverlay({ onClose, me }) {
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
           {/* LivePrivacyPanel opened this tab from D98 to D344; it lives
               behind the header's gear now — see AccountSheet above. */}
-          {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
+          {sub === 'general' && <GeneralPanel onGo={setSub} />}
           {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}
           {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestProgress k="values" /></>}
@@ -340,7 +342,7 @@ function ProfileOverlay({ onClose, me }) {
           {sub === 'roles' && (
             <React.Suspense fallback={null}><RolesPanelLazy /></React.Suspense>
           )}
-          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
+          {sub === 'lenses' && <LensesPanel />}
         </div>
       </div>
 

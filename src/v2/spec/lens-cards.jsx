@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
+import { LENSES } from './lens-defs.js';
 
 // lens-cards.jsx — the profile's Lenses tab. Chrome-free: no card boxes, no
 // per-lens buttons. Each lens is a hairline-separated reading in the idiom its
@@ -18,6 +19,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 // fall back on (lens-defs.js says why). Every viz below therefore has to draw
 // "no reading yet" as its own state. Drawing null as 0 would be worse than
 // the prior it replaced — "you score 0 on Care" is a claim, and a false one.
+const EXPORTS = {};
 (function () {
   const { useState, useEffect } = React;
   const col = (h) => `oklch(0.56 0.13 ${h})`;
@@ -169,7 +171,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
   // ── the asker — five steps, two words of scale, nothing else ──
   const DOTS = [7, 9, 11, 13, 15];
   function Asker({ lens, onDone }) {
-    const L = window.LENSES;
+    const L = LENSES;
     const i = L.nextIdx(lens.id);
     if (i < 0) return null;
     const q = lens.questions[i];
@@ -208,7 +210,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 
   // ── one reading — title, optional lead, chart. No box. ──
   function LensRow({ lens, first, onTick, onExplain }) {
-    const L = window.LENSES;
+    const L = LENSES;
     const [asking, setAsking] = useState(false);
     const pct = L.pct(lens.id), full = L.complete(lens.id);
     const v = L.score(lens.id);
@@ -248,7 +250,7 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
   // The boxed card-per-lens variant sat here behind a tweak for comparison;
   // the tiered flat panel won (v28 §10) and the boxed LensCard went with it.
   function LensesPanel() {
-    const L = window.LENSES;
+    const L = LENSES;
     const [tick, setTick] = useState(0);
     const [explain, setExplain] = useState(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
@@ -290,5 +292,6 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
     );
   }
 
-  Object.assign(window, { LensesPanel });
+  Object.assign(EXPORTS, { LensesPanel });
 })();
+export const { LensesPanel } = EXPORTS;

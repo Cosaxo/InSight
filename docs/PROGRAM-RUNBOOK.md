@@ -190,7 +190,7 @@ log** like the list worker they are.
       lanes). Notifications off — the run log and the console are the
       legibility channel. · **Gate:** `list_triggers` returns each; the
       first fire of each lands a run-log line. · **Size:** S.
-- [ ] **3.4 Register them.** *The inventory below is filled 2026-09-02 and re-filled 2026-09-03; since 2026-09-03 the same rows are machine-readable in `routines/manifest.json`, rendered as `RECREATE.md` and held to this table by `check:routines`, so any session on any subscription can recreate what its account is missing — the owner's ask of that day. The register's block still waits for `ROUTINES.md` to reach `main` (PRs #362 / #365).* This account's block in `ROUTINES.md` —
+- [x] **3.4 Register them.** *DONE 2026-09-03 — `ROUTINES.md` reached `main` in #362, and this account's block is its §4, ids quoted from `list_triggers`, with the five slots on the shared clock, the branch namespaces and the merge-authority tier. The same rows are machine-readable in `routines/manifest.json`, rendered as `RECREATE.md` and held to the register's and the inventories' tables by `check:routines`, so any session on any subscription can recreate what its account is missing — the owner's ask of that day.* This account's block in `ROUTINES.md` —
       ids quoted from `list_triggers`, the binding, the branch
       namespaces `claude/axiom-*`, `claude/worklist-*`,
       `claude/console-*`, `claude/program-diag-*` — and the one-line
@@ -283,7 +283,7 @@ the shift has not yet acted on. Sections, and what moves a row:
 
 A row: `- [ ] **#367** · Claude 2 · *what:* a returning device paints
 its real deck from disk before the network · *how:* IndexedDB-first
-boot, queued write replay (D352, D353) · CI green · current with
+boot, queued write replay (D352, D354) · CI green · current with
 main · opened 11:21 UTC · stage **new**` — the what and how are the
 PR body's first two sentences until a lane writes them as
 `what:`/`how:` lines in its body, which every prompt here asks for.
