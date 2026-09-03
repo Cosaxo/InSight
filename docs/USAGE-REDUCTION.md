@@ -1,11 +1,12 @@
 # Getting the routine usage down
 
-> **Status: plan only — nothing here is applied.** Every lever below is a
-> change to a live Routine's cadence, prompt or model, and
-> the routine register's rule 5 is that **cadence and
-> trigger mutation stay the owner's**. This file is the arithmetic and the
-> ranked list; the owner rules on it, and the rows that need a decision
-> are on [`OWNER-LIST.md`](OWNER-LIST.md).
+> **Status: mixed — L1 and L2 were applied on this account 2026-09-03, at
+> the owner's word; everything else is proposed.** §6 is what changed,
+> what it saves, and the one half a tool refused. The remaining levers
+> touch accounts this session cannot reach or wait on a decision, and
+> their rows are on [`OWNER-LIST.md`](OWNER-LIST.md). The routine
+> register's rule 5 still holds: cadence is the owner's, and nothing here
+> moved before they said so.
 
 [`COSTS.md`](COSTS.md) and [`COST-REDUCTION.md`](COST-REDUCTION.md) are
 about the **bill** — what Firebase charges to serve the app. This is the
@@ -253,3 +254,39 @@ and anything that would actually reduce production is here, as an ask.
   can read; L2's reporting rule is how the next run answers it.
 - **Nothing here is applied.** Every figure was read on 2026-09-03 and
   the lanes are unchanged.
+
+## 6 · What was applied, 2026-09-03
+
+The owner read §3 and said *do that* to L1 and L2 on this account — the only
+one a session here can edit. Three of the four changes landed; the fourth is a
+tool refusal, recorded in `PERMISSIONS.md` and waiting on a paste.
+
+| Change | Lever | State |
+| --- | --- | --- |
+| Night shift B fires **3× a night, not 5** — `0 20,22,0,2,4 * * *` → `0 20,0,4 * * *` | L1 | **applied**, `trig_01GNe14hPrZcYzXkFHjPH2bW` |
+| Night shift B's brief: one fan-out, list cap 8 → 32, per-flow commit cap 8 → 16 | L1 | **refused** — `update_trigger` will not edit the prompt of a Routine bound to another session. Text on this branch at `design/night-shift-b-brief-2026-09-03.md`; the owner pastes it |
+| Nightly algorithm improvement **disabled**, brief gains a reporting rule | L2 | **applied**, `trig_014pyAWbLMVoXLY7pg6meo5i` |
+| DB scalability **disabled** | L2 | **applied**, `trig_01WSJVxHtUqioRRvSs6pc31E`. Its reporting-rule append was refused by the permission classifier minutes after the identical edit to the algorithm lane was allowed; paragraph staged in the same design file |
+
+**What that saves, on the measured $59-a-flow figure.** Two fewer flows a night
+is ~$119, and the two disabled lanes are ~$56 a day between them: **roughly
+$175 a day, ~$5,200 a month**, against a night shift that measured ~$297 a
+night and two lanes that had delivered nothing since 2026-08-27. The paste
+takes the night from ~$178 to ~$140.
+
+**The one thing the half-applied state costs.** The live brief still maps hour
+`00` to an audit flow, so tonight runs two fan-outs rather than one, and its
+per-flow commit cap is still 8 — two flows at 8 is a 16-commit ceiling where
+five flows gave 25. Output dips until the brief is pasted; the new brief raises
+the cap to 16 precisely so two flows carry the same 32 that four did.
+
+**Not done, deliberately.** Delete-and-recreate is the documented workaround
+for a bound-session prompt edit (`PERMISSIONS.md`, last row of § Open) and it
+was not taken: night shift B's binding is the session holding the owner's
+standing push authorization, and a recreated Routine that loses it would audit
+every night and push nothing. That is a worse failure than a slow paste.
+
+**What to read in a week.** `rate_limit_info.status` at the same point in the
+window, and `get_session` on the night worker for a fresh `cost_usd`. If the
+band has not moved, the next lever is L3 — the same edit to night shift A, on
+the account this page cannot read.
