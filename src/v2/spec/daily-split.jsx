@@ -102,7 +102,11 @@ const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0,
 // still read as heights instead of every tile pinning at its minimum.
 // Exported for the unit test that holds this arithmetic to the 46/7 the
 // tile styles actually use (test/split-stage.test.js).
-export function sdSplitStageH(n) { return n <= 4 ? 244 : n * 53 + 123; }
+// Two sides are a ROW since 2026-09-02 — one block whose seam sits at the
+// crowd's split, so the share is a WIDTH and the height is fixed. Three or
+// more stack as before, where the share is a height and the stage must
+// clear every tile's minHeight (see split-stage.test.js).
+export function sdSplitStageH(n) { return n === 2 ? 128 : n <= 4 ? 244 : n * 53 + 123; }
 
 // Is the live store up and answering? Asked by both pending-target
 // consumers below (a tapped reveal, a tapped invitation).
@@ -975,7 +979,9 @@ export class DailySplit extends React.Component {
         h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
         h(PassiveTag, { q: S, answered: voted })),
       chipRow,
-      h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),
+      // the prompt voice (2026-09-02): the day's question is the one thing
+      // on this card a person answers, so it is the one thing in the serif
+      h('div', { style: { fontFamily: 'var(--serif)', fontWeight: 500, fontSize: hier ? 31 : 27, lineHeight: 1.14, letterSpacing: '-0.01em', textWrap: 'balance' } }, S.text),
       !voted
         // asking: options size to their content and centre the label — a fixed
         // 236px column left a 22px word floating in a 115px box, reading as a skeleton
@@ -993,10 +999,17 @@ export class DailySplit extends React.Component {
                 const t = Math.round((i * 100) / Math.max(1, S.options.length - 1));
                 return h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
               }))
-          : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
+          // asking: ONE split ballot (2026-09-02). Two sides sit side by
+          // side, divided by a hairline seam — and the seam is what moves
+          // to the crowd's split once you vote, so the question and its
+          // answer are the same shape. Three or more sides stack as rows
+          // inside the same block. Each side keeps its own hue as a mark;
+          // the ground is neutral, so the filled result reads as the
+          // payoff rather than as a second version of the same tiles.
+          : h('div', { style: { display: 'grid', gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr', gap: 2, height: S.options.length === 2 ? 88 : undefined, borderRadius: 20, overflow: 'hidden', background: 'var(--rule)', border: LINE } },
+            S.options.map((o) => h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { minHeight: 56, background: 'var(--surface-2)', border: 'none', borderRadius: 0, padding: '0 18px', display: 'flex', flexDirection: S.options.length === 2 ? 'column' : 'row', alignItems: S.options.length === 2 ? 'flex-start' : 'center', justifyContent: 'center', gap: S.options.length === 2 ? 8 : 12, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease' } },
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
-              h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label)))))
+              h('span', { style: { fontWeight: 700, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.015em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, counts, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(11), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
@@ -1023,8 +1036,12 @@ export class DailySplit extends React.Component {
                     myIdx >= 0 && h('span', { style: { marginLeft: 'auto', fontWeight: 700, fontSize: 12.5, color: 'var(--ink-2)' } }, 'you said ' + (myIdx + 1))),
                   h(RatingRidge, { counts, mine: myIdx, color: topicCol, height: 64 }));
               })()
-            : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
+            // the ballot again, its seam now at the crowd's split: two
+            // sides read left-to-right (width is share), three or more
+            // stack (height is share, the shape D305 sized the stage for)
+            : h('div', { style: { display: 'flex', flexDirection: S.options.length === 2 ? 'row' : 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
             S.options.map((o, i) => {
+              const two = S.options.length === 2;
               // change-vote lives behind a long-press on your own bar
               const mineRow = myVote === o.id;
               const lpEnd = () => { clearTimeout(this._lpT); if (this.state.pressing) this.setState({ pressing: false }); };
@@ -1036,13 +1053,19 @@ export class DailySplit extends React.Component {
                 'aria-label': o.label + ' \u2014 your vote. Hold to change it.',
               } : {};
               // the option tiles ARE the chart — each one's height is its share
-              return h('div', { key: o.id, ...lp, style: { flex: Math.max(rp[i], 9) + ' 1 0', minHeight: 46, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
-              h('div', { style: { position: 'relative', height: '100%', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 10 } },
+              return h('div', { key: o.id, ...lp, style: { flex: Math.max(rp[i], 9) + ' 1 0', minHeight: 46, minWidth: 0, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
+              // a side reads bottom-up when the tiles are columns, so the
+              // label sits under its own number rather than beside it
+              h('div', { style: two
+                ? { position: 'relative', height: '100%', display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-start', justifyContent: 'center', padding: '0 16px', gap: 4 }
+                : { position: 'relative', height: '100%', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 10 } },
                 // label, your mark and your circle's dots travel together — the
                 // dots read as people on this side, not a floating glyph
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 } },
-                  h('span', { style: { fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em' } }, o.label),
-                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, '\u00b7 you'),
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: two ? 'none' : 1, flexWrap: 'wrap' } },
+                  h('span', { style: { fontWeight: 600, fontSize: two ? 16 : 18, letterSpacing: '-0.01em' } }, o.label),
+                  // your mark is a stamp, not a footnote: "· you" beside a
+                  // label read as punctuation at a glance
+                  myVote === o.id && h('span', { style: { fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: INK, color: PAPER, whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, 'you'),
                   (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
                     onClick: () => this.setState({ tab: 'stats', dim: 'friends', dimAxis: null }),
                     'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,

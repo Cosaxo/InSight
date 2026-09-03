@@ -14,6 +14,11 @@
 // jsdom does no layout, so a mount test cannot see the spill. The formula
 // is exported instead and held to the same 46/7 the tile styles use — if
 // either constant moves, move it here in the same change.
+//
+// SINCE 2026-09-02 two sides are a ROW, not a column: the ballot's seam
+// moves to the crowd's split, so the share is a WIDTH and the height is
+// fixed at 128. The stacking rule — and every guarantee below — is what
+// three or more sides still need.
 
 import { describe, expect, it } from "vitest";
 import { sdSplitStageH } from "../spec/daily-split.jsx";
@@ -23,10 +28,16 @@ const GAP = 7;
 const contentMin = (n) => n * TILE_MIN + (n - 1) * GAP;
 
 describe("the revealed split's stage height", () => {
-  it("keeps the designed 244px chart for two-, three- and four-option days", () => {
+  it("keeps the designed 244px chart for three- and four-option days", () => {
     // 4 × 46 + 3 × 7 = 205 still fits under 244 — the fixed stage was only
     // ever wrong from five options up, so smaller days keep their look.
-    for (const n of [2, 3, 4]) expect(sdSplitStageH(n)).toBe(244);
+    for (const n of [3, 4]) expect(sdSplitStageH(n)).toBe(244);
+  });
+
+  it("gives the two-side ballot its own fixed height, because share is width", () => {
+    expect(sdSplitStageH(2)).toBe(128);
+    // and it still clears one tile's minHeight, which is all a row needs
+    expect(sdSplitStageH(2)).toBeGreaterThanOrEqual(TILE_MIN);
   });
 
   it("clears every tile's minHeight from five options up", () => {
@@ -44,7 +55,8 @@ describe("the revealed split's stage height", () => {
   });
 
   it("never shrinks when an option is added", () => {
-    for (let n = 3; n <= 12; n++) {
+    // from three up: two is a row and a row is not taller for being fuller
+    for (let n = 4; n <= 12; n++) {
       expect(sdSplitStageH(n), `${n - 1} → ${n} options`).toBeGreaterThanOrEqual(sdSplitStageH(n - 1));
     }
   });

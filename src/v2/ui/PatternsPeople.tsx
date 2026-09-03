@@ -1,6 +1,7 @@
-// The People lens (D214) — the crowd as a shared map with no centre.
-// Ported from the 2026-08-20 standalone's people-lens.jsx
-// (design/standalone-2026-08-20/) with the engine swapped for real
+// The People lens (D214, redrawn 2026-09-02) — the crowd as a shared
+// field with no centre, in the round dusk instrument the two maps also
+// draw into (patterns.css, the .ln-* block). Ported from the 2026-09-02
+// standalone's people-lens.jsx with the engine swapped for real
 // data (D167): the prototype's simulated crowd becomes the voter lists
 // live.ts already caches for the who-voted sheet, Kindred and the pair
 // card, and every position is data/peopleMap.ts's device-side solve over
@@ -13,6 +14,13 @@
 // visible here: a dot below the floor was never in `placed` (so nothing
 // here can accidentally draw it), and a nameless account reads "Someone"
 // rather than wearing an invented name.
+//
+// COLOUR SAYS ONE THING (2026-09-02): whether this person mostly agrees
+// with you, is split, or mostly disagrees — three steps over `agree` and
+// `shared`, the same two counts the card states in words. It replaced a
+// decorative per-uid hue that claimed nothing, which on a field where
+// colour now means something would read as a second claim. Size stays the
+// basis in two steps, and the legend says both in words.
 //
 // Populations since D216 — the standalone's chips, live: `pop` narrows
 // WHO is placed (your country by the frozen city anchor's code, your
@@ -46,6 +54,20 @@ import {
 export type PeoplePop = "world" | "country" | "circle";
 
 const SANS = "var(--sans)";
+
+/** The three agreement colours, lifted for the dusk field (`.lens-paper`
+ * swaps the field, not these: they are the one thing on it that means
+ * something, so they stay the same three hues in both grounds). */
+const AGREE_COL = {
+  yes: "oklch(0.84 0.10 282)",
+  mid: "oklch(0.60 0.035 282)",
+  no: "oklch(0.76 0.10 20)",
+} as const;
+/** Mostly agrees · split · mostly disagrees, counted over what you share. */
+const stepOf = (p: { agree: number; shared: number }): keyof typeof AGREE_COL => {
+  const a = p.agree / Math.max(1, p.shared);
+  return a > 0.6 ? "yes" : a < 0.4 ? "no" : "mid";
+};
 
 const slim = (items: readonly PoolItem[]): PeopleItem[] =>
   items.map((p) => ({
@@ -182,7 +204,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
       : <Empty head="Crowd too thin" line="Too few people share your questions yet. The map fills as the crowd answers." />;
   }
 
-  const { placed, me } = field;
+  const { placed, me, near } = field;
   const selP = sel == null ? null : placed.find((p) => p.uid === sel) ?? null;
   const pick = (p: PlacedPerson) => {
     setSel((s) => (s === p.uid ? null : p.uid));
@@ -191,66 +213,94 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
 
   return (
     <>
-      <div className="card" style={{ padding: "8px 6px 0" }}>
-        <svg style={{ display: "block", width: "100%", touchAction: "manipulation" }} viewBox={`0 0 ${PEOPLE_W} ${PEOPLE_H}`} role="img"
-          aria-label="People who share your questions, placed by their answers" onClick={() => { if (sel != null) setSel(null); }}>
-          {placed.map((p) => {
-            const on = p.uid === sel;
-            const dim = selP != null && !on;
-            return (
-              <g key={p.uid} onClick={(e) => { e.stopPropagation(); pick(p); }}
-                role="button" tabIndex={0}
-                aria-label={`${p.name || "Someone"} · agrees on ${p.agree} of ${p.shared} shared answers`}
-                style={{ cursor: "pointer", outline: "none", opacity: dim ? 0.22 : on ? 1 : p.op, transition: "opacity .25s ease" }}>
-                <circle cx={p.x} cy={p.y} r={Math.max(p.r + 8, 15)} fill="transparent"></circle>
-                <circle cx={p.x} cy={p.y} r={p.r + 2} fill="var(--surface-2)"></circle>
-                <circle cx={p.x} cy={p.y} r={p.r} fill={`oklch(0.56 0.09 ${p.hue})`}></circle>
-                {on && <circle cx={p.x} cy={p.y} r={p.r + 5} fill="none" stroke="var(--accent)" strokeWidth="1.8"></circle>}
-              </g>
-            );
-          })}
-          {placed.map((p) => (p.lab && (selP == null || p.uid === sel) ? (
-            <text key={`l${p.uid}`} x={p.lab.x} y={p.lab.y} textAnchor="middle" fontFamily={SANS} fontSize="11" fontWeight="650"
-              fill={p.uid === sel ? "var(--ink)" : "var(--ink-2)"}
-              style={{ paintOrder: "stroke", stroke: "var(--surface-2)", strokeWidth: 3, pointerEvents: "none" }}>{p.name}</text>
-          ) : null))}
-          <g style={{ opacity: selP ? 0.22 : 1, transition: "opacity .25s ease" }}>
-            <circle cx={me.x} cy={me.y} r={me.r + 2} fill="var(--surface-2)"></circle>
-            <circle cx={me.x} cy={me.y} r={me.r} fill="var(--ink)"></circle>
-            <circle cx={me.x} cy={me.y} r={me.r + 5} fill="none" stroke="var(--accent)" strokeWidth="1.4"></circle>
-            <text x={meLeft ? me.x - me.r - 9 : me.x + me.r + 9} y={me.y + 3.5} textAnchor={meLeft ? "end" : "start"}
-              fontFamily={SANS} fontSize="10" fontWeight="800" fill="var(--ink)"
-              style={{ paintOrder: "stroke", stroke: "var(--surface-2)", strokeWidth: 3 }}>you</text>
-          </g>
-        </svg>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, padding: "6px 6px 9px", fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "var(--ink-3)" }}>
-          {/* "a person", not "placed" (2026-08-26) — the legend names the
-              thing, not the algorithm's verb for it */}
-          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "oklch(0.56 0.09 250)", flexShrink: 0 }}></span><span>a person</span>
-          <span style={{ color: "var(--rule)" }}>·</span>
-          {/* 250, not 40 — the swatch must be the same hue as the dots it
-              explains (2026-08-24: the prototype's own legend fix) */}
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "oklch(0.56 0.09 250)", opacity: 0.5, flexShrink: 0 }}></span><span>fainter = fewer shared answers</span>
-          <span style={{ color: "var(--rule)" }}>·</span>
-          <span style={{ width: 9, height: 9, borderRadius: "50%", border: "1.4px solid var(--accent)", boxSizing: "border-box", flexShrink: 0 }}></span><span>you</span>
+      <div className="card ln-card">
+        <div className="ln-head">
+          <div className="ln-title">Where you sit in the crowd</div>
+          <div className="ln-sub">
+            Each dot is a person who answered some of the same questions as you. The closer two dots, the more alike their answers.
+          </div>
         </div>
+        <div className="ln-field">
+          <svg className="ln-svg" viewBox={`0 0 ${PEOPLE_W} ${PEOPLE_H}`} role="img"
+            aria-label="People who share your questions, placed by their answers; colour says whether they mostly agree with you"
+            onClick={() => { if (sel != null) setSel(null); }}>
+            {placed.map((p) => {
+              const on = p.uid === sel;
+              const dim = selP != null && !on;
+              return (
+                <g key={p.uid} onClick={(e) => { e.stopPropagation(); pick(p); }}
+                  role="button" tabIndex={0}
+                  aria-label={`${p.name || "Someone"} · agrees on ${p.agree} of ${p.shared} shared answers`}
+                  style={{ cursor: "pointer", outline: "none", opacity: dim ? 0.22 : 1, transition: "opacity .25s ease" }}>
+                  <circle cx={p.x} cy={p.y} r={Math.max(p.r + 8, 15)} fill="transparent"></circle>
+                  <circle cx={p.x} cy={p.y} r={p.r} fill={AGREE_COL[stepOf(p)]}></circle>
+                  {on && <circle cx={p.x} cy={p.y} r={p.r + 5} fill="none" stroke="var(--ln-beacon)" strokeWidth="1.8"></circle>}
+                </g>
+              );
+            })}
+            {placed.map((p) => (p.lab && (selP == null || p.uid === sel) ? (
+              <text key={`l${p.uid}`} x={p.lab.x} y={p.lab.y} textAnchor={p.lab.anchor}
+                fill="var(--ln-ink)" stroke="var(--ln-halo)" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke"
+                style={{ fontSize: 10.5, fontWeight: 700, pointerEvents: "none" }}>{p.name}</text>
+            ) : null))}
+            <g style={{ opacity: selP ? 0.35 : 1, transition: "opacity .25s ease" }}>
+              <circle cx={me.x} cy={me.y} r="11" fill="none" stroke="var(--ln-beacon)" strokeWidth="1.6"></circle>
+              <circle cx={me.x} cy={me.y} r="6" fill="var(--ln-me)"></circle>
+              <text x={meLeft ? me.x - 14 : me.x + 14} y={me.y + 3.5} textAnchor={meLeft ? "end" : "start"}
+                fill="var(--ln-ink)" stroke="var(--ln-halo)" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke"
+                style={{ fontSize: 11, fontWeight: 800 }}>you</text>
+            </g>
+          </svg>
+        </div>
+        {/* the legend in words: colour first, because it is the reading */}
+        <div className="ln-key" aria-hidden="true">
+          <span><i className="k-dot" style={{ width: 9, height: 9, background: AGREE_COL.yes }}></i>mostly agrees with you</span>
+          <span><i className="k-dot" style={{ width: 9, height: 9, background: AGREE_COL.mid }}></i>split</span>
+          <span><i className="k-dot" style={{ width: 9, height: 9, background: AGREE_COL.no }}></i>mostly disagrees</span>
+          <span>bigger dot = more answers in common</span>
+        </div>
+        <div className="ln-hint">{selP ? "Tap the field to see everyone again." : "Tap anyone to see what you share."}</div>
+        {/* the rail names the same five the field labels — never a sixth
+            identity the drawing does not carry, and never an unnamed
+            account dressed with an initial (D167) */}
+        {near.length > 0 && (
+          <div className="ln-rail" role="list" aria-label="The people most like you">
+            <span className="ln-rail-lab">Most like you</span>
+            {/* the row is a list and each chip is a button: the listitem
+                role goes on the WRAPPER, never on the control — a button
+                carrying it is an interactive element assigned a
+                non-interactive role, which is a real reading bug and what
+                jsx-a11y refuses (the prototype's markup did exactly that) */}
+            {near.map((p) => (
+              <span key={p.uid} role="listitem">
+                <button className={"ln-chip" + (sel === p.uid ? " is-on" : "")}
+                  onClick={() => pick(p)}>
+                  <span className="c-av" style={{ background: AGREE_COL[stepOf(p)], color: "var(--ln-halo)" }}>{p.name.slice(0, 1)}</span>
+                  <span className="c-name">{p.name}</span>
+                  <span className="c-sub">agrees {p.agree} of {p.shared}</span>
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {selP ? (
         <div className="card" style={{ padding: "14px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {/* the identity dot (2026-08-26): the card wears the dot's own
-                hue, so the reader can find on the field the person the
-                card is about */}
-            <i style={{ width: 11, height: 11, borderRadius: "50%", background: `oklch(0.56 0.09 ${selP.hue})`, flex: "none" }}></i>
+                colour, so the reader can find on the field the person the
+                card is about — and since 2026-09-02 that colour is the
+                agreement step, which is what the sentence under it counts */}
+            <i style={{ width: 11, height: 11, borderRadius: "50%", background: AGREE_COL[stepOf(selP)], border: "1px solid var(--rule)", flex: "none" }}></i>
             <span style={{ fontFamily: SANS, fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{selP.name || "Someone"}</span>
             {selP.chips.map((c, k) => <span key={k} style={chipStyle}>{c}</span>)}
           </div>
           <div style={{ marginTop: 11, fontFamily: SANS, fontSize: 13.5, fontWeight: 650 }}>
-            Agrees with you on <b style={{ fontWeight: 800 }}>{selP.agree} of {selP.shared}</b> shared answers here
+            Agrees with you on <b style={{ fontWeight: 800 }}>{selP.agree} of {selP.shared}</b> answers you both gave
           </div>
           <div style={{ marginTop: 8, height: 8, borderRadius: 99, background: "var(--surface-3)", overflow: "hidden" }}>
-            <i style={{ display: "block", width: `${Math.round((selP.agree / selP.shared) * 100)}%`, height: "100%", borderRadius: 99, background: `color-mix(in oklab, oklch(0.56 0.09 ${selP.hue}) 50%, var(--surface-2))`, transition: "width .3s ease" }}></i>
+            <i style={{ display: "block", width: `${Math.round((selP.agree / selP.shared) * 100)}%`, height: "100%", borderRadius: 99, background: "color-mix(in oklab, var(--accent) 55%, var(--surface-2))", transition: "width .3s ease" }}></i>
           </div>
           {/* the position's basis (2026-08-26). The prototype's line is
               "that count alone places them · closer only ever means more
@@ -290,12 +340,14 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
               people placed around you, from the <b style={{ color: "var(--ink)", fontWeight: 700 }}>{field.basis} questions</b> you share here. Tap anyone.
             </span>
           </div>
-          {/* The stated sample: newest-first, capped lists (VOTER_FETCH_CAP) — the
-              who-voted sheet's own honest bias — with the geometry said in words
-              first (2026-08-26): position was the one reading here with no
-              stated basis. */}
+          {/* The stated sample: newest-first, capped lists (VOTER_FETCH_CAP) —
+              the who-voted sheet's own honest bias — and, since 2026-09-02,
+              the FLOOR in front of it: who is on this field at all is a rule,
+              and a reader who cannot see the people who missed it deserves
+              the rule rather than the shape. The geometry's own sentence
+              moved up into the field's `.ln-sub`. */}
           <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", textWrap: "pretty" }}>
-            Close together = answers alike · drawn from the crowd’s latest answers.
+            Everyone who answered at least {field.minShared} of the {field.basis} questions read here · drawn from the crowd’s latest answers.
           </div>
         </div>
       )}

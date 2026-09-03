@@ -71,11 +71,12 @@ describe("Crossroads · the card", () => {
 
     // Three forks in, the ending is named and its line is drawn.
     expect(PATHS.walkOf(st.id)).toBe("AAA");
-    // getAllBy, deliberately: the ending's name appears TWICE by design —
-    // once as the heading under the tree, once as the label on the tree's
-    // own end node — and a getBy here would fail on the second one as
-    // though something were wrong.
-    expect(screen.getAllByText(st.endings["AAA"].name).length).toBe(2);
+    // ONCE since 2026-09-02: the ending's name is the heading under the
+    // tree. It used to be drawn on the tree's end node as well, squeezed
+    // against the right edge of the field, and the design moved it into
+    // the card where it can be read — so this counts one, and a second
+    // copy reappearing on the field is a regression rather than a design.
+    expect(screen.getAllByText(st.endings["AAA"].name).length).toBe(1);
     expect(screen.getByText(st.endings["AAA"].line)).toBeTruthy();
     // …and the tree with it, labelled for a screen reader by where it ends.
     expect(screen.getByRole("img", { name: new RegExp(st.endings["AAA"].name) })).toBeTruthy();
@@ -95,7 +96,7 @@ describe("Crossroads · the card", () => {
     expect(screen.getByText(st.nodes["B"].q)).toBeTruthy();
     choose(st.nodes["B"].a[0].t);
     choose(st.nodes["BA"].a[0].t);
-    expect(screen.getAllByText(st.endings["BAA"].name).length).toBe(2);
+    expect(screen.getAllByText(st.endings["BAA"].name).length).toBe(1);
 
     // "Walk again" stood here and is gone (D211): a re-walk moved the
     // recorded result, so a finished card offers no way back in — no redo
@@ -227,7 +228,7 @@ describe("Crossroads · live", () => {
     votes["feed-pt1"] = "4";                       // BAA
     render(<PathsCard q={STORY} />);
     expect(PATHS.walkOf(STORY.id)).toBe("");
-    expect(screen.getAllByText("End BAA").length).toBe(2);
+    expect(screen.getAllByText("End BAA").length).toBe(1);
   });
 
   it("offers no redo over a standing answer — a walk is final (D211)", () => {
@@ -237,7 +238,7 @@ describe("Crossroads · live", () => {
     // way back in: the ending stands and no fork is on offer.
     votes["feed-pt1"] = "4";
     render(<PathsCard q={STORY} />);
-    expect(screen.getAllByText("End BAA").length).toBe(2);
+    expect(screen.getAllByText("End BAA").length).toBe(1);
     expect(screen.queryByRole("button", { name: "Walk again" })).toBeNull();
     expect(screen.queryByRole("button", { name: "_ left" })).toBeNull();
     expect(LIVE.vote).not.toHaveBeenCalled();
@@ -257,7 +258,7 @@ describe("Crossroads · live", () => {
     expect(LIVE.vote).not.toHaveBeenCalled();
     expect(LIVE.editVote).not.toHaveBeenCalled();
     expect(PATHS.walkOf(STORY.id)).toBe("");
-    expect(screen.getAllByText("End BAA").length).toBe(2);
+    expect(screen.getAllByText("End BAA").length).toBe(1);
     expect(screen.queryByText("End AAA")).toBeNull();
   });
 

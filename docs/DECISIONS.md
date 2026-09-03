@@ -37545,3 +37545,172 @@ but does not check the runbook step it mirrors, so the console raises it
 again unticked. Two one-sentence ways out, and it correctly did not pick
 one — it is about what the owner's tick means, which is not a routine's
 to decide.
+## D361 · The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward
+
+**2026-09-02.** **Status:** binding — the owner's sentence, on the
+seventh numbered standalone: *"new visual should be added as the new
+visual vision until i update it with new visuals. also map the new
+functonality in this and plan how to implement it."* Written on
+`claude/new-visual-vision-mapping-ealrob`; `main` mints numbers while a
+branch is open, so the standing collision pattern (D289) may renumber
+this at merge — the documents cite it by date where they can.
+
+### What this amends
+
+D352 gave `docs/VISUAL-VISION.md` one path to move: a request in
+`VISUAL-REQUESTS.md` crossed out as `built`. The owner's uploads are the
+other path, and they always were — every row in that page's lineage
+arrived as an `InSight_N.html` drop, none through a request. This
+record writes the second path down: **an owner upload is a vision
+without a request.** It is extracted under `design/` with a README in
+the family's shape, measured against the tree in a `VISION-<date>.md`,
+and named the current vision in the same PR, until the next upload. A
+design that arrives this way closes whichever requests it happens to
+draw and reopens the plan of any whose surface it redraws — request 1
+(trait-axis directions *in the plane*) is the first, because this
+design's Map is a ring.
+
+### What the mapping found
+
+`InSight_7.html` ships **compiled JSX** — one 2 MB bundle of 114
+modules, Babel's output for the 61 components, plain source for the 53
+data modules — and no `.jsx` at all. The diff was made exact rather
+than approximate: the latest recorded state of every component (v18 +
+v28 patches + the six extractions + two READMEs' recorded hunks) was
+compiled with the same preset and compared by byte, and three untouched
+08-26 files compile identical to the bundle's builds, which is the
+proof the method needed. Against that baseline **94 of 114 modules are
+unchanged** and ten more differ only by hunks already recorded in
+prose. **Ten modules, three stylesheets, one new stylesheet and one
+new font moved**, as four moves: the three Patterns lenses on one round
+dusk instrument (`lens.css`) with the Map redrawn as a **ring**, the
+Oracle in the field and the People lens coloured by agreement; a serif
+voice (Spectral, `--serif`) for every prompt a person answers; the
+two-option ballot split into one block whose seam moves to the crowd's
+split, on the daily and the feed; and four smaller passes (the Mirror's
+answer rows in the topic hue, a quieter Crossroads tree, the paid door's
+rate rows with the pricing law as tokens, the catalog window's polish).
+`design/standalone-2026-09-02/README.md` is the inventory;
+`docs/VISION-2026-09-02.md` is the plan, every item measured against
+the file it lands in.
+
+### What is decided, and what is not
+
+- **The ring is adopted as drawn.** It says less than the plane it
+  replaces — position stops meaning similarity, only the chords carry
+  it — and that is the owner's trade to make; the port owes the honesty,
+  not a veto: the D310 basis line *"close together = answers that
+  predict each other"* goes, the design's own sentence replaces it, and
+  the tie card keeps its bounded-sample wording. `VISION-2026-09-02.md`
+  §1.2 has the arithmetic.
+- **Nothing here needs a new read, a rules change or a collection**, so
+  the build is six worklist lines tagged `[claude-3]` (§7 there) and one
+  `[claude-2]` re-plan of request 1.
+- **The two open owner decisions stay open and now stand on
+  `OWNER-LIST.md`**: anonymous answers and private results
+  (VISION-2026-08-26 §1) and the seat-split subscription price (§2.2).
+  This design draws both and decides neither; the catalog window still
+  waits on the second.
+- **The accent handback of D310 §4.5 does not reverse.** The upload's
+  `page.css` carries the dusk override again, but the new field is drawn
+  in absolute hue-282 tokens and is dusk whatever the tab wears; judge
+  the sienna chrome over it at a screen.
+
+### What this PR builds
+
+The extraction (`design/standalone-2026-09-02/`: seven modules whole,
+four patches whose left side is the compiled recorded state, `lens.css`
+and `patterns.css`, the README), the plan, the vision page moved with
+its lineage row and the second path written into its last section,
+`design/README.md`'s series paragraph, the `ORIENTATION.md` row, two
+owner-list rows, seven worklist lines and the note on request 1.
+
+## D362 · The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot
+
+**2026-09-02.** `VISION-2026-09-02.md` §7 steps 1–6 and the §7 step 7
+re-plan, built exactly as scoped: every item of the seventh standalone
+that needed no owner decision, no new read, no rules change and no
+schema. The one gate the plan named stays shut — the catalog window
+(§4.2) waits on VISION-2026-08-26 §2.2's seat-split sentence, which the
+owner has not said, so nothing of it is here. Written on
+`claude/new-visual-vision-mapping-ealrob`, the same branch as D361, which
+extracted the design and made it the vision.
+
+### What shipped
+
+Six commits, in the plan's own order: the shared lens instrument and the
+three Patterns lenses (§1.1–§1.4); the shell's meta line, topic control
+and swipe axis (§1.5); the prompt voice and the tab bar (§2.1, §2.3);
+the split ballot on the daily and the feed (§2.2); the topic-hued answer
+rows and the quieter Crossroads tree (§3); the paid door's rate rows and
+its pricing tokens (§4.1). The tab remains behind D265's gate, the trial
+remains live-data-only (D166 §1), and the seal's pin never moved —
+`data/patterns.test.ts` is byte-identical.
+
+### The seven things the build settled, which a plan could not
+
+1. **`planeOf` is deleted**, with `MapPoint`, `PATTERNS_MIN_GAP` and its
+   two tests. §1.2 left the choice to the PR: the ring took its last
+   consumer, and a 110-line layout engine kept alive by its own tests is
+   residue rather than a spare. Git history holds it, and the module
+   header says where it went and why.
+2. **The ring's honesty cost is paid in sentences, not hidden.** On the
+   plane, position was a claim — D310's "close together = answers that
+   predict each other". On a ring it is topic membership, so that line
+   is gone and the field's own sentence replaces it. Every counted
+   claim is unchanged: `PATTERNS.say`'s bounded 2×2s, each stating its
+   basis (D146), and the live scope ("the people in both samples")
+   still overrides the prototype's "everyone who answered both".
+3. **The font ceiling is a gate, not a note.** The plan said to measure
+   the woff2 cost by hand; `check:bundle` has had a FONT ceiling since
+   D223 (96 KB against 64 in the tree), so two weights × two subsets
+   would have failed it. **One face ships — Spectral 500, latin** (86 KB
+   measured), and what that costs is written beside the face in
+   `styles.css`: a Central-European letter in a prompt falls back to
+   Georgia for that glyph, and the one place the design asks for 600 is
+   drawn at 500 rather than letting the browser synthesise a bold serif.
+   More faces is a font-ceiling conversation, not a silent import.
+4. **Three prototype shapes did not port as drawn**, each for a reason
+   the live app has and the prototype does not: the Oracle's option
+   labels are uppercased by CSS rather than by `String.toUpperCase` (the
+   accessible name stays the bank's own word); the People rail's chips
+   are buttons wrapped in `listitem` spans rather than buttons carrying
+   the role, which `check:a11y` refuses and is a real reading bug; and
+   the rail lists only NAMED people, because chipping a nameless account
+   with an initial avatar is the invented identity D167 refuses.
+5. **The Oracle needs no many-option fallback, and the one written for
+   it was deleted.** `pool()` skips anything that is not two-option
+   (`patterns.ts`), because the engine encodes an answer as ±1 and the
+   guess as P(option 0) — a third option has no representation in it. A
+   branch for a state the store cannot produce is residue that reads as
+   a live path; the halves read `options.slice(0, 2)` and carry the
+   reasoning at the draw site instead.
+6. **The Oracle stopped keeping device state.** The one-time hints
+   retired into the card's standing sentence and the record's kicker, so
+   `insight.oracle.hints.v1` went with them — `check:purge`'s subject
+   set is derived, so the sweep simply stops naming that file, and a
+   test pins that the lens writes nothing at all.
+7. **`check:figures` caught the ninth mount suite.** The split ballot's
+   own suite made CLAUDE.md's "eight suites mount the whole App" false
+   the moment it landed, and the gate said so with the corrected
+   sentence — the documentation error this repo keeps re-committing,
+   caught by the thing built to catch it.
+
+### What did not port, and stays not ported
+
+The prototype's boot splash and fast-boot bundle (the app has a native
+splash and Vite); `.lens-paper` as a setting (the tokens ship, the
+toggle is a control nobody asked for); the invented crowd's names; the
+ring bullseye in `map-tab.js`, still declared by nothing (the 08-24
+verdict, third time stated); the oracle sub-row's "N from feed votes"
+(D287); and the demo `CATALOG`/`SUB` seeds (D167).
+
+### The request that moved
+
+`VISUAL-REQUESTS.md` request 1 — trait-axis directions — was written to
+draw an axis as a DIRECTION in the plane the ring retires. It is re-aimed
+rather than dropped: the request now names the three grammars a ring can
+carry an axis in (a leaning set, an inner arc, a polarity split), states
+what each costs, and keeps its data, states and basis rules. Still
+`requested`; the drafting step is unchanged.
+
