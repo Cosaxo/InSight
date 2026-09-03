@@ -91,10 +91,15 @@ the shepherd knew whether a single pull request wanted it.
 
 ## 3 · What was cut, 2026-09-03
 
+Read back from `list_triggers` after the change: **20 enabled Routines
+firing 18.94 times a day, down from 21 firing 38.98** — and of what is
+left, ten firings a day now wake a session that starts empty instead of
+one holding 564k tokens.
+
 | What | Before | After | Worth |
 | --- | --- | --- | --- |
 | **PR shepherd cadence** | `55 * * * *`, 24 firings a day | `55 */3 * * *`, 8 | ~16 firings a day at ~$4 |
-| **The twelve theory lanes** | every 2nd day, 6.0 runs a day, 7 of them stacked on one date | every 4th day, ~3.2 runs a day, spread 3 per date across a four-day cycle | ~$70 a day, and the daily burst no longer meets the five-hour window |
+| **The twelve theory lanes** | every 2nd day, 6.0 runs a day, 7 of them stacked on one date | every 4th day, 3.43 runs a day, spread 3 per date across a four-day cycle | ~$70 a day, and the daily burst no longer meets the five-hour window |
 | **The four ops lanes' binding** | the 564k dispatcher | a new dispatcher session opened empty (`session_01XhD4kBN7fXgeBdFPZEyPY6`), on `claude-haiku-4-5` — a relay is five fields and one line | ~$4 a firing → the cost of a short conversation |
 | **The shepherd's prompt** | contract, `CLAUDE.md` and `ORIENTATION.md` read before it knew if there was work | the cheap gate first; a no-op run reads nothing else | the orientation above, on every idle firing |
 | **The roll call's prompt** | cost only in the Sunday ledger | every run names yesterday's metered total and any bound session past 150k context, with its cost per firing | this page cannot go stale unwatched |
