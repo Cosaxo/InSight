@@ -379,6 +379,25 @@ export let DAILYQ;
       cat: ['Body', 'Mornings'], alts: [['Home', 'Rituals'], ['Mind', 'Rest']] },
     { type: 'binary', prompt: 'At a concert: front row, or back with space?', tag: 'Where you stand', options: ['Front row', 'Back with space'], tone: 'light',
       cat: ['Music', 'Going out'], alts: [['Interests', 'Nightlife'], ['Body', 'Comfort']] },
+    // farm 2026-09-03 — the pen-refill batch (D350: a granted budget is
+    // always work). Floor to 8/top: Film, Skills, Sport; levelling: Food,
+    // Interests.
+    { type: 'binary', prompt: 'The book or the film first?', tag: 'Which first', options: ['Book first', 'Film first'], tone: 'light',
+      cat: ['Film', 'Adaptations'], alts: [['Interests', 'Reading'], ['Film', 'How you watch']] },
+    { type: 'choice', prompt: 'What makes a villain great?', tag: 'Villains', options: ['Menace', 'Charm', 'Being half right', 'Mystery'], tone: 'light',
+      cat: ['Film', 'Villains'], alts: [['Story', 'Characters'], ['Morals', 'Grey areas']] },
+    { type: 'binary', prompt: 'Practise in private, or learn in public?', tag: 'Learning out loud', options: ['In private', 'In public'], tone: 'deep',
+      cat: ['Skills', 'How you learn'], alts: [['Mind', 'Confidence'], ['Story', 'Sharing']] },
+    { type: 'scale', prompt: 'Talent is mostly patience.', tag: 'Talent', axis: 'patience', tone: 'deep',
+      cat: ['Skills', 'Mastery'], alts: [['Values', 'Effort'], ['Goals', 'The long game']] },
+    { type: 'binary', prompt: 'Keep score, or just play?', tag: 'Keeping score', options: ['Keep score', 'Just play'], tone: 'light',
+      cat: ['Sport', 'How you play'], alts: [['Values', 'Competition'], ['Interests', 'Games']] },
+    { type: 'choice', prompt: 'What makes a great rivalry?', tag: 'Rivalries', options: ['History', 'Respect', 'High stakes', 'Closeness'], tone: 'light',
+      cat: ['Sport', 'Rivalries'], alts: [['Story', 'Drama'], ['Values', 'What you admire']] },
+    { type: 'binary', prompt: 'Dessert: every day, or a special occasion?', tag: 'Dessert', options: ['Every day', 'Special occasion'], tone: 'light',
+      cat: ['Food', 'Habits'], alts: [['Body', 'Balance'], ['Values', 'Treats']] },
+    { type: 'choice', prompt: 'What do you follow most closely?', tag: 'Following', options: ['A sport', 'A show', 'An artist', 'A subject'], tone: 'light',
+      cat: ['Interests', 'Following'], alts: [['Sport', 'Fandom'], ['Music', 'Fandom']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
