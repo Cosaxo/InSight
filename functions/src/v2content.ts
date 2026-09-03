@@ -7671,6 +7671,63 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ]
  },
  {
+  "id": "feed-n11",
+  "surface": "feed",
+  "seq": 248,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Eight years in transit, and a probe finally arrives at Mercury. Slow space travel: the grandeur, or the problem?",
+  "options": [
+   "The grandeur",
+   "The problem",
+   "Wait — eight years?"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-03",
+  "until": "2026-09-08",
+  "bg": "ESA and JAXA's BepiColombo launched in October 2018 and began its Mercury arrival on 3 September 2026 — the transfer module separating before the two orbiters enter orbit in November. Science operations start in spring 2027."
+ },
+ {
+  "id": "feed-n12",
+  "surface": "feed",
+  "seq": 249,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Vinyl is closing in on the CD again. Which do you actually play: the record, the disc, or the stream?",
+  "options": [
+   "The record",
+   "The disc",
+   "The stream"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-03",
+  "until": "2026-09-09",
+  "bg": "US recorded-music revenue neared $6 billion in the first half of 2026 on paid-streaming growth, with vinyl closing in on CDs by units sold — even at an average LP price more than double a CD's."
+ },
+ {
+  "id": "feed-n13",
+  "surface": "feed",
+  "seq": 250,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Fashion month begins, Manhattan to Milan. Does the runway ever reach your wardrobe?",
+  "options": [
+   "Eventually, diluted",
+   "Straight away",
+   "Never — and proudly"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-03",
+  "until": "2026-09-10",
+  "bg": "September is fashion's busiest stretch: the spring shows run from New York through London and Milan to Paris, setting what stores carry next year. London's week overlaps the city's Design Festival."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,

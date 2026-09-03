@@ -4720,6 +4720,69 @@
         "silly",
         "art"
       ]
+    },
+    {
+      "id": "n11",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Eight years in transit, and a probe finally arrives at Mercury. Slow space travel: the grandeur, or the problem?",
+      "bg": "ESA and JAXA's BepiColombo launched in October 2018 and began its Mercury arrival on 3 September 2026 — the transfer module separating before the two orbiters enter orbit in November. Science operations start in spring 2027.",
+      "from": "2026-09-03",
+      "until": "2026-09-08",
+      "options": [
+        {
+          "label": "The grandeur"
+        },
+        {
+          "label": "The problem"
+        },
+        {
+          "label": "Wait — eight years?"
+        }
+      ]
+    },
+    {
+      "id": "n12",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Vinyl is closing in on the CD again. Which do you actually play: the record, the disc, or the stream?",
+      "bg": "US recorded-music revenue neared $6 billion in the first half of 2026 on paid-streaming growth, with vinyl closing in on CDs by units sold — even at an average LP price more than double a CD's.",
+      "from": "2026-09-03",
+      "until": "2026-09-09",
+      "options": [
+        {
+          "label": "The record"
+        },
+        {
+          "label": "The disc"
+        },
+        {
+          "label": "The stream"
+        }
+      ]
+    },
+    {
+      "id": "n13",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Fashion month begins, Manhattan to Milan. Does the runway ever reach your wardrobe?",
+      "bg": "September is fashion's busiest stretch: the spring shows run from New York through London and Milan to Paris, setting what stores carry next year. London's week overlaps the city's Design Festival.",
+      "from": "2026-09-03",
+      "until": "2026-09-10",
+      "options": [
+        {
+          "label": "Eventually, diluted"
+        },
+        {
+          "label": "Straight away"
+        },
+        {
+          "label": "Never — and proudly"
+        }
+      ]
     }
   ]
 }
