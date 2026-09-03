@@ -37379,6 +37379,19 @@ already one kilobyte away before this merge.
   as the empty-anchors case and CLEARED by probe, not by reading: it
   asserts `cohortN` returns the stub's own 1 and 6, and does.
 
+### One pairing nothing gates, verified by hand
+
+Shift B's `web/join.html` fix (a malformed invite link threw instead of
+saying the link was bad) changed that page's ONE inline script, and
+`firebase.json`'s CSP for `/join{.html,/**}` pins that script by
+`sha256-`. B updated both. No script in `scripts/` contains the string
+`sha256-`, so nothing in the tree checks that the two agree — and the
+failure is silent in the worst direction: a stale hash means the browser
+blocks the script and the invite page does nothing, on the one page a
+person reaches from someone else's link. Recomputed here from the file
+and it MATCHES. Left as a known gap rather than closed, because closing
+it is a new gate and this review is not the place to add one.
+
 ### The question the night wrote down rather than settled
 
 Shift A left a row on `docs/OWNER-LIST.md` asking what a tick on a
