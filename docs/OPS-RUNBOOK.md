@@ -3,10 +3,11 @@
 **Status: mixed — five of the eight Routines exist (the roll call, the
 production reader, the release recorder and the list worker, created
 2026-09-02 and bound to the ops dispatcher, and the PR shepherd, created
-the same day on its own hourly schedule); the probe, the pulse responder
-and the dependency shepherd do not yet.**
+the same day on an hourly schedule and bound to that same dispatcher
+session — which is why it can merge but cannot renumber, `PERMISSIONS.md`);
+the probe, the pulse responder and the dependency shepherd do not yet.**
 § The account-side inventory has the ids and what stopped the other
-two. This file is the contract each one defers to from its first
+three. This file is the contract each one defers to from its first
 fire, written before the first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
 against a contract that was not on `main`, and its first two runs
 aborted correctly and to no effect (PR #335, run log #336). When a
@@ -97,7 +98,7 @@ they live in one runbook and share one run log.
 | --- | --- | --- | --- | --- | --- |
 | **Platform probe** | one-off, Run now | `claude-sonnet-5` | its own container | one probe branch, one docs PR to § Platform measurements | never |
 | **Roll call** | daily `30 15 * * *` UTC · API | `claude-sonnet-5` | `list_triggers`, `list_sessions` | one comment a day; Sundays the ledger | n/a (read-only) |
-| **PR shepherd** | `20 6,16 * * *` UTC · GitHub `pull_request` (opened, ready_for_review, reopened, labeled, closed-and-merged; base `main`) · API | `claude-opus-5` | every open non-draft PR except dependabot's, plus any PR carrying `merge-when-green` | merge commits from `main`, renumbers, one verdict comment per state change; a squash merge of a PR the owner labelled `merge-when-green`, on green | **only** a PR the owner labelled `merge-when-green`, and only green — § The PR shepherd |
+| **PR shepherd** | `55 * * * *` UTC — hourly, as created; the GitHub `pull_request` triggers this row specified are **not** wired (the Claude GitHub App is not installed — `PERMISSIONS.md`), and the hourly cron is what stands in for them | `claude-opus-5` | every open non-draft PR except dependabot's, plus any PR carrying `merge-when-green` | merge commits from `main`, renumbers, one verdict comment per state change; a squash merge of a PR the owner labelled `merge-when-green`, on green | **only** a PR the owner labelled `merge-when-green`, and only green — § The PR shepherd |
 | **Production reader** | daily `40 6 * * *` UTC | `claude-sonnet-5` | the observe and pulse runs' logs, the pulse trail | one comment a day | n/a (read-only) |
 | **Release recorder** | API, from `ios-release.yml` after an upload | `claude-opus-5` | the fire payload, the run list | one docs PR per delivery | never |
 | **Pulse responder** | API, from `pulse.yml` when the scheduled operator gate is red | `claude-opus-5` | the gate's output, `monitoring/pulse.json`, the pen | a promotion or scorecard PR, or a report | never |
@@ -451,6 +452,31 @@ unlabelled one — the label grants a merge on green, never a merge. If
 the merge tool is refused in the session, the shepherd says so on the
 PR and leaves the label; it never pushes to `main` itself to get
 around the refusal.
+
+**Two labelled PRs that collide with each other: merge one, never hold
+both (the owner, 2026-09-03).** Two green PRs can be individually
+mergeable and mutually exclusive — the same decision numbers for
+different records, the same content ids for different questions, the
+same generated file. `check:docs` and `check:quality` validate one tree,
+so neither branch's gates can see the other and both stay green. The
+shepherd's first pass met exactly this (#363 and #367, both claiming
+D354/D355) and held **both** for fifteen hours across thirteen fires,
+because step 3 says "wait for green" and nothing said what to do when
+green is not the thing that is missing. Holding both is the one outcome
+that is always wrong: the collision cannot clear on its own, because
+neither branch may pre-emptively move to the free numbers — the gate
+refuses a hole as firmly as a duplicate — so the only exit is a merge.
+
+The rule: **merge the cheaper renumber first**, counted in files that
+must move, and say in the verdict comment which order was taken and
+what the other PR now owes. Ties break toward the older label. Then
+renumber the second PR onto the next free numbers, with every citation
+in the tree moved with it, and merge it behind the first — that is the
+mechanical conflict the per-PR paragraph already licenses, and it is
+the shepherd's work, not the author's. Do not ask the owner to pick an
+order: the label is the decision, the order is arithmetic. Ask only if
+merging either one would lose behaviour.
+
 
 **Never:** merge, approve, close, or resolve a human's review thread —
 except the merge the label paragraph licenses, under its five steps;

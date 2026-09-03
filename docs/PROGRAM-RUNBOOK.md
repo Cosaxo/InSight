@@ -696,7 +696,7 @@ settings:
 
 | Routine | Triggers (UTC · Oslo) | Model | Prompt | Notes |
 | --- | --- | --- | --- | --- |
-| InSight PR shepherd | `20 6,16 * * *` · 08:20 and 18:20 daily; GitHub `pull_request` events (opened, ready_for_review, reopened, labeled, closed) with base `main`; an API trigger | `claude-opus-5` | `OPS-RUNBOOK.md` §4, *The PR shepherd* | the door every approved PR ends at — create it first. The GitHub triggers need the Claude GitHub App installed; the web UI prompts for it |
+| InSight PR shepherd | `55 * * * *` · hourly, as created 2026-09-02 19:55Z (`trig_01KZYMFk5gUQ1QSFbzhm71FD`). The planned `20 6,16 * * *` plus GitHub `pull_request` events was not what got built: the events need the Claude GitHub App, which is not installed, so the hourly cron stands in for them. Twenty-four `claude-opus-5` sweeps a day — the owner's call whether that is the right price for acting on a label within the hour | `claude-opus-5` | `OPS-RUNBOOK.md` §4, *The PR shepherd* | the door every approved PR ends at — create it first. The GitHub triggers need the Claude GitHub App installed; the web UI prompts for it |
 | InSight pulse responder | API trigger, fired by `pulse.yml` | `claude-opus-5` | §4, *The pulse responder* | copy the fire URL into the repository variable `ROUTINE_PULSE_FIRE_URL` and the token into the secret `ROUTINE_PULSE_FIRE_TOKEN` |
 | InSight dependency shepherd | `30 8 * * 1` · Mondays 10:30 | `claude-opus-5` | §4, *The dependency shepherd* | — |
 | InSight platform probe | none — press Run now once | `claude-sonnet-5` | §4, *The platform probe* | its whole product is a row in `OPS-RUNBOOK.md` § Platform measurements |
