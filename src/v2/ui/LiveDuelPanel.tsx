@@ -249,7 +249,7 @@ function LdPicker({ picked, onChange, cap, busy: outerBusy }: {
   const full = picked.length >= cap;
   // Already picked are excluded from the results rather than shown and
   // refused — a row you may not tap is a worse answer than no row.
-  const { rows, busy, empty } = usePeopleFinder(full ? "" : q, [
+  const { rows, busy, empty, failed } = usePeopleFinder(full ? "" : q, [
     ...picked.map((p) => p.uid),
     LIVE.uid || "",
   ]);
@@ -308,6 +308,14 @@ function LdPicker({ picked, onChange, cap, busy: outerBusy }: {
           {empty && !busy && (
             <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
               Nobody found for “{empty}”.
+            </div>
+          )}
+          {/* A refused or offline read said "Nobody found" — a claim about
+              who exists, made when the only thing that happened was that
+              we could not ask. */}
+          {failed && !busy && (
+            <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+              Couldn’t search just now.
             </div>
           )}
         </>
@@ -475,7 +483,7 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
   const [ok, setOk] = React.useState(false);
   // The circle's own members are excluded, so the list never offers
   // somebody the callable would refuse with "already a member".
-  const { rows, busy, empty } = usePeopleFinder(q, [
+  const { rows, busy, empty, failed } = usePeopleFinder(q, [
     ...(g.memberUids || []),
     LIVE.uid || "",
   ]);
@@ -521,6 +529,11 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
       {empty && !busy && !msg && (
         <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
           Nobody found for “{empty}”.
+        </div>
+      )}
+      {failed && !busy && !msg && (
+        <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          Couldn’t search just now.
         </div>
       )}
       {msg && (

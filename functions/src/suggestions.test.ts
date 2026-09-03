@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   placeCivicHit,
   SUGGESTION_OPTION_MAX,
@@ -63,9 +66,9 @@ describe("validateSuggestion", () => {
 
 describe("placeCivicHit — the sold-inventory tripwire", () => {
   // The two canonical cases the quality gate's own comment names, plus
-  // QUESTION-FARM hard rule 6's second example. These pin the copied
-  // watchlist to scripts/question-quality.mjs's behaviour — if either
-  // list changes, this is the test that says the other must too.
+  // QUESTION-FARM hard rule 6's second example. They pin the BEHAVIOUR on
+  // five inputs; the case at the foot of this block is what pins the copy
+  // itself, and the comment here used to claim that job for these three.
   it("fails the place+civic conjunction", () => {
     expect(placeCivicHit("Should Oslo ban cars downtown?", [])).toBe(true);
     expect(placeCivicHit("Is Norway too expensive?", [])).toBe(true);
@@ -74,5 +77,55 @@ describe("placeCivicHit — the sold-inventory tripwire", () => {
     expect(placeCivicHit("One cuisine, forever?", ["Italian", "Japanese", "Mexican"])).toBe(false);
     expect(placeCivicHit("Mountains or sea?", [])).toBe(false);
     expect(placeCivicHit("Should tipping be banned?", ["Yes", "No"])).toBe(false);
+  });
+
+  // THE COMMENT ABOVE USED TO SAY THESE CASES WERE "THE TEST THAT SAYS THE
+  // OTHER MUST TOO". They are not: five fixed inputs against ONE copy, with
+  // nothing comparing the two literals. Measured — cutting this file's
+  // PLACES from ~100 names to one and its CIVIC cues from 20 to four, a
+  // ~90-name divergence from the script's copy, left both the functions
+  // suite and test:scripts green.
+  //
+  // What diverges is what counts as sold place-scoped civic inventory:
+  // suggestions.ts is the door that declines a user's suggestion as that,
+  // and question-quality.mjs is the gate that refuses the same shape in the
+  // bank. When they disagree, a suggestion the gate would refuse is
+  // accepted, or an honest one is declined with a reason that is not true —
+  // on the buyer's screen, with no signal anywhere.
+  //
+  // Both sides say "keep edits in both places" and neither could tell.
+  it("carries the same watchlist as the quality gate, name for name", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = {
+      door: readFileSync(resolve(here, "suggestions.ts"), "utf8"),
+      gate: readFileSync(resolve(here, "../../scripts/question-quality.mjs"), "utf8"),
+    };
+
+    // The PLACES words, as a set: the two lists are hand-maintained in the
+    // same order today, but a reordering is not a divergence and should not
+    // red this.
+    const places = (text: string): string[] => {
+      const block = /const PLACES = new Set\(\(([\s\S]*?)\)\.split\(" "\)\);/.exec(text);
+      expect(block, "the PLACES watchlist could not be found — this test lost its target").toBeTruthy();
+      const words = [...block![1].matchAll(/"([^"]*)"/g)].flatMap((m) => m[1].split(" ")).filter(Boolean);
+      return [...new Set(words)].sort();
+    };
+    const civic = (text: string): string => {
+      const m = /const CIVIC = (\/.*\/[a-z]*);/.exec(text);
+      expect(m, "the CIVIC cue list could not be found — this test lost its target").toBeTruthy();
+      return m![1];
+    };
+
+    const doorPlaces = places(src.door);
+    const gatePlaces = places(src.gate);
+    // The vacuity guard, and it is not decoration: without it a regex that
+    // stopped matching would hand back two empty arrays, and two empty
+    // arrays are equal.
+    expect(doorPlaces.length, "the parsed watchlist is implausibly short — the regex is matching the wrong thing").toBeGreaterThan(80);
+    expect(doorPlaces).toEqual(gatePlaces);
+
+    const doorCivic = civic(src.door);
+    expect(doorCivic.length, "the parsed cue list is implausibly short").toBeGreaterThan(100);
+    expect(doorCivic).toBe(civic(src.gate));
   });
 });

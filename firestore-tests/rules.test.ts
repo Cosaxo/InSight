@@ -3672,3 +3672,100 @@ describe("rank answers (D233): an order, never an index", () => {
     await assertFails(setDoc(mine(), rankAnswer()));
   });
 });
+
+// ─── the sign-in boundary itself ─────────────────────────────────
+//
+// ELEVEN READ ARMS WERE GATED ON `request.auth != null` AND NOTHING
+// PROVED ANY OF THEM. The ruleset has 15 such arms; only four had a
+// signed-out case. Opening any of the other eleven to `allow read: if
+// true` left all 163 tests in this file green — measured, one arm at a
+// time. The positive control is the reason that number means something:
+// the same mutation on `v2_questions` (which did have a case) reds the
+// suite, so the green results were the rules' and not a broken run.
+//
+// Why it matters is narrower than "these are exposed", and saying it the
+// wrong way would be its own failure. Under D98 answers are public and
+// counts publish from the first answer, so on `v2_question_aggs`,
+// `v2_ads`, `v2_call_outcomes`, `v2_patterns` and `v2_rank` the sign-in
+// gate is nominal — nothing behind it is secret. It is load-bearing on
+// `v2_users` (display name, anchors, handle, test results), `v2_people`
+// (the searchable name registry), `v2_avatars` (faces), `following`,
+// `foresight` and `reveals`: D98 published those to SIGNED-IN people,
+// and this is the line that makes "signed-in" mean anything.
+//
+// Read `asAnonAuth`'s comment above for what that boundary is worth: it
+// costs one HTTP call to cross legitimately. That is a known, recorded
+// property of D3's anonymous-first design, and it is exactly why the
+// line should at least be the line it claims to be.
+//
+// BOTH DIRECTIONS PER ARM. `assertFails` alone would still pass if a rule
+// were tightened to `if false` and the collection went dark, so each arm
+// also asserts that a signed-in principal CAN read it. A new
+// `allow read: if request.auth != null` arm belongs in this list on the
+// commit that adds it.
+describe("every read gated on sign-in refuses a signed-out client", () => {
+  const GROUP = "grp1";
+  const DAY = "2026-09-03";
+
+  // Seeded rather than read from thin air: a read of a MISSING document
+  // under an opened rule succeeds too (it returns a not-exists snapshot),
+  // so the mutation would still be caught — but a fixture that exists
+  // makes the signed-in half assert something real.
+  beforeEach(async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_question_aggs", "daily-000"), { counts: { "0": 3 }, total: 3 });
+      await setDoc(doc(db, "v2_ads", "ad1"), { active: true });
+      await setDoc(doc(db, "v2_call_outcomes", "daily-000"), { n: 1 });
+      await setDoc(doc(db, "v2_patterns", "loadings"), { qids: [] });
+      await setDoc(doc(db, "v2_rank", "daily-000"), { order: [] });
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
+      await setDoc(doc(db, "v2_users", OWNER, "following", STRANGER), { at: 1 });
+      await setDoc(doc(db, "v2_users", OWNER, "foresight", "q1__ageBand__25-34"), { pick: 0 });
+      await setDoc(doc(db, "v2_groups", GROUP, "reveals", DAY), { revealed: true });
+      await setDoc(doc(db, "v2_people", OWNER), { handle: "owner" });
+      await setDoc(doc(db, "v2_avatars", OWNER), { url: "x" });
+    });
+  });
+
+  // WRITTEN OUT ONE CASE PER ARM, not generated in a loop, and the reason
+  // is a gate rather than taste: `check:figures` counts test declarations
+  // statically off the tree and holds four prose figures to that count. A
+  // loop would have contributed ONE declaration for eleven tests, so the
+  // documented number would have said 165 while running the suite printed
+  // 175 — the documentation drift that gate exists to prevent, introduced
+  // by the commit that added it. (It caught this; the first draft looped.)
+  const refuses = async (path: [string, ...string[]]): Promise<void> => {
+    const [head, ...rest] = path;
+    await assertFails(getDoc(doc(asSignedOut(), head, ...rest)));
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), head, ...rest)));
+  };
+
+  it("v2_question_aggs refuses a signed-out read", () => refuses(["v2_question_aggs", "daily-000"]));
+  it("v2_ads refuses a signed-out read", () => refuses(["v2_ads", "ad1"]));
+  it("v2_call_outcomes refuses a signed-out read", () => refuses(["v2_call_outcomes", "daily-000"]));
+  it("v2_patterns refuses a signed-out read", () => refuses(["v2_patterns", "loadings"]));
+  it("v2_rank refuses a signed-out read", () => refuses(["v2_rank", "daily-000"]));
+  it("v2_users refuses a signed-out read", () => refuses(["v2_users", OWNER]));
+  it("following refuses a signed-out read", () => refuses(["v2_users", OWNER, "following", STRANGER]));
+  it("foresight refuses a signed-out read", () => refuses(["v2_users", OWNER, "foresight", "q1__ageBand__25-34"]));
+  it("reveals refuses a signed-out read", () => refuses(["v2_groups", GROUP, "reveals", DAY]));
+  it("v2_people refuses a signed-out read", () => refuses(["v2_people", OWNER]));
+  it("v2_avatars refuses a signed-out read", () => refuses(["v2_avatars", OWNER]));
+
+  it("and the list still covers every sign-in-gated read arm", async () => {
+    // The list above is hand-written, so this is what stops it going
+    // stale: count the arms in the ruleset and hold the total. Four are
+    // covered by their own cases elsewhere in this file — v2_questions,
+    // v2_engagement_daily, v2_meta and v2_logic_norms — so 11 here + 4
+    // there = 15. A new arm reds this until it is accounted for, in
+    // either place.
+    //
+    // WHAT THIS DOES NOT CATCH, said plainly rather than implied: it
+    // counts the standalone `allow read` arm only. A collection opened to
+    // signed-in readers through a combined `allow read, write:` or through
+    // a helper predicate is invisible to it, and would need its own case.
+    const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+    const total = (rules.match(/allow\s+read:\s*if\s+request\.auth\s*!=\s*null\s*;/g) || []).length;
+    expect(total, "the count of sign-in-gated read arms moved: add a case above and raise this number, or drop one whose own case now covers it").toBe(11 + 4);
+  });
+});

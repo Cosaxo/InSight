@@ -540,6 +540,42 @@ const pushKinds = (() => {
   return kinds.size;
 })();
 
+// The content banks' own README, which is the file that DESCRIBES them and
+// carried five hand-typed counts. Four were stale at once — 10 topics
+// against 11, a group bank of 24 against 26, a 1v1 bank of 30 against 32
+// and a romantic pool of 20 against 24, with "50 together" for 56 — and
+// the learn card count said 106 against 166. `check:content` prints the
+// live numbers two lines away in the same terminal.
+//
+// The lane that adds questions moves these files nightly now, so a
+// hand-count here is stale within days rather than months. Read off the
+// JSON, which is what the sentences are about.
+const contentCounts = (() => {
+  const j = (rel) => JSON.parse(readFileSync(join(root, rel), "utf8"));
+  const n = (v) => (Array.isArray(v) ? v.length : Object.keys(v || {}).length);
+  const feed = j("content/feed-questions.json");
+  const duel = j("content/duel-questions.json");
+  const learn = j("content/learn-questions.json");
+  const out = {
+    topics: n(feed.topics),
+    channels: n(feed.channels),
+    group: n(duel.group),
+    duo: n(duel.oneVsOne),
+    romantic: n(duel.romantic),
+    learnCards: n(learn.cards),
+  };
+  out.duoTotal = out.duo + out.romantic;
+  for (const [k, v] of Object.entries(out)) {
+    if (!v) {
+      throw new Error(
+        `check-figures: content/*.json gave 0 for ${k} — the bank's shape changed; `
+        + "fix this reader, do not delete the entries.",
+      );
+    }
+  }
+  return out;
+})();
+
 // Storage's byte cap, read off storage.rules itself. The suite that pins
 // that rule described it as an "8MB cap" for as long as the number had
 // been 256 KB — the 8 MB was the retired dailyPhotos cap, stranded by the
@@ -591,6 +627,55 @@ const FIGURES = [
     re: /(\d+) declare\s+`core: false`/,
     actual: String(feedTailCount),
     fix: (n) => `"${n} declare \`core: false\`"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed topics defined in the bank",
+    re: /\+ topic \((\d+)\) and channel/,
+    actual: String(contentCounts.topics),
+    fix: (n) => `"+ topic (${n}) and channel"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed channels defined in the bank",
+    re: /and channel \((\d+)\) definitions/,
+    actual: String(contentCounts.channels),
+    fix: (n) => `"and channel (${n}) definitions"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the group daily duel bank",
+    re: /Group daily bank \((\d+):/,
+    actual: String(contentCounts.group),
+    fix: (n) => `"Group daily bank (${n}:"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the 1v1 duel bank",
+    re: /1v1 bank \((\d+)\)/,
+    actual: String(contentCounts.duo),
+    fix: (n) => `"1v1 bank (${n})"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the romantic 1v1 pool",
+    re: /romantic 1v1 pool \((\d+),/,
+    actual: String(contentCounts.romantic),
+    fix: (n) => `"romantic 1v1 pool (${n},"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the two duo banks together",
+    re: /share the `duo` surface, (\d+) together/,
+    actual: String(contentCounts.duoTotal),
+    fix: (n) => `"share the duo surface, ${n} together"`,
+  },
+  {
+    file: "content/README.md",
+    what: "learn cards in the bank",
+    re: /subjects, fields and cards \((\d+)\)/,
+    actual: String(contentCounts.learnCards),
+    fix: (n) => `"subjects, fields and cards (${n})"`,
   },
   {
     file: "content/README.md",

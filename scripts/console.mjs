@@ -30,9 +30,9 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   prRow, branchRow, isNoPrBranch, decideActions, renderMergeList, parseTicks,
-  parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions,
+  parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions, listProblem,
   parseRegister, ownerSteps, uncheckedSteps, theorySummary, rollCalls, lastSeen,
-  foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay,
+  foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay, listIsWritable,
   checksSummary, SHIFT_BLOCKED,
 } from "./console-lib.mjs";
 
@@ -85,7 +85,21 @@ async function ghAll(path) {
 }
 
 async function readGithub(missing) {
-  const g = { ok: false, error: null, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
+  // `rowsComplete` — WHETHER THE ROW SET IS ALL OF IT, which is not the
+  // same question as `ok`, and conflating them is a third way to lose an
+  // owner's approval with no trace.
+  //
+  // `ok` says the open-PR listing answered. The BRANCH rows come from two
+  // further reads, and both were swallowed into `missing` and fell back to
+  // nothing: a failed `/branches` yields no branch rows at all, a failed
+  // per-branch compare drops that one. `ok` stays true either way, so the
+  // merge list was rewritten from a row set that silently lacked them —
+  // and a row's tick lives in the file, drawn from its labels. No row, no
+  // tick, no action to retry, exit 0.
+  //
+  // This is the door the failed-action guard cannot see: that guard is
+  // anchored to the row, and the row is what goes missing.
+  const g = { ok: false, error: null, rowsComplete: true, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
   const step = async (name, fn) => { try { return await fn(); } catch (e) { missing.push(`${name} (${e.message.split("\n")[0].slice(0, 80)})`); return null; } };
   const prs = await step("open PRs", () => ghAll(`/repos/${REPO}/pulls?state=open&base=main`));
   if (prs === null) { g.error = missing[missing.length - 1]; return g; }
@@ -105,13 +119,17 @@ async function readGithub(missing) {
   }
   const openHeads = new Set(prs.map((p) => p.head.ref));
   const branches = await step("branches", () => ghAll(`/repos/${REPO}/branches`));
+  if (branches === null) g.rowsComplete = false;
   for (const b of branches || []) {
     if (!isNoPrBranch(b.name) || openHeads.has(b.name)) continue;
     // The branch name goes in raw: the compare route takes `base...head` as one
     // path segment and reads a slash inside a branch name correctly, while an
     // encoded slash is a different string to it.
     const cmp = await step(`compare ${b.name}`, () => gh(`/repos/${REPO}/compare/main...${b.name}`));
-    if (!cmp || !cmp.ahead_by) continue;
+    // A compare that FAILED and one that says the branch is not ahead are
+    // different answers; only the second is a reason to skip the row.
+    if (cmp === null) { g.rowsComplete = false; continue; }
+    if (!cmp.ahead_by) continue;
     const last = cmp.commits?.[cmp.commits.length - 1];
     g.branches.push({ name: b.name, aheadBy: cmp.ahead_by, lastCommitAt: last?.commit?.committer?.date || null, commits: (cmp.commits || []).map((c) => c.commit.message.split("\n")[0]) });
   }
@@ -176,11 +194,25 @@ export async function collect({ now = new Date() } = {}) {
     ...github.prs.map(({ pr, extras }) => prRow(pr, extras)),
     ...github.branches.map((b) => branchRow(b)),
   ];
-  const worklist = parseWorklist(read("docs/WORKLIST.md") || "");
-  const owner = parseOwnerList(read("docs/OWNER-LIST.md") || "");
-  const axioms = parseAxioms(read("docs/AXIOMS.md") || "");
-  const visuals = parseVisualRequests(read("docs/VISUAL-REQUESTS.md") || "");
-  const permissions = parsePermissions(read("docs/PERMISSIONS.md") || "");
+  // The `|| ""` these five lines used to carry turned "the file is not
+  // there" into "the file is empty", and an empty file parses to zero of
+  // everything — so the page drew "0 axioms" and "(none open)" and then
+  // reported, at its foot, that every source had answered. `listProblem`
+  // asks whether the text is there AND whether the headings the parser
+  // needs are; either way the panel gets a null and `missing` gets the
+  // reason. (`parseRegister` below never had the bug — it takes `read()`'s
+  // null straight and the routine panel has always drawn its absence.)
+  const list = (file, parse) => {
+    const text = read(file);
+    const why = listProblem(file, text);
+    if (why) { missing.push(why); return null; }
+    return parse(text);
+  };
+  const worklist = list("docs/WORKLIST.md", parseWorklist);
+  const owner = list("docs/OWNER-LIST.md", parseOwnerList);
+  const axioms = list("docs/AXIOMS.md", parseAxioms);
+  const visuals = list("docs/VISUAL-REQUESTS.md", parseVisualRequests);
+  const permissions = list("docs/PERMISSIONS.md", parsePermissions);
   const register = parseRegister(read("docs/ROUTINES.md"));
   const theory = readTheory(missing);
   const trailText = read("monitoring/pulse-trail.jsonl");
@@ -200,7 +232,7 @@ export async function collect({ now = new Date() } = {}) {
     worklist, owner, axioms, visuals, permissions, register, lastSeen: seen, theory, pulse,
     rollCalls: rollCalls(ops, today), runLogs,
     productionReader: lastSeen(ops, "production reader"),
-    mainCi: github.mainCi, merges: github.merges, missing,
+    mainCi: github.mainCi, merges: github.merges, missing, rowsComplete: github.rowsComplete,
     ownerSteps: [
       ...ownerSteps(read("docs/AXES-RUNBOOK.md"), "docs/AXES-RUNBOOK.md"),
       ...ownerSteps(read("docs/PROGRAM-RUNBOOK.md"), "docs/PROGRAM-RUNBOOK.md"),
@@ -212,17 +244,53 @@ export async function collect({ now = new Date() } = {}) {
 }
 
 // ── act ─────────────────────────────────────────────────────────────
-async function ensureLabel() {
-  try { await gh(`/repos/${REPO}/labels/approved`); }
+async function ensureLabel(api = gh) {
+  try { await api(`/repos/${REPO}/labels/approved`); }
   catch (e) {
     if (e.status !== 404) throw e;
-    await gh(`/repos/${REPO}/labels`, { method: "POST", body: { name: "approved", color: "0e8a16", description: "The owner's tick on docs/MERGE-LIST.md — the merge shift takes it from here (D352)" } });
+    await api(`/repos/${REPO}/labels`, { method: "POST", body: { name: "approved", color: "0e8a16", description: "The owner's tick on docs/MERGE-LIST.md — the merge shift takes it from here (D352)" } });
   }
 }
 
-async function act(state, actions, log) {
-  if (!actions.length) return;
-  await ensureLabel();
+/**
+ * Apply the owner's ticks, and RETURN THE ONES THAT DID NOT LAND.
+ *
+ * The caller needs that list, because the merge list is rewritten from
+ * `state.rows` and a row's box is drawn from its LABELS. So a tick whose
+ * label-add failed came back drawn UNTICKED, the ticks marker stopped
+ * listing it, and on the next run `decideActions` saw neither a new tick
+ * (the box is empty now) nor a withdrawal (the marker never had it). The
+ * owner's approval was gone from the file and from the issue, with no
+ * trace on either, and the run was green.
+ *
+ * `api` is injectable so the failure path can be tested; it defaults to
+ * the real GitHub call.
+ */
+/**
+ * Should this run leave the merge list and the Console issue ALONE?
+ *
+ * Yes whenever an owner tick has not been mirrored — whether the call
+ * failed, or the run never tried. Rewriting either surface then draws the
+ * row from its labels, which is to say unticked, and drops it from the
+ * ticks marker; the next run sees neither a new tick nor a withdrawal and
+ * the approval is gone from both places.
+ *
+ * Extracted so the truth table can be pinned: `main` does enough I/O that
+ * the decision would otherwise be untestable, which is how the second door
+ * (a render-only run) stayed open after the first was closed.
+ */
+// Re-exported from the library, where trailRow can reach it too — see the
+// note on its definition for why all three writers must ask the same rule.
+export { listIsWritable };
+
+export const holdsTheList = ({ failed, actions, canApply }) =>
+  failed.length > 0 || (actions.length > 0 && !canApply);
+
+export async function act(state, actions, log, api = gh) {
+  const failed = [];
+  if (!actions.length) return failed;
+  await ensureLabel(api);
+  const gh = api;
   for (const a of actions) {
     try {
       if (a.type === "label-add") {
@@ -246,9 +314,16 @@ async function act(state, actions, log) {
         log(`opened #${pr.number} from ${a.branch} and labelled it approved`);
       }
     } catch (e) {
-      log(`::warning::${a.type} ${a.key} failed: ${e.message.split("\n")[0]}`);
+      // UNPREFIXED, on its own line. This went through `log`, which
+      // prefixes with "console: " — and GitHub parses a workflow command
+      // only when `::` begins the line, so the one place the console
+      // reported that it had dropped an owner decision produced no
+      // annotation at all. Measured with `node -e`.
+      console.log(`::warning::${a.type} ${a.key} failed: ${e.message.split("\n")[0]}`);
+      failed.push({ ...a, error: e.message.split("\n")[0] });
     }
   }
+  return failed;
 }
 
 async function upsertIssue(state, body, log) {
@@ -277,23 +352,82 @@ async function main() {
   const file = parseTicks(state.priorList);
   const issue = parseTicks(state.priorIssueBody);
   const actions = state.github.ok ? decideActions(state.rows, file, issue) : [];
-  if (REFRESH && TOKEN) await act(state, actions, log);
+  let failed = [];
+  if (REFRESH && TOKEN) failed = await act(state, actions, log);
   else if (actions.length) log(`${actions.length} tick action(s) pending — run with --refresh and a token to apply: ${actions.map((a) => `${a.type} ${a.key}`).join(", ")}`);
+
+  // A TICK THAT DID NOT LAND LEAVES THE FILE ALONE.
+  //
+  // The rule below is "only rewrite when GitHub answered", and it was
+  // true of a rejected PUSH and not of a rejected ACTION — which is the
+  // case that actually costs a tick. Rewriting now would draw that row
+  // unticked (the box comes from the labels), and the next run would see
+  // neither a new tick nor a withdrawal: the approval would be gone from
+  // both surfaces, silently.
+  //
+  // Leaving both files untouched keeps the owner's box exactly as they
+  // left it, so the next run finds the same new tick and RETRIES. The
+  // run goes red, which is the point: a console that dropped a decision
+  // must not report success. A persistent refusal then shows as a red
+  // run over a stale list, which is visible — the alternative is green
+  // over a list that is quietly wrong.
+  // …AND SO DOES ONE THAT WAS NEVER ATTEMPTED. A run without --refresh or
+  // without a token computes the actions, logs them as pending, and used
+  // to rewrite the list anyway — drawing the row unticked and dropping it
+  // from the marker, which is the identical loss through a different
+  // door. `console.yml`'s push-retry rides exactly that door: on a
+  // rejected push it resets to main (picking up any tick pushed
+  // meanwhile) and re-runs the console WITHOUT --refresh.
+  //
+  // Not an error, though: render-only is a legitimate mode and the retry
+  // uses it deliberately, so this leaves the files alone and exits 0. The
+  // loop's own `git diff --quiet` then finds nothing to commit and stops,
+  // which leaves the owner's box exactly as main holds it.
+  if (holdsTheList({ failed, actions, canApply: !!(REFRESH && TOKEN) })) {
+    for (const f of failed) log(`did not apply: ${f.type} ${f.key} — ${f.error}`);
+    const n = failed.length || actions.length;
+    log(`left docs/MERGE-LIST.md and the Console issue untouched so ${n} tick(s) are retried next run`);
+    if (state.missing.length) log(`sources that did not answer: ${state.missing.join("; ")}`);
+    if (failed.length) process.exitCode = 1;
+    return;
+  }
 
   // The list: only when GitHub answered — a render from nothing would erase
   // the owner's ticks with an empty page.
-  if (state.github.ok) {
+  if (listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete })) {
     writeFileSync(MERGE_LIST, renderMergeList({ rows: state.rows, merged: state.merged, generatedAt: state.generatedAt }));
     log("wrote docs/MERGE-LIST.md");
-  } else log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
+  } else if (!state.github.ok) {
+    log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
+  } else {
+    // Rewriting now would drop the missing rows AND their ticks. Same
+    // posture as a rejected action: a red run over a stale list beats a
+    // green one over a list that is quietly wrong.
+    console.log("::warning::console: a branch listing did not answer — docs/MERGE-LIST.md left untouched so no tick is lost");
+    log("left docs/MERGE-LIST.md untouched — the branch rows are incomplete");
+    process.exitCode = 1;
+  }
 
   // The owner list's folded blocks.
-  const ownerText = read("docs/OWNER-LIST.md");
+  // `state.owner` null means the file is absent or its headings drifted;
+  // folding then would rewrite the owner's own file from a parse that
+  // found nothing in it. Leave it alone and let the page say why.
+  const ownerText = state.owner ? read("docs/OWNER-LIST.md") : null;
   if (ownerText) {
-    const hand = Object.values(state.owner).flatMap((s) => s.open);
+    // OPEN AND DONE. A row the owner ticked is still something they have
+    // said by hand — more so — and leaving it out meant the fold
+    // regenerated it unticked on the next run.
+    // `s.hand`, not open+done: open+done includes the fold's own previous
+    // output, which made every generated row filter itself out and emptied
+    // the block on alternate runs. parseOwnerList has the arithmetic.
+    const hand = Object.values(state.owner).flatMap((s) => s.hand || []);
     const decisions = notAlreadyListed(hand, state.ownerSteps).map((s) => `**${s.title}** — *Source:* \`${s.file}\` ${s.id}.`);
     const launch = notAlreadyListed(hand, state.launchOpen).map((s) => `**${s.id} ${s.title}** — *Source:* \`docs/LAUNCH-RUNBOOK.md\`.`);
-    const approvals = state.github.ok
+    // THE SAME RULE THE MERGE LIST ASKS. This counted branch rows off
+    // `state.rows` gated on `ok` alone — so on the run that deliberately
+    // refused to rewrite the merge list because the branch rows were
+    // short, it wrote that short count into the OWNER'S list as a fact.
+    const approvals = listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete })
       ? [`${state.rows.filter((r) => r.kind === "pr" && !r.selfMerge && r.stage === "new").length} PR row(s) and ${state.rows.filter((r) => r.kind === "branch").length} branch row(s) waiting for a tick in \`docs/MERGE-LIST.md\` § Open (${state.today}).`]
       : [];
     writeFileSync(OWNER_LIST, foldOwnerList(ownerText, { Decisions: decisions, "Store and legal": launch, Approvals: approvals }));
