@@ -102,9 +102,39 @@ import {
   // answerAnchors() stamped it onto every answer after that. Answers are
   // create-only (D5), so the ones already written have no correction path —
   // which is why the guard has to hold on every mount, not the first.
+  //
+  // …and the empty map the live branch used to return was the OTHER half
+  // of the same bug, pointed at a second device. `{ vitals: {} }` is not
+  // "no opinion", it is a complete profile whose every field is blank, and
+  // the persist effect below writes the anchors derived from it wholesale
+  // — so opening the profile on a phone that had never seen the panel
+  // erased the anchors the laptop wrote, and every answer after that was
+  // stamped anchorless. Seed from the account instead: the anchors ARE the
+  // account's own last word on these fields, and `anchorsFrom` recovers all
+  // ten keys from this seed unchanged (calcAge returns '' with no `born`, so
+  // `exact` falls through to `v.age`; country and jobField re-derive from
+  // city and job). `loadGen`'s merge order keeps the local blob authoritative
+  // where it has a value, so the residue repair above is untouched.
+  //
+  // Bare `LIVE`, the import at the head of the file — not `window.LIVE`, which
+  // would add a counted reference to a file already carrying three (D39
+  // rule 4). `|| {}` is a data guard, not a load-order one: an imported
+  // binding cannot be unset, but a store with no profile yet can answer {}.
   function baseFor(live) {
     if (!live) return seedFromData();
-    return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
+    const a = LIVE.anchors() || {};
+    return {
+      vitals: {
+        age: a.age || '',
+        gender: a.gender || '',
+        city: a.city || '',
+        education: a.education || '',
+        job: a.profession || '',
+        relationship: a.relationship || '',
+        heightBand: a.heightBand || '',
+      },
+      interests: [], likes: [], dislikes: [], heroes: [],
+    };
   }
 
   // One-time carry-over from GKEY_V1, which on a device that ran the build
@@ -626,6 +656,16 @@ import {
     // device stops stamping the sample persona onto new answers. Suppressing
     // the mount write to save a Firestore write would leave the fabricated
     // anchors exactly where they are.
+    //
+    // STILL OPEN, and named here because the seed above does not close it:
+    // `useState(loadGen)` runs exactly once, so a panel that mounts before
+    // the profile doc has hydrated seeds from an empty map however good the
+    // seeding rule is, and this write then erases the account. The guard is
+    // one line — refuse the write when the derived map is entirely empty and
+    // `LIVE.anchors()` is not — but the case written for it passed with the
+    // guard removed, so it proves nothing: some consumer reads `anchors()`
+    // before the panel does, and a stub keyed on call order hands the panel
+    // the hydrated map instead of the empty one. NIGHTB_TASKS.md carries it.
     useEffect(() => {
       if (anchorsJson == null) return;
       try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
