@@ -1,0 +1,237 @@
+--- recorded-built/world-feed.jsx
++++ 2026-09-02-built/world-feed.jsx
+@@ -2087,31 +2087,60 @@
+     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
+     const O = this.opts;
+     if (mine == null) {
++      // one split ballot, the daily's grammar: two sides side by side with a
++      // hairline seam (the seam moves to the crowd's split once you vote); three
++      // or more sides stack as rows in the same block
++      const two = q.options.length === 2;
+       return /*#__PURE__*/React.createElement("div", {
+         style: {
+-          display: 'flex',
+-          flexDirection: 'column',
+-          gap: big ? 11 : 8
++          display: 'grid',
++          gridTemplateColumns: two ? '1fr 1fr' : '1fr',
++          gap: 2,
++          height: two ? big ? 84 : 68 : undefined,
++          borderRadius: big ? 20 : 16,
++          overflow: 'hidden',
++          background: 'var(--rule)',
++          border: WF_LINE
+         }
+       }, q.options.map((o, i) => /*#__PURE__*/React.createElement("button", {
+         key: i,
+         className: "press",
+         onClick: () => this.setVote(q, i),
+         style: {
+-          border: '1px solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))',
+-          borderRadius: big ? 16 : 12,
+-          background: 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface))',
++          minHeight: big ? 52 : 44,
++          border: 'none',
++          borderRadius: 0,
++          background: 'var(--surface-2)',
+           boxShadow: 'none',
+-          padding: big ? '15px 16px' : '11px 14px',
++          padding: big ? '0 16px' : '0 13px',
++          display: 'flex',
++          flexDirection: two ? 'column' : 'row',
++          alignItems: two ? 'flex-start' : 'center',
++          justifyContent: 'center',
++          gap: two ? 7 : 11,
+           textAlign: 'left',
+           cursor: 'pointer',
+           fontFamily: 'var(--sans)',
+           fontWeight: 700,
+           fontSize: big ? 16.5 : 14,
++          letterSpacing: '-0.01em',
+           color: 'var(--ink)',
+           WebkitAppearance: 'none'
+         }
+-      }, o.label)));
++      }, /*#__PURE__*/React.createElement("span", {
++        "aria-hidden": "true",
++        style: {
++          width: 8,
++          height: 8,
++          borderRadius: '50%',
++          background: this.opts.v2 ? T.color : wfOpt(T.color, i, q.options.length),
++          flexShrink: 0
++        }
++      }), /*#__PURE__*/React.createElement("span", {
++        style: {
++          textWrap: 'pretty'
++        }
++      }, o.label))));
+     }
+     return O.reveal ? this.renderVoteTiles(q, T, big) : this.renderVoteBars(q, T, big);
+   }
+@@ -2133,8 +2162,10 @@
+     const sides = this.friendSides(q, counts);
+     const rank = p.map(x => p.filter(y => y > x).length);
+     // height IS share — no min-height floor tall enough to flatten a close
+-    // split, and one row budget per option so 2 options don't dwarf 4
+-    const H = (big ? 58 : 46) * n + (n - 1) * 7;
++    // split, and one row budget per option so 2 options don't dwarf 4. Two
++    // sides keep the ballot's row: the seam sits at the crowd's split.
++    const two = n === 2;
++    const H = two ? big ? 112 : 92 : (big ? 58 : 46) * n + (n - 1) * 7;
+     return /*#__PURE__*/React.createElement("div", {
+       style: {
+         display: 'flex',
+@@ -2145,7 +2176,7 @@
+     }, /*#__PURE__*/React.createElement("div", {
+       style: {
+         display: 'flex',
+-        flexDirection: 'column',
++        flexDirection: two ? 'row' : 'column',
+         gap: 7,
+         height: H
+       }
+@@ -2161,6 +2192,7 @@
+         style: {
+           flex: Math.max(p[i], 4) + ' 1 0',
+           minHeight: big ? 36 : 30,
++          minWidth: 0,
+           border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE,
+           borderRadius: big ? 16 : 13,
+           background: v2 ? 'color-mix(in oklch, ' + T.color + ' ' + s.toFixed(1) + '%, var(--surface))' : 'color-mix(in oklch, ' + col + ' 26%, var(--surface))',
+@@ -2169,7 +2201,15 @@
+           transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)'
+         }
+       }, /*#__PURE__*/React.createElement("div", {
+-        style: {
++        style: two ? {
++          height: '100%',
++          display: 'flex',
++          flexDirection: 'column-reverse',
++          alignItems: 'flex-start',
++          justifyContent: 'center',
++          gap: 3,
++          padding: big ? '0 16px' : '0 12px'
++        } : {
+           height: '100%',
+           display: 'flex',
+           alignItems: 'center',
+@@ -2179,26 +2219,32 @@
+       }, /*#__PURE__*/React.createElement("div", {
+         style: {
+           display: 'flex',
+-          alignItems: 'baseline',
++          alignItems: 'center',
+           gap: 7,
+           minWidth: 0,
+-          flex: 1
++          flex: two ? 'none' : 1,
++          flexWrap: 'wrap'
+         }
+       }, /*#__PURE__*/React.createElement("span", {
+         style: {
+           fontWeight: win ? 800 : 700,
+-          fontSize: big ? 19 : 15,
++          fontSize: big ? two ? 16 : 19 : two ? 13.5 : 15,
+           letterSpacing: '-0.02em'
+         }
+       }, o.label), isMine && /*#__PURE__*/React.createElement("span", {
+         style: {
+-          fontSize: 13,
+-          fontWeight: v2 ? 500 : 700,
+-          color: 'var(--ink-2)',
++          fontSize: 10.5,
++          fontWeight: 800,
++          letterSpacing: '.08em',
++          textTransform: 'uppercase',
++          padding: '2px 7px',
++          borderRadius: 999,
++          background: 'var(--ink)',
++          color: 'var(--surface-2)',
+           whiteSpace: 'nowrap',
+           animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none'
+         }
+-      }, "\xB7 you")), this.opts.friends === 'rows' && fr.length > 0 && /*#__PURE__*/React.createElement("button", {
++      }, "you")), this.opts.friends === 'rows' && fr.length > 0 && /*#__PURE__*/React.createElement("button", {
+         onClick: () => this.openSheet(q, T, 'stats', 'friends'),
+         "aria-label": fr.map(f => f.name).join(', ') + ' picked ' + o.label,
+         style: {
+@@ -6176,21 +6222,38 @@
+         display: 'inline-flex',
+         alignItems: 'center',
+         gap: 7,
+-        fontSize: 12.5,
+-        fontWeight: 700,
+-        letterSpacing: '0.01em',
+-        textTransform: 'lowercase',
+-        color: mk ? window.WPAL.ink(T.color) : 'var(--ink-2)',
++        fontSize: mk ? 12.5 : 10.5,
++        fontWeight: mk ? 600 : 800,
++        letterSpacing: mk ? 0 : '.09em',
++        textTransform: mk ? 'none' : 'uppercase',
++        color: mk ? window.WPAL.ink(T.color) : window.WPAL.ink(T.color),
+         background: mk ? window.WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent',
+-        border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'),
++        border: mk ? `0.5px solid color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'none',
+         borderRadius: 999,
+-        padding: '4px 12px 4px 10px',
+-        minWidth: 0
++        padding: mk ? '4px 12px 4px 10px' : 0,
++        minWidth: 0,
++        whiteSpace: 'nowrap',
++        overflow: 'hidden',
++        textOverflow: 'ellipsis'
+       }
+     }, /*#__PURE__*/React.createElement("span", {
+       "aria-hidden": "true",
+       style: kickDot
+-    }), kickLabel), bgText ? /*#__PURE__*/React.createElement("button", {
++    }), kickLabel, !mk && q.type && q.type !== 'vote' ? /*#__PURE__*/React.createElement("span", {
++      style: {
++        color: 'var(--ink-3)'
++      }
++    }, '\u00b7 ' + ({
++      duel: 'this or that',
++      rank: 'rank',
++      rate: 'rate',
++      dial: 'dial',
++      field: 'place it',
++      know: 'learn',
++      pick: 'pick one',
++      predict: 'predict',
++      read: 'read the room'
++    }[q.type] || q.type)) : null), bgText ? /*#__PURE__*/React.createElement("button", {
+       className: "press tap44",
+       onClick: e => {
+         e.stopPropagation();
+@@ -6354,10 +6417,10 @@
+       }, kickerNode, /*#__PURE__*/React.createElement("div", {
+         style: {
+           fontFamily: 'var(--sans)',
+-          fontWeight: 750,
+-          fontSize: 14.5,
++          fontWeight: 600,
++          fontSize: 15,
+           lineHeight: 1.3,
+-          letterSpacing: -0.2,
++          letterSpacing: -0.1,
+           textWrap: 'pretty'
+         }
+       }, q.prompt), answered && this.renderThinBar(q, T));
+@@ -6379,11 +6442,11 @@
+       }
+     }), /*#__PURE__*/React.createElement("div", {
+       style: {
+-        fontFamily: 'var(--sans)',
+-        fontWeight: snap || focus ? 800 : 750,
+-        fontSize: snap ? skin === 'bare' ? this.opts.hier ? 24.5 : 30 : this.opts.hier ? 22 : 26 : focus ? 20 : 16.5,
+-        lineHeight: snap ? 1.14 : focus ? 1.2 : 1.25,
+-        letterSpacing: snap ? skin === 'bare' ? -0.7 : -0.5 : focus ? -0.4 : -0.25,
++        fontFamily: snap || focus ? 'var(--serif)' : 'var(--sans)',
++        fontWeight: snap || focus ? 500 : 600,
++        fontSize: snap ? skin === 'bare' ? this.opts.hier ? 26 : 30 : this.opts.hier ? 23 : 26 : focus ? 22 : 16.5,
++        lineHeight: snap ? 1.18 : focus ? 1.22 : 1.25,
++        letterSpacing: snap || focus ? '-0.01em' : -0.25,
+         textWrap: snap || focus ? 'balance' : 'pretty'
+       }
+     }, q.prompt), q.type === 'vote' && this.renderVote(q, T, snap), q.type === 'duel' && this.renderDuel(q, T, snap), q.type === 'rank' && this.renderRank(q, T, snap), q.type === 'rate' && this.renderRate(q, T, snap), q.type === 'dial' && this.renderDial(q, T, snap), q.type === 'field' && this.renderField(q, T, snap), q.type === 'know' && this.renderKnow(q, T, snap), q.type === 'pick' && this.renderPick(q, T, snap), q.type === 'predict' && window.PredictBody && /*#__PURE__*/React.createElement(window.PredictBody, {

@@ -301,12 +301,37 @@ function MirrorPreviewTag({ popId }) {
   // Shown in live mode (populations are still demo data) AND when a
   // live build is stuck on the mock fallback (D1: never let sample
   // people pass as real, even offline).
+  // The store is an imported binding since D354, so the `L && …` guards
+  // shift A wrote around `window.LIVE` are dead here — an import cannot be
+  // unset. The data condition below is the live one and stays.
   const demoInProd = !!LIVE.demoInProd;
-  if (!(LIVE.enabled || demoInProd) || popId === 'you') return null;
+  if (!(LIVE.enabled || demoInProd)) return null;
+  // THE YOU STOP IS EXCLUDED IN LIVE MODE AND NOT ON THE MOCK FALLBACK,
+  // and the difference is the whole point. The exclusion was written
+  // because nothing on that stop was supposed to be sample data — true
+  // while the store is attached, since the anchors are then the reader's
+  // own. `demoInProd` is the branch where it is false: a live build whose
+  // boot did NOT attach falls to `demoList()` (map-anchors.js), so the
+  // stop draws the sample persona — "34 · born 1991", her anchor ring,
+  // "69% of your answers match people your age" over her 92 answers — as
+  // the reader's own profile, on the one stop that wore no tag.
+  //
+  // Two decisions closed this hole before, D66 and D72, and both keyed on
+  // `LIVE.enabled` alone. This is the branch neither reached: enabled is
+  // false here too, so every guard written that way reads it as an
+  // ordinary demo build.
+  //
+  // The wording differs because the claim does. Elsewhere the tag is about
+  // the POPULATION being sample; here it is about the profile at the
+  // centre being someone else's.
+  if (popId === 'you' && !demoInProd) return null;
+  const label = popId === 'you'
+    ? 'Preview · sample profile — reconnecting…'
+    : demoInProd ? 'Preview · sample people — reconnecting…' : 'Preview · sample people until there’s live data here';
   return (
     <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 6px' }}>
       <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
-        {demoInProd ? 'Preview · sample people — reconnecting…' : 'Preview · sample people until there’s live data here'}
+        {label}
       </span>
     </div>
   );

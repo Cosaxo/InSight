@@ -85,6 +85,27 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<!-- THE PROFILE PHOTO, AND WHY BOTH KEYS ARE HERE FOR ONE `<input
+	     type="file">`. There is no camera plugin in this app and no code
+	     path that asks for a camera. WebKit's own upload sheet adds the
+	     action anyway: WKFileUploadPanel builds its menu from the accept
+	     attribute's MIME types, and image/jpeg and image/png both conform
+	     to public.image, so the sheet offers Take Photo and presents
+	     UIImagePickerControllerSourceTypeCamera in-process — with no check
+	     anywhere in that file for this key. iOS TCC then terminates the
+	     app the instant the tap lands. Nothing in this tree could have
+	     caught that: check:ios-location reads only the location keys, and
+	     check:store-forms reads only NSLocationDefaultAccuracyReduced.
+
+	     Verbatim in the system prompt, like the location strings below, so
+	     each says what happens rather than what the feature is called. The
+	     256px re-encode is data/avatar.ts: createImageBitmap → a 256×256
+	     canvas → toBlob, so the original's EXIF does not survive the
+	     round trip. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Used only if you choose Take Photo while adding a profile picture. The photo is cropped square and shrunk to 256 pixels on this device before it is uploaded, so the original's location and camera details are not sent. A profile picture is optional and off until you add one.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used only if you choose an existing picture as your profile picture. It is cropped square and shrunk to 256 pixels on this device before it is uploaded, so the original's location and camera details are not sent. A profile picture is optional and off until you add one.</string>
 	<!-- Location, when-in-use only (D9). Shown verbatim in the system
 	     prompt, so it says what actually happens rather than what the
 	     feature is called. -->

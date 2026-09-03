@@ -846,12 +846,18 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
   });
 
+  // Dates RELATIVE TO NOW, not literals. The labels are a claim about how
+  // long ago a day was, so a fixture pinned to August could only ever be
+  // right on the day it was written — and it stayed green for months
+  // because the labels ignored the date entirely, which is the defect.
+  const dayAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+
   it("browses back to a day through its dot, and back to today", () => {
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     LIVE.social.bankQ = () => ({ prompt: "Coffee or tea?", options: ["Coffee", "Tea"] });
     LIVE.social.revealHistory = () => [
-      { day: "2026-08-13", qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } },
-      { day: "2026-08-12", qid: "duo-000", votes: { u_me: { optionIdx: 1 } }, names: { u_me: "Me" } },
+      { day: dayAgo(1), qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } },
+      { day: dayAgo(2), qid: "duo-000", votes: { u_me: { optionIdx: 1 } }, names: { u_me: "Me" } },
     ];
     render(<LiveDuelPanel mode="duo" />);
 
@@ -863,6 +869,31 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     fireEvent.click(screen.getByRole("button", { name: "‹ today" }));
     expect(screen.queryByText(/2 days ago · revealed/)).toBeNull();
     expect(screen.getByText("you said")).toBeTruthy();
+  });
+
+  it("counts a skipped day, rather than labelling by dot position", () => {
+    // revealHistory COMPACTS. A day where only one of them played has no
+    // reveal doc at all, so it is absent from the list rather than present
+    // as a hole — and the dots index the list. Before this, the second dot
+    // said "2 days ago" about a day five days old, and so did the card it
+    // opened; every entry behind a gap was wrong by the size of the gap.
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+    LIVE.social.bankQ = () => ({ prompt: "Coffee or tea?", options: ["Coffee", "Tea"] });
+    LIVE.social.revealHistory = () => [
+      { day: dayAgo(1), qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } },
+      // three days missing between these two
+      { day: dayAgo(5), qid: "duo-000", votes: { u_me: { optionIdx: 1 } }, names: { u_me: "Me" } },
+    ];
+    render(<LiveDuelPanel mode="duo" />);
+
+    const dot = screen.getByRole("button", { name: /5 days ago — revealed/i });
+    expect(dot, "the second dot is still labelled by its position").toBeTruthy();
+    fireEvent.click(dot);
+    expect(
+      screen.getByText(/5 days ago · revealed/),
+      "the card disagreed with the dot, or both counted positions",
+    ).toBeTruthy();
+    expect(screen.queryByText(/2 days ago · revealed/)).toBeNull();
   });
 });
 

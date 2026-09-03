@@ -60,7 +60,9 @@ const ppInk = (h) => WPAL.ink(`oklch(0.52 0.14 ${h})`);
 // sources compute it differently and a component that reached for one of
 // them would be right in exactly one mode.
 function PathsTree({ st, walk, flow }) {
-  const W = 372, H = 236, xs = [16, 128, 240, 352];
+  // 176 tall since 2026-09-02, and the forks reach the full width: the
+  // tree is context under a story, not the story
+  const W = 372, H = 176, xs = [12, 130, 248, 362];
   const yOf = (key) => {
     const d = key.length; if (!d) return H / 2;
     let idx = 0; for (const ch of key) idx = idx * 2 + (ch === 'B' ? 1 : 0);
@@ -77,15 +79,29 @@ function PathsTree({ st, walk, flow }) {
         const mx = (x1 + x2) / 2;
         const f = flow(k);
         const on = walk.startsWith(k);
+        // The walked road is the only strong ink; every other branch is a
+        // quiet tint whose width is the crowd's flow. At ×20 the busy
+        // branches were as loud as the road through them, so the tree read
+        // as a tangle of rivers rather than as one path through a faint
+        // delta — the road is what the card is about, and it is drawn
+        // again on top below so nothing crosses it.
         return <path key={k} d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
-          stroke={on ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 56%)'}
-          strokeWidth={Math.max(1.4, f * 20)} strokeLinecap="round" opacity={on ? 1 : 0.9}></path>;
+          stroke={on ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 64%)'}
+          strokeWidth={on ? 3.5 : Math.max(1.1, f * 9)} strokeLinecap="round" opacity={on ? 1 : 0.9}></path>;
+      })}
+      {keys.filter((k) => walk.startsWith(k)).map((k) => {
+        const x1 = xs[k.length - 1], y1 = yOf(k.slice(0, -1)), x2 = xs[k.length], y2 = yOf(k);
+        const mx = (x1 + x2) / 2;
+        return <path key={'r' + k} d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
+          stroke="var(--pp-ink)" strokeWidth="3.5" strokeLinecap="round"></path>;
       })}
       <circle cx={xs[0]} cy={H / 2} r="4.5" fill="var(--pp-ink)"></circle>
       {keys.filter((k) => k.length === 3).map((k) => (
         <circle key={k} cx={xs[3]} cy={yOf(k)} r={k === walk ? 5 : 2.6} fill={k === walk ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 40%)'}></circle>
       ))}
-      {end && <text x={xs[3] - 10} y={yOf(walk) + (yOf(walk) < 18 ? 14 : -9)} textAnchor="end" fontSize="10.5" fontWeight="800" fill="var(--pp-ink)">{end.name}</text>}
+      {/* the ending's name left the field for the card (2026-09-02): it is
+          the answer this story arrived at, and on the field it was a label
+          squeezed against the right edge of the tree */}
     </svg>
   );
 }
@@ -234,7 +250,11 @@ export function PathsCard({ q }) {
               </div>
             )}
           <div className="pp-end">
-            <b>{end.name}</b>
+            {/* the ending is the answer this story arrived at, so it wears
+                the prompt voice. 500, not the design's 600: the tree ships
+                one Spectral weight (styles.css says why), and a synthesised
+                bold serif is worse than the real 500 */}
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500, letterSpacing: '-0.01em', lineHeight: 1.1, color: 'var(--pp-ink)' }}>{end.name}</div>
             <div className="pp-line">{end.line}</div>
             {flow && (
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 9 }}>

@@ -1398,9 +1398,28 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   // A batch cannot do that: one unreachable name must not cost the other
   // seven their invitation, so a batch skips and reports instead.
   const rawTo = request.data?.to;
-  const targets = [...new Set(
+  // A target is concatenated into `v2_users/${t}` for the getAll below and
+  // used verbatim as an invite document id, so a "/" — or a "." or ".."
+  // segment — is a PATH INJECTION rather than a bad uid. `pure.ts`'s
+  // `roomQids` already refuses exactly this for exactly this reason ("a bad
+  // one here would be a path injection into a getAll, so it is refused
+  // rather than escaped"); this door was the same shape without the check.
+  //
+  // What it did before: an odd component count made firebase-admin throw
+  // out of `db.doc()`, uncaught, so the caller got a bare INTERNAL — and an
+  // EVEN one resolved, so `v2_users/vic/answers/daily-000` was a real
+  // document read, and the invite was written at a document id containing
+  // slashes. Refused at construction, not escaped.
+  //
+  // BEFORE the budget, deliberately: `assertInviteBudget` writes the hourly
+  // event rather than reading it, so a malformed batch used to charge the
+  // cap on its way to a crash.
+  const pathSafe = (t: string) => !!t && t.length <= 128 && !t.includes("/") && t !== "." && t !== "..";
+  const all = [...new Set(
     (Array.isArray(rawTo) ? rawTo : [rawTo]).map((t) => String(t || "")).filter(Boolean),
   )];
+  const targets = all.filter(pathSafe);
+  const malformed = all.filter((t) => !pathSafe(t));
   if (!targets.length) throw new HttpsError("invalid-argument", "gid and to required");
   const single = targets.length === 1;
   const refuse = (code: "invalid-argument" | "not-found" | "already-exists", msg: string) => {
@@ -1437,7 +1456,10 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   // nobody will ever see and the sender is told it worked.
   const targetSnaps = await db.getAll(...targets.map((t) => db.doc(`v2_users/${t}`)));
   const invited: string[] = [];
-  const skipped: string[] = [];
+  // Seeded with the malformed ones so a mixed batch reports honestly
+  // instead of silently dropping them — the batch contract above is skip
+  // AND report, not skip.
+  const skipped: string[] = [...malformed];
   targets.forEach((t, i) => {
     if (t === uid) { refuse("invalid-argument", "you are already here"); skipped.push(t); return; }
     if (members.includes(t)) { refuse("already-exists", "already a member"); skipped.push(t); return; }
@@ -1637,9 +1659,14 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // for a further linger, which is precisely the promise the option makes.
   //
   // The rules cap `until` at PRESENCE_LINGER_MIN past write time, so a
-  // client cannot grant itself a longer stay than the design allows; the
-  // constant is imported here to keep the two definitions in one place.
-  void PRESENCE_LINGER_MIN;
+  // client cannot grant itself a longer stay than the design allows.
+  //
+  // A bare `void PRESENCE_LINGER_MIN;` stood here under a comment saying
+  // it kept the two definitions in one place. It kept nothing — the
+  // statement is a no-op, the import is used in `presenceExpiry` above,
+  // and moving the constant left every suite green. What holds them
+  // together now is `presence-linger.test.ts`, which reads the ceiling
+  // out of firestore.rules and asserts it equals the constant.
   const now = Timestamp.fromMillis(Date.now());
   // COUNTED, NOT FETCHED. This used to `.get()` the neighborhood and take
   // `snap.docs.length`, which materialises — and pays a billed read for —

@@ -121,3 +121,46 @@ describe("ensureToday and a bank that has not arrived", () => {
     expect(h.queries.length).toBe(2);
   });
 });
+
+// ── trendReady: the distinction `aggFor` cannot make ──
+//
+// `aggFor` answers null for "fetched, nobody answered" and "never fetched"
+// alike, and PulseTrends folded both into a confident zero — "20 days with
+// no answers in Oslo", about a city that had answered every day. The panel
+// now asks this instead, and these cases are what stop it becoming a
+// synonym for `aggFor` again.
+describe("trendReady — fetched-and-empty is not never-fetched", () => {
+  it("is false before the window lands and true after", async () => {
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    expect(PULSE.default.trendReady("pulse-pace"), "a window nobody asked for read as landed")
+      .toBe(false);
+    await PULSE.ensureTrend("pulse-pace");
+    expect(PULSE.default.trendReady("pulse-pace"), "the landed window did not read as landed")
+      .toBe(true);
+  });
+
+  it("is TRUE for a window that landed with nothing in it", async () => {
+    // The whole point, and the half a `!!aggFor(...)` implementation would
+    // get wrong: `h.aggs` is empty, so all 21 days come back null. That is
+    // a crowd that answered nothing — a real reading — and the panel is
+    // entitled to say so. Only the unfetched case must stay silent.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    await PULSE.ensureTrend("pulse-pace");
+    expect(h.queries.length, "nothing was fetched — the case is vacuous").toBe(1);
+    expect(PULSE.default.trendReady("pulse-pace")).toBe(true);
+  });
+
+  it("answers per pulse, not per module", async () => {
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    await PULSE.ensureTrend("pulse-pace");
+    expect(PULSE.default.trendReady("pulse-mood"), "one landed window vouched for another")
+      .toBe(false);
+  });
+
+  it("goes back to false on the purge, so the next account inherits nothing", async () => {
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    await PULSE.ensureTrend("pulse-pace");
+    window.dispatchEvent(new Event("insight:local-purge"));
+    expect(PULSE.default.trendReady("pulse-pace")).toBe(false);
+  });
+});

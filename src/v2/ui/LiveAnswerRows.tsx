@@ -33,6 +33,26 @@ import React from "react";
 // surfaces rounding differently is how a 51/49 becomes a 51/48 one screen
 // over, and this row sits beside the lens bodies that already use it.
 import { divisiveness, headlineFor, pctFor, standingIn } from "../data/cohort";
+// @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
+import { DAILYQ } from "../spec/daily-questions.js";
+
+// THE ROW WEARS ITS QUESTION'S TOPIC (2026-09-02). Every drawing on a row
+// was `--accent`, so a screenful of them was one colour and the reader had
+// no way to see, at a glance, that two rows were about different things.
+// The hue comes from the bank's own subject path (`branch`, D100) through
+// the SAME table the Map and the demo daily read — importing it rather
+// than copying the fourteen values, which is the documentation error this
+// repo keeps re-committing. A row with no branch (a pre-D100 seed) draws
+// in the neutral 250 that table already falls back to, so nothing has to
+// guard the undefined.
+const HUE_FALLBACK = 250;
+const hueOf = (branch: string | undefined): number => {
+  const m = branch ? (DAILYQ as { catMeta?: (b: string) => { hue?: number } }).catMeta?.(branch) : null;
+  return typeof m?.hue === "number" ? m.hue : HUE_FALLBACK;
+};
+/** The topic's ink for a fill, and the deeper one that can carry text. */
+const tintOf = (h: number) => `oklch(0.55 0.13 ${h})`;
+const tintInkOf = (h: number) => `oklch(0.47 0.13 ${h})`;
 
 /** One question, as this tab needs it. */
 export interface AnswerRow {
@@ -109,10 +129,13 @@ function standText(row: AnswerRow, whom: string): string {
 }
 
 // ── collapsed: one thin bar, your segment in accent ───────────────────
-function ArStack({ pct, mine }: { pct: number[]; mine: number }) {
+function ArStack({ pct, mine, tint }: { pct: number[]; mine: number; tint: string }) {
   const lead = topIdx(pct);
+  // notched segments rather than one welded bar (2026-09-02): a rounded
+  // end per side reads as "the options", where a single pill read as one
+  // quantity cut into pieces
   return (
-    <div style={{ display: "flex", height: 10, borderRadius: 999, overflow: "hidden", gap: 2 }}>
+    <div style={{ display: "flex", height: 12, gap: 3 }}>
       {pct.map((v, i) => {
         const isMine = mine === i;
         return (
@@ -120,12 +143,12 @@ function ArStack({ pct, mine }: { pct: number[]; mine: number }) {
             // minWidth on your own segment only: a 1% answer of yours must
             // still be findable, and giving every thin segment a floor
             // would make the bar lie about the shape.
-            flexGrow: v, minWidth: isMine ? 8 : 0,
+            flexGrow: v, minWidth: isMine ? 10 : 3, borderRadius: 999,
             display: "flex", alignItems: "center", justifyContent: "center",
             background: isMine ? "var(--accent)"
-              : i === lead ? "color-mix(in oklch, var(--accent) 45%, var(--surface-3))"
-                : "var(--surface-3)",
-          }}>{isMine && <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--surface)" }}></span>}</span>
+              : i === lead ? `color-mix(in oklch, ${tint} 62%, var(--surface-3))`
+                : `color-mix(in oklch, ${tint} 15%, var(--surface-3))`,
+          }}>{isMine && <span style={{ width: 4.5, height: 4.5, borderRadius: "50%", background: "var(--surface)" }}></span>}</span>
         );
       })}
     </div>
@@ -133,10 +156,10 @@ function ArStack({ pct, mine }: { pct: number[]; mine: number }) {
 }
 
 // ── expanded: one labelled bar per option ────────────────────────────
-function ArBars({ row, pct }: { row: AnswerRow; pct: number[] }) {
+function ArBars({ row, pct, tint, tintInk }: { row: AnswerRow; pct: number[]; tint: string; tintInk: string }) {
   const lead = topIdx(pct);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
       {row.options.map((o, i) => {
         const isMine = i === row.mine;
         return (
@@ -147,8 +170,11 @@ function ArBars({ row, pct }: { row: AnswerRow; pct: number[] }) {
               color: isMine ? "var(--ink)" : "var(--ink-2)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>{o}</span>
-            <div style={{ flex: 1, height: 9, background: "var(--surface-3)", borderRadius: 999, overflow: "hidden" }}>
-              <div style={{ width: `${Math.max(pct[i], 1)}%`, height: "100%", borderRadius: 999, background: "var(--accent)", opacity: isMine ? 1 : 0.32 }} />
+            <div style={{ flex: 1, height: 10, background: `color-mix(in oklch, ${tint} 9%, var(--surface-3))`, borderRadius: 999, overflow: "hidden" }}>
+              <div style={{
+                width: `${Math.max(pct[i], 1)}%`, height: "100%", borderRadius: 999,
+                background: isMine ? "var(--accent)" : i === lead ? tint : `color-mix(in oklch, ${tint} 34%, var(--surface-3))`,
+              }} />
             </div>
             {/* The prototype prints a percentage only on your row and the
                 leader. Live adds the raw COUNT to every row: these are
@@ -159,7 +185,7 @@ function ArBars({ row, pct }: { row: AnswerRow; pct: number[] }) {
                 wants one should not have to match around the other. */}
             <span style={{ width: 62, flexShrink: 0, textAlign: "right", fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
               {(isMine || (row.mine < 0 && i === lead)) && (
-                <><span style={{ color: "var(--accent)" }}>{pct[i]}%</span>{" · "}</>
+                <><span style={{ color: isMine ? "var(--accent-ink)" : tintInk }}>{pct[i]}%</span>{" · "}</>
               )}
               <span>{row.counts[i].toLocaleString()}</span>
             </span>
@@ -171,7 +197,7 @@ function ArBars({ row, pct }: { row: AnswerRow; pct: number[] }) {
 }
 
 // ── expanded: the 1-10 histogram ─────────────────────────────────────
-function ArHisto({ row, pct }: { row: AnswerRow; pct: number[] }) {
+function ArHisto({ row, pct, tint }: { row: AnswerRow; pct: number[]; tint: string }) {
   const max = Math.max(...pct, 1);
   const H = 48;
   const last = pct.length - 1;
@@ -181,7 +207,7 @@ function ArHisto({ row, pct }: { row: AnswerRow; pct: number[] }) {
         {pct.map((v, i) => (
           <div key={i} style={{
             flex: 1, height: Math.max(3, (v / max) * H), borderRadius: 3,
-            background: "var(--accent)", opacity: i === row.mine ? 1 : 0.3,
+            background: i === row.mine ? "var(--accent)" : `color-mix(in oklch, ${tint} 55%, var(--surface-3))`,
           }} />
         ))}
       </div>
@@ -207,8 +233,11 @@ function ArRow({ row, open, onToggle, whom }: {
   const pct = pctFor(row.counts);
   const head = headText(row);
   const mineLabel = row.mine >= 0 ? row.options[row.mine] : null;
+  const hue = hueOf(row.branch);
+  const tint = tintOf(hue);
+  const tintInk = tintInkOf(hue);
   return (
-    <div style={{ padding: "12px 0" }}>
+    <div style={{ padding: "14px 0" }}>
       {/* The whole row is the control. A separate chevron would put a 28px
           target beside a full-width one that does the same thing. */}
       <button onClick={onToggle} aria-expanded={open} className="press" style={{
@@ -216,7 +245,7 @@ function ArRow({ row, open, onToggle, whom }: {
         textAlign: "left", cursor: "pointer", color: "inherit", WebkitAppearance: "none",
       }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--sans)", fontSize: 14, fontWeight: 650, letterSpacing: "-0.01em", color: "var(--ink)", lineHeight: 1.3 }}>{row.text}</span>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--sans)", fontSize: 15, fontWeight: 700, letterSpacing: "-0.015em", color: "var(--ink)", lineHeight: 1.32 }}>{row.text}</span>
           {/* Where the prototype prints a date. The count is what live can
               say truthfully about a row at a glance, and it is the number
               that decides how much the percentages are worth. */}
@@ -227,11 +256,11 @@ function ArRow({ row, open, onToggle, whom }: {
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 9 }}>
           {head && (
             <span style={{ flexShrink: 0, maxWidth: "46%", fontFamily: "var(--sans)", fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              <span style={{ fontWeight: 800, color: "var(--accent)" }}>{head.big}{head.unit}</span>
+              <span style={{ fontWeight: 800, fontSize: 13.5, color: tintInk }}>{head.big}{head.unit}</span>
               <span style={{ fontWeight: 600, color: "var(--ink-2)" }}> {head.sub}</span>
             </span>
           )}
-          <div style={{ flex: 1, minWidth: 44 }}><ArStack pct={pct} mine={row.mine} /></div>
+          <div style={{ flex: 1, minWidth: 44 }}><ArStack pct={pct} mine={row.mine} tint={tint} /></div>
           {mineLabel && (
             <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-2)", maxWidth: "32%" }}>
               <span style={{ width: 11, height: 11, borderRadius: "50%", background: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--surface)" }}></span></span>
@@ -242,13 +271,25 @@ function ArRow({ row, open, onToggle, whom }: {
       </button>
       {open && (
         <div className="fade-in">
-          {row.type === "rating" ? <ArHisto row={row} pct={pct} /> : <ArBars row={row} pct={pct} />}
-          <div style={{ marginTop: 10, fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)" }}>
+          {row.type === "rating"
+            ? <ArHisto row={row} pct={pct} tint={tint} />
+            : <ArBars row={row} pct={pct} tint={tint} tintInk={tintInk} />}
+          {/* your standing, as a chip rather than a loose line: it is a
+              claim about YOU on a row full of claims about everyone else */}
+          <div style={{
+            marginTop: 12, display: "inline-flex", alignItems: "flex-start", gap: 7,
+            padding: "7px 11px 7px 9px", borderRadius: 10,
+            background: "color-mix(in oklch, var(--accent) 8%, var(--surface-2))",
+            fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--accent-ink)", lineHeight: 1.4,
+          }}>
+            <span style={{ width: 11, height: 11, borderRadius: "50%", background: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2.5 }}>
+              <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--surface)" }}></span>
+            </span>
             {/* Said either way. "You have not answered this one" is a fact
                 about the row worth as much as the comparison it replaces —
                 and dropping the line entirely made an unanswered row look
                 like an answered one whose sentence failed to render. */}
-            {standText(row, whom)}
+            <span>{standText(row, whom)}</span>
           </div>
         </div>
       )}

@@ -17,13 +17,41 @@ import PULSE from "../data/pulse";
 export default function PulseTrends({ compact, pid, mapLink }: { compact?: boolean; pid?: string; mapLink?: boolean }): React.ReactElement | null {
   const [, bump] = React.useState(0);
   const id = pid || PULSE.first();
+  // WHETHER THE CROWD'S HALF OF THIS READING IS ENTITLED TO SPEAK YET.
+  // `aggFor` answers null for "fetched, nobody answered" and "never
+  // fetched" alike, and every crowd-side sentence below folded both into
+  // a confident zero: "20 days with no answers in Oslo — nothing to
+  // compare, not a zero", "Oslo: 0 answers placed across 0 of 21 days",
+  // "12 days in — not a trend yet". About a city that had answered every
+  // day for three weeks. The catch below called that "the absence
+  // honestly", which is the opposite of what it did: it listed a read
+  // that had not happened as a crowd that had not answered — and on a
+  // failed read, forever, because the effect's deps never change.
+  //
+  // LOCAL state driven off the promise, plus ONE store accessor so a warm
+  // re-open does not flicker — the shape the house took twice already
+  // (5e1491d0, and the Near panel before it). Your own line, the gaps and
+  // the skip row are folds over days(), already in hand, and keep drawing
+  // throughout: it is the crowd's half that waits, not the panel.
+  const [crowd, setCrowd] = React.useState<"reading" | "read" | "failed">(
+    () => (PULSE.trendReady(id) ? "read" : "reading"));
   React.useEffect(() => {
+    let alive = true;
     // The 21-day window, for THIS pulse, on the tap that opened the
     // reading (D203). The card's own fetch is today-only; a roster that
     // pulled five windows on every open would be 105 ids over a 30-clause
     // cap, for data the first screen never draws.
-    void PULSE.ensureTrend(id).catch(() => { /* the panel lists the absence honestly */ });
-    return PULSE.subscribe(() => bump((x) => x + 1));
+    //
+    // `ensureTrend` is called UNCONDITIONALLY, as it always was: it returns
+    // at its own first line when the window is already in hand, so skipping
+    // it here buys nothing and drops the fetch a suite case pins by name.
+    // `trendReady` decides what may be DRAWN, never whether to ask.
+    if (!PULSE.trendReady(id)) setCrowd("reading");
+    void PULSE.ensureTrend(id).then(
+      () => { if (alive) setCrowd(PULSE.trendReady(id) ? "read" : "failed"); },
+      () => { if (alive) setCrowd("failed"); });
+    const un = PULSE.subscribe(() => bump((x) => x + 1));
+    return () => { alive = false; un(); };
   }, [bump, id]);
   const [scopeId, setScopeId] = React.useState("city");
   const [sel, setSel] = React.useState(PULSE.DAYS - 1);
@@ -104,6 +132,9 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
 
   const d = days[sel], s = ser[sel];
   const grey = "var(--ink-3)";
+  // Four readings below are the crowd's, and only these four.
+  const read = crowd === "read";
+  const unreadWord = crowd === "failed" ? "Couldn’t read " + sc.label + "." : "Reading " + sc.label + "…";
 
   const scopeRow = (
     <div style={{ display: "flex", gap: 6 }}>
@@ -123,6 +154,8 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
   // ── the reading, or the honest reason there isn't one yet ──
   const headline = answered.length === 0 ? (
     <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, lineHeight: 1.2, letterSpacing: "-0.03em" }}>Your line starts when you answer today.</span>
+  ) : !read ? (
+    <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, lineHeight: 1.2, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{unreadWord}</span>
   ) : comparable.length < 3 ? (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19, letterSpacing: "-0.03em" }}>
@@ -159,7 +192,7 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 10, height: 2, borderRadius: 1, background: grey, opacity: 0.55 }}></span>
           <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12.5, color: "var(--ink-3)" }}>
-            {s.n === 0 ? "no answers" : s.placed ? (s.mean as number).toFixed(1) + " · n " + PULSE.fmtN(s.n) : "n " + s.n + " · too few"}
+            {!read ? (crowd === "failed" ? "couldn’t read" : "reading…") : s.n === 0 ? "no answers" : s.placed ? (s.mean as number).toFixed(1) + " · n " + PULSE.fmtN(s.n) : "n " + s.n + " · too few"}
           </span>
         </span>
       </span>
@@ -224,7 +257,7 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
       mark: <span style={{ display: "flex", alignItems: "center", gap: 2.5 }}><span style={{ width: 5, height: 2, borderRadius: 1, background: HUE }}></span><span style={{ width: 5, height: 2, borderRadius: 1, background: HUE }}></span></span>,
       text: "you didn’t answer on " + skipped + (skipped === 1 ? " day" : " days") + " — the line breaks there" + (gapRows.length ? " (" + gapRows.join(", ") + ")" : ""),
     },
-    zeroDays.length > 0 && {
+    read && zeroDays.length > 0 && {
       key: "zero",
       mark: <span style={{ width: 9, height: 9, borderBottom: "1px solid " + grey, opacity: 0.55 }}></span>,
       text: zeroDays.length + (zeroDays.length === 1 ? " day" : " days") + " with no answers in " + sc.label + " — nothing to compare, not a zero",
@@ -246,10 +279,10 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
         </div>
       ))}
       {!missing.length && (
-        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>Nothing — every day here has both sides.</span>
+        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>{read ? "Nothing — every day here has both sides." : unreadWord}</span>
       )}
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", paddingTop: 1 }}>
-        {sc.label}: {PULSE.fmtN(totalN)} answers placed across {placedN.length} of {askedN} days · you: {answered.length}
+        {read ? sc.label + ": " + PULSE.fmtN(totalN) + " answers placed across " + placedN.length + " of " + askedN + " days · " : ""}you: {answered.length}
       </span>
     </div>
   );

@@ -345,7 +345,11 @@ describe("the working (2026-08-26)", () => {
     live.myVotes.mockReturnValue({ qb: `qb:${sealed.pred}` });
     PATTERNS.grade("qb");
     const w = (await PATTERNS.working("qb"))!;
-    expect(w).toEqual({ rows: [], hadEv: false });
+    // The three reason flags are all false here, and that is the point of
+    // reading them exactly: a call with no evidence at all is not thin,
+    // not weak and not a failed read — it is the coin, and the panel says
+    // so with its own sentence.
+    expect(w).toEqual({ rows: [], hadEv: false, thin: false, weak: false, failed: false });
   });
 
   it("evidence below the 12-in-both-samples floor is thinness, not a bar", async () => {

@@ -83,6 +83,13 @@ const SHARED = "grp_shared";
 // left behind in this group's reveals therefore survived erasure until the
 // collection-group sweep (phase 1c-bis) went looking for it directly.
 const LEFT = "grp_left";
+// A circle this account CREATED and then left. Phase 1c's membership query
+// cannot see it and leaveGroupV2 deliberately leaves `ownerUid` standing, so
+// until the owner-sweep existed the deleted account's raw uid stayed on a
+// document every current member is served in full. `LEFT` above cannot catch
+// this: it is owned by OTHER, on purpose, as the control that erasure does
+// not scrub somebody else's ownership.
+const OWNED_LEFT = "grp_owned_left";
 
 // ── seed every phase deleteAccount claims to wipe ──
 // Written with admin, because most of these paths are no longer
@@ -254,6 +261,14 @@ await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
   votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0, pickUid: uid } },
   names: { [uid]: "Doomed", [OTHER]: "Survivor" },
   members: [uid, OTHER],
+});
+
+// the same shape one field over: OWNED by the doomed account, and left. No
+// membership, no name, no reveal — the whole point is that `ownerUid` is the
+// only thing here that names them, so nothing else can make the case pass.
+await adb.doc(`v2_groups/${OWNED_LEFT}`).set({
+  name: "OwnedLeft", mode: "group", ownerUid: uid, memberUids: [OTHER],
+  memberNames: { [OTHER]: "Survivor" }, streak: 2,
 });
 
 // takes, flags, and the moderation queue's COPY of a take's text
@@ -742,6 +757,19 @@ if (!members.includes(OTHER)) fail("the surviving member was removed from the sh
 // so a leftover ownerUid publishes the deleted account's raw uid to the
 // circle forever.
 if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+
+// …and the same field on a circle they created and LEFT, which the
+// membership query above never visits. The assertion above passes on the
+// member-following sweep alone; only this one fails without the owner sweep.
+const ownedLeft = await adb.doc(`v2_groups/${OWNED_LEFT}`).get();
+if (!ownedLeft.exists) fail("the OWNED_LEFT group was deleted — it still had another member");
+if (ownedLeft.get("ownerUid") === uid) {
+  fail("the deleted user's uid survives as ownerUid on a circle they created and left");
+}
+if (!(ownedLeft.get("memberUids") || []).includes(OTHER)) {
+  fail("erasure removed the surviving member from a group the deleted account merely owned");
+}
+if (ownedLeft.get("name") !== "OwnedLeft") fail("erasure damaged an owned-and-left group's own fields");
 if (shared.get("name") !== "Shared") fail("erasure damaged the surviving group's own fields");
 
 const reveal = await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).get();

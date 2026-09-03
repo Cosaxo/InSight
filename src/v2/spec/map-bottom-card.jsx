@@ -62,13 +62,42 @@ function mtAnchorSelf(anchor) {
 }
 
 // ── the verdict — the one thing that matters: are you with them or not? ─────
-function MTVerdict({ pct, who, self, isMode }) {
+//
+// IT NOW SAYS WHAT IT RESTS ON. `MapStats.cohortN` was written for this and
+// had no reader anywhere: `grep -rn cohortN src/` found its definition, its
+// entry in the published object, and no call site. D99 added it "so the Map
+// can say 'of 6'", and docs/MIRROR.md §509 says it exists "so a 50% drawn
+// from two people is not presented as a finding". Nothing asked it, and
+// `typicality()` has no floor, so one answer published.
+//
+// One answer is normally YOUR OWN — your vote is folded with its anchors
+// snapshot, so it lands in your own age cell. On the You stop, the one
+// Mirror stop that wears no Preview tag, that read "100% · You're with the
+// majority · of people your age chose the same". A full-width bar, a
+// verdict, and a crowd of you.
+//
+// So below two answers there is no verdict: the answer is still on the map
+// and the card still says so, which is the part that was always true. At two
+// or more the basis is in the sentence (D146) rather than left to be
+// assumed. `n === null` is demo mode, where the numbers are invented and
+// labelled elsewhere — it keeps the wording it had.
+function MTVerdict({ pct, who, self, isMode, n }) {
+  if (n != null && n < 2) {
+    return (
+      <div className="mmt-verdict is-min">
+        <span className="mmt-matchtext">
+          <b>Yours is the only answer here yet</b>
+          <span>nobody else has answered this in your cell{self ? ' · you: ' + self : ''}</span>
+        </span>
+      </div>
+    );
+  }
   return (
     <div className={'mmt-verdict' + (isMode ? ' is-maj' : ' is-min')}>
       <span className="mmt-matchpct">{pct}%</span>
       <span className="mmt-matchtext">
         <b>{isMode ? 'You’re with the majority' : 'A minority take'}</b>
-        <span>of {who} chose the same{self ? ' · you: ' + self : ''}</span>
+        <span>of {n != null ? n.toLocaleString() + ' ' + who : who} chose the same{self ? ' · you: ' + self : ''}</span>
       </span>
     </div>
   );
@@ -108,6 +137,12 @@ function MTGroupBars({ node, anchor }) {
   // numbers are invented anyway. It can refuse, and a refusal here is the
   // bar's own leader: the ridge's heights are what `d` is FOR, and no
   // reading is better than a fabricated one.
+  // The fourth member this block asks MapStats for. It goes through `MS`
+  // for the reason the comment at the top now gives — line length — and
+  // not the one it gave when this was written: the ratchet counted bridge
+  // references per file, and D354's sweep made the binding an import, so
+  // there is no longer a count to keep down here.
+  const cohortN = MS.cohortN(node.qid, anchor.id, n, node.aidx);
   const asked = MS.mode(node.qid, anchor.id, n, node.aidx);
   const gmode = asked == null ? d.indexOf(max) : asked;
   const isMode = gmode === node.aidx;
@@ -117,7 +152,7 @@ function MTGroupBars({ node, anchor }) {
     const youMid = ((you + 0.5) / n) * 100;
     return (
       <div>
-        <MTVerdict pct={d[you]} who={who} self={self} isMode={isMode}></MTVerdict>
+        <MTVerdict pct={d[you]} who={who} self={self} isMode={isMode} n={cohortN}></MTVerdict>
         <div className="mmt-ridge">
           <span className="mmt-ridge-youlab" style={{ left: Math.max(9, Math.min(91, youMid)) + '%' }}>you · {you + 1}</span>
           <div className="mmt-ridge-cols">
@@ -143,7 +178,7 @@ function MTGroupBars({ node, anchor }) {
   const labIdx = d.map((_, i) => i);
   return (
     <div>
-      <MTVerdict pct={d[node.aidx]} who={who} self={self} isMode={isMode}></MTVerdict>
+      <MTVerdict pct={d[node.aidx]} who={who} self={self} isMode={isMode} n={cohortN}></MTVerdict>
       <div className="mmt-dbar-wrap">
         <span className="mmt-dbar-mark is-you" style={{ left: center(node.aidx) + '%' }}>you</span>
         {!isMode ? <span className="mmt-dbar-mark is-most" style={{ left: center(gmode) + '%' }}>most</span> : null}
@@ -169,6 +204,17 @@ function MTGroupBars({ node, anchor }) {
 // ── answer body: question · “compare with” chips · group bars ──
 function MTAnswerBody({ node, anchors, activeA, onFilter }) {
   const A = anchors.find((a) => a.id === activeA) || anchors[0];
+  // AN EMPTY RING IS A LEGITIMATE LIVE RESULT. map-anchors.js says so in
+  // as many words and names the two callers that handle it — this was the
+  // third, and it did not: with no anchors, `A` is undefined and `A.id`
+  // below throws before anything renders, which app-shell's boundary
+  // catches as the whole Mirror tab.
+  //
+  // Reachable on an ordinary account: somebody who skipped the Basics
+  // card and has taken no test has nothing to filter by, so the chips
+  // have nothing to draw and the bars have no anchor to ask MapStats
+  // about. The question on its own is the honest card there.
+  if (!A) return <div className="mmt-q">{node.prompt}</div>;
   return (
     <React.Fragment>
       <div className="mmt-q">{node.prompt}</div>

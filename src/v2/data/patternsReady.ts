@@ -215,9 +215,19 @@ export function patternsEarned(signal: PatternsSignal): boolean {
 // `insight.*` key should not be depending on somebody else's sweep
 // continuing to cover it, and because there is a real write-back path to
 // close: `patternsEarned` re-writes the key whenever the live signal
-// still passes. It cannot on this path (`resetForNewUid` empties the vote
-// mirror first, so `mine` is 0), and this makes that a fact about the
-// module rather than about the order of two functions in another one.
+// still passes. On the UID-CHANGE path it cannot — `resetForNewUid`
+// empties the vote mirror before this event goes out, so `mine` is 0 —
+// and this arm makes that a fact about the module rather than about the
+// order of two functions in another one.
+//
+// THE OTHER PATH DOES NOT SHARE THAT ORDER, and this comment used to
+// claim it did. deleteAccount purges local trace and THEN signs out, so
+// the vote mirror is still the deleted account's while this event is
+// being handled: the shell shuts the tab, its effect re-runs, re-asks
+// `patternsEarned`, and the key goes straight back. What closes it is on
+// the other side — `LIVE.patternsSignal()` answers empty once
+// deleteAccount has latched its teardown flag — because the fix has to
+// hold for every reader of the signal, not only for this listener.
 //
 // Nothing in-memory to drop here — every read hits storage. The shell's
 // own copy of the answer (`usePatternsTab`'s state) has its own arm on

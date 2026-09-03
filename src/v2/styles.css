@@ -14,6 +14,33 @@
 /* vietnamese */
 /* latin-ext */
 /* latin */
+/* ── The prompt voice (2026-09-02) ──────────────────────────────────────
+   Spectral, the one place the app speaks in a second face: every question
+   a person answers is set in it, and UI, figures and captions stay sans.
+   The design (design/standalone-2026-09-02/) draws it at 500 almost
+   everywhere; VISION-2026-09-02 §2.1 has the sites.
+
+   ONE FILE, and the arithmetic is why. Hanken Grotesk ships as four
+   subsets that every weight reuses; Spectral is static per weight, at
+   ~21 KB a subset. The font ceiling in check:bundle is 96 KB against 64
+   KB in the tree, so 500-latin alone (23 KB) fits with room and a second
+   weight or the latin-ext subset would not. What that costs, stated
+   rather than discovered: a prompt carrying a Central-European letter
+   (ł, ő, ș) falls back to Georgia for that glyph — the bank is English
+   and Norwegian, whose æ ø å are all inside this subset — and the one
+   place the design asks for 600 (the Crossroads ending) is drawn at 500
+   rather than letting the browser synthesise a bold serif. Adding the
+   other faces is a font-ceiling conversation, not a silent import. */
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/09efe0ee-8628-46d3-b071-4ac2b22a0955.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'Hanken Grotesk';
@@ -242,6 +269,11 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1);
   --sans: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
+  /* The prompt voice — the one place the app speaks in a second face.
+     Every question people answer is set in it; UI, figures and captions
+     stay sans. The fallbacks matter on a device before the swap: Georgia
+     is on iOS, and `serif` is whatever Android resolves. */
+  --serif: 'Spectral', Georgia, 'Times New Roman', serif;
   /* Every text field in the app is set from this, and it may not go below
      16px. Not a taste call — it is the number iOS uses.
 
@@ -503,16 +535,18 @@
   color: var(--ink-3);
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 600;
+  /* 500/700 since 2026-09-02, and the active pill loses its inset ring:
+     the fill already says which tab is open, and the ring made the bar
+     the loudest thing on a screen whose content is the point. */
+  font-weight: 500;
   letter-spacing: 0.01em;
   text-transform: capitalize;
   position: relative;
   transition: color 0.25s ease, background 0.25s ease;
 }
 .tab-btn.is-active {
-  font-weight: 750;
+  font-weight: 700;
   background: color-mix(in oklch, var(--accent) 13%, var(--surface-2));
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 20%, transparent);
 }
 .tab-btn .glyph {
   height: 22px;
@@ -647,9 +681,6 @@ button.card:active,
   box-shadow: 0 1px 3px rgba(20,20,40,0.14), 0 0 0 0.5px color-mix(in oklch, var(--seg-fill, var(--ink)) 26%, transparent);
 }
 
-/* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
-   filled result reveal after answering feels like a real payoff. */
-.sd-opt:hover { background: color-mix(in oklch, var(--opt, var(--ink)) 6%, var(--surface)) !important; border-color: color-mix(in oklch, var(--opt, var(--rule)) 28%, var(--rule)) !important; }
 
 /* Pill (wax-seal) */
 .pill {
@@ -841,6 +872,16 @@ button.card:active,
 /* Universal tactile press feedback */
 .press { transition: transform 0.22s var(--ease-spring); }
 .press:active { transform: scale(0.95); }
+
+/* The paid door's rate rows (2026-09-02): each row rises in, and its
+   day-strip ticks pop up one after another so the fortnight reads as a
+   measurement being taken rather than as a static bar. Reduced motion
+   turns both off — they carry no information the still frame lacks. */
+.sg-rise { animation: sgRise 0.44s var(--ease-out) both; }
+@keyframes sgRise { from { opacity: 0; transform: translateY(10px); } }
+.sg-tick { transform-origin: bottom; animation: sgTick 0.5s var(--ease-spring) both; }
+@keyframes sgTick { from { transform: scaleY(0.15); } }
+@media (prefers-reduced-motion: reduce) { .sg-rise, .sg-tick { animation: none !important; } }
 @media (hover: hover) { button.press:hover { transform: translateY(-1px); } button.press:active { transform: scale(0.95); } }
 
 /* Vote reveals — result settles in, bars grow, chips pop.
@@ -2062,7 +2103,6 @@ button.card:active,
 .pp-choice:hover { border-color: var(--pp-ink); transform: translateY(-1px); }
 .pp-choice::after { content: "→"; margin-left: auto; color: var(--pp-ink); font-weight: 800; }
 .pp-end { margin-top: 6px; }
-.pp-end b { font-size: 18px; font-weight: 800; color: var(--ink); }
 .pp-line { font-size: 13px; color: var(--ink-2); line-height: 1.45; margin-top: 3px; text-wrap: pretty; }
 .pp-chip {
   display: inline-flex; align-items: center; gap: 6px;

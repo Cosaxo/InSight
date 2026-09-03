@@ -19,7 +19,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MOD_QUEUE_PER_AUTHOR, overAuthorCap } from "./moderation";
+import { MOD_QUEUE_PER_AUTHOR, MOD_QUEUE_SIZE, overAuthorCap } from "./moderation";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -101,6 +101,39 @@ describe("the queue builder still asks the cap", () => {
     // than papered over with a looser pattern.
     expect(args.some((a) => a.startsWith('take.get("authorUid"')),
       "the take branch stopped capping by its author").toBe(true);
+  });
+
+  // THE HALF THIS FILE'S OWN HEADER PROMISED AND DID NOT DELIVER. It says
+  // the number "could be off by any amount or inverted with every gate
+  // green", and closed the inverted half only: every expectation above
+  // loops over `MOD_QUEUE_PER_AUTHOR` itself, which is a count compared
+  // against the source it is derived from. Measured — setting the cap to
+  // 25, where it equals the whole queue and binds nothing, left all 591
+  // functions tests green; the header's own example of raising it by five
+  // left them green too.
+  //
+  // At 25 the threat the constant's comment describes is back exactly as
+  // written: three free accounts and 75 flags occupy every slot with one
+  // author's takes, and every honest report waits a generation behind it.
+  //
+  // So the value is held literally, which is deliberate and not this
+  // repo's usual pattern. Most policy dials here are tested through their
+  // behaviour relative to the constant, on purpose — the constant is the
+  // operator's to tune. This one is the outlier its own header names: it
+  // may be tuned, but not SILENTLY, and a literal is the only assertion
+  // that makes a change to it a decision someone wrote down.
+  it("holds the cap at the value whose reasoning is written down", () => {
+    expect(MOD_QUEUE_PER_AUTHOR,
+      "the per-author cap moved — re-read moderation.ts's arithmetic and change this line deliberately").toBe(5);
+    // And the arithmetic that gives that number its meaning, so a change
+    // to EITHER side has to face it. The constant's comment claims "a cap
+    // of 5 makes filling the queue cost five authors rather than one";
+    // this is that sentence, executed.
+    expect(Math.ceil(MOD_QUEUE_SIZE / MOD_QUEUE_PER_AUTHOR),
+      "filling the queue no longer costs five authors — the cap and the queue size disagree with the comment").toBe(5);
+    // The floor under both: a cap at or above the queue size binds
+    // nothing at all, which is the failure mode that ran green.
+    expect(MOD_QUEUE_PER_AUTHOR).toBeLessThan(MOD_QUEUE_SIZE);
   });
 
   it("has no unguarded queue write beside them", () => {

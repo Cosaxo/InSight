@@ -301,6 +301,15 @@ const state = {
   // reveal time, NOT a standing subscription — 96 snapshots for cards
   // mostly never seen is the wrong cost shape.
   learnAggs: {} as Record<string, AggDoc | null>,
+  // …and which of those reads is STILL IN THE AIR. Without this the cache
+  // was pre-filled with null on the first call, so "the fetch has not come
+  // back" and "there is nothing there" were one value — and two surfaces
+  // rendered the second sentence for the first: "Nobody else has answered
+  // this one yet", about a card thousands may have answered, on every
+  // card's first paint. Its neighbours in this block keep the distinction
+  // and say why (`callOutcomes`, `feedAds`); this pool was the one that
+  // did not.
+  learnAggPending: {} as Record<string, true>,
   // First-attempt sends already fired this session (belt to the rules'
   // braces: the create-only rule is the real enforcement).
   learnSent: {} as Record<string, true>,
@@ -5708,6 +5717,28 @@ const LIVE = {
    */
   patternsSignal(): PatternsSignal {
     if (!this.enabled) return {};
+    // …and NOTHING once the account is going away. `torndown` is
+    // deleteAccount's first statement (and is unlatched again when the
+    // delete could not start), so this is exactly "there is no account
+    // here any more".
+    //
+    // Without it the purge undoes itself, in one turn and by design:
+    // deleteAccount calls purgeLocalTrace(), which removes the earned key
+    // and dispatches `insight:local-purge`; the shell's usePatternsTab
+    // hears that and setOpen(false); the effect re-runs on the changed
+    // `open` and immediately re-asks `patternsEarned(LIVE.patternsSignal())`
+    // — and the signal is still the DELETED account's, because
+    // `state.votes` is not emptied until the sign-out two statements later
+    // propagates to resetForNewUid. So the key is written straight back and
+    // the tab reopens, and the next fresh anonymous session on this device
+    // inherits a tab it never earned. That is the exact thing D265 says the
+    // purge is the only thing that closes, and has to be.
+    //
+    // patternsReady's own note reasons this cannot happen — correctly, but
+    // only about the UID-CHANGE path, where resetForNewUid empties the vote
+    // mirror before the event goes out. The two paths do not share that
+    // order; that note now says so.
+    if (torndown) return {};
     return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine: patternsMine() };
   },
   // ── Learn (D32) ──
@@ -5800,21 +5831,43 @@ const LIVE = {
   learnAgg(cardId: string): AggDoc | null {
     const qid = "learn-" + cardId;
     if (qid in state.learnAggs) return state.learnAggs[qid];
-    state.learnAggs[qid] = null;
+    // A read already in the air. Returning early is also what keeps one
+    // fetch per card: the cache used to be pre-filled with null for that
+    // job, which is what collapsed in-flight into fetched-absent.
+    if (state.learnAggPending[qid]) return null;
+    state.learnAggPending[qid] = true;
     void (async () => {
       try {
         const db = await getDb();
         const snap = await getDoc(doc(db, "v2_question_aggs", qid));
-        if (snap.exists()) {
-          state.learnAggs[qid] = snap.data() as AggDoc;
-          notify();
-        }
+        // A MISSING DOCUMENT IS AN ANSWER: nobody has answered this card.
+        // Caching that null is what lets the caller say so, and it is a
+        // different fact from the one above.
+        state.learnAggs[qid] = snap.exists() ? (snap.data() as AggDoc) : null;
       } catch (err) {
-        // Leave the null cache entry: the estimate stays up, labeled.
+        // Deliberately NOT cached: a read that failed is not a fact about
+        // the card, and leaving the key unset lets a later render try
+        // again. The comment here used to say "the estimate stays up,
+        // labeled" — D149 removed the estimate from live builds, so on
+        // error the card said nobody had answered, permanently.
         reportError(err, { where: "learnAgg", qid });
+      } finally {
+        delete state.learnAggPending[qid];
+        notify();
       }
     })();
     return null;
+  },
+
+  /**
+   * Is this card's aggregate still being read?
+   *
+   * The one thing a caller cannot tell from `learnAgg` alone, and the
+   * difference between "nobody has answered this" and "we have not looked
+   * yet". Callers render the first as a fact and the second as a wait.
+   */
+  learnAggLoading(cardId: string): boolean {
+    return !!state.learnAggPending["learn-" + cardId];
   },
   /**
    * The viewer's own first try on this card, and whether the cached
@@ -5846,29 +5899,52 @@ const LIVE = {
   async loadLearnAggs(cardIds: readonly string[]): Promise<void> {
     if (!this.enabled) return;
     const want = [...new Set(cardIds.map((id) => "learn-" + id))]
-      .filter((qid) => !(qid in state.learnAggs));
+      .filter((qid) => !(qid in state.learnAggs) && !state.learnAggPending[qid]);
     if (!want.length) return;
-    // Claimed before the await so a second plan build in the same tick
-    // does not re-request the same ids.
-    for (const qid of want) state.learnAggs[qid] = null;
+    // CLAIMED AS PENDING, NOT AS NULL — the same correction `learnAgg`
+    // above got, applied to the path the feed actually calls.
+    //
+    // This pre-filled the cache with null, exactly as `learnAgg` used to,
+    // and for the same stated reason: to stop a second plan build in the
+    // same tick re-requesting the same ids. That claim collapses "we have
+    // not looked yet" into "nobody has answered", and `learnAggLoading`
+    // stayed false throughout — so the fourth source `'loading'` that was
+    // added for this was unreachable on the feed's own route, which is
+    // the route every learn card is drawn on.
+    //
+    // The failure case is worse than the wait. The nulls used to STAND
+    // after a dropped request, so one failed batch made every card in it
+    // say nobody had answered — for the rest of the session, even once
+    // the network came back. A read that failed is not a fact about the
+    // card; the key is left unset so a later render tries again.
+    for (const qid of want) state.learnAggPending[qid] = true;
     try {
       const db = await getDb();
       const chunks: string[][] = [];
       for (let i = 0; i < want.length; i += 30) chunks.push(want.slice(i, i + 30));
       const snaps = await Promise.all(chunks.map((chunk) =>
         getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
-      let found = 0;
+      const seen = new Set<string>();
       for (const snap of snaps) {
         for (const d of snap.docs) {
           state.learnAggs[d.id] = d.data() as AggDoc;
-          found++;
+          seen.add(d.id);
         }
         state.stats.aggsFetched += snap.size;
       }
-      if (found) notify();
+      // A MISSING DOCUMENT IS AN ANSWER — nobody has answered this card —
+      // and it is a different fact from the read being in flight. Cached
+      // as null here, once the batch has come back, rather than before it
+      // went out.
+      for (const qid of want) if (!seen.has(qid)) state.learnAggs[qid] = null;
     } catch (err) {
-      // The null entries stand: the estimate renders, labeled as one.
+      // Deliberately NOT cached, `learnAgg`'s rule: a read that failed is
+      // not a fact about the card, and leaving the keys unset lets a later
+      // render try again.
       reportError(err, { where: "loadLearnAggs" });
+    } finally {
+      for (const qid of want) delete state.learnAggPending[qid];
+      notify();
     }
   },
   enabled: false,
