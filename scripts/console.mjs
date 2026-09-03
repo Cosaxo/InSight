@@ -85,7 +85,21 @@ async function ghAll(path) {
 }
 
 async function readGithub(missing) {
-  const g = { ok: false, error: null, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
+  // `rowsComplete` — WHETHER THE ROW SET IS ALL OF IT, which is not the
+  // same question as `ok`, and conflating them is a third way to lose an
+  // owner's approval with no trace.
+  //
+  // `ok` says the open-PR listing answered. The BRANCH rows come from two
+  // further reads, and both were swallowed into `missing` and fell back to
+  // nothing: a failed `/branches` yields no branch rows at all, a failed
+  // per-branch compare drops that one. `ok` stays true either way, so the
+  // merge list was rewritten from a row set that silently lacked them —
+  // and a row's tick lives in the file, drawn from its labels. No row, no
+  // tick, no action to retry, exit 0.
+  //
+  // This is the door the failed-action guard cannot see: that guard is
+  // anchored to the row, and the row is what goes missing.
+  const g = { ok: false, error: null, rowsComplete: true, prs: [], branches: [], merged: [], comments: {}, consoleIssue: null, mainCi: null, merges: [] };
   const step = async (name, fn) => { try { return await fn(); } catch (e) { missing.push(`${name} (${e.message.split("\n")[0].slice(0, 80)})`); return null; } };
   const prs = await step("open PRs", () => ghAll(`/repos/${REPO}/pulls?state=open&base=main`));
   if (prs === null) { g.error = missing[missing.length - 1]; return g; }
@@ -105,13 +119,17 @@ async function readGithub(missing) {
   }
   const openHeads = new Set(prs.map((p) => p.head.ref));
   const branches = await step("branches", () => ghAll(`/repos/${REPO}/branches`));
+  if (branches === null) g.rowsComplete = false;
   for (const b of branches || []) {
     if (!isNoPrBranch(b.name) || openHeads.has(b.name)) continue;
     // The branch name goes in raw: the compare route takes `base...head` as one
     // path segment and reads a slash inside a branch name correctly, while an
     // encoded slash is a different string to it.
     const cmp = await step(`compare ${b.name}`, () => gh(`/repos/${REPO}/compare/main...${b.name}`));
-    if (!cmp || !cmp.ahead_by) continue;
+    // A compare that FAILED and one that says the branch is not ahead are
+    // different answers; only the second is a reason to skip the row.
+    if (cmp === null) { g.rowsComplete = false; continue; }
+    if (!cmp.ahead_by) continue;
     const last = cmp.commits?.[cmp.commits.length - 1];
     g.branches.push({ name: b.name, aheadBy: cmp.ahead_by, lastCommitAt: last?.commit?.committer?.date || null, commits: (cmp.commits || []).map((c) => c.commit.message.split("\n")[0]) });
   }
@@ -214,7 +232,7 @@ export async function collect({ now = new Date() } = {}) {
     worklist, owner, axioms, visuals, permissions, register, lastSeen: seen, theory, pulse,
     rollCalls: rollCalls(ops, today), runLogs,
     productionReader: lastSeen(ops, "production reader"),
-    mainCi: github.mainCi, merges: github.merges, missing,
+    mainCi: github.mainCi, merges: github.merges, missing, rowsComplete: github.rowsComplete,
     ownerSteps: [
       ...ownerSteps(read("docs/AXES-RUNBOOK.md"), "docs/AXES-RUNBOOK.md"),
       ...ownerSteps(read("docs/PROGRAM-RUNBOOK.md"), "docs/PROGRAM-RUNBOOK.md"),
@@ -261,6 +279,21 @@ async function ensureLabel(api = gh) {
  * the decision would otherwise be untestable, which is how the second door
  * (a render-only run) stayed open after the first was closed.
  */
+/**
+ * May the merge list be rewritten from this run's rows?
+ *
+ * Two questions, and treating them as one is how the third door opened.
+ * `ok` says the open-PR listing answered. `rowsComplete` says the row set
+ * is ALL of it — a failed branch listing or a failed per-branch compare
+ * leaves `ok` true and the rows short, and rewriting then drops those rows
+ * and the owner's ticks on them.
+ *
+ * Exported for the same reason `holdsTheList` is: the decision is one
+ * boolean in a script that cannot be run without a token, so the only way
+ * it can be executed at all is as a function.
+ */
+export const listIsWritable = ({ ok, rowsComplete }) => !!ok && rowsComplete !== false;
+
 export const holdsTheList = ({ failed, actions, canApply }) =>
   failed.length > 0 || (actions.length > 0 && !canApply);
 
@@ -372,10 +405,19 @@ async function main() {
 
   // The list: only when GitHub answered — a render from nothing would erase
   // the owner's ticks with an empty page.
-  if (state.github.ok) {
+  if (listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete })) {
     writeFileSync(MERGE_LIST, renderMergeList({ rows: state.rows, merged: state.merged, generatedAt: state.generatedAt }));
     log("wrote docs/MERGE-LIST.md");
-  } else log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
+  } else if (!state.github.ok) {
+    log(`left docs/MERGE-LIST.md untouched — ${state.github.error}`);
+  } else {
+    // Rewriting now would drop the missing rows AND their ticks. Same
+    // posture as a rejected action: a red run over a stale list beats a
+    // green one over a list that is quietly wrong.
+    console.log("::warning::console: a branch listing did not answer — docs/MERGE-LIST.md left untouched so no tick is lost");
+    log("left docs/MERGE-LIST.md untouched — the branch rows are incomplete");
+    process.exitCode = 1;
+  }
 
   // The owner list's folded blocks.
   // `state.owner` null means the file is absent or its headings drifted;

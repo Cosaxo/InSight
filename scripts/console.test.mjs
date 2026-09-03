@@ -508,6 +508,48 @@ describe("when the list must be left alone", () => {
     expect(holdsTheList({ failed: [], actions: A, canApply: true })).toBe(false);
     expect(holdsTheList({ failed: [], actions: [], canApply: false })).toBe(false);
   });
+
+  // A THIRD DOOR, AND THE ONE THE GUARD ABOVE CANNOT SEE. `holdsTheList`
+  // is anchored to a row: a tick produces an action, and a failed action
+  // holds the list. But the branch rows come from two reads BELOW the one
+  // that sets `ok` — the branch listing, and a compare per branch — and
+  // both were swallowed and fell back to nothing. `ok` stayed true, the
+  // rows were short, and the list was rewritten without them. No row, no
+  // action, nothing for the guard to catch: the owner's tick on a
+  // `night-*` branch gone on a green run, exit 0.
+  //
+  // `PROGRAM-RUNBOOK.md` says ticks are "preserved by PR number and branch
+  // name". They are preserved by LABEL, and a branch row has no label.
+  it("refuses to rewrite the list when the branch rows are short", async () => {
+    const { listIsWritable } = await import("./console.mjs");
+    expect(listIsWritable({ ok: true, rowsComplete: false }),
+      "a short row set must not be written over the owner's ticks").toBe(false);
+    expect(listIsWritable({ ok: false, rowsComplete: true })).toBe(false);
+  });
+
+  it("still writes it when the rows are all there — the control", async () => {
+    // Without this, "never writable" passes the case above and freezes the
+    // merge list, which is the same loss pointed the other way.
+    const { listIsWritable } = await import("./console.mjs");
+    expect(listIsWritable({ ok: true, rowsComplete: true })).toBe(true);
+    // Absent rather than false: a caller that predates the flag must not
+    // be read as reporting a gap.
+    expect(listIsWritable({ ok: true })).toBe(true);
+  });
+
+  it("marks the row set short at both reads that can drop a row", () => {
+    // The predicate is only worth having if something sets the flag. Two
+    // sites do — the branch listing and the per-branch compare — and each
+    // is a different failure: one loses every branch row, the other loses
+    // one. A source scan because `readGithub` needs a token to run.
+    const src = read("scripts/console.mjs");
+    const sites = [...src.matchAll(/rowsComplete = false/g)];
+    expect(sites.length, "a read that can drop a branch row stopped reporting it").toBe(2);
+    // …and the compare's own two answers stay distinguished: a failed
+    // compare is not the same as a branch that is not ahead.
+    expect(src).toContain("if (cmp === null) { g.rowsComplete = false; continue; }");
+    expect(src).toContain("if (!cmp.ahead_by) continue;");
+  });
 });
 
 // ── the console must not un-tick the owner ──────────────────────────
