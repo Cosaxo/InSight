@@ -2784,6 +2784,38 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
     expect((await readAnsCache()).votes).toEqual({});
   });
 
+  it("stops answering the patterns gate, so the purge cannot undo itself", async () => {
+    // The gate the Patterns tab mounts on (D265) is REMEMBERED in an
+    // insight.* key, and `patternsEarned` re-writes that key whenever the
+    // live signal still passes. deleteAccount purges local trace and only
+    // THEN signs out, so between the two the in-memory vote mirror is
+    // still the deleted account's — and the shell's own purge listener
+    // shuts the tab, which re-runs its effect, which re-asks the gate. The
+    // key went straight back and the tab reopened, mid-deletion, and the
+    // next fresh anonymous session on this device inherited it.
+    //
+    // patternsReady's arm cannot close this: it drops the key on the same
+    // event, and the re-write happens after. What closes it is the SIGNAL
+    // going empty for every reader at once, which is what teardown means.
+    const LIVE = await bootLive();
+    await captureCallable();
+    LIVE.vote("q_1", "0");
+    await flush();
+    // Populated before, or the assertion after would pass on an empty
+    // fixture rather than on the guard.
+    expect(
+      LIVE.patternsSignal(),
+      "the fixture never had a signal, so this case proves nothing",
+    ).not.toEqual({});
+
+    await LIVE.deleteAccount();
+
+    expect(
+      LIVE.patternsSignal(),
+      "the signal still answers after teardown — patternsEarned will re-write the key the purge just removed",
+    ).toEqual({});
+  });
+
   it("unlatches teardown when the wipe is refused, so the session survives", async () => {
     // index.ts refuses the auth delete whenever ANY wipe phase failed, and
     // every network timeout lands here too — while LivePrivacyPanel keeps

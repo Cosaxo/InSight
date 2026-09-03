@@ -158,8 +158,21 @@ jobs:
       # stays the signal and nothing here can turn a red day green. No
       # `| tee`, on purpose: the response is captured and appended, so the
       # step's exit status is curl's own.
+      # `failure()` IS LOAD-BEARING, not decoration. A step `if` that names no
+      # status-check function gets an implicit `success()` ANDed onto it — and
+      # `success()` is false precisely when an earlier step failed, which is
+      # the only state that makes `steps.gate.outcome == 'failure'` true. The
+      # two clauses were mutually exclusive, so this step had never run and
+      # could not: the responder was wired to a condition that cannot hold.
+      #
+      # `failure()` rather than `always()`: this job sets
+      # concurrency.cancel-in-progress, and `always()` would fire a responder
+      # session for a run that was superseded. The `steps.gate.outcome` clause
+      # stays, and is what keeps it precise — if "Record today's row" is what
+      # failed, the gate is skipped, its outcome is 'skipped', and this
+      # correctly stays quiet.
       - name: Fire the pulse responder
-        if: ${{ steps.gate.outcome == 'failure' && github.event_name == 'schedule' }}
+        if: ${{ failure() && steps.gate.outcome == 'failure' && github.event_name == 'schedule' }}
         env:
           ROUTINE_URL: ${{ vars.ROUTINE_PULSE_FIRE_URL }}
           ROUTINE_TOKEN: ${{ secrets.ROUTINE_PULSE_FIRE_TOKEN }}

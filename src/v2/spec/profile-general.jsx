@@ -102,9 +102,42 @@ import {
   // answerAnchors() stamped it onto every answer after that. Answers are
   // create-only (D5), so the ones already written have no correction path —
   // which is why the guard has to hold on every mount, not the first.
+  //
+  // …and the empty map the live branch used to return was the OTHER half
+  // of the same bug, pointed at a second device. `{ vitals: {} }` is not
+  // "no opinion", it is a complete profile whose every field is blank, and
+  // the persist effect below writes the anchors derived from it wholesale
+  // — so opening the profile on a phone that had never seen the panel
+  // erased the anchors the laptop wrote, and every answer after that was
+  // stamped anchorless. Seed from the account instead: the anchors ARE the
+  // account's own last word on these fields, and `anchorsFrom` recovers all
+  // ten keys from this seed unchanged (calcAge returns '' with no `born`, so
+  // `exact` falls through to `v.age`; country and jobField re-derive from
+  // city and job). `loadGen`'s merge order keeps the local blob authoritative
+  // where it has a value, so the residue repair above is untouched.
+  //
+  // Bare `LIVE`, the import at the head of the file — not `window.LIVE`,
+  // which would add a counted reference under D39 rule 4. (This sentence
+  // said "a file already carrying three" beside that citation, and three
+  // is the number of `window.LIVE` SITES, not the file's rule-4 count,
+  // which is 13 — read it off `check:globals`, never from here.) `|| {}`
+  // is a data guard, not a load-order one: an imported binding cannot be
+  // unset, but a store with no profile yet can answer {}.
   function baseFor(live) {
     if (!live) return seedFromData();
-    return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
+    const a = LIVE.anchors() || {};
+    return {
+      vitals: {
+        age: a.age || '',
+        gender: a.gender || '',
+        city: a.city || '',
+        education: a.education || '',
+        job: a.profession || '',
+        relationship: a.relationship || '',
+        heightBand: a.heightBand || '',
+      },
+      interests: [], likes: [], dislikes: [], heroes: [],
+    };
   }
 
   // One-time carry-over from GKEY_V1, which on a device that ran the build
@@ -626,9 +659,35 @@ import {
     // device stops stamping the sample persona onto new answers. Suppressing
     // the mount write to save a Firestore write would leave the fabricated
     // anchors exactly where they are.
+    //
+    // …and the seed in `baseFor` does not close it on its own, because
+    // `useState(loadGen)` runs exactly once: a panel that mounts before
+    // `v2_users/{uid}` has hydrated seeds from an empty map however good the
+    // seeding rule is, and this wholesale write then erases the account.
+    // Refuse that one write. An all-empty derived map is always accidental
+    // here — every Basics select opens on a `disabled` placeholder and offers
+    // no path back to it, and the city control is a picker — so a user cannot
+    // blank all ten by hand. Clearing ONE field still writes, because the
+    // rest of the map is not empty.
+    //
+    // Not `saveAnchors({ ...LIVE.anchors(), ...anchorsFrom(v) })`, the shape
+    // that suggests itself: `anchorsFrom` returns all ten keys always, empty
+    // strings included, so the spread overwrites the account with blanks and
+    // the merge is a no-op.
+    //
+    // Residual, deliberately not chased: on that race the Basics card also
+    // DISPLAYS empty, because loadGen has already run. The account's anchors
+    // are safe and the next edit writes correctly; re-seeding state after
+    // hydration needs a subscription that could clobber a field typed in the
+    // meantime, which is the worse trade.
     useEffect(() => {
       if (anchorsJson == null) return;
-      try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
+      try {
+        const next = JSON.parse(anchorsJson);
+        const blank = Object.values(next).every((v) => !v);
+        if (blank && Object.values(LIVE.anchors() || {}).some((v) => v)) return;
+        window.LIVE.saveAnchors(next);
+      } catch (e) { /* best-effort */ }
     }, [anchorsJson]);
 
     return (

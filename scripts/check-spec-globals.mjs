@@ -461,7 +461,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/mirror-field-pops.jsx": 23,
   "src/v2/spec/mirror-tab.jsx": 6,
   "src/v2/spec/passive-progress.js": 2,
-  "src/v2/spec/person-mindmap.jsx": 4,
+  "src/v2/spec/person-mindmap.jsx": 3,
   "src/v2/spec/person-overlay.jsx": 2,
   "src/v2/spec/profile-general.jsx": 13,
   "src/v2/spec/profile-overlay.jsx": 4,

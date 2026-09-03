@@ -15,7 +15,7 @@
 // "everyone scored zero" and renders a perfectly convincing flat line.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 
 const DAYS = 21;
 
@@ -23,6 +23,9 @@ const h = vi.hoisted(() => ({
   days: [] as unknown[],
   series: [] as unknown[],
   trendCalls: [] as string[],
+  trendReady: true,
+  /** Set to a promise that never settles to hold the panel in "reading". */
+  trendPromise: null as Promise<void> | null,
 }));
 
 const step = (v: number, label: string) => ({ v, label });
@@ -41,7 +44,12 @@ vi.mock("../data/pulse", () => ({
     streak: () => 0,
     fmtN: (n: number) => String(n),
     cadence: () => "daily",
-    ensureTrend: (pid: string) => { h.trendCalls.push(pid); return Promise.resolve(); },
+    ensureTrend: (pid: string) => { h.trendCalls.push(pid); return h.trendPromise ?? Promise.resolve(); },
+    // The mock is wholesale, so a new member has to be added here or every
+    // case throws. Default true — these eight cases hand `scope()` a fully
+    // populated window and are about what the panel DRAWS from one, not
+    // about the read. `h.trendReady` is the one knob the unread case turns.
+    trendReady: () => h.trendReady,
     subscribe: () => () => {},
   },
 }));
@@ -68,7 +76,7 @@ const setScope = (i: number, over: Record<string, unknown>) => {
   h.series[i] = { ...(h.series[i] as object), ...over };
 };
 
-beforeEach(() => { blank(); h.trendCalls = []; localStorage.clear(); });
+beforeEach(() => { blank(); h.trendCalls = []; h.trendReady = true; h.trendPromise = null; localStorage.clear(); });
 afterEach(() => cleanup());
 
 const mount = async () => {
@@ -191,6 +199,61 @@ describe("PulseTrends · it asks for the window it draws", () => {
       await mount();
       expect(h.trendCalls, "the panel drew a window it never asked for")
         .toContain("pulse-pace");
+    })();
+  });
+});
+
+// ── the crowd's half may not speak before it has been read ──
+//
+// `aggFor` answers null for "fetched, nobody answered" and "never fetched"
+// alike, and every case above hands `scope()` a window that HAS landed —
+// which is why eight of them passed while the panel was telling a viewer in
+// Oslo that nobody there had answered in three weeks. These two hold the
+// window unread and assert the four sentences that were wrong, by the words
+// a reader would see. Your own half is asserted present in both, because a
+// latch that silences the whole panel is the other way to be useless.
+describe("PulseTrends · an unread window is not an empty one", () => {
+  const mine = () => { setDay(0, { v: 3 }); setDay(DAYS - 1, { v: 3 }); };
+
+  it("says it is reading rather than reporting a silence it has not checked", () => {
+    return (async () => {
+      mine();
+      h.trendReady = false;
+      h.trendPromise = new Promise<void>(() => { /* never settles */ });
+      await mount();
+      const t = () => document.body.textContent || "";
+      expect(t(), "the panel said it was reading nothing").toMatch(/Reading Oslo/);
+      expect(t(), "reported days with no answers before reading any")
+        .not.toMatch(/days with no answers in Oslo/);
+      expect(t(), "counted placed days out of a window it had not read")
+        .not.toMatch(/of 21 days/);
+      expect(t(), "called an unread crowd 'not a trend yet'").not.toMatch(/not a trend yet/);
+      expect(t(), "claimed every day had both sides").not.toMatch(/every day here has both sides/);
+      // …and the half that IS in hand keeps drawing: your word for the
+      // selected day, and your own count in the foot line.
+      expect(t(), "your own line stopped drawing while the crowd loaded").toMatch(/Steady/);
+      expect(t(), "your own count went missing").toMatch(/you: 2/);
+    })();
+  });
+
+  it("says the read failed rather than falling back to a silence", () => {
+    return (async () => {
+      // `ensureTrend` settles and the window is STILL not in hand — offline,
+      // or a refused read. The old effect had no path out of this at all:
+      // its deps never change, so the false silence stood for the life of
+      // the mount.
+      mine();
+      h.trendReady = false;
+      await mount();
+      const t = () => document.body.textContent || "";
+      // The settle lands a microtask after the render, so the assertion has
+      // to wait for it — asserting straight off `mount()` reads the
+      // "reading" frame and passes for the wrong reason.
+      await waitFor(() => expect(t(), "a failed read was reported as a crowd that said nothing")
+        .toMatch(/Couldn\u2019t read Oslo/));
+      expect(t()).not.toMatch(/days with no answers in Oslo/);
+      expect(t()).not.toMatch(/of 21 days/);
+      expect(t(), "your own count went missing").toMatch(/you: 2/);
     })();
   });
 });

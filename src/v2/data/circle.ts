@@ -304,14 +304,39 @@ export async function fetchAnswersOf(
   return out;
 }
 
-/** Follow someone. Idempotent — re-following an existing row rewrites it. */
+/**
+ * Follow someone.
+ *
+ * NOT idempotent at the rules layer, whatever this docstring used to say.
+ * `firestore.rules` has `allow update: if false` on this row, and a
+ * non-merge `setDoc` onto a document that already exists is an UPDATE in
+ * rules terms rather than a create — the rules suite pins that shape in
+ * three places. So a re-follow of somebody already followed is
+ * PERMISSION_DENIED, and the caller's optimistic state is rolled back:
+ * the row stays, the button springs back, and nothing says why.
+ *
+ * Reachable whenever the caller's own `isFollowing` reads false against a
+ * row that exists — a member dropped from the fold by a failed answer
+ * read, the read breaker, or the window before the follow list lands.
+ *
+ * Swallowing permission-denied is safe HERE and only here, because every
+ * other way this write can be refused is already impossible at this call
+ * site: `me` is the authenticated uid, `me === target` returns above, and
+ * `to`/`at` are built to the rule's exact shape. What is left is "the row
+ * is already there", which is success for the caller — and letting it
+ * through is what lets the caller's own refresh run.
+ */
 export async function follow(db: Firestore, me: string, target: string): Promise<void> {
   if (!me || !target || me === target) return;
-  await setDoc(doc(db, "v2_users", me, "following", target), {
-    at: serverTimestamp(),
-    // Pinned equal to the doc id by the rules; see firestore.rules.
-    to: target,
-  });
+  try {
+    await setDoc(doc(db, "v2_users", me, "following", target), {
+      at: serverTimestamp(),
+      // Pinned equal to the doc id by the rules; see firestore.rules.
+      to: target,
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code !== "permission-denied") throw err;
+  }
 }
 
 export async function unfollow(db: Firestore, me: string, target: string): Promise<void> {

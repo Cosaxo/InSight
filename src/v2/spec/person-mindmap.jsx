@@ -90,8 +90,27 @@ function pmmBuild(p) {
     // agreement. Falls back on a demo build, where the demo id is the only
     // id there is.
     const qid = q.liveId || q.id;
-    const gd = window.MapStats ? window.MapStats.dist(qid, 'all', n, mineIdx) : null;
-    const majIdx = gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
+    const MS = window.MapStats;
+    const gd = MS ? MS.dist(qid, 'all', n, mineIdx) : null;
+    // ASK for the mode, exactly as map-tab does. `gd` is ROUNDED, and two
+    // different counts can print the same integer — so `indexOf(max)`
+    // breaks a real tie by INDEX, and `maj` below is what marks a dot a
+    // rare take. Counts [449, 451, 100] print [45, 45, 10]: index 0 wins
+    // by two votes it did not get, the person is drawn answering the
+    // option that lost, and the card says "a rare take" under an answer
+    // 451 people in 1000 gave.
+    //
+    // Dead here until today: while `dist` was asked with the demo id it
+    // returned null for every live question and this line always fell to
+    // the hash. The commit that fixed the id woke the tie defect in the
+    // block it edited — the same activation the Map's own twin recorded
+    // one file over, and the same fix, which this file did not get.
+    //
+    // Demo-identical: `mode()` there is `dist(...).indexOf(max)` on the
+    // same arguments, so nothing about the demo map moves.
+    const asked = MS ? MS.mode(qid, 'all', n, mineIdx) : null;
+    const majIdx = asked != null ? asked
+      : gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
     let aidx;
     if (mineIdx != null && H('agree' + q.id) < agreeP) aidx = mineIdx;
     else {

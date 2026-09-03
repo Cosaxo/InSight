@@ -98,7 +98,21 @@ import NAV from '../data/nav';
   function GroupAnswersCard({ g }) {
     const P = DUELS.groupPortrait(g.id);
     const rows = [];
-    for (let i = 1; i < 7; i++) {
+    // BOUNDED BY THE GROUP'S OWN HISTORY, not by a constant. `groupDays`
+    // is that history plus today, so its length - 1 is exactly `histDays`
+    // in duels-data.js — 0 for a group you made this morning, 6 for the
+    // seeded ones. This loop ran to 7 regardless, so a new group drew six
+    // days of verdicts nobody had given, under a header reading "0 days
+    // played" (P.days, which is groupPortrait's count and does honour
+    // histDays). Blame puts the loop and histDays in the same commit —
+    // but that commit is 96919bce7, the wholesale port of the frozen
+    // prototype, so the divergence arrived WITH the prototype rather than
+    // from someone adding histDays and missing a consumer. Either way it
+    // is not a later convention the seeded groups rely on: the three other
+    // consumers, groupDays, groupAlignment and groupPortrait, all bound by
+    // histDays from that same commit.
+    const hist = DUELS.groupDays(g.id).length - 1;
+    for (let i = 1; i <= hist; i++) {
       const gp = DUELS.groupPicks(g.id, i);
       const total = gp.counts.reduce((a, b) => a + b, 0) || 1;
       rows.push({ i, prompt: gp.q.prompt, maj: gp.q.options[gp.majority], n: total, k: gp.counts[gp.majority], mine: gp.mine, agree: gp.mine != null && gp.mine === gp.majority, mineLabel: gp.mine != null && gp.mine !== gp.majority ? gp.q.options[gp.mine] : null });
@@ -112,8 +126,14 @@ import NAV from '../data/nav';
           <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{P.days} days played</span>
         </div>
         <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column' }}>
+          {/* The card's own empty state rather than a blank tab. The
+              header already counts the days; this says why there are
+              none. */}
+          {!rows.length && (
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', padding: '6px 0' }}>This group starts today.</span>
+          )}
           {rows.map((r) => (
-            <button type="button" className="btn-bare" key={r.i} aria-expanded={open === r.i} onClick={() => setOpen(open === r.i ? null : r.i)} style={{ padding: '11px 0', borderBottom: r.i < 6 ? LINE : 'none', cursor: 'pointer' }}>
+            <button type="button" className="btn-bare" key={r.i} aria-expanded={open === r.i} onClick={() => setOpen(open === r.i ? null : r.i)} style={{ padding: '11px 0', borderBottom: r.i < hist ? LINE : 'none', cursor: 'pointer' }}>
               <div style={{ fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--ink)', textWrap: 'pretty' }}>{r.maj}</div>
               <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
                 {Array.from({ length: r.n }).map((_, j) => {
