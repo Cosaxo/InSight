@@ -104,10 +104,13 @@ import NAV from '../data/nav';
     // seeded ones. This loop ran to 7 regardless, so a new group drew six
     // days of verdicts nobody had given, under a header reading "0 days
     // played" (P.days, which is groupPortrait's count and does honour
-    // histDays). Blame puts the loop and histDays in the same commit
-    // (96919bce7): an omission inside one change, not a convention — the
-    // three other consumers, groupDays, groupAlignment and groupPortrait,
-    // all bound by it.
+    // histDays). Blame puts the loop and histDays in the same commit —
+    // but that commit is 96919bce7, the wholesale port of the frozen
+    // prototype, so the divergence arrived WITH the prototype rather than
+    // from someone adding histDays and missing a consumer. Either way it
+    // is not a later convention the seeded groups rely on: the three other
+    // consumers, groupDays, groupAlignment and groupPortrait, all bound by
+    // histDays from that same commit.
     const hist = DUELS.groupDays(g.id).length - 1;
     for (let i = 1; i <= hist; i++) {
       const gp = DUELS.groupPicks(g.id, i);

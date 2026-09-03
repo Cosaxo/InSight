@@ -116,10 +116,13 @@ import {
   // city and job). `loadGen`'s merge order keeps the local blob authoritative
   // where it has a value, so the residue repair above is untouched.
   //
-  // Bare `LIVE`, the import at the head of the file — not `window.LIVE`, which
-  // would add a counted reference to a file already carrying three (D39
-  // rule 4). `|| {}` is a data guard, not a load-order one: an imported
-  // binding cannot be unset, but a store with no profile yet can answer {}.
+  // Bare `LIVE`, the import at the head of the file — not `window.LIVE`,
+  // which would add a counted reference under D39 rule 4. (This sentence
+  // said "a file already carrying three" beside that citation, and three
+  // is the number of `window.LIVE` SITES, not the file's rule-4 count,
+  // which is 13 — read it off `check:globals`, never from here.) `|| {}`
+  // is a data guard, not a load-order one: an imported binding cannot be
+  // unset, but a store with no profile yet can answer {}.
   function baseFor(live) {
     if (!live) return seedFromData();
     const a = LIVE.anchors() || {};
