@@ -1,20 +1,26 @@
 {
   "version": 1,
   "axiom": "review",
-  "updated": "2026-09-01",
+  "updated": "2026-09-03",
   "nodes": [
     {
       "id": "rev-1",
       "claim": "A lane's work is scored against the charter's own clauses turned into measures, never against sibling lanes: a score is a reading of the contract, and a score without its evidence line is not a score.",
       "status": "argued",
-      "detail": "The six dimensions in RUBRIC.md are not tastes: each is a clause of CHARTER.md (the §1 purpose, the §1 perfection licence, the §3 ratchet, the §4/§9 ladder, the §1 cross-connection rule, the §6 five-minute reader) restated as something countable — statuses moved, edges resolving, sources that exist and say what is claimed, words per node. Scoring against the contract rather than against siblings has two consequences the seed records deliberately. First, lanes with different subjects stay comparable only on the contract, so a ranking of lanes against each other is never a verdict — the digest may print the table, but the meaning of a 6 is the same clause met the same way in every lane. Second, the evidence line is the score's basis in the product's own sense (docs/MIRROR.md's rule that every reading states its basis): a number that cannot be recounted by a reader is exactly the unfalsifiable stored boolean the product refuses (D126's 'correct is derived, never stored'), so the ledger stores the count and the number together. Falsifier: if two reviewers given the same evidence lines produce scores more than two points apart on the same dimension, the anchors are under-specified and the rubric bumps.",
+      "detail": "The six dimensions in RUBRIC.md are not tastes: each is a clause of CHARTER.md (the §1 purpose, the §1 perfection licence, the §3 ratchet, the §4/§9 ladder, the §1 cross-connection rule, the §6 five-minute reader) restated as something countable — statuses moved, edges resolving, sources that exist and say what is claimed, words per node. Scoring against the contract rather than against siblings has two consequences the seed records deliberately. First, lanes with different subjects stay comparable only on the contract, so a ranking of lanes against each other is never a verdict — the digest may print the table, but the meaning of a 6 is the same clause met the same way in every lane. Second, the evidence line is the score's basis in the product's own sense (docs/MIRROR.md's rule that every reading states its basis): a number that cannot be recounted by a reader is exactly the unfalsifiable stored boolean the product refuses (D126's 'correct is derived, never stored'), so the ledger stores the count and the number together. Falsifier: if two reviewers given the same evidence lines produce scores more than two points apart on the same dimension, the anchors are under-specified and the rubric bumps. Re-warranted 2026-09-03 against cen-7 as rewritten 2026-09-02 (central's relay): cen-7 gained a sixth clause — the as-of pin from db-9 — and the refines edge survives with the analogue named: a score is a declared object the way a published coupling is, and its pin is the window and the rubric version every ledger entry carries (scores.json names both), so a score read across a rubric bump or outside its window is misread exactly as a coupling read without its as-of pin would be. Nothing in the rewrite loosens the refinement.",
       "sources": [],
       "edges": [
-        { "to": "go-10", "type": "supports" },
-        { "to": "cen-7", "type": "refines" }
+        {
+          "to": "go-10",
+          "type": "supports"
+        },
+        {
+          "to": "cen-7",
+          "type": "refines"
+        }
       ],
       "created": "2026-09-01",
-      "updated": "2026-09-01"
+      "updated": "2026-09-03"
     },
     {
       "id": "rev-2",
@@ -23,8 +29,14 @@
       "detail": "Every lane runs an adversarial subagent before landing (§3 step 4) and the digest reports every citation checked with zero fabrications found — by the lanes themselves. The product side names the limit of that design: a reviewing run shares its generator's tilt (D162's correlated-blind-spot rule, the reason the build lane's skeptic is a separate session). The review lane is that separate session for the theory layer. Its spot-check is scoped to what moved — at least two `cited` sources per lane among nodes risen or added since the last review — because that is where an invented or over-read source enters, and a source that does not exist or does not say what the node claims is the one sin §4 calls unrecoverable. The finding is named by node id in the lane's FEEDBACK.md and in SCORES.md, lowers Rigorous, and is the lane's to fix (demote, loudly — §11's source-rot rule); the review never edits the node. Limit, stated: the container may not reach publisher pages (the database lane's own note), so a check that could only reach an abstract or an index says so and does not count a source as verified beyond what it could read.",
       "sources": [],
       "edges": [
-        { "to": "rev-1", "type": "depends" },
-        { "to": "go-6", "type": "supports" }
+        {
+          "to": "rev-1",
+          "type": "depends"
+        },
+        {
+          "to": "go-6",
+          "type": "supports"
+        }
       ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
@@ -36,8 +48,14 @@
       "detail": "The charter's ratchet (§3) already refuses growth without motion; this claim gives Effective its second half — the direction of the motion. Lakatos' distinction between a progressive and a degenerating research programme (novel predictions versus post-hoc accommodation) transposes cleanly onto a claims graph: a progressive lane's new nodes carry falsifiers and its contradicts edges get opened and resolved by revision (the program's first, tst-6→cen-1, closed in three days by central rewriting its claim); a degenerating lane's new nodes restate, widen scope to absorb objections, and bloat — go-7's detail-budget signal, 40% of nodes over budget in the first week's digest, is the measurable face of accommodation. So Effective counts status motion AND reads its direction: fission that conserved argument scores above fission that conserved words, and a resolved contradiction scores above ten new argued nodes. To cited: Lakatos, 'Falsification and the Methodology of Scientific Research Programmes' (1970), and Popper on falsifiability as the demarcation the anchors lean on — both to be read, not assumed, before this node rises.",
       "sources": [],
       "edges": [
-        { "to": "go-7", "type": "depends" },
-        { "to": "go-11", "type": "supports" }
+        {
+          "to": "go-7",
+          "type": "depends"
+        },
+        {
+          "to": "go-11",
+          "type": "supports"
+        }
       ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
@@ -49,8 +67,14 @@
       "detail": "The optimizer measured the mechanism this claim rests on: across fresh-session lanes a convention lives only where an artifact enforces it, and convergence needs an ACTIVE channel — an enforced artifact, central's QUESTIONS relay (5-for-5), or in-lane adversarial re-derivation (go-10, restated 2026-09-01). A score published in a ledger nobody is required to read is a passive channel and would not converge anything. FEEDBACK.md in each lane's own directory, read in the Orient step by contract (§3), answered in the LOG row by contract (§3 step 5), and re-scored by the next review, is an active channel of the QUESTIONS kind — with the response half central's relay lacks. The cap of three and the one-run actionability bound come from the ratchet's unit: a lane's run is one bounded improvement, so feedback that cannot be taken in one run is a plan, not an item. A decline with a reason is a legitimate answer (a lane knows its subject; the reviewer knows the contract), and it is also the reviewer's own falsifier — see rev-6.",
       "sources": [],
       "edges": [
-        { "to": "go-10", "type": "depends" },
-        { "to": "rev-1", "type": "depends" }
+        {
+          "to": "go-10",
+          "type": "depends"
+        },
+        {
+          "to": "rev-1",
+          "type": "depends"
+        }
       ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
@@ -58,15 +82,21 @@
     {
       "id": "rev-5",
       "claim": "Usefulness to the product is the distance between a claim and a bridge request: the most useful theory work is the work that produces a request central can rule worth-building, so Useful is scored on the request pipeline, not on the eloquence of the claim.",
-      "status": "conjecture",
-      "detail": "",
+      "status": "argued",
+      "detail": "The first review (2026-09-03) is the evidence. Eight REQUESTS rows were filed in the window (genetic, body, questions, tests, map, pattern, database ×2) and every one earned a verdict within a day — six worth-building, two needs-owner — plus two rulings on earlier rows; the open queue went to zero. Useful was scored on that pipeline and the scores tracked it exactly: every lane that filed a row sits at 8, the one lane whose only verdict was needs-owner with present value priced at zero sits at 7, and the two seeded lanes with no row sit at 6 on couplings-that-name-their-instrument alone. What the pipeline could not distinguish on its own was the value of a verdict: worth-building and needs-owner are both 'another lane used it' in the anchor's words, so the rubric ordering (worth-building > not-yet > none) was read with needs-owner between them, which is the between-anchor score. Re-warranted the same day against cen-2 as revised 2026-09-02 (crowd value identified only against co-observed axes, set-valued elsewhere): the dependence survives and sharpens — a request that names the pair of axes it would make co-observed is the useful shape, and the pairing ledger (pattern, 09-02) is the example. Falsifier: a lane whose request is ruled not-yet while three siblings consume its claims in the same window would show usefulness and the pipeline coming apart; central's 08-28 not-yet on genetic's factor-scoring row, ruled while gen-3 was being consumed, is the case to re-read at the next review.",
       "sources": [],
       "edges": [
-        { "to": "cen-2", "type": "depends" },
-        { "to": "rev-1", "type": "refines" }
+        {
+          "to": "cen-2",
+          "type": "depends"
+        },
+        {
+          "to": "rev-1",
+          "type": "refines"
+        }
       ],
       "created": "2026-09-01",
-      "updated": "2026-09-01"
+      "updated": "2026-09-03"
     },
     {
       "id": "rev-6",
@@ -75,10 +105,36 @@
       "detail": "",
       "sources": [],
       "edges": [
-        { "to": "rev-4", "type": "refines" }
+        {
+          "to": "rev-4",
+          "type": "refines"
+        }
       ],
       "created": "2026-09-01",
       "updated": "2026-09-01"
+    },
+    {
+      "id": "rev-7",
+      "claim": "The rubric's Legible count 'a LOG row that says what moved in one line' collides with the charter's own duties for that row, so the measure is the row's lead line, not its length: a row with no lead line is illegible however short, and a long row with a forty-word lead is legible.",
+      "status": "argued",
+      "detail": "Measured at the first review: eleven lanes, LOG rows of 51 to 782 words, and every lane that ran landed a row over 200 words. Read against the contract, the length is not the lanes' failure. CHARTER §3 step 4 requires an adversarial pass and §12 counts its record — verdict and counts — under Rigorous; §12 requires each feedback item answered in the same row; §7 forbids central fixing a sibling's stale reference, so the row is where a lane flags it. A row that carried only 'what moved in one line' would delete what Rigorous counts and what §7 routes, so scoring the rows at 4 for their length and then asking for a cap would have asked the lanes to break one clause to satisfy another — the exact clause collision rev-1's falsifier anticipates. The fix is a measure that reads the row's shape: a lead line naming what moved (ids, from→to, requests filed, the adversarial verdict with its counts), with the audit trail below it under its own label. That is what the digest can quote whole and what a five-minute reader needs; it costs a lane nothing it is not already writing. RUBRIC v1.1 makes the bump; the first review scored under v1 and says so in every evidence line. Two more rubric gaps the same review surfaced and wrote down rather than scored: a lane whose factual surface is not cited nodes — central's product facts in bridge verdicts, the optimizer's measurements of the branch — has no spot-check surface under §12's wording, which is recorded as 'not applicable' and neither raises nor lowers Rigorous; and a lane seeded but not yet fired scores Effective 0 by the anchor's letter with the other five marked as a seed baseline. Falsifier: if lanes adopt lead lines and the digest still cannot quote a row whole, or the lead lines drift back to summaries of everything, the measure is wrong and the row needs a different shape, not a cap.",
+      "sources": [],
+      "edges": [
+        {
+          "to": "rev-1",
+          "type": "refines"
+        },
+        {
+          "to": "go-10",
+          "type": "depends"
+        },
+        {
+          "to": "go-7",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-09-03",
+      "updated": "2026-09-03"
     }
   ]
 }

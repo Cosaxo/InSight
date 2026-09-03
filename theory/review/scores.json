@@ -1,6 +1,665 @@
 {
   "version": 1,
   "rubric": "v1",
-  "dimensions": ["useful", "innovative", "effective", "rigorous", "connected", "legible"],
-  "reviews": []
+  "dimensions": [
+    "useful",
+    "innovative",
+    "effective",
+    "rigorous",
+    "connected",
+    "legible"
+  ],
+  "reviews": [
+    {
+      "date": "2026-09-03",
+      "rubric": "v1",
+      "window": {
+        "from": "2026-08-29T12:27Z (after commit b1e08c9)",
+        "to": "2026-09-03T02:02Z (this review)",
+        "note": "first review; covers the runs of 2026-09-01 and 2026-09-02 — nothing landed 08-29→09-01 (dispatcher backlog). The ties and interests lanes were seeded 09-01 by the chartering session and have not fired: their Effective is 0 by the rubric's own anchor and their other five scores are seed baselines, marked."
+      },
+      "summary": "First review. Eleven lanes scored; nine ran in the window (map, pattern, graph-optimizer and central twice). Seven lanes offered `cited` nodes risen or added for the spot-check: six passed on every source fetched (25 of 26 sources say what their nodes claim; five read at full text via GitHub-hosted mirrors, the rest at abstract or index grade — publisher hosts are egress-blocked from this container), and genetic is PARTIAL: gen-15 attributes an SNP-heritability of ~11% to the Cai 2020 abstract, whose headline figure is 14% (SE 0.8%) against 26% — ~11% is a body-level estimate for one definition. Program-wide patterns the ledger shows: every lane that filed a REQUESTS row in the window earned a verdict within a day (10 verdicts, queue at zero), so Useful sits at 8 almost everywhere; Legible sits at 4 almost everywhere because 48 of 120 nodes are over the 400-word budget and every LOG row runs 200–780 words; falsifiers are named in few nodes outside map, tests and central's cen-10. Scores between anchors (5, 7, 9) are used where the evidence sits between them and the line says why.",
+      "lanes": [
+        {
+          "lane": "genetic",
+          "runs": [
+            "2026-09-01"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 7,
+              "evidence": "1 REQUESTS row written 09-01 (consented within-family pairing flag) with its measurable named; central ruled it 09-02 NEEDS-OWNER citing gen-14 by id — a verdict earned in-window, but one that prices present value at zero (no paired users until G2) and routes to the owner rather than the runbook; gen-14 and gen-15 each name a coupling with the instrument that would test it (within-family decomposition magnitudes; four named designs across Cai 2020, Demange 2021, Dahl 2023). Held between 6 and 8: verdict earned, nothing buildable now."
+            },
+            "innovative": {
+              "score": 6,
+              "evidence": "2 constructions marked as the lane's own beyond the sources' default — gen-14's supply claim (decomposition magnitudes at battery breadth, which Visscher 2025 and Turley 2021 need but do not name) and gen-15's four-axis synthesis — plus one admission rule (the Dahl bar). 0 contradicts edges opened, 0 candidate axioms; both boldest draft framings killed pre-land."
+            },
+            "effective": {
+              "score": 4,
+              "evidence": "Ratchet met on its add-a-claim limb only: nodes 13→15 (gen-14, gen-15 born cited), +8 edges, +24 sources, +1,690 detail words; 0 statuses moved on existing nodes, 0 prunes, 0 fissions, 0 contradictions; the string 'falsif' occurs 0 times across all 15 nodes, so the direction half of the dimension has nothing to count. Adversarial pass returned DO NOT LAND (4 blocking + 9 serious + 6 minor) and every fix was applied pre-land — that is honesty, not ratchet motion."
+            },
+            "rigorous": {
+              "score": 5,
+              "evidence": "SPOT-CHECK PARTIAL (4 sources fetched, abstract/snippet grade): Minikel 2024, Baylis 2020 (75 of 96 exact) and CONVERGE 2015 (every figure exact; DOI 10.1038/nature14659, which the node left unpinned) verify; Cai 2020 in gen-15 FAILS on one figure — the node states SNP-h2 '~11%' for minimal-phenotyping depression 'per the published abstract', but the abstract states 14% (SE 0.8%) vs 26% (SE 2.2%); ~11% is the paper's body-level estimate for the SelfRepDep definition (10.96%), so the provenance sentence is false as written and was introduced by the lane's own adversarial pass replacing a correct 0.14. The rest of the apparatus is strong: per-source grades labeled, egress block declared, 10-item open scout list, §9 held. 6-grade base lowered one for the finding."
+            },
+            "connected": {
+              "score": 6,
+              "evidence": "2 cross-graph edges added of 8 (gen-14→cen-1, gen-15→que-1), both resolving; a sibling result consumed by name (gen-15 reconciles Cai 2020 against gen-3 through que-1's validity-at-depth rule); central quoted gen-14 in its 09-02 verdict. 0 QUESTIONS items open to answer. Against: 3 outbound edges to cen-1 (gen-3, gen-9, gen-11, stamped 08-27) are stale against cen-1's 08-28 claim change and this run added a 4th edge to the same node without re-warranting or flagging them."
+            },
+            "legible": {
+              "score": 4,
+              "evidence": "THEORY.md regenerated 09-01 and faithful (new section, dated provenance note, 10-item scout list); the REQUESTS row was carryable (ruled within 24 h). Against: the run landed the two heaviest nodes any lane landed this window — gen-14 at 882 and gen-15 at 808 detail words — taking the lane to 9 of 15 over the 400-word budget (mean 471); the LOG row is 391 words in one paragraph, two thirds of it the pre-land fix inventory the nodes already carry."
+            }
+          },
+          "spotCheck": {
+            "outcome": "partial",
+            "detail": "4 sources checked at abstract/snippet grade (publisher hosts egress-blocked). PASS: Minikel 2024 (2.6×, abstract-verbatim sentence), Baylis 2020 (106 surveyed / 96 with policy / 70+5 = 75 prohibit), CONVERGE 2015 (5,303 cases, SIRT1 P=2.53e-10, LHPP P=6.45e-12; DOI 10.1038/nature14659). FAIL on one figure: gen-15 / Cai 2020 — node says SNP-h2 '~11% vs ~26%' and defends it as 'per the published abstract'; the abstract says 14% (SE 0.8%) vs 26% (SE 2.2%). The ~11% exists in the paper (SelfRepDep 10.96%) but is a body-level per-definition estimate; the node mixes levels and misstates provenance. The node's argument does not turn on 11 vs 14; the provenance claim does. Named per §12; the lane fixes it (§11 source-rot rule)."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review; the 09-01 LOG row correctly carries no feedback clause."
+          },
+          "items": [
+            {
+              "dimension": "rigorous",
+              "item": "Fix gen-15's Cai 2020 heritability sentence: state the abstract's 14% (SE 0.8%) vs 26% (SE 2.2%), or keep ~11% and attribute it to the paper's body-level SelfRepDep estimate — never 'per the published abstract'. While in the node, pin CONVERGE 2015's DOI (10.1038/nature14659).",
+              "evidenceOfMotion": "gen-15's detail and source string carry the corrected figure and provenance; the next spot-check re-reads that one sentence."
+            },
+            {
+              "dimension": "effective",
+              "item": "Name a refutation condition in the detail of every node landed or raised this run and next — 'falsif' occurs zero times across all 15 nodes. gen-14 falls if a published editing or selection analysis is already parameterized by within-family magnitudes at battery breadth; gen-15 falls if a deep battery's specificity advantage disappears at matched n.",
+              "evidenceOfMotion": "The next review counts nodes added or risen in the window that name a refutation condition: 0 of 2 today."
+            },
+            {
+              "dimension": "legible",
+              "item": "Fission gen-15 (808 words) along the four axes its own detail numbers — specificity, structure, time, integration — each with its sources, keeping the orthogonal-axes claim under 400 words. Conserve argument, not words.",
+              "evidenceOfMotion": "health.json's overBudget for genetic drops gen-15 and detailMaxWords falls below 882; the children's sources sum to gen-15's nine with none dropped."
+            }
+          ]
+        },
+        {
+          "lane": "body",
+          "runs": [
+            "2026-09-01"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "1 REQUESTS row written 09-01 (one-tap illness micro-report) naming its measurable; central ruled it WORTH-BUILDING 09-02, building the benefit on bod-12 and bod-13 by id ('the occasion grain is the only place the reverse limb is measurable at all'). Both new nodes name the instrument that would test their coupling (before/after-diagnosis multilevel design; randomized manipulation). Not 10: no crossing."
+            },
+            "innovative": {
+              "score": 6,
+              "evidence": "2 moves marked as the lane's own beyond the sources: bod-12 extends bod-7's instrument-status law to mind-side instruments (reporter source as a second sense of channel, the 2–3× matched-stage dementia gap as its measure); bod-13 turns a blinding artifact (18.9% placebo self-unblinding) into evidence for a sibling's rival (bod-11). 0 contradictions opened, 0 candidate axioms; bod-13 explicitly refuses a cross-edge in favour of a request."
+            },
+            "effective": {
+              "score": 6,
+              "evidence": "Add-a-claim limb only: nodes 11→13 (bod-12, bod-13 born cited), 7 edges added; 0 statuses moved on existing nodes, 0 prunes. Direction is progressive: the run discharged bod-8's self-declared UNSEARCHED limb (bod-8 amended), recorded two negative-existence findings (no inflammation→personality-change literature; the supposed Weston/Jackson reverse paper does not exist), and its adversarial pass falsified the run's own draft verdict (Kuss 2025) and corrected a stage-confounded 5–10× ratio to 2–3×. Raise conditions for the four argued nodes are stated in THEORY.md."
+            },
+            "rigorous": {
+              "score": 7,
+              "evidence": "SPOT-CHECK PASS: 4 of 4 sources exist and say what the nodes claim, to the digit (Jokela 2014's T-score coefficients and >60%/≤36% attenuation; Kuss 2025's −0.10/−0.16 and −0.29/+0.24 SD per decade at N=17,078; Grigoleit 2011's n=18/16 and 'two counter-acting mechanisms'; Benson & Elsenbruch 2019's 18.9% of 106) — all at abstract/snippet grade, none at full text. Adversarial pass recorded with counts (23/23 re-verified, 5 blocking + 15 lesser + 9 notes); unretrievable figures declared and not quoted; arithmetic conversions labeled as the graph's own. Against: gradedSources 0 of 71 (grades live in prose only), and the LOG's '23/23' does not match the 24 sources the two nodes carry."
+            },
+            "connected": {
+              "score": 6,
+              "evidence": "1 cross-graph edge added of 7 (bod-12→tst-4 supports), delivering cited evidence to a tests conjecture; the owner's cross-connection question in QUESTIONS.md extended and marked with node ids (bod-12, bod-13). No sibling edge came back in-window; 0 stale sibling references flagged; the lane's own stale edge bod-6→bod-5 (bod-5's claim changed 08-29) was not re-warranted, and bod-6→cen-2 went stale 09-02 (relayed by central). Central's 09-01 third-method question landed six minutes before the run committed — next window's item."
+            },
+            "legible": {
+              "score": 4,
+              "evidence": "THEORY.md regenerated 09-01 and faithful, with an honest verification-depth footer; the request was carryable (ruled in one pass). Against: the two nodes added are the lane's two heaviest — bod-13 at 856 and bod-12 at 734 detail words (3 of 13 now over the 400-word budget; go-7 names bod-13 by id); the LOG row is 206 words."
+            }
+          },
+          "spotCheck": {
+            "outcome": "pass",
+            "detail": "4 of 4 at abstract/snippet grade: Jokela 2014 (Psychological Medicine 44(12), DOI verified; −0.25/−0.40/−0.44/−0.25 T-units per disease; >60% vs ≤36% attenuation; 5.5-year framing), Kuss 2025 (Health Psychology, DOI 10.1037/hea0001542; N=17,078, n=1,044, 40,971 assessments; slopes exact), Grigoleit 2011 (PLoS ONE 6(12):e28330; 0.4 vs 0.8 ng/kg, n=18/16, non-monotonic cognition), Benson & Elsenbruch 2019 (Front Psychiatry 10:511; 20 of 106 = 18.9%). Incidental: the typhoid null (N=171) and Bühler 2024 also matched; Lasselin 2016's pooled N=186 not corroborated at this depth."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review."
+          },
+          "items": [
+            {
+              "dimension": "legible",
+              "item": "Bring bod-13 (856 words) and bod-12 (734) under the 400-word budget: bod-13 splits along the seams it already writes (inflammatory leg / hormonal leg / the bounds-and-nulls paragraph, which is a claim of its own); move each source's retrieval flag ('PMID not retrievable', 'author list not retrieved') out of detail prose into the source string.",
+              "evidenceOfMotion": "health.json for body: overBudget drops from 3 nodes toward 0 and detailMaxWords falls below 400 (today 856)."
+            },
+            {
+              "dimension": "connected",
+              "item": "Re-warrant or retire the two stale edges the lane owns — bod-6→bod-5 (stale since 08-29) and bod-6→cen-2 (relayed by central 09-02 with the new claim quoted) — recording the re-read in bod-6's detail per SCHEMA.md; and answer central's 09-01 third-method question in the graph, marking QUESTIONS.md with the node id (a negative answer closes it just as well).",
+              "evidenceOfMotion": "health.json body staleEdges 2 → 0; QUESTIONS.md carries an 'Answered … by bod-N' line under the 09-01 item."
+            },
+            {
+              "dimension": "rigorous",
+              "item": "Label provenance grades on the source strings themselves (gradedSources is 0 of 71; database runs 98 of 127 and the optimizer 19 of 19 on the '-grade' token health.mjs reads), and reconcile the LOG's '23/23 re-verified' against the 24 sources bod-12 and bod-13 carry.",
+              "evidenceOfMotion": "health.json body gradedSources ≥ 24; the next LOG row's verification count matches the source count."
+            }
+          ]
+        },
+        {
+          "lane": "questions",
+          "runs": [
+            "2026-09-01"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "1 REQUESTS row written 09-01 (per-core-question shape-feature table, each derived feature by named method, joinable to the item-parameter row) with its measurable named; central ruled it WORTH-BUILDING 09-02 with first-hand corrections; the lane's 08-29 drift row was ruled WORTH-BUILDING 09-01 and carried as digest item 4. Pipeline: 3 rows filed to date, 3 verdicts, 3 worth-building. 0 cross-axis couplings named with an instrument this run."
+            },
+            "innovative": {
+              "score": 6,
+              "evidence": "que-3's claim rebuilt beyond its sources' default — three literatures (item cloning, explanatory IRT, engagement audits) joined into generation-plus-calibration under a warmth constraint, the two unlicensed transfers marked as the lane's inference; 1 new instrument no source has (Brady's and Rathje's dictionaries applied to the bank's own vintages). 0 new nodes, 0 contradictions opened, 0 candidate axioms."
+            },
+            "effective": {
+              "score": 6,
+              "evidence": "1 status moved (que-3 argued→cited on 18 sources), 1 edge retyped (que-3→que-1 supports→refines, reasoned), 2 edges added; 0 prunes, 0 fissions, 0 contradictions. Direction progressive: a falsifier named (shape features vs a predict-the-mean baseline), a contrary randomized null carried inside the claim (Guess 2023), a directional prediction stated (vintage drift). The single advance grew one detail 101→1,195 words."
+            },
+            "rigorous": {
+              "score": 7,
+              "evidence": "SPOT-CHECK PASS: 4 of 4 — Attali 2022 read at FULL TEXT (S3-hosted publisher PDF: 'large-scale pilot', 454/789 = 58% retained, practice-test venue, live psychometrics, all verbatim); BEA 2024 via the ACL Anthology's own metadata on GitHub (667 retired USMLE items, pp. 470–482; 0.29 vs 0.31 RMSE at snippet grade); Brady 2017 (~20% per moral-emotional word, within-network); Guess 2023 (randomized 3-month swap, polarization null). One scope note: 'roughly halving hateful/intolerant content' is a Facebook-specific 43% figure reached at secondary grade. Adversarial pass recorded (7 blocking + 10 should-fix + 6 lesser); content grade and metadata grade stated separately; residual defects self-flagged by id. gradedSources 0 of 52."
+            },
+            "connected": {
+              "score": 2,
+              "evidence": "Words moved and the dimension did not: 0 cross-graph edges added (crossOut unchanged at 5; all three edge changes point in-lane), 0 QUESTIONS items answered in-window (none open; central's 09-02 item arrived after the run), 0 sibling results consumed by the risen node, 0 stale references flagged, 0 inbound edges to que-3 from any graph. The claim asserts an outrage-shaped bank is 'a worse instrument for every other axiom's purposes' and attaches that to no sibling node. Three outbound edges went stale 09-02 (que-5→pat-4, que-8→cen-2, que-8→pat-4) — next window's item."
+            },
+            "legible": {
+              "score": 4,
+              "evidence": "THEORY.md regenerated 09-01 and faithful (count matches; Open problems and verification note updated); the request was carryable. Against: 6 of 8 nodes over the 400-word budget (mean 623) and this run produced the worst — que-3's detail 101→1,195 words (2.99×) with a 95-word claim string, no fission; LOG row 271 words."
+            }
+          },
+          "spotCheck": {
+            "outcome": "pass",
+            "detail": "4 of 4: Attali et al. 2022 (Front. AI 5:903077) FULL TEXT — pilot, 58%, practice test, psychometrics all verbatim; Yaneva et al. BEA 2024 (2024.bea-1.39, pp. 470–482, 667 USMLE MCQs) via ACL Anthology metadata, RMSE 0.29 vs 0.31 at snippet grade; Brady et al. 2017 PNAS 114(28) — 20% per moral-emotional word, within ideological networks; Guess et al. 2023 Science 381 — 'roughly halving' is Facebook-specific (−43% uncivil content) at secondary grade, not in the abstract. GitHub note: ACL Anthology XML at raw.githubusercontent.com/acl-org/acl-anthology upgrades any ACL citation to index-record grade from this container."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review."
+          },
+          "items": [
+            {
+              "dimension": "legible",
+              "item": "Fission que-3's 1,195-word detail along the three limbs it already names — generation, prediction, guardrail — into que-3 plus two nodes, each limb's sources moving with it, and cut the 95-word claim string to one sentence per node.",
+              "evidenceOfMotion": "health.json's overBudget for questions loses que-3 and gains no node over 400; node count 8 → 10 with no source dropped."
+            },
+            {
+              "dimension": "connected",
+              "item": "Re-warrant the three out-edges central relayed 09-02 — que-5→pat-4, que-8→cen-2, que-8→pat-4 — against pat-4's identification framing and cen-2's co-observed-axes revision, recording the re-read in detail per SCHEMA.md, and answer central's 09-02 question (does 'spine membership carries intersection mass' become 'buys identification').",
+              "evidenceOfMotion": "health.json staleEdges for questions 3 → 0; the 09-02 QUESTIONS item marked with the answering node id."
+            },
+            {
+              "dimension": "connected",
+              "item": "Give que-3 its first cross-graph edge: the claim says an outrage-shaped bank is a worse instrument for every other axiom — attach it to the node that would carry that cost (tests' instrument-space claim or cen-2's crowd-value yardstick), with the type that says which way the constraint runs.",
+              "evidenceOfMotion": "questions' crossOut rises from 5; que-3 stops being a 1,195-word cited node with zero edges to or from any other graph."
+            }
+          ]
+        },
+        {
+          "lane": "tests",
+          "runs": [
+            "2026-09-01"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "1 REQUESTS row written 09-01 (cross-axis correlation/covariance artifact over the 22 test:dim coordinates the Kindred metric consumes, caveats stated up front) ruled WORTH-BUILDING 09-02; the 08-29 joint-density row ruled WORTH-BUILDING 09-01 — two verdicts in the window. tst-1 locates a real axis-independence assumption in shipped code (the λ=6 calibration's simulation) and clears TYPICAL_AXIS_GAP of the charge; tst-9's communality fact names the correlation matrix as its test."
+            },
+            "innovative": {
+              "score": 6,
+              "evidence": "Perfection licence used at one node: tst-1 argues the perfect form BREAKS a shipped invariant (D277's rank-monotonicity) and records the break open; one instrument proposed (plausible-value-averaged ranks with rank uncertainty, never latent coordinates). The mean-absolute-gap composition is claimed as the lane's own and held at argued. 0 contradictions opened, 0 candidate axioms, 0 new cross-axiom couplings."
+            },
+            "effective": {
+              "score": 8,
+              "evidence": "2 of §3's three acts: tst-1 conjecture→argued by RUNNING its own named test against shipped code (similarity.ts on main), and tst-9 added cited (7 sources). A falsifier named and instrumented — near-zero local axis correlations defeat BOTH arguments, corrected from the draft's half-stake claim — with the REQUESTS row filed as the hinge; three retractions carrying traces (two claimed independence sites pruned to one; 'k times amplification' withdrawn against an r=1 counterexample). Consumed within 24 h: central retyped cen-1→tst-1 supports→refines naming the rise. 0 prunes, 0 fissions, 0 contradictions."
+            },
+            "rigorous": {
+              "score": 7,
+              "evidence": "SPOT-CHECK PASS: 4 of 4 at index-record grade — Wang, Chen & Cheng 2004 (Psychological Methods 9(1):116–136; title 'models' as the node corrected; 'less than half of the comparable items' in the abstract), Reise, Bonifay & Haviland 2013 (the three subscale questions near-verbatim), Moshagen 2023 (Eur J Pers 37:95–112 — pagination the node declared missing is now known), Ackerman & Heggestad 1997 (four trait complexes in the node's order). Adversarial pass recorded (5 blocking + 12 should-fix + 5 nits) and a dedicated verification pass corrected the seed list pre-write (Reise 2012 dropped; r values excluded). tst-1 held at argued with sources [] by the lane's own precedent. Against: tst-9's 82-word claim string bundles five facts of different grade under one cited status; gradedSources 0 of 27."
+            },
+            "connected": {
+              "score": 5,
+              "evidence": "0 cross-graph edges added by the lane (all four new edges in-lane; crossOut unchanged at 11); 0 QUESTIONS answered (none open at run time — central's 09-01 item landed four minutes after the run); tst-7→bod-5 stale since 08-29 across two runs, unflagged; tst-9's ability/personality/INTERESTS communality left with no edge to the interests lane chartered the same day. What pulls it above the questions lane's 2: siblings used the work in-window — inbound cross-edges rose 7→11 (bod-12→tst-4, map-1/map-12→tst-6, pat-12→tst-7) and cen-1's retype cites the rise by name."
+            },
+            "legible": {
+              "score": 4,
+              "evidence": "THEORY.md regenerated 09-01 and faithful (mix matches; Open problems and Bridge queue rewritten); the request was carryable (ruled with three build conditions). Against: 5 of 9 nodes over the 400-word budget with tst-1 at 1,271 words — the heaviest node in the program — and both nodes this run touched among them; THEORY.md grew 1,888→2,905 words in one run; the LOG row is 359 words, the lane's longest (16 → 188 → 298 → 359)."
+            }
+          },
+          "spotCheck": {
+            "outcome": "pass",
+            "detail": "4 of 4 at index-record + snippet grade (PubMed, Semantic Scholar, SAGE, Taylor & Francis records; no full text reachable): Wang 2004 DOI 10.1037/1082-989X.9.1.116 with the 'less than half' sentence; Reise 2013 DOI 10.1080/00223891.2012.725437 with questions (a)–(c); Moshagen 2023 DOI 10.1177/08902070211050170, Eur J Pers 37:95–112; Ackerman & Heggestad 1997 DOI 10.1037/0033-2909.121.2.219 with the four complexes. No discrepancy."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review; FEEDBACK.md was created six hours after the run landed."
+          },
+          "items": [
+            {
+              "dimension": "legible",
+              "item": "Fission tst-1 (1,271 words, 3.2× the budget) the way tst-5→tst-8 was done on 08-29: the joint-vs-shelf argument and its worked flip stay at tst-1; the two tensions recorded open — the D277 rank-monotonicity break, and whether a person ranking can respect tst-6's publication boundary in plausible-value form — become their own nodes at their own statuses.",
+              "evidenceOfMotion": "health.json shows tst-1 at or under 400 words and two new tst-* ids; tests' overBudget falls from 5 of 9."
+            },
+            {
+              "dimension": "connected",
+              "item": "Carry tst-9's fact five across a graph boundary in one edge — tst-9 → int-3 or int-2 — since Ackerman & Heggestad's communality result is jointly about ability, personality and interests and the interests lane was chartered the same day with no source of its own; argue the edge type in tst-9's detail.",
+              "evidenceOfMotion": "tests' crossOut rises 11 → 12 with a tst-9 out-edge whose type is argued in the node."
+            },
+            {
+              "dimension": "connected",
+              "item": "Re-warrant or retire tst-7→bod-5, stale since bod-5's claim changed 08-29 and untouched across two runs, with the re-read recorded in tst-7's detail — the accounting this lane already did well for tst-6's cen-1 edges.",
+              "evidenceOfMotion": "health.json tests staleEdges 1 → 0."
+            }
+          ]
+        },
+        {
+          "lane": "ties",
+          "runs": [],
+          "seed": true,
+          "scores": {
+            "useful": {
+              "score": 6,
+              "evidence": "SEED BASELINE (chartering session, 09-01; the lane has not fired). 0 REQUESTS rows (the file names four candidates in prose and files none); 0 verdicts of its own. 4 of 7 nodes name a coupling with the instrument that would test it: tie-5 (follower-pair vs random-pair likeness at the same anchors over the public follow graph), tie-3 (projection rate = guess vs own answer), tie-4 (received-nomination counts over D224 snapshots), tie-2 (perceiver/target/relationship decomposition over reveals)."
+            },
+            "innovative": {
+              "score": 7,
+              "evidence": "SEED BASELINE. 4 moves beyond the sources' default — tie-2's third funding resource (a person's ties), which central adopted the next day as cen-10 (created 09-02, argued); tie-3's projection-baseline reporting rule; tie-4's per-group relocation of sociometric status; tie-5's question no existing dataset asks. Against: 0 contradictions opened, 2 of 7 nodes are 0-word conjectures, and 4 of 5 argued nodes anchor on shipped artifacts (D204, D224, D101) rather than the perfect form. Between 6 and 8: an invention adopted by a sibling, with half the counted list empty."
+            },
+            "effective": {
+              "score": 0,
+              "evidence": "Nothing landed from the lane: first Routine fire is 2026-09-03 13:02 UTC. All seven nodes were written by the chartering session (commits ffdf2ae, d509851). 0 statuses moved by a run, 0 contradictions, 0 prunes. Not a failure — the 0 anchor is 'nothing landed since the last review', which is literally the case."
+            },
+            "rigorous": {
+              "score": 4,
+              "evidence": "SEED BASELINE; spot-check not applicable (0 cited nodes, 0 sources). Statuses match evidence: 5 argued nodes carry 175–241-word arguments with sources [] and name their to-cited targets (Kenny 1994, Cronbach 1955, Moreno 1934, McPherson 2001) rather than claiming them; 2 conjectures carry empty detail. 1 of 7 names a falsifier (tie-1). 0 adversarial passes recorded in either LOG row; a mis-cited decision number self-corrected in row 2."
+            },
+            "connected": {
+              "score": 8,
+              "evidence": "SEED BASELINE. 7 cross-graph out-edges to 5 sibling nodes; central used the seed within 24 h — 8 inbound cross-edges from 5 central nodes, all dated 09-02 (cen-9→tie-2/3/4, cen-4→tie-5, cen-8→tie-1/2, cen-10→tie-1/2), cen-8 placing ties second in the portfolio, cen-10 created outright on tie-2's remark, and two 09-02 verdicts reasoning from ties content. The owner's question is marked with answering ids; central's 09-02 question is open (post-dates the seed). 2 out-edges stale (tie-1→cen-9, tie-5→cen-9; cen-9 rewritten 09-02), relayed by central — owed on the first fire."
+            },
+            "legible": {
+              "score": 6,
+              "evidence": "SEED BASELINE. THEORY.md regenerated 09-01 and faithful (523 words; count matches; a per-node next-rung section); 0 of 7 nodes over the 400-word budget (max 241); LOG rows 65 and 51 words. 0 requests a person could carry."
+            }
+          },
+          "spotCheck": {
+            "outcome": "n/a",
+            "detail": "No cited node in the ties graph; nothing to fetch. int-3-style dependence on other lanes' sources does not apply here."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed; the lane has not fired."
+          },
+          "items": [
+            {
+              "dimension": "useful",
+              "item": "File the first REQUESTS row in the what · why · measurable form — the file's own prose names four candidates and files none; central's 09-02 question asks outright whether a variance decomposition over public duel reveals is this lane's first row, and tie-5's follower-pair-vs-random-pair fold needs no new collection. The lane picks which.",
+              "evidenceOfMotion": "REQUESTS.md 0 → 1 rows with a named measurable; central rules it in bridge/VERDICTS.md."
+            },
+            {
+              "dimension": "rigorous",
+              "item": "Record the adversarial pass in the first LOG row (§3 step 4) with its verdict and counts — neither seed row has one — and list in sources[] at least the two works tie-3 and tie-4 already name as their own to-cited targets, at the grade actually reached.",
+              "evidenceOfMotion": "The next LOG row carries 'adversarial pass <verdict>, n blocking + m fix'; health.json ties sources 0 → ≥ 2 with grades."
+            },
+            {
+              "dimension": "connected",
+              "item": "Answer central's 09-02 question (SRM design counts; tie-1's falsifier as the placement test) and mark it with the answering node ids; in the same run re-read tie-1→cen-9 and tie-5→cen-9 against cen-9's rewritten claim and move `updated` per SCHEMA.md's re-warranting rule.",
+              "evidenceOfMotion": "QUESTIONS.md's 09-02 item marked; health.json ties staleEdges 2 → 0."
+            }
+          ]
+        },
+        {
+          "lane": "interests",
+          "runs": [],
+          "seed": true,
+          "scores": {
+            "useful": {
+              "score": 6,
+              "evidence": "SEED BASELINE (chartering session, 09-01; the lane has not fired). 0 REQUESTS rows (deferral stated in prose: the inventory ask is int-2's to argue first); 0 verdicts of its own (the 08-28 not-yet ruled genetic's row). 4 argued nodes name couplings with instruments: int-3 (inventory-grade phenotype × imported genotypes), int-1 (a falsifier that is itself the instrument), int-2 (factor scoring once items exist), int-4 (authored taxonomy vs fitted measurement as two named objects); cen-8 now depends on int-2 and int-3."
+            },
+            "innovative": {
+              "score": 4,
+              "evidence": "SEED BASELINE. 0 contradictions opened, 0 instruments specified (int-2 says the item set's shape is this lane's to specify and does not), 0 candidate axioms. Beyond-the-sources content is int-1's three-custody-class definition and two 0-word conjectures (int-5, int-6); the other three argued nodes restate by their own admission — int-3 is gen-3 from this side ('the edge is the citation'), int-2 restates the 08-28 verdict, int-4 applies pat-2/que-2's rule."
+            },
+            "effective": {
+              "score": 0,
+              "evidence": "Nothing landed from the lane: first Routine fire is 2026-09-03 14:02 UTC. All six nodes were written by the chartering session; 0 statuses moved by a run, 0 contradictions, 0 prunes; 1 falsifier named across 4 argued nodes (int-1). Not a failure — the anchor is literal."
+            },
+            "rigorous": {
+              "score": 4,
+              "evidence": "SEED BASELINE; spot-check not applicable (0 cited nodes, 0 sources). Statuses match evidence (164–236-word arguments at argued; 0-word details at conjecture); int-3 refuses to rise by copying gen-3's list and says why. 0 adversarial passes recorded; 1 of 4 argued nodes names a falsifier; a decision-number citation self-corrected in row 2. Note: int-3's substance rests on gen-3's sources — a genetic spot-check failure on gen-3 would reach it."
+            },
+            "connected": {
+              "score": 8,
+              "evidence": "SEED BASELINE. 9 of 11 edges cross-graph across 8 targets in 4 lanes; 3 inbound cross-edges from central dated 09-02 (cen-4→int-1, cen-8→int-2, cen-8→int-3) with the consumption recorded in central's QUESTIONS append. The owner's question marked with answering ids; central's 09-02 item open (post-dates the seed). 1 stale out-edge (int-3→cen-8; cen-8 rewritten 09-02), relayed. 0 edges to the ties graph though tie-5 names an interests × ties coupling drawable from public data today."
+            },
+            "legible": {
+              "score": 6,
+              "evidence": "SEED BASELINE. THEORY.md regenerated 09-01 and faithful (447 words; per-node next-rung section); 0 of 6 nodes over budget (max 236); LOG rows 59 and 51 words; 0 requests, with the reason stated."
+            }
+          },
+          "spotCheck": {
+            "outcome": "n/a",
+            "detail": "No cited node in the interests graph; nothing to fetch."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed; the lane has not fired."
+          },
+          "items": [
+            {
+              "dimension": "effective",
+              "item": "Spend the first fire's ratchet on the two 0-word conjectures: give int-5 (native occasions) or int-6 (declared vs revealed) a real argument and raise it to argued, or prune it with a trace naming what and why.",
+              "evidenceOfMotion": "health.json interests mix.conjecture 2 → 1 with the LOG row naming the move or the prune."
+            },
+            {
+              "dimension": "connected",
+              "item": "Answer central's 09-02 question — part (b) points at tie-5's follow-graph homophily as an interests × ties coupling drawable today — with an edge to a tie-* node, mark the question with the answering ids, and re-read int-3→cen-8 against cen-8's rewritten claim, moving `updated` per SCHEMA.md.",
+              "evidenceOfMotion": "The 09-02 item marked; interests gains ≥ 1 edge to a tie-* node; health.json interests staleEdges 1 → 0."
+            },
+            {
+              "dimension": "innovative",
+              "item": "int-2 says the inventory item set's shape 'is this lane's to specify' and does not specify it — either specify it in the node (what an inventory-grade item is, how many, what it must predict) or record in detail why not yet. A suggestion the lane may decline: the content is yours; the review only notes the deferral is the node's own.",
+              "evidenceOfMotion": "int-2's detail carries the specification or a dated reason; the next review counts instruments specified (0 today)."
+            }
+          ]
+        },
+        {
+          "lane": "map",
+          "runs": [
+            "2026-09-01",
+            "2026-09-02"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "1 REQUESTS row written 09-02 (binned crowd density over a declared plane) naming four measurables and the owner call it does not answer; ruled NEEDS-OWNER the same day with D334's arithmetic. 4 falsifiers stated as reader experiments (map-1, map-5, map-12, map-13). Another lane used the window's work: central landed 3 inbound edges on nodes map made this window (cen-2→map-7, cen-7→map-7, cen-7→map-10, all 09-02) and cen-6 borrows map-5's restatement by name."
+            },
+            "innovative": {
+              "score": 6,
+              "evidence": "3 new constructs argued with falsifiers because no source carries them — map-12 (one seam of geometry, at the person), map-13 (the level-of-detail ladder; a cohort is a density never a centroid), map-1's revision to one geometry per level; 1 epistemic device (map-10, a register of search-negatives, 2 → 6); 1 instrument beyond the product's default (declared-plane density with a reliability floor). 0 contradicts edges; the two most inventive nodes (map-12, map-13) have 0 inbound edges — central consumed the evidence nodes, not the inventions."
+            },
+            "effective": {
+              "score": 8,
+              "evidence": "3 status moves with direction: map-1 conjecture→argued (claim revised), map-6 cited→argued (an honest demotion against the lane's interest), map-5's rise refused by the skeptic and its premises fissioned to map-14. Nodes 6→14, edges 8→45. Fission conserved argument: map-6's 16 sources redistributed exactly to map-7/8/9 (5+7+4), detail 1,531→705. 2 sources dropped pre-write with reasons (Card 1991; Hashedcubes). 4 falsifiers named. Used by central within a day (3 edges)."
+            },
+            "rigorous": {
+              "score": 8,
+              "evidence": "SPOT-CHECK PASS: 4 of 4 across four nodes — Liu & Heer 2014 (500 ms added delay and its four effects, snippet grade), Fisher 2018 (six samples, 2–4× within-individual variance; the carried PNAS rebuttal exists), Bentley 2013 (Health Mashups, natural-language rendering, 'highly individual' interactions), Kale 2022 at FULL TEXT via the authors' GitHub analysis notebooks (sample-size insensitivity; more sensitive to disconfirming evidence, verbatim). One paraphrase drift in map-9's prose ('insights' for the paper's 'interactions'), its source line correct. Both LOG rows record the pass with counts (5+8+4; 9+16+8, one nit declined with reason); every cited node carries a verification-grade paragraph; a demotion and a refused rise in-window. Against: gradedSources 1 of 63 (grades in prose), 1 rung-label drift (map-6 calls db-6 argued; cited since 09-02), 3 edges not re-warranted after 09-02 claim changes."
+            },
+            "connected": {
+              "score": 8,
+              "evidence": "Cross-graph out-edges 3 → 11 (+8 in-window, four lanes); 3 inbound from central onto window-made nodes (09-02); central's one open question (08-28, the map-6 fission) answered 09-01 and marked with ids; 5 stale sibling references flagged by id in the 09-01 LOG row for their owners (pat-3 ×2, cen-2, cen-1, cen-7) — central fixed its three within a day, pat-3 still reads 'carried at map-6'. Not 10: no sibling claim overturned; 3 own edges stale after 09-02 (map-3→map-1, map-6→map-10, map-6→db-6)."
+            },
+            "legible": {
+              "score": 4,
+              "evidence": "THEORY.md regenerated 09-02 and faithful (14 nodes, counts match, 3,721 words); the 09-02 request was carryable (ruled same day). Against: 9 of 14 nodes over the 400-word budget (map-3 753, map-6 705, map-4 688; mean 508), and the window ADDED three over-budget nodes while fissioning one; LOG rows 329 and 623 words with no lead line."
+            }
+          },
+          "spotCheck": {
+            "outcome": "pass",
+            "detail": "4 of 4: Liu & Heer 2014 TVCG 20(12) DOI 10.1109/TVCG.2014.2346452 (abstract via four index records); Fisher, Medaglia & Jeronimus 2018 PNAS 115(27) E6106 (six samples, 2–4×; rebuttal DOI 10.1073/pnas.1818675116 exists); Bentley et al. 2013 TOCHI 20(5) Art. 30 (nine authors match; 90-day trial, 60 participants, natural-language statements); Kale, Wu & Hullman 2022 TVCG 28(1) — FULL TEXT of the authors' preregistered Results.Rmd at github.com/kalealex/causal-support confirms both the sample-size and the asymmetry claims verbatim. Note for map-9: the paper says 'interactions … are highly individual', the prose says 'insights'."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review; the 09-02 row says so."
+          },
+          "items": [
+            {
+              "dimension": "legible",
+              "item": "Fission map-3 (753 detail words) and map-4 (688) the way map-6 was fissioned 09-01 — cited evidence apart from this lane's design inference, each half at its own rung. They are the two oldest over-budget nodes and now the graph's maximum; map-4 is the worked example central's 08-28 question named.",
+              "evidenceOfMotion": "health.json map: overBudget falls from 9 of 14, detailMaxWords below 753; the children's sources sum to the parents' (14 and 14) with none dropped — the conservation check the 09-01 fission passed."
+            },
+            {
+              "dimension": "connected",
+              "item": "Clear the three edges flagged as older than their target's claim by re-reading them per go-12's rule, recording in detail what was re-read and what survived: map-3→map-1, map-6→map-10 (targets changed 09-02) and map-6→db-6 — and in map-6 correct the rung label for db-6, cited since 09-02.",
+              "evidenceOfMotion": "health.json map staleEdges 3 → 0 and rungDrift 1 → 0 (a date edit alone does not clear it)."
+            },
+            {
+              "dimension": "rigorous",
+              "item": "Move each source's verification grade into the source string itself (the '-grade' token health.mjs reads) instead of only the node's verification paragraph — every cited node already grades itself honestly; the meter cannot see it (1 of 63).",
+              "evidenceOfMotion": "health.json map gradedSources rises from 1 of 63 toward 63."
+            }
+          ]
+        },
+        {
+          "lane": "pattern",
+          "runs": [
+            "2026-09-01",
+            "2026-09-02"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "1 REQUESTS row written 09-02 (pairing ledger with Fréchet intervals where the joint count is zero) with its measurable named, ruled WORTH-BUILDING the same day; pat-4 names its own instrument (publish the interval in place of a point), pat-12 names the design criterion (expected information gain per cost against a declared target coupling). Central consumed both in-window (cen-2 revised on pat-4 and pat-12; cen-10 transposing pat-12 to ties). Not 10: the D325 crossing predates the window."
+            },
+            "innovative": {
+              "score": 7,
+              "evidence": "pat-4 replaced its own complete-case framing with the partial-identification literature (12 sources new to the program) and carries one marked entailment no source states (unpaired respondents shrink error AROUND the bounds, never their width); pat-12 adds a marked synthesis no verified source computes. A boundary contradiction was opened against cen-2 on cited evidence and central revised cen-2 to accept it. Held from 8: the 09-01 run added no new claim ('nothing was re-argued'), and the contradiction was written in prose and typed refines, never elected as a contradicts edge (go-6 measured exactly this)."
+            },
+            "effective": {
+              "score": 8,
+              "evidence": "09-01: pat-3 fissioned into pat-9/10/11 with a sentence-level conservation diff (12/12 source strings byte-identical; detail 899→528), a further fission considered and declined with a reason; 09-02: pat-4 argued→cited with the claim rewritten, pat-12 added cited. Nodes 8→12, edges 18→34, sources 43→69. 1 contradiction resolved by the target's revision (cen-2). 6 inbound edges landed on window-made nodes (cen-1→pat-9/10, cen-2→pat-12, cen-10→pat-10/12, db-9→pat-10). Against: 0 prunes, 1 status move across 2 runs, 0 of 4 new nodes name a falsifier, detail +1,094 words."
+            },
+            "rigorous": {
+              "score": 7,
+              "evidence": "SPOT-CHECK PASS: 4 of 4 — the StatMatch CRAN manual at FULL TEXT on GitHub (the conditional Fréchet formula character-for-character; the CIA factorisation; Renssen 1998 in its references), Cross & Manski 2002 (Econometrica 70(1):357–368; sharp identification region; exclusion restrictions 'in many cases to a single point'), Rhemtulla, Savalei & Little 2016 (Psychometrika 81(1):60–89; equal-data-point comparison; manifest vs latent), Graham et al. 2006 (Psych Methods 11(4):323–343; same-cost complete-cases comparison). Where the nodes hedge they hedge weaker than the source. Both LOG rows record the pass with counts; 2 scout candidates dropped for failing verification; 25 of 25 window source strings graded. Against: 24 of 25 are abstract/snippet grade; pat-12's cited claim string ends on a clause its own detail marks as this lane's inference; 0 falsifiers on the 4 new nodes."
+            },
+            "connected": {
+              "score": 9,
+              "evidence": "6 cross-graph edges added out (pat-11→bod-7; pat-4→que-5; pat-12→tst-7/que-5/cen-2/db-8) plus 1 retype to fit the revised target (pat-4→cen-2 supports→refines); crossOut 9→15. Central's one open question (08-28, the go-7 fission) answered 09-01 and marked. 4 stale or wrong sibling references flagged by id for their owners (cen-1's stranded pat-3 attribution, twice; cen-2's missing qualifier; que-5's superseded framing; the pat-4/que-5 mutual pair) — 2 taken by central the same day. 6 inbound edges on window-made nodes. Not 10: cen-2 qualified, not overturned; the contradiction never typed; pat-1→gen-5 stale since 08-27 unre-read; pat-3's own detail still says the Fisher rebuttal is 'carried at map-6' (map flagged it 09-01)."
+            },
+            "legible": {
+              "score": 6,
+              "evidence": "THEORY.md regenerated 09-02 and faithful (12 nodes; a verification note naming grades, blocked hosts and dropped candidates); the 09-02 request was carryable. All 4 new nodes inside the budget (222–400) and pat-3 cut 899→528. Against: 5 of 12 nodes still over 400 (pat-6 549, pat-3 528, pat-8 520 — pat-8 edited 09-02 and left larger); LOG rows 377 and 567 words, growing every run (16 → 213 → 320 → 377 → 567)."
+            }
+          },
+          "spotCheck": {
+            "outcome": "pass",
+            "detail": "4 of 4: StatMatch manual (Frechet.bounds.cat.Rd, comb.samples.Rd, Fbwidths.by.x.Rd at raw.githubusercontent.com/cran/StatMatch) FULL TEXT — formula and CIA verbatim, Renssen 1998 and D'Orazio/Di Zio/Scanu 2006 corroborated from its references; Cross & Manski 2002 DOI 10.1111/1468-0262.00279 (abstract via four index records); Rhemtulla, Savalei & Little 2016 DOI 10.1007/s11336-014-9422-0 (abstract); Graham et al. 2006 DOI 10.1037/1082-989X.11.4.323, PMID 17154750 (abstract; the MCAR-by-construction proposition rests on Rioux 2020, not Graham's abstract — the source string does not overclaim)."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review; the 09-02 row says so."
+          },
+          "items": [
+            {
+              "dimension": "effective",
+              "item": "Add one falsifier sentence — the observation that would demote the node — to each node the next run touches; none of pat-4, pat-9, pat-10, pat-11 or pat-12 carries one (1 of 12 nodes does), where cen-8 lists one per slot and tie-1/int-1 each name their own.",
+              "evidenceOfMotion": "Pattern nodes whose detail names a demoting observation: 1 of 12 → at least 3 of 12."
+            },
+            {
+              "dimension": "innovative",
+              "item": "Elect the edge type the disagreement deserves: pat-4's boundary disagreement with cen-2 was written as prose ('pat-4 now contradicts cen-2 at the boundary') while the graph edge stayed refines — the optimizer measured that gap at go-6. Next time evidence cuts against a claim a sibling still asserts, type contradicts and let the target resolve it, or log in one clause why refines was the honest type.",
+              "evidenceOfMotion": "pattern's contradicts-edge count 0 → ≥ 1, or the next LOG row carries the one-clause reason on a named live tension."
+            },
+            {
+              "dimension": "rigorous",
+              "item": "Re-read pat-12's and pat-9's claim strings against their own details and move or condition any clause the detail marks as this lane's inference — pat-12 ends '…buys a model-free coupling only by co-service', which its detail marks as inference, against the precedent this lane applied on 09-01 (a cited claim string carries only cited material); and repair pat-3's 'carried at map-6' reference that map flagged 09-01.",
+              "evidenceOfMotion": "No clause in a cited pattern claim string is marked in its own detail as the lane's; pat-3's detail points at map-7."
+            }
+          ]
+        },
+        {
+          "lane": "database",
+          "runs": [
+            "2026-09-02"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "2 REQUESTS rows written 09-02 (serving-design field + sampled seen-denominator; a fold cursor on every read model), each with its measurable stated; central ruled BOTH WORTH-BUILDING the same day, naming the write path and correcting the cursor's form; the 08-28 replay-audit row stays worth-building in the digest's queue. 3 of 4 moved nodes name a coupling with its instrument (db-6 joint computation across custodians; db-8 propensities OR ignorable covariates; db-9 a per-read-model as-of pin). Not 10: nothing crossed."
+            },
+            "innovative": {
+              "score": 6,
+              "evidence": "1 of 4 moves carries claims beyond the sources and marks them inside the claim text — db-9's three lane inferences (transaction time per read model, 'no source found either way'; the asking context inside valid time; 'as published' vs 'as best known') — plus db-6's never-pool-two-custody-classes constraint; cen-7 took the as-of pin as its sixth clause the same day. Against: 0 contradictions opened, 0 candidate axioms; db-5 and db-8 restate the buildable with product notes."
+            },
+            "effective": {
+              "score": 7,
+              "evidence": "3 statuses moved argued→cited with claims restated on evidence (db-5 narrowed onto the version transition; db-6 gained three restricting clauses, one forced by the adversary's finding that the old wording contradicted db-2/cen-6; db-8 gained the 'or' branch Wang 2015 forces) and db-9 added cited; nodes 8→9, 6 edges added (2 cross-graph). Used the same day: cen-7 depends→db-9, pat-12 refines→db-8, pat-8 rewritten against db-8. Against: 0 prunes, 0 fissions with 6 of 9 over budget (declined with a reason: 'over by ≤16, recorded rather than sharded'), 0 falsifiers across 9 nodes. Between 6 and 8: the most status motion in the window, with the Lakatos half empty."
+            },
+            "rigorous": {
+              "score": 7,
+              "evidence": "SPOT-CHECK PASS: 4 of 4 — Wang, Rothschild, Goel & Gelman 2015 at FULL TEXT (Microsoft Research PDF): 'three to five questions were posted', 'at most once per day', 750,148 interviews / 345,858 respondents, 93% male, MRP on demographics with no logged propensity — every quote verbatim; Jensen et al. 1994 (SIGMOD Record 23(1):52–64; both definitions exact strings); Rae et al. 2013 F1 (PVLDB 6(11); 'no more than one schema version behind' verbatim) corroborated by the CockroachDB RFC fetched in full (DELETE_ONLY/WRITE_ONLY, two active versions); Sanil, Karr, Lin & Reiter 2004 (KDD; vertical partition, exact coefficients) — nuance: 'secure matrix product' is the 2009 companion's mechanism, and the node's Sanil annotation claims only vertical partitioning. Adversarial pass recorded (4 blocking + 10 should-fix + 6 notes; a reconstructed Hripcsak quote unquoted); 98 of 127 sources graded in the strings; db-1 held at argued for 8 days rather than promoted. Against: 0 falsifiers named on any of 9 nodes."
+            },
+            "connected": {
+              "score": 8,
+              "evidence": "2 cross-graph edges added (db-9→pat-10, db-9→pat-2); 3 inbound landed on the window's work the same day (cen-7→db-9 new; pat-12→db-8; pat-8 rewritten to scope against db-8); 2 stale sibling references flagged in the LOG for their owners (cen-6, cen-7 citing db-6's old wording), both repaired by central the same day; cen-6's custody law consumed into db-6's rewording. Against: map-6 still reads 'db-6 argued' and was not flagged; db-1→cen-1 stale since 08-28 across two runs; db-9's two pattern edges are argued nowhere in its 411-word detail."
+            },
+            "legible": {
+              "score": 4,
+              "evidence": "THEORY.md regenerated 09-02 and faithful (counts match; 'four of db-8's read in full' matches the grades); 2 carryable requests. Against: the LOG row is 437 words in one bullet; 6 of 9 nodes over the 400-word budget (db-7 573, db-3 495; three created this run at 410–416 after four trims, fission declined with a reason)."
+            }
+          },
+          "spotCheck": {
+            "outcome": "pass",
+            "detail": "4 of 4: Wang et al. 2015 IJF 31(3):980–991 FULL TEXT via microsoft.com — all quoted strings and figures verbatim; Jensen et al. 1994 DOI 10.1145/181550.181560 — 'true in the modeled reality' / 'current in the database and may be retrieved' exact; Rae et al. 2013 DOI 10.14778/2536222.2536230 (abstract) + cockroachdb RFC 20151014 FULL TEXT on GitHub; Sanil et al. 2004 DOI 10.1145/1014052.1014139 (abstract). Nuance on db-6: the secure matrix product belongs to Karr et al. 2009, cited jointly."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review; the 09-02 row says so."
+          },
+          "items": [
+            {
+              "dimension": "legible",
+              "item": "Fission db-7 (573 words, the lane's heaviest, unchanged since 08-28) into the claim it is named for (erasure as one transaction across all three parts) and the two consequences it carries inline — shredding does not reach derived read models; the erasure marker must outlive every consumer's rebuild horizon — each at its own status with its own edges.",
+              "evidenceOfMotion": "health.json database overBudget drops db-7 (6 of 9 → ≤ 5 of 9); two new db-* ids carry db-7's sources with their own statuses."
+            },
+            {
+              "dimension": "effective",
+              "item": "Add one falsifier sentence to each of the three nodes restated this run (db-5, db-6, db-8): the observation or source that would force a demotion or a further narrowing — the lane names none on any of its nine nodes, and db-8's restatement was a save-by-disjunction with nothing recorded that would have made it fail.",
+              "evidenceOfMotion": "A string search of theory/database/graph.json finds a named falsification condition on db-5, db-6 and db-8 (0 of 9 today)."
+            },
+            {
+              "dimension": "connected",
+              "item": "Close the stale sweep in both directions before writing the LOG row: re-warrant db-1→cen-1 (stale since cen-1's 08-28 change, across two runs) with the re-read in db-1's detail; flag map-6 for its owner (it still reads 'db-6 argued'); and argue db-9's two pattern edges in db-9's own detail, which never mentions pat-10 or pat-2.",
+              "evidenceOfMotion": "health.json database staleEdges 1 → 0; the next LOG row's cross-lane flag list includes map-6; db-9's detail names both pattern targets with the direction of support."
+            }
+          ]
+        },
+        {
+          "lane": "graph-optimizer",
+          "runs": [
+            "2026-09-01",
+            "2026-09-02"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "Both runs shipped instrument: 203 lines added to graph/health.mjs carrying five new measures (per-lane LOG-row age with SILENT_DAYS=2; edge currency from a per-node git claim-change walk with --as-of; prose rung-label drift; same-type mutual pairs; per-lane inbound cross-edges) and SCHEMA.md's re-warranting clarification. Used within hours: central's 09-02 run cleared all 9 of its go-12-flagged out-edges, closed the cen-1⇄tst-1 cycle, corrected the map-6 label and relayed edge-currency notes into 5 lanes' QUESTIONS.md; this review's ledger reads health.json for every lane. 0 REQUESTS rows — by role, not omission."
+            },
+            "innovative": {
+              "score": 8,
+              "evidence": "2 new claims, both instruments, both used within a day: go-11 (run cadence is a health dimension no content metric can see — measured under a green checker; adopted as this rubric's 0-anchor) and go-12 (edge resolution is necessary, not sufficient — with a new measurement method, claim-change dates replayed from git rather than `updated`, plus two cousin measures nothing in the program had). 0 sources on either, so 'beyond the sources' is untested; 0 contradicts edges opened."
+            },
+            "effective": {
+              "score": 7,
+              "evidence": "Ratchet met both runs by the add-a-claim limb (go-11, go-12), each with a shipped instrument change; 0 statuses rose or fell, 0 prunes, 0 merges — each traced ('cross-graph structural changes: NONE', checker green over 12 graphs, 0 orphans / 0 dupes / 0 stale conjectures, reproduced by this review). 9 of 12 nodes moved `updated` on recorded re-reads; 3 of its own stale edges cleared the way its new rule prescribes. Direction: go-7's four-point series kept its own failed prediction ('fission conserves words'); go-12's prediction (a LOG flag reaches nobody; an active channel does) confirmed by central in-window. Between 6 and 8: four of five counted limbs are zero, the downstream effect is measurable (stale edges 25 → 19, mutual pairs 1 → 0, rung drift 3 → 1)."
+            },
+            "rigorous": {
+              "score": 7,
+              "evidence": "Spot-check NOT APPLICABLE — no cited node rose or was added in the window (go-9's detail changed with status held), so §12's headline count has no surface here. In-tree: adversarial pass recorded in both rows with counts (3+8+2; 1 blocking + 8 fix + 14 notes, 'every number recomputed by its own git-walk', the blocking finding — eight vs six edges at cen-1 — corrected in both places); 19 of 19 sources graded (the only lane at 100%); go-11/go-12 kept at argued with 0 sources rather than promoted; five blind spots of go-12's own instrument listed; two self-indictments recorded ('this lane itself landed twice past pattern's 08-28 flag'; 'the threshold tuned to, not met'); in-place source rot on go-10 recorded rather than hidden."
+            },
+            "connected": {
+              "score": 8,
+              "evidence": "0 cross-graph edges added (crossOut stays 1 of 21; go-3→cen-1 re-warranted, not new); 0 QUESTIONS to answer (the standing item was answered 08-28). What carries the score: stale sibling references flagged at scale in the artifact central reads — 22 stale edges (18 cross-graph), 3 drifted rung labels and 1 same-type mutual pair listed per owner lane — and resolved by central within five hours; sibling results consumed by id in go-6, go-7 (five lanes' fissions), go-11 (central's digest notes), go-12 (six LOG-row flags from four lanes). 5 inbound edges from the review seed (rev-1..rev-4), created by the chartering session, not a lane run."
+            },
+            "legible": {
+              "score": 6,
+              "evidence": "THEORY.md regenerated both runs (2,536 words) ending in a 12-row per-lane health table the digest and this review read; 0 of 12 nodes over the 400-word budget — the only lane at zero. Against: the LOG rows are 495 and 765 words, the longest in the program this window; 4 of 12 nodes sit at 400/400/400/399 words ('tuned to, not met', the lane's own words). 0 requests — by role."
+            }
+          },
+          "spotCheck": {
+            "outcome": "n/a",
+            "detail": "No cited node rose or was added in the window; go-9's four pre-existing sources were not re-checked (the lane already marks one of them wording-unconfirmed). The review notes for its own rubric that this lane's factual claims are measurements of the branch, which §12's clause does not reach."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review; the 09-02 row says so."
+          },
+          "items": [
+            {
+              "dimension": "legible",
+              "item": "Lead the next LOG row with one sentence naming what moved (node ids, the instrument change, the adversarial verdict and counts) and keep the per-finding accounting below it under its own label or in THEORY.md's health summary, where central already reads it — the 09-02 row is 765 words with no lead.",
+              "evidenceOfMotion": "The next LOG row's first sentence names every status move and the adversarial counts in under 60 words; the accounting is still findable."
+            },
+            {
+              "dimension": "connected",
+              "item": "Elect at least one cross-graph edge: across two runs the lane added zero and its only out-of-graph edge is go-3→cen-1 (crossOut 1 of 21). go-12's findings are addressed to owner lanes but carry no typed edge — e.g. go-12 refines cen-7 (the honesty-grammar node whose out-edges aged fastest), or go-12 supports rev-3.",
+              "evidenceOfMotion": "health.json graph-optimizer crossOut > 1, with the edge type argued in the node's detail."
+            },
+            {
+              "dimension": "effective",
+              "item": "Make the instrument measure its own uptake: the health summary lists findings but keeps no ledger of which cleared and when — yet the window's own numbers moved (stale edges 25 → 22 → 19, mutual pairs 1 → 0, rung drift 3 → 1). Add a 'cleared since last run' delta line and fold the rate into go-10 or go-12 as the active-channel measurement both leave open.",
+              "evidenceOfMotion": "The next health summary carries a delta row naming cleared findings and the lane that cleared each; go-10 or go-12 gains an uptake rate with its denominator."
+            }
+          ]
+        },
+        {
+          "lane": "central",
+          "runs": [
+            "2026-09-01",
+            "2026-09-02"
+          ],
+          "seed": false,
+          "scores": {
+            "useful": {
+              "score": 8,
+              "evidence": "10 bridge verdicts ruled in the window (09-01: 2; 09-02: 8) — 8 worth-building + 2 needs-owner — taking the open queue to zero (20 requests written program-wide, 20 ruled); every worth-building verdict names cost, benefit, conditions and its carrier; both needs-owner verdicts state the one sentence the owner must supply. Own REQUESTS.md '(none yet)' — by role. Not 10: no crossing in the window."
+            },
+            "innovative": {
+              "score": 6,
+              "evidence": "2 constructs composed rather than sourced: cen-3 risen to a five-part new-axiom admission test (value · funding · custody · entry · anchors) with the §1 licence bounded in-node, and cen-10 (pat-8's budget transposed onto a second unit, the tie, with a third count); cen-9 an ordered candidate-axiom list. 0 sources on all 10 nodes; 0 contradictions opened (central was the target and accepted). No sibling lane consumed cen-3/9/10 from its side by a lane run (the ties/interests edges into them are chartering seeds)."
+            },
+            "effective": {
+              "score": 6,
+              "evidence": "09-01: 1 status moved (cen-3 conjecture→argued, 65→437 words) + cen-9 added; 09-02: 0 statuses, cen-10 added with TWO named falsifiers, 4 claim strings rewritten on sibling evidence (cen-2, cen-7, cen-8, cen-9), the standing prose contradiction with pattern resolved by revising the TARGET (cen-2 accepts pat-4's boundary), all 9 go-12-flagged out-edges cleared, the cen-1⇄tst-1 support cycle closed by retype, 1 edge dropped and 2 re-pointed on siblings' flags; edges 44→84. Against: 0 prunes, no node has ever left argued (10 argued / 0 cited), falsifiers on 2 of 10 nodes; the 09-01 'fission' was elaboration plus a new node, not word-conserving fission."
+            },
+            "rigorous": {
+              "score": 6,
+              "evidence": "Spot-check NOT APPLICABLE — 0 cited nodes, 0 sources across all 10 nodes; scored on process. Statuses match evidence (all argued; THEORY.md says 'none yet above argued' with a named route for 6 of 10); rungDrift 0, staleEdges 0. Adversarial pass recorded in both rows with counts (5+8+8 over 83 tool calls plus a 63-call product-facts scout; 09-02 two passes: graph 3+15+10, verdicts 9+15+9), fixes substantive (a false ledger-retention premise repriced twice; a nonexistent latency channel removed after D269; the map cost corrected to O(people)). The review's drafter checked 9 product constants asserted in the window's verdicts against the product tree: 9 of 9 matched — a real check, not §12's. Against: one self-report off by one in the flattering direction (the 09-02 row says seven nodes over budget; eight are)."
+            },
+            "connected": {
+              "score": 8,
+              "evidence": "Cross-graph out-edges 36→69 reaching 9 of 11 sibling lanes; 28 inbound from 8 sibling nodes, six lanes edging in during the window (pat-4/pat-12→cen-2, db-6→cen-6, db-8→cen-2, map-1/12/13→cen-1, go-3, tst-1, gen-14→cen-1); sibling results absorbed into claims by name (pat-4's boundary, db-9's pin, bod-9/10/11's body bound, que-8's currency, tie-1..5, int-2/3); 7 QUESTIONS appends across 6 lanes each naming the instrument that would answer; 5 go-12 edge-currency relays naming the exact staled edges. Not 10: no sibling claim overturned — central was the claim revised."
+            },
+            "legible": {
+              "score": 4,
+              "evidence": "DIGEST.md rewritten 09-01 in five-minute shape (headline, per-lane conclusions, health, a ranked bridge queue with 'if one item gets carried this week, this is the one', program notes naming the stall and §11's dial) and it reports central's own worst metric accurately; THEORY.md regenerated 09-02; the 09-02 run correctly wrote no digest and said why. Against: nodes over the 400-word budget went 2 of 8 → 8 of 10 (cen-8 519, cen-9 501, cen-10 488; mean 391) on the lane that preaches go-7 in its own digest; LOG rows 451 and 782 words, the latter one unbroken clause-chain."
+            }
+          },
+          "spotCheck": {
+            "outcome": "n/a",
+            "detail": "No cited node in the central graph. The review notes for its own rubric that central's factual surface has migrated into bridge/VERDICTS.md (first-hand product facts), which §12's clause, worded around cited nodes, does not reach; the drafter's 9-of-9 constants check is recorded here as corroboration only."
+          },
+          "previousFeedback": {
+            "status": "none (first review)",
+            "detail": "No feedback existed before this review; the 09-02 row says so."
+          },
+          "items": [
+            {
+              "dimension": "legible",
+              "item": "Fission the two heaviest nodes your own 09-02 row nominates: cen-8 (519 words) into the ranking claim and its per-slot falsifier table, and cen-9 (501) into the admission-test application and the ordered candidate list.",
+              "evidenceOfMotion": "health.json central overBudget falls from 8 of 10 with cen-8 and cen-9 both under 400; node count rises without total words rising."
+            },
+            {
+              "dimension": "effective",
+              "item": "Spend one run's Scout step raising a node off argued along a route THEORY.md already declares — cen-7 → GRADE/STROBE-class reporting-standards precedent, or cen-1 → IRT linking / multilevel SEM — instead of composing another argued node from sibling graphs; it also gives the next review's spot-check something to bite.",
+              "evidenceOfMotion": "central's status mix leaves 10-argued/0-cited for the first time; the risen node carries gradeable sources."
+            },
+            {
+              "dimension": "rigorous",
+              "item": "Add one named falsifier sentence, in cen-10's form ('a demonstration that X would demote this to Y'), to each claim this window rewrote without one — cen-2, cen-3, cen-7 and cen-9 — and take the over-budget figure in the LOG row from health.mjs's output rather than by hand (the 09-02 row says seven; health.json lists eight).",
+              "evidenceOfMotion": "Nodes carrying an explicit falsifier rise from 2 of 10; the next row's over-budget figure equals health.json's overBudget length."
+            }
+          ]
+        }
+      ],
+      "calibration": "Calibrated across lanes after eleven Opus drafts: 10 draft scores moved so the same evidence earns the same score — genetic Useful 8→7 (a needs-owner verdict pricing present value at zero sits between the 6 and 8 anchors) and Rigorous 6→5 (the spot-check finding); body Rigorous 8→7 (pass at snippet grade, no full text, grades not machine-visible); tests Rigorous 6→7 (4/4 verified with exact sentences) and Connected 6→5 (the lane added zero cross-graph edges; the 8-shaped evidence was siblings' edges in); ties Innovative 6→7 (tie-2's third resource adopted by central as cen-10); database Effective 6→7 (three statuses risen and used the same day) and Rigorous 6→7 (full-text pass); graph-optimizer Effective 8→7 (four of five counted limbs zero) and Rigorous 8→7 (no spot-check surface in the window). Rule applied throughout: an 8 on Useful needs a verdict or a digest item earned by THIS lane's work in-window; an 8 on Connected needs a sibling's edge in or a question answered and consumed; the same in-window fact may meet more than one dimension's anchor but is named as one fact in each line."
+    }
+  ]
 }

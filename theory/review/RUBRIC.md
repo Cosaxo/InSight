@@ -1,4 +1,4 @@
-# The rubric — v1 (2026-09-01)
+# The rubric — v1.1 (2026-09-03)
 
 The instrument the review lane scores with (CHARTER §12). Versioned:
 a change here is a dated bump of the title, argued first in this
@@ -19,12 +19,13 @@ its evidence line is not a score.
 | **Effective** | §3 — the ratchet: every run moves a status, adds a claim, or merges/prunes | Statuses moved per run since the last review; contradictions resolved by revision; prunes with a trace; fission that conserved argument rather than words; Lakatos' test — a lane that names falsifiers and predicts is progressive, one that only accommodates is degenerating even while its node count grows |
 | **Rigorous** | §4 and §9 — the ladder rises only on the evidence that defines the rung; no invented source, number or result | The spot-check: at least two `cited` sources per lane among nodes risen or added since the last review, fetched and read — real, and saying what the node claims; statuses that match their evidence; falsifiers named; the adversarial pass recorded in the LOG row |
 | **Connected** | §1 — cross-axis connection is first-class subject matter, never an appendix | Cross-graph edges added and resolving; central's `QUESTIONS.md` items answered and marked; a sibling's result consumed; stale sibling references flagged for their owners |
-| **Legible** | §6 — written for a person with five minutes | `THEORY.md` regenerated and readable as the graph's face; nodes within the 400-word budget (go-7); a LOG row that says what moved in one line; a request a person could carry |
+| **Legible** | §6 — written for a person with five minutes | `THEORY.md` regenerated and readable as the graph's face; nodes within the 400-word budget (go-7); a LOG row whose **lead line** says what moved — ids, from→to, requests filed, the adversarial verdict with its counts — with the audit trail §3 and §12 ask the row to carry below it under its own label (v1.1; the row's length is not the measure, its shape is); a request a person could carry |
 
 ## Anchors
 
-The scale is the same for every dimension. Between anchors, the
-nearer one; when in doubt, the lower one — the ladder's own rule.
+The scale is the same for every dimension. A score sits at an anchor
+unless the evidence line says why it sits between two (5, 7, 9); when
+in doubt, the lower anchor — the ladder's own rule (v1.1).
 
 | Score | Means |
 | --- | --- |
@@ -41,7 +42,15 @@ One review covers the runs since the previous review — at the
 every-other-day cadence, one run per lane, sometimes none or two. A
 lane with no run in the window scores 0 on Effective and keeps its
 other scores from the last review, marked *carried*; the ledger says
-which.
+which. A lane seeded by the chartering session but not yet fired
+scores Effective 0 by the same anchor and its other five on the seed,
+marked *seed baseline* (v1.1). The spot-check needs a surface: a lane
+with no `cited` node risen or added in the window records *not
+applicable*, which neither raises nor lowers Rigorous; where a lane's
+factual surface lives elsewhere (central's product facts in bridge
+verdicts, the optimizer's measurements of the branch) the review may
+corroborate it and says so, but does not record that as the §12
+spot-check (v1.1, an open gap — rev-7).
 
 ## Feedback
 
@@ -68,3 +77,8 @@ Score itself; rank lanes as a verdict; rule on bridge requests; soften
 a spot-check finding; invent motion in a quiet window. A review that
 changes no score says so — that row is honest and cheap, and it is
 what the owner's re-pacing dial reads.
+
+## Changes
+
+- **v1.1 (2026-09-03, argued at rev-7 after the first review):** Legible's LOG-row count reads the row's lead line, not its length — the one-line clause collided with §3's adversarial record and §12's feedback answers, both of which the row must carry; scores between anchors allowed when the evidence line says why; seed-baseline and spot-check-not-applicable rules written down. The first review's entry in `scores.json` was scored under v1 and says so; the next is scored under v1.1.
+- **v1 (2026-09-01):** seeded by the chartering session.

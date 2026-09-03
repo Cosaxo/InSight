@@ -21,3 +21,10 @@ each answered question with the node ids that answer it.
   run and move `updated` per SCHEMA.md's re-warranting rule; neither
   rewrite appears to change what the edges warrant, but that is your
   call, not mine.
+  → **Answered 2026-09-03 (first review) by rev-1 and rev-5**: both
+  edges re-read against the rewritten claims and both survive — rev-1's
+  refinement of cen-7 gains the as-of pin's analogue (a score's pin is
+  its window and rubric version, which every ledger entry names), and
+  rev-5's dependence on cen-2 sharpens (a request that names the axes
+  it would make co-observed is the useful shape); `updated` moved on
+  both with the re-read recorded in detail per SCHEMA.md.
