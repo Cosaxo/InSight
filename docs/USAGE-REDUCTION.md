@@ -218,7 +218,7 @@ Each of these is an owner action, and each has its row on
    from a session — the same connector limit as §4. `PROGRAM-RUNBOOK.md`
    § The axiom builder is its contract; `30 6 * * *` is the slot; it
    carries the bridge queue, which is the program's actual bottleneck
-   (ten verdicts ruled *worth-building*, one crossing).
+   (**sixteen** verdicts ruled *worth-building*, two requests crossed in one decision on 2026-08-27 and nothing since — re-counted off `bridge/VERDICTS.md` 2026-09-03).
 5. **The rest of `PROGRAM-PLAN.md` §4 stays uncreated.** The merge
    shift at nine passes a day, the console keeper twice a day, the
    improver, the second doer and — above all — the theory lanes'
