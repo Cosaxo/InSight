@@ -3,11 +3,12 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
+import { LEARN_SOCIAL } from './learn-social.js';
 
 // learn-bits.jsx — the two small pieces the feed's knowledge cards share.
 // The streak is a count, so it is drawn, not written; friends who have met a
 // card are shown the way the feed already shows friends on an opinion split.
-function LMStreak({ k, of, col }) {
+export function LMStreak({ k, of, col }) {
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }} aria-label={k + ' of ' + of}>
       {Array.from({ length: of }).map((_, i) => (
@@ -22,9 +23,9 @@ function lmAv(bg, fg, size) {
 }
 
 // who of your friends has met this card — filled if they got it, outlined if not
-function LMFriends({ card, col }) {
-  const S = window.LEARN_SOCIAL;
-  if (!S || !card) return null;
+export function LMFriends({ card, col }) {
+  const S = LEARN_SOCIAL;
+  if (!card) return null;
   const list = S.onCard(card);
   if (!list.length) return null;
   const got = list.filter((f) => f.ok).length;
@@ -40,8 +41,8 @@ function LMFriends({ card, col }) {
   );
 }
 
-Object.assign(window, { LMStreak, LMFriends, lmAv });
+// lmAv alone stays on the bridge: world-feed.jsx calls it bare, a
+// cross-module call the scanner cannot see (D354 left it for that reason).
+Object.assign(window, { lmAv });
 
-;globalThis.LMStreak = typeof LMStreak === 'undefined' ? globalThis.LMStreak : LMStreak;
 ;globalThis.lmAv = typeof lmAv === 'undefined' ? globalThis.lmAv : lmAv;
-;globalThis.LMFriends = typeof LMFriends === 'undefined' ? globalThis.LMFriends : LMFriends;

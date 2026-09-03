@@ -153,9 +153,11 @@ describe("the id the Map asks the live store about", () => {
     // this can read from.
     const src = readFileSync("src/v2/spec/map-tab.jsx", "utf8");
     expect(src, "map-tab no longer derives the live qid").toMatch(/const qid = q\.liveId \|\| q\.id;/);
-    // Both readings and the node itself, by the three call shapes.
-    expect(src, "the typicality reading went back to the demo id").toMatch(/MS\.dist\(qid, 'all'/);
-    expect(src, "the majority reading went back to the demo id").toMatch(/MS\.mode\(qid, 'all'/);
+    // Both readings and the node itself, by the three call shapes. The
+    // binding is the imported `MapStats` since D354's sweep (the `MS`
+    // alias went with the window read); what these pin is the `qid`.
+    expect(src, "the typicality reading went back to the demo id").toMatch(/MapStats\.dist\(qid, 'all'/);
+    expect(src, "the majority reading went back to the demo id").toMatch(/MapStats\.mode\(qid, 'all'/);
     expect(src, "the node carries the demo id again — the bottom card reads node.qid")
       .toMatch(/parentId: parent, qid,/);
   });

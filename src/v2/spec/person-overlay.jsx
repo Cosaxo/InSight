@@ -17,6 +17,7 @@ import { IS_matchArchetype } from './archetype-data.js';
 import { steadiness, MIN_DUO, MIN_GROUP } from '../data/roles';
 import { cueDuel } from '../data/duelCue';
 import NAV from '../data/nav';
+import { CompareCarousel } from './compare-breakdown.jsx';
 
 // Expanded Person profile — a detailed portrait of similarity
 // Replaces the basic PersonOverlay — registration is spec-index.js's
@@ -324,14 +325,9 @@ function PersonOverlay({ p: rawP, onClose, me }) {
 
         {/* ─── Affinity composer — one compare card per category, swipeable ─── */}
         {(() => {
-          if (!window.CompareCarousel) {
-            return (
-              <div className="card" style={{ marginBottom: 14 }}>
-                <Kicker>What makes the number</Kicker>
-                <div style={{ marginTop: 12 }}><AffinityBreakdown parts={parts} /></div>
-              </div>
-            );
-          }
+          // A whole fallback card used to sit here for the frame in which
+          // compare-breakdown.jsx had not loaded; it is an import now
+          // (D354's sweep) and there is no such frame.
           const rnd = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v)]));
           const to01 = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round((v + 100) / 2)]));
           const who = p.anon ? 'them' : (p.name ? p.name.split(' ')[0] : p.init);
@@ -417,7 +413,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           return (
             <div style={{ marginBottom: 20 }}>
               <div style={{ marginBottom: 9 }}><Kicker>What makes the number</Kicker></div>
-              <window.CompareCarousel
+              <CompareCarousel
                 pop={themPop}
                 accent={themColor} label={who}
                 aligns={{ big5: Math.round(parts.personality), political: Math.round(parts.politics), values: Math.round(parts.values) }}

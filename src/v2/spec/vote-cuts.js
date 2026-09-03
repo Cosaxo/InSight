@@ -3,6 +3,7 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
+import { RMLenses } from './relmap-lenses.jsx';
 
 // InSight — VOTECUTS: the one cut list every who-voted breakdown reads from.
 // Demographics first, then the four tests. A test opens into its own subvalues:
@@ -41,8 +42,8 @@ export const VOTECUTS = (function () {
     { id: 'where',   label: 'Where',  groups: ['Americas', 'Europe', 'Asia', 'Elsewhere'] },
   ];
   const TEST_IDS = ['big5', 'politics', 'values', 'social'];
-  const L = () => window.RMLenses;
-  const T = (id) => { const RL = L(); return RL && RL.TESTS[id] ? RL.TESTS[id] : null; };
+  const L = () => RMLenses;
+  const T = (id) => L().TESTS[id] || null;
 
   function dims() {
     return DEMO.map((d) => ({ id: d.id, label: d.label })).concat(
