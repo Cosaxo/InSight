@@ -38064,6 +38064,53 @@ because that is choosing to keep it at the moment the choice costs most —
 and a plan whose whole argument is *do this before you submit* had no
 place on the ordered list that says when you submit.
 
+### 9 · A sixth stale row, and this one pointed at building the opposite of an instruction
+
+The session's next build was going to be `SCALE-RUNBOOK.md` **3.2, batch
+approval** — size S, marked buildable, and the step §7 above identified as
+the real head of the question-volume chain. Reading the pipeline before
+writing any code found that **D212 reversed it on 2026-08-19**, by name,
+and the row has stood unticked ever since.
+
+D212's own words: it reverses *"the merge half of D162 ('the human on the
+merge, not on the reading')"* — which is 3.2's title — on the owner's ask,
+*"remove the need for a human to approve the questions."* Its §2 is 3.2's
+content already shipped: `PROMOTE_PACE = 2`, each run promoting the two
+oldest pen entries through `promote --source farm --review ai`, promotion
+and batch in one PR, 14/week at the daily cadence.
+
+**And 3.2's stated constraint is the exact property D212 records giving
+up.** The step made it load-bearing — *"the two-gate property must
+survive… if a change here would let the farm merge itself, it is the wrong
+change"* — while D212 says plainly: *"The two-gate design existed so a
+scheduled job never decides what production serves. That property is gone
+for question content."* What bounds the radius now is the gate set, the
+`active: false` kill switch, the retrospective audit, and scope: question
+content only, with code, rules, schema and policy keeping ordinary review
+and core membership still the one per-question human act.
+
+**Why this one is worse than the other five.** Those misled a reader about
+state. This one pointed a builder at work that would have re-imposed, as
+new engineering, a hold the owner had explicitly asked to remove — the
+opposite direction to a stated instruction, arrived at by following a
+document faithfully. The safeguard that caught it was not a gate: it was
+reading the pipeline before writing to it, which is the same habit that
+caught §7 and cost the same fifteen minutes.
+
+Struck rather than deleted (D106). Two neighbours were stale in the same
+direction and are amended with it: **3.3**'s cumulative audit-rate check
+became a *warning* at D212 — a person behind on audits can no longer turn
+CI red and stop the lanes — while the per-row verdict and `audited`
+boolean stay hard errors; and **4.1**'s "consequence of phase 3" now tracks
+`PROMOTE_PACE` rather than a person's reading, which is what makes that
+step reachable at all.
+
+**What this leaves.** The question-volume chain is shorter than it looked:
+its first step is not batch approval, which is shipped, but Phase 4 —
+raising the budget regulator, pointing volume at the feed surface, and
+re-running the cost model at the new rate. None of it is blocked on a
+person any more.
+
 ### 8 · The security review's one probe, closed even though it stayed below the bar
 
 A security review of this branch's own diff found **nothing at confidence

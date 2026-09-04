@@ -210,11 +210,42 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       shape was checked against the gate; the write itself rides on
       `check:quality` catching a malformed row in CI.
 
-- [ ] **3.2 Batch approval, human on the merge.** The human's unit of work
-      becomes approving a batch, never reading one. **The two-gate
-      property must survive**: a scheduled job still never holds write
-      access to production content. If a change here would let the farm
-      merge itself, it is the wrong change. · **Size:** S.
+- [x] ~~**3.2 Batch approval, human on the merge.**~~ **STRUCK — REVERSED
+      BY [D212](DECISIONS.md), 2026-08-19, and this row stood unticked for
+      a fortnight after (D364).** Struck rather than deleted, per D106's
+      rule that a reversal must stay visible.
+
+      The original read: *"The human's unit of work becomes approving a
+      batch, never reading one. **The two-gate property must survive**: a
+      scheduled job still never holds write access to production content.
+      If a change here would let the farm merge itself, it is the wrong
+      change."*
+
+      **Both halves are gone, and D212 names each.** It reverses "the
+      merge half of D162" — this step's own title — on the owner's ask,
+      *"remove the need for a human to approve the questions."* Its §2 is
+      this step's content shipped: `PROMOTE_PACE = 2` in
+      `farm-budget.mjs`, each run promoting the two oldest pen entries
+      through `promote -- --source farm --review ai` and shipping
+      promotion and batch in one PR — 14/week at the daily cadence, which
+      is D97's target as arithmetic.
+
+      And the constraint this step made load-bearing is the one D212
+      records giving up **in those words**: *"The two-gate design existed
+      so a scheduled job never decides what production serves. That
+      property is gone for question content."* What bounds the blast
+      radius instead is the gate set in front of the merge, the
+      `active: false` kill switch behind it, the retrospective audit, and
+      scope — **D212 covers question content only**; code, rules, schema,
+      functions and policy keep ordinary human review, and core membership
+      stays the one per-question human act.
+
+      **The reason this is struck rather than quietly ticked**: a routine
+      read this row on 2026-09-04 as the buildable next step and was one
+      step from implementing it — which would have re-imposed, as new
+      work, a human hold the owner had explicitly asked to remove. A stale
+      row that merely lags is a nuisance; one that points a builder in the
+      reverse of a stated instruction is a defect.
 
 - [x] **3.3 Sampled audit — one in twenty. DONE 2026-08-15**, landed with
       3.1 because the audit is the only real check on a reviewer that
@@ -228,6 +259,15 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       seven rounds to zero, so a per-batch gate would pass while nothing
       was ever audited.
 
+      **Amended by D212 and not recorded here until D364:** that
+      cumulative check is a **warning, not an error**
+      (`checkProvenance` returns `{errs, warn}`). The sample keeps its
+      D162 job, but a person falling behind on audits can no longer turn
+      CI red and stop the lanes — which was a human approval gate wearing
+      a sampling rate. The per-row review verdict and the explicit
+      `audited` boolean stay hard errors, because those are facts a run
+      must state rather than work a person must keep up with.
+
 - [ ] **3.4 Measure-and-retire. BLOCKED ON TRAFFIC.** The scorecard
       already computes evenness and already emits retirement proposals;
       wiring them to `active: false` closes the loop. Needs published
@@ -240,8 +280,11 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
 - [ ] **4.1 Raise the budget regulator** in `scripts/farm-budget.mjs`. Its
       pinned property is that sustained generation equals measured
       promotion throughput, so **this step is a consequence of phase 3,
-      not an alternative to it** — raising the cap without raising review
-      throughput produces PRs, not questions. · **Gate:**
+      not an alternative to it** — raising the cap without raising
+      throughput produces PRs, not questions. Since D212 that throughput
+      is `PROMOTE_PACE`, not a person's reading, which is what makes this
+      step reachable at all: the constraint it waits on is now a constant
+      in `farm-budget.mjs` rather than someone's queue. · **Gate:**
       `farm-budget.test.mjs`, `check:figures`. · **Size:** S.
 
 - [ ] **4.2 Point the volume at the feed surface.** It can retire; daily
