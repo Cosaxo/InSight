@@ -64,7 +64,7 @@ by hand, 2026-09-02.
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 16 PR row(s) and 2 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-03).
+- [ ] 17 PR row(s) and 4 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-04).
 <!-- console:end -->
 
 ## Store and legal
