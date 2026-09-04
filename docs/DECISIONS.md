@@ -37888,3 +37888,45 @@ record. What is not legitimate is reaching 6.2 without having chosen,
 because that is choosing to keep it at the moment the choice costs most —
 and a plan whose whole argument is *do this before you submit* had no
 place on the ordered list that says when you submit.
+
+### 7 · A fifth stale document, and this one redirected the work
+
+Found while starting what the previous section called the largest buildable
+item. `FEATURE-COMPLETE.md` lists *"the core/tail enforcement half"* as open
+and asks for three things: the filter placement written down per call site,
+the fold filter extended beyond `LiveCohortBody` to the similarity fields
+and Kindred, and a test that a non-core aggregate never reaches a Mirror
+stop.
+
+**All three were settled before that page was compiled, and two of them
+were settled by being decided unnecessary.** `SCALE-RUNBOOK.md` Phase 2 is
+fully ticked: 2.2 applied the filter on 2026-08-15, 2.3 shipped the
+mutation-verified test the same day, and 2.1 decided the placement on
+**2026-08-19 — the day `FEATURE-COMPLETE.md` was compiled**, which is
+exactly how it captured the question instead of the answer.
+
+Checked against the code rather than against 2.1's prose, because a
+runbook tick is a claim like any other:
+
+- the five lenses take `qs` as a prop from `LiveCohortBody`'s already
+  filtered list, so they inherit the filter and a second one would be
+  ceremony;
+- `LiveSimilarityField` reads `LIVE.myTestResults()` with
+  `CORE_TEST_KINDS` — test instruments, core by construction — and never
+  touches the feed archive.
+
+**The cost of this one was not a wrong sentence, it was a wrong plan.**
+The row ends *"Never ship the interest model before this"*, which reads as
+the interest model being blocked on core/tail. It is not: Phase 5 follows
+**Phase 4**, because ordering a tail is meaningless until the tail has
+content. The buildable next step is **3.2 batch approval** — the runbook
+marks it buildable now, size S, and it is what unblocks raising the farm
+budget, which is what produces the tail, which is what makes an interest
+model mean anything.
+
+That ordering was stated correctly in the runbook the whole time. A stale
+index row that names a real dependency in the wrong place is worse than one
+that is merely out of date, and this session followed it before checking —
+which is the argument for `docs/DOC-SWEEP.md` made a fifth time, and the
+last of the five in which the reader who was misled was a routine rather
+than the owner.
