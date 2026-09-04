@@ -174,6 +174,87 @@ database" is not axiom work. Nothing in that loop is a schema change.
 
 Items 2, 3 and 5 need no new technology at all.
 
+## Recovered from the seeds — what the ladder sanded off
+
+**Archaeology, 2026-09-03.** Every node's first written form was
+compared against its current one across all 46 commits: 109 nodes, of
+which **36 had their claim rewritten**. The rewrites are not random.
+Almost every one replaced a **design claim about the ideal** with a
+**status report on the literature or the product** — which is exactly
+what a ladder whose upper rungs are `cited` (matches existing
+literature) and `measured` (matches the existing app) will select for.
+
+Eight are worth taking back. They are the lanes' own best ideas, and
+they were lost to the grading rather than refuted by it. In each case
+the newer evidence is right and stays — what returns is the ambition
+the evidence was allowed to delete.
+
+**`cen-3` — the generative principle.** Seeded as *"new axioms surface
+where the joint model's residuals cluster."* It is now a five-part
+admission checklist. That trade gave away the best idea in the corpus:
+**the model's own failures tell you what to measure next.** A system
+that reads its residuals to choose its next axis is self-extending —
+it does not need anyone to think up candidates. Keep the checklist as
+the gate; restore the principle as the generator.
+
+**`tst-5` — how to name an archetype.** Seeded as *"archetypes are
+named regions of the trait space, and the perfect naming is
+data-anchored but human-worded."* It became a literature finding about
+dimensional-versus-taxonic structure. The finding is correct and the
+design half vanished entirely — no current node says how a region
+should be *named*, which is the part a person actually reads.
+
+**`map-1` — one grammar across axioms.** Seeded as *"one geometry that
+every scale shares — you, your city, the world, and every axiom drawn
+in the same space with the same grammar."* The levels finding correctly
+split the person from the population. But it says nothing about *axes*
+sharing a grammar, and that half was dropped with it. Genes, answers,
+body and ties drawn in one visual language remains the right ambition
+and is now stated nowhere.
+
+**`gen-5` — sequence models as the engine.** Seeded as the pattern
+engine of the perfect genetic layer; demoted to *annotation* engine on
+`gen-12`'s finding that no replicated win over a tuned polygenic score
+exists. That finding is about **2026**, and a theory of a perfect form
+is not bounded by this year's benchmark table. Restore as a condition
+rather than a claim: what would have to be true for the sequence model
+to become the predictor, and what the app would have to measure to
+notice when it does.
+
+**`tst-2` — passive is the perfect administration.** Seeded exactly so;
+now *"a measurement-theoretically distinct administration."* Both are
+true, and only the first is a theory. At perfect form, asking people in
+the flow of life **is** the right way to administer an instrument — the
+sit-down test is the compromise, not the other way round.
+
+**`que-4` — a bank that knows its own boundaries.** Seeded as *"the
+perfect bank is culturally and linguistically portable, **and knows
+where it is not**."* It became a procedure for establishing invariance
+per question and cohort. The procedure is how; the ambition — an
+instrument aware of its own domain of validity — is what, and it is the
+more useful half.
+
+**`map-5` — no per-view server work.** Seeded absolute; now *"per-view
+work bounded by display resolution rather than record count."* The
+bounded version is the engineering. The absolute version is the
+theory, and it is achievable: a map drawn entirely from published
+aggregates asks the server for nothing at all.
+
+**`gen-15` — never-phenotyped domains.** The only recoverable item lost
+by *shortening* rather than hedging: the axes list originally ended
+*"...integration substrate, **never-phenotyped domains**"* and the last
+item was dropped in a later tidy. It is the one that matters most here
+— the whole point of a deep battery is reaching things nobody has ever
+measured.
+
+**What is not recoverable, and should not be.** `pat-4`'s narrowing
+into the identification bound, `db-3`/`db-5`/`db-6`'s added precision,
+`bod-3`'s routing insight and `map-2`/`map-3`/`map-4` all made their
+claims *better* while keeping the ambition. `bod-5` was a genuine
+overclaim and its hedge is honest. The lesson is not that narrowing is
+bad — it is that narrowing was the only direction the ladder could
+score, so it happened to claims that should have grown instead.
+
 ## The limits, each as a design problem
 
 Per D352 a limit is something to build around, never a reason to
