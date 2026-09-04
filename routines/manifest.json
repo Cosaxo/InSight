@@ -8,7 +8,7 @@
       "name": "InSight axiom builder",
       "account": "claude-3",
       "group": "program",
-      "schedule": "30 6,12,18 * * *",
+      "schedule": "30 6 * * *",
       "model": "claude-fable-5-1",
       "binding": { "kind": "relay", "session": "session_013V91NnDHMjjLSGYxzTEsnw", "label": "the planning session" },
       "notifications": "off",
@@ -20,7 +20,8 @@
       "retired": ["trig_01GfndFyG5MFsWcpZDNPntd5"],
       "state": "live",
       "created": "2026-09-03",
-      "source": "docs/PROGRAM-RUNBOOK.md § The account-side inventory"
+      "note": "re-paced on the account 2026-09-04 06:41 UTC from three fires a day to one, not from a session — the contract's `30 6,12,18` is the owner's dial to restore",
+      "source": "docs/PROGRAM-RUNBOOK.md § The account-side inventory; list_triggers 2026-09-04"
     },
     {
       "id": "program-merge-shift",
@@ -35,11 +36,11 @@
       "contract": "docs/PROGRAM-RUNBOOK.md § The merge shift",
       "reports": "Program run log",
       "branches": ["claude/program-diag-shift-<date>"],
-      "trigger": "trig_01KSwCf4WcnQE6Uh6udeNAxn",
-      "retired": ["trig_01R5twbh48wfb9UfvVTANcdR"],
-      "state": "live",
-      "created": "2026-09-03",
-      "note": "the 2026-09-02 Routine could not be deleted from a session (the classifier refused) and is disabled, still bound to the old dispatcher",
+      "trigger": null,
+      "retired": ["trig_01R5twbh48wfb9UfvVTANcdR", "trig_01KSwCf4WcnQE6Uh6udeNAxn"],
+      "state": "not yet",
+      "created": null,
+      "note": "both of its Routines were deleted from the account on 2026-09-04 morning, not from a session, after two days in which no PR carried `approved` and every fire was a no-op or gated; the contract stands, and this row is what re-creates it when the tick flow is wanted",
       "source": "docs/PROGRAM-RUNBOOK.md § The account-side inventory"
     },
     {

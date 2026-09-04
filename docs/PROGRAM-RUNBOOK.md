@@ -11,11 +11,13 @@
 > reason.
 
 **Status: mixed — phases 1 and 2 are done (D352, 2026-09-02), and
-phase 3 is done but for one Routine: five of the six program Routines
+phase 3 is done but for one Routine: four of the six program Routines
 on this account exist and fire into the planning session, which relays
-each into a fresh session (rebound 2026-09-03 — 3.2 has why); the
-console keeper was refused by the session's permission classifier and
-is the owner's to create in the web UI. `RECREATE.md` is the page any
+each into a fresh session (rebound 2026-09-03 — 3.2 has why); the merge
+shift was deleted from the account on 2026-09-04 and the builder
+re-paced to once a day, from the Routines page rather than a session;
+the console keeper was refused by the session's permission classifier
+and is the owner's to create in the web UI. `RECREATE.md` is the page any
 session, on any subscription, recreates a missing Routine from. Phases
 4–6 are open.** Written 2026-09-02 from the
 owner's answers of that day (`PROGRAM-PLAN.md` §10). When a step is done its box is ticked
@@ -72,8 +74,8 @@ asked for — and the console draws its health from it.
 
 | Lane | Account | Triggers (UTC) | Model | Contract | Merge authority |
 | --- | --- | --- | --- | --- | --- |
-| **The axiom builder** | Claude 3 | `30 6,12,18 * * *` | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
-| **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19,23 * * *` — the 23:15 firing is the long pass | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
+| **The axiom builder** | Claude 3 | `30 6,12,18 * * *` as written; `30 6 * * *` on the account since 2026-09-04 06:41 UTC | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
+| **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19,23 * * *` — the 23:15 firing is the long pass; **no Routine since 2026-09-04**, both deleted from the account after two days without an `approved` PR | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
 | **The console workflow** | GitHub Actions — no account | every two hours, on push to `main`, on PR label events, on the Console issue's edit | none — `scripts/console.mjs`, stdlib only | § The console | mirrors the owner's tick to the label `approved`; opens the PR for a ticked branch; never merges |
 | **The console keeper** | Claude 3 | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | § The console keeper | n/a |
 | **The console improver** | Claude 3 | `0 14 * * 0` | `claude-fable-5-1` | § The console improver | never |
@@ -750,8 +752,8 @@ mirrored in `ROUTINES.md`'s block for this account in the same PR.
 
 | Routine | Trigger id | Model | Binding | Created |
 | --- | --- | --- | --- | --- |
-| InSight axiom builder | `trig_01TsTBR1xv8KBVJG9b38vPgn` | `claude-fable-5-1`, set by the relay | planning session `session_013V91NnDHMjjLSGYxzTEsnw` → fresh session | 2026-09-03 (was `trig_01GfndFyG5MFsWcpZDNPntd5`, 2026-09-02, deleted) |
-| InSight merge shift | `trig_01KSwCf4WcnQE6Uh6udeNAxn` | `claude-opus-5`, set by the relay | planning session → fresh session | 2026-09-03 (was `trig_01R5twbh48wfb9UfvVTANcdR`, 2026-09-02 — deletion refused, disabled) |
+| InSight axiom builder | `trig_01TsTBR1xv8KBVJG9b38vPgn` | `claude-fable-5-1`, set by the relay | planning session `session_013V91NnDHMjjLSGYxzTEsnw` → fresh session | 2026-09-03 (was `trig_01GfndFyG5MFsWcpZDNPntd5`, 2026-09-02, deleted); re-paced to `30 6 * * *` on the account 2026-09-04 |
+| InSight merge shift | — | `claude-opus-5` | none | deleted from the account 2026-09-04 (was `trig_01KSwCf4WcnQE6Uh6udeNAxn`, 2026-09-03, and `trig_01R5twbh48wfb9UfvVTANcdR`, 2026-09-02); `RECREATE.md` re-creates it |
 | InSight console keeper | — | `claude-sonnet-5` | — | not yet: creation from this session refused by the permission classifier on 2026-09-02; the owner creates it in this account's web UI with the keeper block, fresh per run |
 | InSight console improver | `trig_01GPHx2NJRUjTLG5WfkXdgC5` | `claude-fable-5-1`, set by the relay | planning session → fresh session | 2026-09-03 (was `trig_015RFs7Mw2dC4u73nxBzhaaV`, 2026-09-02, deleted) |
 | InSight list worker (Claude 3) | `trig_018gAP4NYzGNvSqojjNapH8g` | `claude-fable-5-1`, set by the relay | planning session → fresh session | 2026-09-03 (was `trig_017g4jkRVknNNccrVKfXWWS4`, 2026-09-02 — deletion refused, disabled) |

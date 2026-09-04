@@ -399,14 +399,15 @@ renamed so the list says why; their old dispatcher,
 
 **Account** `d277bf8a-05a0-43af-af2a-6a7a29136e76` ·
 **environment** `env_01LseXT8H9h61eXWkaLZeXxD` ·
-**verified** 2026-09-03 12:40 UTC against `list_triggers`: five
-Routines enabled, two disabled relics of the day before (below), the
-console keeper not yet created.
+**verified** 2026-09-04 08:15 UTC against `list_triggers`: four
+Routines enabled, one disabled relic of 2026-09-02 (below), the merge
+shift deleted from the account on 2026-09-04, the console keeper not yet
+created.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
-| InSight axiom builder | `trig_01TsTBR1xv8KBVJG9b38vPgn` | `30 6,12,18 * * *` — three times a day, 150-minute budget | planning session `session_013V91NnDHMjjLSGYxzTEsnw`, which relays into a fresh session on `claude-fable-5-1` | `claude/axiom-<slug>` — one verified step toward the theory; rows filed on the worklist, the axiom list and the visual requests | never merges; never applies a label — approval is the owner's tick on `MERGE-LIST.md` |
-| InSight merge shift | `trig_01KSwCf4WcnQE6Uh6udeNAxn` | `15 5,7,9,11,13,15,17,19,23 * * *` — nine passes, the 23:15 one three hours long | same relay, `claude-opus-5` | `shift:` commits on PRs the owner approved; no branch of its own | never merges; applies `merge-when-green` to an approved PR once its current head is green and reviewed (D352) |
+| InSight axiom builder | `trig_01TsTBR1xv8KBVJG9b38vPgn` | `30 6 * * *` — once a day since 2026-09-04 06:41 UTC (re-paced on the account; the contract's three slots are the owner's dial), 150-minute budget | planning session `session_013V91NnDHMjjLSGYxzTEsnw`, which relays into a fresh session on `claude-fable-5-1` | `claude/axiom-<slug>` — one verified step toward the theory; rows filed on the worklist, the axiom list and the visual requests | never merges; never applies a label — approval is the owner's tick on `MERGE-LIST.md` |
+| InSight merge shift | — deleted 2026-09-04 (was `trig_01KSwCf4WcnQE6Uh6udeNAxn`) | `15 5,7,9,11,13,15,17,19,23 * * *` when it existed | none — both its Routines were deleted from the account on 2026-09-04 morning; `RECREATE.md` re-creates it | `shift:` commits on PRs the owner approved; no branch of its own | never merges; applies `merge-when-green` to an approved PR once its current head is green and reviewed (D352) |
 | InSight console improver | `trig_01GPHx2NJRUjTLG5WfkXdgC5` | `0 14 * * 0` — Sundays | same relay, `claude-fable-5-1` | `claude/console-<date>` — panels and sources added to `scripts/console.mjs`, never removed | never merges |
 | InSight list worker (Claude 3) | `trig_018gAP4NYzGNvSqojjNapH8g` | `0 18 * * *` — daily | same relay, `claude-fable-5-1` | `claude/worklist-<slug>` — the topmost `[claude-3]` item, ticked in the same PR | never merges; never applies a label |
 | InSight roll call (Claude 3) | `trig_01CZcopHxBJ5qSkrzCLM1Un2` | `40 15 * * *` — daily | same relay, `claude-sonnet-5` | one comment a day on the Ops run log, first line `Claude 3 roll call <date>` | n/a — read-only |
@@ -432,7 +433,10 @@ deleted — `trig_01R5twbh48wfb9UfvVTANcdR` (merge shift) and
 `trig_017g4jkRVknNNccrVKfXWWS4` (list worker) — because the classifier
 refused their deletion from a session; they fire nothing. The other
 three of that day were deleted (`trig_01GfndFyG5MFsWcpZDNPntd5`,
-`trig_015RFs7Mw2dC4u73nxBzhaaV`, `trig_01Pda2PGuVxADFLmqbgVGgt3`).
+`trig_015RFs7Mw2dC4u73nxBzhaaV`, `trig_01Pda2PGuVxADFLmqbgVGgt3`). On
+2026-09-04, from the account's own Routines page rather than any
+session, both merge-shift Routines were deleted and the builder was
+re-paced to once a day — the two decisions the owner list carried.
 
 **Not here.** The ops lanes are Claude 2's (§3's account,
 `OPS-RUNBOOK.md` §5) except the two twins above; the theory lanes'
@@ -569,25 +573,24 @@ all.
 02 ·  night B audit 02:00–03:35 · theory review 02:02 (odd)
 03 ·  night shift A audit 03:00–04:35
 04 ·  night B closing 04:00–05:50
-05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
+05 ·  night shift A closing 05:00–05:50 · console keeper 05:45
 06 ·  PR shepherd 06:20 · axiom builder 06:30 · production reader 06:40
-07 ·  question farm 07:00 · merge shift 07:15
+07 ·  question farm 07:00
 08 ·  catalog question · DB scalability 08:00 → 12:00 · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
-09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · merge shift 09:15 · feed lane 09:30
+09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · feed lane 09:30
 10 ·  duel lane (Wed) 10:00 · theory 10:02
-11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory 11:02 · merge shift 11:15
+11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory 11:02
 12 ·  axes retro (Sun) 12:00 · theory 12:02
-13 ·  theory ties 13:02 (odd) · merge shift 13:15
+13 ·  theory ties 13:02 (odd)
 14 ·  console improver 14:00 (Sun) · theory interests 14:02 (odd)
 15 ·  merge shift 15:15 · roll call 15:30 · roll call (Claude 3) 15:40
 16 ·  PR shepherd 16:20
-17 ·  list worker 17:00 · merge shift 17:15 · console keeper 17:45
-18 ·  to-do doer (Claude 3) 18:00 · axiom builder 18:30
-19 ·  merge shift 19:15
+17 ·  list worker 17:00 · console keeper 17:45
+18 ·  to-do doer (Claude 3) 18:00
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
 22 ·  night B audit 22:00–23:35
-23 ·  night shift A audit 23:00–00:35 · merge shift 23:15
+23 ·  night shift A audit 23:00–00:35
 ```
 
 The two night shifts interleave on the hour by design — A on odd hours,
