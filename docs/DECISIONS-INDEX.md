@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 376 lines instead of
-37,717. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 377 lines instead of
+37,824. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -20,7 +20,7 @@ detect it.
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
 | **D5** | [Sealed answers are owner-only; reveals are materialized server-side](DECISIONS.md#d5--sealed-answers-are-owner-only-reveals-are-materialized-server-side) | D224 (+18) | 393 |
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
-| **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D329 (+29) | 167 |
+| **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D363 (+30) | 167 |
 |  | ↳ *amendment 2026-08-03* — [The retry-logging trigger now has an instrument](DECISIONS.md#d7-amendment-2026-08-03--the-retry-logging-trigger-now-has-an-instrument) | — | 3523 |
 | **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D356 (+40) | 449 |
 | **D9** | [Near is your city — picked from a list, or located on the device](DECISIONS.md#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device) | D192 (+21) | 556 |
@@ -58,8 +58,8 @@ detect it.
 | **D39** | [The spec-layer migration gets a meter, and two figures get a gate](DECISIONS.md#d39--the-spec-layer-migration-gets-a-meter-and-two-figures-get-a-gate) | D354 (+30) | 3438 |
 | **D40** | [Duels get a content lane and a question-level signal](DECISIONS.md#d40--duels-get-a-content-lane-and-a-question-level-signal) | D347 (+11) | 3851 |
 |  | ↳ *adoption 2026-08-06* — [All four parts shipped, with five deltas](DECISIONS.md#d40-adoption-2026-08-06--all-four-parts-shipped-with-five-deltas) | — | 6240 |
-| **D41** | [The two stores' account types are decided separately — Play as an organization, Apple as an individual](DECISIONS.md#d41--the-two-stores-account-types-are-decided-separately--play-as-an-organization-apple-as-an-individual) | D345 (+2) | 3956 |
-| **D42** | [InSight launches on iOS alone; Play is deferred, and the path to it gets cheaper while it waits](DECISIONS.md#d42--insight-launches-on-ios-alone-play-is-deferred-and-the-path-to-it-gets-cheaper-while-it-waits) | D345 (+8) | 4047 |
+| **D41** | [The two stores' account types are decided separately — Play as an organization, Apple as an individual](DECISIONS.md#d41--the-two-stores-account-types-are-decided-separately--play-as-an-organization-apple-as-an-individual) | D363 (+3) | 3956 |
+| **D42** | [InSight launches on iOS alone; Play is deferred, and the path to it gets cheaper while it waits](DECISIONS.md#d42--insight-launches-on-ios-alone-play-is-deferred-and-the-path-to-it-gets-cheaper-while-it-waits) | D363 (+9) | 4047 |
 | **D43** | [The v17 sync: what the prototype won, and what this repo kept](DECISIONS.md#d43--the-v17-sync-what-the-prototype-won-and-what-this-repo-kept) | D189 (+2) | 4140 |
 | **D44** | [Political items never slice — the split publishes, the cross-tab does not](DECISIONS.md#d44--political-items-never-slice--the-split-publishes-the-cross-tab-does-not) | D234 (+7) | 4240 |
 | **D45** | [Erasure follows the reveal, not the membership — and leaving a group is not an erasure request](DECISIONS.md#d45--erasure-follows-the-reveal-not-the-membership--and-leaving-a-group-is-not-an-erasure-request) | D55 | 4310 |
@@ -90,7 +90,7 @@ detect it.
 | **D70** | [The two duel indexes were bounded twice and diverged, and a reveal folded votes into a question nobody answered](DECISIONS.md#d70--the-two-duel-indexes-were-bounded-twice-and-diverged-and-a-reveal-folded-votes-into-a-question-nobody-answered) | D156 (+3) | 7010 |
 | **D71** | [A reveal now says which question each answer was to, and nothing compares across that line](DECISIONS.md#d71--a-reveal-now-says-which-question-each-answer-was-to-and-nothing-compares-across-that-line) | D156 (+3) | 7103 |
 | **D72** | [Two fabrications that outlived the badge: the Map's group stats and the results card's friends](DECISIONS.md#d72--two-fabrications-that-outlived-the-badge-the-maps-group-stats-and-the-results-cards-friends) | D290 (+12) | 7170 |
-| **D73** | [The privacy label has no endpoint, so the script prints the form instead](DECISIONS.md#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead) | D274 (+11) | 7287 |
+| **D73** | [The privacy label has no endpoint, so the script prints the form instead](DECISIONS.md#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead) | D363 (+12) | 7287 |
 | **D74** | [A tick is a claim, and this one was printed before the write](DECISIONS.md#d74--a-tick-is-a-claim-and-this-one-was-printed-before-the-write) | D208 (+5) | 7355 |
 | **D75** | [Apple's eight new age-rating questions, and the half of the form nothing was checking](DECISIONS.md#d75--apples-eight-new-age-rating-questions-and-the-half-of-the-form-nothing-was-checking) | D116 (+3) | 7414 |
 | **D76** | [Crash reporting flips to opt-out, and the ErrorBoundary reports what it catches](DECISIONS.md#d76--crash-reporting-flips-to-opt-out-and-the-errorboundary-reports-what-it-catches) | D329 (+3) | 7489 |
@@ -115,7 +115,7 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8881 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D322 (+4) | 8948 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D328 (+12) | 9015 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D349 (+75) | 9129 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D363 (+76) | 9129 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D277 (+9) | 9251 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D334 (+5) | 9394 |
 | **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D347 (+10) | 9495 |
@@ -349,7 +349,7 @@ detect it.
 | **D324** | [Build 26's pre-flight: run as-is, and the one surface no release gate can see](DECISIONS.md#d324--build-26s-pre-flight-run-as-is-and-the-one-surface-no-release-gate-can-see) | D339 | 32652 |
 | **D325** | [The bridge's first crossing: the fit publishes its own scorecard](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard) | — | 32804 |
 | **D326** | [The genetic axiom's ambition widens, and the night shift gets a closing hour](DECISIONS.md#d326--the-genetic-axioms-ambition-widens-and-the-night-shift-gets-a-closing-hour) | D347 (+2) | 32880 |
-| **D327** | [The console kept selling the floor: twelve captions that outlived the arithmetic](DECISIONS.md#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic) | D331 (+3) | 32961 |
+| **D327** | [The console kept selling the floor: twelve captions that outlived the arithmetic](DECISIONS.md#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic) | D363 (+4) | 32961 |
 | **D328** | [Profession becomes a dim, through a field — and the reason it was not one had stopped being true](DECISIONS.md#d328--profession-becomes-a-dim-through-a-field--and-the-reason-it-was-not-one-had-stopped-being-true) | D331 | 33061 |
 | **D329** | [Three of D269's seven refusals are lifted, and the bundle becomes a list](DECISIONS.md#d329--three-of-d269s-seven-refusals-are-lifted-and-the-bundle-becomes-a-list) | D334 (+1) | 33171 |
 | **D330** | [The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall](DECISIONS.md#d330--the-political-consent-is-asked-at-the-start-on-d151s-screen-and-it-is-an-ask-rather-than-a-wall) | D352 (+3) | 33257 |
@@ -360,7 +360,7 @@ detect it.
 | **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D357 (+3) | 33836 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D336 | 33951 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D360 (+2) | 34120 |
-| **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D339 | 34251 |
+| **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D363 (+1) | 34251 |
 | **D338** | [The 2026-08-31 night audit, reviewed and merged — 35 commits kept, two hand-written figures corrected, and one live bias that is the owner's call](DECISIONS.md#d338--the-2026-08-31-night-audit-reviewed-and-merged--35-commits-kept-two-hand-written-figures-corrected-and-one-live-bias-that-is-the-owners-call) | D339 | 34329 |
 | **D339** | [Build 27 was delivered and unrecorded; the pre-flight opened on a spent number, and the counts are level](DECISIONS.md#d339--build-27-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-and-the-counts-are-level) | — | 34456 |
 |  | ↳ *amendment 2026-08-31* — [Build 28 is delivered, and the bump held off step 17](DECISIONS.md#d339-amendment-2026-08-31--build-28-is-delivered-and-the-bump-held-off-step-17) | — | 34550 |
@@ -370,7 +370,7 @@ detect it.
 | **D343** | [The account requirement becomes a level, so the bar can be raised later](DECISIONS.md#d343--the-account-requirement-becomes-a-level-so-the-bar-can-be-raised-later) | D347 (+1) | 34982 |
 | **D344** | [Account & privacy moves behind a gear in the profile's corner](DECISIONS.md#d344--account--privacy-moves-behind-a-gear-in-the-profiles-corner) | — | 35197 |
 |  | ↳ *amendment 2026-09-01* — [The identity row stops calling every session anonymous](DECISIONS.md#d344-amendment-2026-09-01--the-identity-row-stops-calling-every-session-anonymous) | — | 35266 |
-| **D345** | [Play is un-parked on an ENK, and the two code items that had no owner get built](DECISIONS.md#d345--play-is-un-parked-on-an-enk-and-the-two-code-items-that-had-no-owner-get-built) | — | 35305 |
+| **D345** | [Play is un-parked on an ENK, and the two code items that had no owner get built](DECISIONS.md#d345--play-is-un-parked-on-an-enk-and-the-two-code-items-that-had-no-owner-get-built) | D363 | 35305 |
 | **D346** | [The review lane: every second night, every axiom lane's work is scored and told how to be more useful](DECISIONS.md#d346--the-review-lane-every-second-night-every-axiom-lanes-work-is-scored-and-told-how-to-be-more-useful) | D347 | 35439 |
 | **D347** | [Ties and Interests are chartered: the relational axis gets its row and its lane, and the interests axis gets the lane it never had](DECISIONS.md#d347--ties-and-interests-are-chartered-the-relational-axis-gets-its-row-and-its-lane-and-the-interests-axis-gets-the-lane-it-never-had) | — | 35513 |
 | **D348** | [The feed weaves its fresh topics, not its answered ones — the returning device stops opening on tests and learn](DECISIONS.md#d348--the-feed-weaves-its-fresh-topics-not-its-answered-ones--the-returning-device-stops-opening-on-tests-and-learn) | — | 35596 |
@@ -390,3 +390,4 @@ detect it.
 | **D360** | [Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story](DECISIONS.md#d360--two-night-shifts-merged-as-one-tree--60-commits-kept-and-the-sweep-they-both-branched-before-is-the-whole-story) | — | 37360 |
 | **D361** | [The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward](DECISIONS.md#d361--the-owners-own-upload-moves-the-vision-the-2026-09-02-standalone-is-what-the-tree-is-built-toward) | D362 | 37548 |
 | **D362** | [The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot](DECISIONS.md#d362--the-2026-09-02-design-is-built-one-instrument-for-the-three-lenses-a-voice-for-the-questions-and-the-split-ballot) | — | 37628 |
+| **D363** | [Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key](DECISIONS.md#d363--four-launch-documents-said-things-that-had-stopped-being-true-and-the-one-step-that-needs-no-apple-account-demanded-an-apple-key) | — | 37718 |

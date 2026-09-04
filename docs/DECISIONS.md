@@ -37714,3 +37714,110 @@ carry an axis in (a leaning set, an inner arc, a polarity split), states
 what each costs, and keeps its data, states and basis rules. Still
 `requested`; the drafting step is unchanged.
 
+
+## D363 · Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key
+
+**Date:** 2026-09-04 · **Status:** Adopted (corrections, not new policy —
+each restores a document to what the tree already does)
+
+**What opened it.** The owner asked what is missing before the app is
+ready. Answering meant reading the launch documents as instructions rather
+than as prose, and four of them turned out to be wrong in the direction
+that looks like progress.
+
+### 1 · Play was un-parked three days before the ordered list noticed
+
+[D345](#d345--play-is-un-parked-on-an-enk-and-the-two-code-items-that-had-no-owner-get-built)
+lifted D42's park on 2026-09-01, onto D41's organization route, and built
+release signing and `play-release.yml` in the same decision. It named
+neither `LAUNCH-RUNBOOK.md` nor `SHIP-CHECKLIST.md`. So the owner's
+ordered list carried nine `[PARKED — D42]` markers and a heading reading
+**"iOS only, as of 2026-08-04"**, understating the remaining launch work
+by an entire platform — six steps (1.1b, 1.2, 2.1, 2.6, 3.1, 6.3) plus
+three halves (1.4's Android provider, 2.7's fingerprint, Play's Data
+Safety form).
+
+Corrected here: the heading, every marker, and the `check:store-copy`
+paragraph that called `REPLACE_WITH_PLAY_SIGNING_SHA256` *"a permanent
+non-blocker under D42"*. It stopped being permanent at D345 — it is a real
+value Play Console mints at App signing, which is why that decision added
+`--first-upload` for the chicken-and-egg.
+
+**No gate could have caught this, and that is the finding.** `check:docs`
+proves the map names every document; `check:figures` proves a listed
+number equals the tree. Neither reads whether a *sentence* is still true —
+which is exactly `docs/DOC-SWEEP.md`'s subject, and §3 below is why that
+lane was not running.
+
+### 2 · The ten TestFlight testers were a pre-D98 requirement
+
+Runbook 3.2 demanded *"ten testers, not five"* and gave its reason in the
+next clause: the public mirror publishes once per 5 answers (D7), so a
+group of 6–9 watches the world count sit on "5+" and never move. **That
+machinery does not exist.** D98 removed the k-floor outright on
+2026-08-11 — `AGG_MIN_N` and `PUBLISH_EVERY` are gone, and
+`functions/src/v2.ts` says so at the lines where they lived — so a count
+of 1 publishes as 1.
+
+The step had already been corrected further down (*"There is no k-floor
+since D98: the first answer publishes exactly"*) while its heading still
+demanded the crowd the removed cadence needed: one step, two answers, and
+the stale one was the heading. **Two testers is enough to start** — duels
+work at N=2 and are the surface worth testing first, which the step
+already said. More testers is a device-coverage argument, which is real;
+it is not a threshold to wait behind.
+
+This is [D327](#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic)'s
+shape one document over — copy that outlived the arithmetic it was written
+for. There it was twelve captions still selling the floor; here it is an
+instruction to gather the crowd that floor needed.
+
+### 3 · The doc sweep is held by a condition that is met
+
+`docs/DOC-SWEEP.md` landed on `main` 2026-09-03 (#335). Its Routine
+(`trig_01E2bBC1QmYbkkHj3V96k6L1`) is still disabled, and `ROUTINES.md`
+still said the file *"is not on `main`"*. The worklist row asked for the
+re-enable *"in the same PR that lands the file"*, and **no PR can do
+that** — a trigger on another account's subscription is invisible to
+`list_triggers`, which returns the caller's and nothing else. So the ask
+was unsatisfiable as written and the lane stayed off.
+
+Recorded as an owner click rather than as work. The lane that exists to
+catch a stale sentence was disabled by one, which is the cheapest possible
+argument for turning it back on.
+
+### 4 · `asc-push --privacy` demanded credentials for a section that cannot use them
+
+The privacy nutrition label is the one launch step with no Apple endpoint
+behind it ([D73](#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead)),
+so `--privacy` prints a form. It nonetheless exited on the missing
+`ASC_KEY_ID`/`ASC_ISSUER_ID`/private key, then resolved the app over the
+network — a credential gate and a round trip in front of a printout.
+
+**This is the failure `SHIP-CHECKLIST.md` §1 records twice for the seed
+step**, and records in those words: an instruction survives review because
+running it needs something nobody has, so nobody runs it. Here it guarded
+the step whose output is a legal statement, and whose whole virtue is that
+the printout — not the prose — is the artefact.
+
+`NEEDS_APPLE = TEXT || AGE_RATING || SCREENSHOTS`; a privacy-only run
+prints and exits above the gate. Its closing line deliberately does **not**
+reuse the tail's *"App Store Connect already matches the repo"*, because
+that run never asked Apple anything and claiming agreement with a service
+it did not contact is the one kind of sentence this file exists to keep
+out of a launch step. Pinned by a test that runs the script with every
+`ASC_*` variable stripped and asserts the whole row set prints and that
+zero requests are made — red before the change, which was measured rather
+than assumed.
+
+### What is deliberately not decided here
+
+Nothing about **whether** to ship Play, which is D345's and stands; and
+nothing about the App Check debug tokens, which
+[D337](#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens)
+settled and which remain an owner action at the console — though the
+Firebase App Check management API can create them
+(`projects.apps.debugTokens.create`, a UUID4 supplied at creation) and set
+`enforcementMode` (`projects.services.patch`), so the console is a choice
+rather than a constraint. Establishing that as a workflow is its own
+decision, and it is not taken here.

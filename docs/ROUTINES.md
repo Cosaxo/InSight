@@ -255,14 +255,17 @@ touch `main`.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
-| InSight doc sweep — **disabled 2026-09-03** | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always · **held until `docs/DOC-SWEEP.md` is on `main`**: every firing since 2026-08-30 refused correctly and to no effect, which is a guaranteed no-op waking a dispatcher under `ultracode` (D359, `WORKLIST.md`) |
+| InSight doc sweep — **disabled 2026-09-03** | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always · **the condition is MET — `docs/DOC-SWEEP.md` landed on `main` 2026-09-03 (#335), so re-enabling is an owner click.** Every firing from 2026-08-30 to 2026-09-03 refused correctly and to no effect, which was a guaranteed no-op waking a dispatcher under `ultracode` (D359, `WORKLIST.md`); that reason has expired |
 | InSight night shift | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `0 21,23,1,3,5 * * *` — four audit flows at 95 min, the 05:00 firing is the closing flow at 50 | persistent worker `session_013UfS4opexyJsoD3K9NxqFF`, which is where the owner's push authorization lives | `night-YYYYMMDD` — anywhere a verified defect is | never merges, never opens a PR, never pushes `main`; the owner merges or cherry-picks in the morning |
 
 **Contracts.** The axes lanes read `docs/AXES-RUNBOOK.md` on
 `origin/main` every run and it outranks the prompt; the theory lanes
 read `CHARTER.md` on `axiom-theory` (§10 is their inventory, §12 the
-review lane); the doc sweep reads `docs/DOC-SWEEP.md`, which is not on
-`main` — see the observation below. The night shift has no product
+review lane); the doc sweep reads `docs/DOC-SWEEP.md`, which **landed on `main`
+2026-09-03 in #335** — so the condition that held this lane is gone and
+re-enabling `trig_01E2bBC1QmYbkkHj3V96k6L1` is now an owner click. This
+sentence said the file was missing for a day after it was committed,
+which is the drift the lane itself exists to catch. The night shift has no product
 document at all: its brief is the Routine, and the only thing on `main`
 about it is D326 §2, which records the closing flow's shape and not the
 audit flows'. Its push authorization is a message the owner sent in the

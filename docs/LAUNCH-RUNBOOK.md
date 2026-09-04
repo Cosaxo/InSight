@@ -16,9 +16,13 @@ reasoning is not obvious, especially the App Check ordering (§ hardening)
 and the reveal/rules deploy order.
 
 State verified 2026-08-05: `npm run check:store-copy` reports **1**
-unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256` — a
-permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
-the count is zero**, which is a change from 2026-08-04: the Team ID and the
+unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256`.
+**It stopped being permanent at D345**: it was a non-blocker only while
+Play was parked, and it is now a real value that Play Console mints at
+App signing — which nothing can produce until something has been
+uploaded, so `--first-upload` excuses it for that one run and `--ios`
+still excuses it for an iOS build. **For an iOS launch the count is
+zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
@@ -58,19 +62,46 @@ Those two question counts are held by `npm run check:figures` against
 current by intention is the one documentation error this repo keeps
 re-committing (D39).
 
-> ## iOS only, as of 2026-08-04 (D42)
+> ## BOTH STORES, as of 2026-09-01 (D345) — this file said iOS only for three days after it stopped being true
 >
-> **Google Play is deferred**, and revisited after iOS has users rather
-> than on a date. Every Android step below is marked **[PARKED]** — left
-> in place, not deleted, because the shell still builds in CI and the work
-> is real when it is picked up.
+> **Play is un-parked**, onto D41's organization route: an ENK, a D-U-N-S,
+> and a Play Console organization account, which is exempt from the
+> closed-testing gate. The owner's word was *"yes, do both and i will go
+> for a ENK"*. The two code items that blocked any Android artifact at all
+> — release signing in `android/app/build.gradle` and
+> `.github/workflows/play-release.yml` — were built in the same decision,
+> so the Android steps below are **work, not backlog**.
 >
-> The reason is not only cost. The two routes onto Play move in opposite
-> directions over time: the organization account (D41) costs the same
-> whenever it is taken, while the 12-testers × 14-days route is brutal
-> cold and easy once you have users with Android phones. Deferring may
-> convert the expensive option into the cheap one, and retire D41 unused.
-> **Re-read D41 and D42 together at that moment; assume neither half.**
+> **Every step the park covered now reads `[UN-PARKED — D345]`**, so the
+> lift has a scope rather than a mood. They are: 1.1b, 1.2, 2.1, 2.6, 3.1,
+> 6.3, the Android half of 1.4, the Play half of 2.7, and Play's Data
+> Safety form.
+>
+> **This is the documentation error the tree keeps re-committing (D39),
+> in the file whose whole job is to say what is left.** D345 merged
+> 2026-09-01 and named neither this file nor `SHIP-CHECKLIST.md`, which is
+> canonical — so for three days the owner's ordered list understated the
+> remaining launch work by an entire platform, in the direction that looks
+> like progress. No gate could see it: `check:docs` proves the map names
+> every document, `check:figures` proves a listed number equals the tree,
+> and neither reads whether a sentence is still true. That gap is
+> `docs/DOC-SWEEP.md`'s subject, and this is the shape it exists to catch.
+>
+> **What D42's reasoning bought is still worth keeping**, because it is
+> why the route taken is the right one: the two paths onto Play move in
+> opposite directions over time — the organization account (D41) costs the
+> same whenever it is taken, while the 12-testers × 14-days route is
+> brutal cold and easy once you have users with Android phones. Choosing
+> the ENK **before** an installed base is choosing the branch D42 said was
+> right in exactly that case, so **D41 stands in full and nothing in it
+> needs re-deriving**. Two of its numbers are stale in the direction that
+> favours this choice: the gate is 12 testers rather than the 20 D41
+> launched at, and tester *engagement* is now checked as well as count.
+>
+> **The one thing still unverified is the one that costs money:** whether
+> Google's organization verification accepts an Enhetsregisteret-only ENK
+> or wants what Foretaksregisteret provides (~3,000 kr). **Check it in the
+> Play Console account-type flow before paying for a D-U-N-S expedite.**
 
 ## One clock you cannot compress
 
@@ -319,13 +350,13 @@ arithmetic.
       entitlement the App ID lacks, so a missing capability fails the
       *archive*, not just the feature — and an unused one is an entitlement
       to carry and a question to answer at review.
-- [ ] **1.1b [PARKED — D42] Register the ENK and apply for the D-U-N-S.**
+- [ ] **1.1b [UN-PARKED — D345] Register the ENK and apply for the D-U-N-S.**
       *Not being done: Play is deferred until iOS has users.* Notify Brønnøysundregistrene via Altinn; registration in
       Enhetsregisteret is free and yields the organisasjonsnummer a D-U-N-S
       application needs. The D-U-N-S itself is free from D&B, usually ~1–2
       weeks, quoted up to ~30 business days. Everything else on this list
       runs while it waits. `D41`.
-- [ ] **1.2 [PARKED — D42] Google Play Console account — as an
+- [ ] **1.2 [UN-PARKED — D345] Google Play Console account — as an
       *organization*, not personal** ($25 one-time, identity check). The organization type
       is exempt from the 12-testers × 14-days closed-testing gate; a
       personal account created after 2023-11-13 is not, and that is a 3–4
@@ -358,7 +389,7 @@ arithmetic.
       the proof.
 - [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
       (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
-      Integrity) is **[PARKED — D42]**. Do this on day 1 so the soak
+      Integrity) is **[UN-PARKED — D345]**. Do this on day 1 so the soak
       overlaps the rest of the work. **Register, do not enforce yet** —
       enforcement is step 3.4. Registering the web app is separate from
       setting the site key in the build; having one without the other
@@ -428,7 +459,7 @@ arithmetic.
 
 ## Phase 2 — Wire the native builds (needs Phase 1 accounts)
 
-- [ ] **2.1 [PARKED — D42] Android config.** Firebase Console → Project settings → Add app
+- [ ] **2.1 [UN-PARKED — D345] Android config.** Firebase Console → Project settings → Add app
       → Android, package `com.cosaxo.insight`. **Add the debug keystore
       SHA-1 first**, then download `google-services.json` → drop into
       `android/app/`. This also activates FCM for reveal pushes.
@@ -954,7 +985,7 @@ arithmetic.
       applies entitlements at signing time. Nothing else in the build said
       a word. The one time this gate has fired, it fired on this repo's own
       workflow rather than on a mistake from outside.
-- [ ] **2.6 [PARKED — D42] Android signing.** Generate the upload keystore **outside the
+- [ ] **2.6 [UN-PARKED — D345] Android signing.** Generate the upload keystore **outside the
       repo**, and **enrol in Play App Signing** so a lost upload key is
       recoverable. Before the first release commit run `git status
       --ignored` and confirm nothing sensitive is tracked — a `git add -A`
@@ -965,9 +996,11 @@ arithmetic.
       remains.** `web/.well-known/apple-app-site-association` carries the real
       Team ID as of 2026-08-05 (`U2LVW456S7.com.cosaxo.insight`). The
       `assetlinks.json` SHA-256 comes from Play Console → Setup → App
-      signing and is **[PARKED — D42]**, so `check:store-copy` will keep
-      reporting that one placeholder: a known permanent non-blocker, not
-      an unfinished task.
+      signing. **[UN-PARKED — D345]**, so this is now an unfinished task
+      rather than the permanent non-blocker it was while Play was
+      deferred: `check:store-copy` reports it until the Play Console
+      issues the fingerprint, and `--first-upload` is the flag that
+      excuses it for the upload that mints it.
 
       **The hosting redeploy this step shared with 0.2 and 0.3 landed**
       (2026-08-20 — see 0.2), so the live AASA carries the Team ID and
@@ -985,7 +1018,7 @@ satisfying a gate. The App Check soak (3.4) is the one clock still in this
 phase. On the personal-account fallback, 3.1 is also where the 14 days
 start.
 
-- [ ] **3.1 [PARKED — D42] Upload a signed AAB to a Play testing track.** With the organization account (D41) this is testing, not a
+- [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track.** With the organization account (D41) this is testing, not a
       gate — no tester minimum, no 14-day clock, and no reason to wait for
       a headcount before uploading. Use it the way TestFlight is used in
       3.2: real installs on real Android hardware, duels first.
@@ -994,11 +1027,28 @@ start.
       upload is what starts the 14 days, and it needs **12+ testers who
       actually install** — churn mid-window resets nothing, but a drop
       below 12 pauses progress.
-- [ ] **3.2 TestFlight with ten testers, not five.** The public mirror
-      publishes once per 5 answers (D7), so a group of 6–9 watches the
-      world count sit on "5+" and never move — accurate, and it reads as
-      broken. Test **duels first**: they work at N=2, need no crowd, and
-      are the most distinctive surface in the product. `SHIP-CHECKLIST §3`.
+- [ ] **3.2 TestFlight — two testers is enough to start. THE "TEN" WAS
+      PRE-D98 AND IS RETIRED HERE.** This step read *"ten testers, not
+      five"* and gave the reason in its own next clause: *"the public
+      mirror publishes once per 5 answers (D7), so a group of 6–9 watches
+      the world count sit on '5+' and never move — accurate, and it reads
+      as broken."* **That machinery no longer exists.** D98 removed the
+      k-floor outright on 2026-08-11 — `AGG_MIN_N` and `PUBLISH_EVERY` are
+      gone, and `functions/src/v2.ts` says so where they used to live —
+      so a count of 1 is published as 1. The step even carried the
+      correction further down (*"There is no k-floor since D98: the first
+      answer publishes exactly"*) while its heading still demanded a
+      crowd the removed cadence needed. One step, two answers; D98's is
+      the live one.
+
+      **So the tester count is a bug-finding decision, not a threshold.**
+      Test **duels first**: they work at N=2, need no crowd, and are the
+      most distinctive surface in the product. Two phones exercise
+      everything that needs more than one person — the sealed duel and
+      its next-day reveal, cross-device push, a second name in the
+      who-voted sheet. Add testers to widen device and iOS coverage,
+      which is a real reason; do not wait on a headcount to start.
+      `SHIP-CHECKLIST §3`.
 
       **Build 1 is in TestFlight and an external group was submitted for
       Beta App Review 2026-08-07.** What is left here is people, not setup.
@@ -1296,7 +1346,7 @@ That is a tester-count problem, not a workflow problem.
       D79; the reason used to be "no live free-text surface" and D78 part 1
       ended that).
 
-      *Play's Data Safety form is **[PARKED — D42]**.*
+      *Play's Data Safety form is **[UN-PARKED — D345]**.*
 
 - [x] **4.5 The age rating — pushed 2026-08-08, `messagingAndChat`
       re-pushed 08-09, and CONFIRMED in sync 2026-08-12.** All 22
@@ -2090,7 +2140,7 @@ That is a tester-count problem, not a workflow problem.
       one it was trying to solve. `STORE-FORMS.md` has the reasoning; this
       was the third copy of the claim, after `SHIP-CHECKLIST` and the
       forms doc.
-- [ ] **6.3 [PARKED — D42] Apply for Play production access** — a three-section
+- [ ] **6.3 [UN-PARKED — D345] Apply for Play production access** — a three-section
       application, reviewed in up to ~7 days, then submit the production
       release. On the organization account (D41) nothing gates this but the
       application itself; on the personal fallback it cannot be filed until
