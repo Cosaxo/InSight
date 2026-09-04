@@ -153,6 +153,7 @@ describe("the default user (anonymous auth) — reachable surface", () => {
     // that should say so out loud.
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
+      await setDoc(doc(db, "v2_handles", "owner"), { uid: OWNER });
       await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
         qid: "daily-000", surface: "daily", optionIdx: 1,
       });
@@ -3859,6 +3860,10 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   it("reveals refuses a signed-out read", () => refuses(["v2_groups", GROUP, "reveals", DAY]));
   it("v2_people refuses a signed-out read", () => refuses(["v2_people", OWNER]));
   it("v2_avatars refuses a signed-out read", () => refuses(["v2_avatars", OWNER]));
+  // Says `get` rather than `read`, which is the only reason the count
+  // below could not see it — it is a bare sign-in gate like the eleven
+  // above in every other respect. It is the handle → uid address book.
+  it("v2_handles refuses a signed-out read", () => refuses(["v2_handles", "owner"]));
 
   it("and the list still covers every sign-in-gated read arm", async () => {
     // The list above is hand-written, so this is what stops it going
@@ -3874,6 +3879,33 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // a helper predicate is invisible to it, and would need its own case.
     const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
     const total = (rules.match(/allow\s+read:\s*if\s+request\.auth\s*!=\s*null\s*;/g) || []).length;
+    // Still 11 + 4 with twelve cases above: the twelfth covers
+    // `v2_handles`, whose arm says `get` and so was never in this count.
+    // It is held by the second one below.
     expect(total, "the count of sign-in-gated read arms moved: add a case above and raise this number, or drop one whose own case now covers it").toBe(11 + 4);
+  });
+
+  it("…and the count sees the arms that are not spelled bare", () => {
+    // THE SECOND COUNT, because the first one's stated blind spot turned
+    // out to be much wider than "a combined arm or a helper predicate".
+    // The bare pattern requires the condition to END at `request.auth !=
+    // null;`, so an arm that says `get`, or that ANDs a second clause on,
+    // is invisible — and thirteen were. Measured on this ruleset: 15 bare
+    // against 28 of this shape.
+    //
+    // The four that matter most, none of which had a signed-out case:
+    //   firestore.rules — every user's answers by id (`read: if
+    //   request.auth != null && (uid match || surface in [...])`), the
+    //   whole answer corpus by collection group, `v2_handles` (`get`, now
+    //   covered above) and `v2_takes`.
+    //
+    // This does not assert that each has a CASE — writing twelve fixtures
+    // is tomorrow's work and is on NIGHT_TASKS.md. It asserts that the
+    // number cannot move without somebody noticing, which is the thing
+    // that was not true: all four could be opened outright with the suite
+    // and every gate green.
+    const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+    const wide = (rules.match(/allow\s+(?:read|get|list)\s*:\s*if\s+request\.auth\s*!=\s*null/g) || []).length;
+    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(28);
   });
 });
