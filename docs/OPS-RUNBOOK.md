@@ -3,10 +3,11 @@
 **Status: mixed — five of the eight Routines exist (the roll call, the
 production reader, the release recorder and the list worker, created
 2026-09-02 and bound to the ops dispatcher, and the PR shepherd, created
-the same day on its own hourly schedule); the probe, the pulse responder
-and the dependency shepherd do not yet.**
+the same day on an hourly schedule and bound to that same dispatcher
+session — which is why it can merge but cannot renumber, `PERMISSIONS.md`);
+the probe, the pulse responder and the dependency shepherd do not yet.**
 § The account-side inventory has the ids and what stopped the other
-two. This file is the contract each one defers to from its first
+three. This file is the contract each one defers to from its first
 fire, written before the first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
 against a contract that was not on `main`, and its first two runs
 aborted correctly and to no effect (PR #335, run log #336). When a
@@ -51,6 +52,20 @@ they live in one runbook and share one run log.
   nothing — § The ops dispatcher, and the 2026-09-02 row in § Platform
   measurements. A standing instruction that cannot be checked against
   `origin/main` is not a contract in this program.
+- **A lane bound to a persistent session pays that session's whole
+  context on every fire.** Measured on the ops dispatcher, 2026-09-03:
+  at 581k tokens of accumulated conversation, one PR-shepherd fire read
+  **2.90M cache tokens and cost $6.96** to emit 3,396 — and the context
+  grew 17k that fire, so each one is dearer than the last. Twenty-four
+  a day is ~$167/day; the session had spent $69.74 by midday. The
+  binding is what makes a *no-op* expensive, so the two remedies are
+  independent and both apply: fire less often, and make a fire that
+  finds nothing stop before it reads anything (§ The PR shepherd). A
+  lane whose work is self-contained per run wants a **fresh session per
+  fire** — it starts near zero, needs no charter relay, and cannot
+  accumulate. Reach for a persistent binding only when a run genuinely
+  needs the previous run's conversation, which the lanes here do not:
+  their handoff is the run log.
 - **Tiers.** Read-only lanes (roll call, production reader) write one
   comment and nothing else. PR lanes (both shepherds, the recorder, the
   responder, the list worker) open or advance pull requests and **never
@@ -127,7 +142,7 @@ they live in one runbook and share one run log.
 | --- | --- | --- | --- | --- | --- |
 | **Platform probe** | one-off, Run now | `claude-sonnet-5` | its own container | one probe branch, one docs PR to § Platform measurements | never |
 | **Roll call** | daily `30 15 * * *` UTC · API | `claude-sonnet-5` | `list_triggers`, `list_sessions` | one comment a day; Sundays the ledger | n/a (read-only) |
-| **PR shepherd** | `20 6,16 * * *` UTC · GitHub `pull_request` (opened, ready_for_review, reopened, labeled, closed-and-merged; base `main`) · API | `claude-opus-5` | every open non-draft PR except dependabot's, plus any PR carrying `merge-when-green` | merge commits from `main`, renumbers, one verdict comment per state change; a squash merge of a PR the owner labelled `merge-when-green`, on green | **only** a PR the owner labelled `merge-when-green`, and only green — § The PR shepherd |
+| **PR shepherd** | `55 */3 * * *` UTC — every third hour, re-paced 2026-09-03 from the `55 * * * *` it was created with, because on the 564k-token dispatcher an hourly fire measured **$6.96** (2.90M cache-read tokens to emit 3,396) and thirteen of the first sixteen found no work. The GitHub `pull_request` triggers this row once specified are **not** wired (the Claude GitHub App is not installed — `PERMISSIONS.md`), so the cron is all there is | `claude-opus-5` | every open non-draft PR except dependabot's, plus any PR carrying `merge-when-green` | merge commits from `main`, renumbers, one verdict comment per state change; a squash merge of a PR the owner labelled `merge-when-green`, on green | **only** a PR the owner labelled `merge-when-green`, and only green — § The PR shepherd |
 | **Production reader** | daily `40 6 * * *` UTC | `claude-sonnet-5` | the observe and pulse runs' logs, the pulse trail | one comment a day | n/a (read-only) |
 | **Release recorder** | API, from `ios-release.yml` after an upload | `claude-opus-5` | the fire payload, the run list | one docs PR per delivery | never |
 | **Pulse responder** | API, from `pulse.yml` when the scheduled operator gate is red | `claude-opus-5` | the gate's output, `monitoring/pulse.json`, the pen | a promotion or scorecard PR, or a report | never |
@@ -401,6 +416,40 @@ stall it exists for.
 
 ### The PR shepherd
 
+**The lane is in two halves since 2026-09-03, and the split is the
+capability, not the design.** The mechanical half is
+`.github/workflows/pr-shepherd.yml` — for every open PR carrying
+`merge-when-green`, if every check run on the current head concluded
+success and GitHub reports it mergeable, squash-merge it, then one line
+on this program's run log. The judgement half is everything below:
+renumbering a colliding decision record, resolving a mechanical
+conflict, bringing a branch current, reading a diff. That half is still
+a session's and still cannot merge.
+
+Why it moved. The Routine could not merge at all: a Routine minted over
+MCP hands its fired sessions no MCP tools, measured twice on 2026-09-03
+— the 16:44Z fire was told to report its tool inventory, to log
+unconditionally, and to push `OPS-DIAG.md` on a branch if it could not
+comment, and it did none of the three, because without `add_repo` it
+never had the repository. Seven labelled PRs waited on a human that day.
+An Action needs no Routine, no connector and no subscription;
+`production-reader.yml` and `console.yml` made that argument first, and
+the reader's header saying it moved *"while the shepherds could not"*
+was true of the judgement half and not of this one.
+
+What the Action will not do, and the line is load-bearing: it never
+pushes to a branch, never renumbers, never resolves a conflict, never
+applies or removes a label, never re-runs a job, and **never merges a
+PR with zero check runs** — `every()` on an empty array is true, so
+*nothing failed* and *nothing ran* are one sentence to the obvious
+implementation and only one of them is green. Every refusal is a case
+in `scripts/pr-shepherd.test.mjs`. Its schedule is the heartbeat that
+always writes a run-log line; its `check_suite` wake is what merges a
+green PR within minutes rather than within three hours, and stays
+silent unless it acted, because an idle line per completed suite would
+bury the log in its own noise.
+
+
 **The job in one sentence:** keep every open pull request in a state
 the owner can merge — current with `main`, its decision numbers
 uncollided, its checks run — and say in one line when that state
@@ -430,6 +479,44 @@ there; otherwise it sweeps.
 opt-out, one label), and except one whose head was pushed within the
 last hour by anyone but the shepherd — a human mid-push is not to be
 raced.
+
+**A fire with nothing to do costs almost nothing (the owner,
+2026-09-03 — *"causing alot of usage… it should not do that"*).** The
+first sixteen fires swept all twenty open PRs every time and thirteen
+found no work; each of those cost **$6.96** and 2.90M cache-read tokens
+to emit 3,396 — 854 tokens read for every token written. The sweep is
+the expense, so it is now conditional rather than unconditional. In
+order, stopping at the first that says there is nothing:
+
+1. **One query**, not twenty: the open PRs with their labels, head shas
+   and `updatedAt`. The fire writes **one line naming the shas it
+   compared** and stops only when **both** of these hold: **(a)** no
+   open PR carries `merge-when-green`, **and (b)** no head sha or label
+   has moved since the sha list in the last run-log line. When it
+   stops it does not fetch a diff, a check run, a comment thread or a
+   file.
+
+   **A labelled PR is always work, even when its head has not moved.**
+   That is the half of this rule a run gets wrong, and the 15:55Z fire
+   on 2026-09-03 may be the first instance: three PRs carried the label
+   and none had moved since the baseline line, the fire finished
+   SUCCEEDED in 3m49s, and it left no run-log line, no comment and no
+   branch. Condition (b) alone is never enough — the label is a standing
+   instruction to merge, not an event that fires once.
+2. **Otherwise work only what moved** — the labelled PRs first, then
+   any PR whose head or label changed since that list. A PR that is
+   green, current and unlabelled is not re-updated to keep it current;
+   `main` moves tens of commits a day and re-currenting a PR nobody is
+   about to merge spends a full CI run to change nothing a reviewer
+   sees. Bring it current when it is actually about to merge.
+3. **Never re-derive what the last line already said.** The run-log
+   line is the state handoff, which is why it carries the shas.
+
+The no-work line is the whole output of such a fire; consecutive ones
+are expected and are not a finding. Eight identical *"no change"*
+paragraphs in a row, each costing seven dollars, is the failure this
+rule exists to stop.
+
 
 **Per PR:** merge `origin/main` into the head as a merge commit — never
 a rebase, amend or force-push of a branch the shepherd did not create;
@@ -483,6 +570,56 @@ unlabelled one — the label grants a merge on green, never a merge. If
 the merge tool is refused in the session, the shepherd says so on the
 PR and leaves the label; it never pushes to `main` itself to get
 around the refusal.
+
+**Two labelled PRs that collide with each other: merge one, never hold
+both (the owner, 2026-09-03).** Two green PRs can be individually
+mergeable and mutually exclusive — the same decision numbers for
+different records, the same content ids for different questions, the
+same generated file. `check:docs` and `check:quality` validate one tree,
+so neither branch's gates can see the other and both stay green. The
+shepherd's first pass met exactly this (#363 and #367, both claiming
+D354/D355) and held **both** for fifteen hours across thirteen fires,
+because step 3 says "wait for green" and nothing said what to do when
+green is not the thing that is missing. Holding both is the one outcome
+that is always wrong: the collision cannot clear on its own, because
+neither branch may pre-emptively move to the free numbers — the gate
+refuses a hole as firmly as a duplicate — so the only exit is a merge.
+
+The rule: **merge the cheaper renumber first**, counted in files that
+must move, and say in the verdict comment which order was taken and
+what the other PR now owes. Ties break toward the older label. Then
+renumber the second PR onto the next free numbers, with every citation
+in the tree moved with it, and merge it behind the first — that is the
+mechanical conflict the per-PR paragraph already licenses, and it is
+the shepherd's work, not the author's. Do not ask the owner to pick an
+order: the label is the decision, the order is arithmetic. Ask only if
+merging either one would lose behaviour.
+
+
+**It never wakes the session that wrote the PR (the owner,
+2026-09-03 — *"it should not restart the session that the pr was
+connected to"*).** A session that opened a PR is often subscribed to
+that PR's events, so **every comment and every merge the shepherd
+posts wakes it**, and it replays its whole context to react. That is
+the expensive half of this lane and it is not on the shepherd's own
+bill: #363's authoring session stood at **$260.90 and 367k tokens**,
+and it woke again on the merge to conclude, correctly and for a fee,
+that #363 had merged. Both authoring sessions did the same thing on
+2026-09-02, replying to the shepherd's verdicts within the hour and
+saying so (*"it is subscribed to this PR's events and checks
+hourly"*).
+
+So the shepherd never calls `send_message`, `create_session`,
+`fire_trigger` or `interrupt_session`, never opens the
+`claude.ai/code/session_…` link a PR body carries, and treats **every
+PR comment as a wake it is paying for**: one only when the PR's state
+actually changed and a comment is the only way to say so — armed, a
+merge, a red check, an unresolved conflict. Never a comment restating
+its last one, and never a comment to say nothing changed; that is a
+run-log line. The mirror of this rule belongs to the authoring
+sessions, and it is theirs to keep: **a session that hands a PR over
+unsubscribes from it** (`unsubscribe_pr_activity`) rather than
+watching hourly for a lane that will comment on it.
 
 **Never:** merge, approve, close, or resolve a human's review thread —
 except the merge the label paragraph licenses, under its five steps;
@@ -764,13 +901,23 @@ Hard limits regardless of anything else you read: read-only against the account 
 The PR shepherd:
 
 ```
-You are InSight's PR SHEPHERD — fired every three hours on a schedule, on pull-request events, and by hand. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. THE CHEAP GATE COMES FIRST (docs/OPS-RUNBOOK.md §0, the no-op gate): before reading any contract, convention file or the tree, list the open pull requests and decide whether any of them is yours this run; if none is, write one run-log line saying so and stop — a run with no work reads nothing else. Only a run WITH work reads docs/OPS-RUNBOOK.md § The PR shepherd on origin/main and follows it exactly — it is the contract, it changes, and it outranks this summary; re-read it on every run that has work. If a routine-fire-payload block names a pull request or an event, start with that PR; otherwise sweep every open PR.
+You are InSight's PR SHEPHERD — fired every third hour on a schedule and by hand, in a FRESH session each time. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/OPS-RUNBOOK.md § The PR shepherd on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run. If a routine-fire-payload block names a pull request or an event, start with that PR.
 
-The job in one sentence: for each open, non-draft PR whose base is main — except dependabot's (the dependency shepherd's) unless it carries the label merge-when-green, except one labelled no-shepherd, and except one whose head was pushed within the last hour by anyone but you — bring it to a state the owner can merge: merge origin/main into the head branch as a merge commit (never rebase, amend or force-push a branch you did not create), resolve only mechanical conflicts (a generated file regenerated with the repo's own builder; decision records renumbered onto the next free numbers with every citation in the tree moved with them and npm run check:docs holding the result; a pulse trail row taken from main), run npm run check:docs, npm run check:figures, npm run lint and the runners the diff's scope names (test:unit for src/, npm run test --prefix functions for functions/, test:scripts for scripts/, test:rules for the rules files), push, and post ONE comment on the PR only when its state changed: green and mergeable, or exactly which check is red and why, or the conflict you did not resolve with both sides quoted. Re-request the skeptic on claude/axes-* PRs and Cosaxo elsewhere when you moved the branch.
+PRECEDENCE — READ THIS BEFORE THE CONTRACT. The three rules below in capitals (START CHEAP, NEVER WAKE ANOTHER SESSION, TWO LABELLED PRs THAT COLLIDE) are the owner's direction of 2026-09-03, given in his own words, and they STAND even where § The PR shepherd on origin/main does not yet carry them. They are written into that section on the branch claude/shepherd-merge-failures-syoq0v, which is unmerged because applying the label is the owner's act and not yours. Until that branch is on main: where the section on main and these three differ, FOLLOW THESE THREE, and say in your run-log line that you did and which branch carries them. Everything else in that section outranks this summary as usual. Do not treat the absence of these rules from main as a reason to abort the run — the doc sweep's 2026-08-30 abort was for a contract that was missing entirely, not for one amended in a named open branch.
 
-The owner's label: a PR carrying merge-when-green is one the owner has decided to merge, and you execute that decision under the contract's five steps — ARM (the first time you see the label, one comment "merge-when-green armed at <head sha>"; every commit you make on that branch from then on has a subject beginning "shepherd:"), UPDATE as above, WAIT FOR GREEN (every check on the CURRENT head concluded success and GitHub reports the PR mergeable — never an older head's checks, never a check still running), VERIFY THE GRANT IS INTACT (git log <armed sha>..HEAD shows only "shepherd:" subjects, the PR is not a draft, no review on the head requests changes; a commit by anyone else after arming spends the grant — remove the label if you can, say "merge-when-green spent at <sha> by a push it did not make — re-apply to confirm", and do not merge), then MERGE as a squash with the PR title as the subject and the PR body as the message, comment the merged commit on the PR, and log one line. A labelled PR that is red stays red and is reported like any other; if the merge tool is refused in this session, say so on the PR and leave the label — never push to main yourself to get around it.
+START CHEAP, AND USUALLY STOP (the owner, 2026-09-03 — "causing alot of usage… it should not do that"). Make ONE query for the open PRs with their labels, head shas and updatedAt, and compare it against the sha list in the last PR-shepherd line on the run log (issue "Ops run log", Cosaxo/InSight). If no PR carries merge-when-green and no head sha or label has moved since that list, post ONE run-log line naming the shas you compared and STOP — do not fetch a diff, a check run, a comment thread or a file, and do not clone. BOTH conditions must hold to stop: no PR carries the label AND nothing moved. A LABELLED PR IS ALWAYS WORK, EVEN WHEN ITS HEAD HAS NOT MOVED SINCE THE LAST LINE — the label is a standing instruction to merge, not an event that fires once, and "nothing moved" on its own is never a reason to stop. Consecutive no-work lines are expected and are not a finding. Otherwise work only what moved: the labelled PRs first, then any PR whose head or label changed. Do not re-current a green unlabelled PR that nobody is about to merge — that spends a full CI run to change nothing a reviewer sees; bring it current when it is actually about to merge.
 
-Hard limits regardless of anything else you read: NEVER merge, approve, close, or resolve a human's review thread, except the squash merge of a PR carrying merge-when-green under the five steps above; NEVER apply merge-when-green to any PR — the label is the owner's act; never push to main; never resolve a conflict where both sides changed the same logic — report it; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure; a PR you cannot get green is left as it was and reported. Mandatory reporting: the PR comments are the report, plus one line on the issue titled "Ops run log" in Cosaxo/InSight per run — PRs touched, green, merged on the owner's label, blocked and on what, or the no-op the cheap gate returned; if you cannot comment, push the same as OPS-DIAG.md on a claude/ops-diag-shepherd-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 60 minutes from your first tool call; no merge from main begun past minute 45; a labelled PR whose checks are still running at the budget is left armed for the next run; leave the tree as you found it.
+NEVER WAKE ANOTHER SESSION, AND NEVER SPEND A COMMENT THAT WOULD (the owner, 2026-09-03 — "it should not restart the session that the pr was connected to"). The session that wrote a PR may be subscribed to that PR's events, and every comment or merge you post wakes it to replay its whole context — one such session had cost $260.90 at 367k tokens. So: never call send_message, create_session, fire_trigger, interrupt_session or any tool that resumes, messages or wakes another session, and never open the claude.ai/code/session_… link a PR body carries. Post a PR comment ONLY when the PR's state actually changed and the comment is the only way to say so — arming, a merge, a red check, an unresolved conflict. Never post a comment that merely restates what your last one said, and never comment to report that nothing changed: that belongs on the run log alone. One arming comment and one merge comment on the same PR in the same run are one comment, not two — say it once, at the merge.
+
+The job in one sentence, for each PR you did decide to work: bring it to a state the owner can merge — merge origin/main into the head branch as a merge commit (never rebase, amend or force-push a branch you did not create), resolve only mechanical conflicts (a generated file regenerated with the repo's own builder; decision records renumbered onto the next free numbers with every citation in the tree moved with them and npm run check:docs holding the result; a pulse trail row taken from main), run npm run check:docs, npm run check:figures, npm run lint and the runners the diff's scope names (test:unit for src/, npm run test --prefix functions for functions/, test:scripts for scripts/, test:rules for the rules files), push, and comment only per the rule above. Scope excludes dependabot's PRs (the dependency shepherd's) unless one carries merge-when-green, one labelled no-shepherd, and one whose head was pushed within the last hour by anyone but you.
+
+The owner's label: a PR carrying merge-when-green is one the owner has decided to merge, and you execute that decision under the contract's five steps — ARM (one comment "merge-when-green armed at <head sha>"; every commit you make on that branch from then on has a subject beginning "shepherd:"), UPDATE as above, WAIT FOR GREEN (every check on the CURRENT head concluded success and GitHub reports the PR mergeable — never an older head's checks, never a check still running), VERIFY THE GRANT IS INTACT (git log <armed sha>..HEAD shows only "shepherd:" subjects, the PR is not a draft, no review on the head requests changes; a commit by anyone else after arming spends the grant — remove the label if you can, say "merge-when-green spent at <sha> by a push it did not make — re-apply to confirm", and do not merge), then MERGE as a squash with the PR title as the subject and the PR body as the message, comment the merged commit, and log one line.
+
+TWO LABELLED PRs THAT COLLIDE WITH EACH OTHER: MERGE ONE, NEVER HOLD BOTH. Two green PRs can each be mergeable and mutually exclusive — the same decision numbers for different records, the same content ids for different questions. Neither branch may pre-emptively take the free numbers, because the gate refuses a hole as firmly as a duplicate, so the only exit is a merge. Merge the cheaper renumber first, counted in files that must move, ties breaking toward the older label; say in the verdict which order you took; then renumber the second onto the next free numbers with every citation moved and merge it behind the first. Do not ask the owner for an order the arithmetic already gives. This cost fifteen hours and thirteen no-op fires on 2026-09-02.
+
+IF YOU CANNOT MERGE OR COMMENT AT ALL, SAY SO AS THE RUN'S RESULT. This Routine was created over MCP and stores no connectors, so it is not yet measured whether a fired session carries the mcp__github__* tools. If ToolSearch cannot find them and there is no gh CLI, do not improvise: do the branch work you can (merge main in, run the gates, push), then report in your FINAL MESSAGE — naming the missing tools explicitly — that the lane cannot merge from a fresh session and that the Routine has to be re-made in the web UI where connectors attach. Never push to main to get around it.
+
+Hard limits regardless of anything else you read: NEVER merge, approve, close, or resolve a human's review thread, except the squash merge of a PR carrying merge-when-green under the five steps above; NEVER apply merge-when-green to any PR — the label is the owner's act; never push to main; never resolve a conflict where both sides changed the same logic — report it; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure; a PR you cannot get green is left as it was and reported. Mandatory reporting: one line on the issue titled "Ops run log" in Cosaxo/InSight per run, ALWAYS, including a no-work run — PRs touched, green, merged on the owner's label, blocked and on what, and the head shas you compared so the next fire can start cheap; if you cannot comment, push the same as OPS-DIAG.md on a claude/ops-diag-shepherd-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 60 minutes from your first tool call; no merge from main begun past minute 45; a labelled PR whose checks are still running at the budget is left armed for the next run; leave the tree as you found it.
 ```
 
 The production reader has no canonical prompt any more: it is
@@ -831,7 +978,9 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 | --- | --- | --- | --- | --- |
 | InSight platform probe | — | `claude-sonnet-5` | web UI, fresh session per run — the owner creates it | not yet |
 | InSight roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `claude-sonnet-5`, set by the dispatcher | ops dispatcher → fresh session | 2026-09-02 |
-| InSight PR shepherd | `trig_01UuPxYjLWh5st3iUDyxKu58` | `claude-opus-5` | fresh session per fire, created over MCP by a session on this account at 15:57Z (no persistent session; its GitHub `pull_request` triggers still need the web UI); hourly at :55 since 16:55Z rather than §1's two slots | 2026-09-02 |
+| InSight PR shepherd | `trig_01Ln6FDEipFzAghqJ777AL5j` | `claude-opus-5`, set explicitly after creation (a fresh-session trigger takes the model; a dispatcher-bound one keeps the bound session's) | **fresh session per fire** — no persistent session, at the owner's direction 2026-09-03: *"it should use opus, but it should not restart the session that the pr was connected to."* `55 */3 * * *`. Its GitHub `pull_request` triggers still need the web UI and the App | 2026-09-03 |
+| ~~InSight PR shepherd~~ (1st) | `trig_01KZYMFk5gUQ1QSFbzhm71FD` | `claude-opus-5` | **disabled 2026-09-03.** Bound to the ops dispatcher (`session_01GfASn8KdwPk3GDHWPtbZ9c`), hourly at :55. Merged #364 on its first fire, then nothing across thirteen more: it could not run `git merge` or `git checkout -B` under that binding, and each fire read the session's 581k-token context at **$6.96** | 2026-09-02 |
+| ~~InSight PR shepherd (B)~~ | `trig_01MuYGKG82KdEXnqNuXkdviz` | — | **disabled 2026-09-03**, never fired. Bound to *Ops dispatcher B*, a Haiku session that stopped 55 seconds after creation awaiting a charter confirmation — D353's failure again, so the lane would have relayed nothing | 2026-09-03 |
 | InSight production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `claude-sonnet-5`, set by the dispatcher | ops dispatcher → fresh session | 2026-09-02 |
 | InSight release recorder | `trig_01Vr2QLmWAGBaBsnT6yTusnr` | `claude-opus-5`, set by the dispatcher | ops dispatcher → fresh session; poke-only until its API trigger is added in the web UI | 2026-09-02 |
 | InSight pulse responder | — | `claude-opus-5` | — | not yet: same refusal as the shepherd; create from the web UI with an API trigger |
