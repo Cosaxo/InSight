@@ -32,6 +32,7 @@
 // everywhere in the map.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
@@ -81,7 +82,7 @@ const failures = [];
 // depth zero handles every one of them in this tree. Nested braces in
 // attributes (style objects, arrow handlers) are what the depth counter is
 // for — a naive /<input[^>]*>/ stops inside the first onChange.
-const tagsIn = (src, tag) => {
+export const tagsIn = (src, tag) => {
   const out = [];
   const open = new RegExp(`<${tag}(?=[\\s/>])`, "g");
   let m;
@@ -193,7 +194,27 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const file of FILES) {
     const rel = relative(ROOT, file);
     if (SKIP_FILES.has(rel)) continue;
-    const src = readFileSync(file, "utf8");
+    // COMMENTS BLANKED BEFORE ANYTHING READS THE SOURCE, and the tag
+    // scanner is why. It tracks `"`, `'` and backtick as string
+    // delimiters and knows nothing about comments — so an ordinary
+    // apostrophe inside a comment within an opening tag ("the rule's",
+    // "the Mirror's") opens a phantom string, after which `{`, `}` and the
+    // closing `>` are all skipped and the scan runs on until the next
+    // straight quote.
+    //
+    // Measured on this tree: one `<input>` whose real tag is 795
+    // characters was returned as 2331 — the field, a whole button, two
+    // spans, a closing div and a function signature. That is a live hole,
+    // not just an obstacle: a field with a comment containing an
+    // apostrophe and `fontSize: 13` passes, because the swallowed text
+    // reaches a `type="checkbox"` on the NEXT element and the no-zoom
+    // exemption then applies to the wrong tag. D105's shipped bug, walking
+    // straight through the gate written for it.
+    //
+    // Blanking rather than deleting keeps every offset, so `lineOf` still
+    // reports the real line. `styleConsts` below has the identical loop
+    // and is fixed by the same line.
+    const src = stripComments(readFileSync(file, "utf8"));
     if (!/<(input|textarea)[\s/>]/.test(src)) continue;
     fieldFiles++;
     const consts = styleConsts(src);
