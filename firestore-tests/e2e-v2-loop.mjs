@@ -28,7 +28,7 @@ import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
 // The report builder (PAID-PLAN §9.2): §7g drives it through THIS
 // harness's signed-in client, so the deployed rules referee every read.
 import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
-import { expectCode, expectDenied, fail, ok } from "./e2e-lib.mjs";
+import { expectCode, expectDenied, expectRefusal, fail, ok } from "./e2e-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -1236,14 +1236,18 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // Asserted through the real callable, on a real bank question, because
   // that is the half the unit test cannot reach.
   for (const [qid, what] of [["group-gu0", "a sealed duel"], ["pulse-pace", "a per-day pulse"]]) {
-    let refused = null;
-    try {
-      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
-    } catch (err) {
-      refused = String(err && err.message ? err.message : err);
-    }
-    if (!refused) fail(`the rebuild tool reported on ${what} (${qid}) instead of refusing it`);
-    // The refusal has to NAME the question and give a reason — a bare
+    // THE CODE, not just the fact that something was thrown. This block
+    // read only the message until tonight, and the callable's own
+    // `internal` wrapper answers `rebuild of <qid> failed: <reason>` —
+    // which names the question and is long, so a missing composite index
+    // or any other crash inside runRebuild passed as the refusal being
+    // asserted. `not-found` (the fixture never seeded) cleared the name
+    // check too and missed the length one by two characters.
+    const refused = await expectRefusal(
+      `the rebuild tool refuses ${what} (${qid})`,
+      "functions/failed-precondition",
+      () => httpsCallable(fns, "rebuildAggregateV2")({ qid }));
+    // AND the refusal has to NAME the question and give a reason — a bare
     // "failed-precondition" tells an operator nothing about which of the
     // two unaddressable shapes they hit.
     if (!refused.includes(qid) || refused.length < qid.length + 30)
