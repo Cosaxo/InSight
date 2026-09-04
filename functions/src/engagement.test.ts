@@ -108,17 +108,31 @@ describe("runEngagementDigest", () => {
 
   it("keys cohort returns on firstDay and reads unknown denominators as null", async () => {
     const d1 = dayOffset(Y, -1);
+    const d30 = dayOffset(Y, -30);
     const { store, state } = memoryStore({
       [d1]: [e("new1", "q1"), e("new2", "q1")], // two first-timers
-      [Y]: [e("new1", "q2"), e("old1", "q1")], // one returns next day
+      // THREE actives, and the third is the whole point. With only new1
+      // (in the d1 cohort) and old1 (in none), the d1 predicate and its
+      // NEGATION both select exactly one account, so `=== ` could be
+      // inverted with every test green — measured. `mid1` belongs to a
+      // different cohort, so the two readings now differ: 1 against 2.
+      [Y]: [e("new1", "q2"), e("old1", "q1"), e("mid1", "q1")],
     });
     // old1 has history from before the window — firstDay far in the past
     state.users.set("old1", { firstDay: "2026-01-01", lastDay: dayOffset(Y, -3), activeDays: 9, streak: 1 });
+    // mid1 first appeared thirty days ago — the d30 cohort, which nothing
+    // asserted at all before.
+    state.users.set("mid1", { firstDay: d30, lastDay: d30, activeDays: 1, streak: 1 });
     await runEngagementDigest(store, NOW, FEED);
     const doc = state.days.get(Y)!;
     expect(doc.returned.d1).toEqual({ returned: 1, of: 2 });
     // the d7 cohort day sits outside the catch-up window — never folded
     expect(doc.returned.d7).toEqual({ returned: 0, of: null });
+    // …and d30 counts its own returner. Inverting this line publishes the
+    // COMPLEMENT of the cohort on a world-readable document — routinely
+    // more accounts than the `of` denominator, which reads as a retention
+    // rate above 100%.
+    expect(doc.returned.d30).toEqual({ returned: 1, of: null });
     expect(doc.firstTime).toBe(0);
   });
 
