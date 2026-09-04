@@ -82,6 +82,27 @@ beforeEach(async () => {
 // green with four real errors in it. tsconfig.node.json includes it now.
 const modular = (db: unknown): Firestore => db as Firestore;
 
+/**
+ * `assertFails`, with the loop case named.
+ *
+ * It takes ONE argument. Two cap loops in this file passed a message as a
+ * second, which TypeScript rejects and JavaScript silently drops — so the
+ * message never reached anyone and `tsc -b` went red. Inside a loop the
+ * bare failure says only that an operation succeeded, without saying which
+ * key or which ceiling, and that is the whole reason those messages were
+ * written; dropping them would have been the cheaper wrong fix.
+ *
+ * The same shape as the four errors this file's header already records
+ * surviving because vitest transpiles without checking types.
+ */
+async function failsFor(why: string, op: Promise<unknown>): Promise<void> {
+  try {
+    await assertFails(op);
+  } catch (e) {
+    throw new Error(`${why} — ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 // Seed data with rules bypassed (admin context).
 async function seed(fn: (db: Firestore) => Promise<void>): Promise<void> {
   await env.withSecurityRulesDisabled(async (ctx) => {
@@ -594,9 +615,9 @@ describe("v2 profile", () => {
       ["country", 80], ["profession", 80], ["education", 80],
       ["relationship", 40], ["heightBand", 20],
     ] as const) {
-      await assertFails(
-        setDoc(mine, { anchors: { [key]: "x".repeat(max + 1) } }),
+      await failsFor(
         `the ${key} cap is not enforced`,
+        setDoc(mine, { anchors: { [key]: "x".repeat(max + 1) } }),
       );
       // …and the cap admits a value AT it, so a refusal of everything
       // cannot pass for a bound.
@@ -1038,9 +1059,9 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
       { fgMin: 500 }, { quiet: 30000 }, { answers: 200000 },
       { feedB: 500 }, { depthEnd: 100 }, { stops: 200000 }, { lenses: 200000 },
     ]) {
-      await assertFails(
-        setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup(over)),
+      await failsFor(
         `a rollup ceiling accepted ${JSON.stringify(over)}`,
+        setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup(over)),
       );
     }
   });
