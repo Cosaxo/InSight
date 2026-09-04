@@ -56,6 +56,23 @@
 //     vintages hold the editorial bar before writing more, and cites
 //     the trend in its PR body. Same k-floored aggregates, no new read
 //     path (the duel section's precedent).
+//   - FIT (2026-09-03, D363): the nightly Patterns fit's own numbers,
+//     read off the single doc it publishes (v2_patterns/loadings) with
+//     the same anonymous token — one more world-readable doc GET on the
+//     fetch path that already exists, no new credentials, nothing
+//     per-person in it. This is the READ half of D325's bridge crossing:
+//     that record gave the fit a prequential score and a displacement
+//     summary and closed with "nothing draws these fields yet; they are
+//     instruments", and the theory lanes' `measured` rung is defined
+//     against numbers a run can quote from `main` rather than from a
+//     console someone ran once. Carried: the prequential series with its
+//     floor, the displacement summary, the basis distribution, and a
+//     per-question item profile (discrimination in the fitted K-space,
+//     plus the ±1-encoded marginal) with the honesty clause that says
+//     what those are not. NOT carried, deliberately: the raw loading
+//     vectors — the map is drawn on the device off the live doc, so a
+//     second, staler copy in a committed artifact serves no reader
+//     (scripts/fit-snapshot.mjs has the arithmetic and the reasoning).
 //   - NOT the catalog surface, deliberately (2026-08-05): pick cards are
 //     not seeded and no client write path exists yet, so any qid form
 //     scored here would be an invented key — the D15 failure class.
@@ -74,6 +91,12 @@
 //                      touches aggregates or the D28 ledger).
 //   --input <file>     read a JSON dump { qid: {counts,total} }
 //                      (operator export, or a test fixture).
+//   --loadings <file>  with --input: a decoded v2_patterns/loadings dump,
+//                      so an offline run can carry the fit block too.
+//                      Without it an --input run carries NO `fit` key at
+//                      all — an offline aggregate dump says nothing about
+//                      the fit, and a null there would claim it did.
+//                      Ignored under --fetch, which reads the live doc.
 //   (no args)          re-print the summary from the committed
 //                      content/scorecard.json — the farm's read path.
 //
@@ -85,6 +108,7 @@ import {
   splitQualityOf, rollupProduction, creditShares,
   attentionFromTrail, ATTENTION_WARNING, isScoredAgg, isMeasured,
 } from "./scorecard-metrics.mjs";
+import { fitSnapshot, readMinBasis } from "./fit-snapshot.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
@@ -96,6 +120,8 @@ const args = process.argv.slice(2);
 const FETCH = args.includes("--fetch");
 const inputIdx = args.indexOf("--input");
 const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
+const loadingsIdx = args.indexOf("--loadings");
+const LOADINGS = loadingsIdx >= 0 ? args[loadingsIdx + 1] : null;
 
 // ── the question banks under evaluation ──
 const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
@@ -207,6 +233,50 @@ async function fetchEngagementDays(idToken, project) {
   } while (pageToken);
   days.sort((a, b) => (String(a.day) < String(b.day) ? -1 : 1));
   return days;
+}
+
+// The nightly fit's own scorecard (D325), read on the SAME token — the
+// engagement trail's precedent, one fetch path rather than two. One doc
+// GET: `v2_patterns/loadings` is world-readable to signed-in users and
+// written by nobody, and carries nothing per-person (the private θ
+// vectors live under the v2_users/{uid}/patterns deny and stay there).
+async function fetchLoadings(idToken, project) {
+  const url =
+    `https://firestore.googleapis.com/v1/projects/${project}/databases/${DB_ID}` +
+    `/documents/v2_patterns/loadings`;
+  const res = await fetch(url, { headers: { authorization: `Bearer ${idToken}` } });
+  // 404 is a STATE, not a failure: the fit has not published yet (a
+  // fresh project, or no eligible day folded). Saying so and carrying a
+  // null block is the honest read; exiting 1 would make "no fit yet"
+  // indistinguishable from a broken fetch and redden every farm run.
+  if (res.status === 404) {
+    console.log("scorecard: fit not published yet");
+    return null;
+  }
+  if (!res.ok) {
+    console.error(`scorecard: loadings read failed (${res.status}): ${await res.text()}`);
+    process.exit(1);
+  }
+  return decodeLoadings(await res.json());
+}
+
+// One decoder for both ways the document arrives — the live GET above
+// and an operator's `--loadings` dump, which is the same REST body saved
+// with curl. Without this the offline arm would hand `{name, fields}`
+// straight to the fold and commit a plausible "published, nothing
+// fitted" block, every field present and zero. A dump that is already
+// decoded (has `q`, no `fields`) passes through unchanged.
+//
+// `at` is a server timestamp, whose wire form is its own type and which
+// decode() deliberately does not know: the engagement trail carries
+// `foldedAt` the same way and commits it as null today, so teaching the
+// shared decoder timestamps would silently reshape monitoring/
+// engagement.json in a change about the fit. Read here, for this doc
+// only — the block only ever states when the fit published.
+function decodeLoadings(d) {
+  if (!d || typeof d !== "object" || !d.fields) return d;
+  const at = d.fields.at?.timestampValue ?? null;
+  return { ...decode({ mapValue: { fields: d.fields } }), at };
 }
 
 // ── scoring ──
@@ -634,6 +704,26 @@ function summarize(card) {
         (card.learn.weakTraps?.length ? ` · weak traps: ${card.learn.weakTraps.map((t) => t.qid).join(", ")}` : ""),
     );
   }
+  // Same optional-chaining rule for the fit block (D363), one step
+  // further: an artifact written before this block existed — or by an
+  // --input run with no --loadings — has no `fit` key and says nothing,
+  // while a live run that found no published doc says THAT out loud.
+  if (card.fit !== undefined) {
+    const f = card.fit;
+    console.log(
+      f === null
+        ? "  fit (D363): not published yet"
+        : `  fit (D363): ${f.questions} questions · ${f.basis?.ready} at basis ≥ ${f.basis?.floor}` +
+          (f.quality
+            ? ` · prequential ${f.quality.bits} bits over n=${f.quality.n} on ${f.quality.day}` +
+              ` (series ${f.quality.series?.length ?? 0} rows)`
+            : " · no prequential block") +
+          (f.displacement
+            ? ` · displacement p50 ${f.displacement.p50} / max ${f.displacement.max}` +
+              ` over ${f.displacement.n} (movers ${f.displacement.moved})`
+            : " · no displacement block"),
+    );
+  }
   // Same optional-chaining rule for the duel section (D40 part 3).
   const dc = card.duel?.coverage;
   if (dc) {
@@ -656,6 +746,13 @@ if (FETCH || INPUT) {
     aggs = live.aggs;
   }
   const card = score(aggs);
+  // Fetched BEFORE either artifact is written, beside the engagement
+  // days: a 403/5xx on this document exits 1 (fetchLoadings), and every
+  // fetch on this path has to fail before the first write or succeed
+  // through the last — otherwise monitoring/engagement.json and
+  // content/scorecard.json can be committed from two different fetches.
+  let liveFit;
+  if (live) liveFit = await fetchLoadings(live.idToken, live.project);
   if (live) {
     const days = await fetchEngagementDays(live.idToken, live.project);
     // Day granularity on the stamp, the pulse artifact's reasoning: this
@@ -686,6 +783,24 @@ if (FETCH || INPUT) {
         warning: ATTENTION_WARNING,
       };
     }
+  }
+  // The fit block (D363), merged BEFORE the card writes — the attention
+  // columns' own rule, so the committed artifact a farm or theory run
+  // reads carries the fit's numbers rather than trusting a renderer.
+  //
+  // `undefined` means "this run has nothing to say about the fit": an
+  // offline aggregate dump with no --loadings is not evidence that the
+  // fit is unpublished, so it leaves the key off entirely. A live run
+  // always states one or the other (null = 404 = not published yet).
+  const fitDoc = live
+    ? liveFit
+    : LOADINGS ? decodeLoadings(JSON.parse(readFileSync(resolve(LOADINGS), "utf8"))) : undefined;
+  if (fitDoc !== undefined) {
+    // The believable-basis floor, cross-read from the functions source
+    // the same way DECK_EPOCH is above — readMinBasis throws rather than
+    // defaulting, because a stale copy would mis-count "ready".
+    const patternsFitSrc = readFileSync(join(root, "functions", "src", "patternsFit.ts"), "utf8");
+    card.fit = fitSnapshot(fitDoc, { basis: readMinBasis(patternsFitSrc) });
   }
   writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
   console.log(`scorecard: wrote ${OUT}`);

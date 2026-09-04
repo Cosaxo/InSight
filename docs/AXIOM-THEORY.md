@@ -90,7 +90,14 @@ inter-fit displacement summary — crossed at
 [D325](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard)
 (2026-08-27): the nightly fit publishes both on `v2_patterns/loadings`,
 with the verdicts' conditions (the per-question floor; no rotation
-alignment; the fit-not-Oracle note) carried into the record.
+alignment; the fit-not-Oracle note) carried into the record. The
+read half — the map lane's 2026-08-28 request that D325's numbers be
+readable from `main`, where CHARTER §4 defines the `measured` rung —
+is [D363](DECISIONS.md#d363--the-bridges-read-half-the-fits-own-scorecard-becomes-readable-from-main)
+(2026-09-03, drafted Status: Proposed by the axiom builder): the
+scorecard's fetch reads the loadings document into a `fit` block on
+`content/scorecard.json`, with the questions lane's item-information
+profile (the same day's verdict) folded into the same block.
 
 ## The account-side inventory (product-side copy)
 
