@@ -351,9 +351,13 @@ describe("the real manifest against the real tree", () => {
   });
 
   it("every live program Routine on Claude 3 fires into this program's planning session", () => {
+    // The count is not pinned: the account's Routines page is the owner's
+    // dial (the merge shift was deleted from it on 2026-09-04), and a
+    // deleted lane is a manifest row going to "not yet", not a failure.
+    // What is pinned is the binding of whatever IS live.
     const { manifest: m } = parseManifest(manifestText);
     const live = m.routines.filter((r) => r.account === "claude-3" && r.state === "live");
-    expect(live.length).toBeGreaterThanOrEqual(5);
+    expect(live.length).toBeGreaterThan(0);
     for (const r of live) expect(r.binding).toEqual({ kind: "relay", session: "session_013V91NnDHMjjLSGYxzTEsnw", label: "the planning session" });
   });
 });
