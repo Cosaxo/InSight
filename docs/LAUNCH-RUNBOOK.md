@@ -447,6 +447,17 @@ arithmetic.
       All three before 3.4, not after — the flip is what makes them
       load-bearing.
 
+      **Steps 2 and 3 no longer need the console (D363).** Actions →
+      **App Check** → `register-debug-token`, with the value already in the
+      `APPCHECK_DEBUG_TOKEN` secret: `scripts/appcheck.mjs` registers what
+      it is handed and deliberately cannot mint or echo one, so no token
+      passes through a run log. Step 1 — deciding the value — stays yours,
+      and that is the right split: a secret should be born where it is
+      going to live. Dispatch `report` first; it is read-only and prints
+      the app ids, the debug tokens by display name, and every service's
+      enforcement mode, which is the same reading this step used to need
+      two console pages for.
+
       **A debug token is a bypass, not an attestation.** Whoever holds it
       is past App Check. One per environment, in secrets, never in a build
       that reaches users — `shipsDebugToken` in `scripts/appcheck-guard.ts`
@@ -1097,6 +1108,13 @@ start.
       callables already enforce in prod; `APPCHECK_ENFORCE=false` on the
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
+
+      **The flip is Actions → App Check → `enforce` (D363)**, service by
+      service, `apply` off first: the dry run prints the current mode and
+      the transition without touching anything. It is dispatch-only behind
+      the `production` environment, so it can only run from `main` — which
+      is the protection this step wants, given that the flip is the
+      irreversible direction. Read the soak metrics before, not after.
 
       **Two browsers break on this flip, and both are yours.** A dev
       browser and the screenshot job read production Firestore without
