@@ -3278,8 +3278,36 @@ describe("presence (D84 — Near by radius)", () => {
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertFails(setDoc(ref, cellDoc({ cell: "59.913_10.752" })));   // raw coords
     await assertFails(setDoc(ref, cellDoc({ cell: "29999_5374_extra" }))); // sub-cell suffix
+    // THE DIGIT BOUND ITSELF, which the case name has always claimed and
+    // never sent. The three above are refused by SHAPE — a dot, a third
+    // segment, an unknown key — so `{1,5}` could be widened to `{1,9}`,
+    // a ~22 cm grid, with the whole suite green. Measured before this
+    // line existed. The rules comment calls this regex "the precision cap
+    // in structural form … however hard a client tries", and a modified
+    // client is the entire threat model D174/D177 wrote it for.
+    await assertFails(setDoc(ref, cellDoc({ cell: "599135_107524" })));   // a 6-digit index
+    await assertFails(setDoc(ref, cellDoc({ cell: "29999_1075240" })));   // fine on one axis only
     await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
     await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
+  });
+
+  it("cannot delete someone else's presence", async () => {
+    // The owner check on the DELETE arm had no case: the write case above
+    // asserts a stranger cannot overwrite the row, and nothing asserted
+    // they cannot remove it. Measured: dropping `&& request.auth.uid ==
+    // uid` from the delete arm left the whole suite green.
+    //
+    // What that clause holds shut: any free anonymous account (D3) could
+    // evict anybody from Near, and because the collection is read-denied
+    // nobody could observe it happening. Uids are recoverable from any
+    // answer's document path, so picking a target costs nothing.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence", OWNER), { cell: "29999_5374", at: new Date() });
+    });
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_presence", OWNER)));
+    // …and the owner still can, or this passes on a rule that refuses
+    // every delete.
+    await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_presence", OWNER)));
   });
 
   // THE WRITE-SIDE VERSION OF THE READ DENY (D174).
