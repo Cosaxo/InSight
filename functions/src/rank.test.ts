@@ -102,6 +102,17 @@ describe("computeRank", () => {
     expect(isLandslide(agg(RANK_DEAD_MIN - 1, { "0": RANK_DEAD_MIN - 1 }))).toBe(false);
     expect(isLandslide(agg(RANK_DEAD_MIN, { "0": RANK_DEAD_MIN }))).toBe(true);
     expect(isLandslide(undefined)).toBe(false);
+    // THE FLOOR ITSELF, stated relative to nothing. The two lines above
+    // both derive their fixtures FROM the constant, so the pin moves with
+    // it: measured, 20 -> 2 leaves the whole functions suite green, and at
+    // 2 a question with two answers agreeing reads as dead and sinks to
+    // the tail of its topic in the published order — which is the exact
+    // "three people agreed so far" reading this case exists to prevent.
+    // The share half of the same predicate is pinned literally in the case
+    // above, under a comment saying a threshold nothing pins is one that
+    // drifts. This is the other half.
+    expect(RANK_DEAD_MIN,
+      "the volume floor moved — re-read rank.ts's reasoning and change this line deliberately").toBe(20);
   });
 
   it("excludes the killed and the out-of-window, both boundaries inclusive", () => {

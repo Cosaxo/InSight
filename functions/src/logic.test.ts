@@ -220,6 +220,16 @@ describe("measuredPctile (D60)", () => {
   it("stays null below the floor — the model keeps the job", () => {
     expect(measuredPctile(null, 8)).toBeNull();
     expect(measuredPctile({ n: LOGIC_NORMS_MIN_N - 1, b0: LOGIC_NORMS_MIN_N - 1 }, 12)).toBeNull();
+    // …and the floor itself, which this line cannot pin because it builds
+    // its fixture from the constant. Measured: 100 -> 2 leaves all 617
+    // functions tests green. Above this floor the app publishes
+    // `source: "measured"` with an `n`, and the client says "sharper than
+    // X% of N verified players" — at 2 that sentence is published from two
+    // people. The constant's own docblock says "one constant; lowering it
+    // is a recorded decision, not a tweak", which is the standard the
+    // start-cap case in this same file already applies literally.
+    expect(LOGIC_NORMS_MIN_N,
+      "the norms floor moved — lowering it is a recorded decision, not a tweak").toBe(100);
   });
 
   it("at the floor: strictly-below share, ties not beaten", () => {
