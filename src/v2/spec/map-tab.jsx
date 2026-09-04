@@ -396,13 +396,33 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const [hlCat, setHlCat] = useState(null); // spotlit branch id
   const [pairA, setPairA] = useState(null); // active group filter on the answer card
 
+  // Whether `age` means "days ago" at all — see the two readings below
+  // that used to draw it as though it always did.
+  const datesReal = DAILYQ.datesAreReal ? DAILYQ.datesAreReal() : true;
   const selCat = cats.find((c) => c.id === sel) || null;
   const selAnchor = sel && String(sel).indexOf('ax-') === 0 ? anchors.find((a) => 'ax-' + a.id === sel) : null;
   const selNode = sel && sel !== 'root' && !selCat && !selAnchor ? byId[sel] : null;
   const selIsSub = selNode && selNode.sub;
   // the answer card's active group filter — sticky across answers
   const effFilter = selNode && selNode.daily && !selNode.learn ? (pairA || (anchors[0] && anchors[0].id)) : null;
-  const anchorRows = selAnchor ? allAnswers.slice().sort((a, b) => a.age - b.age) : [];
+  // A MASTERED FACT IS AN ANSWER, BUT IT IS NOT AN OPINION — and the
+  // anchor card is a comparison against people who share an anchor.
+  //
+  // `allAnswers` keeps learn nodes on purpose: you did answer them, so
+  // they belong in the count and in the time scrub. This row list is the
+  // other thing it feeds, and there they are wrong twice over. In demo
+  // mode the card lists them under "where you differ" — "The capital of
+  // Brazil is… · you Brasília · them —" — a fact you got RIGHT, filed as
+  // a disagreement, with a dash where the crowd should be, each one
+  // dragging the match headline down. In live mode a learn id has no
+  // question aggregate at all, so one mastered fact makes `noCohort` true
+  // and replaces the whole card with "isn't measured yet", where the same
+  // card without it reads a real percentage.
+  //
+  // The rest of this file already knows: `effFilter` above, `ringOpen`,
+  // and the node's own class list all say `daily && !learn`. This was the
+  // one place that did not.
+  const anchorRows = selAnchor ? allAnswers.filter((n) => !n.learn).sort((a, b) => a.age - b.age) : [];
 
   const hlSet = useMemo(() => {
     if (hlCat) {
@@ -1074,10 +1094,39 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             const cat = cats.find((c) => c.id === catId);
             const dim = hlSet && !hlSet.has(n.id);
             const age = n.age ?? 30;
-            const fresh = recency && n.daily && age <= 7;
+            // RECENCY IS A CLAIM ABOUT WHEN, AND `age` IS ONLY A POSITION.
+            //
+            // `daily-questions.js` added `datesAreReal()` for exactly this
+            // and says so in its own docstring — "in a live build it is
+            // the demo bank's fixed position, which is not the order this
+            // account answered in". The node builder consults it for
+            // `today`, one field along from where it sets `age`, and the
+            // two readings drawn FROM age never asked: on a live build the
+            // first eight questions of the demo bank were drawn enlarged
+            // and marked fresh whatever order you actually answered in.
+            //
+            // The Mirror's Answers lens refuses "newest" for this same
+            // reason (docs/MIRROR.md §339). Ordering by position is still
+            // deterministic and is left alone; what stops is DRAWING a
+            // position as a date.
+            //
+            // EXCEPT for learn nodes, and this gate caught them for six
+            // minutes before anyone noticed. They carry `daily: true` like a
+            // daily answer, but their `age` is not `q.idx` at all — it is
+            // `n - 1 - i` over `LEARN.mastered()`, which is `S.order`, the
+            // order this device actually mastered them in (learn-progress.js
+            // pushes on mastery). That IS a real recency, identical in live
+            // and demo, and `datesAreReal()` — a fact about the daily bank's
+            // dates — says nothing about it. Gating it here silently stopped
+            // marking and enlarging recently-learned facts on every live
+            // build: a true signal removed for a reason that does not reach
+            // it. The rest of the file already keeps the two apart with
+            // `daily && !learn`; this is that distinction, once more.
+            const dated = recency && (n.learn ? true : datesReal);
+            const fresh = dated && n.daily && age <= 7;
             const off = hidden && hidden.has(n.id);
             // strict size ladder — hub > answer > topic; new dots land large and settle
-            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
+            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (dated && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
             const showLab = !n.quiet && labKeep.has(n.id);
             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             return (

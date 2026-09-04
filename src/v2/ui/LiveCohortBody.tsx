@@ -460,9 +460,25 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             {reach ? fmtReach(reach) : "—"}
           </span>
           <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", minWidth: 0 }}>
+            {/* READING IS NOT EMPTY, on the largest population claim the
+                app makes. `reach` is 0 whenever the aggregate archive is,
+                and the archive is empty for the whole of a cold first
+                launch before the first snapshot lands — and for the whole
+                SESSION on a live build whose boot never completes. This
+                said "nobody has answered yet" through both, which is an
+                assertion about the world made by a device that has not
+                looked.
+
+                `LIVE.attached` is the store's own word for "the network
+                boot completed this session" (its header names it), and it
+                is what the rest of the app keys re-entry on. The daily has
+                carried a reconnecting pill since D356; this stop, which
+                draws the bigger number, had nothing. */}
             {reach
               ? <>{reach === 1 ? "person has" : "people have"} answered {scope === "world" ? "somewhere" : <>in {shortName}</>}</>
-              : <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>}
+              : LIVE.attached
+                ? <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>
+                : <>counting who has answered…</>}
           </span>
         </div>
         {/* THE PLACE NAME AND THE EXPLANATION ARE GONE (D172).

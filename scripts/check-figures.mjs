@@ -406,6 +406,30 @@ const anchorKeys = (() => {
  * stub in a fixture are both noise. Two of these figures had drifted, in
  * the paragraphs that argue for the memoisation itself.
  */
+/**
+ * The map's anchor ring, counted off the two array literals that build it:
+ * liveList()'s own rows plus the test rows it spreads in.
+ *
+ * The header said eight anchors and five test results, and had since D103
+ * retired the Thinking test — in a file that records the retirement twenty
+ * lines below the sentence contradicting it. Exactly the drift this gate
+ * exists for, in prose describing a data model a reader has no other
+ * summary of.
+ */
+const mapAnchors = (() => {
+  const src = stripComments(read("src/v2/spec/map-anchors.js"));
+  const rowsIn = (fn) => {
+    const open = src.indexOf(`function ${fn}()`);
+    if (open < 0) throw new Error(`check:figures: map-anchors.js has no ${fn}() — fix this scan`);
+    const start = src.indexOf("return [", open);
+    const end = src.indexOf("];", start);
+    return [...src.slice(start, end).matchAll(/\{\s*id:/g)].length;
+  };
+  const tests = rowsIn("testRows");
+  if (!tests) throw new Error("check:figures: no test anchor rows found — fix this scan");
+  return { tests, ring: rowsIn("liveList") + tests };
+})();
+
 const callSites = (call) => {
   const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
   let n = 0;
@@ -862,6 +886,28 @@ const FIGURES = [
     re: /the same (\d+) keys an\n {2}\/\/ answer snapshots/,
     actual: String(anchorKeys),
     fix: (n) => `"the same ${n} keys an\n  // answer snapshots"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchors in the map's centre ring",
+    // Sentence-initial, like the workflow-jobs entry above.
+    re: /(\w+) anchors — age, work, study/,
+    actual: cap(word(mapAnchors.ring)),
+    fix: (n) => `"${n} anchors — age, work, study"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "test-result anchors in that ring",
+    re: /plus the (\w+) test results/,
+    actual: word(mapAnchors.tests),
+    fix: (n) => `"plus the ${n} test results"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchor keys an answer snapshots, as map-anchors states them",
+    re: /three of the (\w+) fields an answer snapshots/,
+    actual: word(anchorKeys),
+    fix: (n) => `"three of the ${n} fields an answer snapshots"`,
   },
   {
     file: "src/v2/ui/LiveProfileSetup.tsx",

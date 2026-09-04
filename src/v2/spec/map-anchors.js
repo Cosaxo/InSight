@@ -8,10 +8,16 @@ import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // InSight — Map anchors: the profile facts every daily answer reads against.
-// Eight anchors — age, work, study, plus the five test results — sit in a ring
+// Seven anchors — age, work, study, plus the four test results — sit in a ring
 // at the map's centre. Each answered question relates to 1–3 of them with a
 // strength (1–3) and one short, hedged line. Curated, deterministic, no fake
 // percentages.
+//
+// Both counts are check:figures' now, off the two array literals below. They
+// said eight and five, and had since D103 retired the Thinking test twenty
+// lines down — where this file already records that a retired test leaves no
+// anchor behind. CLAUDE.md's own line ("real for three anchors and refuses
+// for four") sums to seven.
 let listExport, relateExport;
 (function () {
   // ── anchor definitions ─────────────────────────────────────────────────────
@@ -39,8 +45,12 @@ let listExport, relateExport;
       { id: 'attachment', label: 'Social',   hue: 320, value: topDims('attachment'), sub: tTaken('attachment') },
     ];
   }
-  // Live mode: the viewer's OWN anchors (D8), the same seven fields an
-  // answer snapshots, read back from the store.
+  // Live mode: the viewer's OWN anchors (D8), read back from the store —
+  // three of the ten fields an answer snapshots (count held by
+  // check:figures, off ANCHOR_FIELDS in data/live.ts). It said the same
+  // SEVEN fields, which is the drift live.ts:5206 already records having
+  // fixed in its own copy: "This said 'the seven keys' while ANCHOR_FIELDS
+  // held ten.".
   //
   // The `||` defaults the prototype carried here were the sample persona's
   // — `s.age || 34`, `me.job || 'Editor'`, `me.education || 'MA Literature'`
