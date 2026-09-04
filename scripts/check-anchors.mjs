@@ -34,6 +34,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { stripComments } from "./strip-comments.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -42,8 +43,19 @@ const PROFILE = "src/v2/spec/profile-vitals.js";
 const RULES = "firestore.rules";
 const LIVE = "src/v2/data/live.ts";
 
-const pure = readFileSync(resolve(root, PURE), "utf8");
-const profile = readFileSync(resolve(root, PROFILE), "utf8");
+// COMMENTS ARE BLANKED BEFORE ANY OF THIS IS MATCHED, and it is not tidying.
+// Every read below is a regex over raw source that takes the FIRST match, so a
+// retuned value with its old line parked above it —
+//     // was: <the old line>
+//     <the new line>
+// — made the gate report the SUPERSEDED number and exit 0. Measured on the real
+// tree 2026-09-05. This is the same defect check:devicebind and check:ios-location
+// carried until 2026-09-04, where a commented-out call read as a live one; here it
+// is worse, because the gate reads a VALUE rather than merely a presence.
+// strip-comments.mjs blanks rather than deletes, so every offset and line number
+// this gate reports still points at the real file.
+const pure = stripComments(readFileSync(resolve(root, PURE), "utf8"));
+const profile = stripComments(readFileSync(resolve(root, PROFILE), "utf8"));
 
 const errors = [];
 
@@ -303,8 +315,8 @@ if (!declaredDims.length) {
 //
 // `age: 3` is the sharpest of the nine: widen it to 4 in live.ts and nothing
 // else in the tree notices.
-const rules = readFileSync(resolve(root, RULES), "utf8");
-const live = readFileSync(resolve(root, LIVE), "utf8");
+const rules = stripComments(readFileSync(resolve(root, RULES), "utf8"));
+const live = stripComments(readFileSync(resolve(root, LIVE), "utf8"));
 
 const ruleCaps = new Map();
 for (const m of rules.matchAll(
