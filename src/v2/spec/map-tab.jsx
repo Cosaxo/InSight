@@ -1109,10 +1109,24 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             // reason (docs/MIRROR.md §339). Ordering by position is still
             // deterministic and is left alone; what stops is DRAWING a
             // position as a date.
-            const fresh = recency && datesReal && n.daily && age <= 7;
+            //
+            // EXCEPT for learn nodes, and this gate caught them for six
+            // minutes before anyone noticed. They carry `daily: true` like a
+            // daily answer, but their `age` is not `q.idx` at all — it is
+            // `n - 1 - i` over `LEARN.mastered()`, which is `S.order`, the
+            // order this device actually mastered them in (learn-progress.js
+            // pushes on mastery). That IS a real recency, identical in live
+            // and demo, and `datesAreReal()` — a fact about the daily bank's
+            // dates — says nothing about it. Gating it here silently stopped
+            // marking and enlarging recently-learned facts on every live
+            // build: a true signal removed for a reason that does not reach
+            // it. The rest of the file already keeps the two apart with
+            // `daily && !learn`; this is that distinction, once more.
+            const dated = recency && (n.learn ? true : datesReal);
+            const fresh = dated && n.daily && age <= 7;
             const off = hidden && hidden.has(n.id);
             // strict size ladder — hub > answer > topic; new dots land large and settle
-            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && datesReal && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
+            const sz = n.person ? 17 : (n.sub ? 9 : 14) + (dated && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
             const showLab = !n.quiet && labKeep.has(n.id);
             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             return (
