@@ -228,3 +228,29 @@ describe("the placed field", () => {
     expect(screen.getByText(/You both said|You split on everything/)).toBeTruthy();
   });
 });
+
+// ── the caption made a rule the projection cannot keep ─────────────
+//
+// "The closer two dots, the more alike their answers" is not true as a
+// rule. Position is components 0 and 1 of an eight-dimensional solve, so
+// two people can sit together on the field while disagreeing on
+// everything the other six dimensions carry — measured on this fold at
+// 16px apart, agreeing on one answer of twelve.
+//
+// What the caption may say is what the position IS. Likeness itself is
+// carried by the rail's chips, which rank on it now.
+describe("what the field says it is drawing", () => {
+  it("does not promise that nearby dots answer alike", () => {
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    expect(document.body.textContent, "the caption still states a rule the projection cannot keep")
+      .not.toMatch(/closer two dots/i);
+  });
+
+  it("still says what a dot is, rather than dropping the explanation", () => {
+    // The control: deleting the sentence outright would leave a field of
+    // dots with nothing saying what they are.
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    expect(document.body.textContent).toMatch(/Each dot is a person who answered/i);
+    expect(document.body.textContent).toMatch(/placed by how they answered/i);
+  });
+});

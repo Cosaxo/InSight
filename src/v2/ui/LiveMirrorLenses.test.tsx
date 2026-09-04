@@ -611,6 +611,51 @@ describe("Explore", () => {
     expect(screen.getByText(/same as everyone/i)).toBeTruthy();
   });
 
+  // THE FLOOR `divergenceFor` ASKS ITS CALLER TO CHOOSE, AND THE BASIS.
+  //
+  // Its docstring says why in the words this lens broke: "a one-answer
+  // bucket is 100/0 and would top every ranking forever while saying
+  // nothing. It defaults to 0 so the caller has to choose." Explore did
+  // not choose — so a question where the picked bucket held ONE answer
+  // scored the largest possible gap and headed the list, above a
+  // fifty-answer question at 10 pts, and the only number near the sentence
+  // was the chip's, which is the bucket's total across ALL questions and
+  // therefore a different denominator.
+  //
+  // The three cases above all use ten-answer cells, so none of them could
+  // see it.
+  const THIN: LensQuestion = {
+    id: "thin", text: "Is coriander soap?", options: ["Yes", "No"],
+    counts: [25, 25], all: [25, 25],
+    by: { ageBand: { "25-34": { "0": 1 }, "35-44": { "0": 20, "1": 20 } } },
+    mine: -1,
+  };
+  const SOLID: LensQuestion = {
+    id: "solid", text: "Is pineapple pizza?", options: ["Yes", "No"],
+    counts: [25, 25], all: [25, 25],
+    by: { ageBand: { "25-34": { "0": 30, "1": 20 }, "35-44": { "0": 20, "1": 20 } } },
+    mine: -1,
+  };
+
+  it("does not let a one-answer cell head the list", () => {
+    mount("explore", [THIN, SOLID]);
+    open(/^25-34/);
+    const body = document.body.textContent || "";
+    expect(body, "the solid question is missing — the case is measuring nothing")
+      .toContain("Is pineapple pizza?");
+    expect(body, "a cell of one answer was ranked, and at the largest possible gap")
+      .not.toContain("Is coriander soap?");
+  });
+
+  it("says what each row rests on, which the chip's number is not", () => {
+    mount("explore", [SOLID]);
+    open(/^25-34/);
+    // 30/20 in the cell against 25/25 overall: 10 points, from 50 answers.
+    expect(screen.getByText(/10 pts/)).toBeTruthy();
+    expect(document.body.textContent, "the row states no basis")
+      .toMatch(/from 50 answers/);
+  });
+
   it("says the dimension is empty when nobody carries it", () => {
     mount("explore");
     open(/^City$/);

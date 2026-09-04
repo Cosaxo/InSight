@@ -33,7 +33,7 @@
 // force attackers into exactly that slow, human-shaped posture — which
 // the device-bind month rule then prices per device.
 
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -451,6 +451,70 @@ const PAGE = 5000;
 // list — a 500-account cluster is a finding, not a log payload.
 const LOG_UID_CAP = 40;
 
+/**
+ * Read one window of the ledger and fold it, page by page.
+ *
+ * EXTRACTED so it can be executed, for the reason `volumeFlagged` above
+ * was: the whole `ledgerVelocityScan` body is unreachable from any test,
+ * so the paging loop could be broken with every suite green.
+ * Measured before this existed — widening `page.size < PAGE` to `<=`
+ * makes a full first page end the read, and all 607 functions tests
+ * stayed green. That turns every one of D28's four signals into a
+ * reading of an arbitrary 5,000-row prefix while the heartbeat below
+ * goes on logging a confident entry count, and it is also the source of
+ * the coverage line the owner is told to read before moving the account
+ * bar (accountLevel.ts).
+ *
+ * Folded PER PAGE rather than accumulated — the argument is at the call
+ * site, and it is a memory one: a 50k-DAU catch-up buffered as rows
+ * exceeds the instance and leaves the cursor unmoved, so the next run
+ * dies identically, forever.
+ */
+export async function scanLedgerWindow(
+  db: Firestore,
+  windowStart: number,
+): Promise<{ fold: WindowFold; maxAt: number }> {
+  const fold = emptyFold();
+  // Tracked here rather than reduced over `rows` at the end, for the same
+  // reason: there is no `rows` to reduce over any more.
+  let maxAt = windowStart;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  for (;;) {
+    let q = db
+      .collection("v2_agg_events")
+      .where("at", ">", Timestamp.fromMillis(windowStart))
+      .orderBy("at")
+      // `fromIdx` rides along because an edit's row carries it and
+      // nothing else does — the volume ceiling is about creates, and a
+      // field left out of the projection is a guard that is dead in
+      // production while the in-memory fake goes on proving it works
+      // (the note store-projection.test.ts exists for).
+      .select("uid", "qid", "at", "fromIdx")
+      .limit(PAGE);
+    if (cursor) q = q.startAfter(cursor);
+    const page = await q.get();
+    const pageRows: LedgerRow[] = [];
+    for (const d of page.docs) {
+      const uid = d.get("uid");
+      const at = d.get("at") as Timestamp | undefined;
+      // Entries without a uid predate D28's attribution field; they
+      // can still be inside the window shortly after that deploy.
+      if (typeof uid === "string" && uid && at) {
+        const atMs = at.toMillis();
+        pageRows.push({
+          uid, qid: String(d.get("qid") || ""), atMs,
+          ...(d.get("fromIdx") === undefined ? {} : { isEdit: true }),
+        });
+        if (atMs > maxAt) maxAt = atMs;
+      }
+    }
+    foldInto(fold, pageRows);
+    if (page.size < PAGE) break;
+    cursor = page.docs[page.docs.length - 1];
+  }
+  return { fold, maxAt };
+}
+
 export const ledgerVelocityScan = onSchedule(
   // Daily, off the top-of-hour herd. Cost at D7's own write ceiling
   // (~14k answers/day): one page-scan of the day's ledger entries plus
@@ -478,44 +542,7 @@ export const ledgerVelocityScan = onSchedule(
     // run re-reads the same capped window and dies identically, forever,
     // with D28's only detector silently dead. Folding per page keeps peak
     // live memory at one PAGE of rows plus the fold itself.
-    const fold = emptyFold();
-    // Tracked here rather than reduced over `rows` at the end, for the same
-    // reason: there is no `rows` to reduce over any more.
-    let maxAt = windowStart;
-    let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
-    for (;;) {
-      let q = db
-        .collection("v2_agg_events")
-        .where("at", ">", Timestamp.fromMillis(windowStart))
-        .orderBy("at")
-        // `fromIdx` rides along because an edit's row carries it and
-        // nothing else does — the volume ceiling is about creates, and a
-        // field left out of the projection is a guard that is dead in
-        // production while the in-memory fake goes on proving it works
-        // (the note store-projection.test.ts exists for).
-        .select("uid", "qid", "at", "fromIdx")
-        .limit(PAGE);
-      if (cursor) q = q.startAfter(cursor);
-      const page = await q.get();
-      const pageRows: LedgerRow[] = [];
-      for (const d of page.docs) {
-        const uid = d.get("uid");
-        const at = d.get("at") as Timestamp | undefined;
-        // Entries without a uid predate D28's attribution field; they
-        // can still be inside the window shortly after that deploy.
-        if (typeof uid === "string" && uid && at) {
-          const atMs = at.toMillis();
-          pageRows.push({
-            uid, qid: String(d.get("qid") || ""), atMs,
-            ...(d.get("fromIdx") === undefined ? {} : { isEdit: true }),
-          });
-          if (atMs > maxAt) maxAt = atMs;
-        }
-      }
-      foldInto(fold, pageRows);
-      if (page.size < PAGE) break;
-      cursor = page.docs[page.docs.length - 1];
-    }
+    const { fold, maxAt } = await scanLedgerWindow(db, windowStart);
 
     // Signals 1 + 2: per-uid volume and cadence.
     let volumeFlags = 0;

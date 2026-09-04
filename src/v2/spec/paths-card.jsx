@@ -131,6 +131,27 @@ function srcOf(live, demoId) {
     // disagree about.
     const counts = live.counts || [];
     const total = counts.reduce((a, b) => a + b, 0);
+    // YOU ARE IN THE CROWD YOU ARE BEING COMPARED TO.
+    //
+    // `counts` is the published aggregate, which excludes the reader's own
+    // ending until the fold has run — and the reveal is the whole payload
+    // of this card, so its one number was wrong for every reader and wrong
+    // in one direction: it always made their road rarer than it was. Ten
+    // others finished, one of them where you did, and the card said "1 in
+    // 10 walks your road" when counting yourself makes it 2 of 11 — 1 in 6.
+    // The error is exactly one vote in `total + 1`, so it is LARGEST when a
+    // story is new, which is when the card is most likely to be read.
+    //
+    // The gate stays on the CROWD's total, not the crowd plus you: a story
+    // only you have finished must still draw no tree, or `flow` becomes
+    // non-null for a crowd of one and the card prints "you and 100% ended
+    // here" over yourself. The "You are the first to reach the end of this
+    // one" arm below is that case, and it stays reachable.
+    const mineIdx = live.id && LIVE.myVotes ? Number(LIVE.myVotes()[live.id]) : NaN;
+    const add = Number.isInteger(mineIdx) && mineIdx >= 0 && mineIdx < PATH_ENDINGS.length ? mineIdx : -1;
+    // A half-finished walk has no stored vote and adds nothing — to either
+    // side of the fraction.
+    const withMe = total + (add >= 0 ? 1 : 0);
     return {
       id: live.id,
       title: live.title || live.prompt,
@@ -138,7 +159,7 @@ function srcOf(live, demoId) {
       hue: typeof live.hue === 'number' ? live.hue : 20,
       nodes: live.nodes || {}, endings: live.endings || {}, live: true,
       flow: total > 0
-        ? (key) => PATH_ENDINGS.reduce((s, e, i) => s + (e.startsWith(key) ? counts[i] : 0), 0) / total
+        ? (key) => PATH_ENDINGS.reduce((s, e, i) => s + (e.startsWith(key) ? counts[i] + (i === add ? 1 : 0) : 0), 0) / withMe
         : null,
       total,
     };
@@ -269,9 +290,13 @@ export function PathsCard({ q }) {
                   </>
                 ) : (
                   // A crowd exists (flow is non-null) but none of it ended
-                  // where you did — the shape a fresh walk has while the
-                  // aggregate fold that will count it is still in flight,
-                  // and forever if nobody follows. Both are this sentence.
+                  // where you did. Since the reader is now counted in their
+                  // own share, this is the TRANSIENT only: the window
+                  // between finishing a walk and the vote being stored,
+                  // where `myVotes()` has nothing to fold back in. It used
+                  // to have a second, permanent reading — a finished walk
+                  // nobody else ever followed — and that one is gone,
+                  // because you are no longer absent from your own count.
                   <span className="pp-chip">you&rsquo;re the first to end here</span>
                 )}
               </div>

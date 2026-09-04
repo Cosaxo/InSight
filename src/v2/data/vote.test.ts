@@ -2355,16 +2355,51 @@ describe("window.LIVE public surface", () => {
       expect(deletes).toHaveLength(0);
     });
 
-    it("setPoliticalConsent(true) records it and deletes nothing", async () => {
+    it("setPoliticalConsent(true) records it, clears any withdrawal, deletes no result", async () => {
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
       const LIVE = await bootLive();
       h.setDocCalls.length = 0;
       await LIVE.setPoliticalConsent(true);
       const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
       const data = call!.data as Record<string, Record<string, Record<string, unknown>>>;
-      expect(data.consent.political.off).toBeUndefined();
+      // REMOVED, not omitted — this write is a `merge`, and a merge on a
+      // nested map merges its FIELDS. `off` is present-or-absent by design
+      // (politicalConsent.ts says why), so a grant's record simply leaves
+      // it out, and leaving it out of a merge does not take it off the
+      // server. This case asserted `undefined` here and passed for exactly
+      // that reason while a withdrawal could never be undone.
+      expect(data.consent.political.off, "a re-grant must remove the earlier withdrawal, not omit it")
+        .toBe("__delete__");
+      // "deletes nothing" is about the PUBLISHED COORDINATE: consenting
+      // must not take one away.
       expect(data.testResults).toBeUndefined();
       expect(LIVE.politicalConsented()).toBe(true);
+    });
+
+    it("survives a withdraw → re-grant round trip, which it could not before", async () => {
+      // The failure end to end: withdraw, then grant again, then read the
+      // stored record back the way a hydrate would. The merge is applied
+      // here the way Firestore applies it — field by field over the map
+      // that is already there — because that is the step the bug lived in.
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      await LIVE.setPoliticalConsent(false);
+      await LIVE.setPoliticalConsent(true);
+      const writes = h.setDocCalls.filter((c) => c.path === "v2_users/uid_test");
+      expect(writes.length, "the two writes did not both land").toBeGreaterThanOrEqual(2);
+      const stored: Record<string, unknown> = {};
+      for (const w of writes) {
+        const pol = ((w.data as Record<string, Record<string, unknown>>).consent || {}).political;
+        if (!pol) continue;
+        for (const [k, v] of Object.entries(pol as Record<string, unknown>)) {
+          if (v === "__delete__") delete stored[k];
+          else stored[k] = v;
+        }
+      }
+      const { mayPublishPolitical } = await import("./politicalConsent");
+      expect(mayPublishPolitical({ consent: { political: stored } }),
+        "the withdrawal survived the re-grant, so consent could never be given again").toBe(true);
     });
   });
 

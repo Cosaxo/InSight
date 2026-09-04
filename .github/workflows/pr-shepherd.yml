@@ -1,0 +1,88 @@
+# The PR shepherd, mechanical half — spend the owner's merge-when-green label
+# on pull requests that are green and mergeable, and log one line either way.
+#
+# WHY A WORKFLOW AND NOT A ROUTINE. The shepherd was a scheduled Claude
+# session and it could not merge. Measured 2026-09-03: a Routine minted over
+# MCP hands its fired sessions no MCP tools at all, so two fires (15:55Z and
+# 16:44Z) — the second one told explicitly to report its tool inventory, to
+# log unconditionally, and to push OPS-DIAG.md on a branch if it could not
+# comment — left no comment, no merge, no branch and not even that fallback
+# branch. Without add_repo they never had the repository. Seven labelled PRs
+# waited on a human, and the owner's word was "i should not have to click
+# anything". production-reader.yml and console.yml made the argument first:
+# what an Action can do, an Action should do, because a Routine also costs an
+# account's usage bucket and an Action costs none. production-reader.yml's
+# header says it moved "while the shepherds could not" — true of the
+# JUDGEMENT half, and not of this one.
+#
+# WHAT IT DOES. For every open PR against main carrying `merge-when-green`:
+# if every check run on the CURRENT head concluded success and GitHub reports
+# it mergeable, squash-merge it with the PR title as the subject and the body
+# as the message. Then one comment on the "Ops run log" issue, ALWAYS,
+# including a run with nothing to do — a lane that writes only when it acts
+# cannot be told from one that is dead.
+#
+# WHAT IT NEVER DOES, and this is the line between the halves. It never
+# renumbers a decision record, never resolves a conflict, never brings a
+# branch current, never pushes to any branch, never applies or removes a
+# label, and never re-runs a job. Each of those needs judgement and stays
+# with a session (docs/OPS-RUNBOOK.md § The PR shepherd). It also never
+# merges a PR with ZERO checks: every()/all() on an empty array is true, so
+# "nothing failed" and "nothing ran" are the same sentence to the obvious
+# implementation, and one of them is not green. That case is pinned in
+# scripts/pr-shepherd.test.mjs along with every other refusal.
+#
+# THE GRANT. The label is the owner's standing instruction to merge, not an
+# event that fires once — so a labelled PR is work at every run, even when
+# its head has not moved since the last one. Removing the label withdraws it;
+# `no-shepherd` is the opt-out.
+name: PR shepherd
+
+on:
+  schedule:
+    # Every third hour, the cadence the Routine was re-paced to on 2026-09-03
+    # after an hourly fire on a 581k-token dispatcher measured $6.96. An
+    # Action costs no bucket, so the cadence here is about how long a green
+    # PR should wait, not about spend.
+    - cron: "55 */3 * * *"
+  pull_request_target:
+    types: [labeled, ready_for_review, reopened]
+    branches: [main]
+  check_suite:
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  # Never two of these at once: both would read the same green PR and both
+  # would try to merge it, and the loser's error is noise on the run log.
+  group: pr-shepherd
+  cancel-in-progress: false
+
+jobs:
+  shepherd:
+    runs-on: ubuntu-latest
+    steps:
+      # `ref: main` ON PURPOSE, and this is the pull_request_target footgun.
+      # That trigger runs with the base repository's write token; checking out
+      # the PR's own head would run a contributor's script with it. The only
+      # code this job executes is the one on main, whatever fired it.
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      # No install: the script uses fetch and the standard library only, so
+      # this job stays seconds long and cannot be broken by a dependency.
+      - name: Spend the label where it may be spent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/pr-shepherd.mjs

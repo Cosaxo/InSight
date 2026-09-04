@@ -159,7 +159,7 @@ D161–D164 are the frame; [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is the
 ordered list. Open, in its order:
 
 - ~~**The core/tail enforcement half**~~ — **DONE, and this row was
-  stale from the day it was written (D363).** Phase 2 of
+  stale from the day it was written (D364).** Phase 2 of
   [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is fully ticked: 2.2 applied the
   filter at the City/Country/World stop on 2026-08-15
   (`LIVE.aggregated().filter((q) => q.coreCorpus)`), 2.3 shipped the
