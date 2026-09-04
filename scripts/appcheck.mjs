@@ -75,6 +75,28 @@ const MODES = new Set(["UNENFORCED", "ENFORCED", "OFF"]);
 
 const die = (m) => { console.error(`${TAG}: ${m}`); process.exit(1); };
 
+/** Scrub the debug token out of anything before it is printed.
+ *
+ *  The only place this can matter is the register error path: the token is
+ *  in the request BODY there, and `res.message` is Google's string rather
+ *  than ours — so an API that echoes a value it rejected would put a bypass
+ *  credential in a run log. Not a known leak: it needs an unverified
+ *  upstream property, and `token` is a plain string field, so the
+ *  echo-the-value error form is unlikely. Closed anyway because it is one
+ *  line and it guards the single property this file claims.
+ *
+ *  It matters MORE on the step-summary surface than in the step log: the
+ *  workflow tees this output to a file and `cat`s it inside a
+ *  `{ … } >> "$GITHUB_STEP_SUMMARY"` redirect, which never passes the
+ *  runner's secret masker.
+ *
+ *  The empty guard is not ceremony — `"abc".split("")` returns every
+ *  character, so an unset token would turn a message into confetti. */
+const redact = (s) => {
+  const t = process.env.APPCHECK_DEBUG_TOKEN;
+  return t ? String(s).split(t).join("<redacted>") : String(s);
+};
+
 // ── argument shapes that are wrong before any network call ──────────
 if (REGISTER && ENFORCE) die("--register-debug-token and --enforce are separate runs. Pick one.");
 if (REGISTER && !APP) die("--register-debug-token needs --app <appId>. Run with no flags to list the app ids.");
@@ -184,7 +206,7 @@ async function registerDebugToken() {
   });
   if (!res.ok) {
     console.error(
-      `  ✗ ${res.status}: ${res.message}\n`
+      `  ✗ ${res.status}: ${redact(res.message)}\n`
       + "    400 with 'token' in the message means the value is not a UUID4.\n"
       + "    403 names the role the deploy service account is missing.\n"
       + "    An app can hold at most 20 debug tokens.",

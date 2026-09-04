@@ -175,6 +175,47 @@ describe("appcheck debug tokens", () => {
     expect(out).not.toContain(SECRET);
   });
 
+  it("does not echo the token back when the API rejects it", async () => {
+    // The coverage gap a security review found by probing rather than by
+    // reading: the non-echo property was pinned on a 200 create and on the
+    // list path, and NOT on a 4xx — which is the one place the token is in
+    // the request body and the printed string is Google's rather than ours.
+    //
+    // Google's ESF type-mismatch errors quote the offending value, so a
+    // rejected token could come straight back in `error.message`. That path
+    // is worse than it looks: the workflow tees this output and `cat`s it
+    // inside a `{ … } >> "$GITHUB_STEP_SUMMARY"` redirect, which never
+    // passes the runner's secret masker.
+    reply[key("POST", C(`/v1/projects/${NUMBER}/apps/${IOS_APP}/debugTokens`))] = {
+      status: 400,
+      body: { error: { message: `Invalid value at 'debug_token.token' (TYPE_STRING), "${SECRET}"` } },
+    };
+    const out = await appcheck(
+      ["--register-debug-token", "--app", IOS_APP, "--apply"],
+      { APPCHECK_DEBUG_TOKEN: SECRET },
+    );
+    expect(out).toMatch(/400/);          // the operator still learns it failed
+    expect(out).toMatch(/<redacted>/);   // and where the value was
+    expect(out).not.toContain(SECRET);
+  });
+
+  it("prints a rejection message unharmed when it does not contain the token", async () => {
+    // The other half, and the reason the scrub is guarded: a naive
+    // implementation splitting on an empty token turns every message into
+    // one character per `<redacted>`. This asserts the ordinary 403 — the
+    // one that names a missing IAM role — still reads as itself.
+    reply[key("POST", C(`/v1/projects/${NUMBER}/apps/${IOS_APP}/debugTokens`))] = {
+      status: 403,
+      body: { error: { message: "Permission denied on resource project prvfire33." } },
+    };
+    const out = await appcheck(
+      ["--register-debug-token", "--app", IOS_APP, "--apply"],
+      { APPCHECK_DEBUG_TOKEN: SECRET },
+    );
+    expect(out).toContain("Permission denied on resource project prvfire33.");
+    expect(out).not.toContain("<redacted>");
+  });
+
   it("writes nothing without --apply", async () => {
     const out = await appcheck(
       ["--register-debug-token", "--app", IOS_APP],

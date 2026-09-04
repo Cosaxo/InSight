@@ -38064,6 +38064,47 @@ because that is choosing to keep it at the moment the choice costs most —
 and a plan whose whole argument is *do this before you submit* had no
 place on the ordered list that says when you submit.
 
+### 8 · The security review's one probe, closed even though it stayed below the bar
+
+A security review of this branch's own diff found **nothing at confidence
+≥ 7**, and confirmed by measurement rather than by reading what the code
+claims: only `type: choice` and `type: boolean` inputs reach the
+workflow's shell (probed with `DISPLAY_NAME='CI"; id; echo "'`, which
+stayed one argv element); the `asc-push` early exit crosses no privilege
+boundary; `api()` composes its host from module constants, so nothing
+operator-supplied reaches the authority component; and `set -o pipefail`
+plus the AND-list branches behave under `errexit`, with an unmatched
+`case` falling through to the read-only report.
+
+**One sub-threshold observation is fixed here anyway**, because it is one
+line and it guards the single property this file claims. The register
+error path prints `res.message` — Google's string, not ours — and the
+token is in that request's BODY, so an API that echoed a value it
+rejected would put a bypass credential in a run log. The review stubbed
+Google's ESF type-mismatch form (`Invalid value at 'debug_token.token'
+(TYPE_STRING), "…"`) and the script printed the token verbatim.
+
+It stayed below the bar for a good reason: it needs an unverified
+upstream property, `token` is a plain string field, and GitHub's masker
+would catch a verbatim secret on the step log. **What the review noticed
+that the masker argument misses** is the second surface: the workflow
+tees this output and `cat`s it inside a `{ … } >> "$GITHUB_STEP_SUMMARY"`
+redirect, which never passes the runner's masker at all.
+
+So: a `redact()` at the one leak site, guarded against an empty token
+because `"abc".split("")` returns every character. And the coverage gap
+that made the probe necessary is closed — the non-echo property was
+pinned on a 200 create and on the list path but **not on a 4xx**, which
+is the only place the token is in a body and the printed string is
+upstream. Two cases now: the rejection that echoes it prints
+`<redacted>`, and the ordinary 403 that names a missing IAM role still
+reads as itself. Mutation-verified — removing the scrub turns the first
+one red.
+
+Recorded rather than absorbed because the finding is a shape worth
+keeping: **the test suite asserted the property on the paths where it was
+easy and not on the path where the value is actually in flight.**
+
 ### 7 · A fifth stale document, and this one redirected the work
 
 Found while starting what the previous section called the largest buildable
