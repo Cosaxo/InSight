@@ -445,6 +445,12 @@ const state = {
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
   testAggsLoaded: false,
+  // Set when loadSimilarity throws. `testAggsLoaded` stays false on a
+  // throw, which is right — nothing was read — but it makes "failed"
+  // indistinguishable from "never asked", and a reader that treats either
+  // as "nobody has answered" states an absence it did not measure. Same
+  // distinction purchases.ts keeps, and for the same reason.
+  testAggsFailed: false,
   // The follow graph's loaded state (D101). null = not asked, or asked
   // and failed; [] = asked, and you follow nobody. The stop says
   // different things for those two.
@@ -5002,6 +5008,8 @@ const LIVE = {
   async loadSimilarity(): Promise<void> {
     if (!this.enabled || state.similarityLoading) return;
     state.similarityLoading = true;
+    // A retry clears the previous failure before it starts.
+    state.testAggsFailed = false;
     notify();
     try {
       if (!state.testAggsLoaded) {
@@ -5075,6 +5083,7 @@ const LIVE = {
       // too now. Same shape as the Near stop's fix three nights ago: the
       // loader belongs to the surface that reads it.
     } catch (err) {
+      state.testAggsFailed = true;
       reportError(err, { where: "loadSimilarity" });
     } finally {
       state.similarityLoading = false;
@@ -5083,6 +5092,19 @@ const LIVE = {
   },
   similarityLoading(): boolean {
     return state.similarityLoading;
+  },
+  /**
+   * Have the test aggregates been read? 'loading' | 'ready' | 'failed'.
+   *
+   * For the surfaces that fold `agg.by` cells rather than people, where
+   * `similarityLoading` alone cannot tell "the read failed" from "nobody
+   * has answered" — the throw leaves `testAggsLoaded` false, so both look
+   * identical, and the Mirror's Compare lens stated the second about a
+   * whole city on the strength of the first.
+   */
+  testAggsState(): "loading" | "ready" | "failed" {
+    if (state.testAggsLoaded) return "ready";
+    return state.testAggsFailed ? "failed" : "loading";
   },
   // The bank's core test items — the same filter that publishes
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
@@ -6712,6 +6734,7 @@ function resetForNewUid(uid: string): void {
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.
   state.testAggsLoaded = false;
+  state.testAggsFailed = false;
   state.circle = null;
   state.circleLoading = false;
   // The follow cache is the same graph one view over, and it is dropped

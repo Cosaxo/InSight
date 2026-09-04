@@ -228,6 +228,19 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
 
   const read = compareRead(DEFS, CORE_TEST_KINDS, mine, theirs, theirN);
 
+  // THE SAME QUESTION FOR THE OTHER BASIS. `reading` above is wired to
+  // `uidKey`, which is `""` for the `cells` basis — so a stop that folds
+  // published cells rather than people had no reading signal at all, and
+  // the first frame after opening City → Compare stated "Nobody in Oslo
+  // has answered a test card yet" from aggregates the device had not read.
+  // It could persist, too: `loadSimilarity` sets `testAggsLoaded` inside
+  // its try, so a throw left it false for the life of the mount.
+  //
+  // `testAggsState()` keeps the three apart — and "failed" says so rather
+  // than saying "Reading…" forever, which is the trap this file's own
+  // effect comment above describes.
+  const cellsState = pop.basis === "cells" ? LIVE.testAggsState() : "ready";
+
   if (!read.cards.length) {
     // FOUR emptinesses now, kept apart. Collapsing them would tell someone
     // who has taken every test that they have taken none — and the fourth,
@@ -239,11 +252,13 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
       <LcNote>
         {!mineN
           ? <>Fills in as you answer the test cards in your feed.</>
-          : reading && !themN
+          : (reading || cellsState === "loading") && !themN
             ? <>Reading…</>
-            : !themN
-              ? emptyThem
-              : <>No instrument you have both answered enough of yet.</>}
+            : cellsState === "failed" && !themN
+              ? <>Couldn’t read the scores here. Close and reopen to try again.</>
+              : !themN
+                ? emptyThem
+                : <>No instrument you have both answered enough of yet.</>}
       </LcNote>
     );
   }
