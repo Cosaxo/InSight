@@ -36,6 +36,57 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ## Requested
 
+### 0 · The interest profile, shown and editable
+
+- **title · asked by** — *Your interests* · a session, 2026-09-04 (D364),
+  discharging the one row of `SCALE-RUNBOOK.md` Phase 5 that survived
+  D317's reversal.
+- **surface** — the profile overlay's General panel
+  (`src/v2/spec/profile-general.jsx`), below the account rows and beside
+  the trait web. Not a Mirror stop: this is a thing about the app's
+  behaviour toward you, not a reading of a population.
+- **data and basis** — `v2_users/{uid}/taste/profile` `{t, n, at}` —
+  per-topic feed-answer counts, folded nightly by `fitTasteV2`
+  (`functions/src/taste.ts`), owner-readable and client-unwritable. One
+  document GET; the same one `bank-pager.ts` already consults, so a
+  session-cached read costs nothing extra. The floors are the copy's
+  spine, not a footnote: under `TASTE_MIN_TOTAL` (10 answers) the profile
+  shapes **nothing** and the panel must say so rather than draw a shape
+  it is not using; a topic under `TASTE_TOPIC_MIN` (3) still pages at
+  max(4, a third of `FEED_PAGE`) — **never zero, because a cold topic has
+  to stay discoverable or the profile could never change.** That last
+  clause is the most reassuring true sentence available and should be
+  visible, not buried.
+- **states** — **empty**: fewer than 10 answers — "we are not shaping your
+  feed yet", with the count and what it takes. **loading**: the panel is
+  behind a tap, so a spinner is honest. **live**: topics ranked with their
+  counts, each editable, and a reset. **demo**: `LIVE.enabled` false means
+  no profile exists — say that, never draw an invented one (D1).
+- **interaction** — a tap opens it; each topic takes a *less / normal /
+  more* nudge rather than a number, because a raw weight invites a
+  precision the fold does not have; one reset returns every topic to
+  normal. **The edit has to reach the fetch or the panel is a placebo** —
+  and the profile document is deliberately client-unwritable (a
+  self-writable profile would let a device forge its own fetch weighting,
+  a sponsored-targeting hole the day audiences exist), so the write path
+  is a callable or a sibling override document, and **which one is a
+  design question this request is asking, not assuming.**
+- **vocabulary** — the 2026-09-02 standalone family (`design/`), the
+  serif prompt voice (D362), `src/v2/styles.css`, D302's two palettes,
+  topic hues as the answer rows use them. Copy under D182: the topic name
+  and its count carry it; no caption explaining a bar the reader is
+  looking at.
+- **constraints** — `check:bundle` (the profile overlay is not eager, so
+  this rides the lazy chunk), `check:tap-targets`, `check:a11y`, one
+  document read per open and none on the profile's first paint.
+- **why** — D317 kept exactly one of D163's bullets across the reversal
+  and said it binds harder afterwards: *"A Mirror that secretly models you
+  is a contradiction in terms."* Today the model is folded nightly and
+  already shapes which questions reach you, and there is nowhere to look
+  at it. `web/privacy.html` promises *"Your interest profile: only you"* —
+  the rules make that true, and no screen makes it useful.
+- **status** — `requested`
+
 ### 1 · Trait-axis directions on the patterns Map
 
 **Re-aimed 2026-09-02** at the ring the current vision draws

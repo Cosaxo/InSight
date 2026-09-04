@@ -60,6 +60,7 @@ by hand, 2026-09-02.
 
 ## Designs
 
+- [ ] **The interest profile, shown and editable** — `VISUAL-REQUESTS.md` § Requested, item 0, filed 2026-09-04. The nightly fold already shapes which questions reach you and nothing shows it to you; D317 kept this bullet across the reversal and said it binds *harder* on the server. Two things in it are yours before a draft: whether the edit is a *less/normal/more* nudge or something finer, and how an edit reaches the fetch given the profile document is deliberately client-unwritable. *Source:* `SCALE-RUNBOOK.md` 5.3; D317; D364.
 - [ ] **Trait-axis directions on the patterns Map** — `VISUAL-REQUESTS.md` § Requested, item 1. Waits for a plan, then a draft, then you.
 - [ ] **The corner doors for earned axes** — item 2 there; the grammar is prototyped in a design before it is ported (AXES-PLAN §5.3).
 - [ ] **The fit scorecard's reader** — item 3 there; the retro's highest-leverage item, an [ask] on the worklist because its shape is a design question.

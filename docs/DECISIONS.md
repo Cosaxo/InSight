@@ -38064,6 +38064,69 @@ because that is choosing to keep it at the moment the choice costs most —
 and a plan whose whole argument is *do this before you submit* had no
 place on the ordered list that says when you submit.
 
+### 10 · The interest model was moved to the server nine days ago, and Phase 5 still described the device one
+
+Third time in one session, and the deepest. Told to build, the session
+picked `SCALE-RUNBOOK.md` **5.1** — a reader over four device keys, size
+S, whose text ends *"if it adds a signal that needs storing, stop and
+re-read D163 — the whole shape depends on nothing new leaving the
+device."* All four keys exist and are written today, so the row was
+buildable exactly as specified.
+
+**D317 (2026-08-26) reversed the row D163 narrowed**, on the owner's
+words: *"this app should absolutely track what you personally like — if
+not, it does not work."* Its own framing is the one worth keeping: *"D163
+named its own crossing 'a considered position being crossed, not an
+oversight'; so is this one, and it is the owner crossing it."* The
+architectural reason is not preference — under a global published order
+everyone is handed the same head, so a device model can only sort the
+window it was given: **a taste model that never leaves the phone cannot
+reach into the fetch.**
+
+**D322 built it the same day.** `functions/src/taste.ts`, nightly, feed
+answers counted by topic off the ledger; `v2_users/{uid}/taste/profile`,
+owner-readable and client-unwritable; `bankPager.pageSizesByInterest`
+wired into the feed top-up. Phase 5's header said "(D163)" for nine days
+after.
+
+**What the check found that the strike did not.** Three of the four rows
+are dead, and the fourth is live and unbuilt — **5.3, shown and
+editable**, the single bullet D317 kept across the reversal and said
+binds *harder* afterwards: *"A Mirror that secretly models you is a
+contradiction in terms."* Measured rather than assumed: the profile is
+folded nightly, `bank-pager.ts` already shapes what a device is handed
+with it, and **no surface anywhere shows it, edits it or resets it.**
+`web/privacy.html` promises *"Your interest profile: only you"* — the
+rules make that true and no screen makes it useful. D322 shipped
+owner-*readability*, which is a rules fact rather than a panel.
+
+Filed as `VISUAL-REQUESTS.md` item 0 rather than built, per D352: a panel
+is a module, so it is a request → plan → draft → the owner → built. Two
+questions inside it are the owner's and are on `OWNER-LIST.md` — whether
+the edit is a *less/normal/more* nudge or something finer, and how an edit
+reaches the fetch at all, since the profile is deliberately
+client-unwritable (a self-writable profile would let a device forge its
+own fetch weighting, which is a sponsored-targeting hole the day
+audiences exist).
+
+**5.4 is answered rather than struck, and its answer inverts it.** It
+asked to confirm no store form moved. One did: D322 moved User Content to
+gain Product Personalisation in `STORE-FORMS.md` and `app-privacy.json`
+together, held equal by `check:store-forms`, with the data-inventory row,
+the privacy arithmetic and an erasure e2e in the same commit. The row
+guarded against a filing going quietly false; what happened is a filing
+moving with its feature, on purpose.
+
+**The pattern, now nine rows deep in two days and worth stating once.**
+Every stale row this session found was a decision that landed without
+updating what it invalidated, and the three that cost the most all had
+the same shape: **a constraint written down as a rule, kept standing
+after the owner had removed it.** D42's park, D162's human hold, D163's
+device-only model — each reversed by name, each leaving behind an
+instruction pointing the opposite way. The tree's own defence against
+this is `docs/DOC-SWEEP.md`, whose lane has been disabled since 2026-09-03
+for a blocker that cleared the same day.
+
 ### 9 · A sixth stale row, and this one pointed at building the opposite of an instruction
 
 The session's next build was going to be `SCALE-RUNBOOK.md` **3.2, batch
