@@ -111,9 +111,21 @@ describe("computeRank", () => {
       q("feed-closed", "feed", "now", 2, { from: "2026-08-01", until: "2026-08-25" }),
       q("feed-closes-today", "feed", "now", 3, { from: "2026-08-01", until: TODAY }),
       q("feed-future", "feed", "now", 4, { from: "2026-08-27" }),
+      // THE OTHER BOUNDARY, which this case has always been named for and
+      // never sent. `until: TODAY` above pins `>=`; nothing pinned `<=`,
+      // so it could be narrowed to `<` with the whole suite green —
+      // measured. Under that, a question is missing from the published
+      // order for the whole of its first day.
+      //
+      // Who that is: measured on the compiled bank, thirteen feed
+      // questions carry `from`, and they are exactly D231's current-events
+      // lane. One of them runs for three days, so a third of its life
+      // would be spent invisible — silently, because the order publishes
+      // fine and simply does not contain it.
+      q("feed-opens-today", "feed", "now", 5, { from: TODAY }),
     ];
     const { feed } = computeRank(bank, new Map(), TODAY);
-    expect(feed.topics.now.qids).toEqual(["feed-live", "feed-closes-today"]);
+    expect(feed.topics.now.qids).toEqual(["feed-live", "feed-closes-today", "feed-opens-today"]);
   });
 
   it("keeps surfaces apart and ranks only feed and learn", () => {
