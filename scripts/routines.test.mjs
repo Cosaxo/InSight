@@ -350,14 +350,17 @@ describe("the real manifest against the real tree", () => {
     }
   });
 
-  it("every live program Routine on Claude 3 fires into this program's planning session", () => {
-    // The count is not pinned: the account's Routines page is the owner's
-    // dial (the merge shift was deleted from it on 2026-09-04), and a
-    // deleted lane is a manifest row going to "not yet", not a failure.
-    // What is pinned is the binding of whatever IS live.
+  it("every relayed Routine on Claude 3 names this program's planning session", () => {
+    // Keyed on the BINDING, not on the state, and deliberately: the
+    // account's Routines page is the owner's dial, and by 2026-09-04 it
+    // had emptied — the merge shift deleted, the other four disabled as
+    // the reduction began (CONSOLIDATION.md §0). A lane going quiet is a
+    // manifest row changing state, never a failure here. What must stay
+    // true is that a relay-bound row names the session that relays it,
+    // because a row naming the wrong session is a lane nobody runs.
     const { manifest: m } = parseManifest(manifestText);
-    const live = m.routines.filter((r) => r.account === "claude-3" && r.state === "live");
-    expect(live.length).toBeGreaterThan(0);
-    for (const r of live) expect(r.binding).toEqual({ kind: "relay", session: "session_013V91NnDHMjjLSGYxzTEsnw", label: "the planning session" });
+    const relayed = m.routines.filter((r) => r.account === "claude-3" && r.binding.kind === "relay");
+    expect(relayed.length).toBeGreaterThan(0);
+    for (const r of relayed) expect(r.binding).toEqual({ kind: "relay", session: "session_013V91NnDHMjjLSGYxzTEsnw", label: "the planning session" });
   });
 });
