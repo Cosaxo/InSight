@@ -37889,3 +37889,149 @@ so an unbounded field is a download every reader of that person pays
 for), and a 120-char cap on a circle take's `qid`, which the world branch
 four lines up already had. Neither touches the three labelled denies.
 Verified: nothing in the tree writes either stamp field.
+
+## D364 · Build 30's pre-flight: the recorder was in the tree and no-oped, and the two tallies were one list
+
+**2026-09-04.** **Status:** binding. Found by build 30's pre-flight, made
+against the run list rather than against this repository's prose, which
+is the only instrument that can answer the question. Bumps `appBuild`
+29 → 30.
+
+### The comparison, and it came out *bump*
+
+Run 50 (`33651487283`) is the highest run in `ios-release.yml`'s list.
+Its step 17 — `Upload to App Store Connect` — is **`success`**:
+16:00:26Z → 16:02:20Z on 2026-09-02, `UPLOAD SUCCEEDED with no errors`,
+delivery UUID `e82cc4de-1466-4ce8-800f-a58dfb33e8c9`, 6,143,472 bytes
+transferred. Run 49 (`33650731413`) seven minutes earlier is the dry run,
+its step 17 `skipped`. Both archived `74c84a0`.
+
+`appBuild` at run 50's own `head_sha` is **29**, and the tree was at
+**29**. 29 is not greater than 29, so **build 29 is spent** and a
+dispatch would have transferred a ~6 MB `.ipa` and then been refused for
+the number, *after* the transfer — every gate green, ~150 minutes of
+macOS quota gone. `appBuild` 29 → 30 with `check:versions --fix`, and
+`LAUNCH-RUNBOOK` 5.6's figure followed because `check:figures` owns that
+number and went red until it did.
+
+D339's own *When to revisit* predicted this pre-flight would answer *run
+as-is*, and explicitly hedged it: *"unless something dispatches in
+between"*. Something did, two days later. The hedge is the record — a
+verdict has a shelf life of exactly one dispatch — and this is the first
+time it has been written down before the dispatch that spent it rather
+than after.
+
+### The recorder existed, ran, and did nothing
+
+D339 answered four unrecorded deliveries by building the release
+recorder, on the reasoning that the step which uploaded is the one thing
+that cannot forget the upload happened. `ios-release.yml` step 18 fires a
+Routine after a successful upload.
+
+**That step was present at `74c84a0`, executed, and reports `success`.**
+It recorded nothing. Read out of run 50's log rather than reasoned:
+
+```
+##[notice]release recorder not wired (ROUTINE_RELEASE_FIRE_URL /
+ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand,
+docs/IOS-RELEASE.md has the shape
+```
+
+The step is deliberately never-red — a build that uploaded is delivered
+whatever the step does, and a red run over a shipped build is the
+confusion D339 set out to remove — so its guard clause exits 0. The
+Routine behind it, `trig_01Vr2QLmWAGBaBsnT6yTusnr`, is registered
+poke-only in `ROUTINES.md` and has never fired; the variable and the
+secret are one web-UI click, already on `OWNER-LIST.md` § Clicks.
+
+So this is the D184 shape for the **fifth** time — build 29 delivered and
+unrecorded until this pre-flight read the run list — and the finding is
+narrower than "it happened again": **a step that no-ops is `success`.**
+That is step 17's own lesson, which this file has stated five times
+(read the *step's* conclusion, not the run's), holding one step further
+down the same job. The fix is not another gate. It is one click, and it
+is the owner's.
+
+### The two tallies in `IOS-RELEASE.md` are the same list, and one drifted
+
+D229 called build 24's pre-flight the fourth to open on a spent build,
+D273 called build 25's the fifth, and D339 called build 28's the **fifth**
+again — listing *"builds 12, 13, 14, and now 28"*, which drops 24 and 25
+and puts build 12 on the wrong side of its own ledger: D130 read *"the
+next run goes as-is"*. Recounted from the records: **bump** at builds 13,
+14, 18, 19, 21, 24, 25, 28 and now 30 (D142, D143, D180, D184, D198,
+D229, D273, D339, this); **run as-is** at 12, 15, 16, 20, 26 (D130, D153,
+D158, D191, D324).
+
+**Nine, and the nine is forced.** A skipped bump and a pre-flight opening
+on a spent number are one event counted twice: if the run that uploaded
+build N leaves the tree at N, the next pre-flight must find N against N.
+The bump row is exactly the skip list (18, 19, 24, 26, 31, 38, 40, 46,
+50) with each run replaced by the build the next pre-flight opened on.
+One of those two lists was maintained release by release and is right;
+the other was incremented from memory and drifted by four in the same
+file.
+
+The `run as-is` row is shorter than the nine bumps that held, and the
+gap is this file's other recurring failure: builds 17, 22, 23, 27 and 29
+were dispatched with no pre-flight written at all.
+
+`IOS-RELEASE.md` now carries a table instead of an ordinal. Nothing in
+the tree can gate either row — the invariant keys on the run list, which
+nothing here can read, and that is D184's finding unchanged — so the
+defence is shape rather than a check: a reader recounts from the builds
+rather than incrementing a word, and an omission reads as a missing entry
+instead of as an off-by-one that looks fine.
+
+### What build 30 carries that 29 did not is a termination
+
+D273 added *what does this build carry* to the pre-flight and got a store
+form. This one gets a crash, and it is the first release in the log whose
+reason came out of the pre-flight rather than existing before it.
+
+`Info.plist` gained `NSCameraUsageDescription` and
+`NSPhotoLibraryUsageDescription` on 2026-09-03 in D360's merge. Build 29
+carries the profile-photo control **without** them. Verified at `74c84a0`
+rather than inferred: `LivePrivacyPanel.tsx:204` is `<input type="file"
+accept="image/jpeg,image/png,image/webp">`, and neither key is in that
+commit's plist. WebKit builds the upload sheet's menu from the `accept`
+attribute alone — `image/jpeg` and `image/png` conform to `public.image`
+— so it offers **Take Photo**, presents the camera in-process, and iOS
+TCC terminates the app on the tap.
+
+**The build in TestFlight today crashes on that path.** Build 30 is the
+first that does not, which makes this dispatch a fix delivery rather than
+a number.
+
+The comment beside that input at `74c84a0` reads *"no new native
+permission, and adds nothing to the store forms beyond the photo
+itself"*, and the wrong half is the half nothing could see:
+`check:ios-location` reads only the location keys and `check:store-forms`
+only `NSLocationDefaultAccuracyReduced`, so no gate was looking at the
+plist on behalf of a control that never mentions a camera.
+`src/v2/ui/avatar-camera-permission.test.ts` is the guard that exists
+now, and it arrived with the fix rather than with the feature.
+
+153 commits rode in the 28 → 29 gap over two days — second widest after
+build 26's 193, ahead of build 27's 130. The other store-facing moves in it are
+declared and cost nothing at dispatch: `STORE-FORMS.md` records the two
+purpose strings against the photo row it already declares,
+`web/privacy.html` follows the reduced-accuracy location choice, and
+`firestore.rules` plus `data-inventory.md` carry field-length bounds that
+reach production on a **deploy**, not in this binary.
+
+### What this record does not do
+
+**It does not dispatch.** The two runs are the owner's: `upload = false`
+first, then `upload = true` once the archive is clean, and the bump this
+record makes is legal only until one upload spends it (D273). The order
+D339 established for a *bump* verdict applies — the number must be on
+`main` before the dispatch, so this record merges first and the gap is
+closed by re-reading `main` between the two dispatches.
+
+### When to revisit
+
+**At build 31's pre-flight**, against the run list: if the runs below are
+still 49 and 50, `appBuild` at run 50's `head_sha` is 29 and the tree is
+at 30, so the answer is *run as-is* — and that sentence is a report about
+a comparison, never a promise about the tree.

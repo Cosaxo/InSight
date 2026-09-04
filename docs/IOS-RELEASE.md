@@ -722,6 +722,145 @@ last, which is the first time that has been true since run 21.
 
 42 commits rode in the 27 → 28 gap, over one day.
 
+**Runs 49 and 50 delivered build 29, and the bump was skipped** (D364,
+caught 2026-09-04). Both archived `74c84a0` seven minutes apart — run 49
+(`33650731413`, 15:46:32Z) step 17 `skipped`, the dry run, 6m 30s; run 50
+(`33651487283`, 15:53:40Z) `success`, 16:00:26Z → 16:02:20Z, 1m 54s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`e82cc4de-1466-4ce8-800f-a58dfb33e8c9`, 6,143,472 bytes. Twelfth pair of
+this shape. Nine that held (20, 21, 22, 28, 33, 36, 42, 44, 48) against
+**nine skipped** (18, 19, 24, 26, 31, 38, 40, 46, 50) — level for the
+second time, after runs 45/46.
+
+**No record was written either — and this is the first time the fix for
+that was in the tree while it failed.** D339 answered four unrecorded
+deliveries by building the release recorder: `ios-release.yml` step 18
+fires a Routine after a successful upload, on the reasoning that the step
+which uploaded is the one thing that cannot forget the upload happened.
+That step was present at `74c84a0`, ran, and reports `success` — and did
+nothing. Read out of run 50's own log rather than inferred:
+
+```
+##[notice]release recorder not wired (ROUTINE_RELEASE_FIRE_URL /
+ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand,
+docs/IOS-RELEASE.md has the shape
+```
+
+The variable and the secret are an owner action (`OWNER-LIST.md`
+§ Clicks, *"Set the four fire secrets"*), and the Routine behind them —
+`trig_01Vr2QLmWAGBaBsnT6yTusnr` — is registered poke-only and has never
+fired (`ROUTINES.md`). So the D184 shape for the **fifth** time, with the
+difference that the mechanism to end it exists and is one web-UI click
+short of running. **A step that no-ops is `success`**, which is step 17's
+own lesson one step further down the same job: read what the step *did*,
+never what its conclusion says.
+
+**D159's trap did not fire.** Both runs archived `74c84a0`, a pulse trail
+row rather than a release commit — run 22's shape, as runs 43/44 and
+45/46 also were — and the **fifth** release since run 21 where the dry run
+and the upload name one tree, after 39/40, 43/44, 45/46 and 47/48.
+
+153 commits rode in the 28 → 29 gap, over two days — the **second**
+widest after build 26's 193, ahead of build 27's 130.
+
+**Build 30's pre-flight opened on a spent build, and on a crash that is
+live in the build users have** (D364, 2026-09-04). Run 50 is the highest
+run in `ios-release.yml`'s list, its step 17 `success`, and `appBuild` at
+run 50's own `head_sha` `74c84a0` is **29** — against a tree at `2398c1a`
+reading **29**. 29 is not greater than 29, so the answer is **bump**, and
+`appBuild` went 29 → 30 with `check:versions --fix` before anything was
+dispatched.
+
+The battery, run at `2398c1a` plus the bump: `tsc -b`, lint, 2569 client
+unit tests, 611 functions tests, 841 scripts tests, and 31 check gates
+including `check:docs`, `check:figures`, `check:versions`,
+`check:public-copy`, `check:store-forms`, `check:store-listing`,
+`check:policy-claims`, `check:data-inventory`, `check:globals`,
+`check:appcheck`, `check:deploy-targets`, `check:fn-runtime` and
+`check:store-copy --ios`. `check:store-copy` without `--ios` reports D42's
+parked Play fingerprint and nothing else, which is the excusal working.
+
+**`check:bundle` passes with zero eager headroom, and that is the number
+to watch on the dispatch.** Graded the way D191 requires — a non-empty
+`VITE_SENTRY_DSN` at build time, or the Sentry group is dead-coded and the
+total ceiling is withheld — the shipping bundle is **2184 KB total / 2440
+and 630 KB eager / 630**, with 69 KB blocking CSS / 74, 83 KB CSS / 88 and
+86 KB fonts / 96. The eager graph is exactly full, which is already an
+owner item; the release workflow runs this same gate against its own
+`dist/` before `cap sync`, so the next static import into the entry graph
+fails the release rather than shipping.
+
+### What build 30 carries that 29 did not is a termination, not a feature
+
+D273 added *what does this build carry* to the pre-flight and got a store
+form back. This one gets a crash.
+
+`Info.plist` gained `NSCameraUsageDescription` and
+`NSPhotoLibraryUsageDescription` on 2026-09-03, in D360's merge. Build 29
+carries the profile-photo control without them — verified at `74c84a0`,
+not inferred: `LivePrivacyPanel.tsx:204` is `<input type="file"
+accept="image/jpeg,image/png,image/webp">`, and neither key is in that
+commit's plist. WebKit's upload sheet builds its menu from the `accept`
+attribute alone; `image/jpeg` and `image/png` conform to `public.image`,
+so it offers **Take Photo** and presents the camera in-process, and iOS
+TCC terminates the app on the tap.
+
+**So the build in TestFlight today crashes on that path, and build 30 is
+the first that does not.** That reframes this dispatch: it is a fix
+delivery rather than a number, and it is the first release in this log
+whose *reason* came out of the pre-flight rather than the release having a
+reason before the pre-flight started.
+
+The comment beside that input at `74c84a0` reads *"no new native
+permission, and adds nothing to the store forms beyond the photo
+itself"*. Half right, and the half that was wrong is the half no gate
+could see: `check:ios-location` reads only the location keys and
+`check:store-forms` reads only `NSLocationDefaultAccuracyReduced`, so
+nothing in the tree was looking at the plist for a control that never
+mentions a camera. `src/v2/ui/avatar-camera-permission.test.ts` is the
+guard that exists now.
+
+The other four store-facing moves in the gap are declared and cost
+nothing here: `STORE-FORMS.md` records the two purpose strings against the
+photo row it already declares, `web/privacy.html` follows the
+reduced-accuracy location choice, and `firestore.rules` and
+`data-inventory.md` carry field-length bounds that reach production on a
+**deploy** rather than in this binary.
+
+### The two tallies in this file are one list, and only one of them was kept
+
+D229 called build 24's pre-flight the fourth to open on a spent build,
+D273 called build 25's the fifth, and D339 called build 28's the
+**fifth** again — while listing *"builds 12, 13, 14, and now 28"*, which
+drops 24 and 25 and puts build 12 on the wrong side of its own ledger:
+D130 read *"the next run goes as-is"*. Recounted from the records rather
+than incremented:
+
+| verdict | builds | records |
+| --- | --- | --- |
+| **bump** — opened on a spent number | 13, 14, 18, 19, 21, 24, 25, 28, **30** | D142, D143, D180, D184, D198, D229, D273, D339, D364 |
+| **run as-is** — nothing to do | 12, 15, 16, 20, 26 | D130, D153, D158, D191, D324 |
+
+Nine and five, not "fifth" and "four" — and the nine is not a coincidence.
+**A skipped bump and a pre-flight that opens on a spent number are the
+same event counted twice**: if the run that uploaded build N left the tree
+at N, the next pre-flight must find N against N. So the bump row above is
+the skip list (18, 19, 24, 26, 31, 38, 40, 46, 50) with each run replaced
+by the build the pre-flight after it opened on, and the two counts agree
+at nine because they have to. One list was maintained release by release;
+the other was incremented from memory, and drifted by four.
+
+The `run as-is` row is *shorter* than the nine bumps that held, and the
+difference is the fifth failure this file records: builds 17, 22, 23, 27
+and 29 were dispatched with no pre-flight written at all.
+
+**The ordinal is retired in favour of the table.** Nothing in the tree can
+gate either row — the invariant keys on the run list, which is D184's
+point and still true — so the defence is shape rather than a check: a
+reader recounts from the builds instead of incrementing a word, and an
+omission shows up as a missing entry rather than as an off-by-one that
+reads fine.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
