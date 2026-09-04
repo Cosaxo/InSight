@@ -2349,7 +2349,23 @@ class WorldFeed extends React.Component {
       );
     }
     const matches = order.filter((it, pos) => q.crowd[it] === pos + 1).length;
-    const matchLine = <>You matched the crowd on {matches} of {q.items.length}</>;
+    // …and WHICH crowd. This card was the only answered live card with no
+    // count anywhere on it: the daily prints its votes, the feed prints
+    // its votes, the pick card prints "everyone else · N", and `renderEngage`
+    // — the one place a live card's count is drawn — returns early for
+    // rank. The crowd order exists the moment ONE other person has ranked,
+    // so "the crowd" could be a single stranger, unlabelled (D146).
+    //
+    // `crowdN`, not `q.votes`: the viewer's own order is subtracted out of
+    // the crowd when their fold has landed, so the total would overstate
+    // it by one. The demo arm has always printed its own basis.
+    const crowdN = q.live ? q.crowdN : 0;
+    const matchLine = (
+      <>
+        You matched the crowd on {matches} of {q.items.length}
+        {crowdN > 0 ? ' \u00b7 from ' + wfFmt(crowdN) + (crowdN === 1 ? ' other ranking' : ' other rankings') : ''}
+      </>
+    );
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 9 : 7, animation: v2 ? 'none' : 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         {order.map((it, pos) => {

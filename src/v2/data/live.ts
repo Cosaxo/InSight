@@ -212,7 +212,7 @@ import {
   hasPublishedCounts,
   isCore,
   isFeedQid,
-  rankCrowdFor,
+  rankCrowd,
   CANON_BOARD_N,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
@@ -3040,13 +3040,19 @@ function buildFeedGlobals(): void {
       // arm below is precisely the wrong-shaped card D12 pulled.
       if (q.type === "rank") {
         const agg = state.aggs[q.id];
+        const rc = rankCrowd(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated);
         return {
           id: q.id,
           cat: q.topic || "culture",
           type: "rank",
           prompt: q.prompt,
           items: q.options,
-          crowd: rankCrowdFor(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated),
+          crowd: rc?.crowd ?? null,
+          // The crowd the order actually rests on, which is NOT `agg.total`
+          // — the viewer is subtracted out of it when their own fold has
+          // landed. The card states a match against this crowd, so this is
+          // the number it has to state the match against (D146).
+          crowdN: rc?.n ?? 0,
           votes: agg?.total ?? 0,
           ...(q.also && q.also.length ? { also: q.also } : {}),
           live: true,

@@ -915,6 +915,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       prompt: RANK_PROMPT,
       items: ["Alpha", "Beta", "Gamma", "Delta"],
       crowd: tooSmall ? null : [1, 3, 2, 4],
+      // The crowd the order rests on — the aggregate's nine rankings less
+      // the viewer's own, which `rankCrowd` subtracts out of the order.
+      // `votes` is the whole aggregate and would overstate the crowd by
+      // one, which is exactly the distinction the card now prints.
+      crowdN: tooSmall ? 0 : 8,
       votes: tooSmall ? 0 : 9,
       live: true,
       noCountsYet: !!tooSmall,

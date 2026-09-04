@@ -848,6 +848,19 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await awaitText(/You matched the crowd on/);
     // fixture crowd [1,3,2,4] against 0,2,1,3 — every position agrees
     expect(screen.getByText(/You matched the crowd on 4 of 4/)).toBeTruthy();
+    // …AND WHICH CROWD. This was the only answered live card with no count
+    // anywhere on it, so "the crowd" could have been one stranger. The
+    // fixture aggregate holds 9 rankings and the viewer's own has just
+    // been folded into it, so the crowd the order rests on is 8 — the
+    // number `rankCrowd` computes and used to discard, not `agg.total`.
+    expect(
+      screen.getByText(/from 8 other rankings/),
+      "the live rank card stated a match against a crowd it never sized",
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/from 9 other rankings/),
+      "the basis counted the viewer's own ranking as part of the crowd",
+    ).toBeNull();
     expect(
       screen.queryByRole("button", { name: /You matched the crowd/ }),
       "a live rank card offered the demo's stats sheet — its cohorts are fabricated",
