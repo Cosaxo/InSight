@@ -698,6 +698,22 @@ describe("advanceFgWindow", () => {
     expect(advanceFgWindow([4, 4, 4, 4], 0).fading).toBe(false); // five readings — too soon
     expect(advanceFgWindow([1, 1, 1, 1, 1], 1).fading).toBe(false); // low is not sinking
   });
+
+  it("fades at EXACTLY two buckets down, which is what the rule says", () => {
+    // The three cases above all sit well clear of the boundary — the
+    // first drops 3.33 buckets — so the `<=` could be narrowed to `<`
+    // with the whole suite green. Measured. Buckets are integers 0-4, so
+    // an exact two-bucket drop is a common, reachable window, and the
+    // docstring defines the rule as "the newest three average two buckets
+    // under the window's first three". At `<` the constant 2 quietly
+    // means "more than 2" and `fading` — a published per-day count —
+    // stops firing for the case the sentence names.
+    expect(advanceFgWindow([4, 4, 4, 2, 2], 2).fading).toBe(true);
+    // …and a hair under two does not fade, so the bound is pinned from
+    // both sides rather than the direction alone. [4,4,4,3,2,2]: the
+    // newest three average 2.33, which is 1.67 down, not 2.
+    expect(advanceFgWindow([4, 4, 4, 3, 2], 2).fading).toBe(false);
+  });
 });
 
 describe("runRollupFold", () => {
