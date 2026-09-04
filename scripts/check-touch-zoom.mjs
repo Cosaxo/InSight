@@ -167,8 +167,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // mutation: stubbing readdirSync to [] left this gate at exit 0.
   //
   // The number is a floor, not a count: it only has to be far enough below
-  // the real one (89 files, of which a couple of dozen carry a field) that a
-  // legitimate deletion cannot trip it, while a broken walk always does.
+  // the real one that a legitimate deletion cannot trip it, while a broken
+  // walk always does.
+  //
+  // The real one is NOT quoted here. It said "89 files, of which a couple
+  // of dozen carry a field" and the walk now finds 400 with 13 — 4.5x out,
+  // wrong in both numbers, inside a gate, and check:figures has no entry
+  // for either. Anyone re-tuning this floor would have read a sentence
+  // that is false. The OK line this script prints on every run states both
+  // live counts, so read that instead: a figure typed once and never
+  // recomputed is the one documentation error this repo keeps
+  // re-committing (D39), and a second hand-typed pair would just restart
+  // the clock on it.
   const FILES = walk(SRC);
   if (FILES.length < 40) {
     console.error(
