@@ -56,6 +56,7 @@
 // should be able to block an emergency rules fix.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { nearConsentMismatch } from "./near-consent-rule.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -138,16 +139,15 @@ for (const key of [WHEN_IN_USE, ALWAYS]) {
 const liveTs = join(root, "src/v2/data/live.ts");
 if (existsSync(liveTs)) {
   const live = readFileSync(liveTs, "utf8");
-  // The loop by its CALL, not by the identifier: `PRESENCE_BEAT_MS` also
-  // appears in prose two hundred lines up, so a bare name test kept
-  // answering "the loop is here" after the loop was taken out — measured,
-  // while proving this check. `setInterval(… PRESENCE_BEAT_MS)` and a
-  // location read are the two halves; either alone is not the behaviour.
-  const beats = /setInterval\([\s\S]{0,120}?PRESENCE_BEAT_MS\s*\)/.test(live)
-    && /locateCell\(/.test(live);
-  const str = strings[WHEN_IN_USE] ?? "";
-  const mentionsNear = /\bNear\b/.test(str);
-  if (beats && !mentionsNear) {
+  // The rule itself lives in near-consent-rule.mjs, and the extraction is
+  // the fix rather than tidying: this file runs at import time and calls
+  // process.exit, so the one rule here that guards a consent prompt was the
+  // one nothing could execute in a test. It blanks comments before matching,
+  // because the match is over raw source and a COMMENTED-OUT timer read as a
+  // running one — measured on the real tree, deleting the line failed and
+  // commenting the same line out passed. See that module for the whole case.
+  const mismatch = nearConsentMismatch(live, strings[WHEN_IN_USE]);
+  if (mismatch === "under") {
     problems.push(
       `${PLIST}: the purpose string does not mention Near.\n` +
         `    data/live.ts re-reads location on a PRESENCE_BEAT_MS timer while\n` +
@@ -157,7 +157,7 @@ if (existsSync(liveTs)) {
         `    is the copy that lags.`,
     );
   }
-  if (!beats && mentionsNear) {
+  if (mismatch === "over") {
     problems.push(
       `${PLIST}: the purpose string describes a Near loop that is gone.\n` +
         `    No PRESENCE_BEAT_MS read remains in data/live.ts. A purpose\n` +
