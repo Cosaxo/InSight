@@ -21978,6 +21978,30 @@ follows), so the card divided by zero and printed it. The chips now read
 ending, and a share that rounds to zero prints "<1%" rather than "0%" —
 the D72 posture, one card over: a null is a refusal, not a zero.
 
+**AMENDED 2026-09-04 — the sentence stays, one of its two readings goes.**
+"`myShare` is 0 until the aggregate fold lands your vote (and stays 0 if
+nobody follows)" was true and describes a second defect underneath this
+one: the share was computed over `counts`, the PUBLISHED aggregate, which
+excludes the reader's own ending until that fold runs. So the reveal — the
+whole payload of the card, and the one number D341 says the tree exists to
+state — was wrong for every reader who had just walked, and wrong in one
+direction: it always made their road rarer than it was. Ten others
+finished, one where you did, and the card said "1 in 10" against a true 1
+in 6. The error is exactly one vote in `total + 1`, so it is largest when a
+story is new, which is when this card is most likely to be read.
+
+The reader is now folded into their own crowd. The GATE is not: it still
+asks whether the CROWD is non-empty, so a story only you have finished
+draws no tree and keeps "You are the first to reach the end of this one"
+— moving the gate to the crowd-plus-you would print "you and 100% ended
+here" over a crowd of one, which is this record's own failure with a
+different number. The chips' first-walker sentence therefore keeps exactly
+one reading: the window between finishing a walk and the vote being
+stored. A finished walk nobody else ever followed now reads "you and 2%
+ended here", because you are no longer absent from your own count. The
+"<1%" guard above still has a case; it needed a larger fixture to reach,
+and has one.
+
 ### 3 · The account panel offered three things sign-in already settled
 
 > *"you should not be able to change your handle or crash report or sign
