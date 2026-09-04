@@ -33,6 +33,12 @@ export interface MapTreeNode {
   /** typicality 0..1 — distance from You, the map's one encoded score. */
   typ: number;
   maj: boolean;
+  /** A call whose outcome has not published. `maj` is false for it — but
+   *  false because nothing has been judged, not because the crowd went the
+   *  other way, and the Map's "rare take" ring reads `maj` and cannot tell
+   *  those apart. The note already says "sealed — outcome pending"; this is
+   *  the same fact where a consumer can key on it. */
+  sealed?: boolean;
   pulse?: boolean; fore?: boolean;
   qid?: string;
 }
@@ -136,6 +142,7 @@ export function foreTree(): MapTree {
       age: 0,
       typ: graded ? (right ? 0.9 : 0.1) : 0.5,
       maj: right,
+      sealed: !graded,
     });
   }
   if (calls.length) {
