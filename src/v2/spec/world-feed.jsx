@@ -1755,10 +1755,14 @@ class WorldFeed extends React.Component {
         </div>
       );
     }
-    // The reveal is a canon, not a split: top entities above the floor,
-    // everyone else in one bucket. Your own pick always shows to YOU — it
-    // is your own answer, no floor applies — and when it is below the floor
-    // the copy says so instead of pretending it counted. Segment chips
+    // The reveal is a canon, not a split: a top board and everyone else in
+    // one bucket. Your own pick always shows to YOU — it is your own
+    // answer — and when it is not on that board the copy says which
+    // absence it is: "below the floor" on a demo card, where a floor
+    // really is applied, and "not on the board" on a live one, where since
+    // D98 there is no floor and the pick is counted exactly like any
+    // other. This paragraph said "above the floor" and "below the floor"
+    // for both, which is the pre-D98 model. Segment chips
     // (D17) reorder the SAME board by one cohort's counts — a segment
     // never surfaces entities the global board suppressed.
     const PK = this.pickSrc(q);
@@ -1792,13 +1796,24 @@ class WorldFeed extends React.Component {
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
       : c.restEntities >= 2 ? ` votes across a few other ${foldNoun}` : '';
     const foldWhy = foldNote && c.restBelowFloor ? ' — none with 5 yet' : '';
+    // THE TILE'S ABSENT-COUNT WORDING SPLITS ON `q.live`, like the ghost
+    // row further down. `count` is null whenever the pick is not in the
+    // board's top N — TOP_N is 10 over catalogues of a thousand entries, so
+    // that is the ORDINARY case, not an edge. On a demo card there really
+    // is a floor (`pick-data.js` filters on AGG_MIN_N) and "below the
+    // floor" is true. Post-D98 the live board has no floor at all —
+    // `LIVE.pickCanon`'s docstring says the tail "is simply everything
+    // outside the top N" — so the same words are a false claim about a
+    // real, exactly-counted number. The ghost row already made this split
+    // and said why (COPY.md §3); the tile was not moved with it, so one
+    // card said both things about the same pick.
     const TOPN = PK.TOP_N;
     const tile = (ent, nm, label, strong, count, rank) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
         <span aria-hidden="true" style={{ width: '100%', height: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}></span>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, lineHeight: 1.2, textWrap: 'pretty', color: 'var(--ink)' }}>{nm || '\u2026'}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : 'below the floor'}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : (q.live ? 'not on the board' : 'below the floor')}</span>
       </div>
     );
     const chip = (label, active, onTap) => (

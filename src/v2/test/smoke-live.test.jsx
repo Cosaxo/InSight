@@ -804,6 +804,34 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, pick card answered");
   });
 
+  it("says a pick outside the board is not on it, never that it is below a floor", async () => {
+    // The board is ten rows over catalogues of a thousand entries, so a
+    // pick outside it is the ORDINARY case, and the tile said "below the
+    // floor" — while the ghost row on the same card said "counted with
+    // everyone else — not on the board yet". Post-D98 the live board has
+    // no floor; the pick is counted exactly, it is simply outside the top
+    // ten. One card, two contradictory statements about the same pick.
+    const expectNoBoundary = mountLive({ pickCard: true }, (l) => {
+      l.votes["pick-fixture"] = "9731"; // not on the fixture's board
+    });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture pick card/);
+    fireEvent.click(screen.getByText(PICK_PROMPT));
+    await awaitText(/of 10 spots on the board claimed/);
+    expect(
+      screen.queryByText(/below the floor/i),
+      "a live pick said it was below a floor the live board does not have",
+    ).toBeNull();
+    // Anchored: the ghost row's longer sentence also contains the phrase,
+    // and this is about the TILE.
+    expect(screen.getByText(/^not on the board$/)).toBeTruthy();
+    // …and the card still says the true thing it always said, so this is
+    // not one absence traded for another.
+    expect(screen.getByText(/counted with everyone else — not on the board yet/)).toBeTruthy();
+    expectNoBoundary("live feed, pick outside the board");
+  });
+
   // Rank on a LIVE feed (D233): the whole loop through the real card —
   // tap the four items into an order, watch the completed ranking reach
   // the store, and read the reveal against the DERIVED crowd. The demo's
