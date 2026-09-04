@@ -145,12 +145,16 @@ export interface PeopleField {
   /** The floor `placed` cleared — the card states it ("everyone who
    * answered at least N of your questions"), and tests read it. */
   minShared: number;
-  /** The named people nearest you, nearest first — the "Most like you"
-   * rail. Exactly the ones that carry a label on the field, so the rail
-   * and the drawing never disagree about who is close. */
-  /** The labelled people, nearest first — a LAYOUT set, not a ranking. */
+  /** The named people nearest you, nearest first — a LAYOUT set, not a
+   * ranking. Exactly the ones that carry a label on the field, so the
+   * labels and the drawing never disagree about who is close. It fed the
+   * "Most like you" rail until 2026-09-04, and that is the sentence this
+   * docstring used to carry: proximity here is two components of an
+   * eight-dimensional solve, so it is the right answer for placing labels
+   * and the wrong one for ranking likeness. `alike` is that ranking. */
   near: PlacedPerson[];
-  /** The people who actually agree with you most, for the rail that says so. */
+  /** The people who actually agree with you most, for the rail that says
+   * so — ranked on the agreement rate each chip already prints. */
   alike: PlacedPerson[];
 }
 

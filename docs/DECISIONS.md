@@ -37756,3 +37756,136 @@ carry an axis in (a leaning set, an inner arc, a polarity split), states
 what each costs, and keeps its data, states and basis rules. Still
 `requested`; the drafting step is unchanged.
 
+## D363 · The 2026-09-04 night review: two shifts merged as one tree — 45 commits kept, one comment corrected, and the night that had nothing to collide with
+
+**2026-09-04.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+forty-five commits are kept as written; nothing was reverted. What this
+review adds is the composition, one correction, and the reason this
+night was cheap when the last two were not.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260904` | 32 | 4 behind | shift A, Claude 2's, 21:12–05:23 UTC |
+| `nightb-20260904` | 13 | 5 behind | shift B, Claude 1's, 20:12–04:36 UTC |
+
+**Nothing conflicted, and that is the finding.** D336, D349 and D360 each
+spent most of their length on one cause — a shift branching before a
+sweep landed on main and writing its fixes against a structure main had
+already replaced. This night had no such gap: both shifts branched after
+D354/D355 were in, and everything main added while they worked was
+console-generated (`MERGE-LIST.md`, `OWNER-LIST.md`,
+`monitoring/console-trail.jsonl`). Three source files were touched by
+both shifts and all three composed correctly:
+
+- **`scripts/check-ios-location.mjs`** — shift A made the Near-consent
+  rule run unconditionally (it was `if (existsSync(liveTs))` with no
+  else, alone in this gate family in failing open); shift B extracted the
+  rule into `near-consent-rule.mjs` so it could be executed by a test,
+  and made it blank comments before matching, because a commented-out
+  timer read as a running one. Git took A's `else` and B's body, which is
+  the correct composition of the two: the gate now fails loudly on a
+  missing input AND cannot be fooled by a commented-out loop.
+- **`src/v2/spec/map-tab.jsx`** — A's `datesAreReal` gate on the recency
+  drawing (with its own follow-up exempting learn nodes, whose `age` is a
+  real mastery order), A's `!n.learn` filter on the anchor rows, and B's
+  four new exclusions on the `is-rare` ring. Different lines, all kept.
+- **`src/v2/test/smoke-live.test.jsx`** — two new cases per shift, in
+  separate `describe` blocks, each with its control.
+
+That the merge was clean is not by itself evidence — D360's
+`learn-data.js` merged clean and broke thirteen tests — so the battery
+below is what the composition is actually held to.
+
+### The battery, on the composed tree
+
+Neither branch's own green says anything about this tree, because no
+tree had held both. Run here in full:
+
+| | |
+| --- | --- |
+| `test:unit` | 180 files, 2569 tests |
+| `test --prefix functions` | 27 files, 611 tests |
+| `test:scripts` | 47 files, 825 tests |
+| `test:rules` | 178 tests (Java 21) |
+| `test:e2e:all` | all three legs, one emulator boot |
+| gates | 38 `check:*`, plus `lint`, `tsc -b`, and `check:bundle` on a shipping build |
+
+Two gates were red on arrival and neither was about the tree:
+`check:fn-runtime` wants `functions/lib` built, and `check:ios-facebook`
+scans `node_modules` and needed its own postinstall
+(`strip-facebook-sdk.mjs`) to have run. Both green after their documented
+fix, which is the shape the runbook already gives them.
+
+### The one correction
+
+**`src/v2/data/peopleMap.ts` — a docstring left standing over the fix
+that retired it.** Shift A's People-lens fix is a real one: the "Most
+like you" rail rendered `near`, which is the fold's LABEL set, ordered by
+distance in a two-component projection of an eight-dimensional solve — so
+the rail could lead with the person who agreed with the reader least,
+wearing the "mostly disagrees" colour, under those words. The fix adds
+`alike`, ranked on the agreement rate the chip already prints, with
+deterministic tie-breaks.
+
+But it added a new docstring above `near` and left the old one in place,
+so the field carried two, and the FIRST still said `near` was "the 'Most
+like you' rail. Exactly the ones that carry a label on the field, so the
+rail and the drawing never disagree about who is close." That sentence is
+now false in the one clause that matters, directly above the change that
+made it false. Replaced with one block that keeps the true half (it is
+the label set, and labels and drawing agree) and records what moved and
+why. No behaviour change; `tsc -b`, `peopleMap.test.ts` and
+`PatternsPeople.test.tsx` unmoved.
+
+It is a comment rather than code, and it is corrected here rather than
+noted, because a stale comment is what thirty of these forty-five
+commits are ABOUT — six of them fix nothing else.
+
+### Two blocks the shifts did not decide, and were right not to
+
+Both are already on `OWNER-LIST.md`, written by shift B, and both are
+verified here rather than taken on trust:
+
+- **The start-up size budget is exactly full.** `check:bundle` on a
+  shipping build of the composed tree: **630 KB eager / 630 max**. Main
+  measures 629, so the night spent the last kilobyte. The gate passes and
+  there is no headroom left: the next STATIC import into the entry graph,
+  from any lane, trips it. A dynamic import behind `loadWorldFeed` /
+  `loadMirrorTab` / `React.lazy` does not, which is why shift A's
+  thirty-two commits cost nothing. The gate's own message invites raising
+  the ceiling "deliberately, with a note saying why the app got bigger" —
+  which is the owner's call, and not one to make at 00:13 with nobody
+  watching.
+- **The now lane's cap of six against its own window arithmetic.** The
+  two cannot both hold; `npm run now:budget` reports today's largest
+  legal batch as 2 against a cap of 6. Three ways out, all of them
+  changes to something written down.
+
+### What to watch
+
+**The recency gate caught its own author, six minutes in.** Shift A's
+`datesAreReal` fix (the Map was drawing a demo bank's fixed position as
+"answered most recently" on live builds) initially gated learn nodes too
+— and a learn node's `age` is `S.order`, the order this device actually
+mastered them in, which IS a real recency in both modes. The follow-up
+commit is in the set and the reasoning is in the file. The pattern to
+watch is the one the file already names four times: `daily && !learn` is
+a distinction this component keeps having to relearn.
+
+**Three stores now share one generation-counter shape**
+(`purchases.ts`, `paidBookings.ts`, `suggestions.ts`), closing a real cross-account leak — a read in flight when the
+account changed wrote the previous account's rows back over the cleared
+cache, and nothing else cleared it for the session. The comment says the
+fix "decays the moment one of them drifts", which is correct and is not
+enforced by anything. If a fourth store of this shape appears, it needs
+the same counter and none of them has a gate.
+
+**`firestore.rules` gained two bounds and lost none.** `isOptionalStamp`
+on `v2_users.createdAt`/`updatedAt` (both admitted with no check of any
+kind; `data/voters.ts` fetches these documents whole, thirty per query,
+so an unbounded field is a download every reader of that person pays
+for), and a 120-char cap on a circle take's `qid`, which the world branch
+four lines up already had. Neither touches the three labelled denies.
+Verified: nothing in the tree writes either stamp field.
