@@ -153,7 +153,6 @@ describe("the default user (anonymous auth) — reachable surface", () => {
     // that should say so out loud.
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
-      await setDoc(doc(db, "v2_handles", "owner"), { uid: OWNER });
       await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
         qid: "daily-000", surface: "daily", optionIdx: 1,
       });
@@ -3902,6 +3901,7 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
       await setDoc(doc(db, "v2_patterns", "loadings"), { qids: [] });
       await setDoc(doc(db, "v2_rank", "daily-000"), { order: [] });
       await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
+      await setDoc(doc(db, "v2_handles", "owner"), { uid: OWNER });
       await setDoc(doc(db, "v2_users", OWNER, "following", STRANGER), { at: 1 });
       await setDoc(doc(db, "v2_users", OWNER, "foresight", "q1__ageBand__25-34"), { pick: 0 });
       await setDoc(doc(db, "v2_groups", GROUP, "reveals", DAY), { revealed: true });
@@ -3939,6 +3939,9 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   // above in every other respect. It is the handle → uid address book.
   it("v2_handles refuses a signed-out read", () => refuses(["v2_handles", "owner"]));
 
+  const ruleSource = (): string =>
+    readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+
   it("and the list still covers every sign-in-gated read arm", async () => {
     // The list above is hand-written, so this is what stops it going
     // stale: count the arms in the ruleset and hold the total. Four are
@@ -3951,7 +3954,7 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // counts the standalone `allow read` arm only. A collection opened to
     // signed-in readers through a combined `allow read, write:` or through
     // a helper predicate is invisible to it, and would need its own case.
-    const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+    const rules = ruleSource();
     const total = (rules.match(/allow\s+read:\s*if\s+request\.auth\s*!=\s*null\s*;/g) || []).length;
     // Still 11 + 4 with twelve cases above: the twelfth covers
     // `v2_handles`, whose arm says `get` and so was never in this count.
@@ -3978,8 +3981,19 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // number cannot move without somebody noticing, which is the thing
     // that was not true: all four could be opened outright with the suite
     // and every gate green.
-    const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+    // COMMENTS BLANKED FIRST, and the count is 27 rather than 28 because
+    // of it. `firestore.rules` explains the `v2_handles` rule's history in
+    // prose that quotes the old arm — "`allow read: if request.auth !=
+    // null` granted exactly the query this paragraph said did not exist" —
+    // and the wide pattern, unlike the bare one, does not require a
+    // trailing `;`, so it counted that sentence as an arm. Two ways that
+    // hurt: rewording a purely historical comment would red this suite
+    // with a message about a read arm being added, pointing at the wrong
+    // file; and the pin was one slot loose, so a comment tidy plus a
+    // genuinely new arm would hold the number and let the new arm through
+    // uncased.
+    const rules = ruleSource().split("\n").map((l) => l.replace(/^\s*\/\/.*$/, "")).join("\n");
     const wide = (rules.match(/allow\s+(?:read|get|list)\s*:\s*if\s+request\.auth\s*!=\s*null/g) || []).length;
-    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(28);
+    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(27);
   });
 });
