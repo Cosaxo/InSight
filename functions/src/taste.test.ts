@@ -9,7 +9,8 @@
 // bounds the scan, and the cursor makes a retry a no-op.
 
 import { describe, expect, it } from "vitest";
-import { runTasteFold, type TasteProfile, type TasteStore } from "./taste";
+import { FEED_TOPIC_OF, runTasteFold, type TasteProfile, type TasteStore } from "./taste";
+import { V2_QUESTIONS } from "./v2content";
 
 const TOPICS = new Map([
   ["feed-f1", "food"],
@@ -73,6 +74,44 @@ function fakeStore(over: Partial<Pick<FakeStore, "profiles" | "lastDay" | "ledge
   };
   return s;
 }
+
+describe("the topic map the nightly fold actually uses", () => {
+  // EXERCISED BY NOTHING until now. Every case below passes a hand-built
+  // TOPICS map, so the default parameter — the one production runs with —
+  // was never evaluated. Measured: switching its filter from `feed` to
+  // `daily` left all 617 functions tests green, and under that the fold
+  // counts zero feed answers and mis-files daily ones, so every taste
+  // profile is wrong and D320/D321's paged reads size every topic page
+  // wrong. Silently, because a wrong profile looks exactly like a real one.
+  //
+  // Held against the bank the same way `PATTERNS_QIDS` is, which its own
+  // docstring compares it to.
+  it("holds every feed question and nothing from another surface", () => {
+    for (const q of V2_QUESTIONS) {
+      expect(FEED_TOPIC_OF.has(q.id), q.id).toBe(q.surface === "feed");
+    }
+    // …and it is non-trivial, so a bank change that empties it fails loudly
+    // rather than passing vacuously.
+    expect(FEED_TOPIC_OF.size).toBeGreaterThan(50);
+  });
+
+  it("files each question under its own topic", () => {
+    for (const q of V2_QUESTIONS) {
+      if (q.surface !== "feed") continue;
+      expect(FEED_TOPIC_OF.get(q.id), q.id).toBe(q.topic ?? "untopiced");
+    }
+    // AND THE `?? "untopiced"` FALLBACK IS NOT PINNED BY THE LINE ABOVE,
+    // said plainly rather than left to look covered: every feed question
+    // in the bank carries a topic, so that branch is never reached and the
+    // literal could be changed with this case green — measured. What IS
+    // asserted here is the fact that makes it unreachable, so a bank that
+    // ships a topicless feed question turns this red and whoever adds it
+    // has to decide what it should be filed under.
+    const topicless = V2_QUESTIONS.filter((q) => q.surface === "feed" && !q.topic);
+    expect(topicless.map((q) => q.id),
+      "a feed question shipped with no topic — decide what the fold should file it under").toEqual([]);
+  });
+});
 
 describe("runTasteFold", () => {
   it("counts feed answers by topic, per person", async () => {
