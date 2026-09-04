@@ -70,7 +70,7 @@ do not want.
 The worker moves the item it is building here with its PR link, and
 back to § Open if the PR is closed unmerged.
 
-- [ ] `[claude-3]` The fit scorecard readable from `main` — the DATA half: `scorecard --fetch` reads `v2_patterns/loadings` into a `fit` block on `content/scorecard.json` (D363, Status: Proposed; the bridge's 2026-08-28 map verdict, the digest's highest-leverage item, with the questions lane's 2026-08-28 item-information verdict folded into the same block). Taken by the axiom builder, 2026-09-03 — PR `claude/axiom-fit-scorecard`, built on the run's second firing after the first planned it and ran out of usage. The reader half is split back to § Open as its own `[claude-3]` line, since its shape is the design question the `[ask]` was about.
+- [ ] `[claude-3]` The fit scorecard readable from `main` — the DATA half: `scorecard --fetch` reads `v2_patterns/loadings` into a `fit` block on `content/scorecard.json` (D363, Status: Proposed; the bridge's 2026-08-28 map verdict, the digest's highest-leverage item, with the questions lane's 2026-08-28 item-information verdict folded into the same block). Taken by the axiom builder, 2026-09-03 — PR #390 (`claude/axiom-fit-scorecard`), planned by the 2026-09-03 12:42 firing, built by the 18:38 firing, gated, reviewed and shipped by the two sessions that resumed on 2026-09-04. The reader half is split back to § Open as its own `[claude-3]` line, since its shape is the design question the `[ask]` was about.
 
 ## Parked (needs the owner)
 
