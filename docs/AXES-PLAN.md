@@ -605,7 +605,7 @@ that manufactures pressure on its one human gate has inverted its own
 purpose.
 
 *Since 2026-08-25 a theory layer runs above this program:
-[`AXIOM-THEORY.md`](AXIOM-THEORY.md) — eight lanes on an orphan branch
-writing each axis's perfect form and their combination, whose requests
-arrive through a reviewed bridge as candidates for exactly the decision
-and build lanes this section describes.*
+[`AXIOM-THEORY.md`](AXIOM-THEORY.md) — twelve lanes on an orphan branch
+writing each axis's perfect form and their combination, and scoring that
+work, whose requests arrive through a reviewed bridge as candidates for
+exactly the decision and build lanes this section describes.*

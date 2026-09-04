@@ -1,10 +1,11 @@
 # Axiom Theory — the theory layer, and its bridge into the product
 
-**Status: operating since 2026-08-25.** This page is the product-side
+**Status: operating since 2026-08-25, at half the rate twice over —
+D359 and D363.** This page is the product-side
 record of a system that lives OUTSIDE the product: twelve recurring
 Claude lanes on the orphan branch `axiom-theory` of this repo — eleven
 writing theory (two of them, ties and interests, chartered 2026-09-01
-at D347), and since D346 one scoring their work every second night. **`CHARTER.md` at that branch's root is canonical** for
+at D347), and since D346 one scoring their work every eighth night. **`CHARTER.md` at that branch's root is canonical** for
 everything about how the lanes behave; this page records what the
 product needs to know — where the system is, what may cross from it
 into the tree, and the account-side inventory. If the two disagree,
@@ -30,9 +31,9 @@ research directions over consented, aggregated data, never
 procedures. Sharper still (the owner, 2026-08-26): each
 axiom's purpose, or at least its main one, is to create data and
 data-connections as powerful and useful as possible — or to make
-another axiom's data stronger and more useful. Each lane improves one theory every other
-day (re-paced by the owner 2026-08-25 from the initial three-hourly
-trial) — as a claims graph with an evidence ladder (conjecture →
+another axiom's data stronger and more useful. Each lane improves one theory every eighth
+day (re-paced by the owner three times: 2026-08-25 off the initial
+three-hourly trial, then D359 and D363) — as a claims graph with an evidence ladder (conjecture →
 argued → cited → measured), advanced by bounded runs that must move a
 claim's status or prune, never merely grow. The lanes deliberately **disregard the
 project's practical limitations** — they seek the perfect system, not
@@ -50,10 +51,13 @@ their connections — deliberately *not* an axiom, the owner's note
 **Central** synthesizes: the combination theory, the axiom portfolio,
 new-axiom proposals, focus questions into the other lanes, and the
 weekly `DIGEST.md`. The **graph optimizer** keeps the graphs
-themselves healthy, including its own methods. And a tenth lane since
-2026-09-01, **review** (D346), scores every other lane's latest work
-every second night against the charter's own clauses and leaves each
-lane feedback — *The review lane*, below.
+themselves healthy, including its own methods. And the **twelfth** lane
+since 2026-09-01, **review** (D346), scores every other lane's latest
+work every eighth night against the charter's own clauses and leaves
+each lane feedback — *The review lane*, below. Its own chartering
+commit calls it the tenth, which it was for the hours between landing
+and the ties and interests charter later the same evening; this page
+said tenth until D363.
 
 ## Why the branch shape
 
@@ -92,23 +96,55 @@ inter-fit displacement summary — crossed at
 with the verdicts' conditions (the per-question floor; no rotation
 alignment; the fit-not-Oracle note) carried into the record.
 
+**And that is still the only one.** `bridge/VERDICTS.md` carries
+**sixteen** worth-building verdicts, three needs-owner and one not-yet
+(counted 2026-09-04); the twelve graphs hold **129** claims, of which
+**one** is `measured` and 65 `cited`. The queue is at the bridge, not
+in the lanes — which is why D363 cut the rate and left the roster and
+every contract alone, and why the axiom builder (`OWNER-LIST.md`
+§ Clicks) is the lane that would change the ratio.
+
 ## The account-side inventory (product-side copy)
 
-All twelve fire a **fresh session per run** on model `claude-fable-5`
-(the owner's 2026-08-25 direction: Fable orchestrates, subagents are
-Opus at matched effort, never lower), completion notifications off —
-the digest is the legibility channel.
+All twelve fire a **fresh session per run** through the dispatcher,
+under the owner's 2026-08-25 direction (Fable orchestrates, subagents
+are Opus at matched effort, never lower), completion notifications
+off — the digest is the legibility channel. Read off the Routines
+2026-09-04, that sentence is narrower than it used to claim: nine
+records carry `claude-fable-5-1`, and **three carry no model at all** —
+review, ties and interests, the three created last. It changes less
+than it looks: every one is bound to the dispatcher session, so the
+field governs the dispatcher's turn rather than the lane run it
+spawns, and the dispatcher is on `claude-fable-5-1`. The model is the
+owner's to set (`OWNER-LIST.md`), never a routine's.
 
 The lanes were rebound on the evening of 2026-08-25 (the first day's
 measurement: cron-spawned sessions stall on the provisioning step's
 permission prompt, so the crons now wake a persistent dispatcher
 session that spawns each run with its tools pre-approved), and the
-owner re-paced the cadence the same evening: **every lane every other
-day** — subject axioms (genetic, body, questions, tests, and since D347 ties and interests) at 09:02–14:02 UTC on odd dates, reader lanes (map, pattern, graph
-optimizer, central) at the same hours on even dates, so readers always work on subject output at most a day old; the
-review lane at 02:02 UTC on odd dates, six hours before the earliest
-lane slot (D346). **The charter's §10 table carries the live trigger ids** and is updated first on any change;
-this page stopped copying the ids the evening they started moving.
+cadence has been halved twice since: **every lane every eighth day**
+(D363, on the owner's *"reduce the theory production"*), which halves
+D359's four-day cycle and keeps its shape — subject axioms on the
+cycle's 1st and 3rd date, reader lanes on its 2nd and 4th, so a reader
+still works on subject output at most a day old, and the review lane
+seven hours before the cycle's first subject slot. Per-lane slots and
+trigger ids: `ROUTINES.md` § The theory lanes. **The charter's §10
+table is the account-side record** and is meant to move first on any
+change; it did not, and still carries the every-other-day crons D359
+replaced — the paste is on `OWNER-LIST.md` § Clicks, worded in
+`design/charter-cadence-2026-09-04.md`.
+
+**Why the cut is not only about money (measured 2026-09-04).** The
+dispatcher's bucket is spent: its last turn failed with *"You've
+reached your Fable limit"*, and its seven-day rate limit reads
+`rejected` until **2026-09-08 12:00 UTC**. Every lane fires into it, so
+no theory run is possible before that reset whatever the cron says —
+the two reader firings still standing for today included. The two
+newest lanes say the same thing from the other end: ties has landed no
+theory commit since its 2026-09-01 seed, and interests has never fired
+at all. Twelve lanes at three runs a day was more than the account
+could serve, and the first run of the new cycle is the review lane on
+2026-09-09.
 
 ## The review lane (D346)
 
@@ -144,10 +180,10 @@ reasoned decline is never marked down; three reviews of reasoned
 declines are evidence against the rubric, not the lane (charter §11's
 review-drift rule) — the reviewer's own falsifier.
 
-**Cadence and cost.** Every second night at 02:02 UTC on odd dates, so
-every lane's next run reads feedback that already covers its latest
-landed run. Roughly half to one theory run per review (~$10–20), ≈ 15
-a month.
+**Cadence and cost.** Every eighth night at 02:02 UTC, so every lane's
+next run reads feedback that already covers its latest landed run.
+Roughly half to one theory run per review (~$10–20) — ≈ 15 a month as
+chartered, ≈ 4 since D363.
 
 **Delivery state.** Live on both halves: the Routine (id in D346, the
 account-side half) and the charter amendment — §12, the workspace, the
@@ -190,6 +226,11 @@ reads to do it. And it is not a cost rule dressed as a quality rule: a lane
 that genuinely needs a whole graph says so in its log, which is also how
 the review lane would notice the budget hurting the work.
 
+**Still unapplied after D363, and worth the same per run.** The cut is
+to the number of runs, so the ~$8 a run this would save is now ~$12 a
+day rather than ~$24 — and the trend it addresses is untouched, because
+the graphs grow with runs rather than with days.
+
 ## The owner's controls
 
 Pause any lane in the claude.ai Routines UI; re-pace with one
@@ -199,7 +240,8 @@ re-measured on day one: a full theory run is real money (~$20 of
 metered value on the first measured runs — the chartering plan's "a
 no-advance run costs little" did not survive contact), which is half
 of why the owner re-paced the 64-run/day trial to every-other-day
-(~4 runs/day) the same evening. A run that finds nothing to advance
+(~4 runs/day) the same evening — and twice again since, to ~3 runs a
+day (D359) and ~1.5 (D363). A run that finds nothing to advance
 still logs that honestly; the weekly digest plus a next-morning
 quality peek (2026-08-26) are what say whether the cadence earns
 itself.
@@ -354,7 +396,10 @@ and the follow graph is one too.
   other day ≈ 15 runs a month ≈ **$300 a month per lane**. Two lanes ≈ $600 a month on top of the ten (the review lane
   included, D346). The owner's standing call is
   that budget is not the constraint and quality is — recorded, not
-  re-argued.
+  re-argued. *Both halves have moved since this was argued: a run
+  measures **$24.44** (`USAGE-REDUCTION.md` §1) and the cadence is
+  every eighth day, so a lane is ≈ **$98 a month** (D359, D363). The
+  reflection keeps the numbers it was decided on.*
 - **The dispatcher.** The 2026-09-01 digest reports roughly two days
   of cadence lost to a dispatcher backlog with nine theory lanes at
   four to five runs a day, and the review lane (D346) now fires at

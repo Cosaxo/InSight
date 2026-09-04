@@ -1,10 +1,12 @@
 # Getting the routine bill down — what the program costs, and what was cut
 
-**Status: partly executed, 2026-09-03 (D359).** The owner read the
+**Status: partly executed, 2026-09-03 (D359); the theory lanes cut
+again 2026-09-04 (D363, §9).** The owner read the
 arithmetic below and chose *overhead plus cadence*: the dispatcher
 overhead removed where a session may remove it, the PR shepherd
 re-paced from twenty-four firings a day to eight, the twelve theory
-lanes from every second day to every fourth. What a session cannot do
+lanes from every second day to every fourth — and, the next morning,
+from every fourth to every eighth. What a session cannot do
 from inside a session is in § 5, as owner rows, with what each is
 worth. Nothing here changes what a lane *does* — only how often it is
 woken and how much history it re-reads when it is.
@@ -318,3 +320,33 @@ page was written without — the arithmetic above had to be assembled by
 hand from `list_sessions` because nothing in the program was reading
 the `usage` block at all, which is exactly how a $2,325 session went
 ten days unremarked.
+
+## 9 · The second theory cut, 2026-09-04 (D363)
+
+The owner's whole instruction was *"reduce the theory production"*, and
+the lever a session may pull is the cadence: all twelve Routines moved
+from `/4` to `/8` on the same hours and the same four groups, so the
+cycle's shape — subject, reader, subject, reader — survives at half the
+rate. **3.0 runs a day → ~1.5**, ≈ $73 a day → ≈ **$37** at the measured
+$24.44 a run, ≈ $1,100 a month. Nothing else moved: no lane paused, no
+contract touched, no prompt edited.
+
+Two measurements taken while doing it, both new here:
+
+- **The dispatcher is rate-limited, not merely expensive.** Its last
+  turn failed with *"You've reached your Fable limit"* and its seven-day
+  bucket reads `rejected` until **2026-09-08 12:00 UTC**. Every lane
+  fires into that one session, so the program's real cadence between now
+  and then is zero — §1's *"it is dropping runs"* has become *"it is
+  dropping all of them"*. The cut is what stops the next window paying
+  for firings that cannot be served.
+- **Three of the twelve Routines carry no model.** Review, ties and
+  interests — the three created last, and the ones whose records show
+  the least work landed: ties has no theory commit since its seed, and
+  interests has never fired. Only the owner sets a Routine's model, so
+  it is a row on `OWNER-LIST.md` rather than a fix here.
+
+What is still not cut, and is still the owner's: the read budget (§6,
+~$8 a run, unchanged by cadence), the axiom dispatcher's own rotation
+(§5.3), and the roster — twelve lanes is a count no session should
+change on its own.

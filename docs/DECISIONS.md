@@ -37714,3 +37714,118 @@ carry an axis in (a leaning set, an inner arc, a polarity split), states
 what each costs, and keeps its data, states and basis rules. Still
 `requested`; the drafting step is unchanged.
 
+
+---
+
+## D363 · The theory production halves again, and the record it ran on is corrected
+
+**2026-09-04.** The owner, in one line: *"look at the corrections to
+axiom theory and also reduce the theory production."* Two acts on one
+subject. The reduction is the twelve theory lanes' cadence — `/4` to
+`/8`, applied to every Routine and read back from `list_triggers` — and
+the corrections are what the product-side record had stopped saying
+truthfully about a system it exists to describe: a lane count that was
+right for a few hours on 2026-09-01, a cadence two re-paces behind, a
+cost figure the account's own usage block had already contradicted, and
+a phase of the program plan still queued to double exactly what this
+record halves.
+
+### The cut
+
+Twelve `update_trigger` calls, schedule only — no prompt, no model, no
+enabled flag, nothing a lane reads. The four-day cycle D359 built keeps
+its shape at half the rate: subject axioms on the cycle's 1st and 3rd
+dates, reader lanes on its 2nd and 4th, the review lane at 02:02 on the
+1st, so a reader still works on subject output at most a day old and
+every lane still reads feedback covering its latest landed run.
+
+| Group | Was | Now | Dates |
+| --- | --- | --- | --- |
+| review · genetic · body | `1-31/4` | `1-31/8` | 1, 9, 17, 25 |
+| database · map · pattern | `2-30/4` | `2-30/8` | 2, 10, 18, 26 |
+| questions · tests · ties · interests | `3-31/4` | `3-31/8` | 3, 11, 19, 27 |
+| graph optimizer · central | `4-30/4` | `4-30/8` | 4, 12, 20, 28 |
+
+**3.0 runs a day → ~1.5.** At the measured $24.44 a run
+(`USAGE-REDUCTION.md` §1, not the charter's $20 estimate) that is ≈ $73
+a day → ≈ $37, about $1,100 a month. Hours are unchanged, so the
+collision profile against the product lanes is unchanged too.
+
+### Why the rate and not the roster
+
+Counted on the branch the same morning: `bridge/VERDICTS.md` carries
+**sixteen** worth-building verdicts, three needs-owner and one not-yet,
+against **one** crossing — D325, from 2026-08-27. The twelve graphs hold
+**129** claims, of which **one** is `measured`. The program's shortage is
+not upstream. Halving the rate leaves every workspace, every contract
+and every lane alive while the queue at the bridge drains; pausing lanes
+would cut the theory and leave the queue exactly where it is. What would
+change the ratio is the axiom builder — one run a day, carrying verdicts
+into the governed process — and it is an owner click, not a lane
+(`OWNER-LIST.md` § Clicks).
+
+### Two things measured while doing it
+
+- **The dispatcher is rate-limited, not merely expensive.**
+  `session_01D44Wtdu5JfCYMJmYuKmLjc`'s last turn failed with *"You've
+  reached your Fable limit"*, and its seven-day bucket reads `rejected`
+  until **2026-09-08 12:00 UTC**. Every lane fires into that one
+  session, so the program's actual cadence until then is zero whatever
+  the cron says — today's two reader firings included, which are left
+  standing rather than skipped, because bending the cycle out of phase
+  to save two failures costs more than the failures. The first run of
+  the new cycle is the review lane on 2026-09-09.
+- **Three of the twelve Routines carry no model.** Review, ties and
+  interests — the three created last — where the other nine carry
+  `claude-fable-5-1`, which is itself not the `claude-fable-5` this page
+  claimed. Because all twelve are dispatcher-bound the field governs the
+  dispatcher's turn rather than the lane run it spawns, so nothing is
+  visibly broken; the roster is no longer uniform, and only the owner
+  sets a Routine's model. It is a row, not a fix. The same two lanes are
+  the ones with nothing landed: ties has no theory commit since its
+  2026-09-01 seed, and interests has never fired at all.
+
+### The corrections
+
+1. **"A tenth lane."** `AXIOM-THEORY.md` called the review lane the
+   tenth. It was, for the hours between its chartering commit and the
+   ties and interests charter later the same evening — the count moved
+   under the sentence and the sentence stayed. It is the twelfth.
+2. **The cadence, in five places.** The page, `ORIENTATION.md`'s map row
+   and `ROUTINES.md`'s clock all still said *every other day* / *every
+   second night* / *(odd)* / *(even)*, which D359 had already retired.
+3. **"Eight lanes."** `AXES-PLAN.md`'s pointer to the theory layer had
+   the roster at eight; it is twelve, and one of them scores the others.
+4. **The money.** The 2026-09-01 reflection's *$300 a month per lane* was
+   $20 × 15 runs. Measured, it is $24.44 × 4 ≈ **$98**. The reflection
+   keeps the numbers it was decided on and carries the correction beside
+   them; the live pages carry the new ones.
+5. **The model.** *"All twelve fire on `claude-fable-5`"* is wrong in
+   three ways, above.
+6. **The charter itself is stale, and a session may not fix it.**
+   `CHARTER.md` §2 and §10 on `axiom-theory` still describe the
+   every-other-day cadence and carry the `/2` crons. Twelve lanes read
+   that file every run. No routine amends the charter (`AXES-PLAN.md`
+   §10) and this session may not push that branch, so the replacement
+   wording is written out as three paste-ready blocks in
+   `design/charter-cadence-2026-09-04.md`, with the row on
+   `OWNER-LIST.md` § Clicks.
+
+### The reversal this records
+
+The owner's answer 1 of 2026-09-02 — *"second set opposite days"* —
+would put a second twelve-lane set on the opposite parity and make every
+lane fire daily. The same voice has now said *reduce*. `PROGRAM-RUNBOOK.md`
+phase 4 is marked **HELD** rather than deleted, `PROGRAM-PLAN.md` §4.3
+and §10 carry the supersession beside what was argued, and the
+`OWNER-LIST.md` row says plainly that a tick there revives it. A held
+phase is recoverable in a word; a deleted one has to be re-argued.
+
+### What this deliberately does not do
+
+It does not amend the charter, pause a lane, retire a workspace, change
+a model, edit a prompt, or touch the read budget (`AXIOM-THEORY.md`
+§ The read budget — still unapplied, still ~$8 a run, and unchanged by
+cadence because the graphs grow with runs rather than with days). It
+does not decide the theory program's worth: `USAGE-REDUCTION.md` §7's
+sentence stands, and stopping remains the owner's call, not taken here.

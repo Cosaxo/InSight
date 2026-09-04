@@ -521,6 +521,13 @@ Whichever the owner picks is a charter §10 change, which passes the
 owner by D289 §4 and lands on `axiom-theory` on their word, then the
 Routines are created here and registered. §9 Q1.
 
+**Superseded 2026-09-04 (D363).** The owner's *"reduce the theory
+production"* halved the twelve lanes to an eight-day cycle, so a
+second set on the opposite parity is off until they say otherwise:
+`PROGRAM-RUNBOOK.md` phase 4 is held, and the recommendation above is
+left standing as what was argued, not as what to do. The pricing is
+unchanged and still the reason to ask — what moved is the answer.
+
 ## 5 · The console — monitoring the owner can see
 
 The owner already has a monitoring session on Claude 1; nothing on
@@ -709,6 +716,9 @@ what the runbook builds from. Every one is binding on adoption
 1. **The theory lanes:** *"second set opposite days."* — Claude 3 runs
    the subject lanes on even dates and the reader lanes on odd, the
    review lane on even nights; every lane fires daily. Runbook phase 4.
+   **Reversed 2026-09-04 by *"reduce the theory production"* (D363):
+   phase 4 is held and the twelve run every eighth day.** The answer is
+   left in place because this section is the record of what was said.
 2. **Approval:** *"the ops runbook says … only you may put it on a PR,
    never a routine — this is wrong, the shepherd can. a second label
    called approved sounds like the way and it should be done by

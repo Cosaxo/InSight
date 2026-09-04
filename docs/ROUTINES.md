@@ -226,30 +226,43 @@ has no rows.
 
 ### The theory lanes — twelve, on the orphan `axiom-theory` branch
 
-**Re-paced 2026-09-03 to a four-day cycle** (D359): every lane runs every
-fourth date instead of every second, and the subject/reader alternation the
-old odd/even split gave is kept rather than lost — subject days are the 1st
-and 3rd of each cycle, reader days the 2nd and 4th, so a reader still works
-on subject output at most a day old. Three or four lanes share a date
-instead of seven, which also keeps a day's lanes out of one five-hour
-rate-limit window. All twelve dispatch through the Axiom dispatcher into a
-fresh session, write the `axiom-theory` branch and nothing else, and never
-touch `main`.
+**Re-paced twice: 2026-09-03 to a four-day cycle (D359), 2026-09-04 to an
+eight-day one (D363, the owner's *"reduce the theory production"*).** Every
+lane runs every eighth date, and the subject/reader alternation the old
+odd/even split gave is kept rather than lost — subject days are the 1st and
+3rd of each cycle, reader days the 2nd and 4th, so a reader still works on
+subject output at most a day old. Three or four lanes share a date instead
+of seven, which also keeps a day's lanes out of one five-hour rate-limit
+window. Twelve lanes now fire ~1.5 times a day between them, against ~3
+before and ~6 before that. All twelve dispatch through the Axiom dispatcher
+into a fresh session, write the `axiom-theory` branch and nothing else, and
+never touch `main`.
 
 | Lane | Trigger id | Slot (UTC) | Dates of the month |
 | --- | --- | --- | --- |
-| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/4 * *` — 02:02 | 1, 5, 9 … 29 — subject day |
-| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/4 * *` — 09:02 | 1, 5, 9 … 29 — subject day |
-| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/4 * *` — 10:02 | 1, 5, 9 … 29 — subject day |
-| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 3-31/4 * *` — 11:02 | 3, 7, 11 … 31 — subject day |
-| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 3-31/4 * *` — 12:02 | 3, 7, 11 … 31 — subject day |
-| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 3-31/4 * *` — 13:02 | 3, 7, 11 … 31 — subject day |
-| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 3-31/4 * *` — 14:02 | 3, 7, 11 … 31 — subject day |
-| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/4 * *` — 08:02 | 2, 6, 10 … 30 — reader day |
-| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/4 * *` — 09:02 | 2, 6, 10 … 30 — reader day |
-| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/4 * *` — 10:02 | 2, 6, 10 … 30 — reader day |
-| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 4-30/4 * *` — 11:02 | 4, 8, 12 … 28 — reader day |
-| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 4-30/4 * *` — 12:02 | 4, 8, 12 … 28 — reader day |
+| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/8 * *` — 02:02 | 1, 9, 17, 25 — subject day |
+| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/8 * *` — 09:02 | 1, 9, 17, 25 — subject day |
+| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/8 * *` — 10:02 | 1, 9, 17, 25 — subject day |
+| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 3-31/8 * *` — 11:02 | 3, 11, 19, 27 — subject day |
+| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 3-31/8 * *` — 12:02 | 3, 11, 19, 27 — subject day |
+| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 3-31/8 * *` — 13:02 | 3, 11, 19, 27 — subject day |
+| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 3-31/8 * *` — 14:02 | 3, 11, 19, 27 — subject day |
+| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/8 * *` — 08:02 | 2, 10, 18, 26 — reader day |
+| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/8 * *` — 09:02 | 2, 10, 18, 26 — reader day |
+| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/8 * *` — 10:02 | 2, 10, 18, 26 — reader day |
+| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 4-30/8 * *` — 11:02 | 4, 12, 20, 28 — reader day |
+| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 4-30/8 * *` — 12:02 | 4, 12, 20, 28 — reader day |
+
+**Two things the table cannot show, both read off the Routines
+2026-09-04.** Three of the twelve — review, ties and interests — carry
+**no model** on their record where the other nine carry
+`claude-fable-5-1`; because all twelve are bound to the dispatcher, the
+field governs the dispatcher's turn and not the lane run, but the roster
+is no longer uniform and only the owner may set a model. And the
+dispatcher's own seven-day bucket reads `rejected` until **2026-09-08
+12:00 UTC** — its last turn failed with *"You've reached your Fable
+limit"* — so nothing fires successfully before then whatever this table
+says. Interests, created 2026-09-01, has never fired at all.
 
 ### The doc sweep and the night shift
 
@@ -384,14 +397,18 @@ renamed so the list says why; their old dispatcher,
   wrote down — which is the whole of rule 2, and why every id on this
   page is quoted from the tool response rather than from the runbook
   that also holds it.
-- **"Every other day" is true inside a month and not across one.**
+- **A date-stepped cron is true inside a month and not across one.**
   `1-31/2` and `*/2` are odd days of the month and `2-30/2` even ones,
   and both restart at the 1st: the odd-date lanes fired 2026-08-31 and
   again 2026-09-01, two days running, and the even-date lanes went from
   08-30 to 09-02 with three days between. Computed, not read off the
   cron. It matters for the clock in §5 — the theory lanes double up on
   the first of a month following a 31-day one, and the review lane
-  doubles with them.
+  doubles with them. The `/4` and `/8` cycles (D359, D363) inherit the
+  artefact at a quarter and an eighth of the rate: `1-31/8` is 1, 9, 17
+  and 25, so the gap across a month end runs 4 to 7 days instead of 8.
+  Naming it is the whole fix — nothing here is worth a weekday cron that
+  would collide with the product lanes on a fixed day every week.
 
 ---
 
@@ -549,19 +566,19 @@ all.
 ```
 00 ·  night B audit 00:00–01:35 · nightly algorithm improvement 00:04 → 03:00
 01 ·  night shift A audit 01:00–02:35
-02 ·  night B audit 02:00–03:35 · theory review 02:02 (odd)
+02 ·  night B audit 02:00–03:35 · theory review 02:02 (1, 9, 17, 25)
 03 ·  night shift A audit 03:00–04:35
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
 06 ·  PR shepherd 06:20 · axiom builder 06:30 · production reader 06:40
 07 ·  question farm 07:00 · merge shift 07:15
-08 ·  catalog question · DB scalability 08:00 → 12:00 · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
+08 ·  catalog question · DB scalability 08:00 → 12:00 · theory database 08:02 (2, 10, 18, 26) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
 09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · merge shift 09:15 · feed lane 09:30
 10 ·  duel lane (Wed) 10:00 · theory 10:02
 11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory 11:02 · merge shift 11:15
 12 ·  axes retro (Sun) 12:00 · theory 12:02
-13 ·  theory ties 13:02 (odd) · merge shift 13:15
-14 ·  console improver 14:00 (Sun) · theory interests 14:02 (odd)
+13 ·  theory ties 13:02 (3, 11, 19, 27) · merge shift 13:15
+14 ·  console improver 14:00 (Sun) · theory interests 14:02 (3, 11, 19, 27)
 15 ·  merge shift 15:15 · roll call 15:30
 16 ·  PR shepherd 16:20
 17 ·  list worker 17:00 · merge shift 17:15 · console keeper 17:45

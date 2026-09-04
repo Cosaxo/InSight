@@ -199,7 +199,16 @@ log** like the list worker they are.
       measurements here, the `OPS-RUNBOOK.md` shape. · **Gate:** a row
       per lane. · **Size:** S.
 
-## Phase 4 — the theory lanes' second set
+## Phase 4 — the theory lanes' second set — HELD (D363)
+
+**Held 2026-09-04, on the owner's *"reduce the theory production"*.**
+This phase doubles the theory program on the opposite parity; the same
+instruction halved it (D363). Nothing below starts until the owner
+says otherwise — the row is on `OWNER-LIST.md` § Decisions, where the
+second set was already priced at twice what the twelve cost. The steps
+stay as written so reviving it is a word rather than a redesign, and
+4.2's parity is now wrong twice over: the cadence it would double is
+the eight-day cycle, not the every-other-day one it describes.
 
 - [ ] **4.1 [owner] Export the twelve prompts.** They live only in
       Claude 2's Routines; `list_triggers` from that account returns
