@@ -41,7 +41,14 @@ run of `list_triggers` and one PR.
 can be decided slowly. This cannot: it is only true until a
 subscription lapses.
 
-Claude 3 can be cancelled today at no loss.
+Claude 3 can be cancelled today at no loss, and the reduction has
+already begun there: at **08:45 UTC on 2026-09-04** all four of its
+remaining Routines were disabled from the account's own Routines page
+— the axiom builder, the list worker, the roll call and the console
+improver. Disabled rather than deleted, so every id still resolves;
+`routines/manifest.json` carries them as `disabled` with that date, and
+nothing on that account has fired since. The relay session it fired
+into has nothing left to relay.
 
 ## 1 · What the reduction is, beyond capacity
 

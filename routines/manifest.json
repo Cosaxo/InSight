@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-09-03",
+  "updated": "2026-09-04",
   "_read_me": "Every Routine on every subscription, as the thing to recreate it from: name, schedule (cron, UTC), model, binding, where its prompt is, its state and id. docs/RECREATE.md is rendered from this file (node scripts/routines.mjs --write) and check:routines holds the two together with the runbook inventories. Edit this file, run --write, commit both. A prompt is { file, opens } — the fenced block in that file whose first line opens with that text, with `substitute` applied — or { branch, file } for a block on another branch, or { note } when the stored prompt was never written down. `trigger` is quoted from list_triggers, never typed from memory; `retired` lists earlier ids an inventory table may still carry for the same Routine; `source` says where the row was read.",
   "routines": [
     {
@@ -18,9 +18,9 @@
       "branches": ["claude/axiom-<slug>", "claude/program-diag-builder-<date>"],
       "trigger": "trig_01TsTBR1xv8KBVJG9b38vPgn",
       "retired": ["trig_01GfndFyG5MFsWcpZDNPntd5"],
-      "state": "live",
+      "state": "disabled",
       "created": "2026-09-03",
-      "note": "re-paced on the account 2026-09-04 06:41 UTC from three fires a day to one, not from a session — the contract's `30 6,12,18` is the owner's dial to restore",
+      "note": "disabled on the account 2026-09-04 08:45 UTC, not from a session, as the reduction to one or two subscriptions began (docs/CONSOLIDATION.md); not deleted, so the id stands and the prompt is still a block in this repository — was live: re-paced on the account 2026-09-04 06:41 UTC from three fires a day to one, not from a session — the contract's `30 6,12,18` is the owner's dial to restore",
       "source": "docs/PROGRAM-RUNBOOK.md § The account-side inventory; list_triggers 2026-09-04"
     },
     {
@@ -77,8 +77,9 @@
       "branches": ["claude/console-<date>", "claude/program-diag-improver-<date>"],
       "trigger": "trig_01GPHx2NJRUjTLG5WfkXdgC5",
       "retired": ["trig_015RFs7Mw2dC4u73nxBzhaaV"],
-      "state": "live",
+      "state": "disabled",
       "created": "2026-09-03",
+      "note": "disabled on the account 2026-09-04 08:45 UTC, not from a session, as the reduction to one or two subscriptions began (docs/CONSOLIDATION.md); not deleted, so the id stands and the prompt is still a block in this repository",
       "source": "docs/PROGRAM-RUNBOOK.md § The account-side inventory"
     },
     {
@@ -100,9 +101,9 @@
       "branches": ["claude/worklist-<slug>", "claude/ops-diag-worklist-<date>"],
       "trigger": "trig_018gAP4NYzGNvSqojjNapH8g",
       "retired": ["trig_017g4jkRVknNNccrVKfXWWS4"],
-      "state": "live",
+      "state": "disabled",
       "created": "2026-09-03",
-      "note": "the 2026-09-02 Routine could not be deleted from a session (the classifier refused) and is disabled, still bound to the old dispatcher",
+      "note": "disabled on the account 2026-09-04 08:45 UTC, not from a session, as the reduction to one or two subscriptions began (docs/CONSOLIDATION.md); not deleted, so the id stands and the prompt is still a block in this repository — was live: the 2026-09-02 Routine could not be deleted from a session (the classifier refused) and is disabled, still bound to the old dispatcher",
       "source": "docs/PROGRAM-RUNBOOK.md § The account-side inventory"
     },
     {
@@ -124,8 +125,9 @@
       "branches": ["claude/ops-diag-rollcall-claude-3-<date>"],
       "trigger": "trig_01CZcopHxBJ5qSkrzCLM1Un2",
       "retired": ["trig_01Pda2PGuVxADFLmqbgVGgt3"],
-      "state": "live",
+      "state": "disabled",
       "created": "2026-09-03",
+      "note": "disabled on the account 2026-09-04 08:45 UTC, not from a session, as the reduction to one or two subscriptions began (docs/CONSOLIDATION.md); not deleted, so the id stands and the prompt is still a block in this repository",
       "source": "docs/PROGRAM-RUNBOOK.md § The account-side inventory"
     },
     {
