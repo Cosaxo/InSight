@@ -37750,8 +37750,9 @@ stamps (`publishedAt`, `lastDay`, `k`, `folded`, the question count);
 the **basis distribution** — how many questions are fitted on the
 believable basis (`PATTERNS_MIN_BASIS`, cross-read from
 `patternsFit.ts` the way the scorecard cross-reads `DECK_EPOCH`, so a
-moved floor cannot leave a stale count here) and the min / median /
-max of per-question `n`; the **prequential series** as published, with
+moved floor cannot leave a stale count here) and the min / `p50` /
+max of per-question `n` (nearest-rank, `displacementSummary`'s own
+`rank`, so the block's two `p50` fields are one operation); the **prequential series** as published, with
 the day's headline, the floor it was floored at, how many questions
 cleared it, and D325's fit-not-Oracle `note` verbatim; the
 **displacement summary** as published (`space: "loading"`, the stats

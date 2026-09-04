@@ -121,6 +121,36 @@ describe("fitSnapshot", () => {
     expect(fitSnapshot({ k: 8 }, { basis: 8 }).basis.n).toEqual({ min: 0, p50: 0, max: 0 });
   });
 
+  it("counts a question sitting exactly AT the floor as ready, and takes the lower middle on an even count", () => {
+    // readyPool in patternsFit.ts is `>=`; and with four questions the
+    // nearest-rank p50 is the lower middle (displacementSummary's own
+    // `rank`), not the upper one floor(len/2) would pick.
+    const doc = DOC();
+    doc.q["feed-d"] = { v: [0.1, 0, 0, 0, 0, 0, 0, 0], n: 8, sum: 0 };
+    const block = fitSnapshot(doc, { basis: 8 });
+    // ns 40, 12, 0, 8 → sorted [0, 8, 12, 40]: three clear the floor and
+    // the lower middle is 8.
+    expect(block.basis).toEqual({ floor: 8, ready: 3, n: { min: 0, p50: 8, max: 40 } });
+  });
+
+  it("writes null, never 0, for a measurement a malformed block does not carry", () => {
+    const doc = DOC();
+    doc.quality = { day: "2026-09-02", perQ: {}, series: [] };
+    doc.displacement = { space: "loading", perQ: {} };
+    const block = fitSnapshot(doc, { basis: 8 });
+    // The fit writes every one of these on every publish, so their
+    // absence is a malformed doc — and 0 there would read as "no drift".
+    expect(block.quality.n).toBe(null);
+    expect(block.quality.bits).toBe(null);
+    expect(block.displacement.p50).toBe(null);
+    expect(block.displacement.max).toBe(null);
+  });
+
+  it("refuses a raw Firestore REST body instead of folding it into an all-zero block", () => {
+    const raw = { name: "projects/x/databases/insight/documents/v2_patterns/loadings", fields: { k: { integerValue: "8" } } };
+    expect(() => fitSnapshot(raw, { basis: 8 })).toThrow(/decode it first/);
+  });
+
   it("refuses the marginal at n = 0 and still states the discrimination", () => {
     const block = fitSnapshot(
       { q: { z: { v: [0.6, 0.8], n: 0, sum: 0 } } },

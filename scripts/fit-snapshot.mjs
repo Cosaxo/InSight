@@ -82,6 +82,17 @@ export function fitSnapshot(doc, { basis } = {}) {
     throw new Error("fit-snapshot: fitSnapshot needs a numeric { basis }");
   }
 
+  // A raw REST body (`{name, fields, …}`, what `curl` on the document
+  // returns) has no `q` and would fold into a plausible "published,
+  // nothing fitted" block — every field present, every one zero — which
+  // is the D276 class exactly. The CLI decodes that shape before calling
+  // here; this refuses it if the decode was skipped.
+  if (doc.fields && typeof doc.fields === "object" && !doc.q) {
+    throw new Error(
+      "fit-snapshot: a raw Firestore document (`fields`) — decode it first" +
+      " (question-scorecard.mjs decodeLoadings)",
+    );
+  }
   const q = doc.q && typeof doc.q === "object" ? doc.q : {};
   // Sorted so the committed diff moves only when a number moves — the
   // REST reader hands back whatever key order the wire had.
@@ -110,8 +121,13 @@ export function fitSnapshot(doc, { basis } = {}) {
   const quality = doc.quality
     ? {
         day: doc.quality.day ?? null,
-        n: doc.quality.n ?? 0,
-        bits: doc.quality.bits ?? 0,
+        // `?? null` throughout, never `?? 0`: the fit writes every one of
+        // these fields on every publish (publishableQuality,
+        // displacementSummary), so a missing one is a malformed doc, and
+        // 0 there would be read as a measurement — "no drift", "no
+        // surprisal" — where the honest statement is "no value".
+        n: doc.quality.n ?? null,
+        bits: doc.quality.bits ?? null,
         floor: doc.quality.floor ?? null,
         // How many questions cleared the per-question floor that day —
         // the perQ map is already floored by the fit (D325), so its size
@@ -128,12 +144,15 @@ export function fitSnapshot(doc, { basis } = {}) {
   const displacement = doc.displacement
     ? {
         space: doc.displacement.space ?? null,
-        n: doc.displacement.n ?? 0,
-        moved: doc.displacement.moved ?? 0,
-        mean: doc.displacement.mean ?? 0,
-        p50: doc.displacement.p50 ?? 0,
-        p90: doc.displacement.p90 ?? 0,
-        max: doc.displacement.max ?? 0,
+        // Same rule as the quality block: a first publish writes its own
+        // honest zeros (n: 0, mean: 0 …); only a malformed doc reaches
+        // these defaults, and null is the word for that.
+        n: doc.displacement.n ?? null,
+        moved: doc.displacement.moved ?? null,
+        mean: doc.displacement.mean ?? null,
+        p50: doc.displacement.p50 ?? null,
+        p90: doc.displacement.p90 ?? null,
+        max: doc.displacement.max ?? null,
         // Movers only, as published — bounded by the core corpus (D161).
         perQ: doc.displacement.perQ ?? {},
       }
@@ -151,9 +170,10 @@ export function fitSnapshot(doc, { basis } = {}) {
       ready,
       n: {
         min: sorted.length ? sorted[0] : 0,
-        // The scorecard's own median idiom (sorted index floor(len/2)),
-        // reused so the two artifacts' "p50" mean the same operation.
-        p50: sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0,
+        // Nearest-rank (ceil(0.5·len) − 1, the LOWER middle on an even
+        // count) — displacementSummary's own `rank` in patternsFit.ts, so
+        // the two p50 fields in this one block are the same operation.
+        p50: sorted.length ? sorted[Math.max(0, Math.ceil(0.5 * sorted.length) - 1)] : 0,
         max: sorted.length ? sorted[sorted.length - 1] : 0,
       },
     },

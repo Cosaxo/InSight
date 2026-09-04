@@ -257,15 +257,26 @@ async function fetchLoadings(idToken, project) {
     console.error(`scorecard: loadings read failed (${res.status}): ${await res.text()}`);
     process.exit(1);
   }
-  const d = await res.json();
-  // `at` is a server timestamp, whose wire form is its own type and which
-  // decode() deliberately does not know: the engagement trail carries
-  // `foldedAt` the same way and commits it as null today, so teaching the
-  // shared decoder timestamps would silently reshape monitoring/
-  // engagement.json in a change about the fit. Read here, for this doc
-  // only — the block only ever states when the fit published.
-  const at = d.fields?.at?.timestampValue ?? null;
-  return { ...decode({ mapValue: { fields: d.fields || {} } }), at };
+  return decodeLoadings(await res.json());
+}
+
+// One decoder for both ways the document arrives — the live GET above
+// and an operator's `--loadings` dump, which is the same REST body saved
+// with curl. Without this the offline arm would hand `{name, fields}`
+// straight to the fold and commit a plausible "published, nothing
+// fitted" block, every field present and zero. A dump that is already
+// decoded (has `q`, no `fields`) passes through unchanged.
+//
+// `at` is a server timestamp, whose wire form is its own type and which
+// decode() deliberately does not know: the engagement trail carries
+// `foldedAt` the same way and commits it as null today, so teaching the
+// shared decoder timestamps would silently reshape monitoring/
+// engagement.json in a change about the fit. Read here, for this doc
+// only — the block only ever states when the fit published.
+function decodeLoadings(d) {
+  if (!d || typeof d !== "object" || !d.fields) return d;
+  const at = d.fields.at?.timestampValue ?? null;
+  return { ...decode({ mapValue: { fields: d.fields } }), at };
 }
 
 // ── scoring ──
@@ -735,6 +746,13 @@ if (FETCH || INPUT) {
     aggs = live.aggs;
   }
   const card = score(aggs);
+  // Fetched BEFORE either artifact is written, beside the engagement
+  // days: a 403/5xx on this document exits 1 (fetchLoadings), and every
+  // fetch on this path has to fail before the first write or succeed
+  // through the last — otherwise monitoring/engagement.json and
+  // content/scorecard.json can be committed from two different fetches.
+  let liveFit;
+  if (live) liveFit = await fetchLoadings(live.idToken, live.project);
   if (live) {
     const days = await fetchEngagementDays(live.idToken, live.project);
     // Day granularity on the stamp, the pulse artifact's reasoning: this
@@ -775,8 +793,8 @@ if (FETCH || INPUT) {
   // fit is unpublished, so it leaves the key off entirely. A live run
   // always states one or the other (null = 404 = not published yet).
   const fitDoc = live
-    ? await fetchLoadings(live.idToken, live.project)
-    : LOADINGS ? JSON.parse(readFileSync(resolve(LOADINGS), "utf8")) : undefined;
+    ? liveFit
+    : LOADINGS ? decodeLoadings(JSON.parse(readFileSync(resolve(LOADINGS), "utf8"))) : undefined;
   if (fitDoc !== undefined) {
     // The believable-basis floor, cross-read from the functions source
     // the same way DECK_EPOCH is above — readMinBasis throws rather than
