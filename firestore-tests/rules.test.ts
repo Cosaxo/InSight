@@ -1025,6 +1025,17 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // never marked folded, and it comes back tomorrow to break the fold
     // again while the world-readable day doc it did reach carries the
     // wrong day's numbers. One client write, every night after.
+    // The platform enum, whose twin on the attention shard got a case
+    // tonight ("the build/platform pair is the shard's whole provenance —
+    // the pulse console slices by it"). This one tests `build` and stops,
+    // so `platform in [...]` could be relaxed to `platform is string` with
+    // the suite green.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ platform: "nintendo" })));
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ platform: "" })));
     const older = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ day: older })));
@@ -2617,6 +2628,16 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND),
       flag("t3", FRIEND, { at: new Date(0) })));
+    // The author-identity field itself, and it has to come BEFORE the
+    // successful write below or the one-flag-per-account pin refuses it
+    // first. Every fixture sets `uid` to the signer, so the equality was
+    // never the clause that refused: it could be relaxed to `uid is
+    // string` with the whole suite green, leaving a stored author that
+    // disagrees with the writer in data the queue build reads. Same take,
+    // same flagger, same stamp as the admitted write below — only the
+    // claimed author differs.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND), flag("t3", STRANGER)));
     // The same flag, same flagger, same take, with the server's stamp:
     // the refusal above is the STAMP and not the identity or the take.
     await assertSucceeds(setDoc(
@@ -2766,6 +2787,22 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       await assertSucceeds(setDoc(
         doc(asUser(OWNER), "v2_flags", `av_${STRANGER}_${OWNER}`),
         { takeId: `av_${STRANGER}`, gid: "avatar", uid: OWNER, target: STRANGER, at: serverTimestamp() }));
+      // THE SENTINEL ITSELF. `gid == "avatar"` is what separates a face
+      // report from a take report, and every fixture here sets it, so it
+      // was never the clause that refused — relaxing it to `gid is string`
+      // left the suite green. Sent by FRIEND, whose flag is otherwise the
+      // admitted shape above, so the sentinel is the only thing left to
+      // refuse it: a face report filed as if it belonged to a circle,
+      // which is what the queue build reads to decide what it is looking
+      // at.
+      await assertFails(setDoc(
+        doc(asUser(FRIEND), "v2_flags", `av_${STRANGER}_${FRIEND}`),
+        { takeId: `av_${STRANGER}`, gid: "some-circle", uid: FRIEND, target: STRANGER, at: serverTimestamp() }));
+      // The control: the same write with the sentinel spelled right is
+      // admitted, so the refusal above is the gid and not the flagger.
+      await assertSucceeds(setDoc(
+        doc(asUser(FRIEND), "v2_flags", `av_${STRANGER}_${FRIEND}`),
+        { takeId: `av_${STRANGER}`, gid: "avatar", uid: FRIEND, target: STRANGER, at: serverTimestamp() }));
     });
   });
 
@@ -3745,6 +3782,15 @@ describe("rank answers (D233): an order, never an index", () => {
 
   it("bounds the list where rules can, and refuses the index the fold would misread", async () => {
     await seedRank();
+    // The branch's OWN `surface == "feed"`, which every case here satisfied
+    // by sending the right value. Its catalog twin four lines down in the
+    // ruleset carries two negatives added at D234 for the same reason; this
+    // one had none, so a rank answer could self-declare its surface. It
+    // stays out of the D86 edit arm either way, but it is a mislabelled
+    // document in a world-readable collection whose one cross-user read
+    // filters on exactly that field.
+    await assertFails(setDoc(mine(), rankAnswer({ surface: "daily" })));
+    await assertFails(setDoc(mine(), rankAnswer({ surface: "test" })));
     await assertFails(setDoc(mine(), rankAnswer({ order: [0, 1, 2] }))); // size != item count
     await assertFails(setDoc(mine(), rankAnswer({ order: 3 }))); // not a list
     await assertFails(setDoc(mine(), rankAnswer({ order: [2, 0, 1, 3], optionIdx: 1 }))); // both fields
