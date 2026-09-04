@@ -226,30 +226,56 @@ has no rows.
 
 ### The theory lanes — twelve, on the orphan `axiom-theory` branch
 
-**Re-paced 2026-09-03 to a four-day cycle** (D359): every lane runs every
-fourth date instead of every second, and the subject/reader alternation the
-old odd/even split gave is kept rather than lost — subject days are the 1st
-and 3rd of each cycle, reader days the 2nd and 4th, so a reader still works
-on subject output at most a day old. Three or four lanes share a date
-instead of seven, which also keeps a day's lanes out of one five-hour
-rate-limit window. All twelve dispatch through the Axiom dispatcher into a
-fresh session, write the `axiom-theory` branch and nothing else, and never
-touch `main`.
+**Re-paced 2026-09-04 to one run a week each** (D363, the owner:
+*"reduce the theory production"*), from D359's four-day cycle and the
+every-other-day scheme before that. Twelve runs a week is **1.71 a
+day** against 3.0, and at the measured $24.44 a run that is $41.90 a
+day against $73.32 — about **$940 a month**. Two things improve
+besides the bill. The cycle is a **week**, so it is a weekday cron
+(`* * 1` = Monday) rather than day-of-month arithmetic: D359's own
+artefacts — a 31st followed by a 1st putting two subject days back to
+back, February dropping the tail of the cycle — are gone rather than
+halved. And the review lane lands on Sunday, after every lane it
+scores has run exactly once, which is the alignment §12 was chartered
+to have.
 
-| Lane | Trigger id | Slot (UTC) | Dates of the month |
-| --- | --- | --- | --- |
-| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/4 * *` — 02:02 | 1, 5, 9 … 29 — subject day |
-| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/4 * *` — 09:02 | 1, 5, 9 … 29 — subject day |
-| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/4 * *` — 10:02 | 1, 5, 9 … 29 — subject day |
-| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 3-31/4 * *` — 11:02 | 3, 7, 11 … 31 — subject day |
-| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 3-31/4 * *` — 12:02 | 3, 7, 11 … 31 — subject day |
-| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 3-31/4 * *` — 13:02 | 3, 7, 11 … 31 — subject day |
-| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 3-31/4 * *` — 14:02 | 3, 7, 11 … 31 — subject day |
-| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/4 * *` — 08:02 | 2, 6, 10 … 30 — reader day |
-| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/4 * *` — 09:02 | 2, 6, 10 … 30 — reader day |
-| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/4 * *` — 10:02 | 2, 6, 10 … 30 — reader day |
-| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 4-30/4 * *` — 11:02 | 4, 8, 12 … 28 — reader day |
-| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 4-30/4 * *` — 12:02 | 4, 8, 12 … 28 — reader day |
+**What it costs.** The old invariant was *a reader works on subject
+output at most a day old*; weekly cannot hold that, and the honest
+version is what replaces it — **readers run after the subjects in the
+same week**, so central on Saturday reads that week's six subject runs
+and nothing is ever read a cycle late. Say it that way rather than
+repeating the old sentence somewhere it is no longer true.
+
+All twelve dispatch through the Axiom dispatcher into a fresh session,
+write the `axiom-theory` branch and nothing else, and never touch
+`main`. **The schedules below are the decision, not yet the account
+state**: the twelve Routines are on the axiom dispatcher's
+subscription, which no session here can reach (`list_triggers` returns
+the caller's and nothing else), so applying them is the row on
+`OWNER-LIST.md` § Clicks — twelve `update_trigger` calls, schedule
+only, from a session on that account.
+
+| Lane | Trigger id | Slot (UTC) | Cron | Day |
+| --- | --- | --- | --- | --- |
+| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | 09:02 | `2 9 * * 1` | Monday — subject |
+| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | 10:02 | `2 10 * * 1` | Monday — subject |
+| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | 11:02 | `2 11 * * 2` | Tuesday — subject |
+| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | 12:02 | `2 12 * * 2` | Tuesday — subject |
+| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | 13:02 | `2 13 * * 3` | Wednesday — subject |
+| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | 14:02 | `2 14 * * 3` | Wednesday — subject |
+| Database | `trig_01VDccEWW215SDJPE3ujHciL` | 08:02 | `2 8 * * 4` | Thursday — reader |
+| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | 09:02 | `2 9 * * 4` | Thursday — reader |
+| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | 10:02 | `2 10 * * 5` | Friday — reader |
+| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | 11:02 | `2 11 * * 5` | Friday — reader |
+| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | 12:02 | `2 12 * * 6` | Saturday — reader, last, so it reads the freshest of everything |
+| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | 02:02 | `2 2 * * 0` | Sunday — scores the week, feedback lands before Monday |
+
+**The charter's §10 table is the canonical inventory and it has been
+wrong since D359** — it still carries the every-other-day crons
+(`2 9 1-31/2 * *` and their siblings) that were replaced on 2026-09-03,
+because no product-side session may amend a contract on that branch.
+`AXIOM-THEORY.md` § The corrections has the amendment to paste and why
+it is the owner's to make.
 
 ### The doc sweep and the night shift
 
@@ -475,8 +501,7 @@ Six more were chartered on the same account the same day, by D352's
 
 | Lane | Fires (UTC) | Model | Merge authority |
 | --- | --- | --- | --- |
-| **The merge shift** | `15 5,7,9,11,13,15,17,19 * * *` and `15 23 * * *` | `claude-opus-5`, high effort, ultracode | applies `merge-when-green` to a PR the owner approved; never merges |
-| The axiom builder | `30 6,12,18 * * *` | `claude-fable-5-1` orchestrating | never |
+| The axiom builder | `30 6 * * *` (D363; `30 6,12,18 * * *` until then) | `claude-fable-5-1` orchestrating | never |
 | The console keeper | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | n/a |
 | The console improver | `0 14 * * 0` | `claude-fable-5-1` | never |
 | The to-do doer (Claude 3) | `0 18 * * *` | the list worker's | never |
@@ -507,7 +532,9 @@ therefore a Routine that exists and has never run:
   relayed, and no run-log line saying so — because a lane that never
   starts writes nothing.
 - **The program dispatcher** (Claude 3) refused the same shape the same
-  day, so the **merge shift** and four siblings relay nothing either.
+  day, so the **merge shift** and four siblings relayed nothing either
+  (the shift itself was deleted at D363; the siblings were re-bound to a
+  planning session on 2026-09-03).
 - **The GitHub merge tool** has never been approved in the ops
   dispatcher's own history, so even once it relays, the shepherd could
   not merge (`OPS-RUNBOOK.md` §2.3) — and the shepherd has not been
@@ -552,35 +579,42 @@ all.
 02 ·  night B audit 02:00–03:35 · theory review 02:02 (odd)
 03 ·  night shift A audit 03:00–04:35
 04 ·  night B closing 04:00–05:50
-05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
+05 ·  night shift A closing 05:00–05:50 · console keeper 05:45
 06 ·  PR shepherd 06:20 · axiom builder 06:30 · production reader 06:40
-07 ·  question farm 07:00 · merge shift 07:15
-08 ·  catalog question · DB scalability 08:00 → 12:00 · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
-09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · merge shift 09:15 · feed lane 09:30
-10 ·  duel lane (Wed) 10:00 · theory 10:02
-11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory 11:02 · merge shift 11:15
-12 ·  axes retro (Sun) 12:00 · theory 12:02
-13 ·  theory ties 13:02 (odd) · merge shift 13:15
-14 ·  console improver 14:00 (Sun) · theory interests 14:02 (odd)
-15 ·  merge shift 15:15 · roll call 15:30
+07 ·  question farm 07:00
+08 ·  catalog question · DB scalability 08:00 → 12:00 · theory database 08:02 (Thu) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
+09 ·  learn lane (Mon/Thu) 09:00 · theory genetic (Mon) / map (Thu) 09:02 · feed lane 09:30
+10 ·  duel lane (Wed) 10:00 · theory body (Mon) / pattern (Fri) 10:02
+11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory questions (Tue) / graph optimizer (Fri) 11:02
+12 ·  axes retro (Sun) 12:00 · theory tests (Tue) / central (Sat) 12:02
+13 ·  theory ties 13:02 (Wed)
+14 ·  console improver 14:00 (Sun) · theory interests 14:02 (Wed)
+15 ·  roll call 15:30
 16 ·  PR shepherd 16:20
-17 ·  list worker 17:00 · merge shift 17:15 · console keeper 17:45
-18 ·  to-do doer (Claude 3) 18:00 · axiom builder 18:30
-19 ·  merge shift 19:15
+17 ·  list worker 17:00 · console keeper 17:45
+18 ·  to-do doer (Claude 3) 18:00
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
 22 ·  night B audit 22:00–23:35
-23 ·  night shift A audit 23:00–00:35 · merge shift 23:15
+23 ·  night shift A audit 23:00–00:35
 ```
+
+Read the theory hours with § The theory lanes' week beside them: since
+D363 each lane runs **once a week**, on the weekday named in brackets,
+and the review lane takes Sunday 02:02. At most two theory runs land on
+any day, against three under D359's four-day cycle and six under the
+every-other-day scheme before it.
 
 The two night shifts interleave on the hour by design — A on odd hours,
 B on even — so neither is ever mid-flow alone with a stale view of the
 other's work. Everything else is stacked rather than scheduled against
 anything: the 08:00–09:30 window can carry eight firings across three
 accounts, and the only ones that can see each other are the ones sharing
-session 1's bound dev session. Since D352 the merge shift adds a firing
-every second hour on top, which is the densest lane on the page and the
-one most likely to meet another mid-push.
+session 1's bound dev session. D352's merge shift added a firing every
+second hour on top of that — the densest lane the page ever carried, and
+the one most likely to meet another mid-push. D363 deleted it: the clock
+above is what is left, and no hour now carries more than one Claude 3
+lane.
 
 ### The account budget — the resource that does not cross
 
@@ -633,26 +667,25 @@ Four tiers, and they do not transfer between programs:
 - **Opens its own PR, never merges**: the doc sweep — one branch, one PR
   a run, and the owner merges every time.
 
-**The merge nobody here performs is the owner's, and as of 2026-09-02 it
-runs through three hands rather than one.** D352 rewrote the door the
-same afternoon `OPS-RUNBOOK.md` described it, so read the chain rather
-than either file's older half:
+**The merge nobody here performs is the owner's, and since D363 it runs
+through two hands rather than three.** D352 rewrote the door the same
+afternoon `OPS-RUNBOOK.md` described it and put the merge shift in the
+middle; D363 took the shift out again, so read the chain rather than any
+file's older half:
 
 1. **The owner ticks a row** in `docs/MERGE-LIST.md`. That tick is the
    decision, and it is the only step that is theirs.
 2. **The console workflow** — GitHub Actions, no account — mirrors the
-   tick to the label **`approved`**.
-3. **The merge shift** (Claude 3) applies **`merge-when-green`** once the
-   PR is green on its current head and it has reviewed the diff as one
-   unit.
-4. **The PR shepherd** squash-merges under its five steps, unchanged:
+   tick to the label **`merge-when-green`**.
+3. **The PR shepherd** squash-merges under its five steps, unchanged:
    armed at a named sha, every commit it makes on the branch prefixed
    `shepherd:`, and the grant spent the moment anyone else pushes after
    arming.
 
 **The rule that a lane may never apply the label is retired**, in the
-owner's words — *"this is wrong, the shepherd can"* — which is why step
-3 exists at all. What did not move is that no lane decides: the tick is
+owner's words — *"this is wrong, the shepherd can"* — and what replaced
+the shift's step is not a lane at all: a workflow mirroring a tick makes
+no judgement. What did not move is that no lane decides: the tick is
 upstream of every label, and a label applied without one is a lane
 acting outside its contract.
 

@@ -37714,3 +37714,149 @@ carry an axis in (a leaning set, an inner arc, a polarity split), states
 what each costs, and keeps its data, states and basis rules. Still
 `requested`; the drafting step is unchanged.
 
+## D363 · Theory production halved to a week, and the merge shift removed — with the corrections that were waiting behind both
+
+**2026-09-04.** **Status:** binding for the cadences it sets — the
+twelve theory lanes at one run a lane a week, the axiom builder at one
+run a day, and the merge shift retired with the owner's tick writing
+`merge-when-green` itself. Amends D352's label chain (the shift was
+its middle hand) and D359's four-day theory cycle. Written on
+`claude/axiom-theory-corrections-idk526`; `main` mints numbers while
+branches are open, so if another branch claims 363 first this record
+moves and its citations move with it (D299).
+
+### What the owner said
+
+> look at the corrections to axiom theory and also reduce the theory
+> production and remove the merge shifts
+
+Three instructions, one of which turned out to be the reason for the
+other two.
+
+### 1 · The corrections
+
+`docs/AXIOM-THEORY.md` § The corrections has the five in full. The
+shape they share is worth the record on its own: **a number changed on
+an account, and the documents quoting it were not in the same change.**
+
+- **The cadence, four places.** D359 re-paced the lanes on 2026-09-03
+  and this page went on saying "every other day", "odd dates" and
+  "every second night" for a day. It now says weekly once and points
+  at one table.
+- **`CHARTER.md` §10 is stale, and it is the canonical inventory.** It
+  still carries the every-other-day crons. `AXIOM-THEORY.md` promised
+  that table was "updated first on any change"; that promise broke at
+  D359 and nothing noticed, because the charter is on the orphan
+  branch where no product-side gate reaches and no routine may amend a
+  contract (`AXES-PLAN.md` §10). The amendment is written out for the
+  owner to paste — an `OWNER-LIST.md` click, not a routine's edit.
+- **$20 a run became $24.44** eight days ago (D359 §1) and this page
+  still quoted the estimate, along with everything computed from it.
+- **The review lane had run and the page said it had not.** Its first
+  review landed 2026-09-03 (`e0ecf2e`): eleven lanes scored, 26 sources
+  spot-checked, 33 feedback items, one citation failure named by node
+  id — genetic's `gen-15` attributing an SNP-heritability of ~11% to
+  Cai 2020 "per the published abstract", where the abstract says 14%.
+  That is the lane doing exactly what D346 chartered it to do.
+- **The dispatcher-backlog argument is spent.** It priced new lanes
+  against a queue at four to five runs a day; the queue is 1.71 now.
+
+### 2 · Reducing the production
+
+**One run a lane a week**, from D359's every-fourth-day: 12 runs a
+week, 1.71 a day against 3.0, ~$42 a day against ~$73 — about **$940 a
+month** at the measured rate. Subject lanes Monday to Wednesday,
+reader lanes Thursday to Saturday, review Sunday 02:02 UTC. The twelve
+cron values are in `ROUTINES.md` § The theory lanes.
+
+**Why the cadence dial and not the roster.** The charter's own §10
+says a struggling lane is re-paced, not re-scoped, first. The first
+review says the same from the other end: every request filed got a
+verdict within a day (queue at zero), the bridge holds ten
+*worth-building* verdicts against **one** crossing, and the console
+trail reads `measured: 1` against `argued: 57` and `cited: 65`.
+Nothing there is short of supply. Retiring lanes stays available and
+is not taken here.
+
+**Two things improve besides the bill.** The cycle is a week, so it is
+a weekday cron and D359's two artefacts — a 31st followed by a 1st
+putting two subject days back to back, February dropping the tail —
+are gone rather than halved. And the review lands after every lane it
+scores has run exactly once, which is the alignment §12 was chartered
+to have.
+
+**The invariant that changed, said out loud.** *A reader works on
+subject output at most a day old* cannot survive a weekly cycle. What
+replaces it is *readers run after the subjects in the same week* —
+central on Saturday reads that week's six subject runs. Written into
+`ROUTINES.md` rather than left to rot, because a stale invariant is
+how correction 1 happened.
+
+**The account half is the owner's.** The twelve Routines are on the
+axiom dispatcher's subscription; `list_triggers` returns only the
+calling account's, so a session here can write the decision and not
+apply it. One `OWNER-LIST.md` § Clicks row, twelve `update_trigger`
+calls, schedule only.
+
+### 3 · Removing the merge shift
+
+Both Routines deleted from Claude 3: `trig_01KSwCf4WcnQE6Uh6udeNAxn`
+(live, `15 5,7,9,11,13,15,17,19,23 * * *`, last fired 05:16 UTC the
+same morning — it was spend, not a dormant row) and
+`trig_01R5twbh48wfb9UfvVTANcdR` (its disabled predecessor, bound to
+the dispatcher that refused its charter, D353).
+
+**The hop it occupied is gone with it.** D352's chain was tick →
+`approved` → the shift's battery and review → `merge-when-green` → the
+shepherd merges. It is now tick → `merge-when-green` → the shepherd
+merges. `scripts/console-lib.mjs` and `scripts/console.mjs` write the
+one label, the `shift` stage is gone from the merge list, and the
+*Could not be made green* section reads the shepherd's comment
+instead: a labelled PR it cannot get green gets one comment whose
+first line begins `shepherd: could not`, and `BLOCKED_NOTE` still
+matches the shift's own older form so its comments read the same.
+`scripts/console.test.mjs` pins every branch of the new protocol,
+including the one that inverted: **an untick now withdraws
+`merge-when-green`**, where before that label meant the shift had
+handed over and the row was untouchable.
+
+**What it cost, stated rather than argued away.** The shift's battery
+duplicated CI — `ci.yml` and `backend-checks.yml` run lint, both
+typechecks, unit, the functions suite, `test:scripts`, `test:rules`
+and `test:e2e:all` on every push — but its **second read of the whole
+diff by a session that did not write it** duplicated nothing. That
+read is gone. What replaces it is a person or a session reading the
+diff before the tick, which is where the decision was anyway. The
+`no-shepherd` opt-out and the shepherd's five steps are untouched.
+
+**One rule moved.** `OPS-RUNBOOK.md` §0's label bullet said the label
+had two hands, the owner's and the shift's. It now says the owner's
+and the console workflow's — and a workflow mirroring a tick makes no
+judgement, which is the property that made D352's amendment safe in
+the first place. `CLAUDE.md`'s house-style paragraph moved with it.
+
+### 4 · The axiom builder, three runs a day to one
+
+Not asked for in those words, and not a new decision: `OWNER-LIST.md`
+has carried *"Create the axiom maker at ONE run a day, not three — your
+call of 2026-09-03"* since the day before, and the Routine created on
+this account fires at `30 6,12,18 * * *`. The live lane was
+contradicting the owner's own recorded call; it is `30 6 * * *` now.
+Its stored prompt still opens "three times a day" — a prompt edit is
+refused from a session that does not own the binding, its contract in
+`PROGRAM-RUNBOOK.md` outranks the summary and now says once a day, and
+the sentence is an owner-list line rather than a silent mismatch.
+
+### What this does not do
+
+- **It does not stop the theory program**, and does not decide its
+  worth. D359 declined that and so does this; the owner said reduce.
+- **It does not touch the `axiom-theory` branch.** Every correction
+  above is recorded product-side, where a session may write. The
+  charter amendment reaches the branch through the owner or not at
+  all — which is the same rule that made correction 2 possible to find
+  and impossible to fix from here.
+- **It does not re-price the second set of theory lanes.** That row
+  stands on the owner list, now read against ~$42 a day rather than
+  ~$73.
+

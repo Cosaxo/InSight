@@ -17,10 +17,13 @@
 # commit never re-triggers it (pulse.yml's reasoning; the same
 # reset-and-regenerate push loop).
 #
-# WHAT IT NEVER DOES. Merge. Apply merge-when-green. The two labels it
-# touches are `approved`, added for a tick and removed for an untick, and
-# nothing else; opening a PR for a ticked branch is the one other write,
-# and that PR carries `approved` so the merge shift takes it.
+# WHAT IT NEVER DOES. Merge. Decide. The one label it touches is
+# `merge-when-green`, added for the owner's tick and removed for an
+# untick, and nothing else; opening a PR for a ticked branch is the one
+# other write, and that PR carries the same label so the PR shepherd
+# takes it. It wrote `approved` for the merge shift until D363 retired
+# that lane; applying the shepherd's label is not a judgement here,
+# because a tick is the owner's and this only mirrors it.
 #
 # NOTE: scheduled workflows run from the DEFAULT branch only, so the
 # schedule does nothing until this is merged to main. The event triggers

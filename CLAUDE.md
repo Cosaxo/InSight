@@ -519,8 +519,9 @@ an emergency rules fix.
   `no-shepherd` is the opt-out. Neither label is a session's to apply on
   its own judgement: the owner's word puts `merge-when-green` there —
   applied directly, or as a tick on the PR's row in
-  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
-  into the label once the PR is green on its current head (D352).
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the console workflow
+  mirrors to the label (D352, D363 — a merge shift stood between the two
+  until the owner retired it).
 - **A Routine you create, re-pace, rebind or retire is registered in
   [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
   subscriptions run scheduled lanes against this one repository and no

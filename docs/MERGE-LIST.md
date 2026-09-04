@@ -12,30 +12,36 @@ ticks are yours.
 
 **Tick the box.** Change `- [ ]` to `- [x]` on a row and commit to
 `main` — in the GitHub app: open this file → ⋯ → Edit → commit. The
-console workflow runs on that push, mirrors the tick to the label
-`approved` on the pull request, and the **merge shift** takes it from
-there: brings the branch current with `main`, runs the full battery,
-reviews the whole diff as one unit, fixes what that proves broken,
-and applies `merge-when-green` — after which the **PR shepherd**
-merges (`OPS-RUNBOOK.md` § The PR shepherd). The same rows stand in
-the pinned **Console** issue with clickable boxes; a tick there is the
-same act, mirrored back into this file. Untick here to withdraw an
-approval the shift has not yet acted on. Ticking a *no PR yet* row
-makes the workflow open the pull request from that branch and label
-it.
+console workflow runs on that push and applies `merge-when-green` to
+the pull request, which is the **PR shepherd's** instruction
+(`OPS-RUNBOOK.md` § The PR shepherd): it brings the branch current
+with `main`, moves colliding decision numbers, runs the checks the
+diff's scope names, waits for CI to conclude green on the current head,
+and squash-merges. The same rows stand in the pinned **Console** issue
+with clickable boxes; a tick there is the same act, mirrored back into
+this file. Untick to withdraw an approval the shepherd has not yet
+merged. Ticking a *no PR yet* row makes the workflow open the pull
+request from that branch and label it.
+
+**One hop, since D363.** The tick used to write `approved` and a
+**merge shift** turned that into `merge-when-green` after running the
+full battery itself — nine Opus firings a day for a battery
+`ci.yml` and `backend-checks.yml` already run on every push, plus a
+second-reader review of the whole diff. The shift is retired; what went
+with it is that review, so a diff nobody has read as one unit is worth
+reading before the tick, not after it.
 
 | Section | A row is here when | Who moves it |
 | --- | --- | --- |
-| **Open** | a PR is open and not yet approved (stage `new`), or a branch has commits and no PR (stage `no PR yet`) | the workflow |
-| **In the shift** | the tick landed and the merge shift is bringing it to green | the workflow, on the label |
+| **Open** | a PR is open and not yet ticked (stage `new`), or a branch has commits and no PR (stage `no PR yet`) | the workflow |
 | **Ready** | `merge-when-green` is applied; the shepherd merges on green | the workflow, on the label |
-| **Could not be made green** | the shift stopped, with what is red and why in its comment | the shift's comment, the workflow's row |
+| **Could not be made green** | the shepherd stopped, with what is red and why in its comment | the shepherd's comment, the workflow's row |
 | **Merged this week** | the shepherd or the owner merged it | the workflow |
 
 The content lanes (farm, catalog, learn, feed, duel, now) merge their
 own PRs on green (D212) and are listed without a box. Dependabot's
 bumps are the dependency shepherd's to verify; a tick hands one to the
-merge shift like any other PR.
+shepherd like any other PR.
 
 <!-- console:ticks  -->
 <!-- console:generated 2026-09-04T04:32:55Z -->
@@ -66,10 +72,6 @@ merge shift like any other PR.
 - [ ] **#211** · dependabot · *what:* Bump @capacitor/android from 8.3.3 to 8.5.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 726 behind main · opened 2026-08-17 · stage **new**
 - [ ] **#210** · dependabot · *what:* Build(deps-dev): bump eslint-plugin-react-refresh from 0.5.2 to 0.5.4 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 441 behind main · opened 2026-08-17 · stage **new**
 - [ ] **#209** · dependabot · *what:* Build(deps): bump google-auth-library from 9.15.1 to 11.0.2 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 439 behind main · opened 2026-08-17 · stage **new**
-
-## In the shift
-
-*(none)*
 
 ## Ready
 

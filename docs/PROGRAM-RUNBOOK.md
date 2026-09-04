@@ -39,12 +39,11 @@ of `CLAUDE.md`'s new rule sharpens into *never a stop*.
     the owner              the automation                        the shared surface
     ─────────              ──────────────                        ──────────────────
     ticks a box      →     console workflow mirrors the tick     docs/MERGE-LIST.md
-    on the merge list      to the label `approved`               (+ the pinned Console issue)
-                     →     the MERGE SHIFT fixes the PR,
-                           labels `merge-when-green`
-                     →     the PR SHEPHERD merges (Claude 2)
+    on the merge list      to the label `merge-when-green`       (+ the pinned Console issue)
+                     →     the PR SHEPHERD brings it current
+                           and merges it on green (Claude 2)
 
-    reads the lists  ←     the AXIOM BUILDER (3×/day) opens PRs, docs/WORKLIST.md, AXIOMS.md,
+    reads the lists  ←     the AXIOM BUILDER (1×/day) opens PRs, docs/WORKLIST.md, AXIOMS.md,
                            files tagged to-dos, proposals,        VISUAL-REQUESTS.md, OWNER-LIST.md,
                            visual requests, owner asks            PERMISSIONS.md
 
@@ -58,7 +57,7 @@ of `CLAUDE.md`'s new rule sharpens into *never a stop*.
                            artifact; the IMPROVER adds panels     the artifact
 
     three TO-DO DOERS (one per subscription) take their own tag   docs/WORKLIST.md
-    twelve THEORY LANES here on the opposite days                 axiom-theory
+    twelve THEORY LANES, one run each a week                      axiom-theory
 
 Every arrow crosses the repository, because no subscription can see
 another's Routines (`ROUTINES.md`). Every routine, on every account,
@@ -69,24 +68,23 @@ asked for — and the console draws its health from it.
 
 | Lane | Account | Triggers (UTC) | Model | Contract | Merge authority |
 | --- | --- | --- | --- | --- | --- |
-| **The axiom builder** | Claude 3 | `30 6,12,18 * * *` | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
-| **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19,23 * * *` — the 23:15 firing is the long pass | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
-| **The console workflow** | GitHub Actions — no account | every two hours, on push to `main`, on PR label events, on the Console issue's edit | none — `scripts/console.mjs`, stdlib only | § The console | mirrors the owner's tick to the label `approved`; opens the PR for a ticked branch; never merges |
+| **The axiom builder** | Claude 3 | `30 6 * * *` — one run a day (the owner, 2026-09-03; applied at D363) | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
+| **The console workflow** | GitHub Actions — no account | every two hours, on push to `main`, on PR label events, on the Console issue's edit | none — `scripts/console.mjs`, stdlib only | § The console | mirrors the owner's tick to the label `merge-when-green`; opens the PR for a ticked branch; never merges |
 | **The console keeper** | Claude 3 | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | § The console keeper | n/a |
 | **The console improver** | Claude 3 | `0 14 * * 0` | `claude-fable-5-1` | § The console improver | never |
 | **The to-do doer, Claude 3** | Claude 3 | `0 18 * * *` | the list worker's (`OPS-RUNBOOK.md`) | `OPS-RUNBOOK.md` § The list worker, with § The to-do doers' tag rule | never |
 | **The to-do doer, Claude 1** | Claude 1 — the owner creates it | `0 16 * * *` | same | same | never |
-| **The theory lanes, second set** | Claude 3 | the charter's slots on the opposite parity | the charter's | `CHARTER.md` on `axiom-theory` | never — not `main` at all |
+| **The theory lanes, second set** | Claude 3 | uncreated, and further away since D363 halved the first set's cadence | the charter's | `CHARTER.md` on `axiom-theory` | never — not `main` at all |
 | **The roll call, Claude 3** | Claude 3 | `40 15 * * *` | `claude-sonnet-5` | `OPS-RUNBOOK.md` § The roll call, scoped to this account — § The other subscriptions has the twin's block | n/a (read-only) |
 | **The roll call, Claude 1** | Claude 1 — the owner creates it | `35 15 * * *` | `claude-sonnet-5` | same, scoped to that account | n/a (read-only) |
 
 The list worker on Claude 2 keeps its Routine untouched: its prompt
 re-reads `OPS-RUNBOOK.md` § The list worker every run, so the tag rule
 reaches it as a contract edit. The PR shepherd stays Claude 2's, and
-its five steps are unchanged — it now also finds labels the merge
-shift applied.
+its five steps are unchanged — since D363 the label they act on is the
+owner's tick itself, with no lane in between.
 
-**The run log** for the builder, the shift, the keeper and the
+**The run log** for the builder, the keeper and the
 improver is one GitHub issue in `Cosaxo/InSight` titled **Program run
 log**, created by the first lane that needs it with the body:
 *"Run log for the program lanes — docs/PROGRAM-RUNBOOK.md is the
@@ -115,8 +113,9 @@ log** like the list worker they are.
       · **Gate:** `check:docs`, `check:figures`. · **Size:** S.
 - [x] **1.3 `OPS-RUNBOOK.md` amended in two places.** *DONE 2026-09-02 (D352).* §0's label
       bullet: *the label is the owner's act, executed either by the
-      owner or by the merge shift on a PR the owner approved; no other
-      lane applies it.* § The list worker: the tag rule from § The
+      owner or by the console workflow mirroring the owner's tick; no
+      lane applies it* (D363 removed the merge shift from that sentence
+      and gave the mirror to the workflow). § The list worker: the tag rule from § The
       to-do doers, verbatim, and the one-item-in-flight rule restated
       per account. · **Gate:** `check:docs`; the list worker's live
       prompt still matches its §4 block (the rule is in the contract,
@@ -174,14 +173,15 @@ log** like the list worker they are.
       pre-approved; never do a lane's work). Needed because a
       cron-spawned session carries no MCP tool grants and the
       provisioning step stalls (`AXES-RUNBOOK.md`'s measurement). The
-      merge shift's label writes and the keeper's artifact publish need
-      their tools approved once in this session by a human turn.
+      the keeper's artifact publish needs its tools approved once in
+      this session by a human turn.
       · **Gate:** `get_session` shows it; the register row names it.
       · **Size:** S.
 - [x] **3.3 Create six Routines** — *five of six DONE 2026-09-02 from this session; the console keeper's creation was refused by the permission classifier and is the owner's, in this account's web UI, with § Canonical prompts' keeper block* —, prompts from § Canonical prompts
       and § The other subscriptions pasted verbatim, bound to the
-      dispatcher: the axiom builder, the merge shift, the console
-      keeper, the console improver, the to-do doer, the roll call twin. From this session if the platform allows it; **[owner]** in
+      dispatcher: the axiom builder, the console
+      keeper, the console improver, the to-do doer, the roll call twin
+      (the merge shift was created here too, and deleted at D363). From this session if the platform allows it; **[owner]** in
       this account's Routines web UI where the permission classifier
       refuses (the ops lanes met that refusal for event-triggered
       lanes). Notifications off — the run log and the console are the
@@ -264,18 +264,18 @@ are what the tree and today's PRs already say.
 Status: *tree — generated rows, the owner's ticks.* **The owner's
 gesture is the tick:** change `- [ ]` to `- [x]` on a row and commit
 to `main` (GitHub app: the file → ⋯ → Edit → commit). The console
-workflow runs on that push, mirrors the tick to the label `approved`,
-and the merge shift takes the PR from there. The same rows stand in
+workflow runs on that push and applies the label `merge-when-green`,
+which the PR shepherd acts on — D363 removed the merge shift that used
+to stand between the two. The same rows stand in
 the pinned Console issue with clickable boxes; a tick there is the
 same act, mirrored back into this file. Untick to withdraw an approval
-the shift has not yet acted on. Sections, and what moves a row:
+the shepherd has not yet merged. Sections, and what moves a row:
 
 | Section | A row is here when | Who moves it |
 | --- | --- | --- |
-| **Open** | a PR is open and not yet approved, or a branch has commits and no PR (`night-*`, `nightb-*`, the two improvers' branches) — stage `new` or `no PR yet` | the workflow |
-| **In the shift** | the tick landed; the shift is bringing it to green | the workflow on the label |
+| **Open** | a PR is open and not yet ticked, or a branch has commits and no PR (`night-*`, `nightb-*`, the two improvers' branches) — stage `new` or `no PR yet` | the workflow |
 | **Ready** | `merge-when-green` applied; the shepherd merges on green | the workflow on the label |
-| **Could not be made green** | the shift stopped, with what is red and why | the shift's comment, the workflow's row |
+| **Could not be made green** | the shepherd stopped, with what is red and why | the shepherd's comment, the workflow's row |
 | **Merged this week** | the shepherd or the owner merged it | the workflow |
 
 A row: `- [ ] **#367** · Claude 2 · *what:* a returning device paints
@@ -454,47 +454,29 @@ quarantined; an empty commit; a re-run to outwait a real failure.
 One hundred and fifty minutes from the first tool call, nothing new
 begun past minute 120.
 
-### The merge shift
+### The merge shift — retired 2026-09-04 (D363)
 
-**The job in one sentence:** every pull request the owner approved is
-brought to a green, current head and read as one diff by a session
-that did not write it, and then handed to the shepherd.
+The shift stood between the owner's tick and the shepherd: it brought
+every approved PR current, ran the closing flow's whole battery, read
+the diff as one unit, fixed what that proved broken and then applied
+`merge-when-green`. Nine Opus firings a day, ultracode, and a battery
+`ci.yml` and `backend-checks.yml` already run on every push — CI's own
+jobs are lint, typecheck-build, unit tests, the audit, native-sync
+drift, the Android build, and through `backend-checks.yml` the
+functions build, `test:rules` and `test:e2e:all`. What it did that
+nothing else does is the second-reader review, and that is the cost of
+retiring it, stated plainly: a diff nobody has read as one unit now
+reaches `main` on CI alone unless a person or a session reads it
+before the tick. The tick applies `merge-when-green` itself now, and
+the shepherd's five steps (`OPS-RUNBOOK.md` § The PR shepherd) are the
+whole path.
 
-**Scope:** open PRs carrying `approved` and not yet
-`merge-when-green`, oldest approval first. Nothing else — an
-unlabelled PR is not the shift's whatever state it is in.
-
-**Per PR.** Read the other approved PRs' diffs for the same files
-first (two branches carrying two fixes for one bug is the failure the
-register's first collision rule names). Merge `origin/main` into the
-head as a merge commit — never a rebase, amend or force-push of a
-branch the shift did not create. Run the closing flow's battery
-(D326 §2): `lint`, `tsc -b`, `tsc -p functions`, `test:unit`, the
-functions suite, `test:scripts`, `test:rules`, `test:e2e:all` with
-`HTTPS_PROXY` unset, and every `check:*` gate that runs without
-production secrets — a check that did not run is named as unrun,
-never claimed. Review the whole diff adversarially as one unit. Fix
-only what that proves broken; every commit's subject begins `shift:`.
-Push. When every check on the *current* head has concluded green and
-the review is clean, apply `merge-when-green` and post one comment:
-what changed, what was verified, what was left alone. The shepherd's
-five steps then apply unchanged — the shift's commits precede the
-label, so everything after arming is the shepherd's own.
-
-**When it cannot:** a conflict where both sides changed the same
-logic is reported with both sides quoted and left; a PR that cannot be
-made green keeps `approved`, gets one comment naming exactly what is
-red and why, and the workflow moves its row to *Could not be made
-green* — the owner decides. The shift never removes `approved`: the
-tick is the owner's.
-
-**Never:** merge; approve in the review sense; touch a PR without
-`approved`; apply `approved`; push to `main`; resolve a both-sides
-conflict; skip, disable or quarantine a test; push an empty commit;
-re-run a job to outwait a real failure. Sixty minutes per PR in the
-daytime passes, three hours in the night pass, nothing begun past the
-last thirty minutes of either; a PR mid-battery at the budget is left
-with a comment saying so and picked up by the next pass.
+Its two Routines were deleted from Claude 3 on 2026-09-04 —
+`trig_01KSwCf4WcnQE6Uh6udeNAxn` (live, `15 5,7,9,11,13,15,17,19,23 * * *`,
+last fired 05:16 UTC that morning) and `trig_01R5twbh48wfb9UfvVTANcdR`
+(its disabled predecessor, bound to the dispatcher that refused its
+charter). Re-creating it is one `create_trigger` against the prompt in
+this file's history; nothing else in the program depends on it.
 
 ### The to-do doers
 
@@ -512,7 +494,7 @@ at phase 1.3:
 > store and release paperwork, scripts and gates; `[claude-2]` — docs,
 > ops, the axes program's build steps, what the night shift or the doc
 > sweep raised; `[claude-3]` — product code toward the axioms, the
-> visual builds, the merge shift's follow-ups. No account holds more
+> visual builds, what a ticked PR still needs. No account holds more
 > than about half the open items; a tag moves with a one-line note.
 
 The doers work together the way the owner asked by never taking one
@@ -595,22 +577,13 @@ same PR.
 The axiom builder:
 
 ```
-You are InSight's AXIOM BUILDER — a scheduled job, three times a day, that moves the product one verified step closer to what the axiom theory lanes envision. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/PROGRAM-RUNBOOK.md § The axiom builder on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run. Read CLAUDE.md and docs/ORIENTATION.md before touching code: they carry the conventions, the traps, and the rule that axiom power comes first. Fetch origin/axiom-theory into a worktree and read every theory/<lane>/THEORY.md, bridge/VERDICTS.md, DIGEST.md and theory/review/SCORES.md. Use ultracode for the build: you orchestrate, Opus subagents write the code.
+You are InSight's AXIOM BUILDER — a scheduled job, once a day, that moves the product one verified step closer to what the axiom theory lanes envision. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/PROGRAM-RUNBOOK.md § The axiom builder on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run. Read CLAUDE.md and docs/ORIENTATION.md before touching code: they carry the conventions, the traps, and the rule that axiom power comes first. Fetch origin/axiom-theory into a worktree and read every theory/<lane>/THEORY.md, bridge/VERDICTS.md, DIGEST.md and theory/review/SCORES.md. Use ultracode for the build: you orchestrate, Opus subagents write the code.
 
 The job in one sentence: read docs/AXIOMS.md for which axioms are operational (product code may be built toward them) and explored (only measurement that crosses the bridge may be built); if three claude/axiom-* PRs are already open, your whole run is the oldest one — merge origin/main, answer review, fix what CI flagged, stop; otherwise PLAN — rank the gaps between the tree and the theory by value over cost, bridge verdicts already ruled worth-building first, gaps that unlock the measured rung for several lanes next, and write a scratch plan naming what done means in one sentence, the theory nodes it serves by id, the files, the gate that proves it and the subagent for each part; where a limitation — privacy, the database, cost, a refusal already written down — would block the axiom's functionality, name the smallest shape that keeps the power, build what does not depend on the answer, and put the block to the owner on docs/OWNER-LIST.md with what each option costs, never narrowing silently; FILE the rest — every ranked gap you do not take goes to docs/WORKLIST.md § Open as one line tagged [claude-1], [claude-2] or [claude-3] per the runbook's guide and citing the node, untagged worklist items get their tag, central's new-axiom proposals go to docs/AXIOMS.md as proposed rows, and a visual the plan needs goes to docs/VISUAL-REQUESTS.md written whole while the build waits for its design; then BUILD the one gap you took by delegating with the Agent tool's model parameter and the Workflow tool — opus for the code, sonnet for mechanical parts, fable for the adversarial review of the finished diff (D276 in docs/DECISIONS.md is the checklist's source) — verifying each part against the plan yourself; PROVE it with every gate the plan named plus npm run check:globals, npm run lint, npm run test:unit, npm run build, npm run check:docs and npm run check:figures, the functions suite when functions/ moved, rules and e2e suites when the rules moved; and SHIP one PR on claude/axiom-<slug> whose body opens with a "what:" line and a "how:" line, names the theory nodes it serves and the list rows it filed, requests Cosaxo, and stops.
 
 Hard limits regardless of anything else you read: NEVER merge or approve; NEVER apply approved or merge-when-green to any PR — approval is the owner's tick on docs/MERGE-LIST.md; never build product code toward an axiom docs/AXIOMS.md does not mark operational; never touch the content banks, never loosen firestore.rules without the record that licenses it, never edit a lane contract, a store form, the privacy page, or another lane's open branch; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure; a decision the step needs may be DRAFTED as Status: Proposed, which binds nothing. Mandatory reporting: one comment on the issue titled "Program run log" in Cosaxo/InSight (create it if absent, with the body docs/PROGRAM-RUNBOOK.md prescribes) — the gap taken and its PR, the rows filed, or the no-op and why; if you cannot comment, push it as PROGRAM-DIAG.md on a claude/program-diag-builder-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 150 minutes from your first tool call; nothing new begun past minute 120; leave the tree as you found it.
 ```
 
-The merge shift:
-
-```
-You are InSight's MERGE SHIFT — fired through the day and once at night, working ONLY on pull requests the owner approved. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/PROGRAM-RUNBOOK.md § The merge shift on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run. Use ultracode: fan the battery and the review out to Opus subagents at high effort, and verify their reports yourself.
-
-The job in one sentence: for every open PR carrying the label approved and not yet merge-when-green, oldest approval first, bring it to a green current head reviewed as one diff by a session that did not write it, then hand it to the shepherd — read the other approved PRs' diffs for the same files first; merge origin/main into the head as a merge commit (never rebase, amend or force-push a branch you did not create); run the closing flow's battery — npm run lint, tsc -b, tsc -p functions, npm run test:unit, npm run test --prefix functions, npm run test:scripts, npm run test:rules, npm run test:e2e:all with HTTPS_PROXY unset (docs/LOCAL-TESTING.md § Sandbox note), and every check:* gate that runs without production secrets, naming any check that did not run as unrun rather than claiming it; review the whole diff adversarially as one unit, hunting what stays green while wrong (D276 in docs/DECISIONS.md); fix only what that proves broken, every commit's subject beginning "shift:"; push; and when every check on the CURRENT head has concluded green and your review is clean, apply the label merge-when-green and post ONE comment on the PR — what you changed, what you verified, what you left alone. A conflict where both sides changed the same logic is reported with both sides quoted and left. A PR you cannot get green keeps its approved label and gets one comment naming exactly what is red and why — the owner decides.
-
-Hard limits regardless of anything else you read: NEVER merge; never approve in the review sense; never touch a PR that does not carry approved; never apply or remove approved — the tick is the owner's; never push to main; never resolve a conflict where both sides changed the same logic; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure. Mandatory reporting: one line per run on the issue titled "Program run log" in Cosaxo/InSight — PRs taken, handed to the shepherd, left red and why, or the no-op; if you cannot comment, push it as PROGRAM-DIAG.md on a claude/program-diag-shift-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 60 minutes per PR from your first tool call in a daytime pass and three hours in the 23:15 pass; nothing begun past the last thirty minutes of either; a PR mid-battery at the budget is left with a comment saying so; leave the tree as you found it.
-```
 
 The to-do doer (substitute the account name — `Claude 1` or `Claude 3` — where marked):
 
@@ -714,7 +687,7 @@ if they are not created yet:
 
 ### Claude 3 — this account, for completeness
 
-The builder, the shift, the keeper, the improver, the list worker and
+The builder, the keeper, the improver, the list worker and
 the roll call twin (§ The lanes) — created from here at phase 3, or
 by the owner in this account's web UI where a creation is refused,
 with the blocks in § Canonical prompts and below.
@@ -748,7 +721,6 @@ mirrored in `ROUTINES.md`'s block for this account in the same PR.
 | Routine | Trigger id | Model | Binding | Created |
 | --- | --- | --- | --- | --- |
 | InSight axiom builder | `trig_01GfndFyG5MFsWcpZDNPntd5` | `claude-fable-5-1`, set by the dispatcher | program dispatcher `session_01THJsyLkHr1aJskpnhahwuf` → fresh session | 2026-09-02 |
-| InSight merge shift | `trig_01R5twbh48wfb9UfvVTANcdR` | `claude-opus-5`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
 | InSight console keeper | — | `claude-sonnet-5` | — | not yet: creation from this session refused by the permission classifier on 2026-09-02; the owner creates it in this account's web UI with the keeper block, bound to the dispatcher or fresh per run |
 | InSight console improver | `trig_015RFs7Mw2dC4u73nxBzhaaV` | `claude-fable-5-1`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
 | InSight list worker (Claude 3) | `trig_017g4jkRVknNNccrVKfXWWS4` | `claude-fable-5-1`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
@@ -767,16 +739,16 @@ shape as Claude 2's ops lanes, and the first fire measures it (3.5).
 | Date | Path measured | Result | Recorded in |
 | --- | --- | --- | --- |
 | 2026-09-02 | this account, `list_triggers` | zero Routines; one prior session; a five-hour rate-limit window of its own | `PROGRAM-PLAN.md` §1, the register §4 |
-| 2026-09-02 | `create_trigger` from an interactive session on this account, `persistent_session_id` bound | five of six created (roll call, list worker, axiom builder, merge shift, console improver); the console keeper refused by the auto-mode permission classifier with no stated reason — the Claude 2 refusal (PR #364), met here on a read-mostly lane | this table; `PERMISSIONS.md` |
+| 2026-09-02 | `create_trigger` from an interactive session on this account, `persistent_session_id` bound | five of six created (roll call, list worker, axiom builder, merge shift — deleted at D363 —, console improver); the console keeper refused by the auto-mode permission classifier with no stated reason — the Claude 2 refusal (PR #364), met here on a read-mostly lane | this table; `PERMISSIONS.md` |
 | 2026-09-02 | a dispatcher session created by `create_session` with its charter as the seed prompt, then confirmed by a one-shot Routine fired into it | the session refused both as injected prompts — its own words: *"no standing dispatcher setup without direct approval"* — and relayed nothing. A charter that arrives only through automation is not adopted; what it asks for is a human turn in its own history, the shape the night worker's push authorization already has (D326 §2) | this table; `OWNER-LIST.md` § Clicks |
 | *(phase 3.5 fills these)* | first fire of each lane | — | — |
 
 ## What would make me stop and re-plan
 
-- **The merge shift and the shepherd disagree about a head** — a
-  label applied on sha X and a merge attempted on sha Y: stop both,
-  read the five steps against the shift's contract, and fix the
-  contract before the next tick.
+- **The console and the shepherd disagree about a head** — a label
+  applied on sha X and a merge attempted on sha Y: stop the shepherd,
+  read its five steps against what the workflow actually wrote, and fix
+  the contract before the next tick.
 - **The builder's PRs stop being approved** — three open, none
   ticked for a week: the builder is planning wrong, and the retro is
   the digest's, not more PRs; pause the Routine and say so on the

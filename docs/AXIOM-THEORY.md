@@ -1,10 +1,11 @@
 # Axiom Theory — the theory layer, and its bridge into the product
 
-**Status: operating since 2026-08-25.** This page is the product-side
+**Status: operating since 2026-08-25; re-paced to one run a lane a
+week on 2026-09-04 (D363).** This page is the product-side
 record of a system that lives OUTSIDE the product: twelve recurring
 Claude lanes on the orphan branch `axiom-theory` of this repo — eleven
 writing theory (two of them, ties and interests, chartered 2026-09-01
-at D347), and since D346 one scoring their work every second night. **`CHARTER.md` at that branch's root is canonical** for
+at D347), and since D346 one scoring their work, now weekly. **`CHARTER.md` at that branch's root is canonical** for
 everything about how the lanes behave; this page records what the
 product needs to know — where the system is, what may cross from it
 into the tree, and the account-side inventory. If the two disagree,
@@ -30,9 +31,10 @@ research directions over consented, aggregated data, never
 procedures. Sharper still (the owner, 2026-08-26): each
 axiom's purpose, or at least its main one, is to create data and
 data-connections as powerful and useful as possible — or to make
-another axiom's data stronger and more useful. Each lane improves one theory every other
-day (re-paced by the owner 2026-08-25 from the initial three-hourly
-trial) — as a claims graph with an evidence ladder (conjecture →
+another axiom's data stronger and more useful. Each lane improves one theory once a week
+(the owner's re-pace of 2026-08-25 took the initial three-hourly trial
+to every other day; D359 took that to every fourth day and D363 to
+weekly — § The corrections) — as a claims graph with an evidence ladder (conjecture →
 argued → cited → measured), advanced by bounded runs that must move a
 claim's status or prune, never merely grow. The lanes deliberately **disregard the
 project's practical limitations** — they seek the perfect system, not
@@ -52,8 +54,9 @@ new-axiom proposals, focus questions into the other lanes, and the
 weekly `DIGEST.md`. The **graph optimizer** keeps the graphs
 themselves healthy, including its own methods. And a tenth lane since
 2026-09-01, **review** (D346), scores every other lane's latest work
-every second night against the charter's own clauses and leaves each
-lane feedback — *The review lane*, below.
+against the charter's own clauses and leaves each lane feedback —
+weekly since D363, on the Sunday after every lane it scores has run.
+*The review lane*, below.
 
 ## Why the branch shape
 
@@ -102,13 +105,22 @@ the digest is the legibility channel.
 The lanes were rebound on the evening of 2026-08-25 (the first day's
 measurement: cron-spawned sessions stall on the provisioning step's
 permission prompt, so the crons now wake a persistent dispatcher
-session that spawns each run with its tools pre-approved), and the
-owner re-paced the cadence the same evening: **every lane every other
-day** — subject axioms (genetic, body, questions, tests, and since D347 ties and interests) at 09:02–14:02 UTC on odd dates, reader lanes (map, pattern, graph
-optimizer, central) at the same hours on even dates, so readers always work on subject output at most a day old; the
-review lane at 02:02 UTC on odd dates, six hours before the earliest
-lane slot (D346). **The charter's §10 table carries the live trigger ids** and is updated first on any change;
-this page stopped copying the ids the evening they started moving.
+session that spawns each run with its tools pre-approved). The cadence
+has been re-paced three times since, each time by the owner: every
+other day on 2026-08-25, **every fourth day at D359** (2026-09-03) and
+**one run a lane a week at D363** (2026-09-04). The live week —
+subject lanes Monday to Wednesday, reader lanes Thursday to Saturday,
+the review lane Sunday 02:02 UTC — is the table in
+[`ROUTINES.md`](ROUTINES.md) § The theory lanes, with the twelve cron
+values and the trigger ids.
+
+**The charter's §10 table is the canonical inventory, and it has been
+stale since D359** — it still carries the every-other-day crons. That
+is the first of the corrections below: this page promised the charter
+was "updated first on any change" and then repeated the charter's own
+out-of-date cadence for a day, which is the documentation error this
+repo keeps re-committing, committed about the document that is
+supposed to be the source.
 
 ## The review lane (D346)
 
@@ -144,17 +156,122 @@ reasoned decline is never marked down; three reviews of reasoned
 declines are evidence against the rubric, not the lane (charter §11's
 review-drift rule) — the reviewer's own falsifier.
 
-**Cadence and cost.** Every second night at 02:02 UTC on odd dates, so
-every lane's next run reads feedback that already covers its latest
-landed run. Roughly half to one theory run per review (~$10–20), ≈ 15
-a month.
+**Cadence and cost.** **Sunday 02:02 UTC since D363**, after every lane
+it scores has run exactly once that week and before Monday's subject
+lanes read their feedback — which is the alignment §12 was chartered to
+have and did not get from the every-second-night slot. Roughly half to
+one theory run per review (~$10–20), **4–5 a month** (it was chartered
+at ≈ 15).
 
-**Delivery state.** Live on both halves: the Routine (id in D346, the
-account-side half) and the charter amendment — §12, the workspace, the
-checker's path set, nine seeded `FEEDBACK.md` files — landed on
-`axiom-theory` as `fa2de8e` on the owner's word the same evening,
-staged on a branch first because a change to a lane's contract passes
-the owner (D289 §4). The first review is the Routine's first firing.
+**Delivery state — it has run.** Both halves went live on 2026-09-01:
+the Routine (id in D346) and the charter amendment — §12, the
+workspace, the checker's path set, nine seeded `FEEDBACK.md` files —
+landed on `axiom-theory` as `fa2de8e` on the owner's word the same
+evening, staged on a branch first because a change to a lane's
+contract passes the owner (D289 §4).
+
+**The first review landed 2026-09-03** (`e0ecf2e`): eleven lanes
+scored under RUBRIC v1, which the run itself took to v1.1; 26 sources
+spot-checked across seven lanes; eleven `FEEDBACK.md` files rewritten
+with 33 items. What it found is § The corrections' fourth entry — one
+citation failure, and a program-wide pattern about legibility and
+falsifiers that is the argument D363 reduced production on.
+
+## The corrections — this page against the branch and the account, 2026-09-04
+
+The owner, 2026-09-04: *"look at the corrections to axiom theory and
+also reduce the theory production and remove the merge shifts."* The
+reduction is D363 and it is written into every cadence sentence above.
+These are the corrections found while making it — five of them, each
+one a place where this page or the charter said something the branch
+or the account no longer did. They are listed rather than quietly
+fixed because four of the five have the same cause: **a cadence or a
+price changed on the account, and the documents that quote it were not
+in the same change.**
+
+**1 · The cadence, in five places on this page.** D359 re-paced the
+lanes to a four-day cycle on 2026-09-03. This page went on saying
+"every other day", "odd dates"/"even dates" and "every second night"
+for a day — the status line, the ratchet paragraph, the review lane's
+one-line description in § What it is, the account-side inventory, and
+§ The review lane's own cadence block. All five now say weekly, and
+only one of them still states the schedule: the rest point at
+`ROUTINES.md` § The theory lanes, because a figure written down five
+times is a figure that goes stale in four of them.
+
+**2 · `CHARTER.md` §10 is the canonical inventory and it is stale.**
+It still carries `2 9 1-31/2 * *` and its eleven siblings, the crons
+D359 replaced. This page's own sentence — *"the charter's §10 table
+carries the live trigger ids and is updated first on any change"* —
+was the promise that broke. **No routine may amend the charter**
+(`AXES-PLAN.md` §10: no lane edits its own contract, and this page is
+not on that branch at all), so the amendment is the owner's, and the
+wording is:
+
+> **Cadence: one run a lane a week (the owner's re-pace, 2026-09-04,
+> D363 in the product tree)** — subject lanes Monday to Wednesday,
+> reader lanes Thursday to Saturday, so a reader always works on
+> subject output from the same week, and the review lane on Sunday at
+> 02:02 UTC, after every lane it scores has run and before the next
+> Monday's subject lanes read their feedback. The §10 table's Schedule
+> column is `2 9 * * 1` (genetic), `2 10 * * 1` (body), `2 11 * * 2`
+> (questions), `2 12 * * 2` (tests), `2 13 * * 3` (ties), `2 14 * * 3`
+> (interests), `2 8 * * 4` (database), `2 9 * * 4` (map),
+> `2 10 * * 5` (pattern), `2 11 * * 5` (graph optimizer),
+> `2 12 * * 6` (central), `2 2 * * 0` (review).
+
+The account half is the same twelve values through `update_trigger`,
+and it is a row on `OWNER-LIST.md` § Clicks for the same reason: those
+Routines are on the axiom dispatcher's subscription, and
+`list_triggers` returns only the calling account's.
+
+**3 · The price of a run.** Two places on this page quote "~$20 of
+metered value", the first-day measurement from 2026-08-25. The
+measured figure is **$24.44**, over the thirty runs of 2026-08-27 →
+09-03 (`USAGE-REDUCTION.md` §1, read from each session's own `usage`
+block). The estimate was good; what was wrong was everything computed
+from it — "≈ 15 runs a month ≈ $300 a month per lane" was the
+every-other-day rate, and at one run a week a lane is 4.35 runs a
+month, **≈ $106**. The twelve together are ~$42 a day rather than ~$73.
+
+**4 · The review lane has run, and this page said it had not.** § The
+review lane ended *"the first review is the Routine's first firing"*;
+it fired on 2026-09-03 and landed `e0ecf2e`. Two findings belong here
+rather than only on the branch:
+
+- **A citation correction of the kind the lane exists to catch.** The
+  genetic lane's `gen-15` attributes an SNP-heritability of ~11% to
+  Cai 2020 *"per the published abstract"*; the abstract says 14% (SE
+  0.8%) against 26% (SE 2.2%), and ~11% is that paper's body-level
+  estimate for one phenotype definition. The argument does not turn on
+  the figure; the provenance sentence does, and it was introduced by
+  the lane's own adversarial pass replacing a correct number. 25 of
+  the other 26 sources checked say what their nodes claim, and no
+  fabricated source was found — which is the result the ladder was
+  built to produce.
+- **The program-wide pattern, which is the argument for reducing
+  production rather than raising it.** Legible sits at 4 for eight of
+  eleven lanes: 48 of 120 nodes are over the 400-word budget and every
+  LOG row runs 200–780 words. Falsifiers are named in few nodes
+  outside map, tests and central. Every lane that filed a request got
+  a verdict within a day, so the queue is at zero — and the bridge has
+  ten *worth-building* verdicts against **one** crossing (D325), with
+  the console trail reading `measured: 1` against `argued: 57` and
+  `cited: 65`. Nothing in that is short of supply.
+
+**5 · The dispatcher-backlog note in §2 is now historical.** It prices
+an eleventh and twelfth lane against "nine theory lanes at four to
+five runs a day". The live figure is **1.71 a day**, and at most two
+lanes share a date, so the backlog that cost roughly two days of
+cadence in the 2026-09-01 digest is not the constraint the next
+chartering decision should be argued against. The cost is.
+
+**What was NOT corrected, deliberately.** The read budget below is
+still unapplied — a cadence cut does not make a run read less, and
+that amendment is the owner's for exactly the reason correction 2 is.
+And nothing on the `axiom-theory` branch was touched by this change:
+the corrections above are recorded on the product side, where a
+session may write, and reach the branch only through the owner.
 
 ## The read budget — a charter amendment to approve, not a rule this page sets
 
@@ -195,11 +312,13 @@ the review lane would notice the budget hurting the work.
 Pause any lane in the claude.ai Routines UI; re-pace with one
 `update_trigger` (cadence is the dial for a circling lane — charter
 §11); read `DIGEST.md` on the branch weekly. The economics were
-re-measured on day one: a full theory run is real money (~$20 of
-metered value on the first measured runs — the chartering plan's "a
-no-advance run costs little" did not survive contact), which is half
-of why the owner re-paced the 64-run/day trial to every-other-day
-(~4 runs/day) the same evening. A run that finds nothing to advance
+re-measured on day one and again a week later: a full theory run is
+real money — ~$20 on the first measured runs (the chartering plan's "a
+no-advance run costs little" did not survive contact), **$24.44
+measured over thirty runs** — which is half of why the owner has
+re-paced it three times, from the 64-run/day trial to every other day,
+then every fourth day (D359) and now weekly (D363), 12 runs a week at
+~$42 a day. A run that finds nothing to advance
 still logs that honestly; the weekly digest plus a next-morning
 quality peek (2026-08-26) are what say whether the cadence earns
 itself.
@@ -350,18 +469,26 @@ and the follow graph is one too.
 
 ### 3 · What a lane costs, and what chartering one takes
 
-- **Money.** ~$20 a run (charter §10's first-day measurement), every
-  other day ≈ 15 runs a month ≈ **$300 a month per lane**. Two lanes ≈ $600 a month on top of the ten (the review lane
-  included, D346). The owner's standing call is
-  that budget is not the constraint and quality is — recorded, not
-  re-argued.
+- **Money.** **$24.44 a run measured** (thirty runs, 2026-08-27 →
+  09-03; the charter's first-day estimate was ~$20), once a week ≈
+  4.35 runs a month ≈ **$106 a month per lane** since D363 — it was
+  ~$300 at the every-other-day cadence these two lanes were priced
+  against, and the figures below are the old ones kept as the record
+  of what was argued. Two lanes ≈ $600 a month on top of the ten (the review lane
+  included, D346). The owner's standing call was
+  that budget is not the constraint and quality is; D363 is the
+  amendment to that — *"reduce the theory production"* — taken on the
+  cadence dial rather than the roster, which is the order charter §10
+  itself prescribes.
 - **The dispatcher.** The 2026-09-01 digest reports roughly two days
   of cadence lost to a dispatcher backlog with nine theory lanes at
-  four to five runs a day, and the review lane (D346) now fires at
-  night. An eleventh and twelfth add to that queue. Slots that
-  keep central reading fresh subject work: **13:02 and 14:02 UTC on
-  odd dates** (the subject group), with central still at 12:02 on
-  even dates. If the backlog recurs, the fix is §11's cadence dial.
+  four to five runs a day, and the review lane (D346) fires at night.
+  **That pressure is gone as an argument** — at one run a lane a week
+  the account sees 1.71 theory runs a day and at most two on any date
+  (§ The corrections, 5) — so a thirteenth lane is priced against the
+  bill, not against the queue. The slots the ties and interests lanes
+  took are Wednesday 13:02 and 14:02 UTC, with central last on
+  Saturday. If a backlog recurs, the fix is §11's cadence dial.
 - **On the branch.** A charter §2 row and §10 inventory row;
   `graph/SCHEMA.md`'s prefix list and the `LANES` map in
   `graph/check.mjs` — a checker change lands with its schema note in

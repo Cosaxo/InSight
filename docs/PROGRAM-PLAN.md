@@ -131,19 +131,26 @@ which files, which fold, which gate proves it), its state (green or
 which check is red · behind `main` by how much · conflicts · the
 skeptic's verdict where one exists), and its **stage**:
 
-    new → approved → in the shift → ready → merged
+    new → ready (`merge-when-green`) → merged
+
+*(D352 planned a longer chain — `new → approved → in the shift →
+ready → merged`. D363 retired the shift, so the tick writes
+`merge-when-green` itself and the shepherd is the only hand after
+it; §4.2 has the arithmetic.)*
 
 **The owner's gesture: a tick in the file** (the owner's answer,
 §10). Change `- [ ]` to `- [x]` on the row and commit to `main` from
 the GitHub app; the console workflow runs on that push and mirrors the
-tick to the label `approved` on the PR, which is what the merge shift
-reads. The same rows stand in the pinned Console issue with clickable
+tick to the label `merge-when-green` on the PR, which is what the PR
+shepherd reads (D363; it wrote `approved` for the merge shift until
+then). The same rows stand in the pinned Console issue with clickable
 boxes, and a tick there is the same act mirrored back into the file.
 Branches that never became a PR — the night shifts', the improvers' —
 are rows too, in a `no PR yet` stage; ticking one makes the workflow
 open the PR and label it (§10, answer 12).
 
-**What approval starts: the merge shift** (§4.2). The night shift's
+**What approval started: the merge shift** (§4.2, retired at D363 —
+the paragraph below is what it did while it ran). The night shift's
 shape pointed at one PR instead of the tree: bring the branch current
 with `main` as a merge commit, run the full battery the closing flow
 runs (both typechecks and lints, every runner the diff's scope names,
@@ -153,7 +160,8 @@ every commit it makes prefixed `shift:` — then, when the head is green
 and the review is clean, **apply `merge-when-green`**, and the PR
 shepherd merges under its five steps. A PR the shift cannot get green
 stays in the shift's column with exactly what is red and why, and the
-owner decides.
+owner decides. Since D363 that column is the shepherd's, and the
+second-reader review is the one thing retiring the shift gave up.
 
 **The one contract amendment this needs, named rather than slipped
 in.** `OPS-RUNBOOK.md` §0 says *no lane ever applies the label*. The
@@ -202,7 +210,7 @@ three accounts editing one file at once. The guide it tags by:
 | --- | --- | --- |
 | `[claude-1]` | content and the question pipeline, monitoring and pulse follow-ups, store and release paperwork, scripts and gates | its bucket already carries the cheap, well-shaped lanes, and its dev session holds the content tools |
 | `[claude-2]` | docs, ops, the axes program's build steps, anything the night shift or the doc sweep raised | the list worker and the axes program are there, and the night worker knows the tree |
-| `[claude-3]` | product code toward the axioms — client and functions work the axiom maker planned, the visual builds, the merge shift's follow-ups | the unspent bucket, and the maker that planned the item |
+| `[claude-3]` | product code toward the axioms — client and functions work the axiom maker planned, the visual builds, what a ticked PR still needs | the unspent bucket, and the maker that planned the item |
 
 plus a balance rule: no account holds more than about half of the
 open items, and a tag moves with a one-line note rather than
@@ -405,7 +413,7 @@ for this account in the PR that creates it.
 | Lane | Triggers (UTC) | Model | Reads | Writes | Merge authority |
 | --- | --- | --- | --- | --- | --- |
 | **The axiom maker** (§4.1 — name in §9 Q7) | `30 6,12,18 * * *` — three a day, two if the owner halves it | `claude-fable-5-1` orchestrating; the build fanned to Opus 5 subagents under ultracode; a Fable reviewer | `axiom-theory` (every `THEORY.md`, `bridge/VERDICTS.md`, `DIGEST.md`, `SCORES.md`), `AXIOMS.md`, `AXES-PLAN.md`/`AXES-RUNBOOK.md`, the tree | one PR per run on `claude/axiom-<slug>`; to-do rows tagged by account; `AXIOMS.md` proposed rows; visual-request rows | never |
-| **The merge shift** (§4.2) | `15 5,7,9,11,13,15,17,19 * * *` daytime, plus one long pass `15 23 * * *`; a GitHub `pull_request` *labeled* trigger when the web UI creation allows it | `claude-opus-5` at high effort with ultracode — the night worker's shape | PRs labelled `approved` | `shift:` commits on those branches; `MERGE-LIST.md`; the label `merge-when-green` on a green, reviewed head | **applies the label only** — never merges |
+| ~~**The merge shift** (§4.2)~~ — *retired 2026-09-04 (D363)* | ~~`15 5,7,9,11,13,15,17,19 * * *` daytime, plus one long pass `15 23 * * *`~~ | ~~`claude-opus-5` at high effort with ultracode~~ | — | — | the console workflow writes `merge-when-green` on the owner's tick; the shepherd merges |
 | **The to-do doer, Claude 3** | `0 18 * * *` — an hour after Claude 2's | the list worker's | `WORKLIST.md` items tagged `[claude-3]` | one PR per item on `claude/worklist-<slug>` | never |
 | **The to-do doer, Claude 1** — *the owner creates it on that account* | `0 16 * * *` | the list worker's | items tagged `[claude-1]` | same | never |
 | **The console keeper** (§5) | `45 5 * * *` and `45 17 * * *` | `claude-sonnet-5` | run logs, the register, the lists, GitHub state, the theory branch's digest and scores, the pulse trail | the console page; `OWNER-LIST.md`'s folded rows; `MERGE-LIST.md`'s state columns | n/a |
@@ -474,7 +482,18 @@ and reviews, Opus 5 builds under ultracode, *"as this is important
 work"*. Ultracode is the Workflow tool's multi-agent orchestration;
 the maker's prompt opts in by name so a run never has to infer it.
 
-### 4.2 The merge shift — what a run does
+### 4.2 The merge shift — what a run did, and why it is retired
+
+**Retired 2026-09-04 (D363), on the owner's word — *"remove the merge
+shifts"*.** Nine `claude-opus-5` firings a day under ultracode for a
+battery `ci.yml` and `backend-checks.yml` already run on every push
+(lint, both typechecks, unit, functions, `test:scripts`, `test:rules`,
+`test:e2e:all`), sitting between a tick and a shepherd that already
+brings a branch current and merges it on green. Both its Routines are
+deleted; the tick now writes `merge-when-green` itself. What went with
+it is the whole-diff second read — stated as a cost in D363 rather
+than argued away. The description below is kept as the record of what
+the lane did.
 
 **The job in one sentence:** every pull request the owner approved is
 brought to green and read as one diff by a session that did not write
@@ -598,9 +617,9 @@ the roll-call rows, so the arithmetic corrects itself.
 **The clock.** Account buckets do not cross, so the only shared
 resource is `main`: 20:00 UTC is its busiest merge hour and
 01:00–05:00 is dead (the register's measurement). The maker's PRs
-never touch `main`; the merge shift's daytime passes are what put
-merges on the clock, and they sit on the quarter-hour so they never
-share a minute with a content lane's self-merge.
+never touch `main`; the merge shift's daytime passes were what put
+merges on the clock, and with it retired (D363) the only lane that
+merges is the shepherd, twice a day plus its label event.
 
 ## 7 · Order of work, with the gate for each
 
@@ -718,6 +737,10 @@ what the runbook builds from. Every one is binding on adoption
    is green and reviewed; the shepherd merges. `OPS-RUNBOOK.md` §0's
    "no lane ever applies it" is amended to *the owner's act, executed
    by the owner or by the merge shift on a PR the owner approved*.
+   *(D363: the shift is retired and the workflow writes
+   `merge-when-green` on the tick, so the amended sentence now reads
+   "by the owner or by the console workflow mirroring the owner's
+   tick". The owner's answer is unchanged — one of its two hands is.)*
 3. **The doers:** *"i will add a to-do doer to claude 1 and 3 (or you
    can add it to 3) and they have to work together the best they
    can."* — One per subscription; the Claude 3 one is created from

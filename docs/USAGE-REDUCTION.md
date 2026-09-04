@@ -1,10 +1,14 @@
 # Getting the routine bill down — what the program costs, and what was cut
 
-**Status: partly executed, 2026-09-03 (D359).** The owner read the
+**Status: partly executed, 2026-09-03 (D359); a third round on
+2026-09-04 (D363).** The owner read the
 arithmetic below and chose *overhead plus cadence*: the dispatcher
 overhead removed where a session may remove it, the PR shepherd
 re-paced from twenty-four firings a day to eight, the twelve theory
-lanes from every second day to every fourth. What a session cannot do
+lanes from every second day to every fourth. The next morning they
+named the two biggest remaining lines themselves — *"reduce the theory
+production and remove the merge shifts"* — and § 9 is what that
+applied. What a session cannot do
 from inside a session is in § 5, as owner rows, with what each is
 worth. Nothing here changes what a lane *does* — only how often it is
 woken and how much history it re-reads when it is.
@@ -225,6 +229,10 @@ Each of these is an owner action, and each has its row on
    second set would add roughly fifteen firings a day of the most
    expensive kind, on an account that is dropping runs today. The
    cheapest reduction available is the one not yet spent.
+   *(Correction, 2026-09-04: the merge shift was not uncreated. It was
+   live on Claude 3 — an account this page's session cannot see, which
+   is the register's rule 2 in miniature — firing nine times a day
+   until D363 deleted it. § 9.)*
 
 ## 6 · The second round, the same afternoon — where the 77% went
 
@@ -303,6 +311,8 @@ family that costs the most.
   one crossing — a downstream bottleneck, not an upstream shortage,
   which is the argument for halving the rate rather than the argument
   for stopping. Stopping is the owner's call and is not taken here.
+  *(The owner halved it again the next morning — § 9 — and still did
+  not stop it.)*
 - **It does not touch another account's Routines**, which no account
   can see, and does not edit a tick, a status word or another
   account's tag.
@@ -318,3 +328,51 @@ page was written without — the arithmetic above had to be assembled by
 hand from `list_sessions` because nothing in the program was reading
 the `usage` block at all, which is exactly how a $2,325 session went
 ten days unremarked.
+
+## 9 · The third round, 2026-09-04 — the owner's own two lines (D363)
+
+Two instructions, both cuts, both applied the same morning. Neither is
+a discovery: § 4.2's merge-shift row and § 5's theory lines were on
+`OWNER-LIST.md` waiting for exactly this.
+
+| What | Before | After | Worth |
+| --- | --- | --- | --- |
+| **The twelve theory lanes** | every 4th day — 3.0 runs a day | **one run a lane a week** — 12 runs a week, 1.71 a day, at most two on any date | ~$31 a day (~$940 a month) at the measured $24.44 |
+| **The merge shift** | `15 5,7,9,11,13,15,17,19,23 * * *` — nine `claude-opus-5` firings a day under ultracode | **deleted**, both Routines; the owner's tick now writes `merge-when-green` itself and the PR shepherd is the whole path after it | the lane, whole |
+| **The axiom builder** | `30 6,12,18 * * *` — three runs a day | `30 6 * * *` | two builder runs a day, and the live Routine finally matches the owner's own call of 2026-09-03 |
+
+**What the theory cut is, exactly.** A weekday cron, not a
+day-of-month one: subject lanes Monday to Wednesday, reader lanes
+Thursday to Saturday, review on Sunday at 02:02 UTC. That drops
+D359's two artefacts (a 31st followed by a 1st putting two subject
+days back to back; February losing the tail of the cycle) instead of
+halving them, and it puts the review after every lane it scores has
+run exactly once. The invariant that changes is the reader's: *at most
+a day old* becomes *the same week*, said in those words in
+`ROUTINES.md` rather than left to rot. The twelve cron values are
+there and in `AXIOM-THEORY.md` § The corrections; **applying them is
+an owner row**, because those Routines are on the axiom dispatcher's
+subscription and `list_triggers` returns only the calling account's.
+
+**Why cadence and not the roster.** The charter's own §10 says cadence
+is the dial and a struggling lane is re-paced, not re-scoped. The
+first review (2026-09-03) says the same thing from the other end: the
+bridge queue is at zero because every request gets a verdict within a
+day, and the bridge has ten *worth-building* verdicts against one
+crossing, with `measured: 1` on the console trail. The constraint is
+downstream of production, which is an argument for producing less
+often, not for producing less carefully. Retiring lanes remains
+available and is not taken here.
+
+**What the merge shift's removal costs, stated rather than argued
+away.** Its battery duplicated CI — `ci.yml` and `backend-checks.yml`
+run lint, both typechecks, unit, the functions suite, `test:scripts`,
+`test:rules` and `test:e2e:all` on every push — but its second read of
+the whole diff duplicated nothing. That read is gone. What replaces it
+is a person or a session reading the diff *before* the tick, which is
+where the decision was anyway.
+
+**Measured after, not assumed:** `list_triggers` on this account now
+returns six Routines against eight, and the deleted shift's own record
+says it fired as recently as 05:16 UTC that morning — it was live
+spend, not a dormant row.

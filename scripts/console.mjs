@@ -33,7 +33,7 @@ import {
   parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions, listProblem,
   parseRegister, ownerSteps, uncheckedSteps, theorySummary, rollCalls, lastSeen,
   foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay, listIsWritable,
-  checksSummary, SHIFT_BLOCKED,
+  checksSummary, BLOCKED_NOTE,
 } from "./console-lib.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -116,13 +116,16 @@ async function readGithub(missing) {
     const detail = await step(`PR #${pr.number}`, () => gh(`/repos/${REPO}/pulls/${pr.number}`));
     const checks = await step(`checks #${pr.number}`, () => gh(`/repos/${REPO}/commits/${pr.head.sha}/check-runs?per_page=100`));
     const cmp = await step(`compare #${pr.number}`, () => gh(`/repos/${REPO}/compare/main...${pr.head.sha}`));
-    let shiftBlocked = false;
+    let blockedNote = false;
     const labels = (pr.labels || []).map((l) => l.name);
-    if (labels.includes("approved") && !labels.includes("merge-when-green")) {
+    // Only a labelled PR can be blocked, and only a labelled PR's comments
+    // are read — an unticked PR costs no extra API call for a stage it
+    // cannot be in.
+    if (labels.includes("merge-when-green")) {
       const comments = await step(`comments #${pr.number}`, () => ghAll(`/repos/${REPO}/issues/${pr.number}/comments`));
-      shiftBlocked = (comments || []).some((c) => SHIFT_BLOCKED.test(String(c.body || "").split("\n")[0]));
+      blockedNote = (comments || []).some((c) => BLOCKED_NOTE.test(String(c.body || "").split("\n")[0]));
     }
-    g.prs.push({ pr, extras: { mergeableState: detail?.mergeable_state, checkRuns: checks?.check_runs, behindBy: cmp?.behind_by, shiftBlocked } });
+    g.prs.push({ pr, extras: { mergeableState: detail?.mergeable_state, checkRuns: checks?.check_runs, behindBy: cmp?.behind_by, blockedNote } });
   }
   const openHeads = new Set(prs.map((p) => p.head.ref));
   const branches = await step("branches", () => ghAll(`/repos/${REPO}/branches`));
@@ -252,11 +255,16 @@ export async function collect({ now = new Date() } = {}) {
 }
 
 // ── act ─────────────────────────────────────────────────────────────
+// The label the tick writes must EXIST before it is applied, because a
+// label GitHub does not know is created by the call that applies it —
+// default grey, no description (the measurement in ROUTINES.md, taken
+// while labelling PR #365). Creating it here means the description says
+// what the label means, once, rather than per PR.
 async function ensureLabel(api = gh) {
-  try { await api(`/repos/${REPO}/labels/approved`); }
+  try { await api(`/repos/${REPO}/labels/merge-when-green`); }
   catch (e) {
     if (e.status !== 404) throw e;
-    await api(`/repos/${REPO}/labels`, { method: "POST", body: { name: "approved", color: "0e8a16", description: "The owner's tick on docs/MERGE-LIST.md — the merge shift takes it from here (D352)" } });
+    await api(`/repos/${REPO}/labels`, { method: "POST", body: { name: "merge-when-green", color: "0e8a16", description: "The owner's tick on docs/MERGE-LIST.md — the PR shepherd merges it on green (D363)" } });
   }
 }
 
@@ -313,13 +321,13 @@ export async function act(state, actions, log, api = gh) {
       } else if (a.type === "open-pr") {
         const b = state.branches.find((x) => x.name === a.branch);
         const commits = (b?.commits || []).slice(-40).map((s) => `- ${s}`).join("\n");
-        const body = `Opened by the console workflow from a tick on \`docs/MERGE-LIST.md\` (D352): ${a.from}'s branch \`${a.branch}\`, ${b?.aheadBy ?? "?"} commits ahead of \`main\`. The merge shift brings it current, runs the battery, reviews the diff as one unit and hands it to the shepherd.\n\nwhat: ${a.from}'s work on \`${a.branch}\`\nhow: see the commits below and the branch's own summary\n\n${commits}`;
+        const body = `Opened by the console workflow from a tick on \`docs/MERGE-LIST.md\` (D352, D363): ${a.from}'s branch \`${a.branch}\`, ${b?.aheadBy ?? "?"} commits ahead of \`main\`. The PR shepherd brings it current with \`main\`, runs the checks the diff's scope names and merges it on green.\n\nwhat: ${a.from}'s work on \`${a.branch}\`\nhow: see the commits below and the branch's own summary\n\n${commits}`;
         const pr = await gh(`/repos/${REPO}/pulls`, { method: "POST", body: { title: `${a.branch}: ${a.from}'s branch, approved from the merge list`, head: a.branch, base: "main", body } });
-        await gh(`/repos/${REPO}/issues/${pr.number}/labels`, { method: "POST", body: { labels: ["approved"] } });
+        await gh(`/repos/${REPO}/issues/${pr.number}/labels`, { method: "POST", body: { labels: ["merge-when-green"] } });
         const idx = state.rows.findIndex((r) => r.key === a.key);
-        const row = prRow({ ...pr, labels: [{ name: "approved" }] }, {});
+        const row = prRow({ ...pr, labels: [{ name: "merge-when-green" }] }, {});
         if (idx >= 0) state.rows.splice(idx, 1, row); else state.rows.push(row);
-        log(`opened #${pr.number} from ${a.branch} and labelled it approved`);
+        log(`opened #${pr.number} from ${a.branch} and labelled it merge-when-green`);
       }
     } catch (e) {
       // UNPREFIXED, on its own line. This went through `log`, which

@@ -87,11 +87,13 @@ describe("checks", () => {
 });
 
 describe("rows and stages", () => {
-  it("stages a PR by its labels, and a blocked shift by the shift's comment", () => {
+  it("stages a PR by its one label, and a stuck one by the shepherd's comment", () => {
     expect(prRow(pr(1)).stage).toBe("new");
-    expect(prRow(pr(2, { labels: ["approved"] })).stage).toBe("shift");
-    expect(prRow(pr(3, { labels: ["approved", "merge-when-green"] })).stage).toBe("ready");
-    expect(prRow(pr(4, { labels: ["approved"] }), { shiftBlocked: true }).stage).toBe("blocked");
+    // `approved` is the retired shift's label (D363): it stages nothing now,
+    // so a PR still carrying it reads as one whose tick never landed.
+    expect(prRow(pr(2, { labels: ["approved"] })).stage).toBe("new");
+    expect(prRow(pr(3, { labels: ["merge-when-green"] })).stage).toBe("ready");
+    expect(prRow(pr(4, { labels: ["merge-when-green"] }), { blockedNote: true }).stage).toBe("blocked");
   });
   it("marks self-merging lanes and dependabot", () => {
     expect(prRow(pr(5, { branch: "claude/now-questions-2026-09-02" })).selfMerge).toBe(true);
@@ -103,12 +105,12 @@ describe("rows and stages", () => {
 });
 
 describe("the tick protocol", () => {
-  const list = `# Merge list\n\n${ticksMarker(["#2", "#3"])}\n\n## Open\n\n- [x] **#1** · a session · *what:* a · *how:* b · stage **new**\n- [x] **#2** · a session · … · stage **in the shift**\n- [ ] **#3** · a session · … · stage **in the shift**\n- [ ] **#4** · a session · … · stage **in the shift**\n- [x] **night-20260903** (no PR yet) · Claude 2's night shift · 12 commits\n- [ ] **#7** · the now lane · …\n`;
+  const list = `# Merge list\n\n${ticksMarker(["#2", "#3"])}\n\n## Open\n\n- [x] **#1** · a session · *what:* a · *how:* b · stage **new**\n- [x] **#2** · a session · … · stage **ready**\n- [ ] **#3** · a session · … · stage **ready**\n- [ ] **#4** · a session · … · stage **ready**\n- [x] **night-20260903** (no PR yet) · Claude 2's night shift · 12 commits\n- [ ] **#7** · the now lane · …\n`;
   const rows = [
-    prRow(pr(1)),                                            // new tick in the file → approve
-    prRow(pr(2, { labels: ["approved"] })),                  // rendered ticked, still ticked → nothing
-    prRow(pr(3, { labels: ["approved"] })),                  // rendered ticked, now unticked → withdraw
-    prRow(pr(4, { labels: ["approved"] })),                  // labelled on GitHub, file not yet re-rendered → nothing
+    prRow(pr(1)),                                            // new tick in the file → label it
+    prRow(pr(2, { labels: ["merge-when-green"] })),          // rendered ticked, still ticked → nothing
+    prRow(pr(3, { labels: ["merge-when-green"] })),          // rendered ticked, now unticked → withdraw
+    prRow(pr(4, { labels: ["merge-when-green"] })),          // labelled on GitHub, file not yet re-rendered → nothing
     branchRow({ name: "night-20260903", aheadBy: 12 }),      // new tick on a branch → open the PR
     prRow(pr(7, { branch: "claude/now-questions-2026-09-02" })), // self-merging: never
   ];
@@ -122,8 +124,8 @@ describe("the tick protocol", () => {
   it("turns the owner's edits since the last render into exactly these actions", () => {
     const actions = decideActions(rows, parseTicks(list), parseTicks(""));
     expect(actions).toEqual([
-      { type: "label-add", key: "#1", number: 1, label: "approved" },
-      { type: "label-remove", key: "#3", number: 3, label: "approved" },
+      { type: "label-add", key: "#1", number: 1, label: "merge-when-green" },
+      { type: "label-remove", key: "#3", number: 3, label: "merge-when-green" },
       { type: "open-pr", key: "night-20260903", branch: "night-20260903", from: "Claude 2's night shift" },
     ]);
   });
@@ -134,8 +136,8 @@ describe("the tick protocol", () => {
     // render (the marker lists it) → that box is stale, the withdrawal holds.
     const issue = `${ticksMarker(["#3"])}\n- [x] **#8** …\n- [x] **#3** …\n`;
     const actions = decideActions(rowsPlus, parseTicks(list), parseTicks(issue));
-    expect(actions.find((a) => a.key === "#8")).toEqual({ type: "label-add", key: "#8", number: 8, label: "approved" });
-    expect(actions.find((a) => a.key === "#3")).toEqual({ type: "label-remove", key: "#3", number: 3, label: "approved" });
+    expect(actions.find((a) => a.key === "#8")).toEqual({ type: "label-add", key: "#8", number: 8, label: "merge-when-green" });
+    expect(actions.find((a) => a.key === "#3")).toEqual({ type: "label-remove", key: "#3", number: 3, label: "merge-when-green" });
   });
   it("lets a fresh tick beat an untick when the two surfaces disagree", () => {
     // The file withdrew #3 (rendered ticked, now unticked); the issue never
@@ -144,9 +146,13 @@ describe("the tick protocol", () => {
     const actions = decideActions(rows, parseTicks(list), parseTicks(issue));
     expect(actions.find((a) => a.key === "#3")).toBeUndefined();
   });
-  it("never touches a merge-when-green PR, whatever the boxes say", () => {
-    const ready = [prRow(pr(9, { labels: ["approved", "merge-when-green"] }))];
-    expect(decideActions(ready, parseTicks(`${ticksMarker(["#9"])}\n- [ ] **#9** …`), parseTicks(""))).toEqual([]);
+  it("withdraws a merge-when-green the owner unticked — the label stands only while the tick does", () => {
+    // Before D363 this label meant the shift had handed over and the row was
+    // untouchable. It is the tick's own label now, so an untick takes it off
+    // until the shepherd has actually merged the PR and closed the row.
+    const ready = [prRow(pr(9, { labels: ["merge-when-green"] }))];
+    expect(decideActions(ready, parseTicks(`${ticksMarker(["#9"])}\n- [ ] **#9** …`), parseTicks("")))
+      .toEqual([{ type: "label-remove", key: "#9", number: 9, label: "merge-when-green" }]);
   });
   it("round-trips: a rendered list parses back to the ticks it drew", () => {
     const text = renderMergeList({ rows, merged: [], generatedAt: "2026-09-02T14:00:00Z" });
@@ -160,14 +166,14 @@ describe("the tick protocol", () => {
 
 describe("the merge list file", () => {
   it("places rows by stage, boxes only where a tick means something, and keeps the how-to", () => {
-    const rows = [prRow(pr(1)), prRow(pr(2, { labels: ["approved"] })), prRow(pr(3, { labels: ["merge-when-green"] })),
+    const rows = [prRow(pr(1)), prRow(pr(2, { labels: ["merge-when-green"] })), prRow(pr(3, { labels: ["merge-when-green"] })),
       prRow(pr(6, { branch: "dependabot/npm_and_yarn/x-1.2.3", login: "dependabot[bot]" })), prRow(pr(7, { branch: "claude/feed-questions-2026-09-02" })),
       branchRow({ name: "nightb-20260903", aheadBy: 3 })];
     const text = renderMergeList({ rows, merged: [{ number: 5, title: "merged one", merged_at: "2026-09-01T10:00:00Z", merged_by: "Cosaxo" }], generatedAt: "2026-09-02T14:00:00Z" });
     expect(text).toContain("## How to approve");
     expect(text).toMatch(/## Open\n\n- \[ \] \*\*#1\*\*/);
-    expect(text).toMatch(/## In the shift\n\n- \[x\] \*\*#2\*\*/);
-    expect(text).toMatch(/## Ready\n\n- \[x\] \*\*#3\*\*/);
+    expect(text).not.toContain("## In the shift");
+    expect(text).toMatch(/## Ready\n\n- \[x\] \*\*#2\*\*[^\n]*\n- \[x\] \*\*#3\*\*/);
     expect(text).toContain("**Dependencies**");
     expect(text).toContain("**Self-merging:** #7");
     expect(text).toContain("- [ ] **nightb-20260903** (no PR yet)");
@@ -463,11 +469,11 @@ describe("the trail and the page", () => {
   it("lists the ticked rows in the page's marker", () => {
     const s = base();
     s.github = { ok: true, error: null };
-    s.rows = [prRow(pr(1, { labels: ["approved"] })), prRow(pr(2))];
+    s.rows = [prRow(pr(1, { labels: ["merge-when-green"] })), prRow(pr(2))];
     const page = renderConsole(s, "");
     expect(page).toContain(ticksMarker(["#1"]));
     expect(page).toMatch(/### Approve\n- \[ \] \*\*#2\*\*/);
-    expect(page).toMatch(/### In the shift\n- \*\*#1\*\*/);
+    expect(page).toMatch(/### Ready — merge-when-green, the shepherd merges on green\n- \*\*#1\*\*/);
   });
 });
 
@@ -499,7 +505,7 @@ describe("act, when GitHub refuses", () => {
       if (!opts) return {};
       const e = new Error("Resource not accessible by integration"); e.status = 403; throw e;
     };
-    const failed = await act(state, [{ type: "label-add", key: "pr:12", number: 12, label: "approved" }], () => {}, refuse);
+    const failed = await act(state, [{ type: "label-add", key: "pr:12", number: 12, label: "merge-when-green" }], () => {}, refuse);
     expect(failed).toHaveLength(1);
     expect(failed[0].key).toBe("pr:12");
     expect(failed[0].error).toMatch(/not accessible/);
@@ -512,10 +518,10 @@ describe("act, when GitHub refuses", () => {
     const { act } = await import("./console.mjs");
     const state = { rows: [row("pr:12", 12)], branches: [] };
     const ok = async () => ({});
-    const failed = await act(state, [{ type: "label-add", key: "pr:12", number: 12, label: "approved" }], () => {}, ok);
+    const failed = await act(state, [{ type: "label-add", key: "pr:12", number: 12, label: "merge-when-green" }], () => {}, ok);
     expect(failed).toEqual([]);
     // the row carries the label now, so the re-render draws the tick
-    expect(state.rows[0].labels).toEqual(["approved"]);
+    expect(state.rows[0].labels).toEqual(["merge-when-green"]);
   });
 });
 

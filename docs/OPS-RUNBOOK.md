@@ -60,12 +60,13 @@ they live in one runbook and share one run log.
   has decided to merge, and the PR shepherd executes that decision when
   the PR is green (§ The PR shepherd). The label is the owner's act,
   and since D352 (2026-09-02) it has two hands: the owner applies it
-  directly, or the **merge shift** (`PROGRAM-RUNBOOK.md` § The merge
-  shift) applies it to a PR the owner approved by ticking its row on
-  `MERGE-LIST.md` — the tick mirrored to the label `approved` — once
-  that PR is green on its current head and reviewed as one diff.
-  **No other lane applies it**, to its own PR or any other, and every
-  prompt in §4 says so.
+  directly, or the **console workflow** applies it on the owner's tick
+  on that PR's row in `MERGE-LIST.md`. D352 put the merge shift in
+  between — the tick wrote `approved` and the shift turned that into
+  `merge-when-green` after its own battery — and **D363 (2026-09-04)
+  retired the shift**, so the tick reaches the label directly and a
+  workflow mirroring a tick makes no judgement. **No lane applies it**,
+  to its own PR or any other, and every prompt in §4 says so.
 - **Provisioning is conditional, not assumed.** Every prompt opens with
   "if the repository is not already cloned with push access, provision
   it" — the `add_repo` step the axes lanes use — so the same prompt is
@@ -484,6 +485,16 @@ the merge tool is refused in the session, the shepherd says so on the
 PR and leaves the label; it never pushes to `main` itself to get
 around the refusal.
 
+**The report on a labelled PR opens with a line the console reads.** A
+labelled PR the shepherd could not get green gets one comment whose
+FIRST line begins `shepherd: could not` — then what is red and why.
+That line is the whole mechanism behind the merge list's *Could not be
+made green* section (`scripts/console-lib.mjs`, `BLOCKED_NOTE`): the
+label stays the owner's, so the console reads a sentence rather than
+inventing a label for a state a lane is in. The retired merge shift's
+own form (`merge shift: … could not`) is still matched, so its old
+comments read the same.
+
 **Never:** merge, approve, close, or resolve a human's review thread —
 except the merge the label paragraph licenses, under its five steps;
 apply `merge-when-green` to any PR; push to `main`; skip, disable or
@@ -669,8 +680,8 @@ owner's tag is final. The guide: `[claude-1]` — content and the
 question pipeline, monitoring and pulse follow-ups, store and release
 paperwork, scripts and gates; `[claude-2]` — docs, ops, the axes
 program's build steps, what the night shift or the doc sweep raised;
-`[claude-3]` — product code toward the axioms, the visual builds, the
-merge shift's follow-ups. No account holds more than about half the
+`[claude-3]` — product code toward the axioms, the visual builds, what
+a ticked PR still needs. No account holds more than about half the
 open items; a tag moves with a one-line note, and a worker that finds
 an item belongs elsewhere moves the tag with its reason and takes the
 next one. The three workers are one lane on three accounts
