@@ -148,7 +148,10 @@ export interface PeopleField {
   /** The named people nearest you, nearest first — the "Most like you"
    * rail. Exactly the ones that carry a label on the field, so the rail
    * and the drawing never disagree about who is close. */
+  /** The labelled people, nearest first — a LAYOUT set, not a ranking. */
   near: PlacedPerson[];
+  /** The people who actually agree with you most, for the rail that says so. */
+  alike: PlacedPerson[];
 }
 
 /**
@@ -305,8 +308,12 @@ export function foldPeople(
   // to move a few dots apart.
   //
   // Two circles can only need pushing if their centres are within
-  // `P1.r + P2.r + 5`, and the radii here are bounded — `4.5 + t * 3` for a
-  // person, 5.75 for you — so CELL below is at or above the largest gap
+  // `P1.r + P2.r + 5`, and the radii here are bounded — read them off the
+  // two literals above rather than from here, because this sentence
+  // quoted `4.5 + t * 3` and `5.75` for a while after the commit that
+  // replaced both, and an argument that cites numbers the code no longer
+  // has is worse than one that says where to look — so CELL below is at
+  // or above the largest gap
   // that can matter. A pair further apart than one cell cannot collide,
   // which makes the 3×3 neighbourhood exhaustive rather than approximate:
   // the same pairs are tested, the ones that could never touch are not.
@@ -423,9 +430,35 @@ export function foldPeople(
     near.push(p);
   }
 
+  // THE RAIL SAYS "MOST LIKE YOU", SO IT RANKS ON LIKENESS.
+  //
+  // It used to render `near`, which is this fold's LABEL set: the people
+  // whose dots sit closest to yours, chosen so the labels on the field do
+  // not collide. Position is two components of a unit-normalised
+  // EIGHT-dimensional solve, so six dimensions of agreement are discarded
+  // before that distance is taken — and the rail could therefore lead
+  // with the person who agrees with you least, wearing the "mostly
+  // disagrees" colour, under the words "Most like you", while the real
+  // 11-of-12 match sat at the far rim.
+  //
+  // The honest number is already on every person and already printed on
+  // the chip. `near` keeps its job — labels are a layout problem and
+  // proximity is the right answer there — and the rail gets its own list.
+  //
+  // Everyone here has already cleared `minShared`, so a rate is a rate;
+  // ties go to the bigger overlap, then to the name so the order cannot
+  // depend on iteration order.
+  const alike = [...placed]
+    .filter((p) => !!p.name && p.shared > 0)
+    .sort((a, b) =>
+      (b.agree / b.shared) - (a.agree / a.shared)
+      || b.shared - a.shared
+      || a.name.localeCompare(b.name))
+    .slice(0, PEOPLE_LABELS);
+
   // `fetched` is what the caller asked the store for; the basis is how
   // many of those actually came back with rows, because a list that
   // failed or was refused placed nobody.
   const basis = fetched.filter((qid) => (rowsOf(qid) || []).length > 0).length;
-  return { placed, me, answered: mineAll.length, basis, minShared, near };
+  return { placed, me, answered: mineAll.length, basis, minShared, near, alike };
 }

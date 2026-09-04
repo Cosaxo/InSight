@@ -135,8 +135,29 @@ for (const key of [WHEN_IN_USE, ALWAYS]) {
 // Two-sided on purpose. Silent-while-the-loop-exists is the bug that
 // happened; still-claiming-it-after-the-loop-goes is the mirror, and a
 // purpose string that over-describes is its own kind of wrong.
+//
+// AND IT RUNS UNCONDITIONALLY. This was `if (existsSync(liveTs))` with no
+// else — alone in this gate family in failing open. Measured: move
+// src/v2/data/live.ts aside and the gate exits 0, printing the same OK
+// line, which lists what it checked and never mentions that the consent
+// rule was skipped. A file moving is not exotic; it is the ordinary end of
+// a refactor, and this is the one rule here that guards a promise made to
+// a person before they decide. Every sibling gate fails loudly on a
+// missing input and says so — check-ios-facebook's "pass vacuously ONLY
+// when there is no plugin to check", check-fn-runtime on a missing build,
+// check-catalogs on a missing catalogKeys.ts — which is the shape used
+// here.
 const liveTs = join(root, "src/v2/data/live.ts");
-if (existsSync(liveTs)) {
+if (!existsSync(liveTs)) {
+  problems.push(
+    `src/v2/data/live.ts is missing, so the Near-consent rule below could not run.\n` +
+      `    That rule is the two-sided check that ${PLIST}'s purpose string\n` +
+      `    mentions Near exactly when the PRESENCE_BEAT_MS location loop\n` +
+      `    exists. Fix this scan — point it at wherever the loop lives now —\n` +
+      `    rather than letting the one rule here that guards a consent prompt\n` +
+      `    pass because its input moved.`,
+  );
+} else {
   const live = readFileSync(liveTs, "utf8");
   // The loop by its CALL, not by the identifier: `PRESENCE_BEAT_MS` also
   // appears in prose two hundred lines up, so a bare name test kept

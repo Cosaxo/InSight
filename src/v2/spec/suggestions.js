@@ -108,6 +108,21 @@ const agoOf = (atMs) => {
 // The real rows, in the card shape the door renders. `live: true` is what
 // SgMine keys its honesty changes on: the reviewer's note as the decline
 // text, never the demo DECLINE table.
+// Did the one-shot live load throw?
+//
+// `myRows()` and `myBookings()` are null until they load and stay null on a
+// throw, which is the right distinction and the one this file was
+// discarding: `mine()` reads them through `|| []`, so "still reading",
+// "the read failed" and "you have asked nothing" were one empty array. A
+// buyer with a booking in review read "Nothing from you yet — ask one
+// above.", on every first frame and permanently if the read failed.
+//
+// The shape is purchases.ts's, whose header argues it out: settling the
+// rows to [] would trade the hang for a lie, so the distinction is kept
+// rather than collapsed. AskedByYouOverlay already draws the same three
+// states from the same shape — this door is the one that did not.
+let liveFailed = false;
+
 function liveMine() {
   const rows = (sgData && sgData.myRows()) || [];
   return rows.map((r) => ({
@@ -210,11 +225,24 @@ export const SUGGESTIONS = {
     return s && s.decline ? DECLINE[s.decline] : null;
   },
   counts() { return { mine: mine().length }; },
+  /** 'ready' · 'loading' · 'failed' — what an empty `mine()` actually
+   * means. Demo mode is always ready: its rows are there at import. */
+  mineState() {
+    if (!LIVE.enabled) return 'ready';
+    if (liveFailed) return 'failed';
+    // Not `sgData &&` alone: the modules land before their queries answer,
+    // so the rows themselves are the readiness signal.
+    const asks = sgData && sgData.myRows();
+    const books = sgPaid && sgPaid.myBookings();
+    return asks && books ? 'ready' : 'loading';
+  },
   /** Kick the one-shot load of your real rows. Called when the door opens
    * (never at import time — the queries and the modules behind them stay
    * unpaid until a real open). No-op in demo mode. */
   ensureLive() {
     if (!LIVE.enabled) return;
+    // A reopen retries, so a previous failure must not outlive it.
+    liveFailed = false;
     Promise.all([import('../data/suggestions'), import('../data/paidBookings'), import('../data/cohortLabels')])
       .then(([d, p, l]) => {
         if (!sgData) {
@@ -228,7 +256,13 @@ export const SUGGESTIONS = {
         return Promise.all([d.loadMine(), p.loadBookings()]);
       })
       .then(() => listeners.forEach((g) => g()))
-      .catch(() => { /* a failed load renders the empty state; reopening retries */ });
+      .catch(() => {
+        // Recorded rather than swallowed: the door has to say the read
+        // failed instead of saying you have asked nothing. Reopening
+        // retries and clears it above.
+        liveFailed = true;
+        listeners.forEach((g) => g());
+      });
   },
   /** Re-read the booking rows (the door's short poll while one is in
    * review — the automated check settles in seconds, and the row should

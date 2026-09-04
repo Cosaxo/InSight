@@ -82,6 +82,27 @@ beforeEach(async () => {
 // green with four real errors in it. tsconfig.node.json includes it now.
 const modular = (db: unknown): Firestore => db as Firestore;
 
+/**
+ * `assertFails`, with the loop case named.
+ *
+ * It takes ONE argument. Two cap loops in this file passed a message as a
+ * second, which TypeScript rejects and JavaScript silently drops — so the
+ * message never reached anyone and `tsc -b` went red. Inside a loop the
+ * bare failure says only that an operation succeeded, without saying which
+ * key or which ceiling, and that is the whole reason those messages were
+ * written; dropping them would have been the cheaper wrong fix.
+ *
+ * The same shape as the four errors this file's header already records
+ * surviving because vitest transpiles without checking types.
+ */
+async function failsFor(why: string, op: Promise<unknown>): Promise<void> {
+  try {
+    await assertFails(op);
+  } catch (e) {
+    throw new Error(`${why} — ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 // Seed data with rules bypassed (admin context).
 async function seed(fn: (db: Firestore) => Promise<void>): Promise<void> {
   await env.withSecurityRulesDisabled(async (ctx) => {
@@ -132,6 +153,7 @@ describe("the default user (anonymous auth) — reachable surface", () => {
     // that should say so out loud.
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
+      await setDoc(doc(db, "v2_handles", "owner"), { uid: OWNER });
       await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
         qid: "daily-000", surface: "daily", optionIdx: 1,
       });
@@ -410,6 +432,20 @@ describe("v2 profile", () => {
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER), { displayName: "x" }));
     // unknown top-level field
     await assertFails(setDoc(mine, { displayName: "Mira", secretScore: 9 }));
+    // THE TWO TIMESTAMPS WERE ON THE ALLOWLIST WITH NO CHECK AT ALL — not
+    // a type, not a length. Measured on the deployed rule: a 400 KB string
+    // in either was accepted.
+    //
+    // Who reads them is why it matters. `data/voters.ts` fetches these
+    // documents WHOLE, thirty uids per query, with no field mask (the
+    // client SDK has none), on every Mirror surface that turns a uid into
+    // a name. A megabyte parked on one free anonymous profile is a
+    // megabyte every reader of that person downloads.
+    await assertFails(setDoc(mine, { createdAt: "x".repeat(20000) }));
+    await assertFails(setDoc(mine, { updatedAt: { nested: "y".repeat(20000) } }));
+    // …and a moment is still a moment, in either shape the tree uses.
+    await assertSucceeds(setDoc(mine, { createdAt: 1730000000000 }));
+    await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }));
     // unknown anchor key
     await assertFails(setDoc(mine, { anchors: { ssn: "123" } }));
     // synced test results: map allowed, non-map rejected
@@ -572,6 +608,22 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { anchors: { jobField: "x".repeat(41) } }));
     // and a non-string value is not a short string
     await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
+    // THE OTHER FIVE CAPS THIS CASE'S NAME CLAIMS. Five anchors had a cap
+    // in the rule and no case here — measured, all five widened a
+    // hundredfold in one run left every test green, inside the `it` whose
+    // name is "and holds the caps".
+    for (const [key, max] of [
+      ["country", 80], ["profession", 80], ["education", 80],
+      ["relationship", 40], ["heightBand", 20],
+    ] as const) {
+      await failsFor(
+        `the ${key} cap is not enforced`,
+        setDoc(mine, { anchors: { [key]: "x".repeat(max + 1) } }),
+      );
+      // …and the cap admits a value AT it, so a refusal of everything
+      // cannot pass for a bound.
+      await assertSucceeds(setDoc(mine, { anchors: { [key]: "x".repeat(max) } }));
+    }
   });
 
   // The political consent record (D331), and the key that left with it.
@@ -973,6 +1025,17 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // never marked folded, and it comes back tomorrow to break the fold
     // again while the world-readable day doc it did reach carries the
     // wrong day's numbers. One client write, every night after.
+    // The platform enum, whose twin on the attention shard got a case
+    // tonight ("the build/platform pair is the shard's whole provenance —
+    // the pulse console slices by it"). This one tests `build` and stops,
+    // so `platform in [...]` could be relaxed to `platform is string` with
+    // the suite green.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ platform: "nintendo" })));
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ platform: "" })));
     const older = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ day: older })));
@@ -999,6 +1062,20 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // folded is the fold's flag, never the client's
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ folded: true })));
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ sessions: 5000 })));
+    // …AND THE SEVEN BESIDE IT, which nothing held. Measured: all seven
+    // widened by three orders of magnitude in one run left all 175 tests
+    // green, while `sessions` — the one with a case — went red. Most are
+    // backstopped by the fold, which re-clamps on read; `stops` and
+    // `lenses` are not, because `foldRollups` has no term for either.
+    for (const over of [
+      { fgMin: 500 }, { quiet: 30000 }, { answers: 200000 },
+      { feedB: 500 }, { depthEnd: 100 }, { stops: 200000 }, { lenses: 200000 },
+    ]) {
+      await failsFor(
+        `a rollup ceiling accepted ${JSON.stringify(over)}`,
+        setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup(over)),
+      );
+    }
   });
 
   it("the rollup's hasOnly IS the two-channel pin: a question id is refused, and nobody reads", async () => {
@@ -2404,6 +2481,18 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // Posting INTO a circle still needs membership — that is a write.
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_takes", "t2"),
       take({ authorUid: STRANGER })));
+    // THE CIRCLE BRANCH'S `qid` HAD NO LENGTH BOUND, only a type. The
+    // world branch caps it at 120 and `text` is capped at 280 on both, so
+    // this was the one field on the collection with no ceiling —
+    // measured, a 400 KB qid was accepted. `v2_takes` is read by any
+    // signed-in user as a list query that pulls whole documents, so the
+    // cost lands on every reader of that thread.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t3"),
+      take({ qid: "q".repeat(20000) })));
+    // …and an ordinary id still posts, so the bound is a bound rather
+    // than a refusal of every circle take that names a question.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t4"),
+      take({ qid: "daily-001" })));
   });
 
   it("takes are shape-bound, immutable, and only the author's to delete", async () => {
@@ -2539,6 +2628,16 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND),
       flag("t3", FRIEND, { at: new Date(0) })));
+    // The author-identity field itself, and it has to come BEFORE the
+    // successful write below or the one-flag-per-account pin refuses it
+    // first. Every fixture sets `uid` to the signer, so the equality was
+    // never the clause that refused: it could be relaxed to `uid is
+    // string` with the whole suite green, leaving a stored author that
+    // disagrees with the writer in data the queue build reads. Same take,
+    // same flagger, same stamp as the admitted write below — only the
+    // claimed author differs.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND), flag("t3", STRANGER)));
     // The same flag, same flagger, same take, with the server's stamp:
     // the refusal above is the STAMP and not the identity or the take.
     await assertSucceeds(setDoc(
@@ -2644,6 +2743,10 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
           token: "gone0token00", at: new Date(), hidden: true,
           hiddenMeta: { by: "mod", policyLine: "H2" },
         });
+        // A THIRD LIVE FACE, and it is the whole point of the last case
+        // below — see the note there. Without it there is no way to send a
+        // takeId/target mismatch that every OTHER clause admits.
+        await setDoc(doc(db, "v2_avatars", STRANGER), { token: "live1token00", at: new Date(), hidden: false });
       });
       const avFlag = (target: string, by: string) => ({
         takeId: "av_" + target, gid: "avatar", uid: by, target, at: serverTimestamp(),
@@ -2662,9 +2765,44 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       // And the id still has to name its target: `target` is what the rule
       // reaches the avatar document with, so a mismatch is a flag pointed
       // at one face and counted against another.
+      //
+      // THIS CASE COULD NOT REACH THE CLAUSE IT NAMES. It sent
+      // `target: FRIEND`, and FRIEND's avatar is seeded `hidden: true`
+      // three lines up — so the `hidden == false` clause refused it first
+      // and the id equality was never evaluated. Measured: replacing that
+      // clause with `true` left all 175 tests green, and removing it lets
+      // a viewer flag their OWN live face, re-report a face a moderator
+      // has already removed, and stack flags against a takeId no avatar
+      // document backs.
+      //
+      // Every other clause has to ADMIT the write for this one to be the
+      // one that refuses: the flagger is OWNER, the target is STRANGER —
+      // live, and not the flagger — and only the takeId names someone
+      // else. That is why the fixture above seeds a third live face.
       await assertFails(setDoc(
-        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`),
-        { ...avFlag(OWNER, STRANGER), target: FRIEND }));
+        doc(asUser(OWNER), "v2_flags", `av_${OWNER}_${OWNER}`),
+        { takeId: `av_${OWNER}`, gid: "avatar", uid: OWNER, target: STRANGER, at: serverTimestamp() }));
+      // …and the same write with the id agreeing is admitted, so the case
+      // above cannot pass because something else refused it.
+      await assertSucceeds(setDoc(
+        doc(asUser(OWNER), "v2_flags", `av_${STRANGER}_${OWNER}`),
+        { takeId: `av_${STRANGER}`, gid: "avatar", uid: OWNER, target: STRANGER, at: serverTimestamp() }));
+      // THE SENTINEL ITSELF. `gid == "avatar"` is what separates a face
+      // report from a take report, and every fixture here sets it, so it
+      // was never the clause that refused — relaxing it to `gid is string`
+      // left the suite green. Sent by FRIEND, whose flag is otherwise the
+      // admitted shape above, so the sentinel is the only thing left to
+      // refuse it: a face report filed as if it belonged to a circle,
+      // which is what the queue build reads to decide what it is looking
+      // at.
+      await assertFails(setDoc(
+        doc(asUser(FRIEND), "v2_flags", `av_${STRANGER}_${FRIEND}`),
+        { takeId: `av_${STRANGER}`, gid: "some-circle", uid: FRIEND, target: STRANGER, at: serverTimestamp() }));
+      // The control: the same write with the sentinel spelled right is
+      // admitted, so the refusal above is the gid and not the flagger.
+      await assertSucceeds(setDoc(
+        doc(asUser(FRIEND), "v2_flags", `av_${STRANGER}_${FRIEND}`),
+        { takeId: `av_${STRANGER}`, gid: "avatar", uid: FRIEND, target: STRANGER, at: serverTimestamp() }));
     });
   });
 
@@ -3177,8 +3315,36 @@ describe("presence (D84 — Near by radius)", () => {
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertFails(setDoc(ref, cellDoc({ cell: "59.913_10.752" })));   // raw coords
     await assertFails(setDoc(ref, cellDoc({ cell: "29999_5374_extra" }))); // sub-cell suffix
+    // THE DIGIT BOUND ITSELF, which the case name has always claimed and
+    // never sent. The three above are refused by SHAPE — a dot, a third
+    // segment, an unknown key — so `{1,5}` could be widened to `{1,9}`,
+    // a ~22 cm grid, with the whole suite green. Measured before this
+    // line existed. The rules comment calls this regex "the precision cap
+    // in structural form … however hard a client tries", and a modified
+    // client is the entire threat model D174/D177 wrote it for.
+    await assertFails(setDoc(ref, cellDoc({ cell: "599135_107524" })));   // a 6-digit index
+    await assertFails(setDoc(ref, cellDoc({ cell: "29999_1075240" })));   // fine on one axis only
     await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
     await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
+  });
+
+  it("cannot delete someone else's presence", async () => {
+    // The owner check on the DELETE arm had no case: the write case above
+    // asserts a stranger cannot overwrite the row, and nothing asserted
+    // they cannot remove it. Measured: dropping `&& request.auth.uid ==
+    // uid` from the delete arm left the whole suite green.
+    //
+    // What that clause holds shut: any free anonymous account (D3) could
+    // evict anybody from Near, and because the collection is read-denied
+    // nobody could observe it happening. Uids are recoverable from any
+    // answer's document path, so picking a target costs nothing.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence", OWNER), { cell: "29999_5374", at: new Date() });
+    });
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_presence", OWNER)));
+    // …and the owner still can, or this passes on a rule that refuses
+    // every delete.
+    await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_presence", OWNER)));
   });
 
   // THE WRITE-SIDE VERSION OF THE READ DENY (D174).
@@ -3616,6 +3782,15 @@ describe("rank answers (D233): an order, never an index", () => {
 
   it("bounds the list where rules can, and refuses the index the fold would misread", async () => {
     await seedRank();
+    // The branch's OWN `surface == "feed"`, which every case here satisfied
+    // by sending the right value. Its catalog twin four lines down in the
+    // ruleset carries two negatives added at D234 for the same reason; this
+    // one had none, so a rank answer could self-declare its surface. It
+    // stays out of the D86 edit arm either way, but it is a mislabelled
+    // document in a world-readable collection whose one cross-user read
+    // filters on exactly that field.
+    await assertFails(setDoc(mine(), rankAnswer({ surface: "daily" })));
+    await assertFails(setDoc(mine(), rankAnswer({ surface: "test" })));
     await assertFails(setDoc(mine(), rankAnswer({ order: [0, 1, 2] }))); // size != item count
     await assertFails(setDoc(mine(), rankAnswer({ order: 3 }))); // not a list
     await assertFails(setDoc(mine(), rankAnswer({ order: [2, 0, 1, 3], optionIdx: 1 }))); // both fields
@@ -3759,6 +3934,10 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   it("reveals refuses a signed-out read", () => refuses(["v2_groups", GROUP, "reveals", DAY]));
   it("v2_people refuses a signed-out read", () => refuses(["v2_people", OWNER]));
   it("v2_avatars refuses a signed-out read", () => refuses(["v2_avatars", OWNER]));
+  // Says `get` rather than `read`, which is the only reason the count
+  // below could not see it — it is a bare sign-in gate like the eleven
+  // above in every other respect. It is the handle → uid address book.
+  it("v2_handles refuses a signed-out read", () => refuses(["v2_handles", "owner"]));
 
   it("and the list still covers every sign-in-gated read arm", async () => {
     // The list above is hand-written, so this is what stops it going
@@ -3774,6 +3953,33 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // a helper predicate is invisible to it, and would need its own case.
     const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
     const total = (rules.match(/allow\s+read:\s*if\s+request\.auth\s*!=\s*null\s*;/g) || []).length;
+    // Still 11 + 4 with twelve cases above: the twelfth covers
+    // `v2_handles`, whose arm says `get` and so was never in this count.
+    // It is held by the second one below.
     expect(total, "the count of sign-in-gated read arms moved: add a case above and raise this number, or drop one whose own case now covers it").toBe(11 + 4);
+  });
+
+  it("…and the count sees the arms that are not spelled bare", () => {
+    // THE SECOND COUNT, because the first one's stated blind spot turned
+    // out to be much wider than "a combined arm or a helper predicate".
+    // The bare pattern requires the condition to END at `request.auth !=
+    // null;`, so an arm that says `get`, or that ANDs a second clause on,
+    // is invisible — and thirteen were. Measured on this ruleset: 15 bare
+    // against 28 of this shape.
+    //
+    // The four that matter most, none of which had a signed-out case:
+    //   firestore.rules — every user's answers by id (`read: if
+    //   request.auth != null && (uid match || surface in [...])`), the
+    //   whole answer corpus by collection group, `v2_handles` (`get`, now
+    //   covered above) and `v2_takes`.
+    //
+    // This does not assert that each has a CASE — writing twelve fixtures
+    // is tomorrow's work and is on NIGHT_TASKS.md. It asserts that the
+    // number cannot move without somebody noticing, which is the thing
+    // that was not true: all four could be opened outright with the suite
+    // and every gate green.
+    const rules = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+    const wide = (rules.match(/allow\s+(?:read|get|list)\s*:\s*if\s+request\.auth\s*!=\s*null/g) || []).length;
+    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(28);
   });
 });

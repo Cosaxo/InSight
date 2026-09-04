@@ -2540,8 +2540,12 @@ class WorldFeed extends React.Component {
   // winner outright. Tapping it opens the full breakdown at that cut.
   //
   // Live questions only, and only above the floor — feedInsight returns null
-  // for anything it cannot say from real, already-k-floored data, and this
-  // renders nothing rather than inventing a line to fill the space.
+  // for anything it cannot say, and this renders nothing rather than
+  // inventing a line to fill the space. The floor is feedInsight's own
+  // (`MIN_CELL`, matching the two sibling lines below); this said
+  // "already-k-floored data", and D98 left no floor on the server at all,
+  // so for as long as that stood the only floor named anywhere was one
+  // that had been deleted.
   // the rate card's surprise: the cut that sits furthest from the score you gave.
   // Tapping it opens the breakdown already switched to that cut.
   renderRateInsight(q, T, big) {

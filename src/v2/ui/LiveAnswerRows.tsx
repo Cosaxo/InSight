@@ -335,7 +335,13 @@ function LiveAnswerRows({ rows, whom, emptyNote }: {
     .filter((r) => !picked || r.branch === picked)
     .sort((a, b) => (
       sort === "answers" ? b.n - a.n
-        : sort === "divisive" ? dOf.get(b.qid)! - dOf.get(a.qid)!
+        // Most divisive: the SAME tie-break, for the same reason, and it
+        // was missing. Divisiveness is normalised, so a 1-against-1 cell
+        // and a 500-against-500 cell are both exactly 1.0 — the maximum —
+        // and the thin one led the list on input order alone. It is the
+        // mirror image of the case the comment below describes, and the
+        // arm below is the only one that had the clause.
+        : sort === "divisive" ? dOf.get(b.qid)! - dOf.get(a.qid)! || b.n - a.n
           // Most agreed: least divisive first, but a question with a single
           // answer is 0 on this scale and would head the list saying
           // nothing. Ties break toward the bigger room.

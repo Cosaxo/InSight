@@ -57,6 +57,17 @@ import { sharePcts } from "../data/pct";
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
 import { bucketLabel } from "../data/cohortLabels";
+
+/**
+ * The smallest cell Explore will rank.
+ *
+ * TWO, and not a larger number chosen here: below two answers a split does
+ * not exist to be measured — one answer is 100/0 by construction rather
+ * than by disagreement — which is the same reasoning `MIN_SHARED` carries
+ * in `data/groupPortrait.ts`. Cells above it are handled the way both
+ * sibling surfaces handle them: by stating what the claim rests on.
+ */
+const EXPLORE_MIN_N = 2;
 import TypeMixCard from "./TypeMixCard";
 // The People lens draws people rather than listing them (D152): the
 // prototype's match ring, a per-person hue, and the place name behind a
@@ -621,12 +632,32 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   // `divergenceFor` is that expression with the discarded work removed;
   // it goes null on exactly the condition `sliceSplit` did, and its `pct`
   // is the split.
+  // THE FLOOR `divergenceFor` ASKS ITS CALLER TO CHOOSE. Its docstring
+  // says why, and this caller had not chosen: "a one-answer bucket is
+  // 100/0 and would top every ranking forever while saying nothing. It
+  // defaults to 0 so the caller has to choose."
+  //
+  // It did exactly that. A question where the picked bucket held ONE
+  // answer scored the largest possible gap and headed the list, above a
+  // fifty-answer question at 10 pts, with no count anywhere near the
+  // sentence — the chip's number is the bucket's total across ALL
+  // questions, which is a different denominator.
+  //
+  // Two, not a bigger number invented here: below two answers a "split"
+  // does not exist to be measured — one answer is 100/0 by construction,
+  // not by disagreement — and that is the same reasoning `MIN_SHARED`
+  // carries in groupPortrait. Everything above two is handled the way
+  // both sibling surfaces handle it, by SAYING what it rests on
+  // (LiveBreakdownPanel prints "{n} answers", LiveCircleBody "{n} of your
+  // circle answered"). Whether the bar should be higher than "a split can
+  // exist" is a product judgement, and it is on the night list rather
+  // than decided here.
   const rows = picked
     ? qs.map((q) => {
-      const d = divergenceFor(q.by, dim, picked, q.all, q.options.length);
+      const d = divergenceFor(q.by, dim, picked, q.all, q.options.length, EXPLORE_MIN_N);
       if (!d) return null;
-      return { q, split: d.pct, overall: pctFor(q.all), gap: d.gap, on: d.optionIdx };
-    }).filter(Boolean).sort((a, b) => b!.gap - a!.gap)
+      return { q, split: d.pct, overall: pctFor(q.all), gap: d.gap, on: d.optionIdx, n: d.n };
+    }).filter(Boolean).sort((a, b) => b!.gap - a!.gap || b!.n - a!.n)
     : [];
 
   return (
@@ -668,6 +699,12 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
                 {r!.gap > 0
                   ? <><strong style={{ color: "var(--ink-2)" }}>{r!.gap} pts</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
                   : <>Same as everyone.</>}
+                {/* The basis, on the row that makes the claim (D146). The
+                    chip above carries the bucket's total across every
+                    question, which is not this row's denominator — so
+                    until now the one number near the sentence was the
+                    wrong one. */}
+                {" · from " + r!.n + (r!.n === 1 ? " answer" : " answers")}
               </span>
             </div>
           ))}

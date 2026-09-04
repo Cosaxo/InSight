@@ -38,6 +38,7 @@ vi.setConfig({ testTimeout: 15000 });
 import { BG_TEXT, DAILY_BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
+import { TYPE_SMALL } from "../data/typeMix";
 import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
@@ -2620,12 +2621,63 @@ describe("live mode never inherits the sample persona (D55)", () => {
     const host = renderTypeSheet();
     try {
       expect(host.textContent).toMatch(/of 1 person counted/);
-      expect(host.textContent).toMatch(/1 · 100%/);
+      // A COUNT, not a share. This asserted "1 · 100%" — a percentage over
+      // a basis of one — until the floor below was applied. The card built
+      // on this same fold has always refused shares under TYPE_SMALL, and
+      // typeMix.ts states it as the constant's contract.
+      expect(host.textContent).toMatch(/\b1\b/);
+      expect(host.textContent, "a share was printed over a basis of one")
+        .not.toMatch(/1\s*·\s*100\s*%/);
       // Every other type is a measured zero, drawn as an absence rather
       // than as a share rounding to nothing.
       expect(host.textContent).toMatch(/none/);
       expect(host.textContent, "an authored share is still on screen")
         .not.toMatch(AUTHORED_SHARES);
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("prints counts, not shares, until the basis reaches the card's floor", () => {
+    // Two taps from the card that just named the reader's own type, on a
+    // row marked YOU, this sheet printed "2 · 67%" over three people. The
+    // card built on the same fold refuses shares below TYPE_SMALL and says
+    // why; the sheet counted from one typed person upward.
+    live = installLive();
+    const one = window.LIVE.kindredPeople()[0];
+    const sample = (n) => Array.from({ length: n }, (_, i) => ({ ...one, uid: `u${i}` }));
+    Object.defineProperty(window.LIVE, "kindredPeople",
+      { value: () => sample(TYPE_SMALL - 1), writable: true, configurable: true });
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent, "the sheet did not render — test is vacuous")
+        .toMatch(/The Quiet One/);
+      expect(host.textContent, `a share was printed over a basis of ${TYPE_SMALL - 1}`)
+        .not.toMatch(/\d+\s*·\s*\d+\s*%/);
+      // …and the basis is still stated, which is what makes the bare count
+      // readable at all.
+      expect(host.textContent).toMatch(new RegExp(`of ${TYPE_SMALL - 1} people counted`));
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("starts printing shares once the basis reaches the floor", () => {
+    // THE CONTROL. Without it the case above is satisfied by a sheet that
+    // never prints a share at all, which would lose the number on every
+    // basis large enough to carry it.
+    live = installLive();
+    const one = window.LIVE.kindredPeople()[0];
+    Object.defineProperty(window.LIVE, "kindredPeople", {
+      value: () => Array.from({ length: TYPE_SMALL }, (_, i) => ({ ...one, uid: `u${i}` })),
+      writable: true, configurable: true,
+    });
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent, "the floor swallowed a basis that is over it")
+        .toMatch(/\d+\s*·\s*\d+\s*%/);
     } finally {
       host.remove();
     }
