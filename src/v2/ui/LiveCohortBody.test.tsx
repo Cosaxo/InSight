@@ -38,6 +38,12 @@ import { resolve } from "node:path";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  // ATTACHED BY DEFAULT, so every case below is about a store that has
+  // finished looking. It was absent from this mock entirely, which meant
+  // `LIVE.attached` read `undefined` — and the whole suite stayed green
+  // when the empty arm's wording changed, because nothing here asserted
+  // it. The two cases at the foot of this file are what closes that.
+  attached: true,
   uid: "u_me",
   myCity: "Oslo, NO",
   deck: () => [] as Array<Record<string, unknown>>,
@@ -1035,4 +1041,42 @@ describe("LiveCohortBody · one answer is a count, not a share", () => {
   // split at all, so there is no majority test left to get wrong. The two
   // above are the surviving halves of the same decision and they are the
   // ones that were always about a NUMBER rather than about a word.
+});
+
+// ── the biggest claim the app makes, before it has looked ──────────
+//
+// The header figure is `reach`, and `reach` is 0 whenever the aggregate
+// archive is — which is the whole of a cold first launch before the first
+// snapshot lands, and the whole SESSION on a live build whose boot never
+// completes. Through both of those the stop read "— nobody has answered
+// yet": an assertion about the world, made by a device that had not
+// looked, on the largest population claim in the app.
+//
+// `LIVE.attached` is the store's own word for "the network boot completed
+// this session". The daily has had a reconnecting pill since D356; this
+// stop had nothing.
+//
+// The mock carried no `attached` at all until now, so this arm's wording
+// could change with the whole suite green. These two are what stops that.
+describe("LiveCohortBody · reading is not empty", () => {
+  it("does not say nobody has answered before the store has attached", () => {
+    LIVE.attached = false;
+    try {
+      render(<LiveCohortBody scope="world" />);
+      const body = document.body.textContent || "";
+      expect(body, "the stop asserted an empty world before it had looked")
+        .not.toMatch(/nobody has answered/i);
+      expect(body, "it says nothing at all about the wait").toMatch(/counting who has answered/i);
+    } finally {
+      LIVE.attached = true;
+    }
+  });
+
+  it("still says it once the store HAS attached and the world really is empty", () => {
+    // The control. Without it, "never says nobody" passes the case above
+    // and deletes a true sentence instead of a premature one.
+    render(<LiveCohortBody scope="world" />);
+    expect(document.body.textContent, "the settled empty state lost its sentence")
+      .toMatch(/nobody has answered yet/i);
+  });
 });
