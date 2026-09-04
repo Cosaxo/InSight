@@ -40,7 +40,7 @@ import React from "react";
 // on an account that has one.
 import LIVE, { localName } from "../data/live";
 import { note } from "../data/engagement";
-import { consumeJoinCode, inviteLinkFor } from "../data/links";
+import { consumeJoinCode, inviteLinkFor, subscribeJoinCode } from "../data/links";
 // Handles and invitations (D122) — how a circle gains a member now. The
 // code survives inside the share link for people who have no account
 // yet; it is no longer something anyone types.
@@ -1392,6 +1392,16 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   // the person already declined to join — the same contract the field it
   // replaced had, minus the typing.
   const [pendingCode, setPendingCode] = React.useState(() => consumeJoinCode() || "");
+  // …and again whenever one ARRIVES, which the initializer alone cannot
+  // see. An invite tapped while this screen is already open stashes a code
+  // and navigates to the tab the user is already on: nothing remounts, so
+  // the read above never runs a second time and the invite is swallowed
+  // until something else happens to remount the panel. Read-and-clear is
+  // unchanged; only the moment of reading moves.
+  React.useEffect(() => subscribeJoinCode(() => {
+    const c = consumeJoinCode();
+    if (c) setPendingCode(c);
+  }), []);
 
   // Snap on the tab's own scroller while this panel is mounted, plus a
   // scroll-spy that keeps the rail pointing at whatever is under the

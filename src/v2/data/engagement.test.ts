@@ -297,6 +297,44 @@ describe("the purge listener (D51)", () => {
     expect(localStorage.getItem(LS_KEY)).toContain("feedSeen");
     expect(localStorage.getItem(LS_KEY)).not.toContain("feedPass");
   });
+
+  // THE ONE THING THE PURGE LEFT RUNNING.
+  //
+  // `visibleSince` is the moment the app came to the foreground, and the
+  // purge dropped everything around it and not it. There is no reload
+  // behind an account change, so nothing else re-stamped it — and the next
+  // background did `fgMs += ms - visibleSince`, seeding the NEW account's
+  // day with the previous account's minutes.
+  it("does not credit the previous account's foreground minutes to the next one", () => {
+    const h = harness();
+    h.now += 40 * 60_000;                                     // forty minutes as A
+    window.dispatchEvent(new Event("insight:local-purge"));   // A deletes the account
+    h.now += 60_000;                                          // one minute as B
+    _engagementForTest().visibility(true);                    // B backgrounds the app
+    expect(
+      _engagementForTest().days[utcDay(D1)].r.fgMs,
+      "the new account was credited with the old account's foreground time",
+    ).toBe(60_000);
+    // …and it is the shape that LEAVES the device that makes this matter:
+    // the rollup ships a bucket, and 41 minutes is not the same bucket as 1.
+    expect(bucketizeMinutes(41), "the case would be harmless if these bucketed alike")
+      .not.toBe(bucketizeMinutes(1));
+  });
+
+  it("keeps counting the new account from the purge forward — the control", () => {
+    // Zeroing `visibleSince` instead of re-stamping it would satisfy the two
+    // cases above and throw away the new account's time until the next
+    // visibility change. The app IS in the foreground at the purge instant.
+    const h = harness();
+    h.now += 40 * 60_000;
+    window.dispatchEvent(new Event("insight:local-purge"));
+    h.now += 5 * 60_000;
+    _engagementForTest().visibility(true);
+    expect(
+      _engagementForTest().days[utcDay(D1)].r.fgMs,
+      "the new account's own minutes were dropped with the old account's",
+    ).toBe(5 * 60_000);
+  });
 });
 
 describe("buckets", () => {
