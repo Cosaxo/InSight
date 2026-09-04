@@ -70,6 +70,26 @@ describe("canStartLogic", () => {
     expect(nextStartsToday(attempt({ startsToday: 1 }), NOW)).toBe(2);
   });
 
+  it("keeps the start cap at the value whose reasoning is written down", () => {
+    // The case below proves the cap BINDS — but it states the bound
+    // relative to the constant, so it moves with it. Measured: this can be
+    // set to a million with all 593 functions tests green, and no check
+    // gate names it.
+    //
+    // logic.ts: "Starting an attempt previews a fresh form, so unfinished
+    // restarts are a preview channel — bounded per UTC day rather than
+    // closed, because a crashed app must be able to start again." That
+    // preview channel is the surface the unscored answer key is one of
+    // D98's three denies for, so the bound is what keeps a preview from
+    // becoming a way to read the key by repetition.
+    expect(LOGIC_MAX_STARTS_PER_DAY,
+      "the per-day start cap moved — re-read logic.ts's reasoning and change this line deliberately").toBe(3);
+    // …and it is a bound, not a closure: a crashed app must be able to
+    // start again, which is the other half of the same sentence.
+    expect(LOGIC_MAX_STARTS_PER_DAY,
+      "the preview channel is closed, not bounded — a crashed app cannot start again").toBeGreaterThan(1);
+  });
+
   it("the per-day start cap holds, and resets on the next UTC day", () => {
     const capped = attempt({ startsToday: LOGIC_MAX_STARTS_PER_DAY });
     const refused = canStartLogic(capped, NOW);

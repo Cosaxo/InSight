@@ -21,15 +21,35 @@
 export const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
 export const ok = (msg) => console.log("✓ " + msg);
 
-/** Assert `op()` rejects with exactly `code`. */
-export const expectCode = async (label, code, op) => {
+/**
+ * Assert `op()` rejects with exactly `code`, and HAND BACK the message.
+ *
+ * For the call site that has to assert the code AND what the message
+ * says — an operator-facing refusal that has to name the thing it
+ * refused, not merely refuse. `expectCode` swallows the error, so such a
+ * site used to be written as a bare try/catch reading only the message,
+ * which is the failure the header above describes: the rebuild tool's
+ * `internal` wrapper answers `rebuild of <qid> failed: <reason>`, which
+ * names the qid and is long, so a crash or a missing index read as the
+ * refusal being tested.
+ *
+ * Emits no `ok` — the caller does that once its own assertions pass, so
+ * the tally never counts a half-checked refusal.
+ */
+export const expectRefusal = async (label, code, op) => {
   try {
     await op();
   } catch (e) {
-    if (e?.code === code) return ok(label);
+    if (e?.code === code) return String(e?.message ?? e);
     return fail(`${label} — expected ${code}, got ${e?.code || e}`);
   }
-  fail(`${label} — the operation was ALLOWED`);
+  return fail(`${label} — the operation was ALLOWED`);
+};
+
+/** Assert `op()` rejects with exactly `code`. */
+export const expectCode = async (label, code, op) => {
+  await expectRefusal(label, code, op);
+  ok(label);
 };
 
 /** Assert `op()` is refused by the rules, specifically. */

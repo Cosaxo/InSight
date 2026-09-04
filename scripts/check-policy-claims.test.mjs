@@ -22,6 +22,8 @@ const page = readPage();
 // suite whose whole subject is gates that cannot fail.
 const RETIRED_WORDING = new Map([
   ["D175 · the retired kilometre claim is gone", "kilometre-sized"],
+  ["D175 · the page does not claim the app asks only for an approximate fix",
+    "The app can ask your device for an approximate location"],
   ["D98 · the retired circle-scoped reveal audience is gone", "then the members of that group"],
   ["D98 · group takes are world-readable too, not circle-scoped", "Your group takes: that group"],
 ]);

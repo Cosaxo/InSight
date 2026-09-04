@@ -702,7 +702,7 @@ settings:
 
 | Routine | Triggers (UTC · Oslo) | Model | Prompt | Notes |
 | --- | --- | --- | --- | --- |
-| InSight PR shepherd | `20 6,16 * * *` · 08:20 and 18:20 daily; GitHub `pull_request` events (opened, ready_for_review, reopened, labeled, closed) with base `main`; an API trigger | `claude-opus-5` | `OPS-RUNBOOK.md` §4, *The PR shepherd* | the door every approved PR ends at — create it first. The GitHub triggers need the Claude GitHub App installed; the web UI prompts for it |
+| InSight PR shepherd | `trig_01Ln6FDEipFzAghqJ777AL5j` · `55 */3 * * *` · **fresh session per fire**, no dispatcher, `claude-opus-5` — the owner's direction 2026-09-03. Two dispatcher-bound predecessors are disabled: the original (hourly, on the 581k-token dispatcher — $6.96 a fire, and it could not run `git merge`) and *(B)* (bound to a Haiku dispatcher that blocked on a charter 55 seconds in, so it never fired). The planned GitHub `pull_request` events were never built — they need the Claude GitHub App, which is not installed | `claude-opus-5` | `OPS-RUNBOOK.md` §4, *The PR shepherd* | the door every approved PR ends at — create it first. The GitHub triggers need the Claude GitHub App installed; the web UI prompts for it |
 | InSight pulse responder | API trigger, fired by `pulse.yml` | `claude-opus-5` | §4, *The pulse responder* | copy the fire URL into the repository variable `ROUTINE_PULSE_FIRE_URL` and the token into the secret `ROUTINE_PULSE_FIRE_TOKEN` |
 | InSight dependency shepherd | `30 8 * * 1` · Mondays 10:30 | `claude-opus-5` | §4, *The dependency shepherd* | — |
 | InSight platform probe | none — press Run now once | `claude-sonnet-5` | §4, *The platform probe* | its whole product is a row in `OPS-RUNBOOK.md` § Platform measurements |

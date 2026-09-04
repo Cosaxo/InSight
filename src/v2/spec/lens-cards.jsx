@@ -35,12 +35,27 @@ const EXPORTS = {};
   // an unanswered dimension has no value at all — not a zero. `has` is the
   // guard every viz below reads before drawing anything positional.
   const has = (v, id) => typeof v[id] === 'number';
+  // …and the same question about the OTHER mark on every scale. `d.demo` is
+  // an authored number from the prototype's population, and live mode
+  // measures no such thing, so on a real account the tick, the legend chip
+  // reading "most people" and the sentence "Care runs above typical" were
+  // all claims with nothing behind them. The header above records that the
+  // prior was removed from score() for precisely this reason; it was
+  // removed from your score and left in as what your score is drawn
+  // against. Not hidden as a privacy floor and not replaced by an invented
+  // number — there is simply no second mark until something measures one.
+  const typKnown = () => LENSES.typicalKnown();
   const NOREAD = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', opacity: 0.75 };
 
   // the value in words — the axis furthest from typical, which is the only
   // thing a 0–100 score actually means. Replaces the static tagline.
   // Unread dimensions are skipped: they have no gap to speak of.
   function reading(lens, v) {
+    // No typical, no gap to speak of — the lens's own line, which is
+    // already this function's "nothing stands out yet" answer. Deliberately
+    // not new copy: a sentence invented for live mode would be one more
+    // thing to keep true.
+    if (!typKnown()) return lens.lead;
     let best = null;
     lens.dims.forEach((d) => { if (!has(v, d.id)) return; const g = v[d.id] - d.demo; if (!best || Math.abs(g) > Math.abs(best.g)) best = { d, g }; });
     if (!best || Math.abs(best.g) <= 6) return lens.lead;   // nothing stands out yet — the lens's own line
@@ -64,7 +79,7 @@ const EXPORTS = {};
                 <span style={{ width: '100%', height: 8, borderRadius: 99, background: track(hue), overflow: 'hidden' }}>
                   {read && <span style={{ display: 'block', height: '100%', width: `${v[d.id]}%`, background: fill, borderRadius: 99 }}></span>}
                 </span>
-                {read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: `${d.demo}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 2, height: 14, borderRadius: 2, background: typ }}></span> : null}
+                {typKnown() && read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: `${d.demo}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 2, height: 14, borderRadius: 2, background: typ }}></span> : null}
               </span>
               {!read && <span style={{ ...NOREAD, width: 12, flexShrink: 0 }}>—</span>}
             </div>
@@ -86,7 +101,7 @@ const EXPORTS = {};
                 {read
                   ? <span style={{ display: 'block', width: '100%', height: `${Math.max(3, v[d.id])}%`, background: fill, borderRadius: '6px 6px 0 0' }}></span>
                   : <span style={{ ...NOREAD, alignSelf: 'center' }}>—</span>}
-                {read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: `${d.demo}%`, height: 2, background: typ }}></span> : null}
+                {typKnown() && read && Math.abs(v[d.id] - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: `${d.demo}%`, height: 2, background: typ }}></span> : null}
               </span>
               <span style={{ ...tiny, whiteSpace: 'nowrap', opacity: read ? 1 : 0.6 }}>{d.label}</span>
             </div>
@@ -114,7 +129,7 @@ const EXPORTS = {};
               <div style={{ position: 'relative', flex: 1, height: 12 }}>
                 <span style={{ position: 'absolute', top: '50%', left: '2%', right: '2%', height: 2, marginTop: -1, borderRadius: 999, background: track(hue) }}></span>
                 {read && <span style={{ position: 'absolute', top: '50%', marginTop: -1.5, height: 3, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, background: fill }}></span>}
-                {read && Math.abs(x - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', top: '50%', left: `${pos(d.demo)}%`, transform: 'translate(-50%,-50%)', width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: `1.4px solid ${typ}` }}></span> : null}
+                {typKnown() && read && Math.abs(x - d.demo) >= 2 ? <span aria-hidden="true" style={{ position: 'absolute', top: '50%', left: `${pos(d.demo)}%`, transform: 'translate(-50%,-50%)', width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: `1.4px solid ${typ}` }}></span> : null}
                 {read
                   ? <span style={{ position: 'absolute', top: '50%', left: `${p}%`, transform: 'translate(-50%,-50%)', width: 11, height: 11, borderRadius: '50%', background: fill, border: '2px solid var(--surface)' }}></span>
                   : <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 10, height: 10, borderRadius: '50%', border: `1.5px dashed color-mix(in oklch, ${col(hue)} 55%, var(--rule))`, background: 'var(--surface)', boxSizing: 'border-box' }}></span>}
@@ -138,8 +153,13 @@ const EXPORTS = {};
     };
     const line = (p) => p.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ');
     // no reading yet → draw only the typical curve; a "your" line at some
-    // default horizon would be a claim about you that nothing supports
+    // default horizon would be a claim about you that nothing supports.
+    // …and on a live build there is no typical curve either — `pts(50)` is
+    // the prototype's population horizon, so drawing it dashed and calling
+    // it "typical person" is the same false claim one shape over. With
+    // neither, the panel is its axis and its caption says so.
     const readYou = has(v, dims[0].id);
+    const readTyp = typKnown();
     const yp = readYou ? pts(v[dims[0].id]) : null, end = yp ? yp[yp.length - 1] : null;
     const gid = 'lensfill-' + hue;
     return (
@@ -148,13 +168,13 @@ const EXPORTS = {};
           <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={fill} stopOpacity="0.18"></stop><stop offset="100%" stopColor={fill} stopOpacity="0"></stop></linearGradient></defs>
           <line x1="0" y1={H - 3} x2={W} y2={H - 3} stroke="var(--rule)" strokeWidth="1"></line>
           {yp && <path d={`${line(yp)} L ${W} ${H - 3} L 0 ${H - 3} Z`} fill={`url(#${gid})`} stroke="none"></path>}
-          <path d={line(pts(50))} fill="none" stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.45"></path>
+          {readTyp && <path d={line(pts(50))} fill="none" stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.45"></path>}
           {yp && <path d={line(yp)} fill="none" stroke={fill} strokeWidth="2.4" strokeLinecap="round"></path>}
           {end && <circle cx={end[0]} cy={end[1]} r="3.6" fill={fill} stroke="var(--surface)" strokeWidth="1.6"></circle>}
         </svg>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
           <span style={tiny}>today</span>
-          {!readYou && <span style={NOREAD}>typical person — yours fills in</span>}
+          {!readYou && <span style={NOREAD}>{readTyp ? 'typical person — yours fills in' : 'no reading yet'}</span>}
           <span style={tiny}>ten years out</span>
         </div>
         <div style={{ marginTop: 15 }}><Spine dims={dims.slice(1)} v={v} hue={hue} fill={fill} compact /></div>
@@ -260,7 +280,10 @@ const EXPORTS = {};
       <ExplainSheet title={explain.title} kicker="lens" dimKey={explain.id} dims={explain.dims}
         keyRows={[
           [EX_GLYPH.bar(col(explain.hue)), 'The filled bar — or the dot on the line — is you.'],
-          [EX_GLYPH.tick(), 'The tick marks where most people sit.'],
+          // The tick is not drawn on a live build, so its key row is not
+          // either: a legend for a mark that is not on the screen sends the
+          // reader looking for it.
+          ...(typKnown() ? [[EX_GLYPH.tick(), 'The tick marks where most people sit.']] : []),
           [EX_GLYPH.pale(col(explain.hue)), 'Pale means the reading is still an estimate.'],
         ]}
         onClose={() => setExplain(null)} />
@@ -276,7 +299,7 @@ const EXPORTS = {};
       <div style={{ paddingBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 14px', margin: '14px 2px 0' }}>
           <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 15, height: 7, borderRadius: 99, background: 'var(--ink-2)' }}></span>you</span>
-          <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 2, height: 12, borderRadius: 2, background: typ }}></span>most people</span>
+          {typKnown() && <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 2, height: 12, borderRadius: 2, background: typ }}></span>most people</span>}
           <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 15, height: 7, borderRadius: 99, background: prov(30) }}></span>still an estimate</span>
         </div>
         {groupHead('Core lenses', 'why you hold what you hold', true)}

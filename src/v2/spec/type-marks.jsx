@@ -11,6 +11,7 @@ import { IS_ARCHETYPES, IS_matchArchetype } from './archetype-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import LIVE from '../data/live';
 import { BUDGET_PAUSED_BODY } from '../data/budgetMode.ts';
+import { TYPE_SMALL } from '../data/typeMix.ts';
 // How common a type actually is, counted (D157) — see TypeIndexSheet.
 import { myTypeOn, typeSharesOn } from '../data/typeMix.ts';
 
@@ -135,6 +136,16 @@ export function TypeIndexSheet({ testKey, onClose }) {
   // means the sample was read and nobody in it carries a result.
   const shares = typeSharesOn(testKey);
   const counted = !!shares && shares.typedN > 0;
+  // …and below TYPE_SMALL the rows are COUNTS, no percentage — the same
+  // rule the card built on this exact fold has always used
+  // (TypeMixCard.tsx), and the one typeMix.ts states as the constant's
+  // contract: "Below this, a basis has no shares at all — counts only."
+  // This sheet printed a share from one typed person upward, so "2 · 67%"
+  // over a basis of three sat two taps from the card that had just told
+  // the same reader their own type, on a row marked YOU. It does print
+  // its denominator in the header, which is why it is a share that should
+  // not be drawn rather than a number that is wrong.
+  const smallBasis = counted && shares.typedN < TYPE_SMALL;
   const byName = counted ? Object.fromEntries(shares.rows.map((r) => [r.name, r])) : null;
   const list = sys.list.slice().sort(counted
     ? (a, b) => (byName[b.name].n - byName[a.name].n) || a.name.localeCompare(b.name)
@@ -199,7 +210,7 @@ export function TypeIndexSheet({ testKey, onClose }) {
                     nothing. */}
                 {row ? (
                   <div style={{ flexShrink: 0, width: 66, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }} title={`${row.n} of the ${shares.typedN} ${shares.typedN === 1 ? 'person' : 'people'} counted here`}>
-                    <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{row.n === 0 ? 'none' : row.n + ' · ' + row.pct + '%'}</span>
+                    <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{row.n === 0 ? 'none' : smallBasis ? String(row.n) : row.n + ' · ' + row.pct + '%'}</span>
                     <span style={{ width: '100%', height: 4, borderRadius: 999, background: 'color-mix(in oklch, var(--ink-3) 16%, transparent)' }}><span style={{ display: 'block', width: (row.n / top) * 100 + '%', height: '100%', borderRadius: 999, background: you ? banner : `color-mix(in oklch, ${banner} 55%, var(--ink-3))` }}></span></span>
                   </div>
                 ) : LIVE.enabled ? null : (

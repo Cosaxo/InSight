@@ -119,3 +119,35 @@ describe("readPoliticalConsent", () => {
     expect(readPoliticalConsent(withConsent([1, 2]))).toBeNull();
   });
 });
+
+// ── withdraw, then grant again ──
+//
+// `off` is present-or-absent by design and the reason above is a good one.
+// The cost is that the record for a GRANT omits the field, and the consent
+// is written with `setDoc(…, { merge: true })` onto a nested map — where a
+// merge merges the map's FIELDS. Omitting `off` therefore does not remove
+// it: a withdrawal followed by a re-grant left the earlier `off` on the
+// server, `mayPublishPolitical` read it, and the consent could be withdrawn
+// and never granted again. It looked like it worked, because live.ts's
+// local copy replaces `political` wholesale — until the next hydrate read
+// the stored record back.
+//
+// Two halves, because the hazard and its removal live in different files.
+describe("re-granting after a withdrawal", () => {
+  it("is exactly what a nested merge would get wrong", () => {
+    const off = politicalConsentRecord(false, 1_000);
+    const on = politicalConsentRecord(true, 2_000);
+    // What Firestore stores when `on` is merged over `off`: field by field.
+    const merged = { ...off, ...on };
+    expect(merged.off, "the case no longer models the merge it is about").toBe(1_000);
+    expect(mayPublishPolitical({ consent: { political: merged } }),
+      "a re-grant merged over a withdrawal reads as withdrawn").toBe(false);
+    // …and with the field actually removed, which is what the writer must
+    // do, the same re-grant reads as granted.
+    expect(mayPublishPolitical({ consent: { political: on } })).toBe(true);
+  });
+
+  // The removal itself is asserted where it can be EXECUTED rather than
+  // read: vote.test.ts boots the store and replays both writes through a
+  // merge, which is the step this bug lived in.
+});
