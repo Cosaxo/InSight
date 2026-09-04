@@ -37760,6 +37760,22 @@ seeded *"new axioms surface where the joint model's residuals cluster"*
 D352 (*axiom power first*, 2026-09-02) never reached the charter, last
 amended 2026-09-01.
 
+**Dilution, not destruction — measured 2026-09-04, and it changes the
+remedy.** Claims that reason about the *perfect form* at all: **24 of 39
+(61%) at the seed, 34 of 129 (26%) now**. But the fall is almost
+entirely on the production side, not the destruction side — **20 of the
+24 seed claims still reason about the perfect form** (only `map-3`,
+`que-4`, `tst-2` and `tst-5` lost the framing), while of the **90 nodes
+added after the seed only 13 were born perfect-form, 14%**. The lanes
+did not lose the ambition; they stopped producing it.
+
+That rules out a revert or a wipe as the fix: 34 genuine perfect-form
+claims are standing, and a reset would destroy them to solve a birth-rate
+problem. The corpus splits rather than resets — those 34 stay, the rest
+goes to the salvage — and what changes is what gets rewarded, which is
+§13's gate. Three nodes (`bod-3`, `gen-8`, `tst-8`) show a lane growing
+a claim on its own initiative, so the ceiling was never the constraint.
+
 ### What this repo carries
 
 `AXIOM-POTENTIAL.md` (plan) — the missing half, written directly rather

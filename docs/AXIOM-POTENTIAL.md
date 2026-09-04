@@ -184,6 +184,27 @@ Almost every one replaced a **design claim about the ideal** with a
 what a ladder whose upper rungs are `cited` (matches existing
 literature) and `measured` (matches the existing app) will select for.
 
+**But the corpus was diluted, not destroyed — and that changes the
+remedy.** Measured the same way, on whether a claim reasons about the
+*perfect form* at all:
+
+| | Seed 2026-08-25 | Now |
+| --- | --- | --- |
+| Claims reasoning about the perfect form | **24 of 39 (61%)** | 34 of 129 (**26%**) |
+
+The percentage collapsed, but almost none of it was taken away: **20 of
+the 24 seed claims still reason about the perfect form**, and only four
+lost the framing (`map-3`, `que-4`, `tst-2`, `tst-5`). What actually
+happened is on the other side of the ledger — of the **90 nodes added
+after the seed, 13 were born perfect-form. 14%.**
+
+So the lanes did not lose the ambition. They **stopped producing** it,
+and spent nine days' output on something else. The remedy that follows
+is *not* a revert or a wipe: 34 genuine perfect-form claims are standing
+right now and a reset would destroy them to fix a birth-rate problem.
+Keep them, move the rest to the salvage, and fix what gets rewarded —
+which is what CHARTER §13's gate does.
+
 Eight are worth taking back. They are the lanes' own best ideas, and
 they were lost to the grading rather than refuted by it. In each case
 the newer evidence is right and stays — what returns is the ambition
@@ -246,6 +267,24 @@ by *shortening* rather than hedging: the axes list originally ended
 item was dropped in a later tidy. It is the one that matters most here
 — the whole point of a deep battery is reaching things nobody has ever
 measured.
+
+**Three claims that grew instead — the proof it was possible.** The
+drift was an incentive, not a ceiling, and three nodes show a lane
+reaching for more on its own:
+
+- **`bod-3`** was seeded *"self-report is a sensor with a knowable bias
+  model."* It now ends *"...and the two channels predict different
+  things, so the perfect axiom **routes** them, not ranks them."* A
+  strictly larger design claim than the seed.
+- **`gen-8`** generalised `gen-1`'s import principle from genomes to
+  *any* molecular self-measurement a person already holds — the lane
+  extending its own axiom rather than qualifying it.
+- **`tst-8`** exists because the lane noticed `tst-5` had lost its
+  design half to a literature finding and **fissioned it back out** as
+  a design composition. Self-correction, unprompted.
+
+Three times in ninety nodes. It was never impossible; it was never
+scored.
 
 **What is not recoverable, and should not be.** `pat-4`'s narrowing
 into the identification bound, `db-3`/`db-5`/`db-6`'s added precision,
