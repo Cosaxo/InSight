@@ -45,6 +45,24 @@ async function gh(path, { method = "GET", body } = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+/**
+ * Read a PR, waiting for GitHub to finish computing `mergeable`.
+ *
+ * Returns as soon as the field is a boolean. Gives up after the last attempt
+ * and returns the null-carrying payload — the caller reports that as "not
+ * yet" rather than as a conflict, which is the one reading of null that does
+ * not strand a mergeable PR.
+ */
+async function prWithMergeability(number, attempts = 5, waitMs = 2000) {
+  let pr;
+  for (let i = 0; i < attempts; i++) {
+    pr = await gh(`/repos/${REPO}/pulls/${number}`);
+    if (pr.mergeable !== null && pr.mergeable !== undefined) return pr;
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, waitMs));
+  }
+  return pr;
+}
+
 async function main() {
   const when = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
   const merged = [];
@@ -64,7 +82,18 @@ async function main() {
 
     // The list payload carries no `mergeable` — that is computed per PR, so
     // the labelled ones are fetched singly and the rest cost nothing.
-    const pr = await gh(`/repos/${REPO}/pulls/${brief.number}`);
+    //
+    // AND ASKING ONCE IS NOT ENOUGH. GitHub computes mergeability lazily: the
+    // first read of a PR STARTS the background job and returns
+    // `mergeable: null`, and only a later read carries the answer. Measured
+    // on this lane's first two live runs (2026-09-04 08:21 and 08:23), which
+    // both reported "GitHub has not finished computing mergeability" for a PR
+    // that was green and clean — one read each, two minutes apart, and the
+    // second was as null as the first because each run asked once and left.
+    // Polling here rather than deferring to the next run: a lane that hands
+    // the work to its own next fire is the shape that merged nothing for
+    // sixteen fires.
+    const pr = await prWithMergeability(brief.number);
     const checkRuns = await gh(`/repos/${REPO}/commits/${pr.head.sha}/check-runs?per_page=100`);
     const checks = (checkRuns.check_runs ?? []).map((c) => ({ name: c.name, status: c.status, conclusion: c.conclusion }));
 
