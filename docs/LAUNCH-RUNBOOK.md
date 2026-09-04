@@ -2088,7 +2088,123 @@ That is a tester-count problem, not a workflow problem.
       wishing the app served it live, that is the migration signal — and by
       then there is data worth migrating.
 
+- [ ] **5.14 The paid loop's three secrets and the Stripe webhook — the
+      whole self-serve money path, and it was on no list until D363.**
+      D313 and D315 shipped `functions/src/paid.ts` end to end: a buyer
+      composes in the app, an automated review rules on the ask, the price
+      comes off the committed rate card server-side, payment runs through
+      Stripe Checkout, and the paying webhook writes the purchase record
+      and the live question in one transaction. **Every one of those hops
+      is deployed and none of them can complete**, because three secrets
+      are unset. `DEPLOYMENT.md` § Environment has the table; what was
+      missing is any step that says to fill them in.
+
+      **The failure is deliberately quiet, which is why it needs a box.**
+      The deploy succeeds and logs a warning; bookings and reviews still
+      run. `createPaidCheckoutV2` answers `unavailable`, `stripeWebhookV2`
+      answers 503, and the closer records refund arithmetic without
+      executing it — so a buyer gets as far as an approved quote and then
+      into a dead end, and nothing pages anybody.
+
+      1. **`STRIPE_SECRET_KEY`** (GitHub → Secrets) — `sk_test_…` while
+         rehearsing, `sk_live_…` after. Checkout sessions and the closer's
+         refunds.
+      2. **`STRIPE_WEBHOOK_SECRET`** — and this one has an order to it.
+         Deploy first so `stripeWebhookV2` has a URL, add the Stripe
+         dashboard endpoint pointed at it, then store the `whsec_…` and
+         **re-run the deploy**, because the value only reaches the runtime
+         through the dotenv the deploy writes.
+
+         **Subscribe to all THREE events**, not just the obvious one:
+         `checkout.session.completed`,
+         `checkout.session.async_payment_succeeded` and
+         `checkout.session.async_payment_failed`. The checkout is created
+         without `payment_method_types`, so Stripe's dynamic methods
+         apply, and EUR's delayed ones (SEPA Direct Debit, bank transfer)
+         deliver `completed` with `payment_status: "unpaid"` and settle
+         hours or days later. Subscribing to `completed` alone leaves
+         every delayed-method buyer stuck at approved, having paid.
+      3. **`ANTHROPIC_API_KEY`** — the automated paid-question review.
+         Unset is **fail-open past the deterministic gates**, logged as
+         `paid_review_gates_only`: bookings still get approved, just
+         without the judgement half. That is the one of the three whose
+         absence does not stop the loop, which makes it the one to check
+         rather than assume.
+
+      **Rehearse on test keys before live ones.** The path has never run
+      against real Stripe, and the one alert that watches it
+      (`monitoring/paid-refund-stuck.json`, 5.5) is committed and not yet
+      armed — so today a stuck refund is silent twice over.
+
+      **This step does not decide WHETHER the door ships** — that is 6.0,
+      and it comes first. If 6.0 takes shape A the door leaves the binary
+      and these secrets are still needed, because the web side is what
+      keeps selling.
+
+- [ ] **5.15 Ads need no switch of their own, and that is the design.**
+      Recorded here because its absence reads like an omission. An ad is a
+      CARD that takes no answer and produces no data; a sponsored question
+      is a QUESTION that folds into the same public aggregate everyone
+      reads (D196 keeps the two apart on purpose). Since D315 a self-serve
+      ad is written by the payment webhook straight into `v2_ads` at
+      `paidad-*` ids — so **turning on ads is 5.14 and nothing else**.
+
+      `content/ads.json` is the committed pen for hand contracts and is
+      **empty deliberately**: writing a row there without a contract would
+      print a company's name on a card nobody bought, which is D1's
+      no-fabrication rule pointed at money. `check:content` holds the five
+      authoring rules — text only, no tap-through, a `until` window, at
+      most one audience tag matched on the device, and the app's own
+      disclosure band. Nothing here is a launch step; it is the answer to
+      "why is there no ads step".
+
 ## Phase 6 — Submit
+
+- [ ] **6.0 DECIDE THE PAID DOOR'S SHAPE — this is the step whose window
+      closes when you submit, and it was on no list until D363.**
+      [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is **plan only, nothing
+      adopted**, opened by the owner 2026-08-31 (*"How should we avoid
+      having to pay the cut to Apple and Google for paid questions?"*). It
+      recommends **shape A: the door is not in the app** — buying lives on
+      the web, the app keeps the results room — and gives two reasons that
+      are about timing rather than about money:
+
+      **Zero sales.** Every `booked` array in `content/pricing.json` is
+      still all zeros across city, country and world (verified 2026-09-04,
+      not assumed), so nothing migrates and no revenue is lost.
+
+      **The app has not been submitted.** The door has never been reviewed,
+      so under shape A it never has to be *removed*. Doing this after a
+      rejection costs a review cycle and a flag on the account.
+
+      **The risk it prices is a 3.1.1 anti-steering one, and it lands in
+      6.2.** The whole purchase funnel is in the binary today —
+      `SuggestOverlay` in `src/v2/spec/suggestions.jsx` is the rate card,
+      the scope ruler, the composer and the pay tap, entered from
+      `PaidMineCard` in the profile. D313's *"commerce stays on the web
+      side"* is true about where the payment form renders; the store rules
+      are about where the call to action lives, and that is the profile
+      tab. The category argument (3.1.3(e) forbids IAP for campaign
+      purchases; Play has never required its billing for ad spend) is
+      strong, and the app-shape argument is weak — a consumer app with a
+      €320 B2B door is Meta's "Boost Post" shape, and Meta lost it. **The
+      app shape is what gets reviewed.**
+
+      **And the link-out entitlement does not save it here**, which is the
+      load-bearing fact: Norway is EEA, not EU, so the DMA's link-out
+      permission likely does not apply to the first market this product
+      prices in. §7 of that plan flags it for verification and it is not
+      verified.
+
+      Shape A's build is small and scoped in §4 there — the overlay leaves
+      whole, `paidBookings.ts` goes with it, `AskedByYouOverlay` is
+      untouched because it already carries no purchase CTA. **It is a
+      decision, not a build**: record it in `DECISIONS.md` per
+      MONETIZATION.md's own rule, and the code follows in an afternoon.
+      Deciding to keep the door (shape C) is a legitimate answer and needs
+      the same record — what is not legitimate is arriving at 6.2 without
+      having chosen, because that is choosing C by default at the moment
+      it is most expensive.
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**
       ```bash

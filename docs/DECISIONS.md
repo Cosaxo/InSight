@@ -37821,3 +37821,70 @@ Firebase App Check management API can create them
 `enforcementMode` (`projects.services.patch`), so the console is a choice
 rather than a constraint. Establishing that as a workflow is its own
 decision, and it is not taken here.
+
+### 5 · Three money-path items that were on no list at all
+
+Added after the owner asked why Stripe, ads and BigQuery were absent from
+the answer above. One of the three was a reading failure and two were real
+gaps, and the gaps are the expensive kind: **a shipped pipeline with no
+step that turns it on**.
+
+**BigQuery was on the list** — `LAUNCH-RUNBOOK.md` 5.11 (the answers
+mirror, deliberately installed *with* the first real users so the weeks
+whose data is most worth having are covered) and 5.12 (Cloud Billing
+export, which turns the Authentication-tier question from a console hunt
+into a query). Both open, both correctly filed as post-launch. Nothing
+moved here except the answer's brevity.
+
+**Stripe was not, and the whole self-serve loop depends on it.** D313 and
+D315 shipped `functions/src/paid.ts` end to end — compose, automated
+review, server-side price, Stripe Checkout, and a webhook that writes the
+purchase record and the live question in one transaction. Three secrets
+are unset, `DEPLOYMENT.md` § Environment documents them, and **no step
+anywhere said to fill them in**. The failure is deliberately quiet:
+the deploy warns and succeeds, bookings and reviews still run,
+`createPaidCheckoutV2` answers `unavailable` and `stripeWebhookV2`
+answers 503 — so a buyer reaches an approved quote and a dead end with
+nothing paging anybody. Now runbook 5.14, with the webhook's ordering
+(deploy → endpoint → `whsec_` → re-deploy) and its three events, because
+subscribing to `checkout.session.completed` alone strands every
+delayed-method EUR buyer at approved, having paid.
+
+**Ads need no switch, and the absence was the design** — recorded at
+runbook 5.15 because an unexplained absence reads like an omission. Since
+D315 a self-serve ad is written by the payment webhook into `v2_ads` at
+`paidad-*`, so turning on ads *is* turning on Stripe. `content/ads.json`
+stays empty on purpose: a row without a contract prints a company's name
+on a card nobody bought, which is D1's no-fabrication rule pointed at
+money.
+
+### 6 · The step whose window closes at submission, and it was on no list either
+
+`STORE-CUT-PLAN.md` has been **plan only** since the owner opened it
+2026-08-31, and it is the one unadopted plan in this tree with an expiry
+date. It recommends shape A — the paid door is not in the app — and the
+two facts that make A nearly free are both facts about *timing*:
+
+- **Zero sales.** Every `booked` array in `content/pricing.json` is still
+  all zeros across city, country and world. Verified 2026-09-04 rather
+  than quoted: nothing migrates, no revenue is lost.
+- **The app has never been submitted**, so under shape A the door is never
+  *removed* — it simply was not there. Doing this after a rejection costs
+  a review cycle and a flag on the account.
+
+The exposure is guideline 3.1.1, and the plan's own reading of it is the
+honest one: the category argument is strong (3.1.3(e) *forbids* IAP for
+campaign purchases, and Play has never required its billing for ad spend),
+the app-shape argument is weak — a consumer app with a €320 B2B door in
+its profile tab is Meta's "Boost Post" shape, and Meta lost that — and
+**the app shape is what gets reviewed**. The link-out entitlement does not
+rescue it here: Norway is EEA, not EU, so the DMA permission likely does
+not apply to the first market this product prices in, which that plan's §7
+flags as unverified and which is still unverified.
+
+Filed as runbook **6.0**, immediately before the pre-flight, and as an
+owner decision. Keeping the door is a legitimate answer and needs the same
+record. What is not legitimate is reaching 6.2 without having chosen,
+because that is choosing to keep it at the moment the choice costs most —
+and a plan whose whole argument is *do this before you submit* had no
+place on the ordered list that says when you submit.
