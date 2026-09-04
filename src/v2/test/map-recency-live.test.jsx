@@ -110,7 +110,25 @@ describe("the Map's recency marks on a live build", () => {
     // return, not the fix.
     expect(container.querySelectorAll(".mmt-ddot, .mmt-pdot").length,
       "the Map drew no nodes, so this case is measuring its early return").toBeGreaterThan(0);
-    expect(container.querySelectorAll(".is-fresh").length,
+    // DAILY dots only. `.is-fresh` alone was the original assertion and it
+    // was too wide: learn dots carry `daily: true` as well, and their `age`
+    // is the order this device mastered them in, which is a real recency in
+    // live and demo alike. Counting them here is what made the first fix
+    // suppress a true signal.
+    expect(container.querySelectorAll(".is-fresh:not(.is-known)").length,
       "a demo bank position was drawn as a recently given answer").toBe(0);
+  });
+
+  it("still marks recently learned facts, whose age is a real order", () => {
+    // THE CONTROL, and the case the first version of this fix broke: learn
+    // dots are gated on `datesAreReal()` by nothing, because their age comes
+    // from LEARN.mastered() — the push order of mastery on THIS device — and
+    // not from the daily bank's calendar.
+    installLive();
+    const { container } = render(<MapTab></MapTab>);
+    expect(container.querySelectorAll(".is-known").length,
+      "no learn dots were drawn, so this case is vacuous").toBeGreaterThan(0);
+    expect(container.querySelectorAll(".is-fresh.is-known").length,
+      "recently learned facts stopped being marked on a live build").toBeGreaterThan(0);
   });
 });
