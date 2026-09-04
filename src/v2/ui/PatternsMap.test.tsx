@@ -56,6 +56,46 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("the idle card counts one pool, not two", () => {
+  // The card reads "<n> links hold across the <m> questions in the pool".
+  // `n` was filtered to the picked topic and `m` was not, so with a topic
+  // chosen neither number described anything real — and the topic word the
+  // sibling arm prints was missing, so nothing said the count had been
+  // narrowed. Every case in this file rendered `topic="all"`, which is the
+  // one value where the two agree.
+  const MIXED = [
+    item("sa", vec(1, 0), 1, "sport"),
+    item("sb", vec(0.9, 0.1), -1, "sport"),
+    item("fa", vec(0, 1), 1, "food"),
+    item("fb", vec(0.1, 0.9), -1, "food"),
+    item("fc", vec(-0.1, 0.8), null, "food"),
+  ];
+  const idle = (c: HTMLElement) => c.querySelector(".qm-idle")?.textContent ?? "";
+
+  it("counts only the picked topic's questions, and says which topic", async () => {
+    PATTERNS.say.mockResolvedValue(null);
+    const { container } = render(<PatternsMap items={MIXED} version={1} topic="sport" />);
+    const text = idle(container);
+    expect(text, "the idle card did not render — the case is vacuous").toContain("links hold across");
+    expect(text, "the whole pool's question count was printed beside a topic-filtered link count")
+      .toContain("across the 2 questions");
+    expect(text, "nothing on the line said the number was narrowed to a topic")
+      .toMatch(/in Sport/i);
+    expect(text).not.toContain("across the 5 questions");
+  });
+
+  it("still counts the whole pool when no topic is picked", async () => {
+    // THE CONTROL. Without it the case above is satisfied by a card that
+    // always filters, which would understate the count on the default view
+    // every reader starts from.
+    PATTERNS.say.mockResolvedValue(null);
+    const { container } = render(<PatternsMap items={MIXED} version={1} topic="all" />);
+    const text = idle(container);
+    expect(text).toContain("across the 5 questions");
+    expect(text, "the unfiltered card should name no topic").toContain("in the pool");
+  });
+});
+
 describe("the ring at rest", () => {
   it("draws every question and leads with the strongest link, basis stated", async () => {
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
