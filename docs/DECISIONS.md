@@ -37889,3 +37889,143 @@ so an unbounded field is a download every reader of that person pays
 for), and a 120-char cap on a circle take's `qid`, which the world branch
 four lines up already had. Neither touches the three labelled denies.
 Verified: nothing in the tree writes either stamp field.
+
+## D364 · The twelve axiom theory lanes are stopped: the corpus is kept, the queue is the bottleneck, and the switches are one account away
+
+**2026-09-04.** **Status:** binding. The owner, this afternoon:
+*"lets disable the axiom theory lanes they have not work as i hoped."*
+Twelve Routines stop. Nothing on `axiom-theory` is deleted, the bridge
+queue stays open, and the axiom builder — which reads that branch and
+is a different lane — is untouched. Written on
+`claude/disable-axiom-theory-lanes-ayxkjl`. **This number collides with
+open PR #395, which also holds D364** — `main` mints numbers while
+branches are open, and `check:docs` forbids a hole in the sequence, so
+D365 was not available to sidestep it. D289's collision pattern: whichever
+of the two merges second renumbers, and the shepherd moves it.
+
+### What the owner is ruling on
+
+Not a fresh judgement. The evaluation was done the same morning and
+its findings are PR #394, still open: `origin/axiom-theory` at
+`666dc65`, **46 commits over ten days, 129 claims on 381 edges, 588
+sources, $733.13 metered across 30 runs**, and the two numbers that
+matter — **one node of 129 reached `measured`**, and the bridge, which
+is the only path from theory into this repo, has crossed **two**
+requests ever (both on 2026-08-27, in one decision, D325) against
+**sixteen** `worth-building` verdicts stacked behind it. Zero worked
+cross-axis scenarios and zero visualisations, from a program whose
+charter §1 has demanded cross-axis connection since day one.
+
+The owner had already said, that morning, *"they have missed the
+point"* and *"nothing that has been created so far is axiom theory."*
+Today's sentence is the consequence, and it is the one call the cost
+work deliberately left open: `USAGE-REDUCTION.md` §7 says in terms
+*"It does not decide the theory program's worth… Stopping is the
+owner's call and is not taken here."* It is taken here.
+
+### What stops
+
+The twelve Routines on the `axiom-theory` branch, by trigger id, so
+the owner can walk them in one pass:
+
+| Lane | Trigger id | Slot (UTC) |
+| --- | --- | --- |
+| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/4 * *` |
+| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/4 * *` |
+| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/4 * *` |
+| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 3-31/4 * *` |
+| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 3-31/4 * *` |
+| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 3-31/4 * *` |
+| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 3-31/4 * *` |
+| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/4 * *` |
+| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/4 * *` |
+| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/4 * *` |
+| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 4-30/4 * *` |
+| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 4-30/4 * *` |
+
+**Disabled, never deleted** — the same rule the four ops lanes got at
+D359. A disabled Routine keeps its run history and comes back as one
+field; a deleted one takes ten days of provenance with it, and the
+owner's word was *disable*.
+
+At the four-day cadence D359 set, that is **3.43 runs a day at $24.44
+— about $84 a day, ~$2,500 a month** on a bucket whose own rate-limit
+status already reads `rejected` with overage included.
+
+### What does not stop, and why each one is deliberate
+
+- **The branch and everything on it.** `axiom-theory` is an orphan
+  branch carrying no product code; keeping it costs nothing and it is
+  ten days of provenance for every finding PR #394 draws. Nothing is
+  deleted.
+- **The bridge queue.** Sixteen `worth-building` verdicts are ruled
+  and unspent. They were the *evidence* that the constraint is
+  downstream, not upstream — which is exactly why stopping the
+  upstream is coherent and deleting the queue would not be.
+- **The axiom builder.** A different lane on a different account
+  (`trig_01TsTBR1xv8KBVJG9b38vPgn`, disabled 2026-09-04 08:45 UTC in
+  the usage reduction, with an open `OWNER-LIST.md` click to re-create
+  it at one run a day). It reads the theory branch; it does not write
+  it. With the corpus frozen it has sixteen priced verdicts and a full
+  graph to build from, and it is the half that reaches the product.
+  Stopping the writers does not stop the reader, and the owner's
+  sentence named the theory lanes.
+- **`AXIOMS.md`'s status words.** The roster's rows are the owner's
+  edit and no routine moves one (D352). Genetic and Body stay
+  `explored`; what changed is that no lane is writing their theory, and
+  that page now says so under its licence table without a row moving.
+- **The axiom dispatcher.** `session_01D44Wtdu5JfCYMJmYuKmLjc` relays
+  the axes lanes as well as these twelve, so it is not this decision's
+  to retire. Its rotation row on `OWNER-LIST.md` stays open and gets
+  cheaper: with the twelve gone it relays three lanes a week, and a
+  cycle's outage now costs almost nothing.
+
+### What this session could not do, measured
+
+**A session cannot disable another account's Routine.** These twelve
+belong to Claude 2 (`a571fec5-de26-4cd4-96d6-6b39579609f1`); this
+session runs on Claude 3 (`d277bf8a-05a0-43af-af2a-6a7a29136e76`).
+Probed rather than reasoned about: `update_trigger` on
+`trig_01Vx4tmhq3EVwySCjSESjrrW` with `enabled: false` returned
+**"failed to update trigger: the requested resource was not found"**.
+`list_triggers` from here returns six Routines, none of them a theory
+lane, which is the same one-account horizon `ROUTINES.md` §4 is about.
+
+So the twelve toggles are an owner click, and the row is on
+`OWNER-LIST.md` § Clicks with every id above. **Until that click, the
+lanes keep firing** — this record is the decision, not the mechanism,
+and saying otherwise would be the failure D148 named: a document
+quietly outranking what actually runs.
+
+### What was withdrawn with it
+
+- **The theory lanes' second set** (`PROGRAM-PLAN.md` §4.3, §9 Q1;
+  `PROGRAM-RUNBOOK.md` phase 4) — twelve more Routines on this
+  account at the opposite parity, priced at *"about the same again per
+  month as the twelve cost today."* It was the plan's recommendation
+  because it was the only reading that added capacity; capacity is not
+  what was short. Withdrawn, not deferred.
+- **The read budget** (`AXIOM-THEORY.md` § The read budget, an open
+  `OWNER-LIST.md` decision) — a charter amendment to make each run
+  read a bounded slice, worth ~$8 a run. Moot: the runs stop.
+- **The charter's potential amendment** — the perfect-form test, the
+  scale clause, the fifth status `demonstrated`, `graph/potential.mjs`,
+  committed and unpushed on `claude/charter-potential-2026-09-03`
+  pending the owner's push permission (PR #394's own deferral). It was
+  the fix for the drift; with the lanes stopped there is nothing left
+  for it to steer. It stays unpushed and is now a record of the
+  diagnosis rather than a pending change.
+
+### The finding worth keeping
+
+The lanes were re-paced twice and never re-aimed. The cadence dial
+was reachable from a session — one `update_trigger`, and D359 turned
+it twice — while the contract that decided what a run was *for* lived
+on an orphan branch behind a rule that no routine may amend it (D289
+§4). So every correction the program could make cheaply was a
+correction to *how often* the wrong thing happened. PR #394's
+archaeology is the same finding from the other end: 36 of 109 traced
+nodes had their claim rewritten, almost all of them swapping a design
+claim about the ideal for a status report on the app. **A dial that is
+easy to turn is not evidence it is the right dial**, and ten days of
+output is a cheaper way to learn that than another ten.

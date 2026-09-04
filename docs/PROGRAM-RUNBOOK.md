@@ -76,7 +76,7 @@ asked for — and the console draws its health from it.
 | **The console improver** | Claude 3 | `0 14 * * 0` | `claude-fable-5-1` | § The console improver | never |
 | **The to-do doer, Claude 3** | Claude 3 | `0 18 * * *` | the list worker's (`OPS-RUNBOOK.md`) | `OPS-RUNBOOK.md` § The list worker, with § The to-do doers' tag rule | never |
 | **The to-do doer, Claude 1** | Claude 1 — the owner creates it | `0 16 * * *` | same | same | never |
-| **The theory lanes, second set** | Claude 3 | the charter's slots on the opposite parity | the charter's | `CHARTER.md` on `axiom-theory` | never — not `main` at all |
+| **The theory lanes, second set** — **WITHDRAWN (D364)** | Claude 3 | — | — | — | the twelve it would have doubled are stopped; phase 4 is not taken |
 | **The roll call, Claude 3** | Claude 3 | `40 15 * * *` | `claude-sonnet-5` | `OPS-RUNBOOK.md` § The roll call, scoped to this account — § The other subscriptions has the twin's block | n/a (read-only) |
 | **The roll call, Claude 1** | Claude 1 — the owner creates it | `35 15 * * *` | `claude-sonnet-5` | same, scoped to that account | n/a (read-only) |
 
@@ -200,6 +200,14 @@ log** like the list worker they are.
       per lane. · **Size:** S.
 
 ## Phase 4 — the theory lanes' second set
+
+**WITHDRAWN 2026-09-04 (D364)** — the twelve theory lanes this phase
+would have doubled are stopped on the owner's word. Steps 4.1–4.4 are
+not taken; they are kept below as the shape a second set would have
+had, and 4.1 (exporting the twelve prompts) survives its phase as the
+one useful half — the prompts exist only in Claude 2's Routines, and a
+disabled Routine's prompt is still readable there. Its row on
+`OWNER-LIST.md` stays open for that reason.
 
 - [ ] **4.1 [owner] Export the twelve prompts.** They live only in
       Claude 2's Routines; `list_triggers` from that account returns

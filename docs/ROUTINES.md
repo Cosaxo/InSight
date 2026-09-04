@@ -226,30 +226,44 @@ has no rows.
 
 ### The theory lanes — twelve, on the orphan `axiom-theory` branch
 
-**Re-paced 2026-09-03 to a four-day cycle** (D359): every lane runs every
-fourth date instead of every second, and the subject/reader alternation the
-old odd/even split gave is kept rather than lost — subject days are the 1st
-and 3rd of each cycle, reader days the 2nd and 4th, so a reader still works
-on subject output at most a day old. Three or four lanes share a date
-instead of seven, which also keeps a day's lanes out of one five-hour
-rate-limit window. All twelve dispatch through the Axiom dispatcher into a
-fresh session, write the `axiom-theory` branch and nothing else, and never
-touch `main`.
+**STOPPED 2026-09-04 (D364)** — the owner: *"lets disable the axiom theory
+lanes they have not work as i hoped."* All twelve are **disabled, not
+deleted**, on the D359 rule: a disabled Routine keeps its run history and
+returns as one field, and ten days of provenance is not worth a delete.
+The branch, the corpus and the sixteen open bridge verdicts are kept whole;
+the axiom builder, which reads that branch and does not write it, is
+untouched. `AXIOM-THEORY.md` § The lanes are stopped has what it rests on.
 
-| Lane | Trigger id | Slot (UTC) | Dates of the month |
-| --- | --- | --- | --- |
-| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/4 * *` — 02:02 | 1, 5, 9 … 29 — subject day |
-| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/4 * *` — 09:02 | 1, 5, 9 … 29 — subject day |
-| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/4 * *` — 10:02 | 1, 5, 9 … 29 — subject day |
-| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 3-31/4 * *` — 11:02 | 3, 7, 11 … 31 — subject day |
-| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 3-31/4 * *` — 12:02 | 3, 7, 11 … 31 — subject day |
-| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 3-31/4 * *` — 13:02 | 3, 7, 11 … 31 — subject day |
-| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 3-31/4 * *` — 14:02 | 3, 7, 11 … 31 — subject day |
-| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/4 * *` — 08:02 | 2, 6, 10 … 30 — reader day |
-| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/4 * *` — 09:02 | 2, 6, 10 … 30 — reader day |
-| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/4 * *` — 10:02 | 2, 6, 10 … 30 — reader day |
-| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 4-30/4 * *` — 11:02 | 4, 8, 12 … 28 — reader day |
-| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 4-30/4 * *` — 12:02 | 4, 8, 12 … 28 — reader day |
+**The state column is the state this register asks for, not the state the
+platform is in.** These twelve belong to Claude 2 and no session can
+disable another account's Routine — probed 2026-09-04, `update_trigger` on
+`trig_01Vx4tmhq3EVwySCjSESjrrW` returned *"the requested resource was not
+found"* — so **until the owner flips them in that account's Routines web UI
+they keep firing on the slots below**. The click, with every id, is on
+`OWNER-LIST.md` § Clicks. Rule 2's whole point, one field over: a schedule
+read off this page is a belief, and the bound account is what runs.
+
+**The cadence they are stopped from** (re-paced 2026-09-03 to a four-day
+cycle, D359): every lane every fourth date, subject days the 1st and 3rd of
+each cycle and reader days the 2nd and 4th, so a reader still worked on
+subject output at most a day old. All twelve dispatch through the Axiom
+dispatcher into a fresh session, write the `axiom-theory` branch and
+nothing else, and never touch `main`.
+
+| Lane | Trigger id | Slot (UTC) | Dates of the month | State |
+| --- | --- | --- | --- | --- |
+| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/4 * *` — 02:02 | 1, 5, 9 … 29 — subject day | **disabled (D364)** — pending the owner's click |
+| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/4 * *` — 09:02 | 1, 5, 9 … 29 — subject day | **disabled (D364)** — pending the owner's click |
+| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/4 * *` — 10:02 | 1, 5, 9 … 29 — subject day | **disabled (D364)** — pending the owner's click |
+| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 3-31/4 * *` — 11:02 | 3, 7, 11 … 31 — subject day | **disabled (D364)** — pending the owner's click |
+| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 3-31/4 * *` — 12:02 | 3, 7, 11 … 31 — subject day | **disabled (D364)** — pending the owner's click |
+| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 3-31/4 * *` — 13:02 | 3, 7, 11 … 31 — subject day | **disabled (D364)** — pending the owner's click |
+| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 3-31/4 * *` — 14:02 | 3, 7, 11 … 31 — subject day | **disabled (D364)** — pending the owner's click |
+| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/4 * *` — 08:02 | 2, 6, 10 … 30 — reader day | **disabled (D364)** — pending the owner's click |
+| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/4 * *` — 09:02 | 2, 6, 10 … 30 — reader day | **disabled (D364)** — pending the owner's click |
+| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/4 * *` — 10:02 | 2, 6, 10 … 30 — reader day | **disabled (D364)** — pending the owner's click |
+| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 4-30/4 * *` — 11:02 | 4, 8, 12 … 28 — reader day | **disabled (D364)** — pending the owner's click |
+| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 4-30/4 * *` — 12:02 | 4, 8, 12 … 28 — reader day | **disabled (D364)** — pending the owner's click |
 
 ### The doc sweep and the night shift
 
@@ -480,7 +494,7 @@ Six more were chartered on the same account the same day, by D352's
 | The console keeper | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | n/a |
 | The console improver | `0 14 * * 0` | `claude-fable-5-1` | never |
 | The to-do doer (Claude 3) | `0 18 * * *` | the list worker's | never |
-| Twelve theory lanes, second set | opposite days, once phase 4 lands | the charter's | lands on `axiom-theory` |
+| Twelve theory lanes, second set — **WITHDRAWN (D364)** | — | — | the twelve it would have doubled are stopped |
 
 The console workflow is the one piece of the program with no account at
 all — GitHub Actions running `scripts/console.mjs` — so it is the only

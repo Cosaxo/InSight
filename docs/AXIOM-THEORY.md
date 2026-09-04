@@ -1,7 +1,17 @@
 # Axiom Theory — the theory layer, and its bridge into the product
 
-**Status: operating since 2026-08-25.** This page is the product-side
-record of a system that lives OUTSIDE the product: twelve recurring
+**Status: STOPPED 2026-09-04 (D364) — the record of a program that
+ran, not of one that runs.** The owner: *"lets disable the axiom theory
+lanes they have not work as i hoped."* Twelve Routines are disabled and
+none is deleted; the branch, the corpus and the bridge queue are kept
+whole; the axiom builder, which reads that branch and does not write
+it, is untouched. **Everything below describes the system in the
+present tense because that is how it operated for ten days** — read it
+as history, and read § The lanes are stopped first for what changed and
+for the one click that actually stops the spend.
+
+This page is the product-side record of a system that lived OUTSIDE
+the product: twelve recurring
 Claude lanes on the orphan branch `axiom-theory` of this repo — eleven
 writing theory (two of them, ties and interests, chartered 2026-09-01
 at D347), and since D346 one scoring their work every second night. **`CHARTER.md` at that branch's root is canonical** for
@@ -10,6 +20,50 @@ product needs to know — where the system is, what may cross from it
 into the tree, and the account-side inventory. If the two disagree,
 the charter is right about the lanes and this page is right about the
 bridge.
+
+## The lanes are stopped (D364, 2026-09-04)
+
+**The owner's word:** *"lets disable the axiom theory lanes they have
+not work as i hoped."* D364 is the record and carries the arithmetic;
+this section is what a reader of this page needs.
+
+**What it rests on.** Ten days measured: 46 commits, 129 claims on 381
+edges, 588 sources, **$733.13 across 30 runs**. One node of 129 reached
+`measured`. The bridge — the only path from theory into the product —
+crossed **two** requests, both on 2026-08-27 in one decision (D325),
+against **sixteen** `worth-building` verdicts stacked behind it — the
+ledger's real count, measured by PR #394, which is still open, so
+`OWNER-LIST.md` and `USAGE-REDUCTION.md` §7 still say *ten* until it
+lands and that PR is the one that corrects them. Zero
+worked cross-axis scenarios, zero visualisations, from a charter whose
+§1 has demanded cross-axis connection since day one. The owner had
+already ruled that morning: *"they have missed the point"*, *"nothing
+that has been created so far is axiom theory."*
+
+**What stops:** the twelve Routines, listed with their trigger ids in
+D364 and in `ROUTINES.md` § The theory lanes. **Disabled, never
+deleted** — a disabled Routine keeps its history and returns as one
+field.
+
+**What does not stop:** the `axiom-theory` branch and everything on it;
+the sixteen open bridge verdicts, which were the evidence that the
+constraint is *downstream*; and the axiom builder, a different lane on
+a different account that reads this branch to build product. The bridge
+below is therefore still the only legitimate crossing, and still open —
+what stops is the writing of new theory, not the carrying of what
+exists.
+
+**The one thing this repo could not do.** The twelve Routines belong to
+Claude 2's account and no session can disable another account's
+Routine: probed, `update_trigger` returns *"the requested resource was
+not found"*. **Until the owner flips them in the Routines web UI the
+lanes keep firing**, and the click is on `OWNER-LIST.md` with every id.
+
+**Withdrawn with them:** the second set (`PROGRAM-PLAN.md` §4.3), the
+read budget below, and the unpushed charter amendment on
+`claude/charter-potential-2026-09-03`. The read-budget section that
+follows is kept as the arithmetic that was true, not as a decision
+still waiting.
 
 ## What it is
 

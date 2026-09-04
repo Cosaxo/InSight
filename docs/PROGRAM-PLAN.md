@@ -410,7 +410,7 @@ for this account in the PR that creates it.
 | **The to-do doer, Claude 1** — *the owner creates it on that account* | `0 16 * * *` | the list worker's | items tagged `[claude-1]` | same | never |
 | **The console keeper** (§5) | `45 5 * * *` and `45 17 * * *` | `claude-sonnet-5` | run logs, the register, the lists, GitHub state, the theory branch's digest and scores, the pulse trail | the console page; `OWNER-LIST.md`'s folded rows; `MERGE-LIST.md`'s state columns | n/a |
 | **The console improver** | Sundays `0 14 * * 0` | `claude-fable-5-1` | a week of console output, the run logs, what the owner asked for | one docs-and-scripts PR adding panels — never removing one | never |
-| **The theory lanes, second set** (§4.3) | the charter's slots on the *opposite* parity, if Q1 says so | the charter's | the charter's | `axiom-theory` only | never (not `main` at all) |
+| **The theory lanes, second set** (§4.3) — **WITHDRAWN (D364)** | — | — | — | — | the twelve it would have doubled are stopped |
 
 ### 4.1 The axiom maker — what a run does
 
@@ -498,6 +498,17 @@ minutes per PR in the daytime passes, the night pass three hours,
 nothing begun past the last thirty minutes of either.
 
 ### 4.3 The theory lanes on this account
+
+**WITHDRAWN 2026-09-04 (D364).** The owner stopped the twelve theory
+lanes — *"lets disable the axiom theory lanes they have not work as i
+hoped"* — so a second set of them is not built. The three readings
+below are kept as the pricing that was done, not as a choice still
+open; §9 Q1 is answered by that decision rather than by this section.
+The recommendation was *"the only reading that adds capacity"*, and
+what ten days measured is that capacity was not what was short: one
+node of 129 reached `measured` and the bridge crossed two requests
+against sixteen ruled verdicts. `AXIOM-THEORY.md` § The lanes are
+stopped is the record's product-side half.
 
 The owner: *"you will get the same routines as claude session 2 for
 improving axiom theory."* Three readings, priced:
@@ -627,9 +638,10 @@ share a minute with a content lane's self-merge.
    — *Gate:* `test:scripts` on the renderer; the issue body refreshes.
 5. **The other accounts' halves** — the Claude 1 doer, the four
    uncreated ops lanes in whichever web UI the owner chooses (the PR
-   shepherd first: it is the door), the theory lanes' second set if Q1
-   says so. — *Gate:* the register's rows, verified from
-   `list_triggers` on the owning account.
+   shepherd first: it is the door). The theory lanes' second set was
+   the third item here and is **withdrawn (D364)**. — *Gate:* the
+   register's rows, verified from `list_triggers` on the owning
+   account.
 
 ## 8 · What this plan deliberately does not do
 
@@ -709,6 +721,9 @@ what the runbook builds from. Every one is binding on adoption
 1. **The theory lanes:** *"second set opposite days."* — Claude 3 runs
    the subject lanes on even dates and the reader lanes on odd, the
    review lane on even nights; every lane fires daily. Runbook phase 4.
+   **Superseded 2026-09-04 by D364**, which stops the first set: the
+   answer stands as what was asked for on 2026-09-02, and there is no
+   second set to build. The quote is left as the owner wrote it.
 2. **Approval:** *"the ops runbook says … only you may put it on a PR,
    never a routine — this is wrong, the shepherd can. a second label
    called approved sounds like the way and it should be done by

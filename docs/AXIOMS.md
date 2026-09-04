@@ -13,6 +13,14 @@ and the section is a licence:
 | **explored** | a lane writes its theory on `axiom-theory` | may build measurement that crosses the bridge — instruments, folds, scorecard fields — never a user-facing surface for the axiom |
 | **operational** | as above | may build product code toward it — surfaces, folds, store, doors — under the governed process as always (a record, the store forms, consent built where law asks it) |
 
+**The theory-lane column is frozen (D364, 2026-09-04).** The twelve
+lanes are stopped on the owner's word, so *"a lane writes its theory on
+`axiom-theory`"* describes what exists on that branch, not something
+still being written. **No row moves and no status word changes here** —
+the builder's licence is exactly what it was, and with the corpus frozen
+it reads a finished graph and sixteen ruled bridge verdicts instead of a
+growing one. `AXIOM-THEORY.md` § The lanes are stopped is the record.
+
 **Moving a row is the owner's act:** move it to the section you mean
 and commit to `main`. The builder's next plan reads the new word
 (the owner's answer 8, 2026-09-02: *"when status shifts it can start
