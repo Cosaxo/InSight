@@ -938,17 +938,21 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
     optionIdx: 0, editedAt: serverTimestamp(),
   }));
 let lpub = null;
-for (let i = 0; i < 40; i++) {
+// The learn surface is the first time this aggregate TYPE reaches the database,
+// so the trigger has no warm cache. Like the 1.0 answer's first fold (lines 164–178),
+// this wait pays the cold start and Eventarc setup costs for its first trigger
+// delivery. A client that sees this timeout is waiting on a trigger that has not
+// yet landed, and the failure reads as a counts mismatch on null. Two failures,
+// two messages — so a TIMEOUT here reports itself as a privacy regression, which
+// sends the next person hunting for one and cost an all-afternoon detour on 2026-08-05.
+// Raised rather than retried: a first-delivery window that is sometimes too short is
+// a flaky suite, and the cost of a longer ceiling is zero on every run that does not need it.
+for (let i = 0; i < 60; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
   if (snap.exists()) { lpub = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-// Two failures, two messages — the same split the world-question check at
-// the top of this file already makes. Collapsed into one, a TIMEOUT here
-// reports itself as a counts mismatch on null, which reads as a privacy
-// regression and sends the next person hunting for one. It cost exactly
-// that detour on 2026-08-05.
-if (!lpub) fail(`learn public agg never appeared after ${40 * 500}ms — the trigger did not fire, or did not finish in time`);
+if (!lpub) fail(`learn public agg never appeared after ${60 * 500}ms — the trigger did not fire, or did not finish in time`);
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
 if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
