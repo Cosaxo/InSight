@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 387 lines instead of
-39,082. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 388 lines instead of
+39,134. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -401,3 +401,4 @@ detect it.
 |  | ↳ *amendment 2026-09-05* — [The door is out of the binary, and it had five entry points rather than one](DECISIONS.md#d368-amendment-2026-09-05--the-door-is-out-of-the-binary-and-it-had-five-entry-points-rather-than-one) | — | 38812 |
 | **D369** | [The web ask door is built: an adapter, a page, and the two things that stood between it and a buyer](DECISIONS.md#d369--the-web-ask-door-is-built-an-adapter-a-page-and-the-two-things-that-stood-between-it-and-a-buyer) | — | 38879 |
 | **D370** | [Night shift B goes back to five flows — the audit stops at a commit cap, not at the clock](DECISIONS.md#d370--night-shift-b-goes-back-to-five-flows--the-audit-stops-at-a-commit-cap-not-at-the-clock) | — | 39011 |
+|  | ↳ *amendment 2026-09-05* — [The owner rules the cap at 16, and the tool refuses a second time](DECISIONS.md#d370-amendment-2026-09-05--the-owner-rules-the-cap-at-16-and-the-tool-refuses-a-second-time) | — | 39083 |

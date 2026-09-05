@@ -39079,3 +39079,55 @@ same one paste at claude.ai/code/routines that L1's half needed, and
 this record does not make that change or recommend a number for it
 without a night measured at five flows first. `OWNER-LIST.md` carries
 the row.
+
+## D370 amendment (2026-09-05) · The owner rules the cap at 16, and the tool refuses a second time
+
+Written forty minutes after the record above, which had declined to
+recommend a number until a night at five flows was measured. The owner
+did not wait for the measurement: *"raise the commit cap to 16 too."*
+That is theirs to set, so the number is 16 and the paragraph above is
+overtaken rather than wrong.
+
+**Two numbers move, not one.** The stop rule's `8 commits have landed
+in this flow` → `16`, and with it `The open list is capped at 8.` → `16`.
+The second is not scope creep and not a separate decision: the open list
+is the backlog the fixes are drawn from, so a 16-commit flow fed by an
+8-item list simply makes the list the new binding constraint one level
+down — the identical failure this record was opened to close. Raising
+only the stop rule would have left the flow re-auditing mid-flow to
+refill an 8-item list, which is a second fan-out per flow and the cost
+the 2026-09-03 brief was right to dislike.
+
+**The refusal is now measured twice, from two sessions, two days
+apart, verbatim both times:** *"editing the prompt of a routine whose
+fires deliver into a session that is not your own is not available via
+this tool."* The attempt was made in full — the complete 15,299-byte
+prompt, not a probe — precisely because this repo's rule is to verify
+rather than assume, and a refusal recorded once from one session is not
+a property of the tool. It is now.
+
+**A rejected prompt edit changes nothing, and that is measured too.**
+The stored prompt was read back after the refusal and was byte-identical
+to the copy taken before it (15,297 bytes, `updated_at` still the
+21:17:55 cron change), with the cron and the armed 22:00 firing intact.
+Worth writing down because the attempt was made ~35 minutes before a
+live firing: had the call half-applied, the night would have run a
+corrupted brief. It cannot.
+
+**What the owner has to do, reduced to one copy.**
+`design/night-shift-b-brief-live.md` is the lane's live brief with both
+numbers already at 16 — everything above its `---` is the paste, and it
+was generated from the prompt read back out of `list_triggers` with the
+two substitutions applied programmatically, never retyped. A hand-copied
+15 kB brief is the silent-drift failure this tree keeps re-committing;
+`check:figures` exists because of the same class. Paste it at
+claude.ai/code/routines, and **never** delete-and-recreate: the bound
+session holds the standing push authorization, and a Routine that loses
+it audits all night and pushes nothing.
+
+**A gap closes on the way past.** `PROGRAM-PLAN.md` records that neither
+night shift has a product document — the briefs live only in Routines
+that a single account can read. Shift B's now exists in the tree as the
+file above. It is a mirror, not a source: true as of its date, and to be
+re-read from `list_triggers` before it is trusted, the same rule
+`ROUTINES.md` §1 sets for trigger ids.

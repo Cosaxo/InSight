@@ -104,6 +104,17 @@ from the schedule side. Rule 2 with a second edge on it: a row can be a
 faithful reading of `list_triggers` and still record a Routine at odds
 with its own prompt, and only reading both together shows it.
 
+**One change to this lane is pending a click and is not in the table
+above, because the table records what fires.** The owner set the
+per-flow commit cap to 16 the same evening (D370 amendment); the same
+tool that re-paced the schedule refuses to edit the prompt of a Routine
+bound to another session, twice measured now. Until the owner pastes
+`design/night-shift-b-brief-live.md` the lane runs five flows at the
+old cap of 8. That file is also this shift's product document — the
+gap `PROGRAM-PLAN.md` records for both night shifts — and it is a
+mirror of an account-only prompt, so rule 2 applies to it exactly as it
+does to a trigger id: re-read `list_triggers` before trusting it.
+
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
 | Nightly algorithm improvement **(DISABLED 2026-09-03)** | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |

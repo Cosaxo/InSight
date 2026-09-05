@@ -95,7 +95,14 @@ Four more facts the design leans on:
   that, the thing that reads each lane's `THEORY.md` and builds toward
   it without waiting to be asked (§4.1).
 - **Two night shifts have no product document.** Their briefs live in
-  their Routines (D326 §2 records only the closing flow's shape). The
+  their Routines (D326 §2 records only the closing flow's shape) —
+  half-closed 2026-09-05: shift B's is now mirrored in the tree as
+  `design/night-shift-b-brief-live.md`, written because the owner has
+  to paste a prompt edit that no tool will apply (D370 amendment). It
+  is a mirror of an account-only prompt and true only as of its date,
+  which is the weaker thing than a contract, but it is readable by all
+  three accounts and the Routine is not. Shift A's brief is still
+  nowhere in the tree. The
   PR-scoped shift the owner wants is best written as a contract in the
   tree from day one, the way `OPS-RUNBOOK.md` was — the doc sweep and
   the now lane both fired ahead of their contracts and no-opped for
