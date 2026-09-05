@@ -402,7 +402,13 @@ export class DailySplit extends React.Component {
     if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
     // The consequence beat animates SIDES; ten steps of one scale are not
     // sides, so a rating goes straight to its result (D305).
-    this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating') ? S.id : null }));
+    this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', // …and never on a crowd that has published nothing: the beat's entire
+    // payload is a crowd claim ("100% chose X — you're with them"), and the
+    // only crowd there is at that moment is you. Gated HERE rather than at
+    // the render branch, because `st.beat` also gates the live Takes and
+    // Who-voted doors below (`st.beat !== S.id`) — skipping the render with
+    // `beat` still set would strand it and take both doors with it.
+    beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating' && !(S.live && S.noCountsYet)) ? S.id : null }));
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
@@ -720,6 +726,23 @@ export class DailySplit extends React.Component {
     // the COUNTS now — see `leads` under the shares — for the tie the
     // rounding creates rather than the one the rounding inverts.
     const rp = sharePcts(counts);
+    // NOTHING HAS PUBLISHED, SO NOTHING MAY BE DRAWN AS A SPLIT.
+    //
+    // `counts` is the published aggregate plus your own vote, so before the
+    // fold has landed anything it is `[…,1,…]` and `sharePcts` answers
+    // [100, 0]. The result stage then printed a 25px "100%" over your side
+    // and "0%" over the other, the tiles drew the same split as geometry,
+    // and one line lower `resultNote` said "You're first — the count lands
+    // in a moment". The front door stated a crowd conclusion and denied it
+    // in the same frame. This is the first voter after every UTC rotation.
+    //
+    // The feed has ruled on this state three times already — world-feed.jsx
+    // routes a floored card off the tiles, suppresses the numeral, and gates
+    // a duel's shares with the reason that drawing one without the other
+    // "would publish the split geometrically instead of numerically, which
+    // is the same disclosure in a different alphabet". The daily was the one
+    // answer surface with no such gate.
+    const floored = !!(S.live && S.noCountsYet);
     const myIdx = S.options.findIndex(o => o.id === myVote);
     // THE WINNER IS THE BIGGEST COUNT, not the biggest drawn percentage.
     // `rp` is rounded, so two different counts land on the same integer —
@@ -1031,7 +1054,7 @@ export class DailySplit extends React.Component {
                 } : {};
                 return h('div', { ...lp, style: { display: 'flex', flexDirection: 'column', gap: 9, padding: '2px 2px 0', transform: st.pressing ? 'scale(0.985)' : 'none', transition: 'transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: canChange ? 'pointer' : 'default' } },
                   h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8 } },
-                    h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, avg ? (Math.round(avg * 10) / 10).toFixed(1) : '—'),
+                    h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, (avg && !floored) ? (Math.round(avg * 10) / 10).toFixed(1) : '\u2014'),
                     h('span', { style: { fontWeight: 700, fontSize: 12.5, color: 'var(--ink-3)' } }, '/ ' + S.options.length + ' average'),
                     myIdx >= 0 && h('span', { style: { marginLeft: 'auto', fontWeight: 700, fontSize: 12.5, color: 'var(--ink-2)' } }, 'you said ' + (myIdx + 1))),
                   h(RatingRidge, { counts, mine: myIdx, color: topicCol, height: 64 }));
@@ -1053,7 +1076,7 @@ export class DailySplit extends React.Component {
                 'aria-label': o.label + ' \u2014 your vote. Hold to change it.',
               } : {};
               // the option tiles ARE the chart — each one's height is its share
-              return h('div', { key: o.id, ...lp, style: { flex: Math.max(rp[i], 9) + ' 1 0', minHeight: 46, minWidth: 0, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
+              return h('div', { key: o.id, ...lp, style: { flex: (floored ? 10 : Math.max(rp[i], 9)) + ' 1 0', minHeight: 46, minWidth: 0, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
               // a side reads bottom-up when the tiles are columns, so the
               // label sits under its own number rather than beside it
               h('div', { style: two
@@ -1073,7 +1096,7 @@ export class DailySplit extends React.Component {
                   }, S.friends.filter(f => f.opt === o.id).map(f =>
                     h('span', { key: f.name, title: f.name, style: { width: 8, height: 8, borderRadius: '50%', background: o.color, boxShadow: '0 0 0 1.5px color-mix(in oklch, var(--surface) 70%, transparent)' } })))),
                 // every side gets its number; only the winner gets the big one
-                h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: leads(i) ? 25 : 15, letterSpacing: '-0.03em', color: leads(i) ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
+                floored ? null : h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: leads(i) ? 25 : 15, letterSpacing: '-0.03em', color: leads(i) ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
             })),
             // one quiet meta line; the map-add confirmation pops in on its right and fades on its own
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 } },
@@ -1158,7 +1181,7 @@ export class DailySplit extends React.Component {
       (voted && st.condensed) && h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 15px', borderRadius: 999, border: LINE, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', animation: 'popIn .25s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('span', { style: { flex: 1, minWidth: 0, fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, S.text),
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
-          S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
+          S.options.map((o, i) => h('span', { key: o.id, title: floored ? o.label : o.label + ' \u00b7 ' + rp[i] + '%', style: { width: (floored ? 100 / S.options.length : rp[i]) + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
       // The pulses due today (D139, roster at D203): the fixed instruments
       // on the World day, compact, beside the blind daily — same contract

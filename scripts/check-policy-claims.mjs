@@ -127,6 +127,18 @@ export const CLAIMS = [
     /~200-metre grid square/i],
   ["D175 · the retired kilometre claim is gone",
     (src) => !/kilometre-sized/i.test(src)],
+  // D175's other half, and the one this file's own header warned about: a
+  // promise left behind by a change three commits away. D175 made the app
+  // request a PRECISE fix, and the page went on saying it asked for "an
+  // approximate location" — for a year, through the very sweep that was
+  // opened because three of these claims were stale. The page now says who
+  // decides the precision, and the second row is the promise the refusal in
+  // locate.ts makes true: an approximate grant does not become a guessed
+  // square.
+  ["D175 · the page does not claim the app asks only for an approximate fix",
+    (src) => !/ask your device for an approximate location/i.test(src)],
+  ["D175 · a fix too coarse for the square is refused, not guessed",
+    /says it cannot place you rather than guessing a square/i],
   ["D84 · no user can read your presence square",
     /No other user can ever read your square/i],
   ["D177 · the people in your square see your name, type and answers",

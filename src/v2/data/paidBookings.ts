@@ -88,6 +88,8 @@ function wireAuth(): void {
     if (next !== uid) {
       uid = next;
       // A different account's bookings must never render under this one.
+      gen += 1;
+      loading = null;
       rows = null;
       notify();
     }
@@ -97,6 +99,21 @@ function wireAuth(): void {
 // ── the session cache ───────────────────────────────────────────────────
 let rows: MyBooking[] | null = null;
 let loading: Promise<MyBooking[]> | null = null;
+// The account this store's in-flight read belongs to, as a counter rather
+// than a uid: an A -> B -> A round trip inside one flight would compare
+// equal on the uid and commit anyway. Bumped on every account change; a
+// flight whose generation has moved on commits nothing and does not clear
+// the in-flight slot the NEXT flight now owns.
+//
+// The bug it closes, and it is the same one in all three of these stores:
+// `rows` was cleared on the account change and the still-running closure
+// then assigned the previous account's bookings over the top, unconditionally. Nothing
+// else clears `rows` and this store registers no purge listener, so the
+// wrong account's data stayed for the session. Kept identical to
+// purchases.ts on purpose: three copies of one store shape, and the fix
+// decays the moment one of them drifts.
+let gen = 0;
+
 const listeners = new Set<() => void>();
 function notify(): void {
   listeners.forEach((f) => f());
@@ -156,12 +173,17 @@ export function loadBookings(force = false): Promise<MyBooking[]> {
   if (rows && !force) return Promise.resolve(rows);
   if (loading) return loading;
   loading = (async () => {
+    // Captured AFTER the wait below, not here: the first auth emission is a
+    // change from null and bumps `gen`, and a first load must not disown
+    // itself over the uid it was waiting for.
+    let myGen = gen;
     try {
       if (!uid) {
         // First call can beat the auth emission; one turn of the
         // microtask queue is enough for the cached-credential path, and
         // a genuinely signed-out session correctly loads nothing.
         await new Promise((r) => setTimeout(r, 0));
+        myGen = gen;
         if (!uid) return rows ?? [];
       }
       const db = await getDb();
@@ -172,11 +194,17 @@ export function loadBookings(force = false): Promise<MyBooking[]> {
       const next = snap.docs
         .map((d) => parseRow(d.id, d.data() as Record<string, unknown>))
         .sort((a, b) => (b.atMs ?? 0) - (a.atMs ?? 0));
+      // The account changed under this read. Commit nothing: `rows` is the
+      // new account's null, and the caller gets whatever that account has.
+      if (myGen !== gen) return rows ?? [];
       rows = next;
       notify();
       return next;
     } finally {
-      loading = null;
+      // Only if this flight still owns the slot. Unconditional, it would
+      // wipe the NEXT flight's promise out of `loading` and defeat the
+      // in-flight dedupe for the rest of the session.
+      if (myGen === gen) loading = null;
     }
   })();
   return loading;

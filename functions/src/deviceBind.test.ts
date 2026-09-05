@@ -11,6 +11,7 @@ import {
   buildAppleJwt,
   decideDeviceCheck,
   decideRecall,
+  readTwoBits,
   decodeRecall,
   encodeRecall,
   monthKey,
@@ -29,6 +30,54 @@ describe("monthKey", () => {
     // The trap: a local-time implementation shifts this one across the
     // year boundary in any western timezone.
     expect(monthKey(at("2027-01-01T00:00:01Z"))).toBe("2027-01");
+  });
+});
+
+// ── what a 200 from Apple actually said ─────────────────────────────
+//
+// A device Apple has never seen answers 200 with the literal string
+// "Failed to find bit state" rather than JSON. That is ONE documented
+// body, and the caller used to fold every parse failure into the same
+// value — which `decideDeviceCheck` reads as never-seen and ALLOWS. So a
+// captive portal page, or a changed Apple error format, published the
+// fact "this device has not activated this month" and opened the monthly
+// cooldown (D29). `JSON.parse("123")` reached the same place by a second
+// route: it succeeds, and `bit0` on a number is undefined.
+//
+// The 401/403 arm beside the call site already throws rather than
+// granting. A failed READ is not a fact about the device, and this is
+// that rule applied to the body.
+describe("readTwoBits (what a 200 from Apple actually said)", () => {
+  it("reads Apple's one documented non-JSON body as a never-seen device", () => {
+    expect(readTwoBits("Failed to find bit state").kind).toBe("never-seen");
+  });
+
+  it("reads a real bit state as bits", () => {
+    const r = readTwoBits(JSON.stringify({ bit0: true, bit1: false, last_update_time: "2026-09" }));
+    expect(r.kind).toBe("bits");
+    if (r.kind === "bits") expect(r.bits.bit0).toBe(true);
+  });
+
+  it("refuses to call anything else a never-seen device", () => {
+    // Each of these used to become `null`, which allows.
+    for (const body of [
+      "<html>captive portal</html>",
+      "",
+      "Some new Apple error text",
+      "123",            // valid JSON, and `bit0` on a number is undefined
+      '"a string"',
+      "null",
+      "[]",
+    ]) {
+      expect(readTwoBits(body).kind, `a 200 body of ${JSON.stringify(body)} was read as a fact about the device`)
+        .toBe("unreadable");
+    }
+  });
+
+  it("and an unreadable body is not silently a bit state either", () => {
+    // The other direction: "unreadable" must not be folded into `bits`
+    // by the caller, or the cooldown reads whatever `bit0` happens to be.
+    expect(readTwoBits("garbage")).toEqual({ kind: "unreadable" });
   });
 });
 

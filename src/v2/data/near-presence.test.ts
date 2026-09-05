@@ -355,6 +355,31 @@ describe("the visibility states", () => {
     expect(untilOf()).toBeLessThanOrEqual(Date.now() + 181 * 60_000);
   });
 
+  it("writes `always` a clear margin INSIDE the rules ceiling, not exactly on it", async () => {
+    // THE TWO CLOCKS. firestore.rules caps `until` at `request.time + 180m`
+    // — the SERVER's clock — and this value is computed from the DEVICE's.
+    // In `always` mode there is no session deadline to clamp against, so
+    // writing exactly the linger made the two 180s cancel and reduced the
+    // rule to `deviceNow <= serverNow`: the only slack was network latency,
+    // and any phone running a little fast had every beat refused, forever,
+    // with a retry button that could not work. Recorded at D181.
+    //
+    // The device-clock condition cannot be reproduced here — the emulator
+    // and this process share one clock — so what is asserted is the
+    // property that makes it survivable: the written deadline sits a real
+    // margin inside the fence rather than on it. The bound below is
+    // deliberately looser than the margin, so this case is about there
+    // BEING one, not about its exact size.
+    const near = await bootNear();
+    await near.enable("always");
+    const ceiling = Date.now() + 180 * 60_000;
+    expect(untilOf(), "the write sits on the fence, so any fast clock is refused")
+      .toBeLessThan(ceiling - 30_000);
+    // …and it is still nearly the whole linger: this costs a minute of the
+    // three hours, not an hour.
+    expect(untilOf(), "the margin ate into the linger").toBeGreaterThan(Date.now() + 178 * 60_000);
+  });
+
   it("reports an expired session as off without waiting for a timer", async () => {
     const near = await bootNear();
     await near.enable("session");

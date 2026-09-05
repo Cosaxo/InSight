@@ -356,6 +356,23 @@ describe("the three orderings", () => {
     expect(titles()).toEqual(["binary?", "four?"]);
   });
 
+  it("keeps a two-answer split off the head of most divisive", () => {
+    // The mirror of the case below, and the arm that did not have its
+    // clause. Divisiveness is NORMALISED, so a 1-against-1 cell and a
+    // 500-against-500 cell are both exactly 1.0 — the maximum — and the
+    // thin one led on input order alone, at the top of a list a reader
+    // takes as "the questions this crowd argues about".
+    //
+    // Listed thin-first here, so a missing tie-break shows up as the list
+    // not moving.
+    show([
+      row("lone", [1, 1], { text: "lone?" }),
+      row("crowd", [500, 500], { text: "crowd?" }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
+    expect(titles(), "a two-answer split outranked a thousand-answer one").toEqual(["crowd?", "lone?"]);
+  });
+
   it("keeps a single answer off the head of most agreed", () => {
     // A one-answer question is 0 on this scale — unanimous by
     // arithmetic, silent by content — and it is listed first here, so a

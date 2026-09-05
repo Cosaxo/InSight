@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   placeCivicHit,
+  SUGGEST_PER_DAY,
   SUGGESTION_OPTION_MAX,
   SUGGESTION_OPTIONS_MAX,
   SUGGESTION_PROMPT_MAX,
@@ -127,5 +128,23 @@ describe("placeCivicHit — the sold-inventory tripwire", () => {
     const doorCivic = civic(src.door);
     expect(doorCivic.length, "the parsed cue list is implausibly short").toBeGreaterThan(100);
     expect(doorCivic).toBe(civic(src.gate));
+  });
+});
+
+// ── the budget that paces the queue a human reads ───────────────────
+//
+// `SUGGEST_PER_DAY` can be set to a million with every suite green: it
+// appears in no test at all. Its docstring prices it on D33's spine —
+// "review capacity is the binding constraint, and a queue nobody can read
+// down is inventory, not participation" — and the refusal a user sees
+// quotes the number back at them, so the two move together or the message
+// stops being true.
+describe("the suggestion budget", () => {
+  it("keeps the value its own refusal message quotes", () => {
+    expect(SUGGEST_PER_DAY,
+      "the daily suggestion budget moved — re-read D33's reasoning and change this line deliberately").toBe(3);
+    const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "suggestions.ts"), "utf8");
+    expect(src, "the refusal stopped quoting the budget, so a reader is told a number that is not the bound")
+      .toContain("that's ${SUGGEST_PER_DAY} suggestions today");
   });
 });

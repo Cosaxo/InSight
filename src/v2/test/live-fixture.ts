@@ -276,6 +276,17 @@ function liveQuestion(
     friends: [],
     live: true,
     tooSmall,
+    // …AND THE FIELD THE APP ACTUALLY READS. `tooSmall` is this fixture's
+    // own vocabulary and nothing in src/v2/spec, src/v2/ui or src/v2/data
+    // consults it — the deck's real shape carries `noCountsYet`, which
+    // `buildS` derives from `hasPublishedCounts(agg)` (data/deck.ts). The
+    // fixture's other three builders (the pick, rank and duel cards) have
+    // always emitted it; this one, which is the DAILY, did not. So
+    // `mountLive({ tooSmall: true })` set every option's count to zero and
+    // still handed the daily a card that said the crowd had published —
+    // and the first-voter state on the app's front door was unreachable
+    // from any mount test. That is why it went unseen.
+    noCountsYet: tooSmall,
     test: null,
   };
 }

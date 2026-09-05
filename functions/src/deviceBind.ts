@@ -54,6 +54,50 @@ export interface TwoBits {
   last_update_time?: string;
 }
 
+/**
+ * What Apple's 200 actually said.
+ *
+ * A DEVICE APPLE HAS NEVER SEEN answers 200 with the literal string
+ * "Failed to find bit state" rather than JSON — one documented body, and
+ * the only one that means "never seen". The caller used to `JSON.parse`
+ * the body and fold EVERY failure into `bits = null`, which
+ * `decideDeviceCheck` reads as never-seen and allows. So a captive portal
+ * page, or a changed Apple error format, or anything else that comes back
+ * 200 and is not JSON, published the fact "this device has not activated
+ * this month" and opened the monthly cooldown (D29).
+ *
+ * `JSON.parse("123")` reached the same place by a second route: it
+ * succeeds, `bits.bit0` is undefined, and `!bits.bit0` allows.
+ *
+ * Exported and pure for the reason `volumeFlagged` in velocity.ts is: the
+ * decision lived inline in a callable no test reaches, so both halves
+ * could be reverted with every suite green.
+ *
+ * A failed READ is not a fact about the device — the 401/403 arm beside
+ * the call site already throws rather than granting, and this is the same
+ * rule for the body.
+ */
+export type TwoBitsRead =
+  | { kind: "never-seen" }
+  | { kind: "bits"; bits: TwoBits }
+  | { kind: "unreadable" };
+
+export function readTwoBits(text: string): TwoBitsRead {
+  if (/Failed to find bit state/i.test(text)) return { kind: "never-seen" };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { kind: "unreadable" };
+  }
+  // A number, a string, a bare `null` and an array are all valid JSON and
+  // none of them is a bit state.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { kind: "unreadable" };
+  }
+  return { kind: "bits", bits: parsed as TwoBits };
+}
+
 // iOS rule: allow unless this device already activated this calendar
 // month. bit0 = "an account was activated from this device"; the write
 // refreshes Apple's month stamp, so bit0 + current month = cooldown.
@@ -212,14 +256,15 @@ async function iosActivate(deviceToken: string, now: Date): Promise<boolean> {
   });
   let bits: TwoBits | null = null;
   if (query.ok) {
-    // A device Apple has never stored bits for answers 200 with the
-    // literal string "Failed to find bit state" instead of JSON.
-    const text = await query.text();
-    try {
-      bits = JSON.parse(text) as TwoBits;
-    } catch {
-      bits = null;
+    // `readTwoBits` has the argument: only Apple's one documented
+    // non-JSON body means "never seen", and everything else unreadable is
+    // a failed read rather than a fact about the device.
+    const read = readTwoBits(await query.text());
+    if (read.kind === "unreadable") {
+      logger.warn("[deviceBind] DeviceCheck answered 200 with a body that is not a bit state");
+      throw new HttpsError("unavailable", "attestation service unreadable");
     }
+    bits = read.kind === "bits" ? read.bits : null;
   } else if (query.status === 401 || query.status === 403) {
     logger.error(`[deviceBind] DeviceCheck auth rejected (${query.status}) — key misconfigured?`);
     throw new HttpsError("failed-precondition", "DeviceCheck credentials rejected");

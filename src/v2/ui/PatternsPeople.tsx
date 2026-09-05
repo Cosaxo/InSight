@@ -204,7 +204,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
       : <Empty head="Crowd too thin" line="Too few people share your questions yet. The map fills as the crowd answers." />;
   }
 
-  const { placed, me, near } = field;
+  const { placed, me, alike } = field;
   const selP = sel == null ? null : placed.find((p) => p.uid === sel) ?? null;
   const pick = (p: PlacedPerson) => {
     setSel((s) => (s === p.uid ? null : p.uid));
@@ -214,10 +214,17 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   return (
     <>
       <div className="card ln-card">
+        {/* "The closer two dots, the more alike their answers" stood here
+            and is not true as a rule: a dot's position is two components
+            of an eight-dimensional solve, so two people can sit together
+            while disagreeing on everything the other six dimensions
+            carry. Measured on this fold — 16px apart, agreeing on one
+            answer of twelve. What IS true is that the position comes from
+            the answers, and the chips below now carry likeness itself. */}
         <div className="ln-head">
           <div className="ln-title">Where you sit in the crowd</div>
           <div className="ln-sub">
-            Each dot is a person who answered some of the same questions as you. The closer two dots, the more alike their answers.
+            Each dot is a person who answered some of the same questions as you, placed by how they answered.
           </div>
         </div>
         <div className="ln-field">
@@ -263,7 +270,11 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
         {/* the rail names the same five the field labels — never a sixth
             identity the drawing does not carry, and never an unnamed
             account dressed with an initial (D167) */}
-        {near.length > 0 && (
+        {/* `alike`, not `near`: `near` is the LABEL set, ordered by where
+            the dots landed, and position is two components of an
+            eight-dimensional solve. This rail names likeness, so it ranks
+            on the agreement each chip already prints. */}
+        {alike.length > 0 && (
           <div className="ln-rail" role="list" aria-label="The people most like you">
             <span className="ln-rail-lab">Most like you</span>
             {/* the row is a list and each chip is a button: the listitem
@@ -271,7 +282,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
                 carrying it is an interactive element assigned a
                 non-interactive role, which is a real reading bug and what
                 jsx-a11y refuses (the prototype's markup did exactly that) */}
-            {near.map((p) => (
+            {alike.map((p) => (
               <span key={p.uid} role="listitem">
                 <button className={"ln-chip" + (sel === p.uid ? " is-on" : "")}
                   onClick={() => pick(p)}>
