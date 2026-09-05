@@ -38256,3 +38256,90 @@ that is merely out of date, and this session followed it before checking —
 which is the argument for `docs/DOC-SWEEP.md` made a fifth time, and the
 last of the five in which the reader who was misled was a routine rather
 than the owner.
+
+## D365 · Shape A adopted: the paid door leaves the app, and buying moves to the web
+
+**Date:** 2026-09-05 · **Status:** Adopted — the owner, on being given the
+three shapes and the arithmetic: *"let go whith a"*. `STORE-CUT-PLAN.md`
+has been plan only since 2026-08-31 and stops being so here.
+
+**The decision.** The €320 purchase funnel leaves the binary.
+`SuggestOverlay` and its entry point go; buying lives on the web at
+`web/ask.html`; the app keeps the results room. Store cut: **0%
+everywhere**.
+
+**Taken before submission on purpose, and that is most of the argument.**
+Both facts that make A nearly free are facts about timing, and both
+expire the moment the app is submitted:
+
+- **Zero sales.** Every `booked` array in `content/pricing.json` is all
+  zeros across city, country and world — verified against the tree
+  2026-09-04, not quoted. Nothing migrates and no revenue is lost.
+- **Never reviewed.** Under A the door is not *removed*; it simply was
+  not there. After a rejection the same change costs a review cycle and
+  a flag on the account.
+
+**The reason that is not about money.** A paid question is billed on
+answers (D164): the buyer pays the cap and the closer refunds
+`(cap − answers) × rate` 29 days later, computed from a public aggregate
+both sides read. **In-app purchase has no primitive for that** — a
+developer cannot issue a programmatic partial refund; refunds are the
+store's to grant on the customer's request. Routing this through IAP
+would not make the closer expensive, it would delete it, and with it the
+promise the buyer is shown at the moment of payment. The position is
+therefore *the billing model and IAP are incompatible*, which is a much
+stronger thing to say to a reviewer than *we would rather not pay the
+cut*.
+
+**Why not C, which was the free option if it worked.** The category
+argument is strong — 3.1.3(e) *forbids* IAP for advertising-campaign
+purchases, and Play has never required its billing for ad spend. The
+app-shape argument is weak: 3.1.3(e) covers apps "for the sole purpose
+of" campaign management, "not offered to a general audience", and
+InSight is a consumer app with a €320 B2B door in its profile tab. That
+is Meta's "Boost Post" shape and Meta lost it. **The app shape is what
+gets reviewed.**
+
+**And the link-out entitlement does not rescue it here — verified rather
+than assumed.** The DMA is an EU regulation and Norway is EEA, not EU.
+Checked 2026-09-04 against EFTA's own listing: the DMA is marked
+EEA-relevant and under scrutiny by Iceland, Liechtenstein and Norway,
+with **no Joint Committee decision in force**. So the first market this
+product prices in is likely under Apple's standard worldwide terms, with
+anti-steering intact. `STORE-CUT-PLAN.md` §7 flagged this as the fact it
+would most like to be wrong about; it is not wrong.
+
+### What this costs, stated rather than discovered later
+
+**It reverses D337's premise**, which was decided the day before the
+question was asked. That record's reasoning — *"no Firebase SDK is
+loaded anywhere in hosting"*, the web reCAPTCHA provider *"was for
+nobody, on the user side"* — was right about the tree as it stood and
+false the moment a public web door exists. **Provisioning reCAPTCHA is
+the actual bill for avoiding the cut**, and it is far cheaper than
+€48–96 a sale. An amendment to D337, not a reversal: the App Check
+enforcement ordering of runbook 3.4 still applies.
+
+**The app loses "ask a question" as a capability.** Worth naming plainly:
+`SuggestOverlay` is the only asking surface and it leaves. In practice
+nobody was going to spend €320 from a profile tab — which is both why
+the discoverability loss is small and exactly why a reviewer would read
+the app as a general-audience app selling in-app.
+
+### What is NOT decided here
+
+Two questions `STORE-CUT-PLAN.md` §8 puts to the owner remain open and
+stay on `OWNER-LIST.md`:
+
+1. **Does buying require a Google-linked account?** Recommended yes, and
+   §4 phase 3 argues it is forced rather than chosen: accounts are
+   anonymous-first (D3), and an anonymous uid cannot be reached from
+   another browser, so a buyer's campaign would be invisible in their own
+   app.
+2. **Do the legacy free-suggestion rows in `SgMine` still have anything
+   to show?** If not they leave with the overlay.
+
+The web door's visual is `VISUAL-REQUESTS.md` item 0, filed with this
+record: a page is a surface, so it is a request → plan → draft → the
+owner → built (D352). The removal half needs no design and is scoped in
+`STORE-CUT-PLAN.md` §4 phase 2.

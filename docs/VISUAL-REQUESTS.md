@@ -36,7 +36,67 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ## Requested
 
-### 0 · The interest profile, shown and editable
+### 0 · The web ask door — where a question is bought
+
+- **title · asked by** — *Ask InSight a question* · the owner, 2026-09-05,
+  adopting `STORE-CUT-PLAN.md` shape A (D365). **On the release path**:
+  the door leaves the app before submission, so this page is what
+  replaces it.
+- **surface** — `web/ask.html`, a standalone page on the hosting site
+  beside the `paid-done.html` / `paid-done-ad.html` / `paid-cancel.html`
+  pages Stripe already returns to. Entered from `web/home.html`, which
+  today says it is *"Deliberately NOT the app"* and becomes where the
+  door is found. **Not reachable from the app, and that is the entire
+  point** — a call to action inside the binary is what 3.1.1 polices.
+  The eight existing `web/` pages are the visual company it keeps:
+  home, join, privacy, terms, delete-account and the three Stripe
+  returns.
+- **data and basis** — the rate card prints off `content/pricing.json`,
+  fetched or inlined at deploy, never retyped: `capEur` **€320** is the
+  question cap, `adBase` **€320** the ad base before its index, plus the
+  per-cohort floor/ceiling indices, `fx` and `estimates`. Two callables
+  and **zero server changes** — `bookPaidQuestionV2` writes the ask and
+  an automated review rules on it, then `createPaidCheckoutV2` turns an
+  approved quote into a Stripe Checkout session. Both carry
+  `enforceAppCheck`.
+- **states** — **signed out**: buying requires a Google-linked account,
+  because an anonymous uid cannot be reached from another browser and
+  the buyer's campaign would be invisible in their own app. **composing**:
+  the composer IS the paid flow. **quoted**: the price is locked off the
+  committed card — rate × index, the cap, and the 29-day window promise.
+  **declined**: the automated review said no, with a reason written to be
+  shown; money never moved, because review runs before payment.
+  **paying**: hand off to Stripe. **returned**: the three existing pages
+  already handle it. **held**: an API outage holds a booking, never
+  declines it.
+- **interaction** — a scope ruler with prices riding the same axis, so
+  moving the scope moves the number in one gesture; the composer; one pay
+  tap that leaves for Stripe. The refund promise is not fine print — the
+  buyer pays the cap and the closer refunds `(cap − answers) × rate` 29
+  days later off a public aggregate both sides read, and **that sentence
+  is the product's differentiator, not a disclaimer.**
+- **vocabulary** — it must read as InSight without pretending to be the
+  app: this is a sales surface, not a product surface. The 2026-09-02
+  standalone family in `design/`, the serif prompt voice (D362), D302's
+  two palettes. `web/` today loads **no** Firebase SDK and no app CSS, so
+  the page brings its own — it cannot inherit `src/v2/styles.css`.
+  Copy under D182.
+- **constraints** — **CSP is the one that bites**: `firebase.json` serves
+  `web/` under `default-src 'none'`, so this page needs its own header
+  block admitting the Firebase SDK and its endpoints, in the shape
+  `join.html`'s block already takes. App Check on a public web door needs
+  a **real reCAPTCHA provider**, which reverses D337's premise and is the
+  actual bill for avoiding the store cut — cheap against €48–96 a sale.
+  No app bundle impact at all, because it is not in the app.
+- **why** — `STORE-CUT-PLAN.md` §1: the product's billing model and IAP
+  are **incompatible**, not merely inconvenient. A developer cannot issue
+  a programmatic partial refund of an IAP, so routing this through the
+  store would not make the closer expensive — it would delete it, and
+  with it the promise shown at the moment of payment. That is a far
+  stronger thing to be able to say than a preference about fees.
+- **status** — `requested`
+
+### 0b · The interest profile, shown and editable
 
 - **title · asked by** — *Your interests* · a session, 2026-09-04 (D364),
   discharging the one row of `SCALE-RUNBOOK.md` Phase 5 that survived

@@ -1,6 +1,9 @@
 # Where the paid door lives — keeping the store cut
 
-**Status: plan only** — nothing here is built, and nothing here binds.
+**Status: ADOPTED 2026-09-05 (D365) — shape A.** The owner chose it on
+the three-shape table below; what was plan is now the build order. The
+two questions §8 puts to the owner are still open and stay on
+`OWNER-LIST.md`.
 Adoption is a record in [`DECISIONS.md`](DECISIONS.md), per
 [`MONETIZATION.md`](MONETIZATION.md)'s own rule. Opened by the owner
 2026-08-31: *"How should we avoid having to pay the cut to Apple and
