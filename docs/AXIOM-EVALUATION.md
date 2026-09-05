@@ -220,6 +220,16 @@ rate that is not.
 
 ## Recommendations, ranked by value per action
 
+> **Superseded 2026-09-05.** The owner ruled that the branch is
+> discarded and the program restarts from a fresh plan, so 1 and 3 below
+> are moot — there is no queue left to drain and no lane to add. The
+> ranking is kept as the measurement that produced it: it is why the
+> restart happened, and 4, 5 and 6 are requirements any replacement
+> inherits whatever shape it takes. The live artefacts are
+> [`AXIOM-POTENTIAL.md`](AXIOM-POTENTIAL.md),
+> [`AXIOM-IDEAS.md`](AXIOM-IDEAS.md) and
+> [`MEASUREMENT-NOTES.md`](MEASUREMENT-NOTES.md).
+
 1. **Create the axiom builder — one run a day at `30 6 * * *`.**
    Unblocks fourteen worth-building verdicts. It is one web-UI Routine
    creation and it is the only action that converts any of the $733

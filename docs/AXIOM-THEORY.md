@@ -214,7 +214,22 @@ against a contract the owner's own decision superseded.
 [`AXIOM-POTENTIAL.md`](AXIOM-POTENTIAL.md) is the missing half, written
 directly rather than waited for.
 
-## The charter amendment — the owner approved it 2026-09-03; it applies on the branch
+## The charter amendment — superseded 2026-09-05 by the restart
+
+**Status: not applied, and now moot.** The wording below was approved on
+2026-09-03 to fix the charter the twelve lanes ran under. On 2026-09-05
+the owner ruled instead that the branch is discarded and the program
+restarts from a fresh plan — so there is no charter left to amend, and
+the rules below reach the new lanes through their standing prompt rather
+than through `CHARTER.md`. It is kept because the five clauses are the
+diagnosis turned into rules, and a restart that does not carry them
+rebuilds the same gradient: the perfect-form test, scale as no
+constraint, a status for capability claims that needs no citation, a
+route for potential entries, and a mechanical check rather than a
+paragraph. `graph/potential.mjs` exists on the unpushed branch
+`claude/charter-potential-2026-09-03` if the shape is ever wanted.
+
+## The wording, as approved 2026-09-03
 
 The owner's direction, given on this evaluation: *"Both and make sure it
 never drifts again and all should be the potential."* No routine may

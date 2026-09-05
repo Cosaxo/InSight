@@ -37714,7 +37714,7 @@ carry an axis in (a leaning set, an inner arc, a polarity split), states
 what each costs, and keeps its data, states and basis rules. Still
 `requested`; the drafting step is unchanged.
 
-## D363 · Nothing the theory lanes wrote is axiom theory, and the ladder is why — the potential half, the salvage, and the gate that holds the line
+## D364 · Nothing the theory lanes wrote is axiom theory, and the ladder is why — the potential half, the salvage, and the gate that holds the line
 
 **2026-09-03.** Written on `claude/axiom-theory-evaluation-0g62q4` out of
 an evaluation the owner asked for, which turned into three owner rulings
@@ -37793,6 +37793,19 @@ Two stale figures were corrected in passing: the axiom builder's own
 contract specified three runs a day against the owner's recorded call of
 one (`PROGRAM-RUNBOOK.md`, `ROUTINES.md`), and the bridge queue was
 reported as ten worth-building verdicts when the ledger held sixteen.
+
+### Superseded the next day, and why the record stands
+
+**2026-09-05.** The owner ruled the branch discarded and the program
+restarted from a fresh plan rather than an amended charter: *"keep the
+129 ideas in an idea list or something, rest seems like it can be
+discarded."* So the charter amendment below never applies, and
+`AXIOM-IDEAS.md` was added — the 129 claims as one line each, marked
+where they reason about a perfect form. What survives the restart is the
+diagnosis (a ladder whose top rung is the current app selects for
+describing the current app), the two documents the replacement is
+briefed from, and the salvage. The measurement is why the restart
+happened, so it is recorded rather than rewritten.
 
 ### What is NOT here, and waits on the owner
 
