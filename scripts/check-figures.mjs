@@ -1352,6 +1352,32 @@ const FIGURES = [
     actual: feedConst("RUN_CAP"),
     fix: (n) => `"**${n} feed questions per run**"`,
   },
+  // THE SAME CAP, TWICE MORE, IN THE SUBSECTIONS A RUN ACTUALLY READS.
+  // D350 raised RUN_CAP 6 → 60 and moved the headline sentence above; both
+  // of these were left at 6, ten times low, for three days. They are not
+  // decoration: the feed lane's prompt says the manual "outranks this
+  // prompt's summary", so on a conflict between `npm run feed:budget`
+  // printing 60 and a bullet saying ≤6/run, the bullet wins by the lane's
+  // own rule.
+  //
+  // TWO ENTRIES AND TWO PATTERNS, deliberately: this gate takes the FIRST
+  // match of each `re`, so one shared pattern would hold the first bullet
+  // and leave the second free to drift — which is the failure the entry
+  // above already carries a note about, one lane over.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Continuum questions states it",
+    re: /continuum candidates count inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"count inside the lane's ≤${n}/run"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Crossroads stories states it",
+    re: /a story counts inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"a story counts inside the lane's ≤${n}/run"`,
+  },
   {
     file: "docs/QUESTION-FARM.md",
     what: "the feed per-topic coverage floor (TOPIC_FLOOR)",

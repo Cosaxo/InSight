@@ -1187,7 +1187,7 @@ voters panel prints ("lean tastes good · middle").
   --dist "1,3,…" --n 5000` — the demo-twin form, texture included); a
   field's cloud has no flag syntax, so pre-flight fields via `--batch`
   with the full objects.
-- Budget: continuum candidates count inside the lane's ≤6/run, and lean
+- Budget: continuum candidates count inside the lane's ≤60/run, and lean
   scarce — the feed reads best when a continuum card is an occasional
   change of key, not a second genre (the hot sort pins one near the top;
   a glut buys nothing).
@@ -1275,7 +1275,7 @@ authored branch share `p`, because live the crowd is the aggregate.
   worth inventing. The packet runs the axis rules, and the genre ratchet
   runs against the bank with the batch appended — so a repeated topic is
   reported while a run can still change it.
-- Budget: a story counts inside the lane's ≤6/run and should be rare —
+- Budget: a story counts inside the lane's ≤60/run and should be rare —
   one slot, and a story replaced before its tree has a crowd is a reveal
   nobody got to see.
 
