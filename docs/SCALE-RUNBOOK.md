@@ -212,7 +212,7 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
 
 - [x] ~~**3.2 Batch approval, human on the merge.**~~ **STRUCK — REVERSED
       BY [D212](DECISIONS.md), 2026-08-19, and this row stood unticked for
-      a fortnight after (D364).** Struck rather than deleted, per D106's
+      a fortnight after (D367).** Struck rather than deleted, per D106's
       rule that a reversal must stay visible.
 
       The original read: *"The human's unit of work becomes approving a
@@ -259,7 +259,7 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       seven rounds to zero, so a per-batch gate would pass while nothing
       was ever audited.
 
-      **Amended by D212 and not recorded here until D364:** that
+      **Amended by D212 and not recorded here until D367:** that
       cumulative check is a **warning, not an error**
       (`checkProvenance` returns `{errs, warn}`). The sample keeps its
       D162 job, but a person falling behind on audits can no longer turn
@@ -298,7 +298,7 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
 
 ## Phase 5 — The interest model (D163 → D317, D322)
 
-**REWRITTEN 2026-09-04 (D364). Three of these four rows described a model
+**REWRITTEN 2026-09-04 (D367). Three of these four rows described a model
 the owner had already moved to the server**, and a routine reading them
 was one step from building an on-device reader under a constraint that had
 been deliberately crossed. The header said "(D163)" for nine days after

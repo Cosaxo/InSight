@@ -504,7 +504,7 @@ const EXPORTS = {};
   }
 
   // ── Logic gets its own card — a timed skill test, not a personality profile ──
-  // The buyer's shelf ("You asked") stood here until D365 took the
+  // The buyer's shelf ("You asked") stood here until D368 took the
   // purchase funnel out of the binary. What the account can still see
   // of its own purchases lives in ui/AskedByYouOverlay.tsx, which is
   // untouched: it reads this account's own purchase docs and the same

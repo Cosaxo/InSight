@@ -18,6 +18,9 @@
 import { describe, expect, it } from "vitest";
 import {
   PATTERNS_K,
+  PATTERNS_ETA_USER,
+  PATTERNS_LAMBDA,
+  patternsEtaQ,
   PATTERNS_MIN_BASIS,
   PATTERNS_QUALITY_DAYS,
   PATTERNS_QUALITY_FLOOR,
@@ -280,6 +283,48 @@ describe("the prequential score", () => {
     expect(prequentialBits(1, 1)).toBeCloseTo(-Math.log2(0.95), 12);
     expect(prequentialBits(1, -1)).toBeCloseTo(-Math.log2(0.05), 12);
     expect(prequentialBits(99, -1)).toBe(prequentialBits(1.1, -1));
+    // THE LOWER CLAMP, which none of the lines above reaches: every one of
+    // them drives `xhat` non-negative, so `p0` never falls to the floor and
+    // `0.05` could be raised to `0.4` with the whole suite green —
+    // measured. The upper clamp IS caught. D325 says the published bits go
+    // "through the device Oracle's own link and clamps … so the number and
+    // the Oracle meter speak one currency", and the client pins both
+    // literally (patternsMap.test.ts); this side pinned one.
+    expect(prequentialBits(-1, -1)).toBeCloseTo(-Math.log2(0.95), 12);
+    expect(prequentialBits(-1, 1)).toBeCloseTo(-Math.log2(0.05), 12);
+    expect(prequentialBits(-99, 1)).toBe(prequentialBits(-1.1, 1));
+  });
+
+  it("keeps the fit's tuning constants at the values its reasoning names", () => {
+    // All four survived a mutation sweep with 611 tests green: they are
+    // used only through the fit, and every case asserts the fit's SHAPE —
+    // that it converges, that it is a pure observer — which stays true at
+    // any step size. A model that quietly retunes itself between deploys
+    // is one whose published quality series compares two different
+    // engines, and D325 keeps that series as "the number any candidate
+    // engine must beat".
+    expect(PATTERNS_K, "the model's width moved").toBe(8);
+    expect(PATTERNS_ETA_USER, "the user step moved — it is flat on purpose").toBe(0.15);
+    expect(PATTERNS_LAMBDA, "the L2 damping moved").toBe(0.02);
+    // The question step decays with folds; both ends of that curve, so the
+    // shape is pinned rather than one point on it.
+    expect(patternsEtaQ(0)).toBeCloseTo(0.5 / 20, 12);
+    expect(patternsEtaQ(20)).toBeCloseTo(0.5 / 40, 12);
+  });
+
+  it("reproduces the seed hash bit for bit, not merely deterministically", () => {
+    // `seedLoading` is asserted equal to itself, different from another
+    // qid, and bounded — all true of ANY spreading hash, so the FNV-1a
+    // loop bound could be widened and every case stayed green. Measured,
+    // and it is not an equivalent mutation: the values really change.
+    // That matters because the file claims the model "comes out bit for
+    // bit the same", which is a claim about reproducing across deploys,
+    // not within one run.
+    expect(seedLoading("pin-probe")).toEqual([
+      0.027610000000000003, 0.019282999999999995, 0.013005999999999997,
+      -0.042217000000000005, 0.021072000000000004, -0.029632000000000006,
+      0.0005830000000000002, -0.021341,
+    ]);
   });
 
   it("is a pure observer — the model comes out bit for bit the same", () => {

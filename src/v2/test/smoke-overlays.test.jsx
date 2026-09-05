@@ -80,7 +80,7 @@ describe("the overlays with no button — opened through the nav registry", () =
   });
 
   // "opens the ask-a-question door" and the composer's committed-card case
-  // stood here until D365. Shape A took the purchase funnel out of the
+  // stood here until D368. Shape A took the purchase funnel out of the
   // binary, so there is no door to open and no composer to print a card:
   // what replaces them is smoke-live's inverted pair, which asserts that
   // NO ask-a-question control exists anywhere in the app.

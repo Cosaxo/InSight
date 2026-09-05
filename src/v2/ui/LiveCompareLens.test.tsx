@@ -49,6 +49,7 @@ import type { ParsedResults, TestBankItem } from "../data/similarity";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
   subscribe: () => () => {},
   loadNames: vi.fn(() => Promise.resolve()),
   testFeedItems: (): TestBankItem[] => [],

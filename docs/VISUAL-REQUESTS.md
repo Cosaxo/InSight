@@ -38,7 +38,7 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ### 0b · The interest profile, shown and editable
 
-- **title · asked by** — *Your interests* · a session, 2026-09-04 (D364),
+- **title · asked by** — *Your interests* · a session, 2026-09-04 (D367),
   discharging the one row of `SCALE-RUNBOOK.md` Phase 5 that survived
   D317's reversal.
 - **surface** — the profile overlay's General panel
@@ -222,7 +222,7 @@ version is in this file's history.
 ### 0 · The web ask door — where a question is bought
 
 - **title · asked by** — *Ask InSight a question* · the owner, 2026-09-05,
-  adopting `STORE-CUT-PLAN.md` shape A (D365). **On the release path**:
+  adopting `STORE-CUT-PLAN.md` shape A (D368). **On the release path**:
   the door leaves the app before submission, so this page is what
   replaces it.
 - **surface** — `web/ask.html`, a standalone page on the hosting site
@@ -242,7 +242,7 @@ version is in this file's history.
   an automated review rules on it, then `createPaidCheckoutV2` turns an
   approved quote into a Stripe Checkout session. Both carry
   `enforceAppCheck`.
-- **states, and the order matters (D365 amendment)** — **composing**, open
+- **states, and the order matters (D368 amendment)** — **composing**, open
   to anyone with no account at all: the composer IS the paid flow.
   **quoted**: the price locked off the committed card — rate × index, the
   cap, the 29-day window promise. **declined**: the automated review said

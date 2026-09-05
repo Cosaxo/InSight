@@ -53,7 +53,7 @@ describe("the figures a buyer is charged", () => {
   it("the exact form is actually reached — this is not a vacuous rule", () => {
     // A file that stopped printing prices at all would satisfy the case
     // above by saying nothing, which is not the property wanted.
-    // FILES[0] was suggestions.jsx until D365 took the paid door out of the
+    // FILES[0] was suggestions.jsx until D368 took the paid door out of the
     // binary. AskedByYouOverlay is what still shows a buyer their own
     // figures, so it is what this non-vacuity case now guards.
     const sug = readFileSync(join(root, FILES[0]), "utf8");

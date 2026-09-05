@@ -1,6 +1,6 @@
 # Where the paid door lives — keeping the store cut
 
-**Status: ADOPTED 2026-09-05 (D365) — shape A.** The owner chose it on
+**Status: ADOPTED 2026-09-05 (D368) — shape A.** The owner chose it on
 the three-shape table below; what was plan is now the build order. The
 two questions §8 puts to the owner are still open and stay on
 `OWNER-LIST.md`.

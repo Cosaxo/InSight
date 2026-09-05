@@ -692,7 +692,7 @@ export function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             <PassiveMeter />
-            {/* The ask-a-question door was here until D365. Shape A moved
+            {/* The ask-a-question door was here until D368. Shape A moved
                 buying to the web, so the app carries no purchase call to
                 action at all — that is the whole point of the decision,
                 and a "+" one tap from anywhere was the most exposed of

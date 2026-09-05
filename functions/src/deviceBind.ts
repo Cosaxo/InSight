@@ -127,10 +127,27 @@ export interface RecallValues {
   bitSecond: boolean;
   bitThird: boolean;
 }
+/**
+ * Play's own write-date shape, confirmed against the live discovery
+ * document and not invented.
+ *
+ * This declared `bitFirstWriteDate?: string` and friends. Google sends
+ * `yyyymmFirst` / `yyyymmSecond` / `yyyymmThird` as int32 — "Write time in
+ * YYYYMM format (in UTC, e.g. 202402) … won't be set if the bit is false".
+ * Different keys AND a different type, so the old `typeof d === "string"`
+ * filter emptied the list on every real verdict and `decideRecall` always
+ * fell through to the epoch fallback, while its docstring said write
+ * dates give the month-exact rule. The test built the invented shape
+ * itself and called it "Google's date format", so nothing could notice.
+ *
+ * A numeric string is accepted alongside the number: this shape has been
+ * guessed wrong once already, and the normaliser below strips non-digits
+ * either way.
+ */
 export interface RecallWriteDates {
-  bitFirstWriteDate?: string;
-  bitSecondWriteDate?: string;
-  bitThirdWriteDate?: string;
+  yyyymmFirst?: number | string;
+  yyyymmSecond?: number | string;
+  yyyymmThird?: number | string;
 }
 
 // Android epoch fallback (D29): when the verdict carries recall values but
@@ -168,13 +185,15 @@ export function decideRecall(
   const next = encodeRecall(recallEpoch(now));
   if (!values || decodeRecall(values) === 0) return { allow: true, next };
   const dates = [
-    values.bitFirst ? writeDates?.bitFirstWriteDate : undefined,
-    values.bitSecond ? writeDates?.bitSecondWriteDate : undefined,
-    values.bitThird ? writeDates?.bitThirdWriteDate : undefined,
-  ].filter((d): d is string => typeof d === "string" && d.length > 0);
+    values.bitFirst ? writeDates?.yyyymmFirst : undefined,
+    values.bitSecond ? writeDates?.yyyymmSecond : undefined,
+    values.bitThird ? writeDates?.yyyymmThird : undefined,
+  ]
+    .map((d) => normalizeMonth(typeof d === "number" ? String(d) : d))
+    .filter((d) => d.length === 6);
   if (dates.length > 0) {
     const nowMonth = normalizeMonth(monthKey(now));
-    return { allow: !dates.some((d) => normalizeMonth(d) === nowMonth), next };
+    return { allow: !dates.some((d) => d === nowMonth), next };
   }
   return { allow: decodeRecall(values) !== recallEpoch(now), next };
 }
@@ -359,10 +378,30 @@ async function androidActivate(
   const { allow, next } = decideRecall(recall.values, recall.writeDates, now);
   if (!allow) return false;
   try {
+    // THE ENDPOINT AND THE FIELD NAME, both confirmed against Google's
+    // live discovery document and on the wire.
+    //
+    // This posted to `v1/{pkg}:writeDeviceRecall` with `{ values }`. The
+    // method is `deviceRecall:write` under `v1/{+packageName}`, and the
+    // request field is `newValues`. Measured: the old URL answers 404 and
+    // this one answers 401 (auth required), while the decode call beside
+    // it — which is correct — also answers 401, so the difference is the
+    // path and not the sandbox.
+    //
+    // What that cost: every Android activation reaching a device with
+    // recall bits threw, the catch below turned it into `unavailable`, and
+    // no Android account ever earned the device rung. Enforcement is off
+    // (`deviceBindEnforced()` is false), so nobody was refused — but D29's
+    // month bound was inert on Android, and the readiness metric could not
+    // see it, because that log line fires on the OTHER branch. Turning
+    // enforcement on with the old call would have locked Android out.
+    //
+    // docs/DEVICE-BIND.md asks for exactly this confirmation before
+    // relying on staging results.
     await client.request({
-      url: `https://playintegrity.googleapis.com/v1/${pkg}:writeDeviceRecall`,
+      url: `https://playintegrity.googleapis.com/v1/${pkg}/deviceRecall:write`,
       method: "POST",
-      data: { integrityToken, values: next },
+      data: { integrityToken, newValues: next },
     });
   } catch (err) {
     // Same rule as iOS: no write, no claim.

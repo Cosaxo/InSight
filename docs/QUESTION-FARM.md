@@ -635,9 +635,22 @@ Rules, each load-bearing:
    the precedent: a devDependency used once by a committed generator).
    **Never entries written from model memory** — a wrong key silently
    resolves someone's stored favourite to the wrong thing forever; the
-   D15 refusal stands. A domain whose right source is Wikidata-class
-   (network the session lacks) is *proposed in a PR body* as a
-   build-catalog.mjs-style operator step, not built.
+   D15 refusal stands, and it is the only half of this rule that does.
+   Wikidata IS buildable: `query.wikidata.org` was refused at CONNECT when
+   this rule was written (measured 2026-08-14) and has answered 200 since
+   the policy was widened, which is how `films` was built and committed
+   (D266) and `athletes` after it (D304) — both carry
+   `# Source: Wikidata (CC0)` in their committed headers. The paragraph
+   fifteen lines above already says so. This rule did not move with it and
+   spent that time telling the Sunday slot to decline work the lane had
+   already shipped twice.
+
+   A domain whose source is neither a package registry nor Wikidata-class
+   — anything needing a key, a licence decision or a crawl — is still
+   *proposed in a PR body* as a build-catalog.mjs-style operator step
+   rather than built. Reachability is not sufficiency either: D266 refused
+   the artists catalogue it had fetched successfully, because the query was
+   wrong.
 2. **Stable keys.** External stable IDs where the source has them (dex
    numbers, QIDs); otherwise catalogue-minted keys under an append-only
    discipline the drift gate enforces — a regeneration may append and
@@ -1187,7 +1200,7 @@ voters panel prints ("lean tastes good · middle").
   --dist "1,3,…" --n 5000` — the demo-twin form, texture included); a
   field's cloud has no flag syntax, so pre-flight fields via `--batch`
   with the full objects.
-- Budget: continuum candidates count inside the lane's ≤6/run, and lean
+- Budget: continuum candidates count inside the lane's ≤60/run, and lean
   scarce — the feed reads best when a continuum card is an occasional
   change of key, not a second genre (the hot sort pins one near the top;
   a glut buys nothing).
@@ -1275,7 +1288,7 @@ authored branch share `p`, because live the crowd is the aggregate.
   worth inventing. The packet runs the axis rules, and the genre ratchet
   runs against the bank with the batch appended — so a repeated topic is
   reported while a run can still change it.
-- Budget: a story counts inside the lane's ≤6/run and should be rare —
+- Budget: a story counts inside the lane's ≤60/run and should be rare —
   one slot, and a story replaced before its tree has a crowd is a reveal
   nobody got to see.
 

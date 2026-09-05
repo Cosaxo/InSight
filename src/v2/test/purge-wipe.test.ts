@@ -196,7 +196,7 @@ describe("module stores drop their memory on the purge (D51)", () => {
     expect(stored("insight.subtopics.v1")).toContain("sub_tennis"); // the unfollow did not survive
   });
 
-  // The SUGGESTIONS purge case stood here until D365 took the paid door
+  // The SUGGESTIONS purge case stood here until D368 took the paid door
   // out of the binary: its store and its `insight.suggestions.v1` key
   // went with it, so there is no longer a key for the purge to clear.
 

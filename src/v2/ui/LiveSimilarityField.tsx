@@ -851,12 +851,37 @@ function PlacesField({ scope, myFlat }: {
     (n === 1 ? what : what === "city" ? "cities" : "countries");
 
   if (!profiles.length) {
+    // THREE EMPTINESSES, NOT TWO. This branched on `similarityLoading()`
+    // alone, and that flag is false again the moment `loadSimilarity()`
+    // RETURNS — including when it threw. So a failed read drew "No
+    // country has answered a score question yet" as a finding about the
+    // whole world, and kept drawing it for the life of the mount, since
+    // the throw leaves `testAggsLoaded` false with nothing to retry it.
+    // The largest population claim the app makes, made out of an error.
+    //
+    // `testAggsState()` is the reader written for exactly this (it says so
+    // in its docstring), and these profiles are folded from `agg.by`
+    // cells, which is the scope that docstring names — so it applies here.
+    //
+    // THIS SAID THE CityField ARM ABOVE "was already covered", AND IT IS
+    // NOT. That arm calls neither this reader nor anything like it; its
+    // `loading` is `similarityLoading() || kindredLoading()`, and it folds
+    // PEOPLE rather than cells, so it is a different shape with the same
+    // hole one fold over: a failed kindred read leaves both flags false
+    // and the list empty, and it prints "Nobody from {city} yet" about a
+    // read that did not happen. Left alone deliberately — `testAggsState`
+    // does not scope to a people fetch, so closing it wants its own
+    // reader rather than this one stretched — and written down here
+    // rather than left as the false reassurance it was.
+    const cells = LIVE.testAggsState();
     return (
       <SfEmptyField
         caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}>
-        {loading
+        {loading || cells === "loading"
           ? <>Reading profiles…</>
-          : <>No {what} has answered a score question yet.</>}
+          : cells === "failed"
+            ? <>Couldn’t read the scores here. Close and reopen to try again.</>
+            : <>No {what} has answered a score question yet.</>}
       </SfEmptyField>
     );
   }

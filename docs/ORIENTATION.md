@@ -142,6 +142,10 @@ directions.
 | [`AXES-PLAN.md`](AXES-PLAN.md) | The owner's axis frame: every source the app measures as one family, the genetic and body axes it does not have yet, and where their doors go. Nothing new is built | plan |
 | [`AXES-RUNBOOK.md`](AXES-RUNBOOK.md) | The axes work as an ordered build list run by scheduled routines — the lanes, their canonical prompts, the learning loop, and the gate each step must pass. The lanes are live (D289); every build step is still open | mixed |
 | [`AXIOM-THEORY.md`](AXIOM-THEORY.md) | The theory layer above the axes: twelve recurring lanes on an orphan branch — eleven writing each source's perfect form and their combination, one scoring that work every second night (D346) — and the bridge that is their only path into the product. Live since 2026-08-25 | tree |
+| [`AXIOM-EVALUATION.md`](AXIOM-EVALUATION.md) | The theory layer measured rather than described — what ten days and $733 of lane time produced, the bridge queue that has not moved since 2026-08-27, the evidence ladder's single `measured` node, and six findings with the arithmetic to re-run each. Taken 2026-09-03 | tree |
+| [`AXIOM-POTENTIAL.md`](AXIOM-POTENTIAL.md) | The potential half of Axiom Theory: what becomes knowable when the axes cross — the compounding map, ability genetics without the education proxy, the neurotype signature, and the loop where each axis lowers the cost of the next. Written 2026-09-03 because ten days of lanes produced constraints and no capability. Nothing here is built | plan |
+| [`MEASUREMENT-NOTES.md`](MEASUREMENT-NOTES.md) | What the theory lanes actually produced, extracted 2026-09-03 on the owner's ruling that none of it is axiom theory: measurement method that should govern the app, negative results worth not re-deriving, engineering proposals for the system that exists, and findings about running machine-written work. Useful; not authority, and no gate reads it | tree |
+| [`AXIOM-IDEAS.md`](AXIOM-IDEAS.md) | The 129 claims the theory lanes wrote, reduced to one line each and kept as a list to pick from on the owner's 2026-09-03 ruling. A ✦ marks the 34 that reason about an axis's perfect form. Reference only — never a base to extend, and no gate reads it | tree |
 | [`OPS-RUNBOOK.md`](OPS-RUNBOOK.md) | The routines that keep the routine program honest — the platform probe, the roll call, the two shepherds, the production reader, the release recorder, the pulse responder — and the list worker that finishes `WORKLIST.md`. Contracts, models, canonical prompts and the wiring. Five of the eight Routines exist — four bound to the ops dispatcher, the PR shepherd on its own hourly schedule; the inventory says which | mixed |
 | [`WORKLIST.md`](WORKLIST.md) | The owner's to-do queue the list worker finishes, one item per PR. Add a line under § Open, or open an issue labelled `worklist` | plan |
 | [`PROGRAM-PLAN.md`](PROGRAM-PLAN.md) | The owner's 2026-09-02 ask — run the project from six lists and a console, across three subscriptions — restated against what runs today, one mechanism per list, the new lanes (the axiom builder, the merge shift, a to-do doer per account, the console), the rule every session reads, and the owner's answers (§10). Adopted at D352; the lists and the rule are built, the lanes and the console are not yet | mixed |
@@ -162,7 +166,7 @@ directions.
 | [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md) | Recent events as feed cards, each with a discussion window. The rework of the parked prediction slot; no code exists | plan |
 | [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |
 | [`PAID-PLAN.md`](PAID-PLAN.md) | Paid questions with downloadable reports, place-score subscriptions, and cohort pricing by size and demand — the owner's 2026-08-21 ask measured against the standing constraints. §3's edit-flow matrix (D226), §4's logic cut (D227) and §2's report builder (D251) are built; the rest waits on demand evidence | mixed |
-| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D365)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | decided |
+| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D368)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | decided |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
 | [`../SECURITY.md`](../SECURITY.md) | The security policy, at the repo root rather than in `docs/` because that is where GitHub looks for it — and `web/privacy.html` names it to a user by filename, so it is a live promise, not a courtesy | tree |
@@ -179,7 +183,7 @@ than of a subject:
 | `content/README.md` | The question bank formats and how content reaches the seed |
 | `design/README.md` | The frozen prototype and its revisions |
 | `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
-| `design/ask-2026-09-05/README.md` | The web ask door (D365 shape A), and **the adapter contract the build needs** — the draft was fed a shaped pricing resource, so eight names differ from `content/pricing.json`, and `refundDays` must come from `WINDOW_DAYS` rather than from `trailingDays`, which is a day shorter than the promise |
+| `design/ask-2026-09-05/README.md` | The web ask door (D368 shape A), and **the adapter contract the build needs** — the draft was fed a shaped pricing resource, so eight names differ from `content/pricing.json`, and `refundDays` must come from `WINDOW_DAYS` rather than from `trailingDays`, which is a day shorter than the promise |
 
 ## 5 · The gates
 
@@ -286,8 +290,8 @@ belongs with the code it is about:
 - `setGlobalOptions` belongs in `functions/src/ops.ts`, not `index.ts` →
   `CLAUDE.md` § Things that look like bugs but are not.
 - Answers are create-only with **one** update shape (D86) → same section.
-- `window.MapStats` returns **null** for five anchors on purpose (D72) →
-  same section.
+- `window.MapStats` returns **null** for four anchors on purpose (D72) →
+  same section. (Five until D328 moved `job` onto its derived `jobField`.)
 - The e2e suites in a sandbox need `HTTPS_PROXY` **unset**, not a wider
   egress allowlist → `docs/LOCAL-TESTING.md` § Sandbox/CI note.
 - A root `npm install` leaves the backend's `node_modules` empty, and the

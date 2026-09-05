@@ -874,6 +874,33 @@ if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists()
   if (!(lateRead.get("members") || []).includes(uid))
     fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
   ok("a joiner reads a reveal from before they joined, and it still records who was there");
+  // …and it names NOBODY it does not list as having been there.
+  //
+  // This fixture is the leak's exact shape and had been sitting here
+  // unasserted: the latecomer joined after OTHERDAY ended and never
+  // played, so `revealMembersFor` drops them from `members` — while the
+  // `names` map was built over the group's whole roster and named them
+  // anyway. Leave the circle after that and `deleteAccount`'s
+  // membership-independent sweep, which walks `members`, cannot reach the
+  // name; it stays in a document every signed-in user may read (D98's
+  // read rule), against what web/privacy.html promises in writing.
+  //
+  // Asserted as an INVARIANT of the document rather than by naming the
+  // latecomer, because the guarantee is about the pair of fields and not
+  // about this fixture: any future writer that puts a name in without
+  // putting the person in `members` fails here.
+  {
+    const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
+    const names = lateRead.get("names") || {};
+    const listed = lateRead.get("members") || [];
+    const stray = Object.keys(names).filter((u) => !listed.includes(u));
+    if (stray.length)
+      fail("the reveal names people it does not record as there: " + JSON.stringify(stray)
+        + " — members " + JSON.stringify(listed));
+    if (!Object.keys(names).length)
+      fail("the reveal named nobody at all — the assertion above would pass on an empty map");
+    ok("the reveal names only the people it records as having been there");
+  }
 }
 await expectDenied("member cannot answer a day already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));

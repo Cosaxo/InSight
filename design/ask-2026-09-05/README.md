@@ -1,7 +1,7 @@
 # Ask InSight — the web door, designed 2026-09-05
 
 Claude Design's draft for `VISUAL-REQUESTS.md` item 0, accepted by the
-owner and extracted here. The request is D365's shape A: the €320
+owner and extracted here. The request is D368's shape A: the €320
 purchase funnel leaves the app binary, and this page is where it lands.
 
 - `ask-insight.html` — the page as designed (Claude Design template).
@@ -14,7 +14,7 @@ extracted source rather than bundles.
 
 ## What the design got right, and it is the part that is hard
 
-**The state order is D365's amendment, not the plan's default.**
+**The state order is D368's amendment, not the plan's default.**
 `state.st` starts at `composing`, and `signIn` returns to `composing`
 rather than gating it — so a visitor composes and is quoted before any
 account is asked for, and a decline costs them nothing. The panel states
@@ -25,7 +25,7 @@ an API outage holds a booking and never declines it.
 **The refund is drawn, not described.** `exampleRefund` computes
 `(answers − served) × rate` at the selected scope, beside the cap. That
 sentence is the reason the product cannot be sold through a store at all
-(D365), so a page that merely asserted it would have missed the brief.
+(D368), so a page that merely asserted it would have missed the brief.
 
 **The decline reason is a real rule.** Place-scoped civic questions are
 editorial and never sold — `QUESTION-FARM.md` hard rule 6 — and the

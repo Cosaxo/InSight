@@ -202,7 +202,7 @@ describe("the lists on this tree", () => {
   });
   it("reads visual requests by status and permissions by state", () => {
     const v = parseVisualRequests(read("docs/VISUAL-REQUESTS.md"));
-    // 4 since D365 added the interest-profile panel (0b); the web ask door
+    // 4 since D368 added the interest-profile panel (0b); the web ask door
     // it also added sits under Designed, which is what the console reads —
     // the section is the status, not the `status` line inside the entry.
     expect(v.requested.length).toBe(4);

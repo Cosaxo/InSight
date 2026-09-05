@@ -1246,7 +1246,7 @@ export class DailySplit extends React.Component {
       // docking into the header once scrolled past
       screen: h(F, null, this.dailyRuler(mode, accents, badges),
         // the sliding surface — swipes translate this, not the whole page
-        // The quiet footer's ask-a-question link stood here until D365 moved
+        // The quiet footer's ask-a-question link stood here until D368 moved
         // buying to the web; the daily now ends on the deck it draws.
         h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body)),
     };

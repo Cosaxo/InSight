@@ -155,7 +155,17 @@ real Yes** even once the scrub has run. The scrub changes the scope of the
 claim, not the answer to that row.
 
 **Deletion.** The `deleteAccount` callable wipes the profile, all answers,
-group memberships, this user's votes and names inside shared reveals, the
+group memberships, this user's votes and names inside shared reveals —
+**and the picks that name them in a reveal they are not a member of**,
+which is a separate sweep because a pick is validated against membership
+at ANSWER time while a reveal's `members` is membership at REVEAL time:
+answer on a pick day, leave before that night's reveal, and the uid is in
+the document and in no array the membership query walks. The reveal
+builder writes `pickedUids` so the sweep has an index to walk. Reveals
+written before that field existed carry no `pickedUids`, so a pick made in
+a circle the account had already left is not reachable by this sweep — a
+one-off backfill is the only thing that reaches those, and it is the
+owner's call. Also wiped: the
 rate-limit ledgers, the aggregate event ledger's entries naming them,
 cross-user references (impressions they sent, relations naming them),
 their takes and flags, the moderation queue's copy of any take of theirs,

@@ -331,6 +331,21 @@ describe("agreement — the likeness behind Kindred", () => {
     const b = { q1: 0, q2: 0 };
     expect(agreement(a, b)).toEqual(agreement(b, a));
   });
+
+  it("counts a MATCH as the match — the fixtures above cannot tell which", () => {
+    // THE MISSING CONTROL, and it was missing rather than weak: every
+    // fixture in this block holds exactly one agreement and one
+    // disagreement, so inverting the comparison inside `agreement` scores
+    // the same 1 of 2 and leaves this file entirely green. Kindred ranks
+    // people by this number; inverted, it puts the person who agrees with
+    // you least at the top and reads the same to every gate.
+    //
+    // Two lopsided pairs in opposite directions: identical answers, and
+    // answers that differ on every shared question. Only one reading of
+    // the comparison gets both.
+    expect(agreement({ q1: 0, q2: 1, q3: 2 }, { q1: 0, q2: 1, q3: 2 })).toEqual(agreementOf(3, 3));
+    expect(agreement({ q1: 0, q2: 1, q3: 2 }, { q1: 1, q2: 2, q3: 0 })).toEqual(agreementOf(0, 3));
+  });
 });
 
 describe("byOf", () => {

@@ -447,7 +447,7 @@ arithmetic.
       All three before 3.4, not after — the flip is what makes them
       load-bearing.
 
-      **Steps 2 and 3 no longer need the console (D364).** Actions →
+      **Steps 2 and 3 no longer need the console (D367).** Actions →
       **App Check** → `register-debug-token`, with the value already in the
       `APPCHECK_DEBUG_TOKEN` secret: `scripts/appcheck.mjs` registers what
       it is handed and deliberately cannot mint or echo one, so no token
@@ -1109,7 +1109,7 @@ start.
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
 
-      **The flip is Actions → App Check → `enforce` (D364)**, service by
+      **The flip is Actions → App Check → `enforce` (D367)**, service by
       service, `apply` off first: the dry run prints the current mode and
       the transition without touching anything. It is dispatch-only behind
       the `production` environment, so it can only run from `main` — which
@@ -2089,7 +2089,7 @@ That is a tester-count problem, not a workflow problem.
       then there is data worth migrating.
 
 - [ ] **5.14 The paid loop's three secrets and the Stripe webhook — the
-      whole self-serve money path, and it was on no list until D364.**
+      whole self-serve money path, and it was on no list until D367.**
       D313 and D315 shipped `functions/src/paid.ts` end to end: a buyer
       composes in the app, an automated review rules on the ask, the price
       comes off the committed rate card server-side, payment runs through
@@ -2161,7 +2161,7 @@ That is a tester-count problem, not a workflow problem.
 ## Phase 6 — Submit
 
 - [ ] **6.0 DECIDE THE PAID DOOR'S SHAPE — this is the step whose window
-      closes when you submit, and it was on no list until D364.**
+      closes when you submit, and it was on no list until D367.**
       [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is **plan only, nothing
       adopted**, opened by the owner 2026-08-31 (*"How should we avoid
       having to pay the cut to Apple and Google for paid questions?"*). It
