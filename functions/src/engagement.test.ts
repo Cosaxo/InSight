@@ -32,6 +32,7 @@ import {
   STREAK_BROKEN_MIN,
   dayGap,
   dayOffset,
+  firestoreAttentionStore,
   firestoreEngagementStore,
   runEngagementDigest,
   surfaceOfQid,
@@ -757,6 +758,83 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
   // Asserted on the ADAPTER, because that is where the bug was and the
   // pure passes above cannot see it: the injected memoryStore models a
   // whole-object replace, which is exactly what the real store was doing.
+  // AN EMPTY MAP IS AN INSTRUCTION TO DELETE, and this one erased a day.
+  //
+  // `applyAttention` writes the day document with { merge: true } and
+  // guards `q` and `qOther` as emit-when-set — and wrote `s`
+  // unconditionally, one line above both of them. Firestore puts an
+  // explicitly-written empty map in the UPDATE MASK (the SDK says so in
+  // those words: "Add a field path for an explicitly updated empty map"),
+  // so `s: {}` does not merge into the existing counters, it REPLACES
+  // them. `v2_engagement_daily/{day}.attn.s` is opens, slow boots,
+  // errors, tab and lens visits, answers by surface, reveals, notification
+  // opens — and it cannot be recomputed, because the same batch deletes
+  // the shards it was folded from.
+  //
+  // Reachable without an attacker: the client writes `s` unconditionally
+  // too (src/v2/data/engagement.ts), and `onHidden()` calls `ensureToday()`
+  // without `note()`, so a phone backgrounded just after UTC midnight and
+  // not reopened flushes a shard whose `s` is `{}`. A LATE shard — which
+  // runAttentionFold's own header calls the normal case — folds on a later
+  // night, after the day's real counters are already in the document.
+  //
+  // ASSERTED ON THE ADAPTER, for the same reason the case below is: the
+  // injected fake models applyAttention ADDITIVELY, so an empty delta is a
+  // no-op in the fake and a wipe in the real store. That is the gap
+  // taste.ts and patterns.ts each carry a written note about.
+  it("applyAttention omits an empty s rather than writing it, which would erase the day", async () => {
+    type AttnWrite = { day: string; attn: Record<string, unknown> };
+    const calls: Array<{ path: string; data: AttnWrite; opts: unknown }> = [];
+    const batch = {
+      set(ref: { path: string }, data: unknown, opts?: unknown) {
+        calls.push({ path: ref.path, data: data as AttnWrite, opts });
+      },
+      delete() {},
+      async commit() {},
+    };
+    const doc = (path: string) => ({
+      path,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${path}/${c}/${d}`) }),
+    });
+    const db = {
+      batch: () => batch,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${c}/${d}`) }),
+    } as unknown as Parameters<typeof firestoreAttentionStore>[0];
+
+    const store = firestoreAttentionStore(db);
+    await store.applyAttention("2026-09-05", { devices: 1, s: {}, q: {}, qOther: 0 }, ["shard1"]);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].opts).toEqual({ merge: true });
+    expect(
+      Object.prototype.hasOwnProperty.call(calls[0].data.attn, "s"),
+      "an empty s was written, which Firestore treats as a delete of the whole map — a day's per-surface counters, unrecoverable",
+    ).toBe(false);
+    // The control: the rest of the write still happens, so the guard did
+    // not simply stop the fold from recording anything.
+    expect(calls[0].data.day).toBe("2026-09-05");
+    expect(calls[0].data.attn.devices).toBeTruthy();
+  });
+
+  it("applyAttention still writes s when there is something in it — the control", async () => {
+    type AttnWrite2 = { attn: Record<string, unknown> };
+    const calls: Array<{ data: AttnWrite2 }> = [];
+    const batch = {
+      set(_ref: unknown, data: unknown) { calls.push({ data: data as AttnWrite2 }); },
+      delete() {},
+      async commit() {},
+    };
+    const doc = (path: string) => ({ path, collection: (c: string) => ({ doc: (d: string) => doc(`${path}/${c}/${d}`) }) });
+    const db = {
+      batch: () => batch,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${c}/${d}`) }),
+    } as unknown as Parameters<typeof firestoreAttentionStore>[0];
+
+    const store = firestoreAttentionStore(db);
+    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: 3 }, q: {}, qOther: 0 }, ["shard1"]);
+    expect(calls[0].data.attn.s, "the guard removed a real counter map").toBeTruthy();
+  });
+
   it("putStates merges rather than replacing, so fg7 survives the night", async () => {
     const calls: Array<{ path: string; data: unknown; opts: unknown }> = [];
     const batch = {

@@ -25,6 +25,12 @@ const h = vi.hoisted(() => ({
   /** Every query this module issued, as the plain shape a test can read. */
   queries: [] as Array<Record<string, unknown>>,
   docs: [] as Array<{ id: string; path: string; data: Record<string, unknown> }>,
+  /** Make the answers read for these uids reject, so "their answers could
+   *  not be read" can be told apart from "they are not your friend". */
+  answersFailFor: [] as string[],
+  /** Make the FOLLOWERS read reject, so "we could not ask who follows you
+   *  back" can be told apart from "nobody does". */
+  followersFail: false,
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -53,7 +59,15 @@ vi.mock("firebase/firestore", () => ({
   // the server return only those; a fake that handed back everything
   // regardless would be more permissive than Firestore and would pass a
   // query that asked for the wrong documents.
-  getDocs: (q: { wheres?: Array<[unknown, unknown, unknown]> }) => {
+  getDocs: (q: { wheres?: Array<[unknown, unknown, unknown]>; path?: string }) => {
+    // `fetchAnswersOf` reads v2_users/{uid}/answers — the uid is in the
+    // PATH, not in a where-clause. Keyed on the path so the injection
+    // really reaches that read and the case cannot pass vacuously.
+    const failing = h.answersFailFor.some((u) => q?.path === `v2_users/${u}/answers`);
+    if (failing) return Promise.reject(new Error("permission-denied"));
+    if (h.followersFail && q?.path === "following") {
+      return Promise.reject(new Error("permission-denied"));
+    }
     const idIn = (q?.wheres || []).find((w) => w[0] === "__name__" && w[1] === "in");
     const want = idIn
       ? new Set((idIn[2] as Array<{ path: string }>).map((r) => r.path))
@@ -77,7 +91,7 @@ vi.mock("firebase/firestore", () => ({
   },
 }));
 
-beforeEach(() => { h.queries = []; h.docs = []; });
+beforeEach(() => { h.queries = []; h.docs = []; h.answersFailFor = []; h.followersFail = false; });
 
 const following = (owner: string, to: string, atSeconds: number) => ({
   id: to,
@@ -240,5 +254,83 @@ describe("fetchAnswersOf", () => {
       (q.wheres as unknown[][]).some((w) => w[0] === "surface"),
       "the cross-user answer read went out without its surface filter — rules refuse it wholesale",
     ).toBe(true);
+  });
+});
+
+
+// ── A FAILED ANSWER READ IS NOT AN UNFOLLOW ─────────────────────────────
+//
+// `loadCircle` drops a member whose `fetchAnswersOf` rejected — right for
+// the FOLD, which has nothing to place them by. `live.ts` then rebuilt the
+// follow set from what survived, so that friend fell out of
+// `state.follows` for the whole session: absent from the Friends cut of
+// every who-voted sheet and from its headline count, gone from the
+// patterns map's circle population, and `isFollowing` false, so the Follow
+// button offered to re-follow — a write the rules refuse as an update and
+// `follow()` swallows, so the tap does nothing and says nothing.
+//
+// `loadFollows` could not repair it: it early-returns on a non-null cache.
+// `loadFollows`'s own docstring states the intent this violated — "two
+// caches that can disagree about who your friends are is the bug this note
+// exists to prevent". Named, not cited by line: the first draft said
+// live.ts:4826 and the same night's edits to that file moved it.
+describe("loadCircle keeps the follow set separate from the fold", () => {
+  it("hands back everyone you follow, including the one whose answers failed", async () => {
+    const { loadCircle } = await import("./circle");
+    h.docs = [
+      following("me", "u_ada", 200),
+      following("me", "u_grace", 100),
+    ];
+    h.answersFailFor = ["u_ada"];
+    const got = await loadCircle({} as never, "me", { q1: 0 }, () => "");
+    expect(
+      got.following,
+      "the follow set was rebuilt from the fold's survivors, so a failed answer read read as an unfollow",
+    ).toEqual(expect.arrayContaining(["u_ada", "u_grace"]));
+    expect(got.following).toHaveLength(2);
+    // …and the FOLD still drops them, which is correct: it has nothing to
+    // place them by. The two answers are different questions.
+    expect(got.members.map((m) => m.uid)).not.toContain("u_ada");
+  });
+
+  it("still folds everyone when nothing fails — the control", async () => {
+    const { loadCircle } = await import("./circle");
+    h.docs = [following("me", "u_grace", 100)];
+    const got = await loadCircle({} as never, "me", { q1: 0 }, () => "");
+    expect(got.following).toEqual(["u_grace"]);
+  });
+});
+
+// ── "NOBODY IS TOLD" IS A CLAIM, AND A REFUSED READ WAS MAKING IT ───────
+//
+// `fetchFollowersOf(...).catch(() => new Set())` turned a failed read into
+// the same value as "nobody follows you back", so LiveCircleBody printed
+// "By likeness · following is one-way, nobody is told" — a positive fact
+// about other people, stated by a screen that could not ask. Its own
+// docstring names that outcome as the thing it exists to prevent.
+//
+// `mutual: null` rather than a second return value: the two places that
+// read it already treat a falsy value as "no badge", which is the safe
+// direction, so only the SENTENCE has to learn the difference.
+describe("a refused followers read is not 'nobody follows you back'", () => {
+  it("marks mutuality unknown rather than false", async () => {
+    const { loadCircle } = await import("./circle");
+    h.docs = [following("me", "u_grace", 100)];
+    h.followersFail = true;
+    const got = await loadCircle({} as never, "me", { q1: 0 }, () => "");
+    expect(got.members).toHaveLength(1);
+    expect(
+      got.members[0].mutual,
+      "a refused read was recorded as a definite 'they do not follow you back'",
+    ).toBeNull();
+  });
+
+  it("still answers false when the read landed and they do not — the control", async () => {
+    // Without this, "always unknown" would satisfy the case above and cost
+    // every mutual badge in the app.
+    const { loadCircle } = await import("./circle");
+    h.docs = [following("me", "u_grace", 100)];
+    const got = await loadCircle({} as never, "me", { q1: 0 }, () => "");
+    expect(got.members[0].mutual).toBe(false);
   });
 });

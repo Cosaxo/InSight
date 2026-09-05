@@ -189,6 +189,13 @@ const trendAggs: Record<string, Record<string, DayAgg | null>> = {};
 let loadingToday: Promise<void> | null = null;
 const loadingTrend: Record<string, Promise<void> | undefined> = {};
 let loadedForKey = ""; // today's key at load time — a day rollover invalidates
+// Set when the one read for today throws. `loadedForKey` stays unset on a
+// throw, which is right — nothing was read — but it makes "failed"
+// indistinguishable from "never asked", and a reader that treats either as
+// "nobody has answered" states an absence it did not measure. Same
+// distinction `trendReady` keeps for the trend half, and the same one
+// live.ts keeps for the test aggregates.
+let todayFailed = false;
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((f) => { try { f(); } catch { /* a broken listener must not stop the rest */ } });
 
@@ -319,6 +326,7 @@ export function ensureToday(force = false): Promise<void> {
   // once the bank has landed does the work.
   const ids = roster().map((q) => `${q.id}_${today}`);
   if (!ids.length) return Promise.resolve();
+  todayFailed = false; // a retry clears the previous failure before it starts
   loadingToday = (async () => {
     try {
       const got = await fetchAggs(ids);
@@ -327,6 +335,10 @@ export function ensureToday(force = false): Promise<void> {
       todayAggs = next;
       loadedForKey = today;
       notify();
+    } catch (e) {
+      todayFailed = true;
+      notify();
+      throw e;
     } finally {
       loadingToday = null;
     }
@@ -551,6 +563,20 @@ export const PULSE = {
    * to land: `scope()` serves DEMO_SCOPES and `ensureTrend` returns at its
    * first line, so the reading is complete the moment it renders. */
   trendReady(pid: string): boolean { return !LIVE.enabled || !!trendAggs[pid]; },
+  /**
+   * Has today's crowd been read? 'loading' | 'ready' | 'failed'.
+   *
+   * `todayN` answers 0 for three different facts — nobody answered, the
+   * read is in flight, the read was refused — and the card turned all
+   * three into "the first answer today". That sentence is a claim about
+   * the crowd, so it may only be drawn on 'ready'. Demo is always ready:
+   * its numbers are authored and there is nothing to fetch.
+   */
+  todayState(): "loading" | "ready" | "failed" {
+    if (!LIVE.enabled) return "ready";
+    if (todayAggs && loadedForKey === utcKey(dayAt(DAYS - 1))) return "ready";
+    return todayFailed ? "failed" : "loading";
+  },
   days, scope, streak, fmtN,
   word(pid: string, v: number): string { return stepsOf(pid).find((s) => s.v === v)?.label ?? ""; },
   /** Today's crowd split as percentages — live from today's per-day agg
@@ -560,26 +586,47 @@ export const PULSE = {
     if (!LIVE.enabled) return DEMO_BINS[id] ?? DEMO_BINS.world;
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     if (!agg) return [0, 0, 0, 0, 0];
+    // YOUR OWN UNFOLDED ANSWER JOINS AT READ TIME, the store's convention
+    // (`pickCanon`, live.ts): once the trigger folds it the published
+    // document already counts it, so only a PENDING answer adds. Without
+    // this the reveal drew its crowd off a document written before you
+    // answered — so "you · Brisk" sat above "0% of 4 answers today", the
+    // percentage of the very step it was naming, with your bar at the
+    // minimum height. `PULSE.answer` forces a refetch and reliably loses
+    // the race with the fold; `ensureToday` then short-circuits on
+    // `loadedForKey`, so that pre-vote crowd was frozen for the session.
+    const pend = LIVE.pulsePending ? LIVE.pulsePending(pid) : null;
+    const mineIdx = typeof pend === "number" && pend >= 0 ? pend : -1;
     if (id === "world") {
-      const total = agg.total || 0;
+      const total = (agg.total || 0) + (mineIdx >= 0 ? 1 : 0);
       return Array.from({ length: 5 }, (_, i) =>
-        total > 0 ? Math.round(100 * (agg.counts?.[String(i)] ?? 0) / total) : 0);
+        total > 0 ? Math.round(100 * ((agg.counts?.[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / total) : 0);
     }
     const cut = LIVE.anchors() || {};
     const bucket = id === "city" ? cut.city : cut.country;
     const cell = bucket ? agg.by?.[id]?.[bucket] : undefined;
-    const n = cell ? Object.values(cell).reduce((a, b) => a + b, 0) : 0;
+    // The scoped cut is your own cohort, so a pending answer of yours
+    // belongs in it too — same join, same reason as the world cut above.
+    const base = cell ? Object.values(cell).reduce((a, b) => a + b, 0) : 0;
+    const n = base + (mineIdx >= 0 && cell ? 1 : 0);
     return Array.from({ length: 5 }, (_, i) =>
-      n > 0 && cell ? Math.round(100 * (cell[String(i)] ?? 0) / n) : 0);
+      n > 0 && cell ? Math.round(100 * ((cell[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / n) : 0);
   },
   todayN(pid: string, id: string): number {
     if (!LIVE.enabled) {
       const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[2];
       return s.n[DAYS - 1];
     }
+    // The denominator the card prints beside the share above, so it joins
+    // the same way — a crowd stated as "of 4" while the share was worked
+    // out over five would be the same wrong number twice.
+    const pendN = LIVE.pulsePending && LIVE.pulsePending(pid) != null ? 1 : 0;
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
+    // No document at all is still zero, not one: the card's "first answer
+    // today" arm is about an absent reading, and a pending answer with
+    // nothing published yet is exactly that — you ARE the first.
     if (!agg) return 0;
-    return cutOf(agg, id).n;
+    return cutOf(agg, id).n + pendN;
   },
   mineToday(pid: string): number | null {
     // NOT `days(pid)[DAYS - 1].v` (D244). That fold nulls every day the
@@ -638,6 +685,7 @@ window.addEventListener("insight:local-purge", () => {
   todayAggs = null;
   for (const k of Object.keys(trendAggs)) delete trendAggs[k];
   loadedForKey = "";
+  todayFailed = false;
   notify();
 });
 
