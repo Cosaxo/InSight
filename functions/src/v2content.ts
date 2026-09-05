@@ -8141,6 +8141,43 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "unit": "songs"
  },
  {
+  "id": "feed-n14",
+  "surface": "feed",
+  "seq": 265,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Flying cars land at the tech fair again. A dream worth keeping, or a bit that got old?",
+  "options": [
+   "Keep the dream",
+   "It got old",
+   "Just build trains"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-05",
+  "until": "2026-09-11",
+  "bg": "IFA Berlin, Europe's biggest consumer-tech fair, opened on 4 September — 1,900 brands across 190,000 square metres, AI in everything from fridges to laptops, and, once again, flying-car concepts on the floor. It runs to 8 September."
+ },
+ {
+  "id": "feed-n15",
+  "surface": "feed",
+  "seq": 266,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A season opening on a Wednesday for the first time in a decade: fine, or leave the rituals alone?",
+  "options": [
+   "Fine — a game's a game",
+   "Leave the rituals alone"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-05",
+  "until": "2026-09-12",
+  "bg": "The NFL's 2026 season opens on Wednesday 9 September in Seattle — a Super Bowl rematch against New England, and the league's first Wednesday opener in well over a decade. Season openers traditionally hold Thursday night."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,

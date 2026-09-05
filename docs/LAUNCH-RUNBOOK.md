@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 845 seeded; the production backend is deployed. **Measured
+questions of 847 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -207,7 +207,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      845 questions land in `v2_questions` — idempotent and, since D34,
+      847 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -218,7 +218,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **845** after the K=5 test expansion, D103's
+      and the bank is **847** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1094,7 +1094,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 845 seeded questions are live regardless.
+      working, not a leak — the 847 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
