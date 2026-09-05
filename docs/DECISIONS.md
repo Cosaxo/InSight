@@ -38174,3 +38174,115 @@ first-match regex, so a retuned constant with its old line parked above it
 made the gate certify the superseded number and exit 0. `check:anchors`,
 `check:cities`, `check:figures` and `account-level-lib` are fixed. The
 class is not closed by a gate of its own.
+
+## D366 · Nothing the theory lanes wrote is axiom theory, and the ladder is why — the potential half, the salvage, and the gate that holds the line
+
+**2026-09-03.** Written on `claude/axiom-theory-evaluation-0g62q4` out of
+an evaluation the owner asked for, which turned into three owner rulings
+once the corpus was read against its own charter.
+
+### What was measured
+
+`origin/axiom-theory` at `666dc65`: 46 commits over ten days, 129 claims
+on 381 edges, 588 sources, **$733.13** metered across 30 runs
+(`USAGE-REDUCTION.md` §1). The bridge — the only path from theory into
+this repo — has crossed **two** requests, both on 2026-08-27 in one
+decision (D325), while sixteen `worth-building` verdicts accumulated.
+One node of 129 reached `measured`. Zero worked cross-axis scenarios
+exist, and zero visualisations, from a program whose §1 has demanded
+cross-axis connection since 2026-08-25.
+
+### The owner's three rulings
+
+1. *"they have missed the point"* — the lanes were to show what the app
+   could KNOW by crossing axes; they produced constraints, citations and
+   maintenance instead.
+2. *"nothing that has been created so far is axiom theory"* — the 129
+   claims are measurement method, negative results, engineering
+   proposals and program findings. Kept, renamed, filed at
+   `MEASUREMENT-NOTES.md`.
+3. *"it should not take into account things like current number of users
+   as it looks at what it potentially can do not what it can do now"* —
+   scale stops bounding a theory.
+
+### Why it happened, which is the part that generalises
+
+Not motivation — **the ladder's gradient**. §4's upper rungs are `cited`
+(matches existing literature) and `measured` (defined as agreement with
+InSight's own published numbers), so the highest-status act available to
+a lane was describing the current product, and §3's ratchet made a run
+spent on potential look like a failed run. Archaeology confirms it:
+of 109 nodes traced from first write to current, **36 had their claim
+rewritten**, and almost every rewrite replaced a design claim about the
+ideal with a status report on the literature or the app. `cen-3` was
+seeded *"new axioms surface where the joint model's residuals cluster"*
+— a self-extending system — and is now a five-part admission checklist.
+
+D352 (*axiom power first*, 2026-09-02) never reached the charter, last
+amended 2026-09-01.
+
+**Dilution, not destruction — measured 2026-09-04, and it changes the
+remedy.** Claims that reason about the *perfect form* at all: **24 of 39
+(61%) at the seed, 34 of 129 (26%) now**. But the fall is almost
+entirely on the production side, not the destruction side — **20 of the
+24 seed claims still reason about the perfect form** (only `map-3`,
+`que-4`, `tst-2` and `tst-5` lost the framing), while of the **90 nodes
+added after the seed only 13 were born perfect-form, 14%**. The lanes
+did not lose the ambition; they stopped producing it.
+
+That rules out a revert or a wipe as the fix: 34 genuine perfect-form
+claims are standing, and a reset would destroy them to solve a birth-rate
+problem. The corpus splits rather than resets — those 34 stay, the rest
+goes to the salvage — and what changes is what gets rewarded, which is
+§13's gate. Three nodes (`bod-3`, `gen-8`, `tst-8`) show a lane growing
+a claim on its own initiative, so the ceiling was never the constraint.
+
+### What this repo carries
+
+`AXIOM-POTENTIAL.md` (plan) — the missing half, written directly rather
+than waited for: the multiplier the app already runs unnamed (thirteen
+instruments derived from one write), the compounding map, three worked
+scenarios — ability genetics without the education proxy, the neurotype
+signature, the loop where each axis lowers the cost of the next — a
+collection order in which three of the top five need no new technology,
+and the eight ambitions recovered from the seeds.
+`MEASUREMENT-NOTES.md` (tree) — the salvage, explicitly not axiom
+theory and read by no gate. `AXIOM-THEORY.md` § The drift and § The
+charter amendment — the diagnosis and the approved wording.
+
+Two stale figures were corrected in passing: the axiom builder's own
+contract specified three runs a day against the owner's recorded call of
+one (`PROGRAM-RUNBOOK.md`, `ROUTINES.md`), and the bridge queue was
+reported as ten worth-building verdicts when the ledger held sixteen.
+
+### Superseded the next day, and why the record stands
+
+**2026-09-05.** The owner ruled the branch discarded and the program
+restarted from a fresh plan rather than an amended charter: *"keep the
+129 ideas in an idea list or something, rest seems like it can be
+discarded."* So the charter amendment below never applies, and
+`AXIOM-IDEAS.md` was added — the 129 claims as one line each, marked
+where they reason about a perfect form. What survives the restart is the
+diagnosis (a ladder whose top rung is the current app selects for
+describing the current app), the two documents the replacement is
+briefed from, and the salvage. The measurement is why the restart
+happened, so it is recorded rather than rewritten.
+
+### What is NOT here, and waits on the owner
+
+The charter amendment itself — the perfect-form test, the scale clause,
+the ruling that the old corpus is not axiom theory, a fifth status
+`demonstrated` (a worked cross-axis scenario, needing no citation and no
+existing data), the bridge's second entry kind, Potential as a scored
+review dimension, and `graph/potential.mjs` as the gate that makes it
+stick (two cross-axis scenarios per lane, ratcheted, floor due
+2026-09-20). It is committed on `claude/charter-potential-2026-09-03`
+and **unpushed**: the charter lives on the orphan branch, and the owner
+said the permission for that push is theirs to give deliberately. Until
+it lands the twelve lanes run the old contract and keep producing
+salvage at ~$92 a day.
+
+The gate is a gate rather than a paragraph on the program's own finding:
+`go-10` says unschematized conventions never converge across
+fresh-session lanes, and §1 asking for cross-axis connection in prose
+produced no scenario in 129 claims.

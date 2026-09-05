@@ -30,9 +30,21 @@ today it names:
 | **Claude 2** | the **twelve** theory lane prompts, `InSight doc sweep`, `InSight night shift` (shift A) |
 | **Claude 3** | *(none — every prompt is a fenced block in `PROGRAM-RUNBOOK.md`)* |
 
-The `axiom-theory` branch itself is in git and safe. What is not safe
-is the twelve prompts that produce it: cancel Claude 2 without
-exporting and the theory program cannot be restarted, only rewritten.
+**D366 (2026-09-05) took the twelve theory prompts off this list's
+urgent half**, and it is the owner's ruling that did it: *"nothing that
+has been created so far is axiom theory"*, the `axiom-theory` branch
+discarded, the 129 claims kept as [`AXIOM-IDEAS.md`](AXIOM-IDEAS.md)
+and the program restarting from a fresh plan. This page previously said
+the branch was safe in git and only the prompts were at risk. Both
+halves of that are now moot: the branch is discarded by decision, and
+re-creating those twelve prompts verbatim would rebuild the very
+gradient D366 diagnosed as the cause — a ladder whose top rung rewarded
+describing the product over reasoning about what it could know. Export
+them if you want the record; do not treat it as a deadline, and do not
+restart the lanes from them.
+
+What stays urgent is the other four: `InSight doc sweep` and
+`InSight night shift` (A) on Claude 2, and Claude 1's three.
 [`WORKLIST.md`](WORKLIST.md) carries the export as one item per
 account, tagged `[claude-1]` and `[claude-2]`; each is one read-only
 run of `list_triggers` and one PR.
@@ -172,11 +184,16 @@ Named rather than glossed, because each is a real loss:
   most of it at a fortieth of the cost — a persistent session woken
   five times a night is what made this line the biggest in the program,
   not the auditing itself.
-- **The twelve theory lanes** (~$73/day). Lost: forward theory. Not
-  lost: the branch, which is in git, and the bridge queue, which is
-  full. Pause rather than delete, export the prompts first (§0), and
-  restart when the queue empties or when there is data to theorise
-  about.
+- **The twelve theory lanes** (~$73/day, and $733.13 across the 30 runs
+  D366 measured). **The owner has already retired these, on grounds
+  that have nothing to do with cost**: D366's ruling is that none of
+  what they produced is axiom theory, the branch is discarded, and the
+  program restarts from a fresh plan. So the consolidation does not
+  need to decide them — it only needs to not re-create them. What a
+  replacement costs is [`AXIOM-POTENTIAL.md`](AXIOM-POTENTIAL.md)'s
+  question, not this page's; what this page adds is that a restart
+  lands on one or two accounts rather than three, so it is a lane in
+  §3's clock and priced there.
 - **The three axes lanes** (~$6/day). The axes program's build step is
   the same work the axiom builder does, against the same theory.
 - **The meta layer** — the merge shift (already deleted), the console
@@ -237,9 +254,12 @@ one bucket and one that drops its most expensive runs silently.
    half the spend and must not queue behind a lane.
 2. **The night shifts** — retire both, or keep one at a weekly fresh
    session? ~$233 a day measured for A alone.
-3. **The theory program** — pause with the prompts exported, or keep a
-   reduced set running? ~$73 a day, and the bridge queue it feeds is
-   already full.
+3. ~~**The theory program** — pause with the prompts exported, or keep a
+   reduced set running?~~ **Answered by D366 on 2026-09-05**, before
+   this page was read: the branch is discarded and the program restarts
+   from a fresh plan. What is left for you here is only *where* a
+   restarted lane runs and at what cadence, which §3's clock answers
+   with one slot.
 4. **Whether the guard in §6 is built** before the move or after. Before
    is one afternoon and catches the failure while it still matters;
    after is the same afternoon spent once it has happened again.
