@@ -339,8 +339,8 @@ rotation per day, averaged over the next 14 days)`: nobody else, the
 floor; one other campaign across the fortnight, ×1.5; five, ×3.5; no
 cap. Running campaigns and the days ahead only — a campaign that ended
 last month is in nobody's rotation. Questions share a day's slot by
-rotation and ads queue, so a crowded day is fewer answers per
-campaign, and the price rises exactly when the answers are scarce.
+rotation (and ads too, since D369), so a crowded day is fewer answers
+per campaign, and the price rises exactly when the answers are scarce.
 The buyer is protected without a ceiling by the two things already
 built: the rate locked at booking and the budget bounding the spend.
 The "trailing window" term and the floor-and-ceiling mapping in the
@@ -348,6 +348,23 @@ paragraph above are retired with it. And on *"isn't that still
 ridiculously high?"*: `base` is €0.02 (€10 buys 500 answers with
 nobody else asking), budgets €5 · €10 · €20 · €50, a €5 minimum. The
 ad window did not follow and is on `OWNER-LIST.md`.
+
+**Ads run from the day after payment and share the rotation; the ad
+window follows the cut — DECIDED, D369 (2026-09-05).** The owner:
+*"make the ad price follow the same cut, and how do ads work right
+now. I don't like that they don't work out of the gate as that
+reduces my start revenue when I need it the most."* D315's queue
+started a second ad the day after the scope's running one ended —
+one ad window per overlapping audience per month, a world ad blocking
+every city — so the second advertiser at launch waited weeks. Retired:
+an ad starts tomorrow like a question, shares the daily slot by
+rotation with every campaign in its scope, and the crowding it joins
+is in the flat price it locks (D368's index counts ads). `adBase` €320
+→ **€40**, the ÷8 the per-answer price took from €0.16 to €0.02, so
+an ad window with nobody else in rotation costs what a €40 question
+budget does. What did not move: text only, no link, no tracking
+(D197), one audience tag, the automated review, no refund on a flat
+window.
 
 **The vocabulary widening this pricing needs — DECIDED, D228
 (2026-08-22)**: `sponsor.audience` now takes **one to three dims** (the

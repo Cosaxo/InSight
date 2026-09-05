@@ -248,10 +248,12 @@ v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
                                    breakdown dims, matched ON THE DEVICE
                                    (data/sponsored.ts). The server is never
                                    asked who should see what
-  from?                            D315: a self-serve ad queued behind the
-                                   scope's running one starts later than it
-                                   was paid — pickPaid holds it until this
-                                   day, the exclusivity its flat price buys
+  from?                            D315: a self-serve ad's first serving
+                                   day — pickPaid holds it until then. The
+                                   day after payment since D369 (ads share
+                                   the rotation, priced by crowding); under
+                                   D315 it was queued behind the scope's
+                                   running ad
   active?, seq, updatedAt
 read: signed-in · write: nobody client-side (the seed, and since D315 the
 payment webhook at paidad-* ids). An ad takes no answer, so there is no

@@ -40,7 +40,7 @@ export const PRICING_CARD: PricingCard = {
   20,
   50
  ],
- "adBase": 320,
+ "adBase": 40,
  "fx": {
   "NOK": 11.6,
   "USD": 1.08

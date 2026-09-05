@@ -38422,3 +38422,86 @@ The step (0.5 is a routine's pick: one other campaign is half again
 the price), the ad window's flat price, and the fortnight as the
 horizon — the booking runs 29 days and the index reads 14, the strip
 the buyer already sees; reading the whole 29 is one constant.
+
+## D369 · Ads run from the day after payment and share the rotation, and the ad window follows the cut
+
+**2026-09-05.** **Status:** binding, BUILT. The owner: *"make the ad
+price follow the same cut, and how do ads work right now. I don't like
+that they don't work out of the gate as that reduces my start revenue
+when I need it the most."* Two changes and one thing outside a
+session's reach (§3).
+
+### 1 · How an ad works, and what was wrong at the gate
+
+The lane is D315's: a buyer composes a text-only ad in the same door
+(advertiser, headline, body — no image, no link, no tracking, D197),
+the same automated review rules on it, the price is one flat figure
+for a 29-day window, Stripe takes it, the webhook writes the ad into
+`v2_ads` and the purchase into `v2_purchases`, every device downloads
+the pool and matches the one audience tag locally, the feed shows ONE
+paid card a day at position six — the running questions and ads of a
+scope rotating through it by day — and the nightly closer deletes the
+ad at window end. Nothing is counted; the window is the product.
+
+What kept it from working at the gate was the queue. D315 made ads
+day-exclusive against other ads whose audiences overlap: a new ad's
+window began the day after the scope's running one ended, and a world
+ad overlapped every city. Honest for the flat price — an ad diluted
+by another ad silently got less for the same money — and fatal for
+revenue at launch: one ad window per overlapping audience per month,
+the second advertiser waiting weeks to start, and a single world ad
+closing every city for 29 days. The D368 index made the honesty
+argument moot: the multiplier now counts every campaign in the
+rotation, ads included, so the dilution an ad will meet is in the
+figure it locks.
+
+### 2 · What changed
+
+- **Ads start tomorrow and share.** `goLive` writes an ad's window as
+  it writes a question's: from the day after payment, 29 days
+  inclusive. `adStartDay` and `adAudiencesOverlap` are gone with their
+  tests; `from` on the ad doc stays (the client filter honours it) and
+  is simply tomorrow. The contract sheet says *from the day after you
+  pay · 29 days* and *it shares the daily slot by rotation with the
+  other campaigns in your scope; that crowding is in the price you
+  lock*, where it promised *other ads never overlap yours*.
+- **The window follows the cut.** `adBase` €320 → **€40**: ÷8, the
+  same ratio the per-answer price took from €0.16 to €0.02. With
+  nobody else in rotation an ad window costs what a €40 question
+  budget does; with one other campaign, €60; the multiplier is D368's
+  and has no ceiling.
+- The e2e now books a second ad into a city already carrying a
+  question and an ad, sees it quoted off the two it joins (×2.0, €80 —
+  the ad being quoted is not in the ledger yet; it crowds the next
+  buyer) and running from tomorrow beside the first, where it used to
+  assert the queue.
+
+An earlier buyer is diluted by a later one without compensation —
+the cost this trades for revenue at the gate, stated: a flat window
+bought at ×1 alone can become one of three in rotation a week later.
+The door says so before payment, and a buyer who wants a fortnight to
+themselves has no way to buy one; when that is asked for, an exclusive
+window is a separate product with its own price, not a queue on this
+one.
+
+### 3 · What a session cannot make work
+
+Whether a sale can go through TODAY on the deployed app depends on
+three secrets in the deploy's dotenv — the Stripe key, the Stripe
+webhook secret, the Claude key (`DEPLOYMENT.md` § Runtime
+environment). Without the first two, checkout answers *"payments
+aren't configured on this deployment"* and the webhook answers 503:
+nothing can be bought, ad or question. A session cannot read the
+deployed environment, so this is on `OWNER-LIST.md` § Clicks as the
+owner's to confirm. The other limit on ad revenue is by design and
+unchanged here: an ad has no link (D197), which is what makes
+automated review tolerable and keeps the app free of a tracker, and
+is also what some advertisers will not pay for. That is a product
+conversation, not a fix.
+
+### 4 · What pins it
+
+`paid.test.ts` (the queue's two describes retired, the quote tests
+holding an uncapped idx), `pricingFold.test.ts` (an ad crowds the
+rotation like a question), `smoke-overlays.test.jsx` (the door's
+copy), and the e2e (§2).

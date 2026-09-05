@@ -96,8 +96,8 @@ describe("formatting", () => {
       },
       estimates: {},
     })).toBe(true);
-    const flat = adFlat("city");
-    expect(flat).toBeGreaterThan(100);
+    const flat = adFlat("city"); // €57.20 at adBase 40 × 1.43 (D369)
+    expect(flat).toBeGreaterThan(10);
     expect(fmtExact(flat), "the lifted ad price no longer needs the exact form")
       .not.toBe(fmt(flat));
   });

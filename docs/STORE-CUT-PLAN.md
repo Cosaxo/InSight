@@ -32,7 +32,7 @@ The arithmetic, off `content/pricing.json`:
 | | figure |
 | --- | --- |
 | Question sale | the buyer's budget up front — €5 to €50 (`budgets`, D367/D368) — at €0.02 an answer with nobody else in rotation (`base`), so the €50 budget buys up to 2,500 |
-| Ad sale | €320 flat (`adBase` × idx 1.0 with nobody else in rotation) |
+| Ad sale | €40 flat (`adBase` × idx 1.0 with nobody else in rotation; €320 until D369) |
 | Store cut at 30% | €96 |
 | Store cut at 15% (small-business / first $1M) | €48 |
 | Stripe on the same €320, EU card | ≈ €5 |

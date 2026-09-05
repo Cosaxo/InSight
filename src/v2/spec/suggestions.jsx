@@ -198,7 +198,7 @@ function SgMine({ s, SG, onResend }) {
                  two prices for one purchase, a finger apart. The rate
                  card in the composer keeps `fmt`, which is what it is
                  for; a quote already struck is not a rate card. */
-              ? 'Approved at ' + fmtExact(s.quote.flatEur) + ' flat — it runs ' + s.quote.windowDays + ' days from your scope\'s first open ad day after you pay.'
+              ? 'Approved at ' + fmtExact(s.quote.flatEur) + ' flat — it runs ' + s.quote.windowDays + ' days from the day after you pay.'
               : 'Approved at ' + fmtExact(s.quote.ratePerAnswer) + ' per answer, budget ' + fmtExact(s.quote.capEur) + ' — it runs ' + s.quote.windowDays + ' days from the day after you pay, and the unserved part refunds at close.'}
           </span>
           <button className="press" onClick={pay} disabled={payBusy} style={{ alignSelf: 'flex-start', padding: '9px 15px', borderRadius: 999, cursor: payBusy ? 'default' : 'pointer', WebkitAppearance: 'none', border: 'none', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
@@ -619,11 +619,10 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
             <div style={{ border: '0.5px solid var(--rule)', borderRadius: 12, background: 'var(--surface-2)', padding: '2px 12px' }}>
               {(adMode ? [
                 ['Scope', scopeName],
-                // An ad's window queues behind the scope's running ad
-                // (D315) — its day-exclusivity is what the flat price
-                // buys, so the start is "first open ad day", not a date
-                // the sheet could go stale holding.
-                ['Window', 'first open ad day after you pay · 29 days'],
+                // From the day after payment, like a question (D369):
+                // D315's queue behind the scope's running ad is gone,
+                // and the crowding it joins is in the price it locks.
+                ['Window', 'from the day after you pay · 29 days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
                 ['Price', fmt(adFlat(scopeKey)) + ' flat · locked at approval'],
               ] : [
@@ -653,13 +652,13 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 actually keeps. */}
             <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
               {adMode
-                ? 'Flat price, no meter — an ad collects no answers, no clicks and no tracking. Other ads never overlap yours; a paid question in your scope shares the slot day-for-day.'
+                ? 'Flat price, no meter — an ad collects no answers, no clicks and no tracking. It shares the daily slot by rotation with the other campaigns in your scope; that crowding is in the price you lock.'
                 : 'Locked rate · billed per answer · what the window doesn\'t deliver refunds automatically at close.'}
             </span>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, color: 'var(--ink)' }}>Checked automatically before anything is charged.</span>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45 }}>
               {adMode
-                ? 'Approved ads unlock payment; the card runs from your scope\'s first open ad day and retires itself at window end.'
+                ? 'Approved ads unlock payment; the card runs from the day after you pay and retires itself at window end.'
                 : 'Approved asks unlock payment; the card runs from the day after you pay, and every answer lands where you can watch it.'}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

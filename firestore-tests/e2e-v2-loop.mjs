@@ -2015,7 +2015,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // queued day-exclusive windows, the webhook writing v2_ads, and the
   // reseed NOT eating what the webhook wrote.
   const dayKey = (off) => new Date(Date.now() + off * 86400000).toISOString().slice(0, 10);
-  const dayAfter = (k) => new Date(Date.parse(`${k}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
 
   const bookAd = (headline) => httpsCallable(payFns, "bookPaidQuestionV2")({
     kind: "ad", advertiser: "Harbour Sauna", headline,
@@ -2041,12 +2040,13 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const adCard = await liveCardNow();
   const adIdx = adCard?.cohorts?.city?.idx;
   if (!(adIdx > 1)) fail("the ad quote's basis should be the lifted city index: " + JSON.stringify(adCard));
-  const adFlatExpected = Math.round(320 * adIdx * 100) / 100;
+  // adBase is €40 since D369 (the same cut the per-answer price took).
+  const adFlatExpected = Math.round(40 * adIdx * 100) / 100;
   const adQuote = ad1Snap.get("quote") || {};
   if (adQuote.flatEur !== adFlatExpected || adQuote.windowDays !== 29) {
     fail(`ad quote is not adBase × the live idx (expected ${adFlatExpected}): ` + JSON.stringify(adQuote));
   }
-  ok(`an ad books and approves at the flat live price: €${adFlatExpected} = 320 × ${adIdx}`);
+  ok(`an ad books and approves at the flat live price: €${adFlatExpected} = 40 × ${adIdx}`);
 
   const adEvent = (evtId, csId, bid, pi) => JSON.stringify({
     id: evtId, object: "event", type: "checkout.session.completed",
@@ -2076,18 +2076,26 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("ad payment went live: purchase + v2_ads doc in one transaction");
 
-  // Day-exclusivity: a second ad in the same scope QUEUES — its window
-  // begins the day after the first one ends, never overlapping it.
+  // A second ad in the same scope SHARES the rotation from tomorrow
+  // (D369) — D315's queue, which started it the day after the first
+  // one ended, is gone — and it is quoted off the crowding it joins:
+  // the question and the first ad, two campaigns in the city's rotation
+  // on every day of the fortnight, so ×2.0 at the committed step. (The
+  // ad being quoted is not in the ledger yet; it crowds the NEXT buyer.)
   const ad2 = await bookAd("Warmer still on Tuesdays");
-  await settleAd(ad2.data.id);
+  const ad2Snap = await settleAd(ad2.data.id);
+  const ad2Quote = ad2Snap.get("quote") || {};
+  if (ad2Quote.flatEur !== Math.round(40 * 2 * 100) / 100) {
+    fail("the second ad should be quoted off two campaigns in rotation (×2.0): " + JSON.stringify(ad2Quote));
+  }
   const ad2Paid = await signedPost(adEvent("evt_e2e_ad2", "cs_ad2", ad2.data.id, "pi_ad2"), whsec);
   if (ad2Paid.status !== 200) fail("second ad webhook answered " + ad2Paid.status);
   const adPurchase2 = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${ad2.data.id}`));
   const w2 = adPurchase2.get("window");
-  if (w2.start !== dayAfter(w1.until)) {
-    fail(`second ad did not queue: first ends ${w1.until}, second starts ${w2.start}`);
+  if (w2.start !== dayKey(1) || w2.until !== w1.until) {
+    fail(`second ad did not share the rotation from tomorrow: first ${JSON.stringify(w1)}, second ${JSON.stringify(w2)}`);
   }
-  ok("a second ad in the scope queues the day after the first — windows never overlap");
+  ok(`a second ad in the scope runs from tomorrow beside the first, quoted €${ad2Quote.flatEur} off the two it joins`);
 
   // The reseed must not eat sold ads: content/ads.json is deliberately
   // empty, so without the paidad- sparing runSeedAds would delete BOTH

@@ -987,77 +987,10 @@ export function dayPlus(day: string, days: number): string {
 }
 
 /**
- * Where a NEW ad window starts (D315): the scope's first day with no
- * other paid ad running — ads QUEUE rather than share, which is the flat
- * price's honesty. A question's dilution self-corrects through per-answer
- * billing and its refund; a flat-priced ad silently diluted by another ad
- * would be getting less for the same money, so the second buyer's window
- * simply begins the day after the first one ends. Sharing with paid
- * QUESTIONS remains (their billing absorbs it) and the door says so
- * before payment.
- */
-/**
- * Do two ad audiences reach any of the same people?
- *
- * WHY THIS IS NOT `scope === scope`. The queue below exists so a
- * flat-priced ad is not "silently diluted by another ad… getting less for
- * the same money". It queued against ads of the SAME SCOPE — but scopes
- * are NESTED audiences, not disjoint ones. A world ad matches everybody,
- * and `pickPaid` gives exactly ONE paid slot a day out of one pool built
- * from every eligible question and ad. So a world ad was invisible to a
- * city booking's queue and then halved it: 29 days bought, ~14 served,
- * flat price paid in full. It runs both ways, and a country ad does it to
- * every city inside it.
- *
- * Containment is exact rather than guessed, because the shapes are
- * pinned: a city place is "<name>, <CC>" and a country place is the same
- * ISO alpha-2 code (pure.ts's BREAKDOWN_DIM_SHAPE). So "Oslo, NO" is
- * inside "NO" and nothing else has to be looked up.
- *
- * An unrecognised shape counts as OVERLAPPING. The two errors are not
- * equal: queueing two ads that never meet costs the second buyer time,
- * while failing to queue two that do costs them half of what they paid
- * for, silently. Time is recoverable and a diluted flat price is not.
- */
-export function adAudiencesOverlap(
-  a: { scope?: string; place?: string | null },
-  b: { scope?: string; place?: string | null },
-): boolean {
-  if (a.scope === "world" || b.scope === "world") return true;
-  // Same scope: disjoint only when BOTH name a place and the places
-  // differ. A missing place is an unrecognised shape, and those queue —
-  // the asymmetry in the doc comment above.
-  if (a.scope === b.scope && (a.scope === "city" || a.scope === "country")) {
-    if (!a.place || !b.place) return true;
-    return a.place === b.place;
-  }
-  const city = a.scope === "city" ? a : b.scope === "city" ? b : null;
-  const country = a.scope === "country" ? a : b.scope === "country" ? b : null;
-  if (!city || !country) return true;
-  // A city place that does not carry its country code, or a country with
-  // no place, is a shape this cannot reason about — so it queues.
-  const cc = typeof city.place === "string" && /^.+, [A-Z]{2}$/.test(city.place)
-    ? city.place.slice(-2)
-    : "";
-  if (!cc || !country.place) return true;
-  return cc === country.place;
-}
-
-export function adStartDay(
-  runningAdWindows: ReadonlyArray<{ until?: string }>,
-  nowMs = Date.now(),
-): string {
-  let start = utcDayKey(1, nowMs);
-  for (const w of runningAdWindows) {
-    if (w.until && w.until >= start) start = dayPlus(w.until, 1);
-  }
-  return start;
-}
-
-/**
  * The ad doc the webhook writes into v2_ads (D315) — the seed's own
  * field shape (runSeedAds) plus `from`, which committed ads never need
- * (their window starts at seed time) and a queued paid ad does:
+ * (their window starts at seed time) and a paid ad does — the day
+ * after payment, since D369; a queued day under D315:
  * pickPaid's ad filter honours it so a window scheduled to open next
  * week does not serve tonight. The id prefix `paidad-` is what
  * runSeedAds spares and the closer retires.
@@ -1256,35 +1189,19 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
 
     if (b.kind === "ad") {
       const quote = snap.get("quote") as PaidAdQuote;
-      // The scheduling read runs INSIDE the transaction, before any
-      // write, so two payments racing for the same scope serialize: the
-      // second retries against the first's committed window and queues
-      // behind it (adStartDay). This is the day-exclusivity the flat
-      // price is honest by.
-      // EVERY running ad, then filtered by whether its audience actually
-      // meets this one (adAudiencesOverlap). The scope equality that used
-      // to be in the query here was the bug: it made a world ad invisible
-      // to a city booking's queue, and then the two shared the single
-      // daily paid slot.
-      const runningAds = await tx.get(
-        db.collection("v2_purchases")
-          .where("kind", "==", "ad")
-          .where("state", "==", "running"),
-      );
-      const mine = {
-        scope: b.scope,
-        place: b.scope === "city" ? b.dims.city ?? null
-          : b.scope === "country" ? b.dims.country ?? null : null,
-      };
-      const start = adStartDay(
-        runningAds.docs
-          .filter((d) => adAudiencesOverlap(mine, {
-            scope: String(d.get("scope") ?? ""),
-            place: (d.get("place") as string | null) ?? null,
-          }))
-          .map((d) => (d.get("window") as { until?: string }) ?? {}),
-      );
-      const until = dayPlus(start, WINDOW_DAYS - 1); // 29 days inclusive
+      // FROM TOMORROW, LIKE A QUESTION (D369). D315 queued a new ad behind
+      // the scope's running one — day-exclusivity as the flat price's
+      // honesty, since an ad diluted by another ad silently got less for
+      // the same money. Two things retired that: the index now prices
+      // crowding (D368), so the dilution an ad will meet is in the figure
+      // it locks; and a queue that starts the second advertiser a month
+      // out is a queue that sells one window per scope per month, which
+      // at launch is the revenue the owner needs most ("they don't work
+      // out of the gate"). Ads share the daily slot by rotation with the
+      // other campaigns in their scope, the door says so before payment,
+      // and `from` on the doc is simply tomorrow.
+      const start = utcDayKey(1);
+      const until = utcDayKey(WINDOW_DAYS); // start + 28 more days, inclusive
       const adId = `paidad-${bid}`;
       tx.set(db.collection("v2_ads").doc(adId), paidAdDoc(b, start, until, seq));
       tx.set(
