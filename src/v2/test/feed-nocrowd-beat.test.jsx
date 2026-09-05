@@ -93,3 +93,27 @@ describe("the bars drew the split they were suppressing", () => {
     expect(decls).toEqual(["wfNoCrowd(q)"]);
   });
 });
+
+describe("a majority needs somebody in it besides you", () => {
+  // The third instance of the same claim in this file, and the one small
+  // enough to look harmless. `wfPcts` counts the viewer, so a total of 1
+  // is the viewer's own vote and nothing else — and the meta line under
+  // the card said "1 vote · with the majority". There is no side to be on.
+  it("drops the side-claim at a total of one, keeping the scale", () => {
+    expect(src).toContain("const alone = total <= 1;");
+    expect(src).toContain("(alone ? '' : (c[mine] === maxN ? ' \u00b7 with the majority' : ' \u00b7 you picked the underdog'))");
+  });
+
+  it("still claims a side once there is a crowd", () => {
+    // The control: the clause survives, it is only gated. If the whole
+    // sentence had gone, the case above would still pass.
+    expect(src).toContain("' \u00b7 with the majority'");
+    expect(src).toContain("' \u00b7 you picked the underdog'");
+  });
+
+  it("reads the COUNTS for it, which is what D-near-tie fixed", () => {
+    // Guard against the gate being added by rewriting the expression off
+    // the rounded shares — the defect feed-near-tie.test.jsx exists for.
+    expect(src).toMatch(/const maxN = Math\.max\(\.\.\.c\);\n    const alone/);
+  });
+});

@@ -2188,12 +2188,21 @@ class WorldFeed extends React.Component {
   // question about counts: two different counts can round to the same
   // integer, so reading it off the percentages told a voter whose option
   // had strictly fewer votes that they were "with the majority".
+  //
+  // AND AT ONE VOTE THERE IS NO SIDE TO BE ON. `wfPcts` counts you, so a
+  // total of 1 is your own vote and nothing else — and the line told you
+  // that you were "with the majority" of yourself. It is the same claim
+  // the consequence beat and the bars were making one method over, in the
+  // one sentence small enough to look harmless: a majority needs somebody
+  // to be in it besides the reader. The scale still prints; only the side
+  // it claims you are on goes away.
   renderMeta(q, T, big, total, c, mine) {
     const maxN = Math.max(...c);
+    const alone = total <= 1;
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog')}</span>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (alone ? '' : (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog'))}</span>
         {rip && <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
