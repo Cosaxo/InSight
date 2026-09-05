@@ -4943,6 +4943,45 @@
       "lo": 6,
       "hi": 30,
       "unit": "songs"
+    },
+    {
+      "id": "n14",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Flying cars land at the tech fair again. A dream worth keeping, or a bit that got old?",
+      "bg": "IFA Berlin, Europe's biggest consumer-tech fair, opened on 4 September — 1,900 brands across 190,000 square metres, AI in everything from fridges to laptops, and, once again, flying-car concepts on the floor. It runs to 8 September.",
+      "from": "2026-09-05",
+      "until": "2026-09-11",
+      "options": [
+        {
+          "label": "Keep the dream"
+        },
+        {
+          "label": "It got old"
+        },
+        {
+          "label": "Just build trains"
+        }
+      ]
+    },
+    {
+      "id": "n15",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A season opening on a Wednesday for the first time in a decade: fine, or leave the rituals alone?",
+      "bg": "The NFL's 2026 season opens on Wednesday 9 September in Seattle — a Super Bowl rematch against New England, and the league's first Wednesday opener in well over a decade. Season openers traditionally hold Thursday night.",
+      "from": "2026-09-05",
+      "until": "2026-09-12",
+      "options": [
+        {
+          "label": "Fine — a game's a game"
+        },
+        {
+          "label": "Leave the rituals alone"
+        }
+      ]
     }
   ]
 }
