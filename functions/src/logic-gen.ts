@@ -16,9 +16,16 @@
 // overlay/decomposition, Latin squares, concentric growth) plus
 // distribution-of-two and figure-XOR families in the hard tail. That
 // parity is the difficulty calibration: the ramp template ends where the
-// old bank's declared easy→hard ramp did, so logicPctile's curve (midpoint
-// 62%) keeps meaning what it meant. Diffs are Carpenter-ordered family
-// weights.
+// old bank's declared easy→hard ramp did, so the percentile curve keeps
+// meaning what it meant. Diffs are Carpenter-ordered family weights.
+//
+// ONE CURVE PER RAMP LENGTH, not one curve. This named "logicPctile's
+// curve (midpoint 62%)" flat, which was true of the twelve-slot era and
+// has not been since v3: logic-score.ts carries {12: mid 62} and
+// {25: mid 54}, and `logicPctileFor` picks by item count. `logicPctile`
+// itself is now the twelve-item alias, so quoting its midpoint as the
+// app's was naming the legacy half. No behaviour rests on the sentence —
+// the length-aware reader has always been the one in the path.
 //
 // Deliberately NOT random per item: the WEIGHT sequence. The slot weights
 // are fixed per generator version (each version's ramp is the calibration
@@ -804,10 +811,17 @@ const FAMILIES: Record<string, Family> = {
 };
 
 // ── the ramp template ──
-// The twelve slot WEIGHTS are fixed and identical across generator
-// versions — non-decreasing Carpenter-ordered values, pinned by the ramp
-// monotonicity test. They are the difficulty calibration D31 anchored
-// logicPctile to, so they do not move when families do.
+// The slot WEIGHTS are fixed per generator version — non-decreasing
+// Carpenter-ordered values, pinned by the ramp monotonicity test and, per
+// era, by the golden blocks in logic-gen.test.ts. They are the difficulty
+// calibration D31 anchored the percentile curve to, so they do not move
+// when families do.
+//
+// This said "the twelve slot weights … identical across generator
+// versions", which the paragraph at the head of this file already
+// contradicted: v1 and v2 both run twelve slots ending at 3.5, and v3
+// (D61) runs twenty-five ending at 4.5. A reader taking it at its word
+// would have thought a ramp change was safe across eras.
 //
 // v1 (frozen): one fixed family per slot; slot 12 alternated between the
 // two hardest families by seed. Kept generable forever — a saved result's

@@ -38,7 +38,7 @@
 // because X-Content-Type-Options has exactly one valid value and the
 // error text above promises it.
 import { readFileSync, readdirSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -66,7 +66,13 @@ export function securedPages(rules, rootTarget) {
   for (const rule of rules) {
     if (!ruleIsSecure(rule)) continue;
     const src = String(rule.source || "");
-    for (const m of src.matchAll(/([A-Za-z0-9_-]+)\.html/g)) covered.add(`${m[1]}.html`);
+    // Nested paths too, now that the walk is recursive: a page found as
+    // `legal/tos.html` has to be matchable against a rule that names
+    // `/legal/tos.html`, or the recursion would turn every nested page
+    // into a false failure instead of a caught one.
+    for (const m of src.matchAll(/\/?((?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+)\.html/g)) {
+      covered.add(`${m[1]}.html`);
+    }
     // …and the split spelling, where the brace separates the name from its
     // extension: `/join{.html,/**}` names join.html and would otherwise read
     // as no page at all.
@@ -84,7 +90,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const hosting = Array.isArray(cfg.hosting) ? cfg.hosting[0] : cfg.hosting;
   const publicDir = hosting?.public || "web";
 
-  const pages = readdirSync(join(root, publicDir)).filter((f) => f.endsWith(".html"));
+  // RECURSIVE, because Hosting serves the whole tree. This read the top
+  // level only, so `web/legal/tos.html` was served with no CSP, no nosniff
+  // and no Referrer-Policy and the gate did not even count it — this
+  // gate's own founding failure ("a NEW page under web/ gets no headers"),
+  // one directory down. Measured before this line changed.
+  //
+  // Paths are kept relative to the public dir and slash-separated, because
+  // that is how a hosting `source` pattern names them.
+  const pages = readdirSync(join(root, publicDir), { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
+    .filter((f) => f.endsWith(".html"));
   if (!pages.length) {
     console.error(`check:web-headers: no .html under ${publicDir}/ — the public dir moved; fix this script.`);
     process.exit(1);

@@ -30,8 +30,41 @@
 // Non-text inputs are exempt and listed below: iOS does not zoom for a
 // slider or a checkbox, and `type="range"` in particular is styled by size
 // everywhere in the map.
+//
+// WHAT THIS GATE DOES NOT SEE, written down because an undisclosed blind
+// spot in a gate reads as a guarantee:
+//
+//  · NATIVE `&` NESTING, in two shapes — PROBED, not reasoned. The rule
+//    matcher is `[^{}]+\{[^{}]*\}`, which finds innermost blocks only, and
+//    the selector filter then wants a field in that block's OWN selector.
+//    So `.sheet { & input { font-size: 15px } }` IS caught (the inner
+//    selector says `input`), while both of these are not scanned at all:
+//      input.answer { &:focus { font-size: 15px } }   ← inner names no field
+//      input.answer { font-size: 15px; &:focus { … } }← a nested child hides
+//                                                      the PARENT's own
+//                                                      declarations from the
+//                                                      innermost-only match
+//    The second is the dangerous one: nesting anything inside a field's
+//    rule takes that rule's own size out of this gate's sight. Nothing in
+//    the tree nests today; the day something does, D105's exact bug is
+//    unguarded again.
+//  · A FIELD STYLED BY CLASS ALONE. The selector half looks for a field in
+//    the selector (`input`, `textarea`, a `[type=…]`). A rule like
+//    `.answer-box { font-size: 15px }` applied to an `<input className=
+//    "answer-box">` sets a field's size and names no field, so it is
+//    scanned and passes. Closing it means resolving class names across the
+//    JSX, which is a different scanner.
+//  · A SIZE COMPUTED AT RUNTIME — `fontSize: big ? 16 : 12`, a value out of
+//    a props object, a style built by a helper this file does not resolve.
+//    The const-lookup below reaches the common case (a named style object in
+//    the same file) and no further.
+//
+// None of the three is used today, which is why they are notes and not
+// failures. All three are how this gate goes quietly green on the failure
+// it is named after.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
@@ -81,7 +114,7 @@ const failures = [];
 // depth zero handles every one of them in this tree. Nested braces in
 // attributes (style objects, arrow handlers) are what the depth counter is
 // for — a naive /<input[^>]*>/ stops inside the first onChange.
-const tagsIn = (src, tag) => {
+export const tagsIn = (src, tag) => {
   const out = [];
   const open = new RegExp(`<${tag}(?=[\\s/>])`, "g");
   let m;
@@ -138,22 +171,45 @@ const styleConsts = (src) => {
 //
 // `fontFamily`/`fontWeight` do not match: after `font` the pattern demands
 // optional space and then a colon, which "Family" is not.
+//
+// THE LAST DECLARATION, NOT THE FIRST. This read `.exec()` — one match, the
+// leftmost — so a tag that set the token and then overrode it passed, and
+// the gate's whole subject is the size a field ENDS UP with. React applies
+// a style object's properties in order and a duplicate key keeps the later
+// value, so the last one is what the browser draws; the same rule the CSS
+// half below follows for the same reason. `{ fontSize: 'var(--field-size)',
+// font: '600 12px system-ui' }` is D105's bug written in two declarations,
+// and it read as compliant.
+//
+// It also returns the PROPERTY, so a failure can say `font:` when that is
+// what the file wrote. The line used to report every hit as `fontSize:`,
+// naming a declaration the file does not contain — the same wrongness
+// badCssFontSize was already fixed for, left standing on this half.
 export const badFontSize = (text) => {
-  const m = /\b(?:fontSize|font)\s*:\s*([^,}\n]+)/.exec(text);
-  if (!m) return null;
-  const value = m[1].trim();
-  return value.includes(TOKEN) ? null : value;
+  let last = null;
+  for (const m of text.matchAll(/\b(fontSize|font)\s*:\s*([^,}\n]+)/g)) {
+    last = { prop: m[1], value: m[2].trim() };
+  }
+  if (!last) return null;
+  return last.value.includes(TOKEN) ? null : last;
 };
 
 // The stylesheet half of the same question. Returns the declared property
 // as well as its value, so the failure line says `font:` when that is what
 // the sheet wrote — it used to report every hit as "font-size", which for a
 // shorthand names a declaration the file does not contain.
+//
+// LAST, not first, for the reason spelled out on the JSX half: a rule that
+// writes `font: 600 12px x; font-size: var(--field-size)` draws at the
+// token, and one that writes them the other way round draws at 12px. The
+// cascade decides, and `.exec()` was reading the wrong end of it.
 export const badCssFontSize = (body) => {
-  const m = /(?:^|[;\s])(font(?:-size)?)\s*:\s*([^;]+)/.exec(body);
-  if (!m) return null;
-  const value = m[2].trim();
-  return value.includes(TOKEN) ? null : { prop: m[1], value };
+  let last = null;
+  for (const m of body.matchAll(/(?:^|[;\s])(font(?:-size)?)\s*:\s*([^;]+)/g)) {
+    last = { prop: m[1], value: m[2].trim() };
+  }
+  if (!last) return null;
+  return last.value.includes(TOKEN) ? null : last;
 };
 
 // Only when RUN, so a test can import the two matchers above without this
@@ -190,15 +246,37 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
 
   let fieldFiles = 0;
+  let fieldTags = 0;
   for (const file of FILES) {
     const rel = relative(ROOT, file);
     if (SKIP_FILES.has(rel)) continue;
-    const src = readFileSync(file, "utf8");
+    // COMMENTS BLANKED BEFORE ANYTHING READS THE SOURCE, and the tag
+    // scanner is why. It tracks `"`, `'` and backtick as string
+    // delimiters and knows nothing about comments — so an ordinary
+    // apostrophe inside a comment within an opening tag ("the rule's",
+    // "the Mirror's") opens a phantom string, after which `{`, `}` and the
+    // closing `>` are all skipped and the scan runs on until the next
+    // straight quote.
+    //
+    // Measured on this tree: one `<input>` whose real tag is 795
+    // characters was returned as 2331 — the field, a whole button, two
+    // spans, a closing div and a function signature. That is a live hole,
+    // not just an obstacle: a field with a comment containing an
+    // apostrophe and `fontSize: 13` passes, because the swallowed text
+    // reaches a `type="checkbox"` on the NEXT element and the no-zoom
+    // exemption then applies to the wrong tag. D105's shipped bug, walking
+    // straight through the gate written for it.
+    //
+    // Blanking rather than deleting keeps every offset, so `lineOf` still
+    // reports the real line. `styleConsts` below has the identical loop
+    // and is fixed by the same line.
+    const src = stripComments(readFileSync(file, "utf8"));
     if (!/<(input|textarea)[\s/>]/.test(src)) continue;
     fieldFiles++;
     const consts = styleConsts(src);
 
     for (const tag of ["input", "textarea"]) {
+      fieldTags += tagsIn(src, tag).length;
       for (const { text, index } of tagsIn(src, tag)) {
         const type = /\btype\s*=\s*["']([a-z]+)["']/.exec(text);
         if (type && NO_ZOOM.has(type[1])) continue;
@@ -220,7 +298,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
         if (bad) {
           failures.push(
-            `${rel}:${lineOf(src, index)}  <${tag}> sets fontSize: ${bad} (${via})`,
+            `${rel}:${lineOf(src, index)}  <${tag}> sets ${bad.prop}: ${bad.value} (${via})`,
           );
         }
       }
@@ -288,6 +366,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       "check:touch-zoom FAILED: not one file in the walk contains an <input> "
       + "or <textarea>.\nThe tag filter is broken — fix it rather than letting "
       + "this pass vacuously.",
+    );
+    process.exit(1);
+  }
+
+  // …AND THE SCANNER ITSELF, which neither floor above measured. `fieldFiles`
+  // counts files matching a whole-file regex, never `tagsIn`'s output — so
+  // the JSX half could be entirely dead with both floors satisfied.
+  // Measured: breaking the tag regex left this gate green at "13 files with
+  // a field", because the files still contained the string. `tagsIn` is the
+  // thing that decides what is examined, so it is what the floor has to
+  // count. check-tap-targets already does this correctly.
+  if (!fieldTags) {
+    console.error(
+      "check:touch-zoom FAILED: the tag scanner returned no <input> or "
+      + `<textarea> at all, across ${fieldFiles} file(s) that contain one.`
+      + "\nThe scanner is broken — fix it rather than letting this pass "
+      + "vacuously.",
     );
     process.exit(1);
   }
