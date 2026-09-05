@@ -26,6 +26,7 @@ import { loadMine, mine, mineFailed, subscribePurchases, type Purchase } from ".
 // to the nearest ten, which is a rate card's shape and a lie about a
 // receipt. scripts/quote-copy.test.mjs pins the rule.
 import { fmtExact, subscribeCur } from "../data/pricing";
+import { SPONSOR_EVERY } from "../data/sponsored";
 import { askWindow } from "../data/askWindow";
 import { sharePcts } from "../data/pct";
 // The switch lives in its own module since phase 4: the ask-a-question
@@ -232,7 +233,7 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
           </div>
         ) : questions.length === 0 && adRows.length === 0 && subsRows.length === 0 ? (
           <div className="card" style={{ marginTop: 16, padding: "22px 18px", textAlign: "center", fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-            Nothing bought from this account yet. The door is “Ask a question” — one paid slot a day, each place.
+            {`Nothing bought from this account yet. The door is “Ask a question” — one card in ${SPONSOR_EVERY} is paid.`}
           </div>
         ) : (
           <>

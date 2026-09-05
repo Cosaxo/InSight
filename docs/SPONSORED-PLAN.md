@@ -2,8 +2,9 @@
 
 **Status: plan only, being built step by step** — the owner's *"go,
 yes to the link, keep your picks for the rest"* (2026-09-05). Built
-so far: §2.1 (D370), §2.3 (D371). Each step binds only once its own
-record lands; the rest of this page is the plan, not the app.
+so far: §2.1 (D370), §2.3 (D371), §2.2 (D372). Each step binds only
+once its own record lands; the rest of this page is the plan, not the
+app.
 Written 2026-09-05 on the owner's
 *"that sounds like a bad system — if I gave you complete creative
 freedom how would you remake it"* and *"that sounds better, lay a plan
@@ -74,7 +75,7 @@ leg (§13), `src/v2/spec/suggestions.jsx`, `src/v2/data/paidBookings.ts`,
 
 **Size.** A day. **Reverses** D315, and D369's half about ads.
 
-### 2.2 · Paid cards get their own places in the feed
+### 2.2 · Paid cards get their own places in the feed — BUILT, D372
 
 **What.** `SPONSOR_SLOT = 1` and `SPONSOR_AT = 6` become one density:
 a paid card at every sixth world card — positions 6, 12, 18 … — up to
@@ -100,6 +101,12 @@ in the card, one term in `pricingFold.ts`; the door's sentence becomes
 **Size.** A day. **Reverses** D195's *one at a time* (the prototype's
 *"a feed with two is a feed for sale"* — the owner's line to retire,
 §5).
+
+*Built as written. The multiplier counts the campaigns the NEXT buyer
+would push beyond the free places — a card with one free place is
+D368's exactly — and the door's sentence reads the crowd strip rather
+than the index back: "room for 3 more" until the places are taken,
+then "3 in rotation · sharing".*
 
 ### 2.3 · The menu — BUILT, D371
 

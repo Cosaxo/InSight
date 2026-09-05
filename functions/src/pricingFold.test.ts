@@ -12,7 +12,7 @@ import { ESTIMATE_MIN_DAYS, FORWARD_DAYS, foldPricing, mergeLivePricing, servedD
 import type { PricingCard } from "./pricing";
 
 const card: PricingCard = {
-  generated: "2026-09-05", currency: "EUR", base: 0.02, floorX: 1, crowdStep: 0.5,
+  generated: "2026-09-05", currency: "EUR", base: 0.02, floorX: 1, crowdStep: 0.5, crowdFree: 3,
   floorWeek: 500, capEur: 50, minEur: 5, windowDays: 29, budgets: [5, 10, 25, 50],
   menu: { city: 10, country: 25, world: 50 }, fx: { NOK: 11.6 },
   cohorts: {
@@ -53,36 +53,54 @@ describe("foldPricing — an empty ledger", () => {
   });
 });
 
-describe("foldPricing — the index is crowding, with no ceiling (D368)", () => {
-  it("one campaign across the fortnight is one step off the floor, and the strips say so", () => {
+describe("foldPricing — the index is crowding beyond the free places, with no ceiling (D368, D372)", () => {
+  it("one campaign across the fortnight fills the strips and moves the index by nothing — it has a place of its own", () => {
     // The self-serve window (paid.ts WINDOW_DAYS): starts tomorrow, runs
     // 29 inclusive days — in the rotation on every day the fold looks at.
+    // The card has three free places, so this campaign and the next two
+    // each hold one; the buyer after them is the first to share.
     const live = foldPricing(card, [row({ from: 1, to: 29 })], TODAY);
     const c = live.cohorts.city;
-    expect(c.idx).toBe(1.5);
+    expect(c.idx).toBe(1);
     expect(c.booked).toEqual(Array(FORWARD_DAYS).fill(1));
     expect(c.crowd).toEqual(Array(FORWARD_DAYS).fill(1));
     expect(c.nextOpen).toBeNull(); // the shape cannot say sold out; `booked` does
-    // …and the other cohorts did not move: the slot is per scope.
+    // …and the other cohorts did not move: the places are per scope.
     expect(live.cohorts.country.idx).toBe(1);
     expect(live.cohorts.world.idx).toBe(1);
   });
 
-  it("each campaign sharing the rotation adds a step — two, five, no cap", () => {
-    const two = foldPricing(card, [row({ from: 1, to: 29 }), row({ from: 1, to: 29 })], TODAY);
-    expect(two.cohorts.city.idx).toBe(2);
-    expect(two.cohorts.city.crowd).toEqual(Array(FORWARD_DAYS).fill(2));
-    const five = foldPricing(card, Array.from({ length: 5 }, () => row({ from: -3, to: 40 })), TODAY);
-    expect(five.cohorts.city.idx).toBe(3.5);
-    const twenty = foldPricing(card, Array.from({ length: 20 }, () => row({ from: -3, to: 40 })), TODAY);
-    expect(twenty.cohorts.city.idx).toBe(11);
+  it("the first campaign beyond the free places is one step, and each after it another — no cap", () => {
+    const rows = (n: number) => Array.from({ length: n }, () => row({ from: 1, to: 29 }));
+    expect(foldPricing(card, rows(2), TODAY).cohorts.city.idx).toBe(1);
+    // Three running: the NEXT buyer would be the fourth for three places.
+    const three = foldPricing(card, rows(3), TODAY);
+    expect(three.cohorts.city.idx).toBe(1.5);
+    expect(three.cohorts.city.crowd).toEqual(Array(FORWARD_DAYS).fill(3));
+    expect(foldPricing(card, rows(4), TODAY).cohorts.city.idx).toBe(2);
+    expect(foldPricing(card, Array.from({ length: 5 }, () => row({ from: -3, to: 40 })), TODAY).cohorts.city.idx).toBe(2.5);
+    expect(foldPricing(card, Array.from({ length: 20 }, () => row({ from: -3, to: 40 })), TODAY).cohorts.city.idx).toBe(10);
   });
 
-  it("averages over the fortnight — a campaign covering half of it is half a step", () => {
-    const live = foldPricing(card, [row({ from: 1, to: 7 })], TODAY);
-    expect(live.cohorts.city.idx).toBe(1.25);
-    expect(live.cohorts.city.crowd.slice(0, 8)).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
-    expect(live.cohorts.city.nextOpen).toBe(day(8));
+  it("a card with one free place is D368's card exactly — every other campaign crowds", () => {
+    const one = { ...card, crowdFree: 1 };
+    expect(foldPricing(one, [row({ from: 1, to: 29 })], TODAY).cohorts.city.idx).toBe(1.5);
+    expect(foldPricing(one, [row({ from: 1, to: 29 }), row({ from: 1, to: 29 })], TODAY).cohorts.city.idx).toBe(2);
+    // …and a card from before the field folds the same way.
+    const before = { ...card } as Partial<typeof card>;
+    delete before.crowdFree;
+    expect(foldPricing(before as typeof card, [row({ from: 1, to: 29 })], TODAY).cohorts.city.idx).toBe(1.5);
+  });
+
+  it("averages over the fortnight — a campaign covering half of it is half a place", () => {
+    const half = foldPricing(card, [row({ from: 1, to: 7 })], TODAY);
+    expect(half.cohorts.city.idx).toBe(1);
+    expect(half.cohorts.city.crowd.slice(0, 8)).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
+    expect(half.cohorts.city.nextOpen).toBe(day(8));
+    // Three full and one for half the fortnight: 3.5 in rotation on
+    // average, 1.5 beyond the places, three quarters of a step.
+    const live = foldPricing(card, [row({ from: 1, to: 29 }), row({ from: 1, to: 29 }), row({ from: 1, to: 29 }), row({ from: 1, to: 7 })], TODAY);
+    expect(live.cohorts.city.idx).toBe(1.75);
   });
 
   it("counts the days ahead only — a campaign that ended is in nobody's rotation", () => {
@@ -98,12 +116,14 @@ describe("foldPricing — the index is crowding, with no ceiling (D368)", () => 
     expect(dead.cohorts.city.booked.slice(0, 3)).toEqual([0, 0, 0]);
   });
 
-  it("an ad crowds the rotation like a question (D315); a subscription moves nothing", () => {
-    const ad = foldPricing(card, [row({ from: 1, to: 29, kind: "ad" })], TODAY);
+  it("an ad takes a place like a question (D315); a subscription moves nothing", () => {
+    const two = [row({ from: 1, to: 29 }), row({ from: 1, to: 29 })];
+    const ad = foldPricing(card, [...two, row({ from: 1, to: 29, kind: "ad" })], TODAY);
     expect(ad.cohorts.city.idx).toBe(1.5);
-    const sub = foldPricing(card, [row({ from: 1, to: 29, kind: "subscription" })], TODAY);
+    const sub = foldPricing(card, [...two, row({ from: 1, to: 29, kind: "subscription" })], TODAY);
     expect(sub.cohorts.city.idx).toBe(1);
-    expect(sub.cohorts.city.booked).toEqual(Array(FORWARD_DAYS).fill(0));
+    expect(sub.cohorts.city.crowd).toEqual(Array(FORWARD_DAYS).fill(2));
+    expect(foldPricing(card, [row({ from: 1, to: 29, kind: "subscription" })], TODAY).cohorts.city.booked).toEqual(Array(FORWARD_DAYS).fill(0));
   });
 
   it("names the first open day from the booked strip", () => {

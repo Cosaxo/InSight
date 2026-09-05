@@ -37,9 +37,12 @@ what Apple's 3.1.1 addresses. See
 **Kept, deliberately, because each is what makes the thing sellable at
 all:**
 
-- **One paid thing in the feed at a time.** `SPONSOR_SLOT` stays a cap
-  on inventory (`data/sponsored.ts`, D195). Demand raises *price*, never
-  slot count — the ratchet shape SCALE-PLAN §5 points at revenue.
+- **Paid cards in their own places, at one density.** One after every
+  sixth world card (`SPONSOR_EVERY`, `data/sponsored.ts` — D372; until
+  then `SPONSOR_SLOT`, one paid thing at a time, D195). Demand raises
+  *price*, never the density — the ratchet shape SCALE-PLAN §5 points at
+  revenue — and the first three campaigns in a scope hold a place each
+  before the crowding price counts anyone (`crowdFree`).
 - **Tail, never core.** A paid question never joins the Mirror's corpus
   (`check:content` refuses `core: true` on a sponsored question). The
   honest aggregate is the asset; a paid-for sample isn't one.
@@ -245,8 +248,8 @@ each one being invented at sale time.
   `country: Y` / untagged for world, matched on the device, disclosure
   band on the card.
 
-**They ride the same single paid slot, and the slot arithmetic is the
-pricing** (§6): the rotation pool is per-device (`pickPaid` filters on
+**They ride the same paid places, and the place arithmetic is the
+pricing** (§6): the rotation pool is per-device (`orderPaid` filters on
 match before rotating), so an Oslo metric occupies only Oslo's
 slot-days while a world metric occupies everyone's. "World is much more
 expensive because it is to everyone in the world" is not a pricing
@@ -392,8 +395,9 @@ individual — the PAID band stays the app's own either way (§7).
 ## 7 · Finding it — the slot is not the problem; the missing rooms are
 
 The voter-side placement is already not "the bottom of an endless
-scroll": the paid card holds a fixed early slot in the interleave
-(`SPONSOR_AT`, `data/sponsored.ts`) on every device it matches, daily,
+scroll": a paid card holds one of the interleave's own places, the
+first at the sixth card (`SPONSOR_EVERY`, `data/sponsored.ts`; D372) on
+every device it matches, daily,
 and search reaches it like any bank entry. What does not exist is
 everything around the buyer:
 
@@ -467,7 +471,7 @@ every day it waits.
 | Failure | Mitigation | Residual |
 | --- | --- | --- |
 | The report drifts beyond what public data can produce | The §2 rule, held by the read-set test — D225 removed the delivery promise, not this | An operator who widens the read set; the same trust every gate rests on |
-| Demand inflates inventory instead of price | `SPONSOR_SLOT` stays the unit of sale; §6 prices the scarcity | Pressure to "just add a second slot" — the cap is one diff away, which is why it is a named constant |
+| Demand inflates inventory instead of price | `SPONSOR_EVERY` is the unit of sale (a density since D372); §6 prices the scarcity beyond `crowdFree` | Pressure to "make it one in four" — the density is one diff away, which is why it is a named constant the door prints |
 | Paid metrics read as the app's own voice | Never core; base scorecard unbuyable; lens separation disclosed if mounted at all | A reader who does not read bands |
 | Edit history chills honest edits | Aggregate matrix first; per-voter mark only by explicit decision | Once public, second thoughts are public — D98's own trade, at its sharpest |
 | Desire pricing drifts into targeting | Vocabulary stays the published dims; audience cap moves only by recorded amendment; logic score fenced (§4) | Multi-dim cohorts are finer than one-dim ones — the amendment must say how fine is too fine |

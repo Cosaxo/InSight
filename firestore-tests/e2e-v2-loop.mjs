@@ -1919,18 +1919,21 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     || purchase.get("stripePaymentIntent") !== "pi_e2e_1") {
     fail("purchase record malformed: " + JSON.stringify(purchase.data()));
   }
-  // THE SALE MOVED THE RATE CARD (D366, D368). The webhook folded the
-  // ledger after going live and published the live half onto
+  // THE SALE MOVED THE RATE CARD (D366, D368, D372). The webhook folded
+  // the ledger after going live and published the live half onto
   // v2_meta/pricing: the 29-day window starting tomorrow is one campaign
-  // in the city's rotation on every day of the fortnight, so the index is
-  // exactly one crowding step off its floor NOW — ×1.5 at the committed
-  // step — not after an operator runs a script. The other two cohorts
-  // did not move: the slot is per scope.
+  // in the city's rotation on every day of the fortnight — the crowd
+  // strip says so NOW, not after an operator runs a script. The index
+  // itself stays at the floor: the feed carries a paid card in every
+  // sixth place, so the card's free places (three) hold this campaign
+  // and the next two without anyone sharing, and the multiplier counts
+  // only what a buyer would push beyond them. The other two cohorts did
+  // not move: the places are per scope.
   const cardAfter = await liveCardNow();
   if (!cardAfter) fail("the webhook published no live rate card");
   const cityAfter = cardAfter.cohorts?.city || {};
-  if (cityAfter.idx !== 1.5) {
-    fail("one campaign across the fortnight should read ×1.5: " + JSON.stringify(cardAfter.cohorts));
+  if (cityAfter.idx !== 1) {
+    fail("one campaign inside the free places should still read ×1: " + JSON.stringify(cardAfter.cohorts));
   }
   if (!Array.isArray(cityAfter.crowd) || cityAfter.crowd.some((n) => n !== 1)) {
     fail("the crowd strip should show one campaign on every day: " + JSON.stringify(cityAfter));
@@ -1944,7 +1947,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (cardAfter.generated !== new Date().toISOString().slice(0, 10)) {
     fail("the live card is not dated today: " + JSON.stringify(cardAfter.generated));
   }
-  ok(`the sale moved the rate card by machinery: city ×${cityAfter.idx} (one campaign in rotation), country and world still ×1`);
+  ok(`the sale moved the rate card by machinery: city ×${cityAfter.idx} with one campaign on every day of its strip (room for two more), country and world still ×1`);
 
   // Any signed-in user reads the question — it is bank content now. The
   // MAIN account (a different uid) is the reader on purpose.

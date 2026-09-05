@@ -95,8 +95,9 @@ aggregate.
 ([D195](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet)).**
 Every note this paragraph used to hold is now a thing with a gate behind
 it: the disclosure band (`ui/SponsorMark.tsx`, the app's ink and never a
-buyer's), the one-card cap and its slot in the interleave
-(`data/sponsored.ts`, `SPONSOR_SLOT`), the coarse audience tags matched **on
+buyer's), the paid cards' own places in the interleave — one after every
+sixth world card since D372 (`data/sponsored.ts`, `SPONSOR_EVERY`; a
+single slot, `SPONSOR_SLOT`, before it), the coarse audience tags matched **on
 the device** against the published breakdown dims (one to three since
 D228, matched conjunctively and each printed on the band), `until` as the
 window, and `sponsor` as a provenance source `check:quality` holds in both
@@ -127,9 +128,10 @@ sponsored question wears, and no image, logo, brand colour or link —
 `check:content` refuses each by name. **No tap-through is the design, not
 an omission**: with nowhere to send you there is no click, and with no
 click there is nothing to attribute, which is what keeps this path clear
-of the tracking apparatus below. It shares the SINGLE paid slot with path
-2 and rotates with it by day, so the feed can never show two paid things
-at once. `content/ads.json` ships empty and a test asserts it.
+of the tracking apparatus below. It takes the same paid places as path
+2, in the same day's order (one card in six since D372; until then the
+single slot, one paid thing a day). `content/ads.json` ships empty and a
+test asserts it.
 
 The original note, kept because it is what the build was measured
 against — open as a path by the owner (2026-08-01), not ruled out. The version that coexists with the

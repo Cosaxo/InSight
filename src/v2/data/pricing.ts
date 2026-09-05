@@ -45,9 +45,13 @@ interface PricingFile {
   /** the multiplier with nobody else in rotation — 1, so base is the
    * quiet price */
   floorX: number;
-  /** what each other campaign in rotation adds to the multiplier (D368);
-   * no ceiling, because crowding has none */
+  /** what each campaign beyond the free places adds to the multiplier
+   * (D368); no ceiling, because crowding has none */
   crowdStep: number;
+  /** the places a scope has before campaigns share (D372): the feed
+   * carries a paid card in every sixth place, so this many campaigns
+   * each hold one and the multiplier counts the ones beyond */
+  crowdFree: number;
   floorWeek: number;
   /** the most a buyer may set as their budget (D367) — and the cap a
    * client from before budgets existed is quoted at */
@@ -95,19 +99,38 @@ export const answersFor = (scope: Scope, eur: number): number =>
  * many answers it buys, which is what the row prints beside it. */
 export const menuEur = (scope: Scope): number => PRICING.menu[scope];
 
-/** How many other campaigns are in a cohort's rotation, averaged over
- * the fortnight the idx is folded from — the idx read back through the
- * card's own step, to one decimal (D368). */
-export const othersFor = (scope: Scope): number => {
+/** How many campaigns are in a cohort's rotation, averaged over the
+ * fortnight the idx is folded from — read off the crowd strip, to one
+ * decimal (D368; the strip is what the fold counted). */
+export const crowdFor = (scope: Scope): number => {
+  const c = PRICING.cohorts[scope];
+  const strip = c.crowd || c.booked || [];
+  if (!strip.length) return 0;
+  return Math.round((strip.reduce((a, n) => a + (n || 0), 0) / strip.length) * 10) / 10;
+};
+
+/** How many more campaigns fit before anyone shares (D372): the card's
+ * free places less the rotation, a campaign on any day of the fortnight
+ * counting as a place taken — the buyer is told the room that is
+ * certainly there, never the room that is there on average. */
+export const roomFor = (scope: Scope): number =>
+  Math.max(0, PRICING.crowdFree - Math.ceil(crowdFor(scope)));
+
+/** What the price is counting: the campaigns beyond the free places,
+ * the idx read back through the card's own step, to one decimal. Zero
+ * while there is room; the number the multiplier is built from once
+ * there is none. */
+export const beyondFor = (scope: Scope): number => {
   const step = PRICING.crowdStep;
   if (!(step > 0)) return 0;
   return Math.max(0, Math.round(((PRICING.cohorts[scope].idx - PRICING.floorX) / step) * 10) / 10);
 };
 
-/** The demand word the door prints: nobody else · about one other · two
- * or more, read off the crowding rather than a share of a ceiling. */
+/** The demand word the door prints: room to spare · about one sharing ·
+ * two or more, read off what the price counts rather than a share of a
+ * ceiling. */
 export const demandWord = (scope: Scope): "quiet" | "steady" | "contested" => {
-  const o = othersFor(scope);
+  const o = beyondFor(scope);
   return o < 0.5 ? "quiet" : o < 1.5 ? "steady" : "contested";
 };
 

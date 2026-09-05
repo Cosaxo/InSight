@@ -30,6 +30,9 @@
 //     campaign that has served a week counts, and `running` says how many)
 //   - the buyer's budget range is sane (D367): minEur below capEur, and
 //     every preset a whole-euro figure inside it, ascending
+//   - crowdFree (D372) is the places a scope has before campaigns share
+//     — a whole number of at least one; the multiplier counts the
+//     campaigns beyond it, so 1 is D368's every-campaign-crowds card
 //   - the menu (D371) names a preset per cohort — city · country ·
 //     world, each one of `budgets` so the composer opens on a chip it
 //     can press, non-decreasing outward, because a wider reach at a
@@ -69,6 +72,10 @@ if (!(typeof p.floorX === "number" && p.floorX > 0)) fail(`floorX must be positi
 // The crowding step (D368): what each other campaign in rotation adds to
 // the multiplier. Zero is legal (a flat card); negative is not a price.
 if (!(typeof p.crowdStep === "number" && p.crowdStep >= 0)) fail(`crowdStep must be a non-negative number, got ${JSON.stringify(p.crowdStep)}`);
+// The free places (D372): how many campaigns a scope carries before the
+// next one shares — the feed gives paid cards their own places, one in
+// every SPONSOR_EVERY, so the first few sales dilute nobody.
+if (!(Number.isInteger(p.crowdFree) && p.crowdFree >= 1)) fail(`crowdFree must be a whole number of places, at least 1, got ${JSON.stringify(p.crowdFree)}`);
 if (!(typeof p.capEur === "number" && p.capEur > 0)) fail(`capEur must be positive, got ${JSON.stringify(p.capEur)}`);
 // The buyer's budget (D367): capEur is the MOST a buyer may set, minEur
 // the least, and `budgets` the presets the composer offers — each inside
@@ -167,4 +174,4 @@ if (fails.length) {
   process.exit(1);
 }
 const nBooked = SCOPES.map((s) => `${s} ${cohorts[s].booked.filter(Boolean).length}/14`).join(" · ");
-console.log(`check-pricing OK — base €${p.base}/answer, +${Math.round(p.crowdStep * 100)}% per campaign in rotation, budgets €${p.minEur}–€${p.capEur}, menu €${p.menu.city} · €${p.menu.country} · €${p.menu.world} for ${p.windowDays} days; idx ${SCOPES.map((s) => `${s} ×${cohorts[s].idx}`).join(" · ")}; booked ${nBooked}; ${Object.keys(est).length} estimate(s), each with its basis.`);
+console.log(`check-pricing OK — base €${p.base}/answer, ${p.crowdFree} free place(s) then +${Math.round(p.crowdStep * 100)}% per campaign beyond, budgets €${p.minEur}–€${p.capEur}, menu €${p.menu.city} · €${p.menu.country} · €${p.menu.world} for ${p.windowDays} days; idx ${SCOPES.map((s) => `${s} ×${cohorts[s].idx}`).join(" · ")}; booked ${nBooked}; ${Object.keys(est).length} estimate(s), each with its basis.`);

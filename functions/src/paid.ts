@@ -27,9 +27,10 @@
 //             device's next boot — no deploy, no contentRev bump).
 //
 // What deliberately does NOT move here:
-//   · The one-slot inventory (SPONSOR_SLOT, D195). Concurrent buyers
-//     share the slot by day rotation, which pickPaid has priced in from
-//     the start — self-serve sells windows, never a second card.
+//   · The places (SPONSOR_EVERY, D372 — one slot until then, D195).
+//     Concurrent buyers take the day's order, which orderPaid computes
+//     on the device — self-serve sells windows in that rhythm, never a
+//     place outside it.
 //   · Tail, never core. The question doc this module writes carries no
 //     `core`, so the Mirror's corpus cannot be bought (D161).
 //   · Selection on the device. The audience tag rides the content;

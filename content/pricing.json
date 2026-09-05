@@ -4,6 +4,7 @@
  "base": 0.02,
  "floorX": 1,
  "crowdStep": 0.5,
+ "crowdFree": 3,
  "floorWeek": 500,
  "capEur": 50,
  "minEur": 5,

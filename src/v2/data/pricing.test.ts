@@ -6,7 +6,7 @@
 // convenience, an unknown currency falls back to the contract's own EUR,
 // and the preference dies with the account like every insight.* key.
 import { beforeEach, describe, expect, it } from "vitest";
-import { PRICING, answersFor, applyLive, cur, demandWord, fmt, fmtExact, menuEur, rate, setCur } from "./pricing";
+import { PRICING, answersFor, applyLive, crowdFor, cur, demandWord, fmt, fmtExact, menuEur, rate, roomFor, setCur } from "./pricing";
 
 beforeEach(() => {
   localStorage.clear();
@@ -45,11 +45,41 @@ describe("the posted line", () => {
     expect(answersFor("country", menuEur("country"))).toBe(Math.floor(before / 2));
   });
 
-  it("maps the crowding to the three demand words (D368)", () => {
-    // The word reads the idx back through the card's own step: nobody
-    // else in rotation is quiet, about one other is steady, two or more
-    // is contested. Pinned at the committed floor and at two lifted
-    // lines, so the edges are the case rather than today's ledger.
+  it("says the room before anyone shares, off the crowd strip (D372)", () => {
+    // The committed card is the empty ledger: every free place open.
+    expect(crowdFor("city")).toBe(0);
+    expect(roomFor("city")).toBe(PRICING.crowdFree);
+    const strip = (crowd: number[]) => applyLive({
+      generated: "2026-09-05",
+      cohorts: {
+        city: { idx: PRICING.floorX, booked: crowd.map((n) => (n ? 1 : 0)), crowd, nextOpen: null },
+        country: { idx: PRICING.floorX, booked: Array(14).fill(0), nextOpen: null },
+        world: { idx: PRICING.floorX, booked: Array(14).fill(0), nextOpen: null },
+      },
+      estimates: {},
+    });
+    // One campaign on every day: one place taken.
+    strip(Array(14).fill(1));
+    expect(crowdFor("city")).toBe(1);
+    expect(roomFor("city")).toBe(PRICING.crowdFree - 1);
+    // One campaign on one day of fourteen is still a place taken — the
+    // room the buyer is told is the room that is certainly there.
+    strip([1, ...Array(13).fill(0)]);
+    expect(crowdFor("city")).toBe(0.1);
+    expect(roomFor("city")).toBe(PRICING.crowdFree - 1);
+    // The places full: no room, whatever the average says past it.
+    strip(Array(14).fill(PRICING.crowdFree));
+    expect(roomFor("city")).toBe(0);
+    strip(Array(14).fill(PRICING.crowdFree + 2));
+    expect(roomFor("city")).toBe(0);
+  });
+
+  it("maps the crowding beyond the places to the three demand words (D368, D372)", () => {
+    // The word reads the idx back through the card's own step — what the
+    // PRICE counts, which since D372 is the campaigns beyond the free
+    // places: none is quiet, about one is steady, two or more is
+    // contested. Pinned at the committed floor and at two lifted lines,
+    // so the edges are the case rather than today's ledger.
     expect(demandWord("world")).toBe("quiet");
     const lifted = (idx: number) => applyLive({
       generated: "2026-09-05",

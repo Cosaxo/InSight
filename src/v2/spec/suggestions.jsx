@@ -22,13 +22,13 @@ import { useDialog } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
 import { SUGGESTIONS } from './suggestions.js';
 import { WORLD_TOPICS } from './world-feed-data.js';
-import { PRICING, rate, answersFor, menuEur, demandWord, othersFor, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
+import { PRICING, rate, answersFor, menuEur, demandWord, crowdFor, roomFor, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
 // The dispatcher, for the one gate the live card's read needs: a demo
 // build (LIVE.enabled false) has no Firestore to read it from.
 import LIVE from '../data/live';
 // Imported so the printed slot position cannot drift from the one the feed
 // actually holds (data/sponsored.ts is the seller of record).
-import { SPONSOR_AT } from '../data/sponsored';
+import { SPONSOR_EVERY } from '../data/sponsored';
 import { CurSwitch } from '../ui/CurSwitch';
 
 // suggestions.jsx — "Ask a question": the paid door as a page (overlay).
@@ -92,15 +92,16 @@ const sgNextOpen = (scope) => {
   return c.nextOpen == null ? 'tomorrow' : sgDay(c.nextOpen);
 };
 const SG_TONE = { quiet: 'var(--ink-3)', steady: 'var(--ochre-ink)', contested: 'var(--accent-ink)' };
-// The crowding, as a sentence (D368): how many other campaigns share the
-// cohort's rotation over the fortnight, averaged, to one decimal — the
-// same number the multiplier is folded from, so the word and the price
-// agree with what this says.
-const sgOthers = (scope) => {
-  const o = othersFor(scope);
-  if (o === 0) return 'nobody else asking';
-  const n = Number.isInteger(o) ? String(o) : o.toFixed(1);
-  return n + ' other' + (o === 1 ? '' : 's') + ' in rotation';
+// The crowding, as a sentence (D368, D372): the room left before anyone
+// shares — the card's free places less the campaigns in the cohort's
+// rotation over the fortnight — and, once there is none, how many are
+// sharing. Read off the same strip the multiplier is folded from, so the
+// word and the price agree with what this says.
+const sgRoom = (scope) => {
+  const room = roomFor(scope);
+  if (room > 0) return 'room for ' + room + ' more';
+  const n = crowdFor(scope);
+  return (Number.isInteger(n) ? String(n) : n.toFixed(1)) + ' in rotation · sharing';
 };
 const sgScopeName = (SG, a) => (a === 'world' || a === 'like' ? 'Everyone' : SG.audienceLabel(a));
 
@@ -270,7 +271,7 @@ function SgRateRow({ scope, name, onPick, i }) {
           <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 17.5, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--ink)' }}>{name}</span>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: SG_TONE[word] }}>{word}</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{sgOthers(scope)}</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{sgRoom(scope)}</span>
           </span>
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -346,8 +347,9 @@ function SgRateBoard({ SG, onPick }) {
       {law ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5, margin: '0 2px' }}>
           {[
-            fmt(PRICING.base) + ' an answer with nobody else asking',
-            '+' + Math.round(PRICING.crowdStep * 100) + '% per other campaign in rotation',
+            fmt(PRICING.base) + ' an answer while there is room',
+            PRICING.crowdFree + ' places a scope · one card in ' + SPONSOR_EVERY + ' is paid',
+            '+' + Math.round(PRICING.crowdStep * 100) + '% per campaign beyond them',
             'over the next ' + (PRICING.cohorts.world.booked || []).length + ' days',
             'no ceiling',
             ...(PRICING.floorX !== 1 ? ['floor ×' + PRICING.floorX] : []),
@@ -663,7 +665,7 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
             <div style={{ border: '1px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', borderRadius: 14, background: 'var(--surface-2)', padding: '11px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={sgLabel}>what everyone sees</span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>position {SPONSOR_AT} · rotates by day</span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>one card in {SPONSOR_EVERY} · order rotates by day</span>
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--ink)', color: 'var(--surface)', borderRadius: 999, padding: '4px 11px', marginTop: 9, maxWidth: '100%', boxSizing: 'border-box' }}>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.16em', flexShrink: 0 }}>PAID</span>
@@ -773,7 +775,7 @@ function SuggestOverlay({ onClose }) {
                 color: '#fff', fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 800, letterSpacing: '-0.2px',
               }}>+ Ask a question</button>
               <div style={{ marginTop: 9, textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>
-                One paid slot a day, each place — reviewed, and the card always says PAID.
+                {'One card in ' + SPONSOR_EVERY + ' is paid — reviewed, and it always says PAID.'}
               </div>
             </div>
             <SgRateBoard SG={SG} onPick={(scope, eur) => { setFormAud(scope); setFormBudget(eur); setFormOpen(true); }}></SgRateBoard>

@@ -5,8 +5,9 @@
 // sells a QUESTION: it is answered like any other, folds into the same
 // public aggregate everyone reads, and the buyer's return is that split.
 // Path 3 sells a CARD: it asks nothing, takes no answer, and produces no
-// data at all. They share the disclosure band and the single paid slot;
-// they are otherwise different objects, and prose that blurred them made
+// data at all. They share the disclosure band and the paid places (one
+// card in six since D372; a single slot before it); they are otherwise
+// different objects, and prose that blurred them made
 // the disclosure argument impossible to have (D196).
 //
 // TEXT ONLY, AND NO TAP-THROUGH. No image, no logo, no brand colour, no

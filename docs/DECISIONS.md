@@ -38642,3 +38642,82 @@ is `answersFor` at the line, and a lifted line halves the count
 without moving the figure), `check:pricing` (the menu's shape), and
 `paid.test.ts` through `WINDOW_DAYS` — every window assertion now
 reads the card.
+
+## D372 · Paid cards get their own places in the feed, and the price counts crowding beyond them
+
+**2026-09-05.** **Status:** binding, BUILT. Step §2.2 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), on the owner's *"go, yes to
+the link, keep your picks for the rest"* — the density and the free
+count are the plan's picks. **Reverses** D195 §1's one paid card at a
+time (`SPONSOR_SLOT = 1`, the prototype's *"a feed with two is a feed
+for sale"*), and amends D368's index: the step now counts campaigns
+beyond a scope's free places, not every campaign.
+
+### 1 · What was wrong
+
+Inventory did not grow with the app. One paid card per phone per day,
+whatever the app's size, meant every sale diluted the last — with two
+campaigns in a scope each got half the days, and a third buyer bought a
+third of nothing more. The crowding price (D368) was the honest reading
+of that arithmetic, and honest arithmetic on a fixed supply is still a
+fixed supply: the number of things the app could sell had nothing to
+do with the number of people using it.
+
+### 2 · What changed
+
+- **A paid card after every sixth world card** — positions 6, 12, 18 …
+  as far as the day's pool reaches. `SPONSOR_SLOT` and `SPONSOR_AT` are
+  one constant now, `SPONSOR_EVERY = 6`; `partitionSponsored` returns
+  the day's paid cards as a list rather than one; `interleaveFeed`
+  takes `paid` and `paidEvery` and places them at that cadence, each
+  once, before the side streams' — never first, and a stream shorter
+  than the rhythm still delivers every card at its end, for the reason
+  the single slot did. `orderPaid` sorts the eligible pool by id and
+  starts it at the day's index, so every campaign appears once and
+  which one is FIRST rotates by day: the first place is the one most
+  readers reach, and it is shared out the way the one slot was. Both
+  kinds (a sponsored question, a committed ad) take the same places in
+  the same order. Selection stays on the device, the match stays
+  disclosed, the tail-never-core rule stays; an answered sponsored
+  card still parks behind the expander instead of spending a place.
+- **The price counts crowding beyond the free places.** `crowdFree: 3`
+  on the card, and the fold's step is `max(0, campaigns + 1 −
+  crowdFree)` — the rotation with the next buyer in it, less the
+  places. Three campaigns in a scope each hold a place and the index
+  reads ×1 for all of them; the fourth is the first to share, and pays
+  ×1.5 for it. A card with one free place is D368's exactly, and a
+  card from before the field folds that way, so nothing published
+  before today reads differently.
+- **The door reads the strip.** The crowding sentence is *room for 3
+  more* while there is room (the card's free places less the campaigns
+  in rotation, one on any day counting as a place taken — the buyer is
+  told the room that is certainly there), then *3 in rotation ·
+  sharing*; the demand word still reads what the price counts. The law
+  gains *3 places a scope · one card in 6 is paid* and its first token
+  says *while there is room*; the composer's preview says *one card in
+  6 · order rotates by day*, and the door's and the room's sentences
+  say *one card in 6 is paid* where they said *one paid slot a day*.
+
+### 3 · What it costs, stated
+
+**Density that reads as spam** — one in six is a guess, one constant,
+and the first week of use re-tunes it rather than defends it (the
+plan's §6). **A world campaign is in every device's rotation** with
+that device's city and country campaigns, so the per-scope free count
+is an approximation of the places a device actually shows — the same
+approximation D368's per-scope count already was, now with three
+places instead of one under it. **The e2e's first sale no longer moves
+the index**: it fills the strip and leaves ×1, which is the design, and
+the leg asserts exactly that.
+
+### 4 · What pins it
+
+`sponsored.test.ts` (the density, every sponsored card off the stream,
+the day's order rotating, both kinds in one order; the places in the
+interleave at 6 · 12 · 18, each card once, a short stream still served,
+a returning device's depth), `pricingFold.test.ts` (one campaign moves
+nothing, the fourth is the first step, one free place is D368),
+`pricing.test.ts` (`roomFor` and `crowdFor` off the strip, the demand
+words off what the price counts), `check:pricing` (`crowdFree` a whole
+number of places), `smoke-overlays` (the door), `feed-paid-answered`
+(an answered paid card parks), and the e2e's first-sale leg.

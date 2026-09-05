@@ -152,6 +152,13 @@ export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: strin
   if (todayUTC == null) throw new Error(`foldPricing: today must be YYYY-MM-DD, got ${JSON.stringify(today)}`);
   const floorX = card.floorX;
   const crowdStep = typeof card.crowdStep === "number" && card.crowdStep >= 0 ? card.crowdStep : 0.5;
+  // The free places (D372): the feed carries a paid card in every sixth
+  // place, so a scope's first `crowdFree` campaigns each hold a place of
+  // their own and dilute nobody. The multiplier counts what the NEXT
+  // buyer would push beyond that — the rotation with them in it, less
+  // the places — so a card with one free place is D368's exactly: every
+  // other campaign crowds.
+  const crowdFree = typeof card.crowdFree === "number" && card.crowdFree >= 1 ? Math.floor(card.crowdFree) : 1;
 
   const cohorts = {} as Record<PricingScope, PricingCohort>;
   const estimates: PricingLive["estimates"] = {};
@@ -177,7 +184,8 @@ export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: strin
       if (!n && nextOpen === null) nextOpen = i === 1 ? "tomorrow" : dayISO(t);
     }
     const others = sum / FORWARD_DAYS;
-    const idx = Math.round((floorX + crowdStep * others) * 100) / 100;
+    const beyond = Math.max(0, others + 1 - crowdFree);
+    const idx = Math.round((floorX + crowdStep * beyond) * 100) / 100;
 
     cohorts[scope] = { idx, booked, crowd, nextOpen: nextOpen === "tomorrow" ? null : nextOpen };
 

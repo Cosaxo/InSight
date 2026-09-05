@@ -16,6 +16,7 @@ export interface PricingCard {
   base: number;
   floorX: number;
   crowdStep: number;
+  crowdFree: number;
   floorWeek: number;
   capEur: number;
   minEur: number;
@@ -32,6 +33,7 @@ export const PRICING_CARD: PricingCard = {
  "base": 0.02,
  "floorX": 1,
  "crowdStep": 0.5,
+ "crowdFree": 3,
  "floorWeek": 500,
  "capEur": 50,
  "minEur": 5,

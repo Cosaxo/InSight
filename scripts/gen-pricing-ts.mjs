@@ -47,6 +47,7 @@ export function generatePricingTs(json) {
     "  base: number;\n" +
     "  floorX: number;\n" +
     "  crowdStep: number;\n" +
+    "  crowdFree: number;\n" +
     "  floorWeek: number;\n" +
     "  capEur: number;\n" +
     "  minEur: number;\n" +
