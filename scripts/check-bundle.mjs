@@ -830,11 +830,36 @@ const MAX_TOTAL_JS_KB = 2440;
 // is ~2.7 KB a day of ordinary bug-fixing landing in first paint, so a
 // band of 11 KB is about four days and the next trip is due before the
 // week is out. The answer then should be a deferral rather than another
-// raise, and the candidates are already visible in the modulepreload list:
-// explain-sheet (8.6 KB), result-rose (4.9), relmap-lenses (4.9) — all
-// three behind a tap, all three in spec-index.js's ORDERED side-effect
-// list, which is why moving one is its own change with its own load-order
-// risk and not something a review does on the way past.
+// raise.
+//
+// THE THREE CANDIDATES THIS ENTRY FIRST NAMED DO NOT MOVE BY THEIR OWN
+// LINES, and the correction matters because this note is the instruction
+// the next deferral will start from. It named explain-sheet (8.6 KB),
+// result-rose (4.9) and relmap-lenses (4.9) as "all three behind a tap,
+// all three in spec-index.js's ORDERED side-effect list". Two things in
+// that are wrong, measured 2026-09-06:
+//
+//   · **The side-effect line is not what holds them.** Each is imported BY
+//     NAME from a module that is itself eager, so the ESM graph pulls it in
+//     whatever spec-index.js does — which is the mechanism CLAUDE.md states
+//     ("rule 2 asks whether a file LOADS, not whether spec-index.js names
+//     it"). Proved rather than reasoned: delete explain-sheet's line,
+//     rebuild, and it is STILL in the modulepreload set, because
+//     result-card.jsx imports it.
+//   · **relmap-lenses is not behind a tap at all.** vote-cuts.js imports
+//     `RMLenses` and publishes VOTECUTS, which daily-split.jsx reads for the
+//     who-voted sheet's cuts — the landing screen, on the live path.
+//     spec-index.js says so beside its line and is right to; only its
+//     MECHANISM is stale there ("reads window.RMLenses" predates D354's
+//     sweep, which made it an import).
+//
+// WHAT ACTUALLY HOLDS THEM, for whoever does this next: explain-sheet and
+// result-rose are both pulled by result-card.jsx, and result-card is pulled
+// by passive-meter.jsx (23.1 KB, itself eager) and profile-overlay.jsx.
+// So the deferral is that chain, not three leaves — a bigger change than
+// this entry first implied, with the load-order risk sitting on
+// passive-meter rather than on the leaves. relmap-lenses is not part of it
+// and should be left alone.
 const MAX_EAGER_KB = 642;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
