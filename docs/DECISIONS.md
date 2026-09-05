@@ -38365,3 +38365,50 @@ reads, which is already the reader shape and is why A is cheap.
 still WRITES a `status: 'picked'` row. A writer with no reader is the
 mirror of the dead-publication residue `check:globals` rule 5 exists for,
 and it would sit in the tree producing documents nothing can display.
+
+
+## D365 amendment (2026-09-05) · The account is required at the pay tap, and the requirement is an identity rather than Google
+
+**The owner, on the recommendation:** *"yes do that."* This settles the
+last question `STORE-CUT-PLAN.md` §8 left open, and it settles it
+differently from that plan's default in two ways.
+
+**WHEN: at the pay tap, not before composing.** §8.2 implied sign-in up
+front. That is the wrong order for this pipeline specifically, because
+the automated review runs **before** payment and can decline: gating at
+compose means a buyer makes an account, writes their ask, and is then
+told no — the signup cost taken and a refusal given back. Composing stays
+open to anyone; the account is asked for at the pay tap and nowhere else,
+so **a decline costs the visitor nothing.**
+
+The obvious objection is that it strands the booking, and it does not:
+`linkWithPopup` upgrades an anonymous Firebase user **in place**, so an
+ask written under the anonymous web uid keeps its id through the link.
+Anonymous sign-in is enabled and measured working (2026-08-04).
+
+**WHY an account is required at all**, which §8.2 gets right and this
+keeps: an anonymous uid cannot be reached from another browser, so the
+buyer's campaign would be invisible in their own app — and
+`AskedByYouOverlay` is precisely the surface that stays in the app after
+the door leaves. A purchase you cannot come back to is not a purchase,
+least of all one that refunds 29 days later off a number both sides read.
+
+**WHAT: a reachable identity, not Google specifically.** The plan says
+Google because that is the link path the app already has, which is a
+reason to ship Google first rather than a reason to require it. The buyer
+here is a city, an agency or a brand, and a €320 B2B purchase is exactly
+the case where a personal Google account is unwelcome. Firebase
+email-link is the natural second provider and stores no password. Google
+ships first; the sign-in state is drawn so a second provider is a row
+rather than a redesign.
+
+**The cost of that second provider, named now rather than found later.**
+`design/store/app-privacy.json`'s EMAIL_ADDRESS row states its basis as
+*"Only if the user links Google."* Adding email-link leaves the ANSWER
+Yes and makes the REASON false — the D116/D180 shape, of which this
+branch has already recorded five instances. It moves in the same commit
+as the provider, or it becomes the sixth.
+
+`VISUAL-REQUESTS.md` item 0's states were rewritten with this record
+rather than after it, because the order changes which states the page has
+to draw.

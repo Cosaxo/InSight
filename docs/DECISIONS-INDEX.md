@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 380 lines instead of
-38,368. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 381 lines instead of
+38,415. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -133,7 +133,7 @@ detect it.
 | **D113** | [Two continuum forms in the feed, a lane that writes them, and the compare rose redrawn (a partial v20 sync)](DECISIONS.md#d113--two-continuum-forms-in-the-feed-a-lane-that-writes-them-and-the-compare-rose-redrawn-a-partial-v20-sync) | D277 (+3) | 10804 |
 | **D114** | [The continuum forms go live: bucketed answers under the existing fold](DECISIONS.md#d114--the-continuum-forms-go-live-bucketed-answers-under-the-existing-fold) | D358 (+3) | 10934 |
 | **D115** | [The learn lane can produce again, and the bank stops testing reading position](DECISIONS.md#d115--the-learn-lane-can-produce-again-and-the-bank-stops-testing-reading-position) | D350 (+4) | 11040 |
-| **D116** | [The store listing was still selling the retired privacy model, and the closed vocabulary becomes a gate](DECISIONS.md#d116--the-store-listing-was-still-selling-the-retired-privacy-model-and-the-closed-vocabulary-becomes-a-gate) | D251 (+6) | 11170 |
+| **D116** | [The store listing was still selling the retired privacy model, and the closed vocabulary becomes a gate](DECISIONS.md#d116--the-store-listing-was-still-selling-the-retired-privacy-model-and-the-closed-vocabulary-becomes-a-gate) | D365 (+7) | 11170 |
 | **D117** | [Two access controls are loosened to ship build 11, and the only thing holding their reversal is a checkbox](DECISIONS.md#d117--two-access-controls-are-loosened-to-ship-build-11-and-the-only-thing-holding-their-reversal-is-a-checkbox) | D124 | 11315 |
 | **D118** | [Two gestures reported from a phone: a dial that stole the tab, and a Near that counted forever](DECISIONS.md#d118--two-gestures-reported-from-a-phone-a-dial-that-stole-the-tab-and-a-near-that-counted-forever) | D130 (+1) | 11389 |
 | **D119** | [Answers becomes a tab: the live Mirror stop gets the prototype's nav v2](DECISIONS.md#d119--answers-becomes-a-tab-the-live-mirror-stop-gets-the-prototypes-nav-v2) | D190 (+3) | 11472 |
@@ -198,7 +198,7 @@ detect it.
 | **D177** | [Near becomes a room you can read, and asking requires standing in it](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it) | D202 (+4) | 17495 |
 | **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D333 (+7) | 17643 |
 | **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D279 (+5) | 17776 |
-| **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D273 (+3) | 17864 |
+| **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D365 (+4) | 17864 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D336 (+2) | 18094 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D344 (+3) | 18199 |
 | **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D352 (+10) | 18297 |
@@ -394,3 +394,4 @@ detect it.
 | **D364** | [Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key](DECISIONS.md#d364--four-launch-documents-said-things-that-had-stopped-being-true-and-the-one-step-that-needs-no-apple-account-demanded-an-apple-key) | — | 37893 |
 | **D365** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d365--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | — | 38260 |
 |  | ↳ *amendment 2026-09-05* — [The legacy free-suggestion rows go with the overlay](DECISIONS.md#d365-amendment-2026-09-05--the-legacy-free-suggestion-rows-go-with-the-overlay) | — | 38348 |
+|  | ↳ *amendment 2026-09-05* — [The account is required at the pay tap, and the requirement is an identity rather than Google](DECISIONS.md#d365-amendment-2026-09-05--the-account-is-required-at-the-pay-tap-and-the-requirement-is-an-identity-rather-than-google) | — | 38370 |

@@ -59,19 +59,38 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   an automated review rules on it, then `createPaidCheckoutV2` turns an
   approved quote into a Stripe Checkout session. Both carry
   `enforceAppCheck`.
-- **states** — **signed out**: buying requires a Google-linked account,
-  because an anonymous uid cannot be reached from another browser and
-  the buyer's campaign would be invisible in their own app. **composing**:
-  the composer IS the paid flow. **quoted**: the price is locked off the
-  committed card — rate × index, the cap, and the 29-day window promise.
-  **declined**: the automated review said no, with a reason written to be
-  shown; money never moved, because review runs before payment.
-  **paying**: hand off to Stripe. **returned**: the three existing pages
-  already handle it. **held**: an API outage holds a booking, never
-  declines it.
+- **states, and the order matters (D365 amendment)** — **composing**, open
+  to anyone with no account at all: the composer IS the paid flow.
+  **quoted**: the price locked off the committed card — rate × index, the
+  cap, the 29-day window promise. **declined**: the automated review said
+  no, with a reason written to be shown — and because no account was ever
+  asked for, **a decline costs the visitor nothing**. **sign in**: raised
+  at the PAY tap, never before, because the review runs before payment and
+  can refuse; asking someone to make an account and then telling them no
+  is the worst available order. **paying**: hand off to Stripe.
+  **returned**: the three existing pages already handle it. **held**: an
+  API outage holds a booking, never declines it.
+
+  Two things the sign-in state must get right. It exists because an
+  anonymous uid cannot be reached from another browser, so the buyer's
+  campaign would be invisible in their own app — and
+  `AskedByYouOverlay` is exactly the surface that stays in the app after
+  the door leaves. **A purchase you cannot come back to is not a
+  purchase**, least of all one that refunds 29 days later. And it must
+  not lose the ask: `linkWithPopup` upgrades an anonymous user **in
+  place**, so a booking written under the anonymous web uid keeps its id
+  straight through the link.
+
+  **Google first, but not Google only.** The requirement is a reachable
+  identity, not a particular provider. Google ships first because it is
+  the path the app already has; the sign-in state should be drawn so a
+  second provider (Firebase email-link, no password to store) is a row
+  rather than a redesign — a city or an agency may well not want a
+  personal Google account against a €320 purchase.
 - **interaction** — a scope ruler with prices riding the same axis, so
-  moving the scope moves the number in one gesture; the composer; one pay
-  tap that leaves for Stripe. The refund promise is not fine print — the
+  moving the scope moves the number in one gesture; the composer, open
+  from the first visit; one pay tap, which is where the sign-in appears
+  and the only place it does. The refund promise is not fine print — the
   buyer pays the cap and the closer refunds `(cap − answers) × rate` 29
   days later off a public aggregate both sides read, and **that sentence
   is the product's differentiator, not a disclaimer.**
