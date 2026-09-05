@@ -730,6 +730,47 @@ export const deleteAccount = onCall(
           `reveal scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
         );
       }
+
+      // …AND THE REVEALS THAT NAME YOU WITHOUT LISTING YOU.
+      //
+      // The pass above walks `members`, which is membership at REVEAL
+      // time. A pick answer copies the picked uid into
+      // `votes.<voter>.pickUid`, validated against membership at ANSWER
+      // time. Answer on a pick day, leave the circle before that night's
+      // reveal, and the two disagree: the uid is in the document, in no
+      // array the query above can see, and the document is readable by any
+      // signed-in account. `web/privacy.html` says deletion removes "your
+      // picks and name inside past group reveals".
+      //
+      // `pickedUids` is written by the reveal builder for exactly this,
+      // and the uid is removed from it in the same write that clears the
+      // pick — otherwise this loop would re-find the same page until
+      // PASS_CAP and throw.
+      for (pass = 0; pass < PASS_CAP; pass++) {
+        const page = await db.collectionGroup("reveals")
+          .where("pickedUids", "array-contains", uid).limit(PAGE).get();
+        if (page.empty) break;
+        let batch = db.batch();
+        let ops = 0;
+        for (const r of page.docs) {
+          batch.update(r.ref, {
+            ...pickUidScrub(r),
+            pickedUids: FieldValue.arrayRemove(uid),
+          });
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+        scrubbed += page.size;
+      }
+      if (pass >= PASS_CAP) {
+        throw new Error(
+          `pick scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
+        );
+      }
       counts.reveals = scrubbed;
     } catch (err) {
       logger.error("[deleteAccount] v2 reveal scrub failed:", err);

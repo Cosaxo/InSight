@@ -856,6 +856,12 @@ async function revealGroupDay(
     // Stamped only on the odd ones out, so the common case — everyone on the
     // same question — writes exactly the document it wrote before D71.
     const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
+    // The people this day's picks name — see the field's own note below.
+    const pickedUids = [...new Set(
+      Object.values(freshVotes)
+        .map((v) => v.pickUid)
+        .filter((u): u is string => typeof u === "string" && !!u),
+    )];
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose
     // them, and the reveal condition cannot flip back to false. Re-checked
@@ -928,6 +934,21 @@ async function revealGroupDay(
         dayKey,
         Object.keys(freshVotes),
       ),
+      // WHO THE PICKS NAME, as an index erasure can walk.
+      //
+      // A pick answer copies the picked person's uid into `votes.<voter>
+      // .pickUid`, validated against membership at ANSWER time. `members`
+      // above is membership at REVEAL time. Answer on a pick day, leave
+      // the circle before the nightly reveal, and the two disagree — the
+      // uid is in the document and in no array anybody queries, so
+      // deleteAccount's `array-contains` sweep never finds it and the
+      // identifier stays in a document any signed-in user can read.
+      // `web/privacy.html` promises the opposite in writing.
+      //
+      // Written only when a pick actually named someone, so ordinary
+      // reveals carry no extra field. Distinct, because two voters may
+      // pick the same person and `arrayRemove` takes every copy anyway.
+      ...(pickedUids.length ? { pickedUids } : {}),
       revealedAt: FieldValue.serverTimestamp(),
     });
     // The day is settled, so it leaves pendingDays in the same write that
