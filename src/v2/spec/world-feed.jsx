@@ -228,6 +228,14 @@ function WfCount({ to, animate, dur = 650, delay = 180 }) {
 // stay readable without a second palette. Splits derive deterministically from
 // sides get distinct hues rotated off the topic's — one lightness+chroma tier,
 // the same family the daily uses, so the feed and the daily read as one product
+// A live card whose aggregate has not landed — so there is no split, and
+// anything that DRAWS one is drawing your own vote back at you as the
+// crowd. Written out by hand at three sites in this file and a fourth in
+// daily-split.jsx, and the consequence beat was the copy that never got
+// written: it replayed 100% on your own option with "you're with them"
+// under it, on the one card that has nothing to be with.
+function wfNoCrowd(q) { return !!(q.live && q.noCountsYet); }
+
 function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
 function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }
 // every who-voted cut in one place (vote-cuts.js): demographics, then the four
@@ -708,7 +716,10 @@ class WorldFeed extends React.Component {
       wfSave(votes);
       // …and the beat replays the split as a scene, so it is the same
       // fabrication on a selfOnly card that the bars would be.
-      const beat = (!editing && this.props.beats !== false && !selfOnly) ? id : s.beat;
+      // …and `wfNoCrowd` for the same reason one clause along: a live card
+      // whose counts have not arrived has no split to replay either, which
+      // daily-split.jsx has gated its own beat on since it had one.
+      const beat = (!editing && this.props.beats !== false && !selfOnly && !wfNoCrowd(q)) ? id : s.beat;
       // Ask for a reason once, while the vote is warm, and only if this
       // question has none of your takes yet. Demo cards only: a live card
       // shows no takes, so there would be nowhere for the answer to go —
@@ -1075,7 +1086,7 @@ class WorldFeed extends React.Component {
     // asked. So it asks now, and says the same thing they do. (Two line
     // numbers stood here and pointed at `renderMeta` instead; grep the
     // name, which is what a citation is for.)
-    const noCrowd = !!(q.live && q.noCountsYet);
+    const noCrowd = wfNoCrowd(q);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
@@ -2051,7 +2062,7 @@ class WorldFeed extends React.Component {
     // selfOnly card (a live session's lens question — D50) is the same
     // problem wearing authored counts: numbers exist, a measurement does
     // not, so it takes the bars path too.
-    const floored = !!(q.live && q.noCountsYet) || !!q.selfOnly;
+    const floored = wfNoCrowd(q) || !!q.selfOnly;
     return this.opts.reveal && !floored
       ? this.renderVoteTiles(q, T, big)
       : this.renderVoteBars(q, T, big);
@@ -2206,21 +2217,30 @@ class WorldFeed extends React.Component {
     // selfOnly (D50): the fill width IS the share in a different alphabet
     // (D11's phrase, same reasoning), so it is gated together with the
     // numeral — the option rows stay, carrying only the label and your pick.
-    const noCrowd = !!q.selfOnly;
+    //
+    // Named for what it is. It was `noCrowd`, which is also this file's
+    // word for a live card whose aggregate has not landed — two meanings,
+    // one name, and the fill below asked this one while the numeral beside
+    // it asked the other. So a fresh live card suppressed its percentage
+    // and drew the bar to that percentage's width anyway: the split
+    // published geometrically while being withheld numerically, which is
+    // the failure the comment above already names. `noSplit` is both.
+    const selfOnly = !!q.selfOnly;
+    const noSplit = selfOnly || wfNoCrowd(q);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 7, animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
         {q.options.map((o, i) => (
           <div key={i} style={{ position: 'relative', border: mine === i ? '1px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : WF_LINE, borderRadius: big ? 14 : 11, background: 'var(--surface)', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (noCrowd ? 0 : p[i]) + '%', background: WPAL.wash(T.color, mine === i ? 30 : 15), animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
+            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (noSplit ? 0 : p[i]) + '%', background: WPAL.wash(T.color, mine === i ? 30 : 15), animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {c[i] === maxN && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {c[i] === maxN && !noSplit && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
-        {q.live && q.noCountsYet && mine != null && this.renderFloorNote(big)}
-        {noCrowd && mine != null && this.renderSelfNote(q, T, big)}
+        {wfNoCrowd(q) && mine != null && this.renderFloorNote(big)}
+        {selfOnly && mine != null && this.renderSelfNote(q, T, big)}
       </div>
     );
   }
@@ -2245,7 +2265,7 @@ class WorldFeed extends React.Component {
     // share — so the fill and the numeral are gated together. Drawing one
     // without the other would publish the split geometrically instead of
     // numerically, which is the same disclosure in a different alphabet.
-    const shares = mine != null && !(q.live && q.noCountsYet);
+    const shares = mine != null && !wfNoCrowd(q);
     // Label band at the top; the numeral rides the water line below it. Two things
     // keep them from ever meeting, at any tile height or percentage:
     //   1. the band reserves lines for what the labels ACTUALLY need (shared across
