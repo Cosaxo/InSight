@@ -91,10 +91,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const publicDir = hosting?.public || "web";
 
   // RECURSIVE, because Hosting serves the whole tree. This read the top
-  // level only, so `web/legal/tos.html` was served with no CSP, no nosniff
-  // and no Referrer-Policy and the gate did not even count it — this
-  // gate's own founding failure ("a NEW page under web/ gets no headers"),
-  // one directory down. Measured before this line changed.
+  // level only, so a page in any subdirectory of web/ was served with no
+  // CSP, no nosniff and no Referrer-Policy and the gate did not even
+  // count it — this gate's own founding failure ("a NEW page under web/
+  // gets no headers"), one directory down.
+  //
+  // LATENT, NOT SHIPPED, and the comment here said otherwise. It named
+  // `web/legal/tos.html` as a page that "was served" without headers.
+  // There is no such file and never has been — the measurement was made
+  // by dropping a throwaway page at that path, watching the gate report 8
+  // and stay green, and deleting it. web/ holds 8 pages today and all 8
+  // are top level. Naming a probe as though it were the site is how a
+  // reader goes looking for an incident that did not happen, and this
+  // gate exists to stop exactly that kind of claim about headers.
   //
   // Paths are kept relative to the public dir and slash-separated, because
   // that is how a hosting `source` pattern names them.
