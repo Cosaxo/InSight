@@ -2160,14 +2160,37 @@ That is a tester-count problem, not a workflow problem.
 
 ## Phase 6 — Submit
 
-- [ ] **6.0 DECIDE THE PAID DOOR'S SHAPE — this is the step whose window
-      closes when you submit, and it was on no list until D367.**
-      [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is **plan only, nothing
-      adopted**, opened by the owner 2026-08-31 (*"How should we avoid
-      having to pay the cut to Apple and Google for paid questions?"*). It
-      recommends **shape A: the door is not in the app** — buying lives on
-      the web, the app keeps the results room — and gives two reasons that
-      are about timing rather than about money:
+- [x] **6.0 THE PAID DOOR'S SHAPE — DECIDED 2026-09-05 (D368): shape A,
+      and the door is already out of the binary.** This was the step whose
+      window closes when you submit, and it was on no list until D367.
+      [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is **ADOPTED**, not plan —
+      the owner chose A on the arithmetic below, and the removal shipped
+      the same day.
+
+      **What the code did.** The plan named one entry point
+      (`PaidMineCard`); reading the tree found **five**, so following it
+      literally would have left four live purchase calls to action in the
+      binary — the header `"+"`, the daily's footer link, a feed sheet
+      button and the overlay itself. All five are gone, with both
+      `spec/suggestions.*`, `data/suggestions.ts` and `data/paidBookings.ts`;
+      two `smoke-live` assertions are inverted from present to absent, so
+      the door cannot come back without a red suite. `AskedByYouOverlay`
+      and `CurSwitch` are kept for the web page. Three callables now have
+      no caller — retiring them is an `OWNER-LIST.md` row, not free.
+
+      **What is still owed:** the web page itself. The design is extracted
+      at `design/ask-2026-09-05/`, and its README carries the adapter
+      contract — eight names differ from `content/pricing.json`, and
+      `refundDays` must come from `WINDOW_DAYS` in `functions/src/paid.ts`,
+      never from `trailingDays`. Not a submission blocker: the app ships
+      without a door either way, and the page is what turns the decision
+      into revenue.
+
+      **The reasoning is kept below as it was written**, per D106 — a
+      decision that stops being visible is one the next reader re-opens.
+      It recommends **shape A: the door is not in the app** — buying lives
+      on the web, the app keeps the results room — and gives two reasons
+      that are about timing rather than about money:
 
       **Zero sales.** Every `booked` array in `content/pricing.json` is
       still all zeros across city, country and world (verified 2026-09-04,
@@ -2205,6 +2228,12 @@ That is a tester-count problem, not a workflow problem.
       the same record — what is not legitimate is arriving at 6.2 without
       having chosen, because that is choosing C by default at the moment
       it is most expensive.
+
+      *(§4's estimate held on the two counts it could check and missed the
+      one it could not: the overlay did leave whole and the code did take
+      an afternoon, but "the overlay" was four entry points short of the
+      door. A plan written from a module outwards cannot see what grew
+      inwards toward it — D368's third amendment.)*
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**
       ```bash
