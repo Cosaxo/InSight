@@ -30,6 +30,38 @@
 // Non-text inputs are exempt and listed below: iOS does not zoom for a
 // slider or a checkbox, and `type="range"` in particular is styled by size
 // everywhere in the map.
+//
+// WHAT THIS GATE DOES NOT SEE, written down because an undisclosed blind
+// spot in a gate reads as a guarantee:
+//
+//  · NATIVE `&` NESTING, in two shapes — PROBED, not reasoned. The rule
+//    matcher is `[^{}]+\{[^{}]*\}`, which finds innermost blocks only, and
+//    the selector filter then wants a field in that block's OWN selector.
+//    So `.sheet { & input { font-size: 15px } }` IS caught (the inner
+//    selector says `input`), while both of these are not scanned at all:
+//      input.answer { &:focus { font-size: 15px } }   ← inner names no field
+//      input.answer { font-size: 15px; &:focus { … } }← a nested child hides
+//                                                      the PARENT's own
+//                                                      declarations from the
+//                                                      innermost-only match
+//    The second is the dangerous one: nesting anything inside a field's
+//    rule takes that rule's own size out of this gate's sight. Nothing in
+//    the tree nests today; the day something does, D105's exact bug is
+//    unguarded again.
+//  · A FIELD STYLED BY CLASS ALONE. The selector half looks for a field in
+//    the selector (`input`, `textarea`, a `[type=…]`). A rule like
+//    `.answer-box { font-size: 15px }` applied to an `<input className=
+//    "answer-box">` sets a field's size and names no field, so it is
+//    scanned and passes. Closing it means resolving class names across the
+//    JSX, which is a different scanner.
+//  · A SIZE COMPUTED AT RUNTIME — `fontSize: big ? 16 : 12`, a value out of
+//    a props object, a style built by a helper this file does not resolve.
+//    The const-lookup below reaches the common case (a named style object in
+//    the same file) and no further.
+//
+// None of the three is used today, which is why they are notes and not
+// failures. All three are how this gate goes quietly green on the failure
+// it is named after.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { stripComments } from "./strip-comments.mjs";
@@ -139,22 +171,45 @@ const styleConsts = (src) => {
 //
 // `fontFamily`/`fontWeight` do not match: after `font` the pattern demands
 // optional space and then a colon, which "Family" is not.
+//
+// THE LAST DECLARATION, NOT THE FIRST. This read `.exec()` — one match, the
+// leftmost — so a tag that set the token and then overrode it passed, and
+// the gate's whole subject is the size a field ENDS UP with. React applies
+// a style object's properties in order and a duplicate key keeps the later
+// value, so the last one is what the browser draws; the same rule the CSS
+// half below follows for the same reason. `{ fontSize: 'var(--field-size)',
+// font: '600 12px system-ui' }` is D105's bug written in two declarations,
+// and it read as compliant.
+//
+// It also returns the PROPERTY, so a failure can say `font:` when that is
+// what the file wrote. The line used to report every hit as `fontSize:`,
+// naming a declaration the file does not contain — the same wrongness
+// badCssFontSize was already fixed for, left standing on this half.
 export const badFontSize = (text) => {
-  const m = /\b(?:fontSize|font)\s*:\s*([^,}\n]+)/.exec(text);
-  if (!m) return null;
-  const value = m[1].trim();
-  return value.includes(TOKEN) ? null : value;
+  let last = null;
+  for (const m of text.matchAll(/\b(fontSize|font)\s*:\s*([^,}\n]+)/g)) {
+    last = { prop: m[1], value: m[2].trim() };
+  }
+  if (!last) return null;
+  return last.value.includes(TOKEN) ? null : last;
 };
 
 // The stylesheet half of the same question. Returns the declared property
 // as well as its value, so the failure line says `font:` when that is what
 // the sheet wrote — it used to report every hit as "font-size", which for a
 // shorthand names a declaration the file does not contain.
+//
+// LAST, not first, for the reason spelled out on the JSX half: a rule that
+// writes `font: 600 12px x; font-size: var(--field-size)` draws at the
+// token, and one that writes them the other way round draws at 12px. The
+// cascade decides, and `.exec()` was reading the wrong end of it.
 export const badCssFontSize = (body) => {
-  const m = /(?:^|[;\s])(font(?:-size)?)\s*:\s*([^;]+)/.exec(body);
-  if (!m) return null;
-  const value = m[2].trim();
-  return value.includes(TOKEN) ? null : { prop: m[1], value };
+  let last = null;
+  for (const m of body.matchAll(/(?:^|[;\s])(font(?:-size)?)\s*:\s*([^;]+)/g)) {
+    last = { prop: m[1], value: m[2].trim() };
+  }
+  if (!last) return null;
+  return last.value.includes(TOKEN) ? null : last;
 };
 
 // Only when RUN, so a test can import the two matchers above without this
@@ -243,7 +298,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
         if (bad) {
           failures.push(
-            `${rel}:${lineOf(src, index)}  <${tag}> sets fontSize: ${bad} (${via})`,
+            `${rel}:${lineOf(src, index)}  <${tag}> sets ${bad.prop}: ${bad.value} (${via})`,
           );
         }
       }
