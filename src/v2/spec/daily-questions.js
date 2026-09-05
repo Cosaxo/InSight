@@ -404,6 +404,24 @@ export let DAILYQ;
       cat: ['Food', 'Habits'], alts: [['Body', 'Balance'], ['Values', 'Treats']] },
     { type: 'choice', prompt: 'What do you follow most closely?', tag: 'Following', options: ['A sport', 'A show', 'An artist', 'A subject'], tone: 'light',
       cat: ['Interests', 'Following'], alts: [['Sport', 'Fandom'], ['Music', 'Fandom']] },
+    // farm 2026-09-04 — levelling above the floor (D350 tier 3), one per
+    // thinnest top: Story, Travel, Body, Film, Food, Goals, Interests, Music.
+    { type: 'choice', prompt: 'The advice you\u2019d give your younger self is mostly about\u2026', tag: 'Dear younger me', options: ['Courage', 'Patience', 'People', 'Money'], tone: 'deep',
+      cat: ['Story', 'Then and now'], alts: [['Mind', 'Self-knowledge'], ['Goals', 'Lessons']] },
+    { type: 'binary', prompt: 'Getting lost somewhere new: part of the fun, or the thing to avoid?', tag: 'Getting lost', options: ['Part of the fun', 'The thing to avoid'], tone: 'light',
+      cat: ['Travel', 'How you roam'], alts: [['Mind', 'Control'], ['Interests', 'Adventure']] },
+    { type: 'binary', prompt: 'Naps: a superpower, or a trap?', tag: 'Naps', options: ['A superpower', 'A trap'], tone: 'light',
+      cat: ['Body', 'Sleep'], alts: [['Mind', 'Rest'], ['Home', 'Afternoons']] },
+    { type: 'binary', prompt: 'Showing someone your favourite film: the joy, or the pressure?', tag: 'The screening', options: ['The joy', 'The pressure'], tone: 'light',
+      cat: ['Film', 'Sharing'], alts: [['Story', 'Sharing'], ['Mind', 'Stakes']] },
+    { type: 'binary', prompt: 'A dish you loved as a kid: still delicious, or best left in memory?', tag: 'Kid food', options: ['Still delicious', 'Leave it in memory'], tone: 'light',
+      cat: ['Food', 'Memory'], alts: [['Story', 'Then and now'], ['Home', 'Comfort']] },
+    { type: 'scale', prompt: 'Small steps beat big leaps.', tag: 'How you move', axis: 'small steps', tone: 'deep',
+      cat: ['Goals', 'Method'], alts: [['Skills', 'How you learn'], ['Mind', 'Patience']] },
+    { type: 'choice', prompt: 'A free evening class in anything. Which door?', tag: 'Evening class', options: ['Art', 'A language', 'Carpentry', 'Coding'], tone: 'light',
+      cat: ['Interests', 'Learning'], alts: [['Skills', 'Wishlist'], ['Goals', 'This year']] },
+    { type: 'binary', prompt: 'Digging backwards through the decades, or riding the new releases?', tag: 'Which way', options: ['Digging backwards', 'Riding the new'], tone: 'light',
+      cat: ['Music', 'Discovery'], alts: [['Interests', 'Curiosity'], ['Story', 'Eras']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
