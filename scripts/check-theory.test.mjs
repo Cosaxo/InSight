@@ -17,7 +17,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { scanPaper, listPapers, PAPERS_DIR, AXES, REQUIRED, FORBIDDEN } from "./check-theory.mjs";
+import { scanPaper, listPapers, PAPERS_DIR, PAPER_SETS, AXES, REQUIRED, FORBIDDEN, GENERAL_REQUIRED, GENERAL_FORBIDDEN } from "./check-theory.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -152,6 +152,71 @@ Little.
   });
 });
 
+const GENERAL_GOOD = `# The discovery problem
+
+**Status: theory research.** General track.
+
+**Perfect-form test.** If the app did not exist, this would still be worth saying because the problem is general.
+
+**Setting.** A population of units, a set of sources each with a cost, a budget of observations per unit per period.
+
+**Abstract.** Which observations to take so that the couplings between sources are identified.
+
+**1 · The problem**
+
+Sources are observed on units.
+
+**2 · What would have to hold**
+
+The co-observation graph is connected.
+
+**3 · The potential**
+
+A general theory.
+`;
+
+describe("general papers state their setting and name none of this app's sources", () => {
+  it("a well-formed general paper passes without naming any axis", () => {
+    const { problems, axes } = scanPaper(GENERAL_GOOD, "general");
+    expect(problems).toEqual([]);
+    expect(axes.length).toBeLessThan(2);
+  });
+
+  it("the same text fails as an AXIOM paper, because it names no axes", () => {
+    expect(scanPaper(GENERAL_GOOD, "axiom").problems.map((p) => p.rule)).toContain(
+      "names fewer than two axes",
+    );
+  });
+
+  it("fails without a setting paragraph", () => {
+    const noSetting = GENERAL_GOOD.replace("**Setting.**", "**Context.**");
+    expect(scanPaper(noSetting, "general").problems.map((p) => p.rule)).toContain(
+      "missing a setting paragraph",
+    );
+  });
+
+  for (const text of [
+    "Consider a genome imported by the unit.",
+    "The logic test is one keyed source.",
+    "A duel between two units is a relation.",
+    "InSight measures seven sources.",
+  ]) {
+    it(`fails when it reaches for this app's sources: ${text.slice(0, 40)}…`, () => {
+      const rules = scanPaper(`${GENERAL_GOOD}\n${text}\n`, "general").problems.map((p) => p.rule);
+      expect(rules).toContain("contains this app or one of its sources");
+    });
+  }
+
+  it("an axiom paper may name them, of course", () => {
+    expect(rules(`${GOOD}\nA duel between two units is a relation.\n`)).toEqual([]);
+  });
+
+  it("every general rule carries a reason too", () => {
+    for (const r of [...GENERAL_REQUIRED, ...GENERAL_FORBIDDEN]) expect(r.why.length).toBeGreaterThan(20);
+    expect(PAPER_SETS.map((s) => s.kind)).toEqual(["axiom", "general"]);
+  });
+});
+
 describe("the papers actually in the tree", () => {
   const papers = listPapers(join(repoRoot, PAPERS_DIR));
 
@@ -160,11 +225,13 @@ describe("the papers actually in the tree", () => {
     expect(papers.length).toBeGreaterThan(0);
   });
 
-  for (const paper of papers ?? []) {
-    it(`${paper} carries the form`, () => {
-      const { problems } = scanPaper(readFileSync(join(repoRoot, PAPERS_DIR, paper), "utf8"));
-      expect(problems).toEqual([]);
-    });
+  for (const { dir, kind } of PAPER_SETS) {
+    for (const paper of listPapers(join(repoRoot, dir)) ?? []) {
+      it(`${dir}/${paper} carries the ${kind} form`, () => {
+        const { problems } = scanPaper(readFileSync(join(repoRoot, dir, paper), "utf8"), kind);
+        expect(problems).toEqual([]);
+      });
+    }
   }
 
   it("does not treat the README as a paper", () => {

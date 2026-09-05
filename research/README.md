@@ -88,6 +88,27 @@ learned representation with its auditable distilled layer; custody-
 preserving computation for the genome crossings; causal patterns from
 within-unit events.
 
+## The general track
+
+**The owner's pivot, 2026-09-05:** *"i want a pivot… design how to most
+efficiently find data between axioms and how to design the best database
+and pattern finding mechanisms, make it theoretical, not connected to our
+specific axioms but general theory."* So beside the axiom series there is
+a general track under `research/general-theory/`: a theory of any
+population of units measured by many sources under an observation
+budget, which names no product and none of this app's sources. Its
+papers open with a **Setting.** paragraph that defines units, sources,
+grains and budget abstractly, and `check:theory` holds them to that and
+fails one that reaches for this app's sources as its example. The axiom
+series' papers 0 and 0a are the instance of this track for the sources
+this app has; the general track is now the foundation both stand on.
+
+| Paper | File | What it argues |
+| --- | --- | --- |
+| G1 | `research/general-theory/paper-g1-discovery.md` | The discovery problem: a coupling between two sources is identified only from units observed on both, so the weighted co-observation graph is the map of what can be known; under a per-unit budget the choice of what to observe dominates any estimator for population structure while borrowing from the population dominates for a single unit; the objective as an explicit scalarization with exploration, hazard and coverage terms; six honesty constraints; allocation as planned missingness; per-pair roles that move only forward; the value of a source as marginal bits on a stream the policy never chose |
+| G2 | `research/general-theory/paper-g2-database.md` | The database as the model: the observation event with its state, reason and probability as the atom of an append-only ledger; three grains with the tensor as a view and the co-observation ledger as a read model; a versioned model store with a publication ledger; custody as physical layout with the join running where the most private column lives, first-order aggregation distinguished from pairwise primitives and input privacy from output privacy, at a priced cost; bitemporal time; deterministic folds with recorded boundaries; evolution and erasure as transactions; the type a published number must carry; three readers, three layouts |
+| G3 | `research/general-theory/paper-g3-mechanisms.md` | Pattern-finding mechanisms: the three-level estimand hierarchy with measurement and bias models beneath it; one hierarchical joint model fitted continuously, ignorable of the choosing only conditional on the log; level separation as mechanics with a measured per-dimension discrepancy in place of a verdict; bias as model terms under an admissibility rule; learned representations with a distilled layer whose faithfulness licenses prediction and never a structural reading; causal readings in two classes; discovery from residuals under an admission test; evaluation as the arbiter on the uniform stream; computation at scale under custody with its two binding points named |
+
 ## How a paper reaches the product
 
 1. The paper's *what it would take* section names the collection,

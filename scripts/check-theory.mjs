@@ -47,9 +47,18 @@
 //      script, a decision number. A paper that names the tree is
 //      describing it, and description belongs in docs/, not here.
 //
-// SCOPE. research/axiom-theory/paper-*.md only. research/README.md is the
-// series' own map: it legitimately names paths, gates and decisions, so it
-// is not a paper and is not scanned. The rules are regular expressions
+// SCOPE. Two tracks, two kinds of paper. research/axiom-theory/paper-*.md
+// are AXIOM papers: they cross this app's sources and must name at least
+// two of them. research/general-theory/paper-*.md are GENERAL papers (the
+// owner's pivot, 2026-09-05: "make it theoretical, not connected to our
+// specific axioms but general theory"): they must open with a **Setting.**
+// paragraph that defines units, sources and budget abstractly, and they
+// may NOT name this app or its sources at all — a general theory that
+// reaches for the genome or the duel as its example has stopped being
+// general, and the gate is what keeps the two tracks from blurring back
+// into one. research/README.md is the series' own map: it legitimately
+// names paths, gates and decisions, so it is not a paper and is not
+// scanned. The rules are regular expressions
 // over a closed vocabulary, the same class of check as check:public-copy —
 // name-level, buildable, and honest about what it does not read.
 //
@@ -64,6 +73,10 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export const PAPERS_DIR = "research/axiom-theory";
+export const PAPER_SETS = [
+  { dir: "research/axiom-theory", kind: "axiom" },
+  { dir: "research/general-theory", kind: "general" },
+];
 export const PAPER_FILE = /^paper-[0-9a-z-]+\.md$/;
 
 // The axes vocabulary, one entry per axis the theory may cross. The
@@ -159,23 +172,47 @@ export const FORBIDDEN = [
   },
 ];
 
+// What a GENERAL paper must carry beyond the shared form, and what it may
+// not say. The setting paragraph is the general track's version of the
+// axes rule: instead of naming two of this app's sources, the paper defines
+// its own — units, sources, grains, budget — so a reader who has never
+// heard of the product can follow every claim.
+export const GENERAL_REQUIRED = [
+  {
+    name: "a setting paragraph",
+    re: /\*\*Setting\.?\*\*/,
+    why: "a general paper defines its own units, sources and budget in a **Setting.** paragraph instead of borrowing this app's",
+  },
+];
+export const GENERAL_FORBIDDEN = [
+  {
+    name: "this app or one of its sources",
+    re: /\bInSight\b|\bthe Mirror\b|\bgenom(?:e|es|ic)\b|\bgenetic|\b(?:logic|reasoning) test\b|\bduels?\b|\bfollow graph\b|\bpulses?\b|\bfavourites?\b/i,
+    why: "a general paper is general: an example drawn from this app's sources pulls the theory back to the instance, and the axiom track exists for that",
+  },
+];
+
 /**
  * Scan one paper's text. Pure: no I/O, so the test can drive it with
  * fixtures and the CLI with files.
  * @param {string} text
+ * @param {"axiom"|"general"} [kind] which track's rules apply; axiom by default
  * @returns {{ problems: {rule:string, why:string, line:number, excerpt:string}[], axes: string[] }}
  */
-export function scanPaper(text) {
+export function scanPaper(text, kind = "axiom") {
   const problems = [];
   const lines = String(text).split("\n");
 
-  for (const rule of REQUIRED) {
+  const required = kind === "general" ? [...REQUIRED, ...GENERAL_REQUIRED] : REQUIRED;
+  const forbidden = kind === "general" ? [...FORBIDDEN, ...GENERAL_FORBIDDEN] : FORBIDDEN;
+
+  for (const rule of required) {
     if (!rule.re.test(text)) {
       problems.push({ rule: `missing ${rule.name}`, why: rule.why, line: 0, excerpt: "" });
     }
   }
 
-  for (const rule of FORBIDDEN) {
+  for (const rule of forbidden) {
     lines.forEach((l, i) => {
       const m = rule.re.exec(l);
       if (!m) return;
@@ -190,7 +227,7 @@ export function scanPaper(text) {
   }
 
   const axes = AXES.filter(([, re]) => re.test(text)).map(([name]) => name);
-  if (axes.length < 2) {
+  if (kind === "axiom" && axes.length < 2) {
     problems.push({
       rule: "names fewer than two axes",
       why: `cross-axis or it does not count: a paper names at least two axes and says what neither says alone (found: ${axes.join(", ") || "none"})`,
@@ -213,32 +250,43 @@ const invokedDirectly =
   process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (invokedDirectly) {
-  const dir = join(root, PAPERS_DIR);
-  const papers = listPapers(dir);
-  if (papers === null) {
-    console.error(
-      `check-theory: ${PAPERS_DIR}/ does not exist. If the series moved, move PAPERS_DIR with it —` +
-        " a gate that passes on a missing directory is guarding nothing.",
-    );
-    process.exit(1);
-  }
-
+  // The first set is the one that must exist: the axiom series is where the
+  // program started, and a gate that passes on a missing directory is
+  // guarding nothing. The general track may be empty before its first paper.
   let failed = 0;
-  for (const paper of papers) {
-    const { problems } = scanPaper(readFileSync(join(dir, paper), "utf8"));
-    if (!problems.length) continue;
-    failed += 1;
-    console.error(`\n${PAPERS_DIR}/${paper}`);
-    for (const p of problems) {
-      console.error(`  ✗ ${p.rule}${p.line ? ` (line ${p.line})` : ""}`);
-      console.error(`      why : ${p.why}`);
-      if (p.excerpt) console.error(`      at  : …${p.excerpt}…`);
+  let total = 0;
+  const seen = [];
+  for (const { dir: rel, kind } of PAPER_SETS) {
+    const dir = join(root, rel);
+    const papers = listPapers(dir);
+    if (papers === null) {
+      if (rel === PAPERS_DIR) {
+        console.error(
+          `check-theory: ${rel}/ does not exist. If the series moved, move PAPER_SETS with it —` +
+            " a gate that passes on a missing directory is guarding nothing.",
+        );
+        process.exit(1);
+      }
+      continue;
+    }
+    total += papers.length;
+    seen.push(`${papers.length} ${kind}`);
+    for (const paper of papers) {
+      const { problems } = scanPaper(readFileSync(join(dir, paper), "utf8"), kind);
+      if (!problems.length) continue;
+      failed += 1;
+      console.error(`\n${rel}/${paper} (${kind} paper)`);
+      for (const p of problems) {
+        console.error(`  ✗ ${p.rule}${p.line ? ` (line ${p.line})` : ""}`);
+        console.error(`      why : ${p.why}`);
+        if (p.excerpt) console.error(`      at  : …${p.excerpt}…`);
+      }
     }
   }
 
   if (failed) {
     console.error(
-      `\ncheck-theory FAILED — ${failed} of ${papers.length} paper(s) break the form.` +
+      `\ncheck-theory FAILED — ${failed} of ${total} paper(s) break the form.` +
         "\nThe form is what stopped the last attempt's drift from the perfect form back to the" +
         "\ncurrent app; a paper that fails it is not theory yet. research/README.md has the rules.",
     );
@@ -246,8 +294,9 @@ if (invokedDirectly) {
   }
 
   console.log(
-    `check-theory OK — ${papers.length} paper(s) in ${PAPERS_DIR}/ carry the form:` +
-      " status line, perfect-form test, abstract, two or more axes, conditions and potential," +
-      " no citations, no app internals.",
+    `check-theory OK — ${total} paper(s) (${seen.join(", ")}) carry the form:` +
+      " status line, perfect-form test, abstract, conditions and potential, no citations," +
+      " no app internals; axiom papers name two or more axes, general papers state their setting" +
+      " and name none of this app's sources.",
   );
 }

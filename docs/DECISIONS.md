@@ -38043,3 +38043,31 @@ first (D183), the data-inventory row, the store forms — and the minimum
 observer count behind an aggregate is a design number the first cohorts
 set, priced in the build's own record — a release schedule rather than
 a single count. Nothing is built by this amendment.
+
+## D364 amendment (2026-09-05, later) · The general track: theory not tied to these axes
+
+The owner, after reading a plain summary of the seven axiom papers: *"i
+want a pivot i want you more to design how to most efficiently find data
+between axioms and how to design the best database and pattern finding
+mechanisms make it theoretical not connected to our specific axioms but
+general theory."*
+
+So `research/general-theory/` opens beside the axiom series with three
+papers written for any population of units measured by many sources under
+an observation budget: G1, the discovery problem (which observations to
+take so that the couplings between sources can be known at all); G2, the
+database as the model (the structure that holds chosen, multi-grain,
+custody-partitioned data with the record of why each observation was
+taken); and G3, the pattern-finding mechanisms (how structure is
+estimated, discovered, tested and judged). None of the three names this
+product or any of its sources. `check:theory` gains a second kind of
+paper: a general paper must open with a **Setting.** paragraph defining
+its units, sources and budget, is exempt from the axiom papers' rule that
+two of this app's axes be named, and fails if it names this app or one of
+its sources at all — the gate is what keeps the two tracks from blurring
+back into one, which is the drift the whole restart exists to prevent,
+one level up. The axiom series' papers 0 and 0a are the instance of the
+general track for the sources this app has and stay as written; the
+general track is now the foundation both stand on. Each general paper went
+to a separate adversarial reviewer before landing, as the axiom papers
+did. Nothing in the app moves.
