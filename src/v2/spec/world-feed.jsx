@@ -2938,7 +2938,11 @@ class WorldFeed extends React.Component {
       // D149: no row at all when nothing has been measured. "Crowd — null%"
       // and "Our estimate" are both worse than the sheet simply not
       // carrying a line about a crowd that has not answered yet.
-      if (kr.pct != null) rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
+      // …and no row when the only measurement is a single first try, which
+      // on a card the reader has answered is their own. "Crowd — 100% get
+      // this right" over one person is the same fabrication D149 removed
+      // the estimate for, with a number that looks measured.
+      if (kr.pct != null && !(kr.src === 'measured' && ((LEARN_COUNTS(kn) || {}).total || 0) < 2)) rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
       rows.push(['On your map', 'Knowledge']);
     } else {
       const scene = q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
