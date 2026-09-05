@@ -15,7 +15,7 @@ import { SUBTOPICS } from './world-subtopics.js';
 // D223), so neither reaches the first frame — world-catalogs is already
 // pulled in by loadWorldFeed for the same reason.
 import { WF_CATALOGS } from './world-catalogs.js';
-import { wfAnsweredOf, wfVotesOf } from './world-feed-math.js';
+import { wfAnsweredOf, wfPcts, wfVotesOf } from './world-feed-math.js';
 import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
@@ -107,11 +107,20 @@ function SrchHit({ glyph, title, sub, q, onClick }) {
 }
 
 // answered rows carry a silent meter instead of a badge: how big your side was
+//
+// The feed's own share, not a fork of it — the third helper in this file to
+// need that sentence, after `srchQVotes` and `srchAnswered` above. It
+// divided `o.count` by the sum of `o.count`, and a live card's counts have
+// the viewer's own vote SUBTRACTED (data/live.ts's feedCounts says so; the
+// feed adds it back with `wfPcts`). So this meter drew a share of a
+// population the reader was not in: a true 62.5% came out at 60.9%, and
+// when you were the only voter your side was 100% and the bar drew at its
+// 4% floor — "almost nobody agreed with you", about a crowd of one, which
+// is you.
 function SrchShare({ q, votes, color }) {
   const v = votes[q.id];
   if (typeof v !== 'number' || !q.options || !q.options[v]) return null;
-  const total = q.options.reduce((a, o) => a + o.count, 0) || 1;
-  const share = Math.max(0.04, Math.min(1, q.options[v].count / total));
+  const share = Math.max(0.04, Math.min(1, wfPcts(q.options.map((o) => o.count || 0), v).p[v] / 100));
   return (
     <span aria-hidden="true" style={{ width: 40, height: 4, borderRadius: 999, background: 'color-mix(in oklch, ' + color + ' 16%, var(--surface-3))', flexShrink: 0, overflow: 'hidden', display: 'block' }}>
       <span style={{ display: 'block', height: '100%', width: (share * 100).toFixed(1) + '%', background: color, borderRadius: 999 }}></span>

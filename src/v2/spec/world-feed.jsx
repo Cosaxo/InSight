@@ -105,6 +105,9 @@ import LiveReadGame from '../ui/LiveReadGame.tsx';
 // which is the rule pct.ts retired for drawing a smaller count at a larger
 // percentage.
 import { sharePcts } from '../data/pct.ts';
+// What the BANK holds per topic, where a live build has published it —
+// the topic sheet's count. See its use for why the pool cannot answer.
+import { feedTopicTotal } from '../data/bankPager.ts';
 import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
@@ -1755,10 +1758,14 @@ class WorldFeed extends React.Component {
         </div>
       );
     }
-    // The reveal is a canon, not a split: top entities above the floor,
-    // everyone else in one bucket. Your own pick always shows to YOU — it
-    // is your own answer, no floor applies — and when it is below the floor
-    // the copy says so instead of pretending it counted. Segment chips
+    // The reveal is a canon, not a split: a top board and everyone else in
+    // one bucket. Your own pick always shows to YOU — it is your own
+    // answer — and when it is not on that board the copy says which
+    // absence it is: "below the floor" on a demo card, where a floor
+    // really is applied, and "not on the board" on a live one, where since
+    // D98 there is no floor and the pick is counted exactly like any
+    // other. This paragraph said "above the floor" and "below the floor"
+    // for both, which is the pre-D98 model. Segment chips
     // (D17) reorder the SAME board by one cohort's counts — a segment
     // never surfaces entities the global board suppressed.
     const PK = this.pickSrc(q);
@@ -1792,13 +1799,24 @@ class WorldFeed extends React.Component {
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
       : c.restEntities >= 2 ? ` votes across a few other ${foldNoun}` : '';
     const foldWhy = foldNote && c.restBelowFloor ? ' — none with 5 yet' : '';
+    // THE TILE'S ABSENT-COUNT WORDING SPLITS ON `q.live`, like the ghost
+    // row further down. `count` is null whenever the pick is not in the
+    // board's top N — TOP_N is 10 over catalogues of a thousand entries, so
+    // that is the ORDINARY case, not an edge. On a demo card there really
+    // is a floor (`pick-data.js` filters on AGG_MIN_N) and "below the
+    // floor" is true. Post-D98 the live board has no floor at all —
+    // `LIVE.pickCanon`'s docstring says the tail "is simply everything
+    // outside the top N" — so the same words are a false claim about a
+    // real, exactly-counted number. The ghost row already made this split
+    // and said why (COPY.md §3); the tile was not moved with it, so one
+    // card said both things about the same pick.
     const TOPN = PK.TOP_N;
     const tile = (ent, nm, label, strong, count, rank) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
         <span aria-hidden="true" style={{ width: '100%', height: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}></span>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, lineHeight: 1.2, textWrap: 'pretty', color: 'var(--ink)' }}>{nm || '\u2026'}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : 'below the floor'}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : (q.live ? 'not on the board' : 'below the floor')}</span>
       </div>
     );
     const chip = (label, active, onTap) => (
@@ -2334,7 +2352,23 @@ class WorldFeed extends React.Component {
       );
     }
     const matches = order.filter((it, pos) => q.crowd[it] === pos + 1).length;
-    const matchLine = <>You matched the crowd on {matches} of {q.items.length}</>;
+    // …and WHICH crowd. This card was the only answered live card with no
+    // count anywhere on it: the daily prints its votes, the feed prints
+    // its votes, the pick card prints "everyone else · N", and `renderEngage`
+    // — the one place a live card's count is drawn — returns early for
+    // rank. The crowd order exists the moment ONE other person has ranked,
+    // so "the crowd" could be a single stranger, unlabelled (D146).
+    //
+    // `crowdN`, not `q.votes`: the viewer's own order is subtracted out of
+    // the crowd when their fold has landed, so the total would overstate
+    // it by one. The demo arm has always printed its own basis.
+    const crowdN = q.live ? q.crowdN : 0;
+    const matchLine = (
+      <>
+        You matched the crowd on {matches} of {q.items.length}
+        {crowdN > 0 ? ' \u00b7 from ' + wfFmt(crowdN) + (crowdN === 1 ? ' other ranking' : ' other rankings') : ''}
+      </>
+    );
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 9 : 7, animation: v2 ? 'none' : 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         {order.map((it, pos) => {
@@ -2768,11 +2802,13 @@ class WorldFeed extends React.Component {
     //
     // The honest replacement is the thing D96 part 3 already made true and
     // never showed anyone: a live build runs EVERY subject its bank stocks,
-    // always on. So this names them, counts them out of the same pool the
-    // feed is built from, and gives each the mute the chip row has. Every
+    // always on. So this names them, counts them out of the bank the feed
+    // is served from, and gives each the mute the chip row has. Every
     // number here is measured — questions in the bank, and how many of them
     // you have answered. No member counts, no vibes, nothing this build
-    // cannot source.
+    // cannot source. (Out of the bank, not the pool: see the count below —
+    // it read the pool until the night of 2026-09-05, and the pool has
+    // been a page since D321.)
     //
     // Channels only, not scenes and leaves: those two have a follow to
     // remove and surfaces that own it (the profile's scenes card, search),
@@ -2804,8 +2840,31 @@ class WorldFeed extends React.Component {
         if (done) s.done++;
       });
     });
+    // THE BANK'S COUNT WHERE THE PUBLISHED ORDER CARRIES ONE, the pool's
+    // otherwise — the same rule LEARN.total() follows, and here for the
+    // same reported failure. Since D321 the feed's pool is core plus at
+    // most FEED_PAGE tail rows per topic per boot, so counting it claimed
+    // what the device had fetched. MEASURED on today's bank, first boot:
+    // every topic under-reads, `fav` at 12 of 24 and `music` at 15 of 24,
+    // and it heals only as later boots pull the next page. The published
+    // count is MEMBERSHIP (rank.ts's
+    // `carry`, home ∪ also) because that is what this row means and what
+    // the mute below acts on; the client cannot compute it, since it sees
+    // `also` only on the questions it already holds.
+    //
+    // `done` stays the pool's, and is not the same kind of number: the
+    // pager heals history by id, so every feed question this account has
+    // answered is fetched back into the pool whatever page it was on.
+    // What you have answered is therefore fully in the pool even when
+    // what there is to answer is not.
+    //
+    // Null (a demo build, or before the order loads) falls through to the
+    // pool, which in a demo build IS the whole bank.
     const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
-      .map((t) => ({ ...t, ...(stock[t.id] || { n: 0, done: 0 }) }))
+      .map((t) => {
+        const s = stock[t.id] || { n: 0, done: 0 };
+        return { ...t, ...s, n: feedTopicTotal(t.id) ?? s.n };
+      })
       .filter((t) => t.n > 0);
     const topicRow = (t) => {
       const on = catsOn[t.id] !== false;

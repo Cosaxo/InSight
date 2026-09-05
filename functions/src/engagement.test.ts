@@ -108,17 +108,31 @@ describe("runEngagementDigest", () => {
 
   it("keys cohort returns on firstDay and reads unknown denominators as null", async () => {
     const d1 = dayOffset(Y, -1);
+    const d30 = dayOffset(Y, -30);
     const { store, state } = memoryStore({
       [d1]: [e("new1", "q1"), e("new2", "q1")], // two first-timers
-      [Y]: [e("new1", "q2"), e("old1", "q1")], // one returns next day
+      // THREE actives, and the third is the whole point. With only new1
+      // (in the d1 cohort) and old1 (in none), the d1 predicate and its
+      // NEGATION both select exactly one account, so `=== ` could be
+      // inverted with every test green — measured. `mid1` belongs to a
+      // different cohort, so the two readings now differ: 1 against 2.
+      [Y]: [e("new1", "q2"), e("old1", "q1"), e("mid1", "q1")],
     });
     // old1 has history from before the window — firstDay far in the past
     state.users.set("old1", { firstDay: "2026-01-01", lastDay: dayOffset(Y, -3), activeDays: 9, streak: 1 });
+    // mid1 first appeared thirty days ago — the d30 cohort, which nothing
+    // asserted at all before.
+    state.users.set("mid1", { firstDay: d30, lastDay: d30, activeDays: 1, streak: 1 });
     await runEngagementDigest(store, NOW, FEED);
     const doc = state.days.get(Y)!;
     expect(doc.returned.d1).toEqual({ returned: 1, of: 2 });
     // the d7 cohort day sits outside the catch-up window — never folded
     expect(doc.returned.d7).toEqual({ returned: 0, of: null });
+    // …and d30 counts its own returner. Inverting this line publishes the
+    // COMPLEMENT of the cohort on a world-readable document — routinely
+    // more accounts than the `of` denominator, which reads as a retention
+    // rate above 100%.
+    expect(doc.returned.d30).toEqual({ returned: 1, of: null });
     expect(doc.firstTime).toBe(0);
   });
 
@@ -684,6 +698,22 @@ describe("advanceFgWindow", () => {
     expect(advanceFgWindow([4, 4, 4, 4], 0).fading).toBe(false); // five readings — too soon
     expect(advanceFgWindow([1, 1, 1, 1, 1], 1).fading).toBe(false); // low is not sinking
   });
+
+  it("fades at EXACTLY two buckets down, which is what the rule says", () => {
+    // The three cases above all sit well clear of the boundary — the
+    // first drops 3.33 buckets — so the `<=` could be narrowed to `<`
+    // with the whole suite green. Measured. Buckets are integers 0-4, so
+    // an exact two-bucket drop is a common, reachable window, and the
+    // docstring defines the rule as "the newest three average two buckets
+    // under the window's first three". At `<` the constant 2 quietly
+    // means "more than 2" and `fading` — a published per-day count —
+    // stops firing for the case the sentence names.
+    expect(advanceFgWindow([4, 4, 4, 2, 2], 2).fading).toBe(true);
+    // …and a hair under two does not fade, so the bound is pinned from
+    // both sides rather than the direction alone. [4,4,4,3,2,2]: the
+    // newest three average 2.33, which is 1.67 down, not 2.
+    expect(advanceFgWindow([4, 4, 4, 3, 2], 2).fading).toBe(false);
+  });
 });
 
 describe("runRollupFold", () => {
@@ -1007,6 +1037,70 @@ describe("a paged query's projection has to carry the field it orders by", () =>
 // only by accident — raising SHARD_CHUNK is caught by two cases asserting
 // literal chunk SIZES, not the cap, and raising ROLLUP_CHUNK to 400 (801
 // ops) left all 462 tests green.
+// The two fences on `v2_engagement_daily`, held to the platform limits
+// they were chosen for.
+//
+// WHY THIS EXISTS. `QID_KEY_MAX` is the only thing between one free
+// anonymous account and a permanent nightly outage: every key in a
+// client-written shard's `qids` map becomes a FIELD NAME on the shared,
+// world-readable day document, `firestore.rules` bounds that map by count
+// only and says so, and `runAttentionFold` is awaited unguarded — so a day
+// document pushed past 1 MiB can never be written again, the offending
+// shards are never deleted, and the rollup fold and heartbeat behind it
+// stop with it.
+//
+// It was defended by nothing. Both cases above build their fixtures FROM
+// the constant (`"x".repeat(QID_KEY_MAX + 1)`), so they pass at any value:
+// measured, 64 -> 1200 left the whole functions suite and every script
+// test green, and grep found no other reference in the tree. That is the
+// same shape as the batch cap below, whose own header says a scheduled
+// function that throws at 2am is a silent nightly outage — this one does
+// not even throw.
+//
+// The numbers are the ones the constant's own comment argues from, and
+// they are Firestore's, not ours.
+describe("the day document's fences stay under the platform limits", () => {
+  const ENTITY_BYTES = 1024 * 1024;      // Firestore's 1 MiB entity limit
+  const INDEX_ENTRIES = 40_000;          // …and its per-document index entries
+  // One qid holds up to 4 kinds x 2 numbers = 8 leaves, each indexed
+  // ascending AND descending.
+  const ENTRIES_PER_QID = 8 * 2;
+
+  it("a full day of the longest legal keys stays inside the entity limit", () => {
+    // The fence's own claim: "at 64 characters that is also ~225 KB,
+    // comfortably inside 1 MiB". Held at a quarter of the limit rather
+    // than at the limit, because the keys are not the only thing in the
+    // document — the per-day scalars and the `s` map share it.
+    const keyBytes = QIDS_PER_DAY_CAP * QID_KEY_MAX;
+    expect(keyBytes).toBeLessThanOrEqual(ENTITY_BYTES / 4);
+  });
+
+  it("…and inside the index-entry ceiling, which is the binding one", () => {
+    // `v2_engagement_daily` carries no field exemptions, so every leaf is
+    // indexed both ways. 40,000 / 16 = 2,500 is the ceiling; 1,500 is the
+    // fence.
+    expect(QIDS_PER_DAY_CAP * ENTRIES_PER_QID).toBeLessThanOrEqual(INDEX_ENTRIES);
+  });
+
+  it("the attack the fence was written for cannot reach the limit", () => {
+    // Seven rules-legal shards of 119 keys each — the case the constant's
+    // comment records as measured on the emulator. At 1200 characters it
+    // pushed the document past 1 MiB; the fence has to make that
+    // arithmetically impossible, not merely unlikely.
+    const RULES_KEYS_PER_SHARD = 120;    // firestore.rules: qids.size() <= 120
+    const SHARDS = 7;
+    expect(SHARDS * RULES_KEYS_PER_SHARD * QID_KEY_MAX).toBeLessThan(ENTITY_BYTES);
+  });
+
+  it("a question id the bank actually ships still fits", () => {
+    // The other direction, so the fence cannot be "fixed" by lowering it
+    // until it refuses real ids. The longest bank id is 18 characters and
+    // a bought question is `paidq-` plus a booking id, ~43.
+    expect(QID_KEY_MAX).toBeGreaterThanOrEqual("test-attachment-00".length);
+    expect(QID_KEY_MAX).toBeGreaterThanOrEqual("paidq-".length + 36);
+  });
+});
+
 describe("the batch arithmetic stays under Firestore's 500-op cap", () => {
   const CAP = 500;
 

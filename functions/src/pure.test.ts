@@ -2041,6 +2041,14 @@ describe("fcmBatches", () => {
     const batches = fcmBatches(tokens);
     expect(batches).toHaveLength(2);
     expect(batches[0]).toHaveLength(FCM_BATCH);
+    // THE CEILING ITSELF, which is not ours to tune: the constant's own
+    // comment names it "FCM's own per-call ceiling for
+    // sendEachForMulticast". Every use here derives its fixture from the
+    // constant, so 500 -> 900 passes — and above 500 every push batch is
+    // rejected by FCM, for every reveal, invite, join request and
+    // approval, inside a `try { … } catch { logger.warn }` that makes the
+    // failure silent.
+    expect(FCM_BATCH, "FCM's per-call ceiling is 500 — this is their limit, not a dial").toBe(500);
     expect(batches[1]).toHaveLength(7);
     expect(batches.flat()).toEqual(tokens);
   });

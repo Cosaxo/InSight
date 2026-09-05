@@ -17,7 +17,7 @@
 // `../data/live` and `../data/patterns` are mocked (the LiveCallCard
 // idiom) — what this lens consumes is five members between them.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { OracleRecord, PoolItem } from "../data/patterns";
 
 const PATTERNS = vi.hoisted(() => ({
@@ -118,11 +118,25 @@ describe("the sealed instrument", () => {
 });
 
 describe("the working (2026-08-26)", () => {
+  // WAITS FOR THE WORKING, NOT FOR THE PANEL. This returned as soon as the
+  // "its working" heading appeared — which is the panel OPENING, and the
+  // rows arrive later, when PATTERNS.working's promise resolves. Every
+  // case below then read its content synchronously, so the whole block
+  // was one scheduling delay away from red: it cost a full-suite failure
+  // on 2026-09-05 ("Unable to find an element with the text: qb-no") that
+  // did not reproduce alone or on a re-run, which is the worst shape a
+  // test failure comes in.
+  //
+  // The panel states which of the two it is in — "Reading the crowd…" —
+  // so that is what to wait on, and it is a fact about the component
+  // rather than a sleep.
   const openWhy = async () => {
     render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
     fireEvent.click(screen.getByText("qa-no"));
     fireEvent.click(screen.getByLabelText(/Why it called/));
-    return screen.findByText("its working");
+    const head = await screen.findByText("its working");
+    await waitFor(() => expect(screen.queryByText("Reading the crowd…")).toBeNull());
+    return head;
   };
 
   it("rebuilds the call as rows — the answer, the split, the stated basis", async () => {
@@ -181,6 +195,26 @@ describe("the working (2026-08-26)", () => {
     PATTERNS.working.mockRejectedValue(new Error("permission-denied"));
     await openWhy();
     expect(screen.getByText(/Couldn’t read the crowd/)).toBeTruthy();
+  });
+
+  it("does not read the rows while the panel is still reading the crowd", async () => {
+    // The race the helper above exists for, made deterministic: a read
+    // that resolves a tick late instead of immediately. Waiting on the
+    // heading alone hands control back with "Reading the crowd…" still on
+    // screen and no rows, which is exactly the intermittent failure this
+    // block produced under load. Asserted as the pending state being GONE
+    // rather than as the row being present, so it fails for the timing and
+    // not for the content.
+    let release = () => {};
+    PATTERNS.working.mockReturnValue(new Promise((res) => {
+      release = () => res({ rows: [{ evId: "qb", side: 1, share: 0.81, n: 26, w: 0.4 }], hadEv: true });
+    }));
+    const opening = openWhy();
+    await screen.findByText("Reading the crowd…");
+    release();
+    await opening;
+    expect(screen.queryByText("Reading the crowd…")).toBeNull();
+    expect(screen.getByText("qb-no")).toBeTruthy();
   });
 
   it("the record says its own marks, without a legend to look up", () => {

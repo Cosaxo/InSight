@@ -14,11 +14,13 @@ import { badFontSize, badCssFontSize } from "./check-touch-zoom.mjs";
 
 describe("the JSX half", () => {
   it("catches the font: shorthand", () => {
-    expect(badFontSize(`<input style={{ font: "12px system-ui" }} />`)).toBe(`"12px system-ui"`);
+    expect(badFontSize(`<input style={{ font: "12px system-ui" }} />`))
+      .toEqual({ prop: "font", value: `"12px system-ui"` });
   });
 
   it("still catches the longhand it always caught", () => {
-    expect(badFontSize(`<input style={{ fontSize: "12px" }} />`)).toBe(`"12px"`);
+    expect(badFontSize(`<input style={{ fontSize: "12px" }} />`))
+      .toEqual({ prop: "fontSize", value: `"12px"` });
   });
 
   it("passes a field that defers to the token, either spelling", () => {
@@ -37,6 +39,33 @@ describe("the JSX half", () => {
   it("says nothing about a field that declares no font at all", () => {
     expect(badFontSize(`<input type="text" />`)).toBeNull();
   });
+
+  it("reads the LAST declaration, which is the one the browser draws", () => {
+    // The matcher took the leftmost match, so a tag that deferred to the
+    // token and then overrode it read as compliant — D105's bug written in
+    // two declarations. React applies a style object in order and a later
+    // value wins, so the last one is the size on screen.
+    expect(badFontSize(
+      `<input style={{ fontSize: "var(--field-size)", font: "600 12px system-ui" }} />`,
+    )).toEqual({ prop: "font", value: `"600 12px system-ui"` });
+  });
+
+  it("passes a field whose LAST declaration is the token, whatever precedes it", () => {
+    // The control for the case above, and not a courtesy: a shorthand
+    // followed by a longhand override is how a field gets its family and
+    // weight from one declaration and its size from the token. Flagging it
+    // would fail a field that draws at exactly the right size.
+    expect(badFontSize(
+      `<input style={{ font: "600 12px system-ui", fontSize: "var(--field-size)" }} />`,
+    )).toBeNull();
+  });
+
+  it("names the property the tag actually wrote", () => {
+    // The failure line reported every hit as "fontSize:", which for a
+    // shorthand names a declaration the file does not contain — the same
+    // wrongness the stylesheet half was already fixed for.
+    expect(badFontSize(`<input style={{ font: "12px system-ui" }} />`).prop).toBe("font");
+  });
 });
 
 describe("the stylesheet half", () => {
@@ -52,6 +81,17 @@ describe("the stylesheet half", () => {
     // The failure line reported every hit as "font-size", which for a
     // shorthand names a declaration the file does not contain.
     expect(badCssFontSize(`font: 15px/1.2 system-ui;`).prop).toBe("font");
+  });
+
+  it("reads the LAST declaration, because that is what the cascade draws", () => {
+    expect(badCssFontSize(`font-size: var(--field-size); font: 600 15px system-ui;`))
+      .toEqual({ prop: "font", value: "600 15px system-ui" });
+  });
+
+  it("passes a rule whose LAST declaration is the token, whatever precedes it", () => {
+    // The control. A shorthand for family and weight, then a longhand for
+    // the size, draws at the token — failing it would fail a correct field.
+    expect(badCssFontSize(`font: 600 15px system-ui; font-size: var(--field-size);`)).toBeNull();
   });
 
   it("passes a rule that defers to the token", () => {
