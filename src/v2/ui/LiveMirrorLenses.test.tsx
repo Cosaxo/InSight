@@ -71,6 +71,11 @@ const LIVE = vi.hoisted(() => ({
   vote: vi.fn((qid: string, optionId: string) => { void qid; void optionId; }),
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
+  // The cells basis asks whether the test aggregates have been READ before
+  // it states that a place has answered nothing. Stubbed "ready" here —
+  // these cases are about what the fold says once the data is in; the
+  // loading and failed arms have their own cases.
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
   loadNames: vi.fn(async () => {}),
   scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
   loadSimilarity: vi.fn(async () => {}),
@@ -128,6 +133,9 @@ const kin = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.budgetPaused = false;
+  // Reset with the rest — two cases below drive it, and a leak turns the
+  // next case's empty state into a failure message.
+  LIVE.testAggsState = () => "ready" as "loading" | "ready" | "failed";
   LIVE.loadKindred = vi.fn(async () => {});
   LIVE.kindredPeople = () => [];
   LIVE.kindredLoading = () => false;
@@ -398,6 +406,34 @@ describe("Compare", () => {
     LIVE.aggFor = () => ({ counts: { "0": 0, "1": 0, "2": 0, "3": 0, "4": 40 }, by: {} });
     mount("compare");
     expect(screen.getByText(/Nobody in Oslo has answered a test card yet/i)).toBeTruthy();
+  });
+
+  it("says it is still reading rather than that a city has answered nothing", () => {
+    // The stop folds published CELLS, and the reading flag beside it is
+    // wired to the people basis only — its key is "" here — so the first
+    // frame after opening City → Compare stated an absence about a whole
+    // city from aggregates the device had not read. `loadSimilarity` is
+    // what fills them, and it runs after first paint.
+    LIVE.aggFor = () => null;
+    LIVE.testAggsState = () => "loading";
+    mount("compare");
+    expect(screen.queryByText(/Nobody in Oslo has answered a test card yet/i),
+      "an unread aggregate was drawn as a city that has answered nothing").toBeNull();
+    expect(screen.getByText(/Reading…/i)).toBeTruthy();
+  });
+
+  it("says the read failed rather than saying it is still running", () => {
+    // `loadSimilarity` sets `testAggsLoaded` INSIDE its try, so a throw
+    // leaves it false for the life of the mount. Without the third state
+    // that is indistinguishable from "not asked yet", and the lens would
+    // say "Reading…" forever — the trap LiveCompareLens's own effect
+    // comment describes for the other basis.
+    LIVE.aggFor = () => null;
+    LIVE.testAggsState = () => "failed";
+    mount("compare");
+    expect(screen.queryByText(/Nobody in Oslo has answered a test card yet/i)).toBeNull();
+    expect(screen.queryByText(/Reading…/i), "a failed read kept saying it was still reading").toBeNull();
+    expect(screen.getByText(/Couldn’t read the scores here/i)).toBeTruthy();
   });
 
   it("refuses an axis the population has too few answers on", () => {

@@ -37,41 +37,41 @@ own PRs on green (D212) and are listed without a box. Dependabot's
 bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
-<!-- console:ticks  -->
-<!-- console:generated 2026-09-05T09:37:28Z -->
+<!-- console:ticks #399,#398 -->
+<!-- console:generated 2026-09-05T12:55:02Z -->
 
 ## Open
 
-- [ ] **#395** · a session · *what:* The owner asked what is missing before the app is ready. · *how:* Answering it meant reading the launch documents as **instructions** rather than as prose, and four of them were wrong in the direction that looks like progress. · CI red (1 of 9) · 8 behind main · opened 2026-09-04 · stage **new**
-- [ ] **#394** · the axiom builder · *what:* An evaluation of the axiom theory work that turned into three owner rulings once the corpus was read against its own charter. · *how:* What was measured.** `origin/axiom-theory` at `666dc65`: 46 commits over ten days, 129 claims on 381 edges, 588 sources, **$733.13** metered across 30 runs. · no checks · 12 behind main · opened 2026-09-04 · stage **new**
-- [ ] **#390** · the axiom builder · *what:* the fit scorecard becomes readable from `main` — `npm run scorecard -- --fetch` reads `v2_patterns/loadings` into a `fit` block on `content/scorecard.json`, plus the axiom builder… · *how:* one more world-readable document GET on the anonymous token the scorecard already mints, folded by a new pure module (`scripts/fit-snapshot.mjs`, pinned by its own suite) and join… · CI green (9) · 19 behind main · opened 2026-09-04 · stage **new**
-- [ ] **#389** · a list worker · *what:* Adds a validation gate for the pick-data.js crowd and demographic data, catching contract drift between pick-questions.json and demo crowd data. · *how:* `scripts/check-pick-crowds.mjs`: validator checking CROWD and BY objects `scripts/check-pick-crowds.test.mjs`: test suite with 14 tests covering core validations Validates entity… · CI green (9) · 24 behind main · opened 2026-09-03 · stage **new**
-- [ ] **#388** · a list worker · *what:* The worklist's standing `[claude-3]` item — one provider module off the spec layer's global bridge per PR — this round taking `MAP_OPEN_GROUP`, and `check:globals` rule 4's baseli… · *how:* `MAP_OPEN_GROUP` was not a provider module but a one-shot mailbox: the feed's Learn card wrote `window.MAP_OPEN_GROUP = 'g-know'` under its "See it" button and called `NAV.goTab('… · CI green (9) · 25 behind main · opened 2026-09-03 · stage **new**
-- [ ] **#381** · a session · *what:* the five program Routines on this account now fire into the planning session, which relays each into a fresh session (the dispatcher refused every firing for a day); and one thing… · *how:* the Routines were re-created self-bound from this session (three old ones deleted, two disabled where the classifier refused deletion) and the record written into the runbook's ph… · CI green (10) · 5 behind main · opened 2026-09-03 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 244 behind main · opened 2026-09-01 · stage **new**
-- [ ] **#340** · the axes retro lane · *what:* Docs-only amendments from the first axes retro (run log: #290), per AXES-RUNBOOK § The retro lane. · *how:* The week taught one operational lesson, and it was upstream of every reporter: the dispatcher session dispatched nothing between the database theory lane's 2026-08-30 08:03 UTC fi… · CI green (9) · 82 behind main · opened 2026-09-01 · stage **new**
-- [ ] **#281** · a session · *what:* Three faults on one screen, reported from a device in one sentence — "the sign in should be cleaned up in general and i seam to be stuck here… and should have menus that fit the a… · *how:* All three are fixed here, and the fourth thing found on the way is the reason the third one happened. · CI green (9) · 632 behind main · opened 2026-08-24 · stage **new**
-- [ ] **#192** · a session · *what:* All three surfaces that read other people's data went through *answers* to reach *people*. · *how:* The Friends cut fetched the newest 200 answers from anyone and filtered for your follows. · CI green (9) · 789 behind main · opened 2026-08-15 · stage **new**
+- [ ] **#395** · a session · *what:* The owner asked what is missing before the app is ready. · *how:* Answering it meant reading the launch documents as **instructions** rather than as prose, and four of them were wrong in the direction that looks like progress. · CI red (1 of 9) · 13 behind main · opened 2026-09-04 · stage **new**
+- [ ] **#394** · the axiom builder · *what:* An evaluation of the axiom theory work that turned into three owner rulings once the corpus was read against its own charter. · *how:* What was measured.** `origin/axiom-theory` at `666dc65`: 46 commits over ten days, 129 claims on 381 edges, 588 sources, **$733.13** metered across 30 runs. · CI green (9) · 4 behind main · opened 2026-09-04 · stage **new**
+- [ ] **#390** · the axiom builder · *what:* the fit scorecard becomes readable from `main` — `npm run scorecard -- --fetch` reads `v2_patterns/loadings` into a `fit` block on `content/scorecard.json`, plus the axiom builder… · *how:* one more world-readable document GET on the anonymous token the scorecard already mints, folded by a new pure module (`scripts/fit-snapshot.mjs`, pinned by its own suite) and join… · CI green (9) · 24 behind main · opened 2026-09-04 · stage **new**
+- [ ] **#389** · a list worker · *what:* Adds a validation gate for the pick-data.js crowd and demographic data, catching contract drift between pick-questions.json and demo crowd data. · *how:* `scripts/check-pick-crowds.mjs`: validator checking CROWD and BY objects `scripts/check-pick-crowds.test.mjs`: test suite with 14 tests covering core validations Validates entity… · CI green (9) · 29 behind main · opened 2026-09-03 · stage **new**
+- [ ] **#388** · a list worker · *what:* The worklist's standing `[claude-3]` item — one provider module off the spec layer's global bridge per PR — this round taking `MAP_OPEN_GROUP`, and `check:globals` rule 4's baseli… · *how:* `MAP_OPEN_GROUP` was not a provider module but a one-shot mailbox: the feed's Learn card wrote `window.MAP_OPEN_GROUP = 'g-know'` under its "See it" button and called `NAV.goTab('… · CI green (9) · 30 behind main · opened 2026-09-03 · stage **new**
+- [ ] **#381** · a session · *what:* the five program Routines on this account now fire into the planning session, which relays each into a fresh session (the dispatcher refused every firing for a day); and one thing… · *how:* the Routines were re-created self-bound from this session (three old ones deleted, two disabled where the classifier refused deletion) and the record written into the runbook's ph… · CI green (10) · 3 behind main · opened 2026-09-03 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 249 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#340** · the axes retro lane · *what:* Docs-only amendments from the first axes retro (run log: #290), per AXES-RUNBOOK § The retro lane. · *how:* The week taught one operational lesson, and it was upstream of every reporter: the dispatcher session dispatched nothing between the database theory lane's 2026-08-30 08:03 UTC fi… · CI green (9) · 87 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#281** · a session · *what:* Three faults on one screen, reported from a device in one sentence — "the sign in should be cleaned up in general and i seam to be stuck here… and should have menus that fit the a… · *how:* All three are fixed here, and the fourth thing found on the way is the reason the third one happened. · CI green (9) · 637 behind main · opened 2026-08-24 · stage **new**
+- [ ] **#192** · a session · *what:* All three surfaces that read other people's data went through *answers* to reach *people*. · *how:* The Friends cut fetched the newest 200 answers from anyone and filtered for your follows. · CI green (9) · 794 behind main · opened 2026-08-15 · stage **new**
 - [ ] **night-20260903** (no PR yet) · Claude 2's night shift · 35 commits · last 05:21 UTC 2026-09-03
 - [ ] **night-20260904** (no PR yet) · Claude 2's night shift · 32 commits · last 05:23 UTC 2026-09-04
 - [ ] **night-20260905** (no PR yet) · Claude 2's night shift · 32 commits · last 05:24 UTC 2026-09-05
 - [ ] **nightb-20260903** (no PR yet) · Claude 1's night shift B · 25 commits · last 04:04 UTC 2026-09-03
 - [ ] **nightb-20260904** (no PR yet) · Claude 1's night shift B · 13 commits · last 04:36 UTC 2026-09-04
-- [ ] **nightb-20260905** (no PR yet) · Claude 1's night shift B · 18 commits · last 04:13 UTC 2026-09-05
+- [ ] **nightb-20260905** (no PR yet) · Claude 1's night shift B · 19 commits · last 09:56 UTC 2026-09-05
 
 **Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
 
-- [ ] **#334** · dependabot · *what:* Build(deps): bump actions/setup-java from 5.7.0 to 6.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 9) · 103 behind main · opened 2026-08-31 · stage **new**
-- [ ] **#302** · dependabot · *what:* Build(deps-dev): bump firebase-tools from 15.24.0 to 15.28.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 462 behind main · opened 2026-08-26 · stage **new**
-- [ ] **#272** · dependabot · *what:* Build(deps): bump firebase-admin from 14.2.0 to 14.3.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 460 behind main · opened 2026-08-24 · stage **new**
-- [ ] **#271** · dependabot · *what:* Build(deps-dev): bump vitest from 4.1.10 to 4.1.11 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 460 behind main · opened 2026-08-24 · stage **new**
-- [ ] **#213** · dependabot · *what:* Bump @sentry/browser from 10.60.0 to 10.70.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 747 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#212** · dependabot · *what:* Bump @capacitor/status-bar from 8.0.2 to 8.0.3 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 747 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#211** · dependabot · *what:* Bump @capacitor/android from 8.3.3 to 8.5.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 747 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#210** · dependabot · *what:* Build(deps-dev): bump eslint-plugin-react-refresh from 0.5.2 to 0.5.4 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 462 behind main · opened 2026-08-17 · stage **new**
-- [ ] **#209** · dependabot · *what:* Build(deps): bump google-auth-library from 9.15.1 to 11.0.2 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 460 behind main · opened 2026-08-17 · stage **new**
+- [ ] **#334** · dependabot · *what:* Build(deps): bump actions/setup-java from 5.7.0 to 6.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 9) · 108 behind main · opened 2026-08-31 · stage **new**
+- [ ] **#302** · dependabot · *what:* Build(deps-dev): bump firebase-tools from 15.24.0 to 15.28.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 467 behind main · opened 2026-08-26 · stage **new**
+- [ ] **#272** · dependabot · *what:* Build(deps): bump firebase-admin from 14.2.0 to 14.3.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 465 behind main · opened 2026-08-24 · stage **new**
+- [ ] **#271** · dependabot · *what:* Build(deps-dev): bump vitest from 4.1.10 to 4.1.11 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 465 behind main · opened 2026-08-24 · stage **new**
+- [ ] **#213** · dependabot · *what:* Bump @sentry/browser from 10.60.0 to 10.70.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 752 behind main · opened 2026-08-17 · stage **new**
+- [ ] **#212** · dependabot · *what:* Bump @capacitor/status-bar from 8.0.2 to 8.0.3 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 752 behind main · opened 2026-08-17 · stage **new**
+- [ ] **#211** · dependabot · *what:* Bump @capacitor/android from 8.3.3 to 8.5.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 752 behind main · opened 2026-08-17 · stage **new**
+- [ ] **#210** · dependabot · *what:* Build(deps-dev): bump eslint-plugin-react-refresh from 0.5.2 to 0.5.4 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 467 behind main · opened 2026-08-17 · stage **new**
+- [ ] **#209** · dependabot · *what:* Build(deps): bump google-auth-library from 9.15.1 to 11.0.2 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 465 behind main · opened 2026-08-17 · stage **new**
 
-**Self-merging:** #391 Farm 2026-09-04: eight levelled, first promotion — BLOCKED on the start-up size budget
+**Self-merging:** #397 Now questions 2026-09-05: n14-n15, the window-capped batch · #391 Farm 2026-09-04: eight levelled, first promotion — BLOCKED on the start-up size budget
 
 ## In the shift
 
@@ -79,7 +79,8 @@ merge shift like any other PR.
 
 ## Ready
 
-*(none)*
+- [x] **#399** · a session · *what:* The owner reported from a device that on the profile's Big 5 and Politics tabs the petal rose drew EMPTY and the bars under it vibrated faster and faster until the app died. · *how:* Two screenshots, both with the rose blank. · CI running (4 pending) · 1 behind main · opened 2026-09-05 · stage **ready**
+- [x] **#398** · a session · *what:* Both of 2026-09-05's night branches, composed onto `main` and held to the whole battery. · *how:* Nothing was reverted.** **Nothing conflicted, for the second night running, and for the same reason D363 gave** — no sweep landed on `main` while they worked. · CI green (10) · 2 behind main · opened 2026-09-05 · stage **ready**
 
 ## Could not be made green
 
@@ -138,4 +139,3 @@ merge shift like any other PR.
 - **#337** · The 2026-08-31 night audit, reviewed and merged — 35 commits kept, two figures corrected (D338) · merged 2026-08-31
 - **#333** · The trader document is filed, the region box was two weeks stale, and App Check on web gets a debug token instead of reCAPTCHA (D337) · merged 2026-08-30
 - **#332** · The 2026-08-30 night audit, merged with the two-night review that was waiting (D336) · merged 2026-08-30
-- **#331** · Feed questions 2026-08-29: six thin topics, one dial · merged 2026-08-29

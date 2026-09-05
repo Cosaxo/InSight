@@ -28,6 +28,7 @@
 // safe to deploy, which is the placement rule every gate on that job obeys.
 
 import { readdirSync, readFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -62,7 +63,7 @@ const SIZE = /\b(width|height)\s*:\s*'?"?(\d+(?:\.\d+)?)(?:px)?'?"?\s*[,}]/g;
  * `h('button',`. Quotes are tracked because a `>` inside a string literal
  * (an aria-label, a `'\u203A'` chevron) is not a tag end either.
  */
-function headOf(src, start, kind) {
+export function headOf(src, start, kind) {
   let i = start + (kind === "jsx" ? "<button".length : "h('button',".length);
   let quote = null;
   let depth = 0;
@@ -83,86 +84,98 @@ function headOf(src, start, kind) {
 }
 
 const findings = [];
-let buttons = 0;
+// Only when RUN, so a test can import the scanner above without this
+// walking src/ and calling process.exit.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  let buttons = 0;
 
-for (const file of files.sort()) {
-  const src = readFileSync(join(SRC, file), "utf8");
-  // Each button and the text that follows it, up to the next element. Both
-  // spellings, because the ported layer uses hyperscript and the hand-written
-  // panels use JSX — a scan that read only one of them would report the
-  // other clean, which is the check-a11y trap this file's header names.
-  const opens = [
-    ...src.matchAll(/<button\b/g),
-    ...src.matchAll(/h\(\s*'button'\s*,/g),
-  ].sort((a, b) => a.index - b.index);
+  for (const file of files.sort()) {
+    // Comments blanked first — `headOf` above is the same quote-tracking
+    // scan `check-touch-zoom`'s `tagsIn` uses, with the same blindness. An
+    // apostrophe in a comment inside an opening tag swallows everything up
+    // to the next straight quote. Measured here: a button whose real head is
+    // 1070 characters was read as 15713, and somebody ELSE's `tap44` inside
+    // that text answered the "is it grown?" question for it — so a 20x20 tap
+    // target at that site passed the gate. Blanking preserves offsets, so
+    // the reported line stays right.
+    const src = stripComments(readFileSync(join(SRC, file), "utf8"));
+    // Each button and the text that follows it, up to the next element. Both
+    // spellings, because the ported layer uses hyperscript and the hand-written
+    // panels use JSX — a scan that read only one of them would report the
+    // other clean, which is the check-a11y trap this file's header names.
+    const opens = [
+      ...src.matchAll(/<button\b/g),
+      ...src.matchAll(/h\(\s*'button'\s*,/g),
+    ].sort((a, b) => a.index - b.index);
 
-  for (const m of opens) {
-    buttons += 1;
-    // The element's own attributes, read with a QUOTE- AND DEPTH-AWARE
-    // scan rather than a split.
-    //
-    // It was `chunk.split(/>|\n\s*h\(/)[0]`, and the `>` that ends a
-    // control's attributes is almost never the first `>` after `<button`:
-    // `onClick={() => …}` puts one three attributes earlier. So every head
-    // stopped at the arrow, and a `width: 26` after it was invisible.
-    // Measured against this scan on the tree it was fixed on: the split
-    // found **0** undersized controls, this finds **17** — including the
-    // relmap panel's ✕ at 30px, the search overlay's close at 26px, and
-    // the Mirror's 7px page dots. A gate written because "check:a11y
-    // stayed green while every sheet's Close button was 26px" had the same
-    // shape of hole one layer down.
-    //
-    // check-touch-zoom.mjs already carried the answer for the identical
-    // problem — its `tagsIn` comment says "a naive /<input[^>]*>/ stops
-    // inside the first onChange" — so this is that scan, generalised to
-    // hyperscript's balanced props object.
-    const head = headOf(src, m.index, m[0][0] === "<" ? "jsx" : "h");
+    for (const m of opens) {
+      buttons += 1;
+      // The element's own attributes, read with a QUOTE- AND DEPTH-AWARE
+      // scan rather than a split.
+      //
+      // It was `chunk.split(/>|\n\s*h\(/)[0]`, and the `>` that ends a
+      // control's attributes is almost never the first `>` after `<button`:
+      // `onClick={() => …}` puts one three attributes earlier. So every head
+      // stopped at the arrow, and a `width: 26` after it was invisible.
+      // Measured against this scan on the tree it was fixed on: the split
+      // found **0** undersized controls, this finds **17** — including the
+      // relmap panel's ✕ at 30px, the search overlay's close at 26px, and
+      // the Mirror's 7px page dots. A gate written because "check:a11y
+      // stayed green while every sheet's Close button was 26px" had the same
+      // shape of hole one layer down.
+      //
+      // check-touch-zoom.mjs already carried the answer for the identical
+      // problem — its `tagsIn` comment says "a naive /<input[^>]*>/ stops
+      // inside the first onChange" — so this is that scan, generalised to
+      // hyperscript's balanced props object.
+      const head = headOf(src, m.index, m[0][0] === "<" ? "jsx" : "h");
 
-    let small = null;
-    for (const s of head.matchAll(SIZE)) {
-      const px = Number(s[2]);
-      if (px > 0 && px < MIN) { small = { axis: s[1], px }; break; }
+      let small = null;
+      for (const s of head.matchAll(SIZE)) {
+        const px = Number(s[2]);
+        if (px > 0 && px < MIN) { small = { axis: s[1], px }; break; }
+      }
+      if (!small) continue;
+      // Grown? `.tap44` in this element's own className, in either spelling.
+      if (/\btap44\b/.test(head)) continue;
+
+      const label = (head.match(/aria-label['"]?\s*[:=]\s*['"{]?([^'"}\n,]{0,40})/) || [])[1]
+        || "(unlabelled)";
+      const key = `${file}:${label.trim()}`;
+      if (key in EXEMPT) continue;
+      const line = src.slice(0, m.index).split("\n").length;
+      findings.push({ file, line, label: label.trim(), ...small });
     }
-    if (!small) continue;
-    // Grown? `.tap44` in this element's own className, in either spelling.
-    if (/\btap44\b/.test(head)) continue;
-
-    const label = (head.match(/aria-label['"]?\s*[:=]\s*['"{]?([^'"}\n,]{0,40})/) || [])[1]
-      || "(unlabelled)";
-    const key = `${file}:${label.trim()}`;
-    if (key in EXEMPT) continue;
-    const line = src.slice(0, m.index).split("\n").length;
-    findings.push({ file, line, label: label.trim(), ...small });
   }
-}
 
-if (buttons < 50) {
-  console.error(
-    `check-tap-targets FAILED: matched only ${buttons} buttons across ${files.length} files.\n`
-    + "  The element patterns stopped matching — a scan that finds nothing reports clean,\n"
-    + "  which is the exact shape this gate exists to prevent elsewhere.",
-  );
-  process.exit(1);
-}
-
-if (findings.length) {
-  console.error("check-tap-targets FAILED — controls drawn under 44px with no grown hit box:\n");
-  for (const f of findings) {
-    console.error(`    ${f.file}:${f.line}  ${f.axis} ${f.px}px  — ${f.label}`);
+  if (buttons < 50) {
+    console.error(
+      `check-tap-targets FAILED: matched only ${buttons} buttons across ${files.length} files.\n`
+      + "  The element patterns stopped matching — a scan that finds nothing reports clean,\n"
+      + "  which is the exact shape this gate exists to prevent elsewhere.",
+    );
+    process.exit(1);
   }
-  console.error(
-    "\n  Add `tap44` to the element's className (styles.css §12): it grows the hit\n"
-    + "  box with a pseudo-element and changes nothing you can see. For a control in\n"
-    + "  a ROW of its own kind, use `tap44 is-tight` — the wide box would cover its\n"
-    + "  neighbours and a near-miss would land on the wrong control.\n"
-    + "  If it genuinely must stay small, add it to EXEMPT in this script with the\n"
-    + "  reason.",
-  );
-  process.exit(1);
-}
 
-console.log(
-  `check-tap-targets OK — ${buttons} buttons across ${files.length} files, `
-  + `every inline size under ${MIN}px carries a grown hit box`
-  + (Object.keys(EXEMPT).length ? `; ${Object.keys(EXEMPT).length} exempt with a reason` : ""),
-);
+  if (findings.length) {
+    console.error("check-tap-targets FAILED — controls drawn under 44px with no grown hit box:\n");
+    for (const f of findings) {
+      console.error(`    ${f.file}:${f.line}  ${f.axis} ${f.px}px  — ${f.label}`);
+    }
+    console.error(
+      "\n  Add `tap44` to the element's className (styles.css §12): it grows the hit\n"
+      + "  box with a pseudo-element and changes nothing you can see. For a control in\n"
+      + "  a ROW of its own kind, use `tap44 is-tight` — the wide box would cover its\n"
+      + "  neighbours and a near-miss would land on the wrong control.\n"
+      + "  If it genuinely must stay small, add it to EXEMPT in this script with the\n"
+      + "  reason.",
+    );
+    process.exit(1);
+  }
+
+  console.log(
+    `check-tap-targets OK — ${buttons} buttons across ${files.length} files, `
+    + `every inline size under ${MIN}px carries a grown hit box`
+    + (Object.keys(EXEMPT).length ? `; ${Object.keys(EXEMPT).length} exempt with a reason` : ""),
+  );
+}

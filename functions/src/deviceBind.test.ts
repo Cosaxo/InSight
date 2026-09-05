@@ -7,6 +7,9 @@
 // the first staging probe.
 import { describe, expect, it } from "vitest";
 import { generateKeyPairSync, verify as cryptoVerify } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   buildAppleJwt,
   decideDeviceCheck,
@@ -139,15 +142,21 @@ describe("decideRecall (Android)", () => {
     const other = (recallEpoch(now) % 7) + 1;
     expect(decideRecall(encodeRecall(other), undefined, now).allow).toBe(true);
   });
+  // PLAY'S OWN SHAPE, not ours. These cases used to build
+  // `{ bitFirstWriteDate: "2026-08" }` and call it "Google's date format".
+  // Google sends `yyyymmFirst` as an int32 (202608). Different keys and a
+  // different type, so the production filter emptied the list on every real
+  // verdict and this whole branch was dead — while four cases here said it
+  // worked, because the reader and the fixture shared one invention.
   it("write-dates path takes precedence: a current-month date blocks, whatever the epoch decode says", () => {
     // Every non-zero value must block under a current-month write date on
     // a set bit — including the six states whose epoch decode would allow.
     for (let s = 1; s <= 7; s++) {
       const values = encodeRecall(s);
       const dates = {
-        ...(values.bitFirst ? { bitFirstWriteDate: "2026-08" } : {}),
-        ...(values.bitSecond ? { bitSecondWriteDate: "2026-08" } : {}),
-        ...(values.bitThird ? { bitThirdWriteDate: "2026-08" } : {}),
+        ...(values.bitFirst ? { yyyymmFirst: 202608 } : {}),
+        ...(values.bitSecond ? { yyyymmSecond: 202608 } : {}),
+        ...(values.bitThird ? { yyyymmThird: 202608 } : {}),
       };
       expect(decideRecall(values, dates, now).allow).toBe(false);
     }
@@ -155,18 +164,80 @@ describe("decideRecall (Android)", () => {
   it("a date on an UNSET bit is ignored — only set bits testify", () => {
     const values = { bitFirst: false, bitSecond: true, bitThird: false };
     const epochAllows = decodeRecall(values) !== recallEpoch(now);
-    const res = decideRecall(values, { bitFirstWriteDate: "2026-08" }, now);
+    const res = decideRecall(values, { yyyymmFirst: 202608 }, now);
     expect(res.allow).toBe(epochAllows);
   });
   it("write-dates path: an old month allows, and the next write is the epoch encoding", () => {
     const values = { bitFirst: true, bitSecond: false, bitThird: false };
-    const { allow, next } = decideRecall(values, { bitFirstWriteDate: "2026-07" }, now);
+    const { allow, next } = decideRecall(values, { yyyymmFirst: 202607 }, now);
     expect(allow).toBe(true);
     expect(decodeRecall(next)).toBe(recallEpoch(now));
   });
-  it("normalizes Google's date format against ours", () => {
+  it("takes the integer Play actually sends, and a numeric string too", () => {
     const values = { bitFirst: true, bitSecond: false, bitThird: false };
-    expect(decideRecall(values, { bitFirstWriteDate: "202608" }, now).allow).toBe(false);
+    expect(decideRecall(values, { yyyymmFirst: 202608 }, now).allow).toBe(false);
+    // Belt and braces: this shape has been guessed wrong once already.
+    expect(decideRecall(values, { yyyymmFirst: "202608" }, now).allow).toBe(false);
+  });
+  it("REFUSES to read the shape we invented, so it cannot come back", () => {
+    // The old keys must now fall through to the epoch path rather than
+    // being read as dates. Without this, someone restoring the old
+    // interface would make four cases above pass again on a branch
+    // production never reaches.
+    const values = encodeRecall(recallEpoch(now));
+    const invented = { bitFirstWriteDate: "2026-08", bitSecondWriteDate: "2026-08", bitThirdWriteDate: "2026-08" };
+    // Epoch says block (the stamp is this month's), and the invented dates
+    // must not be what decides it either way.
+    expect(decideRecall(values, invented as never, now).allow).toBe(false);
+    const other = encodeRecall((recallEpoch(now) % 7) + 1);
+    // Epoch says allow. If the invented keys were read as a current-month
+    // date, this would block.
+    expect(decideRecall(other, invented as never, now).allow).toBe(true);
+  });
+});
+
+describe("the Play Integrity call shape", () => {
+  // NOTHING COVERED THIS, which is how it shipped wrong. No test makes the
+  // network call, so the URL and the request field were free to be
+  // anything — and they were: `v1/{pkg}:writeDeviceRecall` with
+  // `{ values }`, where Google's method is `deviceRecall:write` under
+  // `v1/{+packageName}` and the field is `newValues`.
+  //
+  // Verified against the live discovery document AND on the wire: the old
+  // URL answers 404, this one answers 401 (auth required), and the decode
+  // call beside it — which was always correct — also answers 401. So the
+  // difference is the path, not the network.
+  //
+  // A source ratchet, because the alternative is a live call in a unit
+  // test. It holds the two things that were wrong, and it is the same
+  // shape this repo uses elsewhere for "do not re-fork this".
+  const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "deviceBind.ts"), "utf8");
+  // The `url:` line itself, not the whole file — the comment above that
+  // call quotes the old path to explain what was wrong with it, and a
+  // whole-file search would read the explanation as the defect. (It did,
+  // first time round.)
+  // Both Play calls this file makes, as a set. Taking "the first url" read
+  // the decode call instead, and a whole-file search read the comment that
+  // quotes the old path as the defect itself — so the assertion is on the
+  // urls, all of them, named.
+  const urls = [...src.matchAll(/url:\s*`([^`]+)`/g)].map((m) => m[1]);
+
+  it("makes exactly the two Play calls it is supposed to", () => {
+    expect(urls, "the number of Play calls changed — this ratchet needs re-reading").toHaveLength(2);
+  });
+
+  it("posts to Google's documented methods, not an invented one", () => {
+    expect(urls.some((u) => u.endsWith(":decodeIntegrityToken")),
+      "the token decode call moved").toBe(true);
+    expect(urls.some((u) => u.endsWith("/deviceRecall:write")),
+      "the recall write is not on `v1/{packageName}/deviceRecall:write`").toBe(true);
+    expect(urls.some((u) => u.includes(":writeDeviceRecall")),
+      "the old invented endpoint is back — it answers 404").toBe(false);
+  });
+
+  it("sends the request field Google's schema names", () => {
+    expect(src, "the recall write stopped sending `newValues`")
+      .toMatch(/data:\s*\{\s*integrityToken,\s*newValues:/);
   });
 });
 

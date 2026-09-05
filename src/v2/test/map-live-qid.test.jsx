@@ -176,3 +176,57 @@ describe("the id the Map asks the live store about", () => {
     expect(MapStats.dist(q.id, "age", nOpt, 0)).toBeNull();
   });
 });
+
+// ── AN EDIT NEVER REACHED THE MAP ───────────────────────────────────────
+//
+// D86 lets you move your answer on a daily. `liveSync` copies the
+// server-confirmed vote into the Map's own store — but only when the
+// question was ABSENT from it, so the first sync won and every later one
+// was ignored. The daily card then showed the new answer and the Map node
+// kept the old one: filed under the old option's typicality, listed under
+// "where you differ", permanently on that device.
+//
+// The feed does the opposite and reconciles on every store notify
+// (world-feed.jsx), which is what made this the odd one out rather than a
+// convention.
+//
+// SAFE TO RECONCILE, and it took one check: `saved` has a second writer,
+// `DAILYQ.answer()`, which would let a stale confirmed value overwrite a
+// fresh local one. Its only caller is `syncToMap`, gated on
+// DAILYSPLIT_DQ_SYNC, whose one entry is the demo id `s1`. So on a live
+// build `liveSync` is the only writer and `saved` holds nothing but
+// confirmed values.
+function installVote(prompt, idx) {
+  const agg = { total: 900, counts: { 0: 700, 1: 200 }, by: { ageBand: { "25-34": { 0: 400, 1: 60 } } } };
+  STUB.live = {
+    enabled: true,
+    ready: true,
+    dailyBank: () => [{ id: BANK_ID, prompt }],
+    confirmedVotes: () => ({ [BANK_ID]: idx }),
+    myVotes: () => ({ [BANK_ID]: idx }),
+    aggFor: (qid) => (qid === BANK_ID ? agg : null),
+    anchors: () => ({ ageBand: "25-34" }),
+  };
+  window.LIVE = STUB.live;
+  window.dispatchEvent(new Event("insight-live-update"));
+}
+
+describe("a D86 edit of the daily reaches the Map", () => {
+  it("follows the confirmed vote when it moves", () => {
+    const q = DAILYQ.answered()[7];
+    installVote(q.prompt, 0);
+    expect(DAILYQ.myAnswer(q), "the first sync did not land at all").toBe(0);
+    installVote(q.prompt, 1);
+    expect(
+      DAILYQ.myAnswer(q),
+      "the Map kept the pre-edit answer — it is filed under the old option's typicality and listed under 'where you differ', permanently on this device",
+    ).toBe(1);
+  });
+
+  it("still lands the first vote — the control", () => {
+    // Without this, "never write anything" would satisfy the case above.
+    const q = DAILYQ.answered()[8];
+    installVote(q.prompt, 1);
+    expect(DAILYQ.myAnswer(q)).toBe(1);
+  });
+});

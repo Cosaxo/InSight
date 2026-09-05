@@ -20,6 +20,42 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * Blank YAML/shell comments, keeping every offset.
+ *
+ * BOTH RULES IN THIS FILE READ RAW TEXT, and both were satisfied by a
+ * comment. Measured: commenting out `set -o pipefail` in a workflow left
+ * all 846 script tests green, while DELETING the same line failed
+ * correctly — so the pin was on the characters, not on the setting. The
+ * outcome rule was worse: commenting out every real `steps.<id>.outcome`
+ * read in the quiet-deploy reporter — the step that exists because a
+ * rules deploy failed silently on every run — also left the suite green.
+ *
+ * This is the `// registerPlugin(DeviceBindPlugin.class);` class, in the
+ * one file that guards the workflows, and two sibling gates were fixed
+ * for exactly it on 2026-09-04.
+ *
+ * `#` only, because these are YAML files whose `run:` bodies are shell —
+ * both use `#`. Quoted `#` is left alone, which is the same trade
+ * strip-comments.mjs documents for JS: an exact answer needs a parser, and
+ * a parser is a much larger thing to get wrong. Blanking rather than
+ * deleting keeps line numbers and offsets, which the messages below quote.
+ */
+const stripYamlComments = (src) =>
+  src.split("\n").map((line) => {
+    let q = null;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) { if (c === q) q = null; continue; }
+      if (c === '"' || c === "'") { q = c; continue; }
+      if (c === "#") return line.slice(0, i) + " ".repeat(line.length - i);
+    }
+    return line;
+  }).join("\n");
+
+const readWorkflow = (path) => stripYamlComments(readFileSync(path, "utf8"));
+
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dir = join(root, ".github", "workflows");
 const files = readdirSync(dir).filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"));
@@ -97,18 +133,18 @@ const isExempt = (head) => /continue-on-error:\s*true/.test(head);
 
 describe("workflow steps that pipe into tee", () => {
   it("finds run blocks at all — the parser must not pass vacuously", () => {
-    const total = files.reduce((n, f) => n + runBlocks(readFileSync(join(dir, f), "utf8")).length, 0);
+    const total = files.reduce((n, f) => n + runBlocks(readWorkflow(join(dir, f))).length, 0);
     expect(total, "no `run: |` blocks parsed — the split is broken, not the workflows").toBeGreaterThan(20);
   });
 
   it("finds the tee steps this rule is about", () => {
     const teed = files.flatMap((f) =>
-      runBlocks(readFileSync(join(dir, f), "utf8")).filter((s) => teePipes(s.body)));
+      runBlocks(readWorkflow(join(dir, f))).filter((s) => teePipes(s.body)));
     expect(teed.length, "no `| tee` steps found — the rule is measuring nothing").toBeGreaterThan(3);
   });
 
   for (const f of files) {
-    const steps = runBlocks(readFileSync(join(dir, f), "utf8"))
+    const steps = runBlocks(readWorkflow(join(dir, f)))
       .filter((s) => teePipes(s.body) && !isExempt(s.head));
     if (!steps.length) continue;
     it(`${f} sets pipefail in every step that pipes into tee`, () => {
@@ -163,7 +199,7 @@ describe("continue-on-error steps are reported somewhere", () => {
     /continue-on-error:\s*true/.test(body) && !/if:\s*failure\(\)/.test(body);
 
   for (const f of files) {
-    const src = readFileSync(join(dir, f), "utf8");
+    const src = readWorkflow(join(dir, f));
     const steps = parse(src).filter((s) => optionalOn(s.body));
     if (!steps.length) continue;
     it(`${f} gives every optional step an id and reads it back`, () => {
@@ -185,7 +221,7 @@ describe("continue-on-error steps are reported somewhere", () => {
 
   it("finds the optional steps this rule is about", () => {
     const optional = files.flatMap((f) =>
-      parse(readFileSync(join(dir, f), "utf8")).filter((s) => optionalOn(s.body)));
+      parse(readWorkflow(join(dir, f))).filter((s) => optionalOn(s.body)));
     expect(optional.length, "no continue-on-error steps found on a healthy path — the rule measures nothing")
       .toBeGreaterThan(1);
   });
