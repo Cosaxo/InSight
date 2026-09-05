@@ -285,8 +285,8 @@ belongs with the code it is about:
 - `setGlobalOptions` belongs in `functions/src/ops.ts`, not `index.ts` →
   `CLAUDE.md` § Things that look like bugs but are not.
 - Answers are create-only with **one** update shape (D86) → same section.
-- `window.MapStats` returns **null** for five anchors on purpose (D72) →
-  same section.
+- `window.MapStats` returns **null** for four anchors on purpose (D72) →
+  same section. (Five until D328 moved `job` onto its derived `jobField`.)
 - The e2e suites in a sandbox need `HTTPS_PROXY` **unset**, not a wider
   egress allowlist → `docs/LOCAL-TESTING.md` § Sandbox/CI note.
 - A root `npm install` leaves the backend's `node_modules` empty, and the
