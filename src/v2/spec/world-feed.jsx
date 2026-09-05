@@ -17,6 +17,13 @@ import { TEST_FEED_QS } from './test-feed-data.js';
 // live build's bank items arrive through data/testFeed.ts, which is where
 // the story of why that is not a `window` read lives (D280).
 import { testFeedPool } from '../data/testFeed.ts';
+// Learn's "See it" cue (D207's typed seam, data/mapCue.ts). An import
+// rather than the `window.MAP_OPEN_GROUP` mailbox this used to set: the
+// shell answers a cue with the walk itself — closeAll, the Mirror's You
+// stop, the tab switch — so no NAV.goTab here, and an already-mounted Map
+// re-aims through onMapCue. The mailbox only ever reached a Map mounting
+// fresh AFTER the write, so a reader already on the You stop saw nothing.
+import { cueMap } from '../data/mapCue.ts';
 import { WORLD_CHANNELS, WORLD_TOPICS } from './world-feed-data.js';
 import PLACES from '../data/places';
 import { FILMS, ARTISTS, ATHLETES, EMOJI } from '../data/catalogs';
@@ -1562,7 +1569,7 @@ class WorldFeed extends React.Component {
                 <>
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>Saved to your map.</span>
-                  <button onClick={() => { window.MAP_OPEN_GROUP = 'g-know'; NAV.goTab('mirror'); }} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>See it</button>
+                  <button onClick={() => cueMap({ group: 'g-know' })} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>See it</button>
                 </>
               ) : r.ok && r.wasKnown ? (
                 <>
