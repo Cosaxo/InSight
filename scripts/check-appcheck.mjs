@@ -34,6 +34,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripComments } from "./strip-comments.mjs";
+import { checkAppCheckPolarity } from "./appcheck-polarity.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(root, "functions", "src");
@@ -217,6 +218,16 @@ for (const file of readdirSync(SRC, { recursive: true })
 
 const found = enforcing.length + missing.length;
 const errors = [];
+
+// THE CONSTANT ITSELF, not just its name at the call sites.
+//
+// Everything above proves 20 callables all defer to `ENFORCE_APP_CHECK`.
+// None of it asks what that value is, so flipping the escape hatch in
+// ops.ts from opt-out to opt-in left this script printing "20 enforcing"
+// while production attested nothing. Verified by mutation; see
+// scripts/appcheck-polarity.mjs for why it is a truth table and not a
+// string match.
+errors.push(...checkAppCheckPolarity(readFileSync(join(SRC, "ops.ts"), "utf8")));
 
 if (found !== onCallSites) {
   errors.push(
