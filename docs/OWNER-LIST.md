@@ -31,6 +31,8 @@ by hand, 2026-09-02.
 - [ ] **Adoption per earned axis** — a corner door exists only behind a crossed gate; adopting one is a record citing D265's shape. Waits on an axis earning it. *Source:* `AXES-RUNBOOK.md` 5.2.
 - [ ] **Anonymous answers and private test results** — the first amendment D98 would notice: does the option exist, on which surfaces (the design draws it on the feed and the daily's world card, never duels), and what may the account panel promise. The surface-value shape and the rejected field shape are written in `VISION-2026-08-26.md` §1; the 2026-09-02 design still draws the toggle. *Source:* D310; `VISION-2026-09-02.md` §6.
 - [ ] **The subscription price — a split across seats, or a per-buyer price** — the catalog window prints the answer, so the window (`design/standalone-2026-09-02/catalog-sheet.jsx`, polished again in the 2026-09-02 upload) waits on it, and with it the seat and pledge records. *Source:* `VISION-2026-08-26.md` §2.2; `VISION-2026-09-02.md` §4.2.
+- [ ] **The app's start-up size budget is exactly full — 630 KB of 630** — measured 2026-09-04 on the composed night tree, which is the tree that would merge: `check:bundle` passes with zero headroom (2184 KB total / 2440, 69 KB blocking css / 74, 86 KB fonts / 96 — only the eager graph is at its limit). Nine bug fixes spent the last kilobyte between them; none is at fault and none is optional. The next STATIC import into the entry graph, from any lane, trips it — a dynamic import behind `loadWorldFeed` / `loadMirrorTab` / `React.lazy` does not, which is why the other shift's thirty commits cost nothing. Two ways out: defer something past first paint, or raise the ceiling. The gate's own message invites raising it *"deliberately, with a note saying why the app got bigger"* — which is why a night shift did not do it at 00:13 with nobody watching. *Source:* night shift B, 2026-09-04; `scripts/check-bundle.mjs`.
+- [ ] **The now lane's cap of six a run against its own window arithmetic** — the two cannot both hold, and today the lane cannot legally write a third of its budget. `npm run now:budget` at 04:18 UTC on 2026-09-04: cap 6, seven live questions already holding the seven consecutive closes 09-04 through 09-10, and every free close 09-11 and later — **zero at the short end**, so the script's own line reads *"today's largest legal batch is 2"*. Each run takes up to six close dates and roughly one frees per day, so the cap outruns the supply structurally, not on a bad day. Three ways out, all changes to something: relax `no two closing on one day` (nothing enforces it, and two now questions sharing a close is far cheaper than a lane reaching into three-week windows), lower the cap to what the arithmetic sustains, or let windows open later than today — which contradicts `QUESTION-FARM.md`'s *"Windows: from today"* in terms. The CLI now says so rather than failing silently; the conflict is a design call and not a lane's. *Source:* night shift B, 2026-09-04; `QUESTION-FARM.md` § the now lane.
 
 ## Clicks
 
@@ -63,7 +65,7 @@ by hand, 2026-09-02.
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 18 PR row(s) and 4 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-04).
+- [ ] 19 PR row(s) and 6 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-05).
 <!-- console:end -->
 
 ## Store and legal

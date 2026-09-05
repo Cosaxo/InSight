@@ -86,13 +86,39 @@ export let feedInsight;
   // of the line is that it cuts AGAINST the overall result.
   const MIN_GAP = 12;
 
+  // The smallest cell this line will describe.
+  //
+  // WHY IT EXISTS: there was no floor at all — `if (!n) continue` — so a
+  // card a thousand people had answered could carry "25-34 flips it to
+  // Agree — 100%" resting on ONE answer, with nothing on the line saying
+  // so. A flip is the highest-scoring shape there is (`+1000`), and a
+  // one-answer cell flips whenever that one person disagreed with the
+  // room, so the thinnest cut on the card was also the likeliest to win
+  // the line.
+  //
+  // THREE, because that is what the two sibling lines on this same card
+  // family already require — `renderDialInsight` and `renderFieldInsight`
+  // both `continue` on `r.n < 3` (world-feed.jsx). This was the only one
+  // of the three for ordinary option questions and the only one without a
+  // floor. Whether three is high ENOUGH for a percentage is the open
+  // question Explore's floor asks too; it is the owner's, and it is not a
+  // reason to leave this at one.
+  const MIN_CELL = 3;
+
   // The one published cut that disagrees most with the room.
   //
-  // Reads only `agg.by`, which the server has already floored per cell with
-  // complementary suppression (functions/src/pure.ts) — so anything visible
-  // here is publishable by construction, and this adds no disclosure of its
-  // own. Returns null for anything it cannot say honestly: a demo card, a
-  // question below the floor, a breakdown with nothing surprising in it.
+  // Reads only `agg.by`. This said the server had "already floored per cell
+  // with complementary suppression", and D98 removed every floor from that
+  // path — `functions/src/pure.ts` now says so in as many words: "there is
+  // no other floor left in this path — every cell folded here is
+  // published." That is correct and deliberate for DISCLOSURE, which is
+  // what the sentence was about; what it was read as, for as long as it
+  // stood, was that a cell arriving here had a size worth talking about.
+  // It does not. `MIN_CELL` below is this line's own floor, and it is an
+  // honesty floor, not a privacy one.
+  //
+  // Returns null for anything it cannot say honestly: a demo card, a cell
+  // too small to describe, a breakdown with nothing surprising in it.
   //
   // `mine` is the viewer's own option index, third in the demo signature
   // the call site still uses (`feedInsight(q, counts, mine, …)`) and the
@@ -131,7 +157,7 @@ export let feedInsight;
       for (const bucket of Object.keys(buckets)) {
         const cell = buckets[bucket];
         const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
-        if (!n) continue;
+        if (n < MIN_CELL) continue;
         const cellCounts = q.options.map((_, i) => cell[String(i)] || 0);
         const pct = cellCounts.map((c) => (c / n) * 100);
         const win = pct.indexOf(Math.max(...pct));

@@ -28,6 +28,7 @@
 // feeds the checker a broken tree per link — otherwise an upstream format
 // change turns a real check into a vacuous one without failing.
 import { readFileSync, existsSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 
 const PLUGIN = "ios/App/App/DeviceBindPlugin.swift";
 const VC = "ios/App/App/MainViewController.swift";
@@ -55,11 +56,32 @@ export function checkDeviceBind(read = (p) => readFileSync(p, "utf8"), exists = 
   }
   if (problems.length) return problems;
 
-  const plugin = read(PLUGIN);
-  const vc = read(VC);
+  // COMMENTS OUT FIRST, for the source files. Every rule below is a regex
+  // over raw text, so `// registerPlugin(DeviceBindPlugin.class);` answered
+  // yes to "is it registered?" — measured, both platforms commented out at
+  // once, and the gate printed "iOS and Android plugins declared, registered
+  // and buildable" and exited 0. Deleting the same two lines fails
+  // correctly, which is why the test file never saw it: it only ever
+  // deletes. Commenting a call out to chase something and forgetting to put
+  // it back is the ordinary way this happens, and this gate's whole subject
+  // is a bridge that is silent when it is missing.
+  //
+  // Every sibling gate that greps source for a required call already does
+  // this and says why — check-appcheck (`// assertOperator(request);`),
+  // check-monitoring, check-labels, spec-globals — which is what
+  // strip-comments.mjs was extracted for. This is its fifth consumer.
+  //
+  // NOT the storyboard or the pbxproj: neither is JS-shaped. The storyboard
+  // is XML, whose comments this does not touch anyway, and a pbxproj is
+  // built out of `/* … */` annotations that carry its object names — blanking
+  // those would turn two live rules vacuous while looking like a fix.
+  const code = (f) => stripComments(read(f));
+
+  const plugin = code(PLUGIN);
+  const vc = code(VC);
   const story = read(STORYBOARD);
   const pbx = read(PBXPROJ);
-  const jsName = jsPluginName(read(JS_CLIENT));
+  const jsName = jsPluginName(code(JS_CLIENT));
 
   // 1 · the jsName the plugin declares is the one the client asks for.
   if (!jsName) {
@@ -100,10 +122,11 @@ export function checkDeviceBind(read = (p) => readFileSync(p, "utf8"), exists = 
     }
   }
   // ── Android ──────────────────────────────────────────────────────
-  const aPlugin = read(A_PLUGIN);
-  const aActivity = read(A_ACTIVITY);
-  const aGradle = read(A_GRADLE);
-  const aVars = read(A_VARS);
+  const aPlugin = code(A_PLUGIN);
+  const aActivity = code(A_ACTIVITY);
+  // Gradle is Groovy: same two comment shapes, same hole.
+  const aGradle = code(A_GRADLE);
+  const aVars = code(A_VARS);
 
   // Same contract as iOS rule 1: the annotation's name is what JS asks for.
   if (jsName && !new RegExp(`@CapacitorPlugin\\(\\s*name\\s*=\\s*"${jsName}"`).test(aPlugin)) {

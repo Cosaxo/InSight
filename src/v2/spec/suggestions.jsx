@@ -778,7 +778,16 @@ function SuggestOverlay({ onClose }) {
               ))}
               {mine.length === 0 && (
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>
-                  Nothing from you yet — ask one above.
+                  {/* Three states, not one. An empty list used to say you had
+                      asked nothing whether the read was still in flight or
+                      had failed — so a buyer with a booking in review was
+                      told they had asked nothing. Same wording shape as
+                      AskedByYouOverlay, which already draws these three. */}
+                  {SG.mineState() === 'loading'
+                    ? 'Reading your asks…'
+                    : SG.mineState() === 'failed'
+                      ? 'Couldn\u2019t read your asks. Close and reopen to try again.'
+                      : 'Nothing from you yet — ask one above.'}
                 </div>
               )}
             </div>

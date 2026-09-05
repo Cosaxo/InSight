@@ -38,6 +38,7 @@ vi.setConfig({ testTimeout: 15000 });
 import { BG_TEXT, DAILY_BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
+import { TYPE_SMALL } from "../data/typeMix";
 import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
@@ -716,6 +717,47 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText(/ended here$/)).toBeNull();
     expect(screen.queryByText(/walks your road$/)).toBeNull();
     expectNoBoundary("live feed, crossroads with no walks");
+  });
+
+  // THE FRONT DOOR SAID 100% AND, ONE LINE LOWER, THAT NOBODY HAD BEEN
+  // COUNTED.
+  //
+  // `counts` is the published aggregate plus your own vote, so before the
+  // fold has landed anything it is [1, 0, 0] and the shares are [100, 0, 0].
+  // The result stage printed a 25px "100%" over your side, the tiles drew
+  // the same split as geometry, the consequence beat had already animated
+  // the crowd into your camp — and `resultNote` underneath said "You're
+  // first — the count lands in a moment". This is the first voter after
+  // every UTC rotation, on the app's landing screen.
+  //
+  // The feed had already ruled on the identical state three times
+  // (world-feed routes a floored card off the tiles, suppresses the
+  // numeral, and gates a duel's shares). The daily was the one answer
+  // surface with no gate.
+  it("draws no split on the daily before the crowd has published one", async () => {
+    const expectNoBoundary = mountLive({ tooSmall: true });
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
+
+    const body = document.body.textContent;
+    // The line that was always right, and is now the only claim on screen.
+    expect(body, "the first-voter note is missing — the case is testing nothing")
+      .toMatch(/the count lands in a moment/);
+    // …and the four readings that contradicted it.
+    expect(body, "the result stage still prints a share").not.toMatch(/100%/);
+    expect(body, "the result stage still prints a zero share").not.toMatch(/\b0%/);
+    expect(body, "the consequence beat still announces the crowd").not.toMatch(/you.re with them/i);
+    expectNoBoundary("live daily, first voter");
+  });
+
+  // The control, and it is the half that keeps the gate from being "never
+  // draw a split": the same ballot with a published crowd still states one.
+  it("still draws the split once the crowd has published — the control", async () => {
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
+    expect(document.body.textContent, "a published crowd stopped being drawn").toMatch(/%/);
+    expectNoBoundary("live daily, published crowd");
   });
 
   // Catalogue picks on a LIVE feed (D14 gone live): the card comes from
@@ -2579,12 +2621,63 @@ describe("live mode never inherits the sample persona (D55)", () => {
     const host = renderTypeSheet();
     try {
       expect(host.textContent).toMatch(/of 1 person counted/);
-      expect(host.textContent).toMatch(/1 · 100%/);
+      // A COUNT, not a share. This asserted "1 · 100%" — a percentage over
+      // a basis of one — until the floor below was applied. The card built
+      // on this same fold has always refused shares under TYPE_SMALL, and
+      // typeMix.ts states it as the constant's contract.
+      expect(host.textContent).toMatch(/\b1\b/);
+      expect(host.textContent, "a share was printed over a basis of one")
+        .not.toMatch(/1\s*·\s*100\s*%/);
       // Every other type is a measured zero, drawn as an absence rather
       // than as a share rounding to nothing.
       expect(host.textContent).toMatch(/none/);
       expect(host.textContent, "an authored share is still on screen")
         .not.toMatch(AUTHORED_SHARES);
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("prints counts, not shares, until the basis reaches the card's floor", () => {
+    // Two taps from the card that just named the reader's own type, on a
+    // row marked YOU, this sheet printed "2 · 67%" over three people. The
+    // card built on the same fold refuses shares below TYPE_SMALL and says
+    // why; the sheet counted from one typed person upward.
+    live = installLive();
+    const one = window.LIVE.kindredPeople()[0];
+    const sample = (n) => Array.from({ length: n }, (_, i) => ({ ...one, uid: `u${i}` }));
+    Object.defineProperty(window.LIVE, "kindredPeople",
+      { value: () => sample(TYPE_SMALL - 1), writable: true, configurable: true });
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent, "the sheet did not render — test is vacuous")
+        .toMatch(/The Quiet One/);
+      expect(host.textContent, `a share was printed over a basis of ${TYPE_SMALL - 1}`)
+        .not.toMatch(/\d+\s*·\s*\d+\s*%/);
+      // …and the basis is still stated, which is what makes the bare count
+      // readable at all.
+      expect(host.textContent).toMatch(new RegExp(`of ${TYPE_SMALL - 1} people counted`));
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("starts printing shares once the basis reaches the floor", () => {
+    // THE CONTROL. Without it the case above is satisfied by a sheet that
+    // never prints a share at all, which would lose the number on every
+    // basis large enough to carry it.
+    live = installLive();
+    const one = window.LIVE.kindredPeople()[0];
+    Object.defineProperty(window.LIVE, "kindredPeople", {
+      value: () => Array.from({ length: TYPE_SMALL }, (_, i) => ({ ...one, uid: `u${i}` })),
+      writable: true, configurable: true,
+    });
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent, "the floor swallowed a basis that is over it")
+        .toMatch(/\d+\s*·\s*\d+\s*%/);
     } finally {
       host.remove();
     }

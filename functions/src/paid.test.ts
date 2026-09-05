@@ -8,8 +8,13 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SUGGEST_PER_DAY } from "./suggestions";
 import {
+  AD_ADVERTISER_MAX,
+  BOOKINGS_PER_DAY,
   AD_AUDIENCE_MAX,
+  AD_BODY_MAX,
+  AD_HEADLINE_MAX,
   AD_URL_RE,
   AUDIENCE_DIMS_MAX,
   LIKERT,
@@ -419,6 +424,46 @@ describe("utcDayKey", () => {
 
 // ── the ad lane (D315) ──────────────────────────────────────────────────
 
+// ── the two ceilings on this file that cost money when they move ────
+//
+// Both can be set to a million with every suite green. The tests that
+// look like they hold them state them RELATIVE to the constant — e.g.
+// `{ id: "stuck", attempts: MAX_REVIEW_ATTEMPTS }` — so they move with
+// it, and no check gate names either. That is the repo's deliberate
+// pattern for a dial an operator may tune, and these two are the
+// exception their own docstrings describe: they may be tuned, but not
+// SILENTLY, because the direction that costs money is unbounded.
+describe("the review budget, held to the arithmetic it states", () => {
+  it("keeps the retry ceiling at the value whose reasoning is written down", () => {
+    // paid.ts: "Six is three hours at the sweep's half-hour cadence."
+    // Above it, what the bound is for: an unreviewable booking otherwise
+    // "re-reviewed every thirty minutes forever, each attempt a billed
+    // model call". At a million that is a billed call every half hour for
+    // about fifty-seven years, on one stuck row.
+    expect(MAX_REVIEW_ATTEMPTS,
+      "the retry ceiling moved — re-read paid.ts's arithmetic and change this line deliberately").toBe(6);
+    // The sentence, executed: six attempts at the scheduled cadence is
+    // three hours. A change to the SCHEDULE has to face this too.
+    const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "paid.ts"), "utf8");
+    const every = /schedule: "every (\d+) minutes"/.exec(src);
+    expect(every, "the sweep's schedule could not be read — this case lost its target").toBeTruthy();
+    expect(MAX_REVIEW_ATTEMPTS * Number(every![1]) / 60,
+      "six attempts no longer means three hours — the cadence or the ceiling moved alone").toBe(3);
+  });
+
+  it("keeps the daily booking ceiling, and keeps it above the suggestion budget", () => {
+    // paid.ts: "Looser than the old suggestion budget's 3 … tighter than
+    // unlimited (each booking is a Claude review someone pays for — us)."
+    // Both halves of that sentence, executed. It appears in no test at
+    // all otherwise.
+    expect(BOOKINGS_PER_DAY,
+      "the daily booking ceiling moved — each one is a billed review").toBe(5);
+    expect(BOOKINGS_PER_DAY,
+      "the booking budget is no longer looser than the suggestion budget it was priced against")
+      .toBeGreaterThan(SUGGEST_PER_DAY);
+  });
+});
+
 describe("validatePaidBooking — kind ad", () => {
   it("accepts an honest ad and normalizes it", () => {
     const r = validatePaidBooking({
@@ -437,6 +482,52 @@ describe("validatePaidBooking — kind ad", () => {
     expect(validatePaidBooking({ ...AD, advertiser: "" })).toHaveProperty("error");
     expect(validatePaidBooking({ ...AD, headline: " " })).toHaveProperty("error");
     expect(validatePaidBooking({ ...AD, body: "" })).toHaveProperty("error");
+  });
+
+  // THREE BOUNDS ON BOUGHT COPY, AND NOTHING EXERCISED THEM.
+  //
+  // `validateAdBooking` is the only server-side length gate on an ad
+  // somebody paid for, and the booking is written straight into the ads
+  // pool every client downloads whole. Measured: disabling all three at
+  // once — advertiser, headline and body — left all 593 functions tests
+  // green, as did raising the three constants to 100000.
+  //
+  // The URL nose directly below and the question path's identical length
+  // bound are both pinned, so this was a specific hole between two
+  // covered arms rather than a blanket absence.
+  it("bounds the three fields a bought ad card is made of", () => {
+    expect(validatePaidBooking({ ...AD, advertiser: "a".repeat(AD_ADVERTISER_MAX + 1) }),
+      "the advertiser name has no ceiling").toHaveProperty("error");
+    expect(validatePaidBooking({ ...AD, headline: "h".repeat(AD_HEADLINE_MAX + 1) }),
+      "the headline has no ceiling").toHaveProperty("error");
+    expect(validatePaidBooking({ ...AD, body: "b".repeat(AD_BODY_MAX + 1) }),
+      "the ad's text has no ceiling").toHaveProperty("error");
+    // …and the bound is a bound, not a refusal of everything: exactly at
+    // the limit is accepted, or "always errors" would pass the three above.
+    expect(validatePaidBooking({
+      ...AD,
+      advertiser: "a".repeat(AD_ADVERTISER_MAX),
+      headline: "h".repeat(AD_HEADLINE_MAX),
+      body: "b".repeat(AD_BODY_MAX),
+    }), "a card exactly at the limit was refused").not.toHaveProperty("error");
+  });
+
+  it("carries the same three caps the content gate holds hand-written ads to", () => {
+    // `paid.ts` says these are "mirrored by value from
+    // scripts/check-content.mjs's ad rules (advertiser 40 · headline 70 ·
+    // body 140)" — the runtime-import constraint every mirrored figure in
+    // that file carries. Nothing held them equal, and a bought ad never
+    // passes through that script: it is created at runtime.
+    //
+    // So the two could drift and the pool would carry cards longer than
+    // any hand-written one is allowed to be, with both gates green.
+    const gate = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "../../scripts/check-content.mjs"), "utf8");
+    const m = /\[\s*\["advertiser",\s*(\d+)\],\s*\["headline",\s*(\d+)\],\s*\["body",\s*(\d+)\]\s*\]/.exec(gate);
+    expect(m, "the content gate's ad caps could not be found — this case lost its target").toBeTruthy();
+    expect([Number(m![1]), Number(m![2]), Number(m![3])],
+      "the runtime bounds and the content gate's have drifted apart")
+      .toEqual([AD_ADVERTISER_MAX, AD_HEADLINE_MAX, AD_BODY_MAX]);
   });
 
   it("refuses a web address in any field — no tap-through means no typed-out link either", () => {

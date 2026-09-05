@@ -41,6 +41,27 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= max);
     }
 
+    // A moment, or nothing. Written for `v2_users.createdAt`/`updatedAt`,
+    // which the allowlist admitted with NO type, shape or length check of
+    // any kind — so either could carry a 400 KB string, measured.
+    //
+    // That matters because of who reads them. `data/voters.ts` fetches
+    // these documents WHOLE, thirty uids per query, with no field mask —
+    // the client SDK has none — on every Mirror surface that turns a uid
+    // into a name. One free anonymous account parking a megabyte on its
+    // own profile is a megabyte every reader of that person downloads,
+    // and thirty such rows is a thirty-megabyte response on a phone.
+    //
+    // Nothing in the tree writes either field: no client path, no Cloud
+    // Function. That is the "dead allowlist entry" the comment on the
+    // allowlist itself names — "not free, it is a promise the tree cannot
+    // keep" — so this bounds them rather than removing them, because an
+    // older client in the wild may still send one and a number cannot be
+    // a megabyte either way.
+    function isOptionalStamp(value) {
+      return value == null || value is int || value is timestamp;
+    }
+
     // v1 rate-limit ledgers — one doc per sender, holding recent
     // impression-send timestamps. Their writer (sendInboundImpression)
     // was deleted in D13, so nothing creates these any more; existing
@@ -370,6 +391,8 @@ service cloud.firestore {
                 && request.resource.data.testResults.logic
                   == resource.data.get("testResults", {}).get("logic", null)))))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
+        && isOptionalStamp(request.resource.data.get("createdAt", null))
+        && isOptionalStamp(request.resource.data.get("updatedAt", null))
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal
 
@@ -1527,7 +1550,21 @@ service cloud.firestore {
           : (request.resource.data.gid is string
             && request.auth.uid in
               get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && (!("qid" in request.resource.data) || request.resource.data.qid is string)
+            // LENGTH TOO, and the sentence below is why it was missed: the
+            // paragraph argues carefully about the id's VALUE — that a
+            // circle id must not collide with somebody's world id — and
+            // says "the id is bounded HERE too", which was true of the
+            // shape and not of the size. The world branch four lines up
+            // caps it at 120; this one only asked that it be a string, so
+            // a 400 KB qid was accepted, measured.
+            //
+            // `text` is capped at 280 on both branches, and `v2_takes` is
+            // readable by any signed-in user as a list query that pulls
+            // whole documents — so an unbounded field here is a download
+            // every reader of that thread pays for.
+            && (!("qid" in request.resource.data)
+              || (request.resource.data.qid is string
+                && request.resource.data.qid.size() <= 120))
             // The id is bounded HERE too, and not for the same reason as
             // the world branch above. A circle take is many-per-person, so
             // there is no one-take bound to enforce — but both branches
