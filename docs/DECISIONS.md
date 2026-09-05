@@ -37889,3 +37889,171 @@ so an unbounded field is a download every reader of that person pays
 for), and a 120-char cap on a circle take's `qid`, which the world branch
 four lines up already had. Neither touches the three labelled denies.
 Verified: nothing in the tree writes either stamp field.
+
+## D364 · The 2026-09-05 night review: two shifts merged as one tree — 50 commits kept, one defect the composition created, and the kilobyte that finally tripped
+
+**2026-09-05.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+fifty commits are kept as written; nothing was reverted. What this review
+adds is the composition, one fix for a defect neither shift could see
+alone, and the owner's ruling on the ceiling shift B put on the list the
+night before.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260905` | 32 | 6 behind | shift A, Claude 2's, 21:08–05:24 UTC |
+| `nightb-20260905` | 18 | 7 behind | shift B, Claude 1's, 20:10–04:13 UTC |
+
+**Nothing conflicted, for the second night running, and for the same
+reason D363 gave: there was no sweep to branch before.** Everything main
+added while they worked was console-generated (`MERGE-LIST.md`,
+`monitoring/console-trail.jsonl`) plus one catalog card (#396, in
+`pick-data.js`, which neither shift touched). Five source files were
+touched by both and all five composed correctly:
+
+- **`src/v2/data/live.ts`** — A added the three-state test-aggregate
+  reader (`testAggsFailed`/`testAggsState`), `rankCrowd`'s `crowdN` and
+  the feed totals publish; B added the pulse write's `unaggregated` mark
+  and its rollback, `pulsePending`, and the circle's `following` split.
+  Different regions of a 6,800-line file, all kept.
+- **`src/v2/test/live-surface.ts`** and **`live-fixture.ts`** — A's
+  `testAggsState` and `crowdN`, B's `pulsePending`, all three landing in
+  `LIVE_MEMBERS` beside each other.
+- **`src/v2/spec/world-feed.jsx`** — A's pick-tile wording split, the
+  rank card's crowd line and the topic sheet's bank count; B's thin-crowd
+  guard on the learn sheet's rate row. Different methods.
+- **`functions/src/engagement.test.ts`** — two new blocks per shift.
+
+### The battery, on the composed tree
+
+Neither branch's own green says anything about this tree, because no tree
+had held both. Run here in full:
+
+| | |
+| --- | --- |
+| `test:unit` | 184 files, 2615 tests (2613 on arrival, plus the two cases below) |
+| `test --prefix functions` | 27 files, 634 tests |
+| `test:scripts` | 49 files, 855 tests |
+| `test:rules` | 179 tests (Java 21) — the count `check:figures` holds, and the number this night moved |
+| `test:e2e:all` | all three legs, one emulator boot, exit 0 |
+| gates | 41 `check:*`, plus `lint`, `tsc -b`, and `check:bundle` on a shipping build |
+
+Two gates are red and neither is about the tree, both verified against
+`origin/main` rather than assumed: `check:store-copy` wants the Play
+signing SHA256 in `web/.well-known/assetlinks.json` and says in its own
+header that it is deliberately not in CI; `check:web-firebase` wants the
+four `VITE_FIREBASE_*` secrets, which this session does not have, and it
+runs on the two release workflows rather than on `ci.yml`.
+
+### The one defect, and it belonged to neither shift
+
+**`src/v2/data/pulse.ts` — the two halves of one sentence joined your own
+answer on different conditions.** B's fix is a real one and its case is
+the ordinary one: the pulse card read its crowd off a document written
+before you answered, so "you · Brisk" sat over "0% of 4 answers today" —
+the share of the very step it was naming. The fix counts a pending answer
+into both the share (`bins`) and the crowd it is a share of (`todayN`).
+
+But `todayN` added it whenever one existed, and `bins` added it only
+where the published cell already did. A city cut has no cell until
+somebody in that city has answered today — so the first person in a city
+to answer read **"0% of 1 answer today"** under their own step, at the
+bar's minimum height. The same wrong number the join was added to remove,
+one cohort narrower. The second, smaller shape: a reader with no city
+anchor was counted into a city cut the app cannot name.
+
+Both are closed by one reader, `pendingIdx`, which the two halves now
+share — membership decided from YOUR anchor, the published cell supplying
+only whoever came before you. Two cases pin it and both go red without
+the fix (measured, not reasoned: `[0,0,0,0,0]` where `[0,0,0,100,0]` is
+true, and `1` where `0` is).
+
+It is worth naming why neither shift could have found it. B wrote both
+halves and they agree on every case B's own suite reaches — the world cut,
+where there is always a `total`. The failing case needs the CITY cut, and
+the card's own suite only ever draws world. Nothing was wrong with either
+commit read alone.
+
+**And one comment.** The same commit inserted `pulsePending` between
+`pulseVotes` and `pulseVotes`'s docstring, so the block describing "every
+pulse day this device knows it answered" stood over a function that
+answers one day. Reattached. This is the D363 correction one file over,
+and worth the second mention only because it is now twice: a new member
+landing under an existing member's docstring is what this shape looks
+like both times.
+
+### The ceiling the night before predicted, tripping the night after
+
+Shift B's 2026-09-04 row on `OWNER-LIST.md` said the start-up size budget
+was exactly full at 630 KB of 630, with the arithmetic, and that the next
+static weight from any lane would trip it. It did, at 631 — measured with
+a DSN on the composed tree, against 629.9 for main, so the night's fixes
+to eager modules cost **856 bytes**. `check:bundle` runs in `ci.yml`, so
+the tree could not merge.
+
+**Put to the owner, who asked the right question — *why should we not
+raise the ceiling more?* — and the answer is in the gate's own file.**
+Every earlier entry says `MAX_EAGER_KB` "is not raiseable, because it is
+the constant keeping the Firestore SDK out of first paint". That stopped
+being true when D144's reader wrote `MAX_EAGER_CHUNK_KB = 200` and said
+why in the same breath: *"a guarantee that survives only while a number
+stays small is not one. So state it directly."* The SDK rule is stated
+directly now and catches either SDK by a factor of at least 1.4 whatever
+the total reads. So a raise gives back no guarantee; what it spends is
+how often the deferral question gets asked.
+
+**Raised 630 → 642**, the ~11 KB band every entry in that file uses, with
+the measurement beside it. The three fixes it buys are all in the same
+class — a surface that stated something it had not measured — which is
+what the whole night is about.
+
+**The rate is the finding, not the kilobyte.** D354's sweep set 630 with
+the tree measuring 619; four days later main measures 629.9. That is
+~2.7 KB a day of ordinary bug-fixing landing in first paint, so this band
+is about four days and the next trip is due before the week is out. The
+answer then wants to be a deferral, and the candidates are already in the
+modulepreload list — `explain-sheet` (8.6 KB), `result-rose` (4.9),
+`relmap-lenses` (4.9), all three behind a tap. All three are also in
+`spec-index.js`'s ORDERED side-effect list, which is why moving one is its
+own change with its own load-order risk and not something a review does on
+the way past. Written into the constant's note so the next reader meets it
+there.
+
+### What to watch
+
+**The erasure sweep that cannot reach its own history.** Shift A's
+`pickedUids` fix closes a real leak — a pick naming you in a circle you
+had already left survived deletion, in a document any signed-in account
+may read — and the field the sweep walks is written by the reveal builder
+from now on. Reveals written before tonight carry no such field, so the
+same pick made last week is still unreachable. The commit says so, and
+`docs/data-inventory.md` now says it beside the sweep: only a one-off
+backfill reaches those, and that is the owner's call. Verified here rather
+than taken on trust — `pickedUids` appears nowhere on `origin/main`.
+
+**`firestore.rules` is at Firestore's 1000-expression evaluation ceiling
+on the path every answer takes**, and shift B established the mechanism
+after refuting its own first answer: a `set` over an EXISTING answer
+document makes Firestore evaluate `allow create` and `allow update` in one
+request, and the two together blow the budget. Either alone is comfortably
+under. The client does not do this today (`editVote` uses `updateDoc`), so
+nobody is losing answers — but eleven e2e cases that assert a refusal are
+being granted it by the budget running out rather than by the rule under
+test, and would pass with that rule deleted. The row on `OWNER-LIST.md`
+carries the six-line reproduction. Not this review's to fix; named so it
+is not re-discovered a fifth night.
+
+**`Member.mutual` is now `boolean | null`** and the type does not enforce
+what the copy does with it. Both consumers were checked and both are safe
+(a null is falsy, and drawing no badge is the safe direction); only the
+sentence had to learn the difference. A third consumer that treats falsy
+as "does not follow you back" would reintroduce the claim without failing
+anything.
+
+**Three gates learned to blank comments before matching** — and the reason
+is worth keeping in view: every one of them reads a VALUE with a
+first-match regex, so a retuned constant with its old line parked above it
+made the gate certify the superseded number and exit 0. `check:anchors`,
+`check:cities`, `check:figures` and `account-level-lib` are fixed. The
+class is not closed by a gate of its own.

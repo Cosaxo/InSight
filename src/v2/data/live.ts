@@ -6400,9 +6400,6 @@ const LIVE = {
       }
     })();
   },
-  /** Every pulse day this device knows it answered: day → optionIdx.
-   * Derived from the hydrated vote mirror, so a second device's answers
-   * arrive with ordinary hydration and no extra read. */
   /**
    * Today's pulse answer while it is NOT yet in the published aggregate —
    * the option index, or null once the fold has counted it.
@@ -6418,6 +6415,9 @@ const LIVE = {
     const aid = `${baseQid}_${utcDayKey(0)}`;
     return aid in state.unaggregated ? state.unaggregated[aid] : null;
   },
+  /** Every pulse day this device knows it answered: day → optionIdx.
+   * Derived from the hydrated vote mirror, so a second device's answers
+   * arrive with ordinary hydration and no extra read. */
   pulseVotes(baseQid: string): Record<string, number> {
     const out: Record<string, number> = {};
     const prefix = `${baseQid}_`;

@@ -455,6 +455,29 @@ const meanOf = (agg: DayAgg): number | null => {
   return n > 0 ? sum / n : null;
 };
 
+/**
+ * Your own unfolded answer's option index for one scope, or -1.
+ *
+ * ONE READER FOR BOTH HALVES, because they are two halves of one sentence:
+ * `bins` states the share and `todayN` states the crowd it is a share OF.
+ * They were joining the pending answer on different conditions —
+ * `todayN` whenever one existed, `bins` only where the published cell
+ * already did — so the first person in a city to answer today read
+ * "0% of 1 answer today" under their own step. The same wrong number the
+ * join was added to remove, one cohort narrower.
+ *
+ * A scoped cut counts you only when you are IN it: the bucket is your own
+ * anchor, so no anchor is no membership rather than an empty one. World
+ * always counts you.
+ */
+const pendingIdx = (pid: string, scopeId: string): number => {
+  const pend = LIVE.pulsePending(pid);
+  if (typeof pend !== "number" || pend < 0) return -1;
+  if (scopeId === "world") return pend;
+  const a = LIVE.anchors() || {};
+  return (scopeId === "city" ? a.city : a.country) ? pend : -1;
+};
+
 const cutOf = (agg: DayAgg, scopeId: string): { n: number; mean: number | null } => {
   if (scopeId === "world") {
     const m = meanOf(agg);
@@ -595,8 +618,7 @@ export const PULSE = {
     // minimum height. `PULSE.answer` forces a refetch and reliably loses
     // the race with the fold; `ensureToday` then short-circuits on
     // `loadedForKey`, so that pre-vote crowd was frozen for the session.
-    const pend = LIVE.pulsePending ? LIVE.pulsePending(pid) : null;
-    const mineIdx = typeof pend === "number" && pend >= 0 ? pend : -1;
+    const mineIdx = pendingIdx(pid, id);
     if (id === "world") {
       const total = (agg.total || 0) + (mineIdx >= 0 ? 1 : 0);
       return Array.from({ length: 5 }, (_, i) =>
@@ -607,10 +629,15 @@ export const PULSE = {
     const cell = bucket ? agg.by?.[id]?.[bucket] : undefined;
     // The scoped cut is your own cohort, so a pending answer of yours
     // belongs in it too — same join, same reason as the world cut above.
+    // WITH NO PUBLISHED CELL AS WELL: being the first in your city today
+    // is the case where the cell is absent and you are still in it, and
+    // gating the join on `cell` there drew five zeros beside a crowd of
+    // one. `pendingIdx` is what decides membership; the cell only supplies
+    // whoever came before you.
     const base = cell ? Object.values(cell).reduce((a, b) => a + b, 0) : 0;
-    const n = base + (mineIdx >= 0 && cell ? 1 : 0);
+    const n = base + (mineIdx >= 0 ? 1 : 0);
     return Array.from({ length: 5 }, (_, i) =>
-      n > 0 && cell ? Math.round(100 * ((cell[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / n) : 0);
+      n > 0 ? Math.round(100 * ((cell?.[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / n) : 0);
   },
   todayN(pid: string, id: string): number {
     if (!LIVE.enabled) {
@@ -620,7 +647,7 @@ export const PULSE = {
     // The denominator the card prints beside the share above, so it joins
     // the same way — a crowd stated as "of 4" while the share was worked
     // out over five would be the same wrong number twice.
-    const pendN = LIVE.pulsePending && LIVE.pulsePending(pid) != null ? 1 : 0;
+    const pendN = pendingIdx(pid, id) >= 0 ? 1 : 0;
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     // No document at all is still zero, not one: the card's "first answer
     // today" arm is about an absent reading, and a pending answer with
