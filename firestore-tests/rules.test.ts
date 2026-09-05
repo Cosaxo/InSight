@@ -1689,9 +1689,39 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     });
     await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat", surface: "test" })));
     await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat" })));
-    // a vote question never accepts an entity answer
+    // A VOTE QUESTION NEVER ACCEPTS AN ENTITY ANSWER — and until now this
+    // pair proved nothing about that. Both writes claim `surface: "daily"`
+    // against `daily-000`, so `isCatalogAnswer`'s own
+    // `request.resource.data.surface == "feed"` refuses them several
+    // clauses before the `type == "catalog"` check is ever reached. The
+    // emulator's rule-coverage report is what says so out loud: across all
+    // 179 tests that expression evaluated true 5 times and false ZERO
+    // times, and deleting it outright left the whole suite green.
+    //
+    // Which matters, because the clause is the only thing standing between
+    // an entity-keyed answer and every active feed question — the
+    // aggregate poisoning this case's own comment names. So the surface
+    // and the question now agree, and the TYPE is the single thing left to
+    // refuse it.
     await seedQuestion();
     await assertFails(setDoc(ref(QID), { qid: QID, surface: "daily", entity: 1,
+      answeredAt: serverTimestamp(), anchors: {} }));
+    const VQ = "feed-vote0";
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", VQ), {
+        surface: "feed", seq: 2, type: "vote",
+        prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+      });
+    });
+    // Every earlier clause satisfied: the key set, `surface == "feed"`,
+    // qid agreement, an int entity inside the bound, the question active
+    // and itself on the feed. Only `type` refuses.
+    await assertFails(setDoc(ref(VQ), { qid: VQ, surface: "feed", entity: 777,
+      answeredAt: serverTimestamp(), anchors: {} }));
+    // The positive control on the same question, so the assertion above is
+    // about the entity shape and not about `feed-vote0` being unwritable:
+    // an ordinary optionIdx answer to it succeeds.
+    await assertSucceeds(setDoc(ref(VQ), { qid: VQ, surface: "feed", optionIdx: 0,
       answeredAt: serverTimestamp(), anchors: {} }));
   });
 
