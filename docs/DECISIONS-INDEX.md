@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 377 lines instead of
-37,892. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 378 lines instead of
+38,001. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -308,7 +308,7 @@ detect it.
 | **D286** | [An account switch cannot delete the outgoing account's presence cell](DECISIONS.md#d286--an-account-switch-cannot-delete-the-outgoing-accounts-presence-cell) | D326 | 29002 |
 | **D287** | [The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners](DECISIONS.md#d287--the-2026-08-24-visual-passes-ship-the-paid-door-and-the-two-crowd-scorecards-wait-on-their-owners) | D362 (+2) | 29065 |
 | **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D313 (+1) | 29147 |
-| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D361 (+6) | 29202 |
+| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D364 (+7) | 29202 |
 | **D290** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d290--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D356 (+5) | 29270 |
 |  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d290-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 29487 |
 |  | ↳ *amendment 2026-08-25* — [The other two fold arms, so the thesis stops being one third true](DECISIONS.md#d290-amendment-2026-08-25--the-other-two-fold-arms-so-the-thesis-stops-being-one-third-true) | — | 29818 |
@@ -391,3 +391,4 @@ detect it.
 | **D361** | [The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward](DECISIONS.md#d361--the-owners-own-upload-moves-the-vision-the-2026-09-02-standalone-is-what-the-tree-is-built-toward) | D362 | 37590 |
 | **D362** | [The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot](DECISIONS.md#d362--the-2026-09-02-design-is-built-one-instrument-for-the-three-lenses-a-voice-for-the-questions-and-the-split-ballot) | — | 37670 |
 | **D363** | [The 2026-09-04 night review: two shifts merged as one tree — 45 commits kept, one comment corrected, and the night that had nothing to collide with](DECISIONS.md#d363--the-2026-09-04-night-review-two-shifts-merged-as-one-tree--45-commits-kept-one-comment-corrected-and-the-night-that-had-nothing-to-collide-with) | — | 37759 |
+| **D364** | [Axiom theory restarts as a paper series on `main`: the orphan branch is discarded, the theory is research under `research/`, and its form is a gate](DECISIONS.md#d364--axiom-theory-restarts-as-a-paper-series-on-main-the-orphan-branch-is-discarded-the-theory-is-research-under-research-and-its-form-is-a-gate) | — | 37893 |

@@ -37889,3 +37889,112 @@ so an unbounded field is a download every reader of that person pays
 for), and a 120-char cap on a circle take's `qid`, which the world branch
 four lines up already had. Neither touches the three labelled denies.
 Verified: nothing in the tree writes either stamp field.
+
+## D364 · Axiom theory restarts as a paper series on `main`: the orphan branch is discarded, the theory is research under `research/`, and its form is a gate
+
+**2026-09-05.** **Status:** binding for the shape it sets — where axiom
+theory is written, what a paper is, what holds it to that, and how one
+reaches the product. Written on `claude/axiom-theory-restart-plan-0y5xsl`.
+**This number is already claimed by two open pull requests** (#394's
+evaluation of the theory branch and #395's readiness audit), because
+`main` mints numbers while branches are open and `check:docs` forbids a
+hole in the sequence; D289's collision pattern applies and the shepherd
+renumbers whichever merges later.
+
+### What the owner ruled, in their words
+
+- On the twelve lanes, 2026-09-04: *"lets disable the axiom theory lanes
+  they have not work as i hoped."* This session opened on the instruction
+  that the orphan `axiom-theory` branch is being discarded, and on the
+  diagnosis in PR #394's `AXIOM-THEORY.md` § The drift: 129 claims in ten
+  days, 61% of the seed claims reasoning about a perfect form and 14% of
+  everything added later, zero worked cross-axis scenarios, sixteen
+  approved bridge requests and two deliveries, ~$733 metered.
+- On the form, 2026-09-05: *"more like a research paper where the theory
+  about how the different axiom work together to make each other
+  stronger is explored and their potential."*
+- On the subject: *"even more theorising what the best way to structure
+  the data to for getting the best connections, pattern theory for
+  finding the patterns as efficiently as possible, using this data for
+  useful things… the goal is frontier research."*
+- On landing it: *"you can start creating the docs on github they should
+  be clearly marked theory research."*
+
+### What this builds
+
+- **`research/`**, a top-level directory marked in its README as theory
+  research and not the app, with the axiom paper series under
+  `research/axiom-theory/`: paper 0 (the joint model as the data
+  structure), paper 0a (the serving policy as the experiment) and paper 1
+  (measured ability meets the genome). Each paper is a research paper —
+  abstract, the problem as the world has it, each axis alone, the
+  crossing's mechanism, what becomes knowable, the return path to the
+  other axes, the conditions, the requirements scale generates, the
+  potential at full population, the open questions — with no citations
+  and no reference to the tree. Each was reviewed adversarially by a
+  separate session before landing, and the reviews' findings (the
+  residual absorbing a test's unreliability; secure aggregation buying
+  input privacy only; a deterministic serving rule destroying the overlap
+  that makes selection estimable; illness not being an intervention) are
+  in the papers as conditions rather than in this record as prose.
+- **`check:theory`** on the `ci` lint job: the papers' form — status
+  line, perfect-form sentence, abstract, two or more axes named,
+  conditions and potential sections, and none of the citation or
+  app-internal shapes that pulled the last attempt back to the tree. It
+  holds form and never truth; worth is the owner's read.
+- The map rows `check:docs` demands: `ORIENTATION.md` §3, its README
+  table and its gate table; a `README.md` map line.
+
+### The rule the plan had wrong, corrected here
+
+The 2026-09-05 plan for this restart said *"do not theorize the
+machinery."* The owner's direction the same day put the machinery in
+scope at its perfect form — how many-axis data should be structured for
+discovery, how patterns should be found under a fixed attention budget,
+and what the structure is for — as frontier research. What stays out of
+scope is what the last attempt did: the current database, the current
+fit, the current bank. The distinction is the perfect-form test, and it
+is what `check:theory`'s status line and sentence exist to hold.
+
+### How a paper reaches the product
+
+A paper's *what it would take* section is the build request. The
+owner's tick on the paper's row is the approval, in `MERGE-LIST.md`'s
+grammar. The axiom builder (`PROGRAM-RUNBOOK.md` § The axiom builder)
+decomposes a ticked paper into `WORKLIST.md` items tagged by account,
+`VISUAL-REQUESTS.md` rows where a surface is new, and `OWNER-LIST.md`
+rows for anything that is a decision; it reads `research/`, never a
+branch. The list workers build; the merge list and the shepherd merge.
+`AXIOMS.md`'s status word stays the licence for user-facing surfaces on
+the axes it marks explored. Nothing in the tree cites a paper.
+
+### What deliberately does not change here
+
+- The twelve Routines' state is the disable record's — the D364 on
+  `claude/disable-axiom-theory-lanes-ayxkjl`, also numbered D364, the
+  collision above; this record does not touch them and cannot see them
+  from this account.
+- The sixteen `worth-building` bridge verdicts are engineering by PR
+  #394's own grouping and are not carried as axiom work; any the owner
+  wants are ordinary worklist rows.
+- `AXIOMS.md`'s rows are the owner's edit and are untouched.
+- `docs/AXIOM-THEORY.md`'s text — which still describes the lanes as
+  live — is corrected by the two open PRs that already edit it; editing
+  it a third time here would manufacture a three-way conflict for a
+  sentence the shepherd will resolve once.
+- Nothing in the app moves. The axiom builder's contract still points at
+  the orphan branch and is re-pointed at `research/` in its own PR once
+  the owner ticks the first paper.
+
+### Why a gate and not a paragraph
+
+The last charter asked for cross-axis, perfect-form work from day one, in
+prose, and got none in 129 claims. Its evidence ladder's top rungs were
+"matches a paper" and "matches the app", so ambition was traded for
+standing run by run. The series has no ladder and no standing: a paper is
+filed or struck, and the only status change goes down. What can be held
+mechanically — the sentence, the sections, the absence of citation and
+tree shapes — is held by `check:theory`; what cannot — whether a paper is
+worth building toward — is the owner's five-minute read, and no rubric
+replaces it, because a rubric is a gradient and the last one rewarded
+exactly the wrong things.

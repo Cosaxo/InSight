@@ -159,6 +159,7 @@ monitoring/        Cloud Monitoring policies, put live by
                    (`npm run pulse` — MONITORING.md, D47)
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
+research/          theory research: the axiom paper series (not the app; nothing cites it)
 docs/              ORIENTATION is the index — every document, every gate,
                    every directory, one line each, and which docs describe
                    the app versus which describe a proposal. This line used

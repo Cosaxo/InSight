@@ -91,6 +91,7 @@ who decides:
 | `.github/workflows/` | `backend-checks.yml` is called by **both** `ci.yml` and `firebase-deploy.yml`, so what guards a PR guards production | `docs/DEPLOYMENT.md` |
 | `.github/scripts/` | `report_audit_issue.py` — the weekly dependency audit's issue writer. A file rather than an inline `run:` block, and hand-written rather than a third-party action: the workflow whose subject is supply-chain hygiene adds no SHA of its own to pin | `.github/workflows/security-audit.yml` |
 | `.claude/` | Committed Claude Code project settings: the permission allowlist that keeps the autonomous lanes' sessions from stalling on prompts. Hardening is by omission — no merge tools, no API file writes, no trigger mutation, and no `deny` list, because the file reaches every session in the repo | `docs/AXES-RUNBOOK.md` § the permission paragraph |
+| `research/` | **Theory research, not the app.** The axiom paper series under `research/axiom-theory/` — what each axis could become and what crossing it with another makes knowable, at full population, with no citations and no reference to the tree. Nothing here describes the app or is cited by it; `check:theory` holds the form and the owner's tick decides what reaches the product | `research/README.md` |
 
 ## 4 · The documents
 
@@ -179,6 +180,7 @@ than of a subject:
 | `content/README.md` | The question bank formats and how content reaches the seed |
 | `design/README.md` | The frozen prototype and its revisions |
 | `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
+| `research/README.md` | What theory research is and is not, the five rules a paper obeys and why each exists, the series index in reading order, and how a paper reaches the product through the owner's tick |
 
 ## 5 · The gates
 
@@ -216,6 +218,7 @@ everything else: the static gates, and where each one runs.
 | `check:calls` | deploy | The CALL rubric's two byte-identical copies (D194) **and** a dry run of every authored rubric — twice each, once shaped to come out true and once false. A rubric that can only resolve one way is not a prediction; a drifted copy makes the card contradict the grade it is printing |
 | `check:globals` | ci | The spec layer's shared-global wiring: dangling references, files `spec-index.js` forgot, undefined JSX tags, publications nothing reads, and (**rule 4**) a ratchet on remaining coupling that may only go down |
 | `check:docs` | ci | This page's maps, and that `DECISIONS-INDEX.md` is current |
+| `check:theory` | ci | The axiom papers' FORM under `research/axiom-theory/`: a status line, the perfect-form sentence, an abstract, two or more axes named, conditions and potential sections, and none of the shapes that pulled the first theory attempt back to the tree — a link, a DOI, a source path, a gate name, a decision number. Holds form, never truth: the owner's read decides worth |
 | `check:figures` | ci | Counts quoted in prose, held equal to the tree. Exists because a figure kept current by intention does not stay current |
 | `check:answer-shape` | ci | Every answer-creating write still carries `qid`, `answeredAt` and `anchors`, and the rebuild still reads them (D290). An answer without its anchors snapshot can never be re-cohorted — the profile is mutable, so the cohort it was cast in is gone |
 | `check:a11y` | ci | Accessibility, as a per-file ratchet, plus the four figures `src/v2/README.md` quotes about its own debt |

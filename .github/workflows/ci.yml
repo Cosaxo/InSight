@@ -183,6 +183,16 @@ jobs:
       # map says nothing about whether a rules fix is safe to deploy, and
       # nothing that cannot answer that question gets to block one.
       - run: npm run check:docs
+      # The axiom papers' FORM, never their truth: the status line, the
+      # perfect-form sentence, an abstract, two or more axes named, a
+      # conditions and a potential section, and none of the shapes that
+      # pulled the first theory attempt back to the tree — a link, a DOI,
+      # a source path, a gate name, a decision number. Twelve lanes drifted
+      # from the perfect form to the current app in ten days because
+      # nothing mechanical held the form (research/README.md). Docs-only,
+      # so the same placement rule as check:docs: here, never on
+      # backend-checks.yml.
+      - run: npm run check:theory
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # Near-duplicate questions across the banks (D63). Exact-dupe checks

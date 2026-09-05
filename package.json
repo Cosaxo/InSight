@@ -93,6 +93,7 @@
     "check:public-copy": "node scripts/check-public-copy.mjs",
     "check:data-inventory": "node scripts/check-data-inventory.mjs",
     "check:docs": "node scripts/doc-index.mjs",
+    "check:theory": "node scripts/check-theory.mjs",
     "build:screenshots": "node scripts/gen-screenshots.mjs",
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
