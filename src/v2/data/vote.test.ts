@@ -917,6 +917,53 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
   });
 });
 
+describe("votePulse() rolls back everything it set", () => {
+  // ADDED 2026-09-05 BY THE FIX ABOVE IT, which is the point.
+  //
+  // `votePulse` was the only vote path that did not mark its answer
+  // unfolded, so today's pulse crowd was read off a document written
+  // before you answered. Marking it fixed that — and made this path's
+  // hand-rolled catch incomplete, because there was now something in
+  // `unaggregated` for it to undo and it only deleted `votes`.
+  //
+  // Nothing else clears a pulse id. Both of the store's clears iterate
+  // AGGREGATE documents fetched through live.ts's own drains, and pulse
+  // aggregates are fetched by `data/pulse` instead — so a leak here is
+  // permanent for the session: `pulsePending` keeps answering, and the
+  // card keeps adding a vote nobody cast to an option nobody chose.
+  it("leaves no pending mark when the write is refused", async () => {
+    const LIVE = await bootLive();
+    h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
+
+    await LIVE.votePulse("pulse-pace", 3);
+    await flush();
+
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "a refused pulse write left its unfolded mark set, so the reveal counts an answer that does not exist",
+    ).toBeNull();
+    expect(LIVE.myVotes()).not.toHaveProperty("pulse-pace");
+  });
+
+  it("keeps the mark while the write is in flight — the control", async () => {
+    // Without this, "never mark anything" would satisfy the case above and
+    // put back the bug the mark was added to fix.
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+
+    void LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "the unfolded mark was not set, so the reveal reads a crowd written before this answer",
+    ).toBe(3);
+
+    d.resolve();
+    await flush();
+  });
+});
+
 describe("vote() optimistic path (inflight vs unaggregated)", () => {
   it("shows a pending vote in myVotes but NOT in confirmedVotes", async () => {
     const LIVE = await bootLive();

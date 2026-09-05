@@ -119,3 +119,57 @@ describe("the Map's cohort verdict states what it rests on", () => {
     expect(MapStats.cohortN(QID, "age", 2, 0)).toBe(6);
   });
 });
+
+// ── THE OTHER HALF OF THE SAME DEFECT, one component down in the same file ──
+//
+// The fix above reached `MTVerdict`, which is the ANSWER card's reading.
+// `MTAnchorCard` — the anchor card's match headline, the big "N% of your
+// answers match people your age" with a bar under it — computes its own
+// percentage from `MapStats.mode()` and never asks `cohortN` at all. Same
+// floorless `typicality()` underneath, same You stop, same crowd of one.
+//
+// `noCohort` in that component is `rows.some((r) => r.gmode == null)`, which
+// catches a cohort that is EMPTY. It cannot catch one that is THIN, because
+// a cell holding a single answer returns a perfectly good mode — normally
+// the reader's own vote, folded into the reader's own age cell.
+const anchorCard = (inCell) => {
+  installCell(inCell);
+  const Card = window.MTAnchorCard;
+  expect(Card, "MTAnchorCard is not published — this file lost its target").toBeTruthy();
+  const items = [{ id: "n1", qid: QID, aidx: 0, qtype: "binary", opts: ["Know", "Be known"], prompt: "Probe?", note: null, daily: true }];
+  const anchor = { id: "age", value: "25-34", hue: 200, label: "Age" };
+  const { container } = render(
+    <Card anchor={anchor} items={items} onPick={() => {}} anchors={[anchor]} onAnchor={null}></Card>,
+  );
+  return container.textContent || "";
+};
+
+describe("the Map's anchor card states what its match headline rests on", () => {
+  it("does not print a match percentage over a cohort of one", () => {
+    // Arithmetically 100%, and the 100 is the reader's own vote and nothing
+    // else. On the You stop this reads "100% of your answers match people
+    // your age" over a full-width bar, about nobody.
+    const text = anchorCard(1);
+    expect(text, "a crowd of one was presented as a match percentage").not.toMatch(/100% ?of your answers match/i);
+  });
+
+  it("still draws the headline once there is a cohort — the control", () => {
+    // Without this, "never draws a headline" would satisfy the case above
+    // and cost the anchor card its entire reading, which is worse.
+    const text = anchorCard(6);
+    expect(text, "the control lost the match headline entirely").toMatch(/of your answers match/i);
+    expect(text).toMatch(/100%/);
+  });
+
+  it("and it is the denominator that moves it, not the share", () => {
+    // Both cases draw a 100% reading off the same counts, same option, same
+    // anchor. Only the basis differs, so neither case can be passing on the
+    // percentage.
+    installCell(1);
+    expect(MapStats.mode(QID, "age", 2, 0)).toBe(0);
+    expect(MapStats.cohortN(QID, "age", 2, 0)).toBe(1);
+    installCell(6);
+    expect(MapStats.mode(QID, "age", 2, 0)).toBe(0);
+    expect(MapStats.cohortN(QID, "age", 2, 0)).toBe(6);
+  });
+});
