@@ -323,17 +323,38 @@ export const deleteAccount = onCall(
     // delete, which turns "too talkative" into an account that can never
     // finish deleting itself.
     try {
-      // The take ids are COLLECTED as they are deleted, because a flag is
-      // keyed by the take it names and once the take is gone nothing can
-      // find its flags again. Same paging as deleteQueryDocs, which cannot
-      // hand back what it removed.
-      const takeIds: string[] = [];
+      // FLAGS FIRST, THEN THE TAKES THEY NAME — per page.
+      //
+      // This collected the ids as it deleted, and swept their flags after
+      // the whole loop, on the reasoning that "once the take is gone
+      // nothing can find its flags again". True, and that is exactly the
+      // problem: it made the phase depend on state it had already
+      // destroyed. One transient failure anywhere after the loop, then the
+      // user's own retry, and the takes are gone, so the ids come back
+      // empty and their flags are unreachable forever — while the retry
+      // returns `ok` and deletes the auth user, so there is no third run.
+      // Verified against the real handler: the surviving document was a
+      // flag whose id contains the erased uid, in a collection with no TTL
+      // whose counts rank the moderation queue.
+      //
+      // Sweeping each page's flags while its takes still exist makes the
+      // phase resumable: at any failure point, whatever is left is still
+      // queryable by `authorUid`.
       for (;;) {
         const snap = await db.collection("v2_takes")
           .where("authorUid", "==", uid).limit(400).get();
         if (snap.empty) break;
+        const ids = snap.docs.map((d) => d.id);
+        // Chunked at ten because `in` is a bounded operator, and over ids
+        // rather than a prefix match, which Firestore has no way to
+        // express on a suffix.
+        for (let i = 0; i < ids.length; i += 10) {
+          await deleteQueryDocs(
+            db.collection("v2_flags").where("takeId", "in", ids.slice(i, i + 10)),
+          );
+        }
         const batch = db.batch();
-        snap.docs.forEach((d) => { takeIds.push(d.id); batch.delete(d.ref); });
+        snap.docs.forEach((d) => batch.delete(d.ref));
         await batch.commit();
         if (snap.docs.length < 400) break;
       }
@@ -352,14 +373,6 @@ export const deleteAccount = onCall(
       // forever. In the one collection whose stated posture is that erasure
       // takes "their takes and flags".
       await deleteQueryDocs(db.collection("v2_flags").where("target", "==", uid));
-      // Chunked at ten because `in` is a bounded operator, and over the ids
-      // just collected rather than a prefix match, which Firestore has no
-      // way to express on a suffix.
-      for (let i = 0; i < takeIds.length; i += 10) {
-        await deleteQueryDocs(
-          db.collection("v2_flags").where("takeId", "in", takeIds.slice(i, i + 10)),
-        );
-      }
       // The face, both halves (D178). The document is one delete; the
       // BYTES are the first thing this function has ever had to remove
       // from Storage, and the reason storage.rules could keep its retired
@@ -386,13 +399,24 @@ export const deleteAccount = onCall(
       // The mix cache next door needs no such sweep: it holds ranked type
       // NAMES and a count, nothing keyed by a uid.
       //
-      // Best-effort by construction, and that is honest rather than
-      // convenient: the cache is derived, expires on its own within
-      // minutes, and a failure here must not fail the phase that deletes
-      // the source of truth.
+      // Best-effort, and now actually so. That sentence stood here with
+      // nothing making it true: there is no inner try in this phase, so a
+      // failed delete of one derived cache document pushed the whole phase
+      // onto `failed` and refused the auth delete — exactly what the
+      // sentence says must not happen. Reordering the clears BEFORE the
+      // presence delete (below) would have made that worse, since the
+      // source of truth would then survive the failure too.
+      //
+      // The catch is what the comment always claimed: the cache is
+      // derived, it expires on its own within minutes, and losing one
+      // sweep of it must not keep an account alive.
+      // …and the same ordering rule, for the same reason: the room caches
+      // are found through the presence document's own cell, so they are
+      // cleared BEFORE it is deleted. Deleting first made the sweep
+      // unrepeatable — a retry read no cell and could never find the
+      // rosters again, leaving the erased uid listed in a room.
       const pres = await db.collection("v2_presence").doc(uid).get();
       const presCell = pres.get("cell");
-      await db.collection("v2_presence").doc(uid).delete();
       if (typeof presCell === "string" && presCell) {
         // NINE, not one. The cache is keyed by the CALLER's cell while its
         // roster is folded over that cell's whole 3x3 neighbourhood
@@ -409,11 +433,16 @@ export const deleteAccount = onCall(
         // the whole edge case handled by using it rather than deriving the
         // block here.
         const stale = presenceNeighbors(presCell);
-        await Promise.all(
-          (stale.length ? stale : [presCell])
-            .map((c) => db.collection("v2_presence_room").doc(c).delete()),
-        );
+        try {
+          await Promise.all(
+            (stale.length ? stale : [presCell])
+              .map((c) => db.collection("v2_presence_room").doc(c).delete()),
+          );
+        } catch (err) {
+          logger.warn("[deleteAccount] presence room cache sweep failed:", err);
+        }
       }
+      await db.collection("v2_presence").doc(uid).delete();
       // …and the queue's copy of the text, which the take's deletion does
       // not take with it. Must run AFTER the takes are gone — it identifies
       // its targets by their take being absent. See deleteOrphanedModQueue.
