@@ -550,6 +550,40 @@ const harnessFiles = readdirSync(join(root, "src/v2/test"))
     readFileSync(join(root, "src/v2/test", f), "utf8"),
   )).length;
 
+// The same list split the way the sentence splits it. CLAUDE.md gives the
+// total, then "five of the six smoke files" and "N that go PAST first
+// paint" — three numbers that have to add up, and the third was the one
+// nothing held: the gate forced the total from nine to ten and grew the
+// list from four items to five, and the word "four" beside it never
+// moved. 5 + 4 = 9 against a stated total of 10, in the paragraph about
+// what mounts the whole App.
+const smokeMountFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /^smoke-.*\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+const pastFirstPaintFiles = harnessFiles - smokeMountFiles;
+
+// How many spec modules `loadWorldFeed()` actually awaits. CLAUDE.md said
+// "four" from the day it was written — exact then, and four modules'
+// worth of stale by the time the learn stack, pick-data, world-catalogs
+// and world-subtopics joined the loader. `spec-index.js`'s own comment
+// corrects itself in place; the prose never got the same edit, which is
+// the documentation error this repo keeps re-committing (D39).
+const worldFeedDeferred = (() => {
+  const src = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
+  const a = src.indexOf("export const loadWorldFeed");
+  if (a === -1) {
+    throw new Error(
+      "check-figures: no loadWorldFeed in spec-index.js — the loader was renamed "
+      + "or reshaped. Fix this derivation rather than dropping the figure.",
+    );
+  }
+  const b = src.indexOf("\n});", a);
+  const body = src.slice(a, b === -1 ? undefined : b);
+  return [...body.matchAll(/import\('\.\/spec\//g)].length;
+})();
+
 // How many notifications the product actually SENDS, off v2social.ts's own
 // call sites. web/privacy.html promises the token is "only used for" them
 // and names them, and that sentence said ONE for the nine days after D236
@@ -762,6 +796,20 @@ const FIGURES = [
     re: /five of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
     fix: (n) => `"five of the **${n}** smoke-*.test.jsx"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites that mount PAST first paint (§2) — the third number in the sum",
+    re: /and (\w+) that go PAST first paint/,
+    actual: word(pastFirstPaintFiles),
+    fix: (n) => `"and ${n} that go PAST first paint"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "spec modules loadWorldFeed() defers (§1)",
+    re: /The feed's (\w+) are deferred past/,
+    actual: word(worldFeedDeferred),
+    fix: (n) => `"The feed's ${n} are deferred past first paint"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",
