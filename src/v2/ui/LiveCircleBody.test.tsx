@@ -28,6 +28,11 @@ const LIVE = vi.hoisted(() => ({
   loadCircle: async () => {},
   circle: () => [] as Array<Record<string, unknown>> | null,
   circleLoading: () => false as boolean,
+  // The follow list, which is the circle's SIZE — the fold below drops
+  // anyone whose answers read was refused, so `circle()` is the survivors
+  // and this is who you actually follow. Null is "no follow cache", where
+  // the header falls back to what it can see.
+  follows: () => null as string[] | null,
   budgetPaused: false as boolean,
   aggregated: () => [] as Array<Record<string, unknown>>,
   aggFor: () => null,
@@ -48,9 +53,17 @@ const { default: LiveCircleBody } = await import("./LiveCircleBody");
 // @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
 const { IS_TESTS } = await import("../spec/test-definitions.js");
 
+// A member as the fold hands one over — only the fields the header and
+// the field read. Local to these cases: the richer helper further down
+// belongs to the tab-row block and carries its own answers.
+const placed = (uid: string) => ({
+  uid, name: uid, mutual: false, like: { pct: 50, same: 5, shared: 10 }, answers: {},
+});
+
 beforeEach(() => {
   LIVE.circle = () => [];
   LIVE.circleLoading = () => false;
+  LIVE.follows = () => null;
   LIVE.budgetPaused = false;
   LIVE.testFeedItems = () => [];
   LIVE.myTestResults = () => ({});
@@ -58,6 +71,46 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => {
+  it("counts the people you FOLLOW, not the ones whose answers could be read", () => {
+    // data/circle.ts drops a member whose answers read was refused
+    // (`if (!answers) return`). The header drew the survivors, so a circle
+    // of four with two refusals read "2 people" — a number with no basis
+    // and no hint that anything was missing.
+    LIVE.circle = () => [placed("u_a"), placed("u_b")];
+    LIVE.follows = () => ["u_a", "u_b", "u_c", "u_d"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText("4 people")).toBeTruthy();
+    expect(screen.queryByText("2 people"), "the survivors drawn as the size").toBeNull();
+    expect(screen.getByText(/2 placed · 2 couldn’t be read just now/)).toBeTruthy();
+  });
+
+  it("says the reads failed rather than 'Nobody yet' over people you follow", () => {
+    // Every answers read refused: the fold returns no members at all, and
+    // the header told someone with four follows that they have none. The
+    // store's own note says rebuilding the follow cache from the survivors
+    // "turned a refused read into an unfollow"; this was the same mistake
+    // one layer up, in the sentence.
+    LIVE.circle = () => [];
+    LIVE.follows = () => ["u_a", "u_b", "u_c", "u_d"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText("4 people")).toBeTruthy();
+    expect(screen.queryByText(/Nobody yet/)).toBeNull();
+    expect(screen.getByText(/Couldn’t read anyone’s answers just now/)).toBeTruthy();
+  });
+
+  it("still says Nobody yet when you really follow nobody", () => {
+    // THE CONTROL. A header that always printed the follow count would
+    // pass both cases above and then tell an empty circle it has people in
+    // it; one that always said "couldn't read" would tell a new account
+    // the app is broken.
+    LIVE.circle = () => [];
+    LIVE.follows = () => [];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/Nobody yet/)).toBeTruthy();
+    expect(screen.queryByText(/couldn’t be read/)).toBeNull();
+    expect(screen.queryByText(/Couldn’t read anyone/)).toBeNull();
+  });
+
   it("draws the rings and you when you follow nobody", () => {
     const { container } = render(<LiveCircleBody />);
     // The drawing is the claim. Before D172 this arm replaced it with a

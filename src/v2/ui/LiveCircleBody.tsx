@@ -159,6 +159,15 @@ function LiveCircleBody() {
   // does, because it is the only place that turns the absence into a claim.
   const mutualsKnown = members.every((m) => m.mutual !== null);
 
+  // The circle's SIZE, and how much of it this render could actually read.
+  // `follows` is set by loadCircle itself from the same `following` list
+  // the fold walked, so the two are consistent within a load; it falls
+  // back to the members it has where no follow cache exists at all, which
+  // is the pre-D149 shape and can only under-count, never invent.
+  const following = LIVE.follows();
+  const size = following ? following.length : members.length;
+  const unread = Math.max(0, size - members.length);
+
   // The "so what" line under the field (2026-08-24): the picture's two
   // extremes, said once. Names only — the ranking is the pct the People
   // tab lists per member with its shared-answer basis, so the sentence
@@ -253,11 +262,33 @@ function LiveCircleBody() {
         <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 2 }}>
           {/* An empty circle keeps its header rather than being replaced by
               one — the stop has a name and a size, and "nobody yet" is a
-              true size. */}
-          {members.length
-            ? <>{members.length} {members.length === 1 ? "person" : "people"}</>
+              true size.
+
+              THE SIZE IS WHO YOU FOLLOW, NOT WHO COULD BE READ. This drew
+              `members.length`, and the fold drops anyone whose answers
+              read was REFUSED (data/circle.ts: `if (!answers) return`) —
+              so a circle of nine with four refusals read "5 people", and
+              one where every read failed read "Nobody yet" over people
+              you follow. The store already keeps the two apart for
+              exactly this reason: `loadCircle` sets the follow cache from
+              `following` and not from the survivors, with a note saying
+              that rebuilding it from `members` "turned a refused read
+              into an unfollow". The header was the last place still
+              doing it. */}
+          {size
+            ? <>{size} {size === 1 ? "person" : "people"}</>
             : <>Nobody yet</>}
         </div>
+        {unread > 0 && (
+          <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
+            {/* Said, not silently subtracted: the picture below is missing
+                these people, and a reader counting the dots against the
+                header deserves the reason rather than a discrepancy. */}
+            {members.length
+              ? <>{members.length} placed · {unread} couldn&rsquo;t be read just now</>
+              : <>Couldn&rsquo;t read anyone&rsquo;s answers just now — it retries next time you open this stop.</>}
+          </div>
+        )}
         {!!members.length && (
           <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
             {mutuals > 0
