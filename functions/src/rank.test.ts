@@ -102,6 +102,17 @@ describe("computeRank", () => {
     expect(isLandslide(agg(RANK_DEAD_MIN - 1, { "0": RANK_DEAD_MIN - 1 }))).toBe(false);
     expect(isLandslide(agg(RANK_DEAD_MIN, { "0": RANK_DEAD_MIN }))).toBe(true);
     expect(isLandslide(undefined)).toBe(false);
+    // THE FLOOR ITSELF, stated relative to nothing. The two lines above
+    // both derive their fixtures FROM the constant, so the pin moves with
+    // it: measured, 20 -> 2 leaves the whole functions suite green, and at
+    // 2 a question with two answers agreeing reads as dead and sinks to
+    // the tail of its topic in the published order — which is the exact
+    // "three people agreed so far" reading this case exists to prevent.
+    // The share half of the same predicate is pinned literally in the case
+    // above, under a comment saying a threshold nothing pins is one that
+    // drifts. This is the other half.
+    expect(RANK_DEAD_MIN,
+      "the volume floor moved — re-read rank.ts's reasoning and change this line deliberately").toBe(20);
   });
 
   it("excludes the killed and the out-of-window, both boundaries inclusive", () => {
@@ -111,9 +122,21 @@ describe("computeRank", () => {
       q("feed-closed", "feed", "now", 2, { from: "2026-08-01", until: "2026-08-25" }),
       q("feed-closes-today", "feed", "now", 3, { from: "2026-08-01", until: TODAY }),
       q("feed-future", "feed", "now", 4, { from: "2026-08-27" }),
+      // THE OTHER BOUNDARY, which this case has always been named for and
+      // never sent. `until: TODAY` above pins `>=`; nothing pinned `<=`,
+      // so it could be narrowed to `<` with the whole suite green —
+      // measured. Under that, a question is missing from the published
+      // order for the whole of its first day.
+      //
+      // Who that is: measured on the compiled bank, thirteen feed
+      // questions carry `from`, and they are exactly D231's current-events
+      // lane. One of them runs for three days, so a third of its life
+      // would be spent invisible — silently, because the order publishes
+      // fine and simply does not contain it.
+      q("feed-opens-today", "feed", "now", 5, { from: TODAY }),
     ];
     const { feed } = computeRank(bank, new Map(), TODAY);
-    expect(feed.topics.now.qids).toEqual(["feed-live", "feed-closes-today"]);
+    expect(feed.topics.now.qids).toEqual(["feed-live", "feed-closes-today", "feed-opens-today"]);
   });
 
   it("keeps surfaces apart and ranks only feed and learn", () => {
@@ -127,6 +150,52 @@ describe("computeRank", () => {
     expect(Object.keys(out).sort()).toEqual(["feed", "learn"]);
     expect(out.feed.topics.food.qids).toEqual(["feed-a"]);
     expect(out.learn.topics.cell.qids).toEqual(["learn-cell1"]);
+  });
+
+  it("counts a straddler on every shelf it can be met through, not just its home", () => {
+    // The defect this exists for: the topic sheet used to count the
+    // device's PAGE, so a fresh install read "Dilemmas · 1 question"
+    // over a bank of 26. The count it needs is membership, and `qids`
+    // is home placement — so `carry` has to differ from `qids.length`
+    // here or the sheet is back to under-reporting straddlers.
+    const bank = [
+      q("feed-a", "feed", "food", 0),
+      q("feed-b", "feed", "food", 1, { also: ["tech"] }),
+      q("feed-c", "feed", "tech", 2),
+    ];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.food.qids).toEqual(["feed-a", "feed-b"]);
+    expect(feed.topics.food.carry).toBe(2);
+    // tech pages one and carries two — the number the sheet draws.
+    expect(feed.topics.tech.qids).toEqual(["feed-c"]);
+    expect(feed.topics.tech.carry).toBe(2);
+  });
+
+  it("gives an also-only topic an entry that pages nothing and counts honestly", () => {
+    // No question calls `movies` home, so the home walk never makes it a
+    // key — and a reader who filters on membership can still meet one
+    // there. An absent key would draw the shelf as empty.
+    const bank = [q("feed-a", "feed", "food", 0, { also: ["movies"] })];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.movies).toEqual({ qids: [], total: 0, carry: 1 });
+  });
+
+  it("does not double-count a question that names its own home in also", () => {
+    const bank = [q("feed-a", "feed", "food", 0, { also: ["food", "tech"] })];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.food.carry).toBe(1);
+    expect(feed.topics.tech.carry).toBe(1);
+  });
+
+  it("counts carry over the SERVED roster — a killed or out-of-window question is on no shelf", () => {
+    const bank = [
+      q("feed-live", "feed", "food", 0, { also: ["tech"] }),
+      q("feed-dead", "feed", "food", 1, { active: false, also: ["tech"] }),
+      q("feed-later", "feed", "food", 2, { from: "2099-01-01", also: ["tech"] }),
+    ];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.food.carry).toBe(1);
+    expect(feed.topics.tech.carry).toBe(1);
   });
 
   it("files a topic-less entry under a name a client can ask for", () => {
@@ -164,7 +233,7 @@ describe("runBankRank", () => {
     expect(put.map((p) => p.surface).sort()).toEqual(["feed", "learn"]);
     const feed = put.find((p) => p.surface === "feed")!.doc;
     expect(feed.day).toBe("2026-08-26");
-    expect(feed.topics.food).toEqual({ qids: ["feed-a"], total: 7 });
+    expect(feed.topics.food).toEqual({ qids: ["feed-a"], total: 7, carry: 1 });
     expect(summary).toEqual({ surfaces: 2, topics: 2, ranked: 2 });
   });
 });

@@ -4,7 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import LIVE from '../data/live.ts';
-import { LEARN_RATE } from './learn-data.js';
+import { LEARN_COUNTS, LEARN_RATE } from './learn-data.js';
 import { LEARN } from './learn-progress.js';
 import { LMStreak } from './learn-bits.jsx';
 
@@ -35,7 +35,16 @@ export function MTLearnCard({ node }) {
   // Three states behind one missing number, and only two had copy. A
   // read still in the air is not a fact about the card — see LEARN_RATE.
   const loading = rate.src === 'loading';
-  const none = rate.pct == null && !loading;
+  // A SINGLE FIRST TRY IS NOT A CROWD, and on this card it is YOUR OWN: a
+  // learn card only reaches the Map once you have mastered it, and
+  // LEARN_COUNTS folds in your own pending answer. So "100% of people get
+  // this right" was one person, about themselves, in the sentence this
+  // card exists to print. The feed's reveal footer already refuses at this
+  // exact number; these consumers came in at D133 and never got that
+  // guard. Folded into `none`, whose copy — "Nobody else has answered this
+  // one yet." — is already the true sentence here.
+  const thin = rate.src === 'measured' && ((LEARN_COUNTS(card) || {}).total || 0) < 2;
+  const none = (rate.pct == null || thin) && !loading;
   return (
     <div style={{ '--hue': s ? s.hue : 250 }}>
       <div className="mmt-kicker"><span className="mmt-dot"></span>{(s ? s.label + ' \u00b7 ' : '') + (f ? f.label : '')}</div>

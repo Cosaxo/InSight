@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   845 questions land in `v2_questions`. Re-running is safe (idempotent,
+   847 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 845-read
+   alone, so a reseed no longer costs every returning device a 847-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -240,15 +240,34 @@ Both apps must be registered under `com.cosaxo.insight`:
   account opens as an organization**, backed by an ENK and a D-U-N-S.
   Two stores, two answers.
 
-  **Superseded on timing by [D42](DECISIONS.md) (2026-08-04): Play is
-  deferred and InSight launches on iOS alone.** D41's answer is not
-  reversed, it is conditional — organization is still the right account
-  type *if Play is opened before there is an installed base*. After one,
-  the 12×14 gate may be satisfiable by asking existing users, because the
-  two routes' costs move in opposite directions: the ENK chain costs the
-  same whenever taken, while recruiting twelve installed testers is brutal
-  cold and easy with an audience. So deferring may retire D41 unused
-  rather than merely postponing it. Nothing below about Apple changes.
+  **Deferred on timing by [D42](DECISIONS.md) (2026-08-04) — and
+  UN-DEFERRED by [D345](DECISIONS.md) (2026-09-01), which is the state
+  today.** D42 never reversed D41, it made it conditional: organization is
+  the right account type *if Play is opened before there is an installed
+  base*, and after one the 12×14 gate may be satisfiable by asking
+  existing users, because the two routes' costs move in opposite
+  directions — the ENK chain costs the same whenever taken, while
+  recruiting twelve installed testers is brutal cold and easy with an
+  audience.
+
+  **The owner took the before-an-installed-base branch** (*"yes, do both
+  and i will go for a ENK"*), which is the branch D41 was written for, so
+  **D41 stands in full and needs no re-deriving**. Two of its figures moved
+  in this choice's favour: the gate is 12 testers rather than the 20 D41
+  launched at, and tester *engagement* is now checked as well as count.
+  D345 also built the two code items that blocked any Android artifact —
+  release signing and `play-release.yml` — so Play is work rather than
+  backlog. The one thing still unverified is the one that costs money:
+  whether Google's organization verification accepts an
+  Enhetsregisteret-only ENK or wants Foretaksregisteret (~3,000 kr); check
+  it in the Play Console account-type flow before paying for a D-U-N-S
+  expedite. Nothing here about Apple changes.
+
+  **This paragraph said "iOS alone" for three days after it stopped being
+  true**, and this file is the canonical one — `LAUNCH-RUNBOOK.md` defers
+  to it. D345 named neither. No gate reads whether a sentence is still
+  true, which is `docs/DOC-SWEEP.md`'s subject and the reason that lane
+  exists.
 
   Registering the ENK does not change the values above — an ENK is not a
   separate legal person, so the operator is still Olaf Taule. **If it is

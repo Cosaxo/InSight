@@ -874,6 +874,33 @@ if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists()
   if (!(lateRead.get("members") || []).includes(uid))
     fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
   ok("a joiner reads a reveal from before they joined, and it still records who was there");
+  // …and it names NOBODY it does not list as having been there.
+  //
+  // This fixture is the leak's exact shape and had been sitting here
+  // unasserted: the latecomer joined after OTHERDAY ended and never
+  // played, so `revealMembersFor` drops them from `members` — while the
+  // `names` map was built over the group's whole roster and named them
+  // anyway. Leave the circle after that and `deleteAccount`'s
+  // membership-independent sweep, which walks `members`, cannot reach the
+  // name; it stays in a document every signed-in user may read (D98's
+  // read rule), against what web/privacy.html promises in writing.
+  //
+  // Asserted as an INVARIANT of the document rather than by naming the
+  // latecomer, because the guarantee is about the pair of fields and not
+  // about this fixture: any future writer that puts a name in without
+  // putting the person in `members` fails here.
+  {
+    const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
+    const names = lateRead.get("names") || {};
+    const listed = lateRead.get("members") || [];
+    const stray = Object.keys(names).filter((u) => !listed.includes(u));
+    if (stray.length)
+      fail("the reveal names people it does not record as there: " + JSON.stringify(stray)
+        + " — members " + JSON.stringify(listed));
+    if (!Object.keys(names).length)
+      fail("the reveal named nobody at all — the assertion above would pass on an empty map");
+    ok("the reveal names only the people it records as having been there");
+  }
 }
 await expectDenied("member cannot answer a day already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
@@ -910,18 +937,41 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
   updateDoc(doc(db, "v2_users", uid, "answers", LQ), {
     optionIdx: 0, editedAt: serverTimestamp(),
   }));
+// 60 × 500 ms, matching the FIRST wait in this file rather than the warm
+// ones — raised from 40 after the feed lane counted five timeouts here.
+//
+// Why this poll is not the warm case the comment at the top describes: the
+// learn write is the only fold in the suite that runs the answer-key and
+// logic-scoring arm as well as the ledger, and it lands after the deny
+// block above, whose three refusals invoke no function at all. So this is
+// a second first-delivery window under the heaviest per-answer work in
+// the file, not the steady state 20 × 400 ms is plenty for.
+//
+// Raised rather than retried, on that comment's own argument: a retry
+// loop around a poll is still a poll with a longer ceiling, only harder
+// to read — and the cost of the longer ceiling is zero on every run that
+// does not need it, because the loop breaks the moment the document
+// appears. What a longer ceiling buys is that the message below stops
+// lying: a timeout here prints "the trigger did not fire", which is the
+// most misleading sentence this file can produce.
+// One constant, because the ceiling was written twice — the loop bound and
+// the failure message's own `40 * 500` — and a message that quotes a number
+// the loop no longer uses is this repo's most-repeated documentation error
+// pointed at a test.
+const LEARN_TRIES = 60;
+const LEARN_EVERY = 500;
 let lpub = null;
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < LEARN_TRIES; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
   if (snap.exists()) { lpub = snap.data(); break; }
-  await new Promise((r) => setTimeout(r, 500));
+  await new Promise((r) => setTimeout(r, LEARN_EVERY));
 }
 // Two failures, two messages — the same split the world-question check at
 // the top of this file already makes. Collapsed into one, a TIMEOUT here
 // reports itself as a counts mismatch on null, which reads as a privacy
 // regression and sends the next person hunting for one. It cost exactly
 // that detour on 2026-08-05.
-if (!lpub) fail(`learn public agg never appeared after ${40 * 500}ms — the trigger did not fire, or did not finish in time`);
+if (!lpub) fail(`learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms — the trigger did not fire, or did not finish in time`);
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
 if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)

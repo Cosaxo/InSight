@@ -242,7 +242,7 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
           </div>
         ) : questions.length === 0 && adRows.length === 0 && subsRows.length === 0 ? (
           <div className="card" style={{ marginTop: 16, padding: "22px 18px", textAlign: "center", fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-            {`Nothing bought from this account yet. The door is “Ask a question” — one card in ${SPONSOR_EVERY} is paid.`}
+            {`Nothing bought from this account yet. A bought question takes one card in ${SPONSOR_EVERY} in the feed, and every one says PAID.`}
           </div>
         ) : (
           <>

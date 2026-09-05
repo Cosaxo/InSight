@@ -343,17 +343,41 @@ export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
   const rows = items.map((node) => {
     const n = mtNOpts(node);
     const gmode = MapStats.mode(node.qid, gkey, n, node.aidx);
-    return { node, gmode, match: gmode === node.aidx };
+    // A COHORT OF ONE IS NOT A COHORT, and this headline had no floor.
+    // `MTVerdict` above got one at D146 — `typicality()` has none of its
+    // own, so a cell holding a single answer returns a perfectly good mode
+    // and the answer is normally YOUR OWN: a vote is folded with its
+    // anchors snapshot, so it lands in your own age cell. That read "100%
+    // of your answers match people your age", full-width bar, on the You
+    // stop — the one Mirror stop wearing no Preview tag — about nobody.
+    //
+    // `noCohort` below could not catch it: it asks whether the cohort is
+    // EMPTY, and a thin one is not empty. So a thin row is folded in here
+    // instead, as exactly what it is — not measured — which is the same
+    // thing a null gmode already means one line down. `cohortN` is null in
+    // demo mode, where the numbers are invented and labelled elsewhere, so
+    // the demo keeps the wording it had.
+    const cn = MapStats.cohortN ? MapStats.cohortN(node.qid, gkey, n, node.aidx) : null;
+    const thin = cn != null && cn < 2;
+    return { node, gmode: thin ? null : gmode, match: !thin && gmode === node.aidx };
   });
   // Live mode: MapStats refuses (D72), so there is no group mode to match
   // against. Everything downstream of `rows` has to go together — a null
   // gmode is not "you differ", it is "nobody has been counted". Left alone
   // the arithmetic reads 0% and files every answer under "where you differ",
   // which is the same fabrication with a worse number.
-  const noCohort = rows.some((r) => r.gmode == null);
-  const same = noCohort ? [] : rows.filter((r) => r.match);
-  const diffs = noCohort ? [] : rows.filter((r) => !r.match);
-  const pct = rows.length ? Math.round((same.length / rows.length) * 100) : 0;
+  //
+  // Counted over the MEASURED rows rather than all of them, and the
+  // no-cohort case is now "none of them is measured" rather than "any of
+  // them is not". Equivalent wherever it used to fire — D72's refusal is
+  // per anchor and this card is one anchor, so the rows were always
+  // unmeasured together — and it is what keeps one thin row from deleting
+  // a reading the other rows have honestly earned.
+  const measured = rows.filter((r) => r.gmode != null);
+  const noCohort = !measured.length;
+  const same = measured.filter((r) => r.match);
+  const diffs = measured.filter((r) => !r.match);
+  const pct = measured.length ? Math.round((same.length / measured.length) * 100) : 0;
   const [showSame, setShowSame] = React.useState(false);
   const T = IS_TEST_RESULTS[anchor.id];
   return (

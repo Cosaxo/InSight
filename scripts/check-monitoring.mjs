@@ -148,6 +148,13 @@ const metricNames = [...applySrc.matchAll(/name:\s*"([\w]+)"/g)].map((m) => m[1]
 //     adds a file starts lying at the moment somebody is adding a file.
 //
 // So: named-or-shaped in, everything else out. engagement.json is neither.
+// The machine-written artifacts this directory holds. They are gitignored,
+// rebuilt by the console, and the one thing here likely to be caught
+// mid-write — which is the whole reason unparseable JSON is tolerated at
+// all. Naming them keeps that tolerance to its stated subject.
+const MACHINE_WRITTEN = new Set(["pulse.json"]);
+const unreadable = [];
+
 const looksLikePolicy = (f) => {
   if (!f.endsWith(".json")) return false;
   if (listedPolicies.includes(`monitoring/${f}`)) return true;
@@ -155,10 +162,37 @@ const looksLikePolicy = (f) => {
   // A half-written artifact is not a policy, and must not take the gate
   // down either — monitoring/pulse.json is machine-written and gitignored,
   // so it is the file here most likely to be caught mid-write.
-  try { p = JSON.parse(read(`monitoring/${f}`)); } catch { return false; }
-  return typeof p.displayName === "string" || Array.isArray(p.conditions);
+  //
+  // But "unparseable" was being read as "not a policy", so a committed
+  // file that is broken JSON — or valid JSON of an unexpected shape —
+  // entered no set at all and NO rule saw it, including the one about a
+  // committed policy nobody applies. Measured with a payload carrying the
+  // very `notificationRateLimit` that rule 6 is about: the gate printed
+  // OK. Only the mid-write case is tolerated now; anything else
+  // unreadable is reported below.
+  try { p = JSON.parse(read(`monitoring/${f}`)); } catch {
+    if (!MACHINE_WRITTEN.has(f)) unreadable.push(`${f} (not valid JSON)`);
+    return false;
+  }
+  if (typeof p.displayName === "string" || Array.isArray(p.conditions)) return true;
+  // Valid JSON that is not policy-shaped is usually a data trail —
+  // engagement.json is one, and the note above says so. What is NOT fine is
+  // a file carrying alert-policy machinery while failing to be classified
+  // as a policy: `alertStrategy` is rule 6's whole subject, so such a file
+  // slipping into no set at all is the hole, not the tolerance.
+  if (p && typeof p === "object" && ("alertStrategy" in p || "notificationChannels" in p)) {
+    unreadable.push(`${f} (carries alert-policy fields but no displayName or conditions)`);
+  }
+  return false;
 };
 const onDisk = readdirSync(join(root, "monitoring")).filter(looksLikePolicy).sort();
+for (const f of unreadable) {
+  fail(
+    `monitoring/${f} entered no rule at all — not classified as a policy and `
+    + "not a known machine-written artifact. Give it a displayName or "
+    + "conditions, list it in apply-monitoring.mjs, or delete it.",
+  );
+}
 
 const metricFilters = Object.fromEntries(
   [...applySrc.matchAll(/name:\s*"([\w]+)",[\s\S]{0,400}?filter:\s*(['"])([\s\S]*?)\2/g)]

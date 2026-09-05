@@ -158,15 +158,34 @@ the live figures: `node scripts/farm-budget.mjs`,
 D161–D164 are the frame; [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is the
 ordered list. Open, in its order:
 
-- **The core/tail enforcement half** (decided, D161 — lands with the
-  first tail content, not before): write the filter placement down per
-  call site (cohort folds read core only; a person's own answers are
-  always all of them), extend the fold filter beyond `LiveCohortBody` to
-  the similarity fields and Kindred, and add the test that a non-core
-  aggregate never reaches a Mirror stop. `LiveCircleBody` stays
-  unfiltered on purpose. Never ship the interest model before this.
-  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 2.1, [`MIRROR.md`](MIRROR.md)
-  preamble.
+- ~~**The core/tail enforcement half**~~ — **DONE, and this row was
+  stale from the day it was written (D367).** Phase 2 of
+  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is fully ticked: 2.2 applied the
+  filter at the City/Country/World stop on 2026-08-15
+  (`LIVE.aggregated().filter((q) => q.coreCorpus)`), 2.3 shipped the
+  mutation-verified test the same day, and **2.1 decided the placement on
+  2026-08-19** — the day this page was compiled, which is why it captured
+  the question rather than the answer.
+
+  Two of the three things this row asked for were **decided unnecessary**
+  rather than left undone, and that distinction is the whole point of
+  2.1: the five lenses take `qs` as a prop from the already-filtered
+  list, so they inherit the filter; and the similarity fields read
+  `LIVE.myTestResults()` with `CORE_TEST_KINDS` — test instruments, core
+  by construction — never the feed archive. Verified against the code
+  rather than against 2.1's prose. `isCore` makes the tail feed-only, so
+  the instruments, the deck, the reveals and the single-question sheets
+  cannot be diluted; a no-op filter at each of them would have been
+  ceremony.
+
+  **What this row's last sentence cost.** *"Never ship the interest model
+  before this"* was read in 2026-09 as the interest model being blocked,
+  and it is not — Phase 5 follows **Phase 4**, not Phase 2, because an
+  interest model is only meaningful once the tail has content. The
+  buildable next step is **3.2 batch approval**, which the runbook itself
+  marks buildable now and which is what unblocks raising the farm budget.
+  A stale index row that names a real dependency in the wrong place is
+  worse than one that is merely out of date: it redirects work.
 - **The core-size ratio gate** (decided, blocked on population): core
   may grow only as fast as the audience that fills its cohort cells — a
   `check:quality` gate once there is a population to measure against.

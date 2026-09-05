@@ -9,7 +9,7 @@
 // "learn feels thin", too much reads as nothing at all while it quietly
 // re-inflates the install fetch the paging exists to remove.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   FEED_PAGE,
   LEARN_PAGE,
@@ -17,7 +17,10 @@ import {
   TASTE_TOPIC_MIN,
   pageNeedList,
   pageSizesByInterest,
+  feedTopicTotal,
   pageTotals,
+  publishFeedTotals,
+  resetFeedTotals,
   topUpPages,
   type PageOrderDoc,
 } from "./bankPager";
@@ -122,6 +125,59 @@ describe("pageTotals", () => {
     const o = order({ cell: ids("cell", 7), solar: ids("sol", 2) });
     expect(pageTotals(o)).toEqual({ cell: 7, solar: 2 });
     expect(pageTotals(null)).toEqual({});
+  });
+
+  it("takes the fold's membership count over the home list where it has one", () => {
+    // `qids` is home placement — what to page. The sheets count what a
+    // shelf CARRIES, which on the feed is larger by every straddler, and
+    // the client cannot compute the difference from its own pool. So a
+    // published `carry` wins outright; reading `qids.length` here would
+    // put the straddler under-count straight back.
+    const o = order({ tech: ids("tech", 19) });
+    o.topics.tech.carry = 24;
+    expect(pageTotals(o)).toEqual({ tech: 24 });
+  });
+
+  it("falls back to the home list for an order published before carry existed", () => {
+    const o = order({ cell: ids("cell", 7) });
+    delete o.topics.cell.carry;
+    expect(pageTotals(o)).toEqual({ cell: 7 });
+  });
+
+  it("keeps a carry of zero, which is a shelf with nothing on it", () => {
+    // Not `carry || qids.length`: a topic whose questions were all killed
+    // carries none, and falling through to a stale home list would
+    // advertise a room the fold has just emptied.
+    const o = order({ places: ids("pl", 3) });
+    o.topics.places.carry = 0;
+    expect(pageTotals(o)).toEqual({ places: 0 });
+  });
+});
+
+describe("feedTopicTotal", () => {
+  afterEach(() => { resetFeedTotals(); });
+
+  it("is null until a live build publishes, so the caller counts its pool", () => {
+    expect(feedTopicTotal("food")).toBeNull();
+  });
+
+  it("answers zero for a topic the published order does not carry", () => {
+    // Distinct from the null above, and the distinction is the whole
+    // point: no order means "ask the pool", a published order that omits
+    // a topic means "the bank has none" — a room not to advertise.
+    publishFeedTotals({ food: 26 });
+    expect(feedTopicTotal("food")).toBe(26);
+    expect(feedTopicTotal("places")).toBe(0);
+  });
+
+  it("treats an empty map as NO ORDER rather than a bank of nothing", () => {
+    // pageTotals returns {} when no order loaded, the pager publishes
+    // unconditionally, and `{}` is truthy — the exact shape that once made
+    // every Learn field sheet read "0 cards" while cards were served.
+    publishFeedTotals({});
+    expect(feedTopicTotal("food")).toBeNull();
+    publishFeedTotals(null);
+    expect(feedTopicTotal("food")).toBeNull();
   });
 });
 

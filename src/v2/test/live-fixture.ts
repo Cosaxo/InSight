@@ -596,6 +596,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // test should see from a fixture with no test-item aggregates.
     loadSimilarity: async () => {},
     similarityLoading: () => false,
+    // The cells basis asks whether the aggregates have been READ before it
+    // states that a place has answered nothing. The fixture has them, so
+    // "ready" — the loading and failed arms are driven per case.
+    testAggsState: () => "ready" as "loading" | "ready" | "failed",
     testFeedItems: () => [],
     myTestResults: () => ({
       big5: { title: "Big Five", dims: [
@@ -638,6 +642,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       { id: "pulse-pace", prompt: "What pace was today?", options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"] },
       { id: "pulse-sleep", prompt: "How did you sleep?", options: ["Badly", "Patchy", "OK", "Well", "Deeply"] },
     ]),
+    // No pending pulse answer in the fixture: its votes are seeded, so the
+    // fold has counted them. The real store returns the option index only
+    // while `unaggregated` still holds it.
+    pulsePending: () => null,
     pulseVotes: (baseQid: string) => {
       const out: Record<string, number> = {};
       for (const [aid, v] of Object.entries(votes)) {
@@ -911,6 +919,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       prompt: RANK_PROMPT,
       items: ["Alpha", "Beta", "Gamma", "Delta"],
       crowd: tooSmall ? null : [1, 3, 2, 4],
+      // The crowd the order rests on — the aggregate's nine rankings less
+      // the viewer's own, which `rankCrowd` subtracts out of the order.
+      // `votes` is the whole aggregate and would overstate the crowd by
+      // one, which is exactly the distinction the card now prints.
+      crowdN: tooSmall ? 0 : 8,
       votes: tooSmall ? 0 : 9,
       live: true,
       noCountsYet: !!tooSmall,

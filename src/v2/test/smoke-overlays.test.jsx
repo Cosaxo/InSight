@@ -79,82 +79,11 @@ describe("the overlays with no button — opened through the nav registry", () =
     }
   });
 
-  it("opens the ask-a-question door", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openSuggestions");
-    // "ask a question" since D288 §1 retired the community board — the
-    // door is the paid path alone, and the title says what the room is.
-    expectOpened(/ask a\s*question/i, "suggest overlay");
-    expectNoBoundary("suggest overlay");
-  });
-
-  // The door's honesty arithmetic (D288 §3, D167): everything it prints
-  // comes from the COMMITTED content/pricing.json, and the committed card
-  // is the empty-ledger fold — every idx at floor, every day open, no
-  // completed campaign. So the board must say "tomorrow" three times and
-  // never the design's mocked demand, and the composer must state the
-  // no-forecast line and a contract sheet without the estimate clause.
-  // This is the only test that executes the composer path at all.
-  it("the composer prints the committed card and withholds every forecast", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openSuggestions");
-    expect(screen.getAllByText(/next open tomorrow/i)).toHaveLength(3);
-    expect(document.body.textContent).not.toMatch(/contested|12 Sep/);
-    // The menu (D376): each row prints its price per reach and what that
-    // buys at the committed line — €0.02 with nobody else asking — over
-    // the one window. The per-answer line is one tap in, not on the row.
-    expect(screen.getByText(/up to 500 answers · 29 days/)).toBeTruthy();
-    expect(screen.getByText(/up to 1 250 answers · 29 days/)).toBeTruthy();
-    expect(screen.getByText(/up to 2 500 answers · 29 days/)).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/per answer/i);
-    // into the composer — the accessible name needs the "+", because the
-    // header's compose icon answers to the bare phrase too
-    fireEvent.click(screen.getByRole("button", { name: /^\+ Ask a question$/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Sunrise or sunset/i), { target: { value: "Ferry or bridge?" } });
-    fireEvent.change(screen.getByPlaceholderText("Option 1"), { target: { value: "Ferry" } });
-    fireEvent.change(screen.getByPlaceholderText("Option 2"), { target: { value: "Bridge" } });
-    expect(screen.getByText(/No campaign measured here yet — no forecast/)).toBeTruthy();
-    // The budget (D372): the presets off the card, the smallest chosen,
-    // and the line saying what it buys — a ceiling, not a forecast.
-    expect(screen.getByRole("button", { name: "€5", pressed: true })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "€50", pressed: false })).toBeTruthy();
-    expect(screen.getByText(/up to 250 answers · only what arrives is billed/)).toBeTruthy();
-    // The buyer's link (D378): optional, and the composer says where it
-    // will show — as the bare domain, after the answer.
-    fireEvent.change(screen.getByPlaceholderText(/your-site\.no/), { target: { value: "https://www.harboursauna.no/winter" } });
-    expect(screen.getByText(/shows as harboursauna\.no ↗ after the answer/)).toBeTruthy();
-    expect(screen.getByText(/after answering: harboursauna\.no ↗/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
-    expect(screen.getByText(/harboursauna\.no · after the answer/)).toBeTruthy();
-    // the contract sheet: the rate without the mechanism's multiplier
-    // (D372 put the law behind a tap), the budget as the cap, the
-    // functional channel (D313 retired "arranged directly" the day the
-    // loop stopped being a human), and no make-good clause — the refund
-    // is the promise the closer actually keeps, and the old free-extension
-    // line must stay out
-    expect(screen.getByText(/per answer · locked at approval/)).toBeTruthy();
-    expect(screen.getByText(/€5 up front · up to 250 answers · unserved answers refund at close/)).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/×1 · |×0\.9|Your cap/);
-    expect(screen.getByText(/Checked automatically before anything is charged\./)).toBeTruthy();
-    expect(screen.getByText(/refunds automatically at close/)).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/Arranged directly|no self-serve yet/);
-    expect(document.body.textContent).not.toMatch(/under 80% of the estimate|extends free/);
-    expectNoBoundary("the composer and its contract sheet");
-  });
-
-  // Picking a menu row (D376) opens the composer on that reach at that
-  // price — the row's chip pressed, the ceiling it buys restated — with
-  // the other chips still there to adjust.
-  it("a menu row opens the composer at its own price", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openSuggestions");
-    fireEvent.click(screen.getByRole("button", { name: /up to 1 250 answers · 29 days/ }));
-    expect(screen.getByRole("button", { name: "€25", pressed: true })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "€5", pressed: false })).toBeTruthy();
-    expect(screen.getByText(/up to 1 250 answers · only what arrives is billed/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^Price it for/ }).textContent).not.toMatch(/Everyone/);
-    expectNoBoundary("the composer opened from a menu row");
-  });
+  // "opens the ask-a-question door" and the composer's committed-card case
+  // stood here until D368. Shape A took the purchase funnel out of the
+  // binary, so there is no door to open and no composer to print a card:
+  // what replaces them is smoke-live's inverted pair, which asserts that
+  // NO ask-a-question control exists anywhere in the app.
 
   it("opens a person's profile", async () => {
     const expectNoBoundary = mountApp();
@@ -242,7 +171,6 @@ describe("the overlays with no button — opened through the nav registry", () =
 
   describe("a failed overlay chunk degrades rather than crashing", () => {
     const GUARDED = [
-      ["SuggestOverlay", "openSuggestions", []],
       ["LogicOverlay", "openLogicTest", []],
       ["PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
       ["CityOverlay", "openCity", () => [(IS_DATA.cities || [])[0]?.name]],

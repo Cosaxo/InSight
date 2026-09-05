@@ -4,7 +4,10 @@
 yes to the link, keep your picks for the rest"* (2026-09-05). Built
 all five steps: §2.1 (D375), §2.3 (D376), §2.2 (D377), §2.4 (D378),
 §2.5 (D379) — the plan is the app now, and each step's record is what
-binds; this page stays as the reasoning that produced them.
+binds; this page stays as the reasoning that produced them. Merged
+past D368/D369 (shape A): the door-side pieces of §2.2–§2.4 live on
+`web/ask.html`, not on `suggestions.jsx`, which left the binary; the
+*Touches* lines below name the file each step was built against.
 Written 2026-09-05 on the owner's
 *"that sounds like a bad system — if I gave you complete creative
 freedom how would you remake it"* and *"that sounds better, lay a plan

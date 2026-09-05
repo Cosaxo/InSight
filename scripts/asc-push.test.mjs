@@ -664,6 +664,32 @@ describe("asc-push privacy label", () => {
     expect(received.filter((r) => /appDataUsage|appPrivacy/i.test(r.path))).toEqual([]);
   });
 
+  it("prints the form with no Apple credentials at all — the step needs no account", async () => {
+    // The credential gate used to sit ABOVE this section, so the one launch
+    // step that provably cannot talk to Apple could not be run without an
+    // Apple signing key. SHIP-CHECKLIST §1 records the same shape twice for
+    // the seed: an instruction survives review because running it needs
+    // something nobody has, so nobody runs it. Pinned by running it.
+    received = [];
+    const { stdout } = await run("node", [SCRIPT, "--privacy"], {
+      env: Object.fromEntries(
+        Object.entries({ ...process.env, ASC_API_BASE: base })
+          .filter(([k]) => !k.startsWith("ASC_")|| k === "ASC_API_BASE"),
+      ),
+    });
+    expect(stdout).toMatch(/App Privacy/);
+    // Every declared row still prints — a credential-free run must not be a
+    // quieter run, which is the under-declaration direction.
+    for (const row of JSON.parse(readFileSync(join(root, "design/store/app-privacy.json"), "utf8")).collected) {
+      const type = row.type.toLowerCase().split("_")
+        .map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+      expect(stdout).toContain(type);
+    }
+    expect(stdout).toMatch(/Still yours:.*privacy label/);
+    // And it reaches Apple for nothing, rather than reaching it anonymously.
+    expect(received).toEqual([]);
+  });
+
   it("never reports 'nothing to do' while a hand-entered form is outstanding", async () => {
     // With only --privacy selected the write count is zero by construction.
     // The closing line used to read "nothing to do — App Store Connect
