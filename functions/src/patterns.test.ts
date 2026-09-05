@@ -203,6 +203,42 @@ describe("idempotence and catch-up", () => {
     expect(state.model!.lastDay).toBe(yesterday);
   });
 
+  it("keeps a day the retry actually scored, even though a dead run stamped some of it", async () => {
+    // THE CASE THE `&&` EXISTS FOR, and the one neither test above
+    // reaches: both of those are all-or-nothing — every person stamped, or
+    // no entries at all. The guard drops a day only when it had entries
+    // AND every one of them was already folded. A PARTIAL crash — the run
+    // died after stamping some people and before stamping the rest — is
+    // the ordinary shape of a crash, and there `write.size` is non-zero
+    // and `refolded` is non-zero at the same time.
+    //
+    // Measured before this case existed: `&&` → `||` left all 616
+    // functions tests green, and the day that really scored an
+    // observation then vanished from the published series — the standing
+    // 90-day prequential record D325 calls "the number any candidate
+    // engine must beat", world-readable and unrecomputable once the
+    // ledger day it describes has been consumed. `taste.test.ts` has this
+    // exact case for its own fold; its twin here did not.
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "stamped", qid: CORE_A, optionIdx: 0 },
+        { uid: "fresh", qid: CORE_A, optionIdx: 1 },
+      ],
+    });
+    // What a dead run leaves behind: one person carrying the day's stamp,
+    // one untouched. `d >= day` is the retry guard's own test.
+    state.users.set("stamped", { v: Array(8).fill(0), n: 1, d: yesterday });
+
+    await runPatternsFit(store, NOW);
+
+    const row = state.quality!.series.find((r) => r.day === yesterday);
+    expect(row, "the day the retry scored is missing from the series").toBeTruthy();
+    expect(row!.n, "the day was published as one nobody answered").toBeGreaterThan(0);
+    // …and the person the dead run never reached really was folded, so
+    // this is a day that was scored rather than merely kept.
+    expect(state.users.get("fresh")?.d).toBe(yesterday);
+  });
+
   it("publishes NO scorecard when every owed day crashed and there is no prior", async () => {
     // The hole in the case above's own scenario. When `scored` empties AND
     // there is no previous publish to carry forward, the fallback

@@ -65,6 +65,7 @@ const LIVE = vi.hoisted(() => ({
   loadCityKindred: vi.fn(() => Promise.resolve()),
   loadNames: vi.fn(() => Promise.resolve()),
   similarityLoading: (): boolean => false,
+  testAggsState: (): "loading" | "ready" | "failed" => "ready",
   kindredLoading: (): boolean => false,
   kindredPeople: (): KindredPerson[] => [],
   myCity: "Oslo, NO",
@@ -170,6 +171,7 @@ beforeEach(() => {
   LIVE.enabled = true;
   LIVE.budgetPaused = false;
   LIVE.similarityLoading = () => false;
+  LIVE.testAggsState = () => "ready";
   LIVE.kindredLoading = () => false;
   LIVE.kindredPeople = () => [];
   LIVE.myCity = "Oslo, NO";
@@ -532,6 +534,41 @@ describe("a position is a claim", () => {
     // Listed, not silently dropped — the difference between "thin" and
     // "unlike you", which is the whole of honesty rule 3.
     expect(screen.getByText(/1 more country answered/)).toBeTruthy();
+  });
+
+  it("says the read FAILED rather than that no country has answered", () => {
+    // The largest population claim the app makes, and it was being made
+    // out of an error: `similarityLoading()` is false again the moment
+    // `loadSimilarity()` returns — including when it threw — so a failed
+    // read drew "No country has answered a score question yet" as a
+    // finding, for the life of the mount.
+    LIVE.similarityLoading = () => false;
+    LIVE.testAggsState = () => "failed";
+    LIVE.aggFor = () => null;
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/Couldn’t read the scores here/)).toBeTruthy();
+    expect(screen.queryByText(/No country has answered/)).toBeNull();
+  });
+
+  it("still says nobody has answered when the read SUCCEEDED and found nothing", () => {
+    // THE CONTROL. Without it, drawing the failure sentence unconditionally
+    // passes the case above — and a real empty world would be reported as
+    // a broken read, which is the same lie pointed the other way.
+    LIVE.similarityLoading = () => false;
+    LIVE.testAggsState = () => "ready";
+    LIVE.aggFor = () => null;
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/No country has answered a score question yet/)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t read the scores/)).toBeNull();
+  });
+
+  it("says it is still reading while the read is in flight", () => {
+    LIVE.similarityLoading = () => false;
+    LIVE.testAggsState = () => "loading";
+    LIVE.aggFor = () => null;
+    render(<SimilaritySection scope="world" />);
+    expect(screen.getByText(/Reading profiles…/)).toBeTruthy();
+    expect(screen.queryByText(/No country has answered/)).toBeNull();
   });
 
   it("lists every place as a chip, unpositioned, when the viewer has no axes", () => {

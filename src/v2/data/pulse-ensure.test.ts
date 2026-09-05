@@ -35,14 +35,26 @@ const h = vi.hoisted(() => ({
    *  about exactly this: did a fetch happen at all. */
   queries: [] as string[][],
   aggs: {} as Record<string, DayAggDoc>,
+  /** pid → your own option index for today, still unfolded. */
+  pending: {} as Record<string, number>,
+  /** A reader who has never set a city — no bucket, so no city cohort. */
+  noCity: false,
 }));
 
 vi.mock("./live", () => ({
   default: {
     enabled: true,
-    anchors: () => ({ city: "Oslo, NO", country: "NO" }),
+    anchors: () => (h.noCity ? { country: "NO" } : { city: "Oslo, NO", country: "NO" }),
     pulseQs: () => h.bank,
     pulseVotes: () => ({}),
+    // Your own answer for today while the fold has not counted it — the
+    // member `pulse.ts` joins into every crowd it states. Mocked here
+    // rather than guarded there: a `LIVE.x ? LIVE.x() : null` in the
+    // module would be dead against the real store (an imported binding
+    // whose object literal always defines it) and would exist only to
+    // paper over this mock being short of a member the surface list
+    // pins.
+    pulsePending: (pid: string): number | null => (pid in h.pending ? h.pending[pid] : null),
     votePulse: () => Promise.resolve(),
     subscribe: () => () => {},
   },
@@ -78,6 +90,8 @@ beforeEach(() => {
   h.bank = [];
   h.queries = [];
   h.aggs = {};
+  h.pending = {};
+  h.noCity = false;
   // The module caches today's aggregates at module scope and the file
   // imports it once, so each case starts from the purge the store fires
   // on an account change — the same reset D51 gives a real device.
@@ -102,6 +116,60 @@ describe("ensureToday and a bank that has not arrived", () => {
     expect(h.queries.length, "the crowd was never fetched once the bank arrived").toBe(1);
     expect(h.queries[0]).toEqual([`pulse-pace_${today()}`]);
     expect(PULSE.default.bins("pulse-pace", "world")).toEqual([0, 0, 0, 100, 0]);
+  });
+
+  it("counts you into your own city's crowd before anyone else there has answered", async () => {
+    // THE FIRST IN YOUR CITY TODAY, which is where the two halves of one
+    // sentence disagreed. `todayN` counted a pending answer whenever one
+    // existed; `bins` counted it only where the published cell already
+    // did — and a city nobody has answered from today HAS no cell. So the
+    // card read "0% of 1 answer today" under your own step: the share of
+    // a crowd of one, which is you, drawn at the bar's minimum height.
+    // The same wrong number the pending join was added to remove, one
+    // cohort narrower.
+    //
+    // The world cut is the control in the same breath: five real answers
+    // from elsewhere, none of them yours, so the two scopes must give
+    // different numbers off one document.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    h.aggs[`pulse-pace_${today()}`] = {
+      counts: { "0": 2, "1": 3 },
+      total: 5,
+      by: { city: { "Bergen, NO": { "0": 2, "1": 3 } } },
+    } as DayAggDoc;
+    h.pending["pulse-pace"] = 3;
+    await PULSE.ensureToday();
+
+    expect(
+      PULSE.default.todayN("pulse-pace", "city"),
+      "your own unfolded answer left your city's crowd",
+    ).toBe(1);
+    expect(
+      PULSE.default.bins("pulse-pace", "city"),
+      "a crowd of one, and the one is you — 100% on your own step",
+    ).toEqual([0, 0, 0, 100, 0]);
+
+    // …and the world cut, which the same document does answer: five
+    // published plus you.
+    expect(PULSE.default.todayN("pulse-pace", "world")).toBe(6);
+    expect(PULSE.default.bins("pulse-pace", "world")).toEqual([33, 50, 0, 17, 0]);
+  });
+
+  it("does not count you into a cohort you have no anchor for", async () => {
+    // The other direction. `pendingIdx` decides membership from YOUR
+    // anchor, so a reader with no city set is in no city cut — counting
+    // them would state a crowd of one about a place the app cannot name.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    h.aggs[`pulse-pace_${today()}`] = { counts: { "0": 2 }, total: 2 };
+    h.pending["pulse-pace"] = 3;
+    h.noCity = true;
+    await PULSE.ensureToday();
+
+    expect(PULSE.default.todayN("pulse-pace", "city")).toBe(0);
+    expect(PULSE.default.bins("pulse-pace", "city")).toEqual([0, 0, 0, 0, 0]);
+    // …while the world cut still counts you, which is what makes the
+    // assertion above about membership rather than about the join.
+    expect(PULSE.default.todayN("pulse-pace", "world")).toBe(3);
   });
 
   it("still caches a real load, so arriving twice costs one query", async () => {

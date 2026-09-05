@@ -163,8 +163,17 @@ if (!seededQuestions || !dailyQuestions) {
 // manual can quote them. QUESTION-FARM.md is LIVE documentation — the
 // scheduled runs obey it verbatim — so a drifted budget figure there is
 // not a stale doc, it is a mis-instructed run.
+// COMMENTS ARE BLANKED BEFORE THE MATCH. This is a first-match regex over raw
+// source, so a retuned budget with its old line parked above it —
+//     // was: export const RUN_CAP = 8
+//     export const RUN_CAP = 20;
+// — made this gate certify QUESTION-FARM.md against the SUPERSEDED number and exit
+// 0. That document is live instruction: the scheduled lanes obey it verbatim, so a
+// figure drifting there is a mis-instructed run, not a stale doc. Measured on the
+// real tree 2026-09-05. (This file already imported the helper for its prose scan;
+// the constant scan is the half that never used it.)
 const constFrom = (rel) => {
-  const src = read(rel);
+  const src = stripComments(read(rel));
   return (name) => {
     const m = src.match(new RegExp(`export const ${name} = (\\d+)`));
     if (!m) {
@@ -1342,6 +1351,32 @@ const FIGURES = [
     re: /\*\*(\d+) feed questions per run\*\*/,
     actual: feedConst("RUN_CAP"),
     fix: (n) => `"**${n} feed questions per run**"`,
+  },
+  // THE SAME CAP, TWICE MORE, IN THE SUBSECTIONS A RUN ACTUALLY READS.
+  // D350 raised RUN_CAP 6 → 60 and moved the headline sentence above; both
+  // of these were left at 6, ten times low, for three days. They are not
+  // decoration: the feed lane's prompt says the manual "outranks this
+  // prompt's summary", so on a conflict between `npm run feed:budget`
+  // printing 60 and a bullet saying ≤6/run, the bullet wins by the lane's
+  // own rule.
+  //
+  // TWO ENTRIES AND TWO PATTERNS, deliberately: this gate takes the FIRST
+  // match of each `re`, so one shared pattern would hold the first bullet
+  // and leave the second free to drift — which is the failure the entry
+  // above already carries a note about, one lane over.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Continuum questions states it",
+    re: /continuum candidates count inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"count inside the lane's ≤${n}/run"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Crossroads stories states it",
+    re: /a story counts inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"a story counts inside the lane's ≤${n}/run"`,
   },
   {
     file: "docs/QUESTION-FARM.md",

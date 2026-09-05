@@ -156,6 +156,13 @@ export default function PatternsMap({ items, version, topic }: {
   const nb = sel == null ? null : nearOf(geo.U, sel, 3);
   const near = nb ? new Set(nb.map((x) => x.j)) : null;
   const rest = geo.edges.filter((l) => inTopic(l.i) && inTopic(l.j));
+  // The denominator the idle card prints, filtered the same way `rest` is.
+  // It printed `items.length` — every question in the pool — beside a count
+  // of links from INSIDE the picked topic, so with a topic chosen the card
+  // read "1 links hold across the 6 questions in the pool" when the truth
+  // was either 11 across 6 or 1 across 2, and neither number on the line
+  // was one of them.
+  const inPool = topic === "all" ? items.length : items.filter((x) => x.q.cat === topic).length;
   const shown = sel == null || !nb ? rest : nb.map((x) => ({ i: sel, j: x.j, r: x.r }));
   const selHue = sel == null ? null : catHue(sel);
 
@@ -436,7 +443,10 @@ export default function PatternsMap({ items, version, topic }: {
           ) : (
             <div className="qm-idle">
               <b>{rest.length}</b>
-              <span>links hold across the {items.length} questions in the pool; the strongest are drawn. Tap any dot to read its own.</span>
+              {/* …and it says WHICH pool, which the sibling arm above has
+                  always done (`topicWord`). Without it a narrowed number
+                  reads as the whole crowd's. */}
+              <span>links hold across the {inPool} questions{topicWord || " in the pool"}; the strongest are drawn. Tap any dot to read its own.</span>
             </div>
           )}
           {/* D161's core-only clause, which the ring does not change: a feed
