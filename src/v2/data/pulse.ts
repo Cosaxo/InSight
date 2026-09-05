@@ -189,6 +189,13 @@ const trendAggs: Record<string, Record<string, DayAgg | null>> = {};
 let loadingToday: Promise<void> | null = null;
 const loadingTrend: Record<string, Promise<void> | undefined> = {};
 let loadedForKey = ""; // today's key at load time — a day rollover invalidates
+// Set when the one read for today throws. `loadedForKey` stays unset on a
+// throw, which is right — nothing was read — but it makes "failed"
+// indistinguishable from "never asked", and a reader that treats either as
+// "nobody has answered" states an absence it did not measure. Same
+// distinction `trendReady` keeps for the trend half, and the same one
+// live.ts keeps for the test aggregates.
+let todayFailed = false;
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((f) => { try { f(); } catch { /* a broken listener must not stop the rest */ } });
 
@@ -319,6 +326,7 @@ export function ensureToday(force = false): Promise<void> {
   // once the bank has landed does the work.
   const ids = roster().map((q) => `${q.id}_${today}`);
   if (!ids.length) return Promise.resolve();
+  todayFailed = false; // a retry clears the previous failure before it starts
   loadingToday = (async () => {
     try {
       const got = await fetchAggs(ids);
@@ -327,6 +335,10 @@ export function ensureToday(force = false): Promise<void> {
       todayAggs = next;
       loadedForKey = today;
       notify();
+    } catch (e) {
+      todayFailed = true;
+      notify();
+      throw e;
     } finally {
       loadingToday = null;
     }
@@ -551,6 +563,20 @@ export const PULSE = {
    * to land: `scope()` serves DEMO_SCOPES and `ensureTrend` returns at its
    * first line, so the reading is complete the moment it renders. */
   trendReady(pid: string): boolean { return !LIVE.enabled || !!trendAggs[pid]; },
+  /**
+   * Has today's crowd been read? 'loading' | 'ready' | 'failed'.
+   *
+   * `todayN` answers 0 for three different facts — nobody answered, the
+   * read is in flight, the read was refused — and the card turned all
+   * three into "the first answer today". That sentence is a claim about
+   * the crowd, so it may only be drawn on 'ready'. Demo is always ready:
+   * its numbers are authored and there is nothing to fetch.
+   */
+  todayState(): "loading" | "ready" | "failed" {
+    if (!LIVE.enabled) return "ready";
+    if (todayAggs && loadedForKey === utcKey(dayAt(DAYS - 1))) return "ready";
+    return todayFailed ? "failed" : "loading";
+  },
   days, scope, streak, fmtN,
   word(pid: string, v: number): string { return stepsOf(pid).find((s) => s.v === v)?.label ?? ""; },
   /** Today's crowd split as percentages — live from today's per-day agg
@@ -659,6 +685,7 @@ window.addEventListener("insight:local-purge", () => {
   todayAggs = null;
   for (const k of Object.keys(trendAggs)) delete trendAggs[k];
   loadedForKey = "";
+  todayFailed = false;
   notify();
 });
 

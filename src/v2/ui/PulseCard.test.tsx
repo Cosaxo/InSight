@@ -78,6 +78,9 @@ const h = vi.hoisted(() => ({
   /** Your own answer for today while it is NOT yet in the published
    * aggregate — what `LIVE.pulsePending` hands over. */
   pending: {} as Record<string, number>,
+  /** Make the one read reject, so "the read failed" can be told apart
+   * from "nobody answered" — which is the whole of the case below. */
+  readFails: false,
 }));
 
 const LIVE = vi.hoisted(() => ({
@@ -115,6 +118,7 @@ vi.mock("../../lib/firebase", () => ({
     query: (_coll: unknown, ids: string[]) => ids,
     getDocs: (ids: string[]) => {
       h.queries.push(ids);
+      if (h.readFails) return Promise.reject(new Error("permission-denied"));
       return Promise.resolve({
         docs: ids.filter((id) => id in h.aggs).map((id) => ({ id, data: (): DayAggDoc => h.aggs[id] })),
       });
@@ -164,6 +168,7 @@ beforeEach(() => {
   h.aggs = {};
   h.queries = [];
   h.pending = {};
+  h.readFails = false;
   LIVE.votePulse.mockClear();
   localStorage.clear();
   // `data/pulse` caches today's aggregates and every fetched window at
@@ -279,6 +284,39 @@ describe("PulseCard · absent is not zero", () => {
     expect(screen.getByText("the first answer today")).toBeTruthy();
     expect(text(), "an absent aggregate was printed as a real share").not.toMatch(/%/);
     expect(text()).not.toMatch(/0 answers today/);
+  });
+
+  it("does not call a failed read the first answer of the day", async () => {
+    // `todayN` returns 0 for three different facts — nobody answered, the
+    // read is in flight, the read FAILED — and the card turned all three
+    // into "the first answer today". With a hundred real answers on the
+    // server and a refused read, that sentence is simply false, and it is
+    // permanent: nothing in the session retries, and the card swallows the
+    // rejection.
+    //
+    // The store already made this exact distinction for the trend half
+    // (`trendReady`), and the other night shift built the same three-state
+    // reading for the Mirror's test aggregates on the same night. Same
+    // vocabulary here rather than a second one for one distinction.
+    h.readFails = true;
+    h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
+    render(<PulseCard />);
+    await settle();
+
+    expect(
+      screen.queryByText(/the first answer today/),
+      "a refused read was reported as a fact about the crowd",
+    ).toBeNull();
+  });
+
+  it("still says you are the first when the read landed and found nobody — the control", async () => {
+    // Without this, "never say it" would satisfy the case above and delete
+    // a true sentence. The read succeeds and returns no document for today.
+    h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
+    render(<PulseCard />);
+    await settle();
+
+    expect(screen.getByText("the first answer today")).toBeTruthy();
   });
 
   it("states your share of today's answers, and it is your own step's", async () => {
