@@ -114,6 +114,6 @@ describe("a majority needs somebody in it besides you", () => {
   it("reads the COUNTS for it, which is what D-near-tie fixed", () => {
     // Guard against the gate being added by rewriting the expression off
     // the rounded shares — the defect feed-near-tie.test.jsx exists for.
-    expect(src).toMatch(/const maxN = Math\.max\(\.\.\.c\);\n    const alone/);
+    expect(src).toMatch(/const maxN = Math\.max\(\.\.\.c\);\n {4}const alone/);
   });
 });
