@@ -2189,6 +2189,28 @@ describe("live mode never inherits the sample persona (D55)", () => {
     ).toEqual([]);
   });
 
+  it("gives Work the cohort's own value beside the profile's, and falls back where there is none", () => {
+    // D328 made the Work dim the derived `jobField`, so the sentence that
+    // carries a number about "people in your line of work" must name the
+    // FIELD — naming the profession reads as a cohort of carpenters. The
+    // row keeps the profession as the value it headlines, which claims no
+    // cohort, and carries the field as `self` for the sentence that does.
+    live = installLive({ anchors: { profession: "Carpenter", jobField: "Trades, construction & manufacturing" } });
+    hydrateTestResults({});
+    const job = anchorList().find((r) => r.id === "job");
+    expect(job, "the Work anchor vanished").toBeTruthy();
+    expect(job.value).toBe("Carpenter");
+    expect(job.self).toBe("Trades, construction & manufacturing");
+
+    // …and a profile written before D328 has no derived field at all, so
+    // the row falls back to the profession rather than to an empty "you:".
+    live.restore();
+    live = installLive({ anchors: { profession: "Carpenter" } });
+    hydrateTestResults({});
+    const old = anchorList().find((r) => r.id === "job");
+    expect(old.self, "a pre-D328 profile lost its side of the sentence").toBe("Carpenter");
+  });
+
   it("anchors the viewer's own values, and only those", () => {
     live = installLive({
       anchors: { ageBand: "25-34", profession: "Nurse", education: "Bachelor" },
