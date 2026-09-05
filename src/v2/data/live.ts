@@ -4783,7 +4783,7 @@ const LIVE = {
         const n = Number(opt);
         if (Number.isFinite(n)) mine[qid] = n;
       }
-      const members = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
+      const { members, following } = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
       // Names for anyone the shared cache did not already hold. Batched,
       // and after the fold rather than before it — the likeness is
       // computed from answers and does not wait on a display name.
@@ -4793,10 +4793,16 @@ const LIVE = {
         for (const m of members) m.name = state.names[m.uid] || "";
       }
       state.circle = members;
-      // The fold already knows the membership, so the cheap view rides
+      // The fold already read the membership, so the cheap view rides
       // along for free — a Friends chip opened after the Circle stop pays
-      // no read at all.
-      state.follows = members.map((m) => m.uid);
+      // no read at all. From `following`, NOT from `members`: the fold
+      // drops anyone whose answers could not be read, and rebuilding the
+      // follow cache from the survivors turned a refused read into an
+      // unfollow for the rest of the session. That is exactly the failure
+      // the note on `loadFollows` warns about — two caches that can
+      // disagree about who your friends are — arriving through the cache
+      // that was supposed to be free.
+      state.follows = following;
     } catch (err) {
       reportError(err, { where: "loadCircle" });
       // null, not [] — "could not ask" and "you follow nobody" are

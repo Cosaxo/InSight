@@ -357,9 +357,23 @@ export async function loadCircle(
   me: string,
   myAnswers: Readonly<Record<string, number>>,
   names: (uid: string) => string,
-): Promise<Member[]> {
+): Promise<{ members: Member[]; following: string[] }> {
+  // TWO ANSWERS, NOT ONE, and conflating them cost a friend their place.
+  // `uids` is who you FOLLOW — read from the follow rows, which is the
+  // only authority on it. `members` is who could be PLACED, which drops
+  // anyone whose answers could not be read; that drop is right for the
+  // fold, because there is nothing to place them by. It is wrong for the
+  // membership, and live.ts was rebuilding its follow cache from the
+  // survivors — so one refused answer read removed a friend from the
+  // Friends cut of every who-voted sheet, from its headline count and from
+  // the patterns map's circle, and left `isFollowing` false so the Follow
+  // button offered to re-follow them: a write the rules refuse as an
+  // update and `follow()` swallows, so the tap did nothing and said
+  // nothing. `loadFollows` could not repair it either — it early-returns
+  // on a non-null cache. Handing both back keeps the two questions apart
+  // at the one place that knows the difference.
   const uids = capFollows(await fetchFollowing(db, me));
-  if (!uids.length) return [];
+  if (!uids.length) return { members: [], following: [] };
   const [answerSets, followers] = await Promise.all([
     Promise.all(uids.map((u) => fetchAnswersOf(db, u).catch(() => null))),
     fetchFollowersOf(db, me, uids).catch(() => new Set<string>()),
@@ -376,5 +390,5 @@ export async function loadCircle(
       answers,
     });
   });
-  return rankMembers(out);
+  return { members: rankMembers(out), following: uids };
 }
