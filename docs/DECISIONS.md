@@ -38875,3 +38875,135 @@ writer-with-no-reader this removal was told to check for.
 Retiring them is its own decision — existing `v2_suggestions` documents
 and the moderation queue read that collection — so it goes to
 `OWNER-LIST.md` rather than being taken here.
+
+## D369 · The web ask door is built: an adapter, a page, and the two things that stood between it and a buyer
+
+**2026-09-05.** D368 adopted shape A and took the €320 purchase funnel out
+of the app binary. This is the other half — the page it moved to — plus
+the two gates the build turned out to need and the one block that is the
+owner's.
+
+`design/ask-2026-09-05/` was Claude Design's accepted draft. Its README
+said the build's actual work was an adapter rather than a page, and that
+was right: the draft had been fed a *shaped* pricing resource, so eight
+names and two structures differ from `content/pricing.json`.
+
+### 1 · The adapter, and the field that is not a rename
+
+`scripts/build-ask-pricing.mjs` generates `web/ask-pricing.json` from the
+committed card. Seven of the eight differences are renames and two are
+reshapes — the cohorts object becomes the ruler's ordered array, and `fx`
+gains a symbol and a placement the app never needed.
+
+The eighth is not a rename and is the reason this is a script rather
+than a paragraph asking somebody to be careful:
+
+- the page draws **`refundDays`** — 29 days
+- the card's nearest-looking field is **`trailingDays`** — 28
+
+Different quantities. `trailingDays` is the demand-measurement lookback
+`build-pricing.mjs` divides by; the 29 is `WINDOW_DAYS` in
+`functions/src/paid.ts`, the window the closer actually refunds against.
+Wiring one to the other draws a page making a payment promise **one day
+shorter than the money path keeps** — a substitution that reads as
+correct in review, type-checks, and is visible only to somebody holding
+both meanings at once.
+
+So the window is read from the function's own constant, and the two are
+asserted to be *different*: if `trailingDays` were ever tuned to 29 the
+distinction would stop being observable, and the script says so out loud
+rather than going quiet. `check:ask-pricing` holds the generated file to
+both sources, because a refold that does not regenerate it leaves the
+door quoting a price the ledger has moved past.
+
+### 2 · The page, and a gate the whole `web/` directory was missing
+
+`web/ask.html` is static, framework-free, and carries one inline script
+pinned by sha256 in `firebase.json` — the shape `join.html` already
+uses. Writing the second such page is what exposed the problem with the
+first: **the hash is hand-maintained, in a different file, in a
+different language, and nothing joined the two.**
+
+The failure mode is the worst available. A wrong hash does not warn,
+does not 500 and appears in no suite: the browser refuses the script and
+the page renders as a form that does nothing. It *looks* like it loaded.
+Every gate stayed green — `check:web-headers` reads header KEYS on
+purpose ("a CSP is a policy, and this gate is not the place to hold
+one"), and no suite mounts a hosted page.
+
+But a hash is the one part of a CSP that is **not** a policy: it is a
+checksum of a file in this repo, which makes it a FIGURE, and this
+repo's rule for a figure is that a script computes it (D39).
+`check:csp-hashes` is that rule one file over, and it fails in both
+directions — a pinned hash nothing matches, and a script nothing pins,
+are the same outage reached from opposite sides. It was validated
+against a known-good value rather than against itself: `join.html`'s
+committed digest, serving in production for weeks, reproduces exactly.
+
+### 3 · Two defects the browser found that reading could not
+
+Both were caught by rendering the page and driving it, not by review.
+
+**The per-answer rate was a fifth too high in kroner.** The draft's
+rounding bands — thousands to the hundred, hundreds to the ten, then
+whole units — are right for the cap and wrong for the unit rate. €0.144
+prints as €0.14, but the same rate in kroner is 1.67 and printed as
+"2 kr": a 20% overstatement on the one number a buyer multiplies by the
+answer count to check the arithmetic. The band now runs to the cent
+below ten. It stayed invisible because in EUR every band is correct, and
+the draft was only ever rendered in EUR.
+
+**The currency switch was inside the composer, which the quote panel
+hides.** So the single moment a buyer most wants their own currency —
+looking at a €320 charge before paying it — was the moment the control
+was off screen. It is the page's now, not the composer's: showing a
+price in another currency is a display preference, not a step of
+composing.
+
+### 4 · What was cut, and why
+
+The draft offers a **Rank** form. `PAID_TYPES` is
+`binary · choice · scale · rating · dilemma` — there is no rank type to
+sell, so a composer offering one would compose something the validator
+refuses. Dropped rather than faked. `binary` and `choice` are one
+control here, chosen by how many options are written, which is what the
+two names mean.
+
+USD is in the card and is not offered: the door prices in EUR and the
+buyer's own currency, and a third button on a two-button switch is a
+control nobody asked for (COPY.md).
+
+### 5 · The block, and it is the owner's (D334, D352)
+
+**The pay tap cannot open, and the reason is App Check rather than
+code.** `bookPaidQuestionV2` and `createPaidCheckoutV2` both carry
+`enforceAppCheck`, and a browser can only attest with a provider —
+reCAPTCHA v3, reCAPTCHA Enterprise, or a debug token. D337 declined to
+provision one, on stated grounds:
+
+> there is no public web client, so the web provider only ever served
+> those two browsers
+
+**Shape A creates one.** That is D337's premise expiring rather than
+D337 being wrong — the same shape as everything D367 corrected, arriving
+this time inside a day of the decision that caused it.
+
+Not decided here. It goes to the owner with the arithmetic
+(`OWNER-LIST.md`), because the two ways through cost different things:
+provisioning reCAPTCHA v3 for the web app puts a Google script on the
+buyer's page, or exempting the two callables in `check:appcheck`'s list
+opens two authenticated write paths to any caller with an anonymous
+account (D3). The first is the smaller give and the second is faster.
+
+Everything that does not depend on that answer is built and live:
+composing, the ruler, the quote, the refund arithmetic, the civic
+decline, and all four panel states. The pay tap tells a buyer the door
+is not open in a sentence that is true, rather than throwing a 403 at
+them.
+
+**Verified rather than assumed**, throughout: the page was rendered in
+Chromium under the committed CSP and driven — compose, keyboard the
+ruler, switch currency, quote, decline, change form — with no CSP
+violation and no page error, at 360px with no horizontal scroll. Both
+defects in §3 came out of that run. The two gates were mutation-tested
+by breaking the thing each protects.

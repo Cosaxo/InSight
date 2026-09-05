@@ -202,12 +202,13 @@ describe("the lists on this tree", () => {
   });
   it("reads visual requests by status and permissions by state", () => {
     const v = parseVisualRequests(read("docs/VISUAL-REQUESTS.md"));
-    // 4 since D368 added the interest-profile panel (0b); the web ask door
-    // it also added sits under Designed, which is what the console reads —
-    // the section is the status, not the `status` line inside the entry.
+    // 4 since D368 added the interest-profile panel (0b). The web ask door
+    // it also added moved Designed → Built at D369, one day later — the
+    // SECTION is the status, not the `status` line inside the entry, so an
+    // entry that is built and left under Designed reads as still waiting.
     expect(v.requested.length).toBe(4);
-    expect(v.designed.length).toBe(1);
-    expect(v.built).toEqual([]);
+    expect(v.designed).toEqual([]);
+    expect(v.built.length).toBe(1);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

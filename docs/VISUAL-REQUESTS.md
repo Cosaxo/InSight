@@ -219,6 +219,9 @@ version is in this file's history.
 
 ## Designed
 
+
+## Built
+
 ### 0 · The web ask door — where a question is bought
 
 - **title · asked by** — *Ask InSight a question* · the owner, 2026-09-05,
@@ -296,13 +299,14 @@ version is in this file's history.
   store would not make the closer expensive — it would delete it, and
   with it the promise shown at the moment of payment. That is a far
   stronger thing to be able to say than a preference about fees.
-- **status** — `designed` 2026-09-05, extracted to
-  `design/ask-2026-09-05/`. Its README carries the adapter contract the
-  build needs: the draft was fed a shaped pricing resource, so eight
-  names and two structures differ from `content/pricing.json` — and
-  `refundDays` must come from `WINDOW_DAYS` in `functions/src/paid.ts`,
-  never from `trailingDays`, which is a different quantity and one day
-  shorter than the promise.
-
-
-## Built
+- **status** — `built` 2026-09-05 (D369). Drafted, extracted to
+  `design/ask-2026-09-05/`, and built the same day. The README's adapter
+  contract held exactly: `scripts/build-ask-pricing.mjs` generates
+  `web/ask-pricing.json` from the committed card, and `refundDays` comes
+  from `WINDOW_DAYS` rather than from `trailingDays` — the substitution
+  that would have shortened a payment promise by a day, now pinned by a
+  test that fails when the card's lookback moves. Two defects the draft
+  could not show came out of rendering it: the per-answer rate was a
+  fifth too high in kroner, and the currency switch sat inside the half
+  of the page the quote panel hides. **The pay tap is not open** — App
+  Check, not code, and the owner's call (D369 §5).
