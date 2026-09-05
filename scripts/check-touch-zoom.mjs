@@ -373,8 +373,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // …AND THE SCANNER ITSELF, which neither floor above measured. `fieldFiles`
   // counts files matching a whole-file regex, never `tagsIn`'s output — so
   // the JSX half could be entirely dead with both floors satisfied.
-  // Measured: breaking the tag regex left this gate green at "13 files with
-  // a field", because the files still contained the string. `tagsIn` is the
+  // Measured: breaking the tag regex left this gate green on its file
+  // count, because the files still contained the string. (That figure was
+  // quoted here as "13 files with a field" and was already stale when it
+  // was written: the commit directly before this one moved comment-
+  // blanking ahead of the count, which took it to 12. A measured number
+  // typed into a comment is the documentation error D39 is about, and a
+  // gate's own reasoning is the worst place for one — the next person
+  // re-tuning this floor reads it. Run the gate for the live figure.) `tagsIn` is the
   // thing that decides what is examined, so it is what the floor has to
   // count. check-tap-targets already does this correctly.
   if (!fieldTags) {

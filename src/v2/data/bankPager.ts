@@ -50,8 +50,11 @@ export const LEARN_PAGE = 24;
  * This said the bank held about this many per topic in total, so that a
  * paged feed reproduced the whole-bank feed exactly. That stopped being
  * true: measured on the bank in the tree, a topic carries 13-26 questions
- * of which 8-24 are tail, so eight of twelve topics are over this page
- * and a first boot holds 12-23 of what its shelves carry. It converges -
+ * of which 8-24 are tail, so TEN of twelve topics are over this page
+ * (all but culture at 11 and dilemma at 8) and a first boot holds 12-23
+ * of what its shelves carry. It said eight, which is the count over the
+ * ten subject shelves — it silently dropped `now` and `fav`, and the
+ * sentence says "of twelve". It converges -
  * each boot pulls the next page and the cache keeps it - so the cost is a
  * new install's first sessions, not a permanent one. What it is NOT is a
  * number any surface may count and call the bank; `pageTotals` exists for
