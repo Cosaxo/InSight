@@ -23,6 +23,9 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 const LIVE = vi.hoisted(() => ({
   enabled: true,
   testAggsState: () => "ready" as "loading" | "ready" | "failed",
+  // Its people twin — every surface that mounts a similarity field
+  // reads it now, so the stub belongs beside its sibling.
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
   uid: "u_me",
   subscribe: () => () => {},
   loadCircle: async () => {},
