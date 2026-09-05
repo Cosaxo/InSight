@@ -36,91 +36,6 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ## Requested
 
-### 0 · The web ask door — where a question is bought
-
-- **title · asked by** — *Ask InSight a question* · the owner, 2026-09-05,
-  adopting `STORE-CUT-PLAN.md` shape A (D365). **On the release path**:
-  the door leaves the app before submission, so this page is what
-  replaces it.
-- **surface** — `web/ask.html`, a standalone page on the hosting site
-  beside the `paid-done.html` / `paid-done-ad.html` / `paid-cancel.html`
-  pages Stripe already returns to. Entered from `web/home.html`, which
-  today says it is *"Deliberately NOT the app"* and becomes where the
-  door is found. **Not reachable from the app, and that is the entire
-  point** — a call to action inside the binary is what 3.1.1 polices.
-  The eight existing `web/` pages are the visual company it keeps:
-  home, join, privacy, terms, delete-account and the three Stripe
-  returns.
-- **data and basis** — the rate card prints off `content/pricing.json`,
-  fetched or inlined at deploy, never retyped: `capEur` **€320** is the
-  question cap, `adBase` **€320** the ad base before its index, plus the
-  per-cohort floor/ceiling indices, `fx` and `estimates`. Two callables
-  and **zero server changes** — `bookPaidQuestionV2` writes the ask and
-  an automated review rules on it, then `createPaidCheckoutV2` turns an
-  approved quote into a Stripe Checkout session. Both carry
-  `enforceAppCheck`.
-- **states, and the order matters (D365 amendment)** — **composing**, open
-  to anyone with no account at all: the composer IS the paid flow.
-  **quoted**: the price locked off the committed card — rate × index, the
-  cap, the 29-day window promise. **declined**: the automated review said
-  no, with a reason written to be shown — and because no account was ever
-  asked for, **a decline costs the visitor nothing**. **sign in**: raised
-  at the PAY tap, never before, because the review runs before payment and
-  can refuse; asking someone to make an account and then telling them no
-  is the worst available order. **paying**: hand off to Stripe.
-  **returned**: the three existing pages already handle it. **held**: an
-  API outage holds a booking, never declines it.
-
-  Two things the sign-in state must get right. It exists because an
-  anonymous uid cannot be reached from another browser, so the buyer's
-  campaign would be invisible in their own app — and
-  `AskedByYouOverlay` is exactly the surface that stays in the app after
-  the door leaves. **A purchase you cannot come back to is not a
-  purchase**, least of all one that refunds 29 days later. And it must
-  not lose the ask: `linkWithPopup` upgrades an anonymous user **in
-  place**, so a booking written under the anonymous web uid keeps its id
-  straight through the link.
-
-  **Google first, but not Google only.** The requirement is a reachable
-  identity, not a particular provider. Google ships first because it is
-  the path the app already has; the sign-in state should be drawn so a
-  second provider (Firebase email-link, no password to store) is a row
-  rather than a redesign — a city or an agency may well not want a
-  personal Google account against a €320 purchase.
-- **interaction** — a scope ruler with prices riding the same axis, so
-  moving the scope moves the number in one gesture; the composer, open
-  from the first visit; one pay tap, which is where the sign-in appears
-  and the only place it does. The refund promise is not fine print — the
-  buyer pays the cap and the closer refunds `(cap − answers) × rate` 29
-  days later off a public aggregate both sides read, and **that sentence
-  is the product's differentiator, not a disclaimer.**
-- **vocabulary** — it must read as InSight without pretending to be the
-  app: this is a sales surface, not a product surface. The 2026-09-02
-  standalone family in `design/`, the serif prompt voice (D362), D302's
-  two palettes. `web/` today loads **no** Firebase SDK and no app CSS, so
-  the page brings its own — it cannot inherit `src/v2/styles.css`.
-  Copy under D182.
-- **constraints** — **CSP is the one that bites**: `firebase.json` serves
-  `web/` under `default-src 'none'`, so this page needs its own header
-  block admitting the Firebase SDK and its endpoints, in the shape
-  `join.html`'s block already takes. App Check on a public web door needs
-  a **real reCAPTCHA provider**, which reverses D337's premise and is the
-  actual bill for avoiding the store cut — cheap against €48–96 a sale.
-  No app bundle impact at all, because it is not in the app.
-- **why** — `STORE-CUT-PLAN.md` §1: the product's billing model and IAP
-  are **incompatible**, not merely inconvenient. A developer cannot issue
-  a programmatic partial refund of an IAP, so routing this through the
-  store would not make the closer expensive — it would delete it, and
-  with it the promise shown at the moment of payment. That is a far
-  stronger thing to be able to say than a preference about fees.
-- **status** — `designed` 2026-09-05, extracted to
-  `design/ask-2026-09-05/`. Its README carries the adapter contract the
-  build needs: the draft was fed a shaped pricing resource, so eight
-  names and two structures differ from `content/pricing.json` — and
-  `refundDays` must come from `WINDOW_DAYS` in `functions/src/paid.ts`,
-  never from `trailingDays`, which is a different quantity and one day
-  shorter than the promise.
-
 ### 0b · The interest profile, shown and editable
 
 - **title · asked by** — *Your interests* · a session, 2026-09-04 (D364),
@@ -303,5 +218,91 @@ version is in this file's history.
 ## Drafted
 
 ## Designed
+
+### 0 · The web ask door — where a question is bought
+
+- **title · asked by** — *Ask InSight a question* · the owner, 2026-09-05,
+  adopting `STORE-CUT-PLAN.md` shape A (D365). **On the release path**:
+  the door leaves the app before submission, so this page is what
+  replaces it.
+- **surface** — `web/ask.html`, a standalone page on the hosting site
+  beside the `paid-done.html` / `paid-done-ad.html` / `paid-cancel.html`
+  pages Stripe already returns to. Entered from `web/home.html`, which
+  today says it is *"Deliberately NOT the app"* and becomes where the
+  door is found. **Not reachable from the app, and that is the entire
+  point** — a call to action inside the binary is what 3.1.1 polices.
+  The eight existing `web/` pages are the visual company it keeps:
+  home, join, privacy, terms, delete-account and the three Stripe
+  returns.
+- **data and basis** — the rate card prints off `content/pricing.json`,
+  fetched or inlined at deploy, never retyped: `capEur` **€320** is the
+  question cap, `adBase` **€320** the ad base before its index, plus the
+  per-cohort floor/ceiling indices, `fx` and `estimates`. Two callables
+  and **zero server changes** — `bookPaidQuestionV2` writes the ask and
+  an automated review rules on it, then `createPaidCheckoutV2` turns an
+  approved quote into a Stripe Checkout session. Both carry
+  `enforceAppCheck`.
+- **states, and the order matters (D365 amendment)** — **composing**, open
+  to anyone with no account at all: the composer IS the paid flow.
+  **quoted**: the price locked off the committed card — rate × index, the
+  cap, the 29-day window promise. **declined**: the automated review said
+  no, with a reason written to be shown — and because no account was ever
+  asked for, **a decline costs the visitor nothing**. **sign in**: raised
+  at the PAY tap, never before, because the review runs before payment and
+  can refuse; asking someone to make an account and then telling them no
+  is the worst available order. **paying**: hand off to Stripe.
+  **returned**: the three existing pages already handle it. **held**: an
+  API outage holds a booking, never declines it.
+
+  Two things the sign-in state must get right. It exists because an
+  anonymous uid cannot be reached from another browser, so the buyer's
+  campaign would be invisible in their own app — and
+  `AskedByYouOverlay` is exactly the surface that stays in the app after
+  the door leaves. **A purchase you cannot come back to is not a
+  purchase**, least of all one that refunds 29 days later. And it must
+  not lose the ask: `linkWithPopup` upgrades an anonymous user **in
+  place**, so a booking written under the anonymous web uid keeps its id
+  straight through the link.
+
+  **Google first, but not Google only.** The requirement is a reachable
+  identity, not a particular provider. Google ships first because it is
+  the path the app already has; the sign-in state should be drawn so a
+  second provider (Firebase email-link, no password to store) is a row
+  rather than a redesign — a city or an agency may well not want a
+  personal Google account against a €320 purchase.
+- **interaction** — a scope ruler with prices riding the same axis, so
+  moving the scope moves the number in one gesture; the composer, open
+  from the first visit; one pay tap, which is where the sign-in appears
+  and the only place it does. The refund promise is not fine print — the
+  buyer pays the cap and the closer refunds `(cap − answers) × rate` 29
+  days later off a public aggregate both sides read, and **that sentence
+  is the product's differentiator, not a disclaimer.**
+- **vocabulary** — it must read as InSight without pretending to be the
+  app: this is a sales surface, not a product surface. The 2026-09-02
+  standalone family in `design/`, the serif prompt voice (D362), D302's
+  two palettes. `web/` today loads **no** Firebase SDK and no app CSS, so
+  the page brings its own — it cannot inherit `src/v2/styles.css`.
+  Copy under D182.
+- **constraints** — **CSP is the one that bites**: `firebase.json` serves
+  `web/` under `default-src 'none'`, so this page needs its own header
+  block admitting the Firebase SDK and its endpoints, in the shape
+  `join.html`'s block already takes. App Check on a public web door needs
+  a **real reCAPTCHA provider**, which reverses D337's premise and is the
+  actual bill for avoiding the store cut — cheap against €48–96 a sale.
+  No app bundle impact at all, because it is not in the app.
+- **why** — `STORE-CUT-PLAN.md` §1: the product's billing model and IAP
+  are **incompatible**, not merely inconvenient. A developer cannot issue
+  a programmatic partial refund of an IAP, so routing this through the
+  store would not make the closer expensive — it would delete it, and
+  with it the promise shown at the moment of payment. That is a far
+  stronger thing to be able to say than a preference about fees.
+- **status** — `designed` 2026-09-05, extracted to
+  `design/ask-2026-09-05/`. Its README carries the adapter contract the
+  build needs: the draft was fed a shaped pricing resource, so eight
+  names and two structures differ from `content/pricing.json` — and
+  `refundDays` must come from `WINDOW_DAYS` in `functions/src/paid.ts`,
+  never from `trailingDays`, which is a different quantity and one day
+  shorter than the promise.
+
 
 ## Built

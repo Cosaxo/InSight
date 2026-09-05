@@ -437,13 +437,14 @@ describe("spec layer mounts in live mode", () => {
     // build's six. What is being pinned here is where the list opened,
     // not what the fixture happens to put in it.
     expect(screen.getByText("Add a topic"), "the topic list never opened").toBeTruthy();
-    // "Ask a question" since D288 §1 — and matched on the visible label,
-    // because the header's compose icon answers to the same accessible name.
+    // INVERTED at D365: shape A took the purchase funnel out of the binary,
+    // so the app must carry NO ask-a-question call to action. This asserted
+    // the door was present until the decision; it now pins its absence,
+    // which is the property App Review reads the app for.
     expect(
-      screen.getAllByRole("button", { name: /Ask a question/i })
-        .some((b) => /ask a question/i.test(b.textContent || "")),
-      "the sheet's ask-a-question door is missing",
-    ).toBe(true);
+      screen.queryAllByRole("button", { name: /ask a question/i }),
+      "an ask-a-question door is still in the binary (D365 removed all five)",
+    ).toHaveLength(0);
     expect(
       screen.queryByText(/Scenes you follow/i),
       "the door still threw the reader out of the profile to show them a list",
@@ -1498,11 +1499,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // paid door, and the button wears the door's own name. The header's
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
-    const doors = screen.getAllByRole("button", { name: /ask a question/i });
+    // INVERTED at D365, same reason as the profile case above.
     expect(
-      doors.some((b) => /ask a question/i.test(b.textContent || "")),
-      "the add sheet lost its own door — only the header icon matched",
-    ).toBe(true);
+      screen.queryAllByRole("button", { name: /ask a question/i }),
+      "the sheet still offers a purchase door",
+    ).toHaveLength(0);
     expectNoBoundary("live add sheet");
   });
 

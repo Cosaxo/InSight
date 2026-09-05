@@ -38412,3 +38412,70 @@ as the provider, or it becomes the sixth.
 `VISUAL-REQUESTS.md` item 0's states were rewritten with this record
 rather than after it, because the order changes which states the page has
 to draw.
+
+## D365 amendment (2026-09-05) · The door is out of the binary, and it had five entry points rather than one
+
+Shape A's removal half, built. The owner: *"yeah that sounds good."*
+
+**`STORE-CUT-PLAN.md` §4 phase 2 named one entry point and there were
+five.** It said *"remove the door entry (`PaidMineCard`,
+`profile-general.jsx`)"*. Measured against the tree before editing it:
+
+1. `app-shell.jsx` — a **"+" icon button in the header**, `aria-label="Ask
+   a question"`, one tap from anywhere in the app. Its own comment said
+   so: *"one tap from anywhere."*
+2. `app-shell.jsx` — `openSuggestions`, registered on the nav registry.
+3. `daily-split.jsx` — *"Have a question in mind? Ask it →"* under the
+   daily.
+4. `world-feed.jsx` — an **"Ask a question"** button inside a feed sheet.
+5. `profile-general.jsx` — `PaidMineCard`, the one the plan named.
+
+Following the plan literally would have left **four live purchase calls
+to action in the shipped binary**, which is precisely the exposure D365
+exists to remove — and the most exposed of them, the header "+", was the
+one furthest from the file the plan pointed at. The plan was written from
+the overlay outwards; the entry points had grown inwards.
+
+### What was removed
+
+All five entry points, and `spec/suggestions.jsx`, `spec/suggestions.js`,
+`data/paidBookings.ts` and `data/suggestions.ts` with their suites.
+`ui/AskedByYouOverlay.tsx` is untouched, as the plan said: it reads this
+account's own purchase docs and the same public aggregates everyone
+reads, which is already the reader shape and is why A was cheap.
+`ui/CurSwitch.tsx` stays — AskedByYou renders it too.
+
+The legacy free-suggestion rows went with it, per the owner's *"no it is
+to be removed"*, and the check that answer asked for came back clean: the
+only `status: 'picked'` writer left was the deleted store's own demo row,
+so nothing in the tree now produces a document no surface can display.
+
+### What the gates required, and it is the useful part
+
+`check:globals` refused the change three times before it passed, each
+time for a real reason: four now-dead imports in `profile-general.jsx`,
+the coupling baseline needing to come down **32 → 30**, and
+`src/v2/README.md` quoting the old figure. `check:figures` then caught
+`CLAUDE.md`'s bridge count (53 → 52). None of that is ceremony — each is
+a claim the tree no longer supported.
+
+**Two test suites were inverted rather than deleted, which is the
+better outcome.** `smoke-live.test.jsx` asserted an ask-a-question button
+was present in two places; both now assert that **no** such control
+exists anywhere in the app. That is the property App Review actually
+reads the binary for, so the removal is now pinned by a test that fails
+if any entry point comes back.
+
+### The one thing NOT decided here, and it needs the owner
+
+**Three deployed callables now have no caller anywhere:**
+`suggestQuestionV2`, `fetchSuggestionsV2` and `reviewSuggestionV2`
+(`functions/src/suggestions.ts`). They remain deployed, App Check
+enforced, and reachable — and under D3 "signed in" is an anonymous
+account, so a public write path at `SUGGEST_PER_DAY = 3` now exists with
+no surface that uses it. That is the server-side mirror of the
+writer-with-no-reader this removal was told to check for.
+
+Retiring them is its own decision — existing `v2_suggestions` documents
+and the moderation queue read that collection — so it goes to
+`OWNER-LIST.md` rather than being taken here.

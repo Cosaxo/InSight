@@ -1246,9 +1246,9 @@ export class DailySplit extends React.Component {
       // docking into the header once scrolled past
       screen: h(F, null, this.dailyRuler(mode, accents, badges),
         // the sliding surface — swipes translate this, not the whole page
-        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
-        // quiet footer — the ask-a-question door (the paid path, D288 §1)
-        h('button', { onClick: () => NAV.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Ask it \u2192'))),
+        // The quiet footer's ask-a-question link stood here until D365 moved
+        // buying to the web; the daily now ends on the deck it draws.
+        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body)),
     };
   }
 

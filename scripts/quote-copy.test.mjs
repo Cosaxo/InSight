@@ -21,7 +21,6 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FILES = [
-  "src/v2/spec/suggestions.jsx",
   "src/v2/ui/AskedByYouOverlay.tsx",
 ];
 
@@ -54,8 +53,11 @@ describe("the figures a buyer is charged", () => {
   it("the exact form is actually reached — this is not a vacuous rule", () => {
     // A file that stopped printing prices at all would satisfy the case
     // above by saying nothing, which is not the property wanted.
+    // FILES[0] was suggestions.jsx until D365 took the paid door out of the
+    // binary. AskedByYouOverlay is what still shows a buyer their own
+    // figures, so it is what this non-vacuity case now guards.
     const sug = readFileSync(join(root, FILES[0]), "utf8");
-    expect(sug, "suggestions.jsx no longer prints an exact figure anywhere").toMatch(/fmtExact\(/);
+    expect(sug, `${FILES[0]} no longer prints an exact figure anywhere`).toMatch(/fmtExact\(/);
     const uses = [...sug.matchAll(/\bfmtExact\(/g)].length;
     expect(uses, "the approved sentence and the Pay button are two call sites at least")
       .toBeGreaterThanOrEqual(2);

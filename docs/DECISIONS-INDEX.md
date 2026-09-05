@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 381 lines instead of
-38,415. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 382 lines instead of
+38,482. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -395,3 +395,4 @@ detect it.
 | **D365** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d365--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | — | 38260 |
 |  | ↳ *amendment 2026-09-05* — [The legacy free-suggestion rows go with the overlay](DECISIONS.md#d365-amendment-2026-09-05--the-legacy-free-suggestion-rows-go-with-the-overlay) | — | 38348 |
 |  | ↳ *amendment 2026-09-05* — [The account is required at the pay tap, and the requirement is an identity rather than Google](DECISIONS.md#d365-amendment-2026-09-05--the-account-is-required-at-the-pay-tap-and-the-requirement-is-an-identity-rather-than-google) | — | 38370 |
+|  | ↳ *amendment 2026-09-05* — [The door is out of the binary, and it had five entry points rather than one](DECISIONS.md#d365-amendment-2026-09-05--the-door-is-out-of-the-binary-and-it-had-five-entry-points-rather-than-one) | — | 38416 |

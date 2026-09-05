@@ -5,7 +5,6 @@
 // guards the wiring in CI.
 import React from 'react';
 import NAV from '../data/nav';
-import { loadMine as loadPurchases, mine as myPurchases, subscribePurchases } from '../data/purchases';
 import LIVE from '../data/live';
 // D354's sweep: the lens store, the saved logic result, the demo Scenes
 // field and the city picker as imports. This panel rides loadOverlays(),
@@ -25,7 +24,6 @@ import { PASSIVE } from './passive-progress.js';
 import { passiveStanding } from './passive-meter.jsx';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
-import { sharePcts } from '../data/pct';
 import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
 // `PLACES` stood here as an import (D39 converted it from a window.PLACES
 // read, which is what moved the coupling meter down). The import outlived
@@ -506,55 +504,12 @@ const EXPORTS = {};
   }
 
   // ── Logic gets its own card — a timed skill test, not a personality profile ──
-  // "You asked" — the buyer's shelf (PAID-PLAN §9.3, graduated with the
-  // room per the 2026-08-22 record; D288, runbook phase 2). Compact rows
-  // from the same session-cached store the room reads; each opens the
-  // room, where the meter and the shelf live. Live only — the ledger is
-  // real or absent, never sampled — and absent entirely for the account
-  // that never bought anything.
-  function PaidMineCard() {
-    const [, bump] = React.useReducer((x) => x + 1, 0);
-    const liveOn = !!LIVE.enabled;
-    React.useEffect(() => {
-      if (!liveOn) return undefined;
-      const un = subscribePurchases(bump);
-      loadPurchases().catch(() => { /* no rows — the chapter simply is not there */ });
-      return un;
-    }, [liveOn]);
-    const rows = liveOn ? (myPurchases() || []).filter((p) => p.kind === 'question') : [];
-    if (!rows.length) return null;
-    return (
-      <div>
-        <Chapter>You asked</Chapter>
-        <div className="card" style={{ marginBottom: 16, padding: '4px 18px' }}>
-          {rows.map((p, i) => {
-            const total = (p.counts || []).reduce((a, n) => a + n, 0);
-            const lead = p.counts && p.counts.length ? p.counts.indexOf(Math.max(...p.counts)) : -1;
-            return (
-              <button key={p.id} className="press" onClick={() => NAV.openAskedByYou()} style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0',
-                border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left',
-                borderTop: i > 0 ? '1px solid color-mix(in oklch, var(--rule) 62%, transparent)' : 'none',
-              }}>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, letterSpacing: '-0.01em', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.prompt}</span>
-                  <span style={{ display: 'block', marginTop: 2, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>
-                    {total > 0 && lead >= 0
-                      // sharePcts, the app's one rounding rule — the same
-                      // vector the public card draws (see AskedByYouOverlay).
-                      ? `${sharePcts(p.counts)[lead]}% ${p.options[lead] || ''} · ${total.toLocaleString('en-US').replace(/,/g, ' ')} answers`
-                      : 'no answers yet'}
-                    {p.state === 'running' ? '' : ` · ${p.state}`}
-                  </span>
-                </span>
-                <span aria-hidden="true" style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--accent-ink, var(--accent))' }}>the room →</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
+  // The buyer's shelf ("You asked") stood here until D365 took the
+  // purchase funnel out of the binary. What the account can still see
+  // of its own purchases lives in ui/AskedByYouOverlay.tsx, which is
+  // untouched: it reads this account's own purchase docs and the same
+  // public aggregates everyone reads — already the reader shape, which
+  // is why shape A was cheap.
 
   function LogicCard() {
     const lg = LOGIC.load();
@@ -719,7 +674,6 @@ const EXPORTS = {};
             design's seat for it, after the instruments). Live only, and
             only when a purchase exists: an empty "You asked" chapter on
             the account that never bought anything is furniture. */}
-        <PaidMineCard />
         {/* DEMO ONLY. This field body is the scenes orbit plus its lenses,
             and every number on it is invented: "5.6k people", the
             closer-means-more-like-you distances, "Who's in your circles ·
