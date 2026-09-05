@@ -729,8 +729,11 @@ ratchet).
 
 **Status: design settled with the owner 2026-08-15. Step 1 of the build
 order below is SHIPPED — see [D174](DECISIONS.md#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
-for the three-state control, the three-hour linger and the `until` cap.
-Everything else here is still design.** It began
+for the three-state control, the three-hour linger and the `until` cap —
+and the control has since gone back to two states on the owner's word
+([D365](DECISIONS.md#d365--near-is-a-switch-again-off-or-on-and-the-timed-option-retires)):
+off or on, the linger and the cap unchanged. Everything else here is
+still design.** It began
 as *"when you are at a party or some sort of social event you can see what
 type of persons are around you"* and was worked out over a long exchange;
 what follows is where it landed, including the two places the owner
@@ -795,16 +798,23 @@ Bands to draw, tightest first: **same room · same block · a few streets
 away.** Recency gets bands too — **"here now" · "here in the last hour"** —
 and that second one is doing real work, see the linger below.
 
-### Visibility: off · 2 hours · always
+### Visibility: off · on
 
-The owner's three-state control, and the shape that makes the always
-option safe enough to offer honestly rather than grudgingly:
+**As built.** This section said *off · 2 hours · always* from
+2026-08-15, and D174 shipped it that way; on 2026-09-05 the owner
+retired the middle state (D365 — *"near should only have off and on
+option"*). What stands is the switch, and "on" is exactly what the
+always row below described:
 
 | State | What it means |
 | --- | --- |
 | **Off** (default) | No presence doc. Turning off **deletes it immediately** — that promise may never be on a timer. |
-| **On, 2 hours** | Default when first enabled. The beat stops at the deadline. |
-| **On, always** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
+| **On** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
+
+The two-hour row is gone, not folded in: a timed promise was a promise
+about when you stop being visible, and the owner had already pushed
+back on time-boxing at all (D174 §1). The linger below is what bounds
+the position now, and it always was.
 
 Two properties hold in every state:
 
@@ -894,6 +904,7 @@ of strangers.
    `presenceBeat` returns early on `document.hidden`. What shipped beside
    the control and the linger is `until` on the presence doc, so the timed
    option is exact rather than approximate, capped in `firestore.rules`.
+   The control went back to two states at D365; `until` and its cap stay.
 2. ~~**The finer grid** + the `STORE-FORMS.md` re-answer.~~ **DONE
    ([D175](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
    It was not a constant: the old ~1 km cell was the ceiling of the COARSE

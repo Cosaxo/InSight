@@ -10,8 +10,10 @@
 // (smoke-overlays.test.jsx mutation-checks exactly that).
 //
 // What the door prints, it reads (D288 §3, D167): every price, tick and
-// demand word comes from data/pricing.ts over the COMMITTED
-// content/pricing.json — the same dated card a buyer can diff — and a
+// demand word comes from data/pricing.ts — the committed constants of
+// content/pricing.json under the demand half the server publishes onto
+// `v2_meta/pricing` after every sale and every night (D366; the committed
+// snapshot stands until it lands, and the board says which) — and a
 // forecast renders ONLY where the card carries a completed campaign to
 // measure from. The design's mocked SG_DEMAND and expected() curves did
 // not survive the port, and nothing here re-invents them.
@@ -20,7 +22,10 @@ import { useDialog } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
 import { SUGGESTIONS } from './suggestions.js';
 import { WORLD_TOPICS } from './world-feed-data.js';
-import { PRICING, rate, adFlat, demandWord, fmt, fmtExact, subscribeCur } from '../data/pricing';
+import { PRICING, rate, adFlat, demandWord, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
+// The dispatcher, for the one gate the live card's read needs: a demo
+// build (LIVE.enabled false) has no Firestore to read it from.
+import LIVE from '../data/live';
 // Imported so the printed slot position cannot drift from the one the feed
 // actually holds (data/sponsored.ts is the seller of record).
 import { SPONSOR_AT } from '../data/sponsored';
@@ -43,10 +48,18 @@ function useSuggestions() {
   return SUGGESTIONS;
 }
 
-// Every printed price re-renders when the currency preference changes.
+// Every printed price re-renders when the currency preference changes —
+// and when the LIVE half of the card lands (D366). The load is kicked
+// here because this hook is what every price-printing surface of the
+// door already calls: one session-cached getDoc of `v2_meta/pricing`,
+// live builds only, and the committed card stands until it arrives. The
+// door is opened, not watched, so this is a read and never a listener.
 function useCurTick() {
   const [, bump] = useSgState(0);
-  React.useEffect(() => subscribeCur(() => bump((x) => x + 1)), [bump]);
+  React.useEffect(() => {
+    if (LIVE.enabled) void loadLiveCard();
+    return subscribeCur(() => bump((x) => x + 1));
+  }, [bump]);
 }
 
 const sgHueCol = (hue) => WPAL.c('oklch(0.52 0.14 ' + (hue != null ? hue : 40) + ')');
@@ -282,7 +295,10 @@ function SgRateBoard({ SG, onPick }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 2px' }}>
-        <span style={sgLabel}>the rate card · {sgDay(PRICING.generated)}</span>
+        {/* Which card: the published one, dated the day it was folded
+            for, or — before it lands, or in a demo build — the committed
+            snapshot, dated the day it was committed (D366). */}
+        <span style={sgLabel}>the rate card · {sgDay(PRICING.generated)}{isLive() ? '' : ' · committed'}</span>
         <span style={{ flex: 1 }}></span>
         <CurSwitch></CurSwitch>
       </div>

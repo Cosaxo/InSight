@@ -25,6 +25,8 @@ const purchases: Rec[] = [];
 const queries: Array<{ after: string | null }> = [];
 const aggs = new Map<string, Record<string, number>>();
 const deletedAds: string[] = [];
+/** Every v2_meta write the run made — the rate card republish (D366). */
+const published: Array<{ id: string; data: Record<string, unknown> }> = [];
 
 function snapOf(r: Rec) {
   return {
@@ -41,6 +43,7 @@ function snapOf(r: Rec) {
 
 function purchaseQuery() {
   let eq: unknown = null;
+  let untilFrom: string | null = null;
   let cap = Infinity;
   let after: string | null = null;
   const q = {
@@ -50,6 +53,10 @@ function purchaseQuery() {
     // test would still be green, which is the failure this whole file
     // exists to prevent one level up.
     where: (f: string, op: string, v: unknown) => {
+      // Two shapes reach this fake since D366: the closer's own
+      // `state == running` walk, and the pricing fold's `window.until >=`
+      // range at the end of the run. Anything else is the wrong field.
+      if (f === "window.until" && op === ">=") { untilFrom = String(v); return q; }
       expect([f, op]).toEqual(["state", "=="]);
       eq = v;
       return q;
@@ -62,6 +69,15 @@ function purchaseQuery() {
     limit: (n: number) => { cap = n; return q; },
     startAfter: (s: { id: string }) => { after = s.id; return q; },
     get: async () => {
+      if (untilFrom !== null) {
+        // The fold's read: every row whose window ended on or after the
+        // cutoff. Not counted in `queries` — those are the closer's pages.
+        const docs = purchases
+          .filter((r) => String((r.data.window as { until?: string })?.until ?? "") >= (untilFrom as string))
+          .slice(0, cap)
+          .map((r) => ({ ...snapOf(r), data: () => r.data }));
+        return { docs, empty: docs.length === 0, size: docs.length };
+      }
       queries.push({ after });
       // Evaluated live, like the real query: docs this run has already
       // closed have left the "running" set. Safe because the cursor only
@@ -92,6 +108,11 @@ const fakeDb = {
     }
     if (name === "v2_ads") {
       return { doc: (id: string) => ({ delete: async () => { deletedAds.push(id); } }) };
+    }
+    if (name === "v2_meta") {
+      // The nightly republish (D366) lands here; what was written is
+      // what the door will print tomorrow.
+      return { doc: (id: string) => ({ set: async (d: Record<string, unknown>) => { published.push({ id, data: d }); } }) };
     }
     throw new Error(`unexpected collection ${name}`);
   },
@@ -165,6 +186,7 @@ beforeEach(() => {
   purchases.length = 0;
   queries.length = 0;
   deletedAds.length = 0;
+  published.length = 0;
   aggs.clear();
   stripeCalls.created.length = 0;
   stripeCalls.listed.length = 0;
@@ -325,5 +347,48 @@ describe("the campaign closer walks past its first page", () => {
     await runCloser();
     expect(queries).toHaveLength(1);
     expect(purchases.every((r) => r.data.state === "closed")).toBe(true);
+  });
+});
+
+describe("the closer republishes the rate card (D366)", () => {
+  // The demand half of the card used to move only when an operator ran
+  // scripts/build-pricing.mjs and committed the result — which, once
+  // D313 automated the sale, was never. The nightly run is where a window
+  // that ended tonight leaves the index and the booked strip rolls a day,
+  // so it folds the ledger at the end of every walk, sale or no sale.
+  it("publishes v2_meta/pricing at the end of every run, even with nothing to close", async () => {
+    await runCloser();
+    expect(published.map((p) => p.id)).toEqual(["pricing"]);
+    const card = published[0].data as { generated: string; cohorts: Record<string, { idx: number; booked: number[] }> };
+    expect(card.generated).toBe(new Date().toISOString().slice(0, 10));
+    for (const scope of ["city", "country", "world"]) {
+      expect(card.cohorts[scope].idx).toBe(0.9);
+      expect(card.cohorts[scope].booked).toHaveLength(14);
+    }
+  });
+
+  it("folds what it just closed — a campaign that ran the trailing window lifts its scope's index", async () => {
+    const start = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
+    purchases.push({
+      id: "p_city", data: {
+        state: "running", kind: "question", scope: "city", qid: "q_p_city",
+        window: { start, until: YESTERDAY },
+        budget: { cap: 100, capEur: 100, ratePerAnswer: 1 },
+      },
+    });
+    aggs.set("q_p_city", { "0": 30, "1": 20 });
+    await runCloser();
+    expect(stateOf("p_city")).toBe("closed");
+    const card = published.at(-1)!.data as {
+      cohorts: Record<string, { idx: number }>;
+      estimates: Record<string, { perDay: number; campaigns: number; days: number }>;
+    };
+    // 28 of the trailing 28 days occupied, none ahead: 28/42 of the way up.
+    expect(card.cohorts.city.idx).toBe(Math.round((0.9 + (28 / 42) * 1.6) * 100) / 100);
+    expect(card.cohorts.world.idx).toBe(0.9);
+    // …and the campaign it closed tonight is already an estimate's basis,
+    // off the answer total the closer itself wrote: 50 answers over the
+    // 28 inclusive days of the window (today−28 through yesterday).
+    expect(card.estimates.city).toEqual({ perDay: Math.round(50 / 28), campaigns: 1, days: 28 });
   });
 });

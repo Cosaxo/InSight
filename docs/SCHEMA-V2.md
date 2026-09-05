@@ -420,9 +420,10 @@ v2_presence/{uid}                  Near-by-radius presence (D84)
                                    coordinate is discarded (data/locate.ts)
   at: request.time                 last write; the beat refreshes it
   until?: timestamp                when this position STOPS counting
-                                   (D174) — the linger for the standing
-                                   option, the session deadline for the
-                                   timed one, whichever is sooner. The
+                                   (D174) — the linger past the last
+                                   beat. (Until D365 the timed option
+                                   clamped it to a session deadline; the
+                                   switch is off or on now.) The
                                    count filters on it, and the rules cap
                                    it at PRESENCE_LINGER_MIN so no client
                                    grants itself a longer stay. OPTIONAL

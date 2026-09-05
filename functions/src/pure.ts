@@ -1810,16 +1810,10 @@ export function presenceNeighbors(cell: string): string[] {
  */
 export const PRESENCE_LINGER_MIN = 180;
 
-/**
- * The "visible for a while" option's length (D174's middle state).
- *
- * Shorter than the linger on purpose: the session is a promise about
- * WHEN YOU STOP BEING VISIBLE, and `until` is what makes it exact. A
- * client in session mode clamps every `until` it writes to the session's
- * deadline, so closing the app ten minutes before the deadline cannot
- * leave the position standing for a further linger.
- */
-export const PRESENCE_SESSION_MIN = 120;
+// `PRESENCE_SESSION_MIN = 120` stood here from D174 to D365 — the length of
+// the timed option, which the client clamped every `until` to. The option
+// is gone (the owner: off and on only), so is the deadline, and a constant
+// nothing reads is the drift this file is otherwise careful about.
 
 /**
  * Typed phones a neighbourhood needs before the room's mix is drawn at all

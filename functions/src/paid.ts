@@ -53,7 +53,8 @@ import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 // two families of `utcDayKey` were separated — see pure.ts's own comment.
 import { utcDayKey } from "./pure";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
-import { PRICING_CARD } from "./pricing";
+import { PRICING_CARD, type PricingCard } from "./pricing";
+import { foldPricing, mergeLivePricing, type PurchaseRow } from "./pricingFold";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -605,9 +606,13 @@ async function reviewBooking(db: Firestore, bid: string): Promise<void> {
     return;
   }
   // The quote is computed AT VERDICT TIME and stored — this is the lock
-  // PAID-PLAN §6 promises ("the rate LOCKED at booking"). A pricing.json
-  // recompute between approval and payment changes nothing for this buyer.
-  const quote = payload.kind === "ad" ? adPriceQuote(payload.scope) : priceQuote(payload.scope);
+  // PAID-PLAN §6 promises ("the rate LOCKED at booking"). A refold between
+  // approval and payment changes nothing for this buyer. Off the LIVE card
+  // (D366): the committed constants under the demand half the last sale
+  // or the last nightly closer published — the same document the door
+  // prints from, so the figure the buyer read is the figure locked here.
+  const card = await liveCard(db);
+  const quote = payload.kind === "ad" ? adPriceQuote(payload.scope, card) : priceQuote(payload.scope, card);
   await db.runTransaction(async (tx) => {
     const cur = await tx.get(ref);
     if (!cur.exists || cur.get("status") !== "review") return;
@@ -1378,10 +1383,93 @@ export const stripeWebhookV2 = onRequest(
       return;
     }
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
-    await goLive(firestore(), bid, paymentIntentId);
+    const db = firestore();
+    const went = await goLive(db, bid, paymentIntentId);
+    // The sale just moved the ledger, so the rate card moves with it
+    // (D366): the next buyer's door and the next quote read this. AFTER
+    // the 200 is decided and never a reason to withhold it — the money
+    // has landed and the question is live; a fold that fails is logged
+    // and the nightly closer folds again.
+    if (went) await publishPricing(db);
     res.status(200).send("ok");
   },
 );
+
+// ── the live rate card (D366) ───────────────────────────────────────────
+//
+// `v2_meta/pricing` carries the demand-derived half of the card — idx,
+// the booked fortnight, the next open day, the estimates, and the day it
+// was folded for — published by machinery where the ledger changes: the
+// payment webhook above and the nightly closer below. Every signed-in
+// user reads `v2_meta/*` (firestore.rules), so the number stays public;
+// it just no longer waits for an operator to run a script and commit.
+// The CONSTANTS never live here: base, floor, ceiling, caps and fx are
+// the committed file's, and a deliberate re-pricing is still a PR.
+
+/** The committed card with the published live half over it — or the
+ * committed card alone when nothing has been published yet, or the read
+ * fails. Never throws: a quote must not depend on a document that a
+ * fresh deployment does not have. */
+export async function liveCard(db: Firestore, card: PricingCard = PRICING_CARD): Promise<PricingCard> {
+  try {
+    const snap = await db.collection("v2_meta").doc("pricing").get();
+    return snap.exists ? mergeLivePricing(card, snap.data()) : card;
+  } catch (err) {
+    logger.warn("[paid] live rate card unreadable — quoting off the committed card", {
+      metric: "paid_pricing_read_failed",
+      message: String((err as Error)?.message ?? err),
+    });
+    return card;
+  }
+}
+
+/** How far back the fold reads purchase rows. The index needs the
+ * trailing window; the estimates want completed campaigns, for which a
+ * year is a bound rather than a policy (a forecast off campaigns older
+ * than that measures a population that no longer exists). */
+export const PRICING_ROWS_DAYS = 366;
+/** The most rows one fold reads — far past anything the rate card
+ * contemplates (one slot per scope per day), and a bound so a scheduled
+ * job cannot grow an unbounded read. */
+export const PRICING_ROWS_MAX = 1000;
+
+/**
+ * Fold the ledger and publish the live half of the card. Best-effort:
+ * logs and returns false rather than throwing, because both callers are
+ * on a path (a paid webhook, the closer's nightly loop) where the fold
+ * failing must not undo what already happened.
+ */
+export async function publishPricing(db: Firestore, today = utcDayKey(0)): Promise<boolean> {
+  try {
+    // One range on `window.until`: every row that ended inside the
+    // lookback or has not ended yet. Kind and scope are filtered in the
+    // fold rather than the query, so this needs no composite index.
+    const cutoff = dayPlus(today, -PRICING_ROWS_DAYS);
+    const snap = await db.collection("v2_purchases")
+      .where("window.until", ">=", cutoff)
+      .limit(PRICING_ROWS_MAX)
+      .get();
+    const rows = snap.docs.map((d) => d.data() as PurchaseRow);
+    const live = foldPricing(PRICING_CARD, rows, today);
+    await db.collection("v2_meta").doc("pricing").set({ ...live, at: FieldValue.serverTimestamp() });
+    logger.info(`[paid] rate card published for ${today}: ${(["city", "country", "world"] as const).map((s) => `${s} ×${live.cohorts[s].idx}`).join(" · ")} (${rows.length} row(s) folded)`, {
+      metric: "paid_pricing_published",
+      rows: rows.length,
+    });
+    if (snap.size >= PRICING_ROWS_MAX) {
+      logger.warn(`[paid] the pricing fold hit its ${PRICING_ROWS_MAX}-row bound — the index is folded from a truncated ledger`, {
+        metric: "paid_pricing_rows_cap",
+      });
+    }
+    return true;
+  } catch (err) {
+    logger.error("[paid] rate card publish failed — the door prints the last published card", {
+      metric: "paid_pricing_publish_failed",
+      message: String((err as Error)?.message ?? err),
+    });
+    return false;
+  }
+}
 
 // ── the closer ──────────────────────────────────────────────────────────
 
@@ -1585,5 +1673,11 @@ export const closePaidCampaignsV2 = onSchedule(
       }
       cursor = running.docs[running.docs.length - 1];
     }
+    // The nightly refold (D366): a window that ended tonight leaves the
+    // index, the booked strip rolls one day forward, and a campaign
+    // closed above becomes an estimate's basis. Daily even with no sale,
+    // because `booked` is relative to today and a strip that never rolls
+    // is a strip that goes stale.
+    await publishPricing(db, today);
   },
 );

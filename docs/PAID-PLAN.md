@@ -289,6 +289,26 @@ PRs like every other catalog — a price a buyer cannot see is a price
 that can be quietly discriminated, and this repo's answer to that
 class of problem is always the same: publish the number.
 
+**The demand half folds itself — DECIDED, D366 (2026-09-05).** The
+paragraph above shipped as a script run by hand (D288 §3), and once
+D313 automated the sale nothing ran it: from 2026-08-26 every
+self-serve sale moved the index by nothing. The fold is now
+`functions/src/pricingFold.ts`, run by the payment webhook after every
+sale and by the nightly closer every day, published onto
+`v2_meta/pricing` — readable by any signed-in user, so the number is
+as public as the committed file was — and laid over the committed
+constants by the door and by the server's quote alike. The constants
+(base, floor, ceiling, caps, fx) stay committed and re-priced by PR;
+the committed demand fields are the fallback snapshot, and
+`scripts/build-pricing.mjs` refreshes it with the same compiled fold.
+One amendment to the formula above: the ratio is taken over the
+trailing window PLUS the next fourteen days, so a sold fortnight is
+demand the moment it is sold rather than a month later — D366 §3 has
+the arithmetic and the one-term way back. The owner's other sentence
+— *"unintuitive"* — is not settled by that record: three of the
+door's numbers are on `OWNER-LIST.md` and the door's shape is
+`VISUAL-REQUESTS.md` item 4.
+
 **The vocabulary widening this pricing needs — DECIDED, D228
 (2026-08-22)**: `sponsor.audience` now takes **one to three dims** (the
 owner's example cohort — "men 20–30 in the US" — is exactly three),

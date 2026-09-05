@@ -40,11 +40,6 @@ const LIVE = vi.hoisted(() => ({
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
-    // D174's three states. The mock defaults to the timed one because
-    // that is what enable() lands on, so a case that only flips `on`
-    // gets the shape a real opt-in produces.
-    mode: () => "session" as "off" | "session" | "always",
-    until: () => Date.now() + 90 * 60_000,
     count: () => null as number | null,
     // D176's room mix — null by default, which is the quiet-street case.
     mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
@@ -565,18 +560,17 @@ describe("NearPresence · the room", () => {
   // beat, and this pins the two ends of that: a real remaining time is
   // rendered, and a not-yet-sampled clock renders the MODE instead of
   // arithmetic on epoch zero.
-  it("shows the session's remaining time without reading the clock in render", async () => {
-    LIVE.near.mode = () => "session";
-    LIVE.near.until = () => Date.now() + 90 * 60_000;
+  // The case that stood here pinned the timed state's countdown chip
+  // (D174). D365 retired the timed state on the owner's word — "near
+  // should only have off and on option" — so what is pinned now is the
+  // absence: the switch is the whole control, and nothing beside it
+  // offers a deadline, a limit or a second mode.
+  it("offers the switch and nothing else about visibility — no chip, no deadline (D365)", () => {
     render(<NearLiveBody />);
-    // Coarse by design (the beat is four minutes), so 90 minutes reads as
-    // "2h" — what matters is that it is a duration and not an epoch.
-    const chip = await screen.findByRole("button", { name: /Visible for .* more/i });
-    expect(chip.textContent).toMatch(/^\d+[hm]$/);
-    // The unsampled-clock frame would print this, six digits of hours from
-    // subtracting nothing from an epoch. If it ever appears, the prop is
-    // being fed a raw deadline again.
-    expect(chip.textContent).not.toMatch(/\d{5}/);
+    expect(screen.queryByRole("button", { name: /Visible for|no deadline|two-hour|limited time/i })).toBeNull();
+    expect(document.body.textContent || "").not.toMatch(/\btimed\b|\balways\b/i);
+    // …and the switch itself is there, once.
+    expect(screen.getAllByRole("switch")).toHaveLength(1);
   });
 
   it("marks a capped basis, because past the cap n is a floor not a size", () => {

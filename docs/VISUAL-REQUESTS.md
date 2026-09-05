@@ -162,6 +162,67 @@ version is in this file's history.
   (map-3, pat-5, pat-6; the 2026-09-01 digest, bridge item 2).
 - **status** — `requested`.
 
+### 4 · The buying door reads as a price, not a formula
+
+**Asked 2026-09-05** — the owner: *"pricing seems unintuitive."* D366
+made the numbers behind the door live; this request is for the shape
+that lets a buyer read them.
+
+- **asked by** — the owner, 2026-09-05; recorded at D366 §6.
+- **surface** — the "Ask a question" overlay (`src/v2/spec/suggestions.jsx`,
+  built from `design/standalone-2026-08-24/suggestions.jsx`): the rate
+  board (three cohort rows), the scope ruler inside the composer, and
+  the contract sheet before "Book it". Reached from the daily tab's
+  door and the account sheet's *Asked by you* row.
+- **what a buyer reads today, and has to assemble** — per cohort: a
+  demand word (*quiet · steady · contested*), a multiplier (*×0.9
+  today*), a booked count (*0 of 14 booked*), a fourteen-tick strip, a
+  per-answer rate, and a token row stating the law (*€0.16 base · ×
+  demand — sold ÷ available · over the trailing 28 · floor ×0.9 ·
+  ceiling ×2.5 · billed per answer · capped at €320*). The contract
+  sheet adds *Rate · locked at approval*, an estimate only where a
+  completed campaign exists (D288 §3), and *Your cap €320 up front ·
+  unserved answers refund at close*. The question a buyer actually has
+  — *what will this cost me, and what does it buy* — is answered
+  nowhere in one place; the multiplier and the floor/ceiling tokens
+  are the mechanism's vocabulary, not a buyer's.
+- **data and basis** — everything the door prints is on the live card
+  (`v2_meta/pricing` over `content/pricing.json`, D366): per cohort the
+  idx, the booked strip, the next open day, and an estimate WITH its
+  basis or none. A forecast may render only where the card carries a
+  completed campaign (D288 §3's honesty), so the design needs a shape
+  for *no estimate yet* that is not a blank — the booked strip and the
+  open day are always real. The flat ad lane (D315) prints one figure
+  for the window and must keep reading as a different product.
+- **states** — committed card (before the live half lands, or a demo
+  build: the label says *committed*); live with an empty ledger (every
+  cohort at the floor, all open); live with demand (one or more
+  cohorts lifted, days booked, a sold-out strip of fourteen); with and
+  without an estimate; the composer's approved-quote and pay states,
+  where `fmtExact` prints the charged figure to the cent.
+- **interaction** — pick a cohort → the composer opens on it; the
+  scope ruler re-prices as the scope moves; currency switch (D288's
+  `CurSwitch`) reformats every figure with ≈ off EUR; the contract
+  sheet is the last read before money.
+- **vocabulary** — the 2026-09-02 standalone family (`design/
+  standalone-2026-09-02/`), `src/v2/styles.css`, D302's two palettes,
+  `COPY.md` (*visual > word > sentence*): the price is the visual; the
+  law can be one line behind a disclosure, not a token row a buyer
+  reads first. The claims that must stay claims (§3): *locked at
+  booking*, *billed per answer*, *the unserved part refunds*, and the
+  ≈ on any converted figure.
+- **constraints** — the overlay is past first paint (no eager bytes;
+  `check:bundle` stands at its ceiling); one read per open for the live
+  card and none for the committed one; tap targets
+  (`check:tap-targets`); the three OWNER-LIST rows D366 opened (the
+  floor, the cap's shape, the forward fortnight) may change the numbers
+  under this design — design for a buyer-set budget as one of the
+  states rather than assuming the flat cap.
+- **why** — MONETIZATION path 1 and PAID-PLAN §6: the door is the
+  product's one paid surface, and a price a buyer cannot read is a
+  price they do not pay.
+- **status** — `requested`.
+
 ## Planned
 
 ## Drafted

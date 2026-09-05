@@ -2,12 +2,17 @@
 // check-pricing.mjs — the committed rate card stays inside its own rules.
 //
 // content/pricing.json is the PUBLIC half of the paid mechanism (PAID-PLAN
-// §6, D288 §3): the door prints it, buyers read it, and it is recomputed by
-// scripts/build-pricing.mjs from the purchase ledger. A malformed or
+// §6, D288 §3): its CONSTANTS are the policy every price is computed from,
+// and its demand fields are the fallback the door prints until the live
+// half lands (D366 — the server folds the ledger onto `v2_meta/pricing`
+// after every sale and every night; scripts/build-pricing.mjs runs the
+// same fold by hand and refreshes this snapshot). A malformed or
 // out-of-bounds card would either break the door client-side or print a
 // price the mechanism's own clamps forbid — and because the file is edited
 // by script AND by hand (the constants are re-priced by PR), both authors
-// need the same referee.
+// need the same referee. The live document is held to the same shape by
+// the two overlay parsers (functions/src/pricingFold.ts mergeLivePricing,
+// src/v2/data/pricing.ts parseLive), each tested on its own side.
 //
 // What it holds, each line a recorded rule:
 //   - the constants are sane: base > 0, 0 < floorX ≤ ceilX, caps positive

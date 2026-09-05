@@ -37972,3 +37972,243 @@ green through the whole of it.
   the People lens — is one inline component away from this. The guard
   is the rule at the top of this record, and the case is the shape to
   copy: mount the whole app, notify from outside, count the mounts.
+
+## D365 · Near is a switch again: off or on, and the timed option retires
+
+**2026-09-05.** **Status:** binding, BUILT. The owner's words: *"near
+should only have off and on option."* Reverses D174 §1 — the three
+states and the timed default — and keeps everything D174 rested them
+on: §2's linger, §3's `until` on the doc and its cap in
+`firestore.rules`, §4's foreground guard.
+
+### What "on" means
+
+Exactly what D174's `always` meant, unchanged: no deadline on the
+SETTING, and every beat still writes an `until` capped at the linger,
+so a position outlives the app by up to three hours and never longer.
+*"Visible whenever the app is open, and for up to three hours after"*
+is the whole claim, and it is the one `web/privacy.html` already makes
+(`check:policy-claims`'s D174 row — *three hours after you close the
+app* — is still true and still gated). Nothing a stranger can see
+changed; a choice about how long to be seen went away.
+
+D174 §1 had already recorded the owner's pushback on time-boxing at all
+— *"is it that bad if they forget, the only info is face, age, gender,
+most of which you can see with your eyes"* — and kept the timed state
+as the default anyway, on the argument that forgetting was the failure
+mode worth designing against. This record is the owner completing that
+pushback: the control solves nothing now except the question it asks,
+and a switch is what a switch is for.
+
+### What moved
+
+- `src/v2/data/near.ts` — a boolean store again, persisted as D84's own
+  `"1"`. The deadline key is never written and is swept on read.
+- `src/v2/data/live.ts` — `LIVE.near.mode()` and `.until()` are gone
+  (`live-surface.ts`'s pin and `vote.test.ts` moved with them);
+  `enable()` takes no mode; every beat writes the linger minus D181's
+  skew margin, with no session deadline to clamp to; the expired-session
+  teardown at the top of `presenceBeat` went with the state it noticed.
+- `src/v2/ui/NearLiveBody.tsx` — the countdown chip and the sampled
+  clock that fed it are gone. The switch beside the stop's name is the
+  control.
+- `functions/src/pure.ts` — `PRESENCE_SESSION_MIN` is gone; nothing
+  read it but a comment in the client store.
+- `docs/data-inventory.md`, `docs/SCHEMA-V2.md`, `NEXT-FUNCTIONALITY.md`
+  §10 — say what `until` is now (the linger past the last beat) and
+  that the middle row is retired.
+
+### The upgrade, and why it lands off
+
+A phone carrying D174's `session` on disk comes back to this build OFF,
+with both keys swept — not on. The timed option was a promise about
+when you stop being visible, and reading it as "on" would turn two
+hours into no deadline without anyone choosing that. The doc that build
+wrote carries its own `until`, so the server stops counting it by
+itself. `always` and D84's `"1"` read as on, which is what they meant.
+
+### What pins it
+
+`data/near-presence.test.ts`: three of D174's four cases had no subject
+and are retired (the timed default, the clamp, the expired read); what
+stands is the bounded `until` and its margin inside the rules fence,
+plus two new cases for the upgrade paths above. `ui/NearLiveBody.test.tsx`
+pins the absence: the switch is the only control, no chip, no deadline
+word. `firestore-tests/rules.test.ts`'s cap case is untouched, because
+the cap is untouched.
+
+### What this is not
+
+Not a D334 ask, and worth saying why: D334 is for a privacy argument
+standing between a proposal and the tree. Here the owner removed an
+option, and the option removed was the one that showed LESS. Nothing
+was withheld from anybody and nothing new is exposed; the record is
+that the owner decided, and what was built is exactly the sentence
+they said.
+
+## D366 · The rate card folds itself: the demand index moves on every sale and every night, and the door prints the published card
+
+**2026-09-05.** **Status:** binding, BUILT for the half this record
+decides. The owner's words: *"pricing seems unintuitive and not as
+dynamic as I would like."* This record is the dynamic half — the
+index that did not move, and what moves it now. The intuitive half is
+a design question and an owner's, so it goes where those go:
+`docs/OWNER-LIST.md` § Decisions (three rows) and
+`docs/VISUAL-REQUESTS.md` § Requested (item 4), both written here.
+The rate card's LAW is unchanged: base × demand, floor and ceiling,
+billed per answer, capped, the line locked at booking (PAID-PLAN §6;
+D288 §3; D313; D315).
+
+### 1 · The finding: nothing moved the index
+
+PAID-PLAN §6 priced desire as *"a demand multiplier per cohort cell,
+recomputed by a script from the order book"*, and D288 §3 shipped it
+that way — `scripts/build-pricing.mjs`, run BY HAND in the same
+sitting as a hand-recorded contract, its output committed to
+`content/pricing.json` and embedded into `functions/src/pricing.ts`
+for the server to quote from. Then D313 (2026-08-26) took the human
+out of the sale: a buyer books, an automated review quotes, Stripe
+pays, the webhook writes the purchase. Nobody re-pointed the fold at
+the new pen. So from D313 to today every self-serve sale moved the
+demand index by exactly nothing: the committed card is dated
+2026-08-24, every `idx` is the floor, every `booked` row is fourteen
+zeros, and a buyer who sold out a scope's fortnight would have seen
+the door print "quiet · 0 of 14 booked" over it — and the next buyer
+would have been quoted the floor. *"Not as dynamic as I would like"*
+is that gap measured, and it was a machinery gap before it was a
+design one.
+
+### 2 · What moves it now
+
+**One fold, on the server, where the ledger changes.**
+`functions/src/pricingFold.ts` is the arithmetic, pure — `foldPricing
+(card, rows, today)` — and `paid.ts` runs it twice: `publishPricing`
+after every payment the webhook takes live, and at the end of every
+nightly closer run, sale or no sale, because `booked` is relative to
+today and a strip that never rolls goes stale. It reads one bounded
+range on `v2_purchases` (`window.until >=` a year back, at most 1,000
+rows, no composite index) and writes the demand half of the card —
+`idx`, the booked fortnight, `nextOpen`, the estimates, and the day it
+was folded for — onto **`v2_meta/pricing`**. That path is already
+`allow read: if request.auth != null; allow write: if false`
+(`firestore.rules`, unchanged), so the number stays public in the
+sense §6 demands — *"a price a buyer cannot see is a price that can be
+quietly discriminated"* — every buyer reads the same document; it just
+no longer waits for a commit.
+
+**The server quotes off it.** `reviewBooking` locks the quote at
+verdict time off `liveCard(db)`: the committed constants under the
+published half, or the committed card alone when nothing has been
+published or the read fails (never a throw — a fresh deployment must
+still quote). The lock itself is unchanged: a refold between approval
+and payment changes nothing for a buyer whose quote is stored.
+
+**The door prints it.** `src/v2/data/pricing.ts` lays the published
+half over the committed constants when the door opens — one
+session-cached `getDoc`, live builds only, kicked from the hook every
+price-printing surface of the door already calls (`useCurTick`), never
+a listener: the door is opened, not watched. `PRICING` is one object
+mutated in place so the rate rows, the ruler and the contract sheet
+read the new figures on their next render without threading a store
+through the spec layer; the board's label says *committed* until the
+live half lands, then the day it was folded for. Two overlay parsers
+— `mergeLivePricing` server-side, `parseLive` client-side — hold the
+document to one shape: refused WHOLE when a cohort is missing or a
+strip is the wrong length (never two cohorts live and one stale), every
+`idx` clamped into the committed floor and ceiling, no estimate without
+its basis.
+
+**The constants never move this way.** Base, floor, ceiling, the caps,
+the fx table and the trailing window stay in `content/pricing.json`,
+re-priced by PR, gated by `check:pricing` and byte-compared into the
+functions embed as before. The committed demand fields are now a
+SNAPSHOT — the fallback a demo build, a fresh deployment and a failed
+read print — and `scripts/build-pricing.mjs` refreshes it by running the
+SAME compiled fold (`functions/lib/pricingFold.js`, the relationship the
+e2e harness already has with `functions/lib`) and publishing the live
+document in the same run. One arithmetic, two writers; the script's
+own copy of the fold, which is how the index came to depend on somebody
+remembering, is gone.
+
+### 3 · The one amendment to §6's formula, and how to strike it
+
+§6 said *trailing window*. The fold now takes the ratio over the
+trailing window PLUS the next fourteen days — the fortnight the door
+already draws as its booked strip:
+
+```
+ratio = (occupied slot-days in the trailing 28 + booked slot-days in the next 14) / 42
+idx   = floorX + ratio × (ceilX − floorX), clamped, 2 dp
+```
+
+Why: a trailing-only index cannot respond to a sale until its days have
+passed. A scope booked solid for the next two weeks is demand NOW, and
+the index that priced it at the floor for twenty-eight more days was
+the least dynamic thing about the card. Measured in the e2e: one
+29-day city sale on an empty ledger books all 14 days and lifts the
+city index from ×0.9 to **×1.43** the moment the webhook lands —
+€0.23 per answer, an ad window at €457.60 — while country and world
+stay at ×0.9, because the slot is per scope. Under the trailing-only
+formula the same sale would have printed ×0.9 until October.
+
+The floor and the ceiling are unchanged, so the range of prices a buyer
+can ever be quoted is what D288 §3 committed to. If the owner wants the
+trailing-only formula back, it is one term: drop `ahead` from the ratio
+in `pricingFold.ts` and retire the three cases in `pricingFold.test.ts`
+that assert the fortnight counts. It is on `OWNER-LIST.md` as a row.
+
+### 4 · What pins it
+
+- `functions/src/pricingFold.test.ts` — the fold from an empty ledger;
+  the lift from one forward sale; trailing occupancy from any state;
+  the ceiling; one slot per day however many share it; an ad occupies,
+  a subscription does not; running-only ahead and `nextOpen`; estimates
+  only from closed campaigns with the closer's answer total; and the
+  overlay's refusals and clamps.
+- `functions/src/closer.test.ts` — the nightly run publishes
+  `v2_meta/pricing` even with nothing to close, and a campaign it just
+  closed is already in the index and the estimate.
+- `src/v2/data/pricing-live.test.ts` — the client overlay: shape
+  refusals, clamps, the subscriber notify, one read per session, the
+  committed card standing when nothing is published or the read fails.
+- `firestore-tests/e2e-v2-loop.mjs` — before the first sale the index is
+  the floor; after the webhook it is off the floor, all fourteen days
+  booked, the other cohorts untouched, dated today; the ad's flat quote
+  is `adBase × the live idx`, read through a signed-in client the way
+  the door reads it.
+
+### 5 · Cost
+
+Client: one document read per session, only when the door opens, only
+on a live build — a surface almost nobody opens. Server: one bounded
+range query and one document write per sale, plus one per night; the
+fold hitting its 1,000-row bound is logged (`paid_pricing_rows_cap`)
+rather than silent. The e2e's own count: five publishes across three
+sales and two re-delivered webhooks, each folding three rows or fewer.
+No new index: a single-field range on `window.until` is automatic.
+The eager bundle did not grow — `pricing.ts` and the door are past first
+paint, and `lib/firebase` was already in the entry graph — measured by
+`check:bundle` at the same 629 KB of 630 the tree stood at.
+
+### 6 · What this leaves the owner — the intuitive half
+
+Three things a buyer reads on the door are the owner's numbers or the
+owner's shape, and a routine may not move them; each is one row on
+`OWNER-LIST.md` § Decisions, with its arithmetic there:
+
+1. **A floor of ×0.9 under a base nobody pays at quiet.** The card says
+   *€0.16 base* and prints €0.14 beside it. A floor of ×1.0 over a base
+   of €0.144 is the same price said honestly.
+2. **One flat cap — €320 up front — for a city ask and a world ask
+   alike.** PAID-PLAN §6 wrote *"a budget cap the buyer sets"*; D313
+   fixed it at `capEur`. A city buyer pays the world's cap and is
+   refunded most of it at close, which is arithmetic a buyer has to
+   trust rather than a price they can read.
+3. **Whether the forward fortnight stays in the ratio** (§3).
+
+And one design question, which is a visual and so a request rather than
+a decision: the door prints a multiplier, a demand word, a per-answer
+rate, a cap and a refund promise, and asks the buyer to assemble the
+price from them. What a buyer wants to read is *what will this cost me
+and what does it buy* — `VISUAL-REQUESTS.md` item 4 asks Claude Design
+for that shape, on the data this record makes live.
