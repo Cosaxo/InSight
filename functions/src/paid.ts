@@ -574,7 +574,16 @@ function bookingPayloadOf(snap: FirebaseFirestore.DocumentSnapshot): PaidBooking
  */
 export const MAX_REVIEW_ATTEMPTS = 6;
 
-async function reviewBooking(db: Firestore, bid: string): Promise<void> {
+/**
+ * EXPORTED so the two status guards below can be driven, not just read.
+ * Both are deletable with every runner green — the e2e only ever drives
+ * one trigger-fired review per booking and never runs the sweep, and the
+ * sweep's own tests inject a store whose `review` is a stub. That is the
+ * shape this file has already paid for twice (`heldPageFrom` carries the
+ * note): the adapter that talks to Firestore runs under nothing while an
+ * in-memory fake goes on proving the loop works.
+ */
+export async function reviewBooking(db: Firestore, bid: string): Promise<void> {
   const ref = db.collection("v2_paid_bookings").doc(bid);
   const snap = await ref.get();
   if (!snap.exists || snap.get("status") !== "review") return;

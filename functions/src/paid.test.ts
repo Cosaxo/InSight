@@ -39,6 +39,7 @@ import {
   parseVerdict,
   priceQuote,
   refundEurFor,
+  reviewBooking,
   reviewGates,
   reviewSubject,
   validatePaidBooking,
@@ -834,5 +835,93 @@ describe("heldPageFrom — the paging the sweep's own tests cannot see", () => {
     const rows = await heldPageFrom(q, fakeDb(false), "gone", 50);
     expect(rows, "a vanished cursor rewound to page one").toEqual([]);
     expect(calls).toEqual([]);
+  });
+});
+
+// ── the two status guards nothing could see ─────────────────────────────
+//
+// `reviewBooking` reads the booking, calls the reviewer, then writes the
+// verdict inside a transaction that re-reads it. Both reads refuse
+// anything that is not still `review`, and BOTH GUARDS WERE DELETABLE WITH
+// EVERY RUNNER GREEN: the e2e drives exactly one trigger-fired review per
+// booking and never runs the 30-minute sweep, and `runReviewSweep`'s own
+// tests inject a store whose `review` is a stub.
+//
+// What the guards are worth: without them the sweep re-reviews `declined`
+// and `live` bookings, so a decline the buyer has already read is
+// overwritten by an approve, and a PAID, LIVE booking is written back to
+// approved or declined — stranding a campaign whose purchase row and
+// question doc already exist.
+//
+// No mocking is needed to drive it. `runReviewVerdict` returns
+// approve-on-gates-only when no model key is configured, which is what a
+// test process is, so the verdict is deterministic and no network is
+// touched.
+describe("reviewBooking only ever moves a booking OUT of review", () => {
+  /** The smallest Firestore this function actually uses: one document,
+   *  a transaction that re-reads it, and a record of what was written.
+   *  `reads` lets a case change the status BETWEEN the outer read and the
+   *  transaction's, which is the race the second guard exists for. */
+  function fakeDb(statuses: string[]) {
+    const writes: Record<string, unknown>[] = [];
+    // Reads are counted because the OUTER guard's whole job is to spend
+    // nothing on a booking that is not in review: without it the function
+    // runs on to the reviewer and the transaction, and the transaction's
+    // own guard — the backstop — refuses the write. So the write count
+    // cannot see the outer guard at all; the read count can.
+    const reads: string[] = [];
+    let n = 0;
+    const snapFor = () => {
+      const status = statuses[Math.min(n++, statuses.length - 1)];
+      reads.push(status);
+      return {
+        exists: true,
+        get: (k: string) => (k === "status" ? status : (BOOKING as Record<string, unknown>)[k]),
+      };
+    };
+    const ref = { get: async () => snapFor(), update: async (u: Record<string, unknown>) => { writes.push(u); } };
+    return {
+      writes,
+      reads,
+      db: {
+        collection: () => ({ doc: () => ref }),
+        runTransaction: async (fn: (tx: unknown) => Promise<void>) => fn({
+          get: async () => snapFor(),
+          update: (_r: unknown, u: Record<string, unknown>) => { writes.push(u); },
+        }),
+      } as unknown as Parameters<typeof reviewBooking>[0],
+    };
+  }
+
+  it("writes a verdict for a booking that is still in review — the control", async () => {
+    const f = fakeDb(["review", "review"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the ordinary path stopped writing a verdict").toHaveLength(1);
+    expect(f.writes[0].status).toBe("approved");
+  });
+
+  it("writes nothing for a booking that is already LIVE — it has been paid for", async () => {
+    const f = fakeDb(["live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "a paid, live booking was re-reviewed").toEqual([]);
+    // …and it stops at the FIRST read, which is the outer guard's whole
+    // point: past it the function calls the reviewer, and in production
+    // that is a billed model call for a booking already settled.
+    expect(f.reads, "the outer guard let it run on to the reviewer").toHaveLength(1);
+  });
+
+  it("writes nothing for a booking already DECLINED — the buyer has read it", async () => {
+    const f = fakeDb(["declined"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes).toEqual([]);
+  });
+
+  it("writes nothing when the booking leaves review DURING the reviewer call", async () => {
+    // The second guard, and the only one the first cannot stand in for:
+    // in review at the outer read, live by the time the transaction reads
+    // it. That window is exactly as long as the model call.
+    const f = fakeDb(["review", "live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the transaction wrote over a booking that went live mid-review").toEqual([]);
   });
 });
