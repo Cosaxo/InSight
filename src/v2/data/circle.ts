@@ -375,8 +375,14 @@ export async function loadCircle(
   // button offered to re-follow them: a write the rules refuse as an
   // update and `follow()` swallows, so the tap did nothing and said
   // nothing. `loadFollows` could not repair it either — it early-returns
-  // on a non-null cache. Handing both back keeps the two questions apart
-  // at the one place that knows the difference.
+  // on a non-null cache, and its own docstring states the intent this
+  // violated: "two caches that can disagree about who your friends are is
+  // the bug this note exists to prevent". Named rather than cited by line
+  // — the first draft of this comment said live.ts:4826 and the same
+  // night's edits to that file moved the sentence eight lines down, which
+  // is the hand-maintained-figure failure one layer over. Handing both
+  // back keeps the two questions apart at the one place that knows the
+  // difference.
   const uids = capFollows(await fetchFollowing(db, me));
   if (!uids.length) return { members: [], following: [] };
   const [answerSets, followers] = await Promise.all([

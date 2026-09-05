@@ -270,9 +270,10 @@ describe("fetchAnswersOf", () => {
 // `follow()` swallows, so the tap does nothing and says nothing.
 //
 // `loadFollows` could not repair it: it early-returns on a non-null cache.
-// live.ts:4826 states the intent this violated in its own words — "two
+// `loadFollows`'s own docstring states the intent this violated — "two
 // caches that can disagree about who your friends are is the bug this note
-// exists to prevent".
+// exists to prevent". Named, not cited by line: the first draft said
+// live.ts:4826 and the same night's edits to that file moved it.
 describe("loadCircle keeps the follow set separate from the fold", () => {
   it("hands back everyone you follow, including the one whose answers failed", async () => {
     const { loadCircle } = await import("./circle");
