@@ -171,7 +171,7 @@ describe("the room", () => {
   });
 });
 
-describe("the results page's address, in the buyer's room (D374)", () => {
+describe("the results page's address, in the buyer's room (D379)", () => {
   it("offers to copy the public page's link on a question row", () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });

@@ -209,7 +209,7 @@ describe("validatePaidBooking", () => {
     expect(r.ok.topic).toBeNull();
   });
 
-  it("holds the budget to the card's range in whole euros, and reads a missing one as the cap (D367)", () => {
+  it("holds the budget to the card's range in whole euros, and reads a missing one as the cap (D372)", () => {
     const { minEur, capEur } = PRICING_CARD;
     const ok = validatePaidBooking({ ...BOOKING, budgetEur: 20 });
     if ("error" in ok) throw new Error(ok.error);
@@ -251,7 +251,7 @@ describe("priceQuote", () => {
     expect(q.windowDays).toBe(WINDOW_DAYS);
   });
 
-  it("makes the buyer's budget the cap, and holds it to the card's range (D367)", () => {
+  it("makes the buyer's budget the cap, and holds it to the card's range (D372)", () => {
     const card = {
       base: 0.1, floorX: 1, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
       generated: "2026-09-05", currency: "EUR", fx: {}, adBase: 320,
@@ -269,14 +269,14 @@ describe("priceQuote", () => {
     // The lifted line buys fewer answers for the same money — the budget
     // is the constant, the count is what the demand index moves.
     expect(priceQuote("country", card, 100).cap).toBe(Math.floor(100 / 0.15));
-    // Null is the pre-D367 booking: the card's cap.
+    // Null is the pre-D372 booking: the card's cap.
     expect(priceQuote("city", card, null).capEur).toBe(320);
     // The clamps hold here too, whatever a stored figure says.
     expect(priceQuote("city", card, 5).capEur).toBe(20);
     expect(priceQuote("city", card, 5000).capEur).toBe(320);
   });
 
-  it("holds a card idx to the floor, and to nothing above it (D368)", () => {
+  it("holds a card idx to the floor, and to nothing above it (D373)", () => {
     const card = {
       base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
       generated: "2026-08-24", currency: "EUR", fx: {},
@@ -304,7 +304,7 @@ describe("reviewGates", () => {
   });
 });
 
-describe("validatePaidLink — the buyer's one link, by shape (D373)", () => {
+describe("validatePaidLink — the buyer's one link, by shape (D378)", () => {
   it("takes a whole https address and nothing else", () => {
     expect(validatePaidLink("https://harboursauna.no/winter")).toEqual({ ok: "https://harboursauna.no/winter" });
     expect(validatePaidLink("  https://Example.NO/a?b=1  ")).toEqual({ ok: "https://example.no/a?b=1" });
@@ -347,7 +347,7 @@ describe("REVIEW_GUIDELINES", () => {
     expect(REVIEW_GUIDELINES).toMatch(/push-polling/i);
     expect(REVIEW_GUIDELINES).toMatch(/buyer name or an audience value/i);
     expect(REVIEW_GUIDELINES).toMatch(/shown to the buyer verbatim/i);
-    // The link clause (D373): the reviewer sees the address, not the
+    // The link clause (D378): the reviewer sees the address, not the
     // page, and the prompt still carries none.
     expect(REVIEW_GUIDELINES).toMatch(/one https link[\s\S]{0,200}?after a person has answered/i);
     expect(REVIEW_GUIDELINES).toMatch(/shortener or redirect/i);
@@ -523,9 +523,9 @@ describe("the review budget, held to the arithmetic it states", () => {
 
 // The ad lane's describes — kind ad, adPriceQuote, paidAdDoc,
 // paidAdPurchaseDoc, the guidelines' ad clause — stood here from D315 to
-// D370, which retired the self-serve ad: the sponsored question is the
+// D375, which retired the self-serve ad: the sponsored question is the
 // one paid product. What is pinned now is the refusal.
-describe("the ad lane is retired (D370)", () => {
+describe("the ad lane is retired (D375)", () => {
   it("refuses an ad booking by name, in the register the door shows", () => {
     const r = validatePaidBooking({ kind: "ad", advertiser: "Harbour Sauna", headline: "Warm", body: "Open.", scope: "city", dims: { city: "Oslo, NO" } });
     expect("error" in r).toBe(true);

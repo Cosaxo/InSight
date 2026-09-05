@@ -25,7 +25,7 @@ const purchases: Rec[] = [];
 const queries: Array<{ after: string | null }> = [];
 const aggs = new Map<string, Record<string, number>>();
 const deletedAds: string[] = [];
-/** Every v2_meta write the run made — the rate card republish (D366). */
+/** Every v2_meta write the run made — the rate card republish (D371). */
 const published: Array<{ id: string; data: Record<string, unknown> }> = [];
 
 function snapOf(r: Rec) {
@@ -53,7 +53,7 @@ function purchaseQuery() {
     // test would still be green, which is the failure this whole file
     // exists to prevent one level up.
     where: (f: string, op: string, v: unknown) => {
-      // Two shapes reach this fake since D366: the closer's own
+      // Two shapes reach this fake since D371: the closer's own
       // `state == running` walk, and the pricing fold's `window.until >=`
       // range at the end of the run. Anything else is the wrong field.
       if (f === "window.until" && op === ">=") { untilFrom = String(v); return q; }
@@ -110,7 +110,7 @@ const fakeDb = {
       return { doc: (id: string) => ({ delete: async () => { deletedAds.push(id); } }) };
     }
     if (name === "v2_meta") {
-      // The nightly republish (D366) lands here; what was written is
+      // The nightly republish (D371) lands here; what was written is
       // what the door will print tomorrow.
       return { doc: (id: string) => ({ set: async (d: Record<string, unknown>) => { published.push({ id, data: d }); } }) };
     }
@@ -353,7 +353,7 @@ describe("the campaign closer walks past its first page", () => {
   });
 });
 
-describe("the closer republishes the rate card (D366)", () => {
+describe("the closer republishes the rate card (D371)", () => {
   // The demand half of the card used to move only when an operator ran
   // scripts/build-pricing.mjs and committed the result — which, once
   // D313 automated the sale, was never. The nightly run is where a window
@@ -387,7 +387,7 @@ describe("the closer republishes the rate card (D366)", () => {
       estimates: Record<string, { perDay: number; campaigns: number; days: number }>;
     };
     // Closed tonight, so it is in nobody's rotation tomorrow: the index
-    // reads crowding ahead (D368), and this scope has none left.
+    // reads crowding ahead (D373), and this scope has none left.
     const { floorX } = PRICING_CARD;
     expect(card.cohorts.city.idx).toBe(floorX);
     expect(card.cohorts.city.crowd).toEqual(Array(14).fill(0));

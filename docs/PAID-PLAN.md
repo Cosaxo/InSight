@@ -38,7 +38,7 @@ what Apple's 3.1.1 addresses. See
 all:**
 
 - **Paid cards in their own places, at one density.** One after every
-  sixth world card (`SPONSOR_EVERY`, `data/sponsored.ts` — D372; until
+  sixth world card (`SPONSOR_EVERY`, `data/sponsored.ts` — D377; until
   then `SPONSOR_SLOT`, one paid thing at a time, D195). Demand raises
   *price*, never the density — the ratchet shape SCALE-PLAN §5 points at
   revenue — and the first three campaigns in a scope hold a place each
@@ -79,7 +79,7 @@ all:**
 
 ## 1 · What is for sale — three products, one window
 
-> **D370 (2026-09-05):** the self-serve feed ad D315 added beside these
+> **D375 (2026-09-05):** the self-serve feed ad D315 added beside these
 > is retired — the sponsored question is the one paid product, per
 > [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md). The three below are this
 > plan's own and unchanged.
@@ -297,7 +297,7 @@ PRs like every other catalog — a price a buyer cannot see is a price
 that can be quietly discriminated, and this repo's answer to that
 class of problem is always the same: publish the number.
 
-**The demand half folds itself — DECIDED, D366 (2026-09-05).** The
+**The demand half folds itself — DECIDED, D371 (2026-09-05).** The
 paragraph above shipped as a script run by hand (D288 §3), and once
 D313 automated the sale nothing ran it: from 2026-08-26 every
 self-serve sale moved the index by nothing. The fold is now
@@ -311,15 +311,15 @@ the committed demand fields are the fallback snapshot, and
 `scripts/build-pricing.mjs` refreshes it with the same compiled fold.
 One amendment to the formula above: the ratio is taken over the
 trailing window PLUS the next fourteen days, so a sold fortnight is
-demand the moment it is sold rather than a month later — D366 §3 has
+demand the moment it is sold rather than a month later — D371 §3 has
 the arithmetic and the one-term way back. The owner's other sentence
 — *"unintuitive"* — is not settled by that record: three of the
 door's numbers are on `OWNER-LIST.md` and the door's shape is
 `VISUAL-REQUESTS.md` item 4.
 
 **The buyer sets the budget, the base is the quiet price, and a
-served week is a basis — DECIDED, D367 (2026-09-05).** The owner's
-*"yeah lets do that"* to the four calls D366 left open, plus *"the
+served week is a basis — DECIDED, D372 (2026-09-05).** The owner's
+*"yeah lets do that"* to the four calls D371 left open, plus *"the
 price per answer right now is a bit high"*. The paragraph at the top
 of this section — *"against a budget cap the buyer sets"* — is now
 built as written: the composer offers the card's presets (€50 · €100 ·
@@ -337,7 +337,7 @@ nothing — and a flat window price becomes fair only once these
 estimates exist for every scope.
 
 **The index is crowding, with no ceiling; the quiet price is €0.02 —
-DECIDED, D368 (2026-09-05).** The owner, on the ceiling above: *"a
+DECIDED, D373 (2026-09-05).** The owner, on the ceiling above: *"a
 demographic doesn't have a cap on how desired it is"* — and it was
 right about what the index measured, too: booked days saturate at
 "all of them" and then stop moving however many buyers want the same
@@ -347,7 +347,7 @@ rotation per day, averaged over the next 14 days)`: nobody else, the
 floor; one other campaign across the fortnight, ×1.5; five, ×3.5; no
 cap. Running campaigns and the days ahead only — a campaign that ended
 last month is in nobody's rotation. Questions share a day's slot by
-rotation (and ads too, since D369), so a crowded day is fewer answers
+rotation (and ads too, since D374), so a crowded day is fewer answers
 per campaign, and the price rises exactly when the answers are scarce.
 The buyer is protected without a ceiling by the two things already
 built: the rate locked at booking and the budget bounding the spend.
@@ -357,7 +357,7 @@ ridiculously high?"*: `base` is €0.02 (€10 buys 500 answers with
 nobody else asking), budgets €5 · €10 · €20 · €50, a €5 minimum. The
 ad window did not follow and is on `OWNER-LIST.md`.
 
-**The menu — DECIDED, D371 (2026-09-05; `SPONSORED-PLAN.md` §2.3).**
+**The menu — DECIDED, D376 (2026-09-05; `SPONSORED-PLAN.md` §2.3).**
 The door's three rows print a price per reach — city €10, country
 €25, everyone €50 — each with *up to N answers* at the line in force
 and the window, and picking a row opens the composer at that budget.
@@ -366,7 +366,7 @@ The €20 chip became €25 so the menu's figures are chips; `windowDays`
 number. Underneath nothing moved: per-answer billing at the locked
 line, the budget as the cap, the refund at close.
 
-**One reviewed link — DECIDED by the owner, D373 (2026-09-05; the
+**One reviewed link — DECIDED by the owner, D378 (2026-09-05; the
 owner's *"yes to the link"*, `SPONSORED-PLAN.md` §2.4).** A sponsored
 question may carry one https address. The server holds its shape, the
 review its substance (a ninth guideline: the reviewer reads the
@@ -376,7 +376,7 @@ referrer, and nothing is counted. D197's no-link rule stays for the
 committed ad pen; for questions it is reversed by this record. The
 privacy page says so, pinned by `check:policy-claims`.
 
-**The shareable results page — DECIDED, D374 (2026-09-05;
+**The shareable results page — DECIDED, D379 (2026-09-05;
 `SPONSORED-PLAN.md` §2.5).** A public web page per sponsored question
 at `/q/{qid}` — the question, the buyer's name, the split, the
 audience bought and the breakdown by those dims, the window, the PAID
@@ -389,7 +389,7 @@ advertisement. The privacy page says the page exists and never names
 who answered, pinned by `check:policy-claims`.
 
 **Ads run from the day after payment and share the rotation; the ad
-window follows the cut — DECIDED, D369 (2026-09-05).** The owner:
+window follows the cut — DECIDED, D374 (2026-09-05).** The owner:
 *"make the ad price follow the same cut, and how do ads work right
 now. I don't like that they don't work out of the gate as that
 reduces my start revenue when I need it the most."* D315's queue
@@ -398,7 +398,7 @@ one ad window per overlapping audience per month, a world ad blocking
 every city — so the second advertiser at launch waited weeks. Retired:
 an ad starts tomorrow like a question, shares the daily slot by
 rotation with every campaign in its scope, and the crowding it joins
-is in the flat price it locks (D368's index counts ads). `adBase` €320
+is in the flat price it locks (D373's index counts ads). `adBase` €320
 → **€40**, the ÷8 the per-answer price took from €0.16 to €0.02, so
 an ad window with nobody else in rotation costs what a €40 question
 budget does. What did not move: text only, no link, no tracking
@@ -418,7 +418,7 @@ individual — the PAID band stays the app's own either way (§7).
 
 The voter-side placement is already not "the bottom of an endless
 scroll": a paid card holds one of the interleave's own places, the
-first at the sixth card (`SPONSOR_EVERY`, `data/sponsored.ts`; D372) on
+first at the sixth card (`SPONSOR_EVERY`, `data/sponsored.ts`; D377) on
 every device it matches, daily,
 and search reaches it like any bank entry. What does not exist is
 everything around the buyer:
@@ -493,7 +493,7 @@ every day it waits.
 | Failure | Mitigation | Residual |
 | --- | --- | --- |
 | The report drifts beyond what public data can produce | The §2 rule, held by the read-set test — D225 removed the delivery promise, not this | An operator who widens the read set; the same trust every gate rests on |
-| Demand inflates inventory instead of price | `SPONSOR_EVERY` is the unit of sale (a density since D372); §6 prices the scarcity beyond `crowdFree` | Pressure to "make it one in four" — the density is one diff away, which is why it is a named constant the door prints |
+| Demand inflates inventory instead of price | `SPONSOR_EVERY` is the unit of sale (a density since D377); §6 prices the scarcity beyond `crowdFree` | Pressure to "make it one in four" — the density is one diff away, which is why it is a named constant the door prints |
 | Paid metrics read as the app's own voice | Never core; base scorecard unbuyable; lens separation disclosed if mounted at all | A reader who does not read bands |
 | Edit history chills honest edits | Aggregate matrix first; per-voter mark only by explicit decision | Once public, second thoughts are public — D98's own trade, at its sharpest |
 | Desire pricing drifts into targeting | Vocabulary stays the published dims; audience cap moves only by recorded amendment; logic score fenced (§4) | Multi-dim cohorts are finer than one-dim ones — the amendment must say how fine is too fine |

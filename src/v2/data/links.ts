@@ -43,7 +43,7 @@ export function inviteLinkFor(code: string): string {
   return `${SITE_ORIGIN}/join/${code}`;
 }
 
-/** The shareable results page of a sponsored question (D374): the
+/** The shareable results page of a sponsored question (D379): the
  * hosting rewrite /q/{qid}, served by functions/src/share.ts. */
 export function resultsLinkFor(qid: string): string {
   return `${SITE_ORIGIN}/q/${encodeURIComponent(qid)}`;

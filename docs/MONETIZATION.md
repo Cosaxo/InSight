@@ -96,14 +96,14 @@ aggregate.
 Every note this paragraph used to hold is now a thing with a gate behind
 it: the disclosure band (`ui/SponsorMark.tsx`, the app's ink and never a
 buyer's), the paid cards' own places in the interleave — one after every
-sixth world card since D372 (`data/sponsored.ts`, `SPONSOR_EVERY`; a
+sixth world card since D377 (`data/sponsored.ts`, `SPONSOR_EVERY`; a
 single slot, `SPONSOR_SLOT`, before it), the coarse audience tags matched **on
 the device** against the published breakdown dims (one to three since
 D228, matched conjunctively and each printed on the band), `until` as the
-window, `sponsor.link` — since D373 the buyer's one https address, shown
+window, `sponsor.link` — since D378 the buyer's one https address, shown
 as its bare domain only after a person has answered, opened in the system
 browser, and counted by nobody (the review reads the address; the app
-never fetches it) — the **results page** (D374, `functions/src/share.ts`
+never fetches it) — the **results page** (D379, `functions/src/share.ts`
 at the hosting rewrite `/q/{qid}`): the same public numbers as one web
 page anyone can open, which the buyer's room and the answered card copy
 the address of — and `sponsor` as a provenance source `check:quality` holds in both
@@ -135,7 +135,7 @@ sponsored question wears, and no image, logo, brand colour or link —
 an omission**: with nowhere to send you there is no click, and with no
 click there is nothing to attribute, which is what keeps this path clear
 of the tracking apparatus below. It takes the same paid places as path
-2, in the same day's order (one card in six since D372; until then the
+2, in the same day's order (one card in six since D377; until then the
 single slot, one paid thing a day). `content/ads.json` ships empty and a
 test asserts it.
 
@@ -177,7 +177,7 @@ is where it has always been until a decision record says otherwise.
 ## Ruled out by standing posture
 
 Narrower than "no ads" — ads are path 3 (the committed pen; the
-self-serve ad lane D315 built on it retired at D370, the sponsored
+self-serve ad lane D315 built on it retired at D375, the sponsored
 question being the one paid product — `SPONSORED-PLAN.md`). What
 stays out is the **tracking apparatus**, because other standing
 records pin it:

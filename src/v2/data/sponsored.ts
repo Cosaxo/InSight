@@ -11,7 +11,7 @@
 //      go — one after every sixth world card, positions 6, 12, 18 … — and
 //      the density is the cap: a campaign lands at most once per feed
 //      build, and how many the feed carries is how far the reader
-//      scrolls, never how many the bank holds. Until D372 this read "ONE
+//      scrolls, never how many the bank holds. Until D377 this read "ONE
 //      AT A TIME" — `SPONSOR_SLOT = 1`, the prototype's "a feed with two is
 //      a feed for sale" — which made inventory one card per phone per day
 //      whatever the app's size, every sale diluting the last. The density
@@ -52,7 +52,7 @@ export interface Sponsor {
    */
   audience?: Record<string, string>;
   /**
-   * The buyer's one link (D373): an https address, validated for shape
+   * The buyer's one link (D378): an https address, validated for shape
    * by the server and for substance by the review. The card prints it as
    * its bare domain (`linkDomain`) ONLY after the person has answered —
    * the question is answered as a question, and the link is the buyer's
@@ -84,7 +84,7 @@ export function linkDomain(link: string | undefined): string | null {
 }
 
 /**
- * A paid card after every this-many world cards (D372): positions 6, 12,
+ * A paid card after every this-many world cards (D377): positions 6, 12,
  * 18 … as far as the day's pool reaches. The unit of sale is a PLACE in
  * this rhythm rather than a single slot — docs/SCALE-PLAN.md §5's
  * argument survives the change: inventory is still computable from the
@@ -158,7 +158,7 @@ function dayOrder<T extends { id: string }>(items: readonly T[], utcDay: number)
 
 /**
  * The sponsored questions to offer, in the day's order — every eligible
- * one, once, the first place rotating by day (D372; until then the one
+ * one, once, the first place rotating by day (D377; until then the one
  * card the day's rotation landed on).
  *
  * The caller has already filtered expired questions (`until`, live.ts) and
@@ -185,7 +185,7 @@ export function pickSponsored<T extends SponsoredQ>(
 /** One feed ad (D197) — text, an advertiser, a window. Never a question.
  * `from` joined with D315: a committed ad's window opens at seed time so
  * it never carries one, while a self-serve ad's is the day after payment
- * (D369; under D315 it queued behind the scope's running ad) and it must
+ * (D374; under D315 it queued behind the scope's running ad) and it must
  * not serve before that day. */
 export interface FeedAd {
   id: string;
@@ -239,7 +239,7 @@ export function orderPaid<T extends SponsoredQ>(
     // of a campaign would otherwise keep serving it. Questions get the
     // same filter one layer up, in live.ts's bank build. Both ends since
     // D315: a self-serve ad carries `from` and must not serve before its
-    // first day — the day after payment since D369, a queued day under
+    // first day — the day after payment since D374, a queued day under
     // D315 — so a device that cached the pool before then holds it.
     && (!today || !a.until || a.until >= today)
     && (!today || !a.from || a.from <= today)

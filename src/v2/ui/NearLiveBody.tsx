@@ -146,7 +146,7 @@ function NearSwitch({ on, busy, onToggle }: {
 }
 
 // D174's countdown chip stood here — the "timed" third state drawn beside
-// the switch, with the remaining time coarse to five minutes. D365 retired
+// the switch, with the remaining time coarse to five minutes. D370 retired
 // the state on the owner's word ("near should only have off and on
 // option"), so the switch is the whole control again: what "on" means is
 // D174's `always`, visible whenever the app is open and for up to the
@@ -185,7 +185,7 @@ function listNames(names: readonly string[]): string {
 
 function NearPresence() {
   const [, tick] = React.useState(0);
-  // A sampled `now` lived beside this tick from D174 to D365, feeding the
+  // A sampled `now` lived beside this tick from D174 to D370, feeding the
   // countdown chip without reading the clock in render (react-hooks/purity
   // bails the Compiler out of a component that does). The chip is gone
   // with the timed state, and with it the only reader of a clock here.
@@ -256,7 +256,7 @@ function NearPresence() {
           bolted above the constellation. */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div className="kicker" style={{ marginBottom: 0, flex: 1 }}>Around you</div>
-        {/* Off or on, and the switch is all of it (D365). */}
+        {/* Off or on, and the switch is all of it (D370). */}
         {supported && (
           <NearSwitch on={on} busy={busy}
             onToggle={() => { if (on) void near.disable(); else void turnOn(); }} />

@@ -12,7 +12,7 @@
 // What the door prints, it reads (D288 §3, D167): every price, tick and
 // demand word comes from data/pricing.ts — the committed constants of
 // content/pricing.json under the demand half the server publishes onto
-// `v2_meta/pricing` after every sale and every night (D366; the committed
+// `v2_meta/pricing` after every sale and every night (D371; the committed
 // snapshot stands until it lands, and the board says which) — and a
 // forecast renders ONLY where the card carries a completed campaign to
 // measure from. The design's mocked SG_DEMAND and expected() curves did
@@ -49,7 +49,7 @@ function useSuggestions() {
 }
 
 // Every printed price re-renders when the currency preference changes —
-// and when the LIVE half of the card lands (D366). The load is kicked
+// and when the LIVE half of the card lands (D371). The load is kicked
 // here because this hook is what every price-printing surface of the
 // door already calls: one session-cached getDoc of `v2_meta/pricing`,
 // live builds only, and the committed card stands until it arrives. The
@@ -92,7 +92,7 @@ const sgNextOpen = (scope) => {
   return c.nextOpen == null ? 'tomorrow' : sgDay(c.nextOpen);
 };
 const SG_TONE = { quiet: 'var(--ink-3)', steady: 'var(--ochre-ink)', contested: 'var(--accent-ink)' };
-// The crowding, as a sentence (D368, D372): the room left before anyone
+// The crowding, as a sentence (D373, D377): the room left before anyone
 // shares — the card's free places less the campaigns in the cohort's
 // rotation over the fortnight — and, once there is none, how many are
 // sharing. Read off the same strip the multiplier is folded from, so the
@@ -249,9 +249,9 @@ function SgTok({ children }) {
 }
 
 // ── the rate card (PAID-PLAN §6): one row per cohort, all of it read off
-// the card in force — since D371 the MENU price for the reach (a preset
+// the card in force — since D376 the MENU price for the reach (a preset
 // budget, sold as "up to N answers" at the line in force), the next 14
-// days as real ticks (taller the more campaigns share the day, D368),
+// days as real ticks (taller the more campaigns share the day, D373),
 // the demand word from the same crowding the line is priced by. The
 // per-answer line the buyer locks is one tap in, on the scope ruler and
 // the contract sheet: a buyer reads one number and one promise here,
@@ -315,7 +315,7 @@ function SgRateRow({ scope, name, onPick, i }) {
 
 function SgRateBoard({ SG, onPick }) {
   useCurTick();
-  // The law is one tap away rather than read first (D367, the owner's
+  // The law is one tap away rather than read first (D372, the owner's
   // "unintuitive"): a buyer comes for the price, and the multiplier, the
   // window and the ceiling are the mechanism's vocabulary, not theirs.
   const [law, setLaw] = useSgState(false);
@@ -324,18 +324,18 @@ function SgRateBoard({ SG, onPick }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 2px' }}>
         {/* Which card: the published one, dated the day it was folded
             for, or — before it lands, or in a demo build — the committed
-            snapshot, dated the day it was committed (D366). */}
+            snapshot, dated the day it was committed (D371). */}
         <span style={sgLabel}>the rate card · {sgDay(PRICING.generated)}{isLive() ? '' : ' · committed'}</span>
         <span style={{ flex: 1 }}></span>
         <CurSwitch></CurSwitch>
       </div>
       {/* Picking a row opens the composer on that reach AT THAT PRICE
-          (D371) — the budget chips stay for adjusting. */}
+          (D376) — the budget chips stay for adjusting. */}
       <SgRateRow scope="city" name={sgScopeName(SG, 'city')} i={0} onPick={() => onPick('city', menuEur('city'))}></SgRateRow>
       <SgRateRow scope="country" name={sgScopeName(SG, 'country')} i={1} onPick={() => onPick('country', menuEur('country'))}></SgRateRow>
       <SgRateRow scope="world" name="Everyone" i={2} onPick={() => onPick('world', menuEur('world'))}></SgRateRow>
       {/* THE LAW AS TOKENS, not a paragraph (2026-09-02), and behind a
-          tap since D367. Every clause is one fact off the card in force.
+          tap since D372. Every clause is one fact off the card in force.
           The sentence that stays in view is the one that is a PROMISE
           rather than a figure — D182's own carve-out, COPY.md §3. */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '-3px 2px 0' }}>
@@ -420,20 +420,20 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
   const [type, setType] = useSgState('binary');
   const [opts, setOpts] = useSgState(['', '']);
   const [topicId, setTopicId] = useSgState(null);
-  // The ad lane (D315) had its switch here until D370 retired it: the
+  // The ad lane (D315) had its switch here until D375 retired it: the
   // sponsored question is the one paid product, and the door builds one
   // thing.
   const [audience, setAudience] = useSgState(initialAudience || 'world');
   const [wearName, setWearName] = useSgState(true);
   const [ageDim, setAgeDim] = useSgState(false);
-  // The buyer's one link (D373): optional, https, shown as its bare
+  // The buyer's one link (D378): optional, https, shown as its bare
   // domain after a person has answered. Typed here; the server holds its
   // shape and the review its substance.
   const [link, setLink] = useSgState('');
   const linkDom = linkDomain(link.trim());
   const [paidStep, setPaidStep] = useSgState('form');
-  // The most the buyer will spend (D367): a preset off the card. From a
-  // menu row it is the row's price — the buyer chose that number (D371);
+  // The most the buyer will spend (D372): a preset off the card. From a
+  // menu row it is the row's price — the buyer chose that number (D376);
   // from the bare button, the smallest — a control that defaults to
   // more money than the least is the wrong default for a button that
   // charges it. The chips stay for adjusting either way.
@@ -601,12 +601,12 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
                 // stale while the checkout sits open.
                 ['Window', 'from the day after you pay · ' + PRICING.windowDays + ' days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
-                // The link (D373) is on the sheet as the domain the card
+                // The link (D378) is on the sheet as the domain the card
                 // will print — the reviewer sees the whole address.
                 ...(link.trim() ? [['Link', (linkDom || link.trim()) + ' · after the answer']] : []),
                 ['Rate', fmt(rate(scopeKey)) + ' per answer · locked at approval'],
                 ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * PRICING.windowDays) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's') + (est.running ? ' (' + est.running + ' still running)' : '')]] : []),
-                // The budget is the cap (D367): what is charged up front,
+                // The budget is the cap (D372): what is charged up front,
                 // what the closer bills answers against, what comes back.
                 ['Your budget', fmt(budget) + ' up front · up to ' + sgFmtN(answersFor(scopeKey, budget)) + ' answers · unserved answers refund at close'],
               ].map((r, i, arr) => (
@@ -674,7 +674,7 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
                 <SgDoorChip on={wearName} label="wear your name" onTap={() => setWearName(!wearName)}></SgDoorChip>
               </div>
             </div>
-            {/* The buyer's link (D373): one https address, printed as its
+            {/* The buyer's link (D378): one https address, printed as its
                 bare domain after the answer, opened in the browser, and
                 nothing counted. After the answer rather than before, so
                 the question is answered as a question. */}
@@ -718,7 +718,7 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
                 </div>
               ) : null}
             </div>
-            {/* The budget (D367): the most this will cost, chosen by the
+            {/* The budget (D372): the most this will cost, chosen by the
                 buyer from the card's presets, and what it buys at the
                 line in force — a ceiling on answers, never a forecast
                 (the forecast, where one exists, is the floor line above). */}

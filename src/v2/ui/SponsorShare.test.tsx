@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The share control of a sponsored question's results page (D374): it
+// The share control of a sponsored question's results page (D379): it
 // copies the /q/{qid} address and says so — nothing else, and nothing
 // counted.
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +8,7 @@ import { SponsorShare } from "./SponsorShare";
 
 afterEach(cleanup);
 
-describe("the results page's address (D374)", () => {
+describe("the results page's address (D379)", () => {
   it("copies the /q/{qid} link and says so", () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });

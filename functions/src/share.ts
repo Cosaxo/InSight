@@ -1,4 +1,4 @@
-// share.ts — the shareable results page (D374; docs/SPONSORED-PLAN.md §2.5).
+// share.ts — the shareable results page (D379; docs/SPONSORED-PLAN.md §2.5).
 //
 // A public page per SPONSORED question, on the open web, at the hosting
 // rewrite /q/{qid}: the question, the buyer's name (or none), the split,

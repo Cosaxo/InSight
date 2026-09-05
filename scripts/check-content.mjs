@@ -208,7 +208,7 @@ for (const q of entries) {
     } else {
       const extra = Object.keys(s).filter((k) => !["buyer", "audience", "link"].includes(k));
       if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer, audience and link. No colour, no logo, no creative`);
-      // The buyer's one link (D373): an https address, shown as its bare
+      // The buyer's one link (D378): an https address, shown as its bare
       // domain after a person has answered. Shape only — a committed
       // sponsored question is a hand contract, and its link was read by
       // a person; the self-serve path's is read by the review.

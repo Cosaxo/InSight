@@ -4,7 +4,7 @@
 // content/pricing.json is the PUBLIC half of the paid mechanism (PAID-PLAN
 // §6, D288 §3): its CONSTANTS are the policy every price is computed from,
 // and its demand fields are the fallback the door prints until the live
-// half lands (D366 — the server folds the ledger onto `v2_meta/pricing`
+// half lands (D371 — the server folds the ledger onto `v2_meta/pricing`
 // after every sale and every night; scripts/build-pricing.mjs runs the
 // same fold by hand and refreshes this snapshot). A malformed or
 // out-of-bounds card would either break the door client-side or print a
@@ -17,7 +17,7 @@
 // What it holds, each line a recorded rule:
 //   - the constants are sane: base > 0, floorX > 0, crowdStep ≥ 0, caps
 //     positive (§6's floor — "so every cohort stays buyable"; the ceiling
-//     left at D368, because the index measures crowding and crowding has
+//     left at D373, because the index measures crowding and crowding has
 //     none)
 //   - cohorts are EXACTLY city · country · world (D164's three windows)
 //   - every idx sits at or above floorX — a value under the floor means
@@ -26,14 +26,14 @@
 //     that many ticks
 //   - nextOpen is null (= tomorrow) or an ISO day
 //   - estimates carry their basis or do not exist (D288 §3: no forecast
-//     without a campaign behind it — campaigns ≥ 1, days ≥ 1; since D367 a
+//     without a campaign behind it — campaigns ≥ 1, days ≥ 1; since D372 a
 //     campaign that has served a week counts, and `running` says how many)
-//   - the buyer's budget range is sane (D367): minEur below capEur, and
+//   - the buyer's budget range is sane (D372): minEur below capEur, and
 //     every preset a whole-euro figure inside it, ascending
-//   - crowdFree (D372) is the places a scope has before campaigns share
+//   - crowdFree (D377) is the places a scope has before campaigns share
 //     — a whole number of at least one; the multiplier counts the
-//     campaigns beyond it, so 1 is D368's every-campaign-crowds card
-//   - the menu (D371) names a preset per cohort — city · country ·
+//     campaigns beyond it, so 1 is D373's every-campaign-crowds card
+//   - the menu (D376) names a preset per cohort — city · country ·
 //     world, each one of `budgets` so the composer opens on a chip it
 //     can press, non-decreasing outward, because a wider reach at a
 //     lower price would print the door's own argument backwards
@@ -69,15 +69,15 @@ if (!isDay(p.generated)) fail(`generated must be YYYY-MM-DD, got ${JSON.stringif
 if (p.currency !== "EUR") fail(`currency must be EUR (the rate card's own unit; display conversion is the client's), got ${JSON.stringify(p.currency)}`);
 if (!(typeof p.base === "number" && p.base > 0)) fail(`base must be a positive per-answer figure, got ${JSON.stringify(p.base)}`);
 if (!(typeof p.floorX === "number" && p.floorX > 0)) fail(`floorX must be positive, got ${JSON.stringify(p.floorX)}`);
-// The crowding step (D368): what each other campaign in rotation adds to
+// The crowding step (D373): what each other campaign in rotation adds to
 // the multiplier. Zero is legal (a flat card); negative is not a price.
 if (!(typeof p.crowdStep === "number" && p.crowdStep >= 0)) fail(`crowdStep must be a non-negative number, got ${JSON.stringify(p.crowdStep)}`);
-// The free places (D372): how many campaigns a scope carries before the
+// The free places (D377): how many campaigns a scope carries before the
 // next one shares — the feed gives paid cards their own places, one in
 // every SPONSOR_EVERY, so the first few sales dilute nobody.
 if (!(Number.isInteger(p.crowdFree) && p.crowdFree >= 1)) fail(`crowdFree must be a whole number of places, at least 1, got ${JSON.stringify(p.crowdFree)}`);
 if (!(typeof p.capEur === "number" && p.capEur > 0)) fail(`capEur must be positive, got ${JSON.stringify(p.capEur)}`);
-// The buyer's budget (D367): capEur is the MOST a buyer may set, minEur
+// The buyer's budget (D372): capEur is the MOST a buyer may set, minEur
 // the least, and `budgets` the presets the composer offers — each inside
 // that range, ascending, so the door never offers a figure the server
 // would refuse.
@@ -89,7 +89,7 @@ else {
     if (i > 0 && !(b > p.budgets[i - 1])) fail(`budgets must ascend — ${JSON.stringify(p.budgets)}`);
   });
 }
-// The menu (D371): the price a row on the door prints per reach — a
+// The menu (D376): the price a row on the door prints per reach — a
 // preset budget per cohort, sold as "up to N answers" at the line in
 // force. Each must be one of the composer's chips, or picking a row
 // would open on a budget no chip shows pressed.
@@ -106,9 +106,9 @@ else {
   if (!(menu.city <= menu.country && menu.country <= menu.world)) fail(`menu must not fall as the reach widens — city ≤ country ≤ world, got ${JSON.stringify(menu)}`);
 }
 if (!(Number.isInteger(p.windowDays) && p.windowDays > 0)) fail(`windowDays must be a positive whole number of days, got ${JSON.stringify(p.windowDays)}`);
-// `adBase` — the flat ad window (D315) — left the card at D370 with the
+// `adBase` — the flat ad window (D315) — left the card at D375 with the
 // self-serve ad lane; a card that still carries it is stale.
-if (p.adBase !== undefined) fail("adBase is no longer a price — the ad lane retired at D370; drop it from the card");
+if (p.adBase !== undefined) fail("adBase is no longer a price — the ad lane retired at D375; drop it from the card");
 if (!(typeof p.floorWeek === "number" && p.floorWeek > 0)) fail(`floorWeek must be positive, got ${JSON.stringify(p.floorWeek)}`);
 // The display-conversion table is part of the committed card: a rate the
 // client would otherwise hardcode is a fact that drifts, so it lives here,
@@ -131,7 +131,7 @@ for (const scope of SCOPES) {
     fail(`${scope}.idx ${JSON.stringify(c.idx)} is under the floor ${p.floorX} — the floor is the mechanism`);
   if (!Array.isArray(c.booked) || c.booked.length !== 14 || c.booked.some((b) => b !== 0 && b !== 1))
     fail(`${scope}.booked must be exactly 14 entries of 0/1`);
-  // The crowding strip (D368): campaigns in rotation per day, the count
+  // The crowding strip (D373): campaigns in rotation per day, the count
   // the idx is folded from. Optional so a card from before it parses.
   if (c.crowd !== undefined && (!Array.isArray(c.crowd) || c.crowd.length !== 14 || c.crowd.some((n) => !Number.isInteger(n) || n < 0)))
     fail(`${scope}.crowd must be exactly 14 non-negative integers`);
@@ -145,7 +145,7 @@ for (const [scope, e] of Object.entries(est)) {
   if (!(Number.isInteger(e.perDay) && e.perDay >= 0)) fail(`estimates.${scope}.perDay must be a non-negative integer`);
   if (!(Number.isInteger(e.campaigns) && e.campaigns >= 1)) fail(`estimates.${scope} without campaigns ≥ 1 — a forecast needs a completed campaign behind it (D288 §3)`);
   if (!(Number.isInteger(e.days) && e.days >= 1)) fail(`estimates.${scope}.days must be ≥ 1 — the basis ships with the figure`);
-  // D367: a campaign still serving may be part of the basis after a week;
+  // D372: a campaign still serving may be part of the basis after a week;
   // the count of those rides along so the door can say so.
   if (e.running !== undefined && !(Number.isInteger(e.running) && e.running >= 0 && e.running <= e.campaigns)) fail(`estimates.${scope}.running must be an integer between 0 and campaigns`);
 }

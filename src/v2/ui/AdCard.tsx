@@ -6,7 +6,7 @@
 // public aggregate everyone reads, and the buyer's return is that split.
 // Path 3 sells a CARD: it asks nothing, takes no answer, and produces no
 // data at all. They share the disclosure band and the paid places (one
-// card in six since D372; a single slot before it); they are otherwise
+// card in six since D377; a single slot before it); they are otherwise
 // different objects, and prose that blurred them made
 // the disclosure argument impossible to have (D196).
 //

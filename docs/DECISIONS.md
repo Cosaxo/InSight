@@ -37973,7 +37973,7 @@ green through the whole of it.
   is the rule at the top of this record, and the case is the shape to
   copy: mount the whole app, notify from outside, count the mounts.
 
-## D365 · Near is a switch again: off or on, and the timed option retires
+## D370 · Near is a switch again: off or on, and the timed option retires
 
 **2026-09-05.** **Status:** binding, BUILT. The owner's words: *"near
 should only have off and on option."* Reverses D174 §1 — the three
@@ -38046,7 +38046,7 @@ was withheld from anybody and nothing new is exposed; the record is
 that the owner decided, and what was built is exactly the sentence
 they said.
 
-## D366 · The rate card folds itself: the demand index moves on every sale and every night, and the door prints the published card
+## D371 · The rate card folds itself: the demand index moves on every sale and every night, and the door prints the published card
 
 **2026-09-05.** **Status:** binding, BUILT for the half this record
 decides. The owner's words: *"pricing seems unintuitive and not as
@@ -38213,10 +38213,10 @@ price from them. What a buyer wants to read is *what will this cost me
 and what does it buy* — `VISUAL-REQUESTS.md` item 4 asks Claude Design
 for that shape, on the data this record makes live.
 
-## D367 · The buyer sets the budget, the base is the quiet price, and a served week is a basis — per-answer billing stays
+## D372 · The buyer sets the budget, the base is the quiet price, and a served week is a basis — per-answer billing stays
 
 **2026-09-05.** **Status:** binding, BUILT. The owner's words, in
-order: *"yeah lets do that"* to D366 §6's list — the buyer-set budget,
+order: *"yeah lets do that"* to D371 §6's list — the buyer-set budget,
 the floor at ×1.0, the law behind a tap, estimates from running
 campaigns, the forward fortnight kept; *"i think the price per answer
 right now is a bit high?"*; and *"should it be priced per answer?"*.
@@ -38321,17 +38321,17 @@ sentence was about answers. And the door's shape, which is
 `VISUAL-REQUESTS.md` item 4 with its copy-level half now built and the
 layout still asked for.
 
-## D368 · The index is crowding, with no ceiling, and the quiet price is €0.02
+## D373 · The index is crowding, with no ceiling, and the quiet price is €0.02
 
 **2026-09-05.** **Status:** binding, BUILT. Two of the owner's
-sentences, the same afternoon as D367: *"isn't that still ridiculously
+sentences, the same afternoon as D372: *"isn't that still ridiculously
 high?"* about €0.10 an answer, and, about the multiplier's ceiling,
 *"a demographic doesn't have a cap on how desired it is"*. The second
 was right about more than the cap, and this record says how.
 
 ### 1 · What the ceiling was actually capping
 
-D366's index was a share: booked slot-days over available ones,
+D371's index was a share: booked slot-days over available ones,
 across the trailing month and the fortnight ahead, mapped linearly
 between a floor and a ceiling. A share saturates. Once every day in
 the window was booked the multiplier sat at ×2.5 and did not move
@@ -38368,7 +38368,7 @@ day is fewer answers per campaign, because the slot's answers are
 shared. The price rises exactly when the answers are scarce, which is
 what a demand multiplier is for. And the buyer needs no ceiling to be
 safe from it — the rate is locked at booking (D313) and the budget
-bounds the spend (D367); a cohort that ever priced itself absurd would
+bounds the spend (D372); a cohort that ever priced itself absurd would
 simply not sell until it calmed down, which is the mechanism working.
 
 ### 3 · The door
@@ -38396,7 +38396,7 @@ were about answers; it now crowds the same rotation and takes the same
 uncapped multiplier, so it is the dearest thing on the door by a
 distance and is on `OWNER-LIST.md` as a row.
 
-A client from before D367 still quotes at `capEur` when it sends no
+A client from before D372 still quotes at `capEur` when it sends no
 budget — now €50, the most a budget can be, and less than the €320 it
 displayed. Never more than shown; that rule holds.
 
@@ -38423,7 +38423,7 @@ the price), the ad window's flat price, and the fortnight as the
 horizon — the booking runs 29 days and the index reads 14, the strip
 the buyer already sees; reading the whole 29 is one constant.
 
-## D369 · Ads run from the day after payment and share the rotation, and the ad window follows the cut
+## D374 · Ads run from the day after payment and share the rotation, and the ad window follows the cut
 
 **2026-09-05.** **Status:** binding, BUILT. The owner: *"make the ad
 price follow the same cut, and how do ads work right now. I don't like
@@ -38450,7 +38450,7 @@ ad overlapped every city. Honest for the flat price — an ad diluted
 by another ad silently got less for the same money — and fatal for
 revenue at launch: one ad window per overlapping audience per month,
 the second advertiser waiting weeks to start, and a single world ad
-closing every city for 29 days. The D368 index made the honesty
+closing every city for 29 days. The D373 index made the honesty
 argument moot: the multiplier now counts every campaign in the
 rotation, ads included, so the dilution an ad will meet is in the
 figure it locks.
@@ -38468,7 +38468,7 @@ figure it locks.
 - **The window follows the cut.** `adBase` €320 → **€40**: ÷8, the
   same ratio the per-answer price took from €0.16 to €0.02. With
   nobody else in rotation an ad window costs what a €40 question
-  budget does; with one other campaign, €60; the multiplier is D368's
+  budget does; with one other campaign, €60; the multiplier is D373's
   and has no ceiling.
 - The e2e now books a second ad into a city already carrying a
   question and an ad, sees it quoted off the two it joins (×2.0, €80 —
@@ -38506,23 +38506,23 @@ holding an uncapped idx), `pricingFold.test.ts` (an ad crowds the
 rotation like a question), `smoke-overlays.test.jsx` (the door's
 copy), and the e2e (§2).
 
-## D370 · Ads leave the door: the sponsored question is the one paid product
+## D375 · Ads leave the door: the sponsored question is the one paid product
 
 **2026-09-05.** **Status:** binding, BUILT. The owner, on the ad lane
-D369 had just made saleable: *"that sounds like a bad system — if I
+D374 had just made saleable: *"that sounds like a bad system — if I
 gave you complete creative freedom how would you remake it"*, then
 *"lay a plan for building that"*, then *"go, yes to the link, keep
 your picks for the rest"*. The plan is
 [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md); this record is its §2.1,
 the first step and the one every later step assumes. It reverses
-D315's self-serve ad lane and the ad half of D369, and it leaves
+D315's self-serve ad lane and the ad half of D374, and it leaves
 D197's ad OBJECT alone — the committed pen, `runSeedAds`, `AdCard`,
 `v2_ads` and their rules stay, empty, for a hand contract (the plan's
 §5 point 4, the owner's pick by default).
 
 ### 1 · Why the lane goes rather than gets fixed
 
-D369 §3 named it: an ad here has no link and nothing is counted, which
+D374 §3 named it: an ad here has no link and nothing is counted, which
 makes automated review tolerable and keeps the app free of a tracker —
 and is also what an advertiser will not pay for. A text card with no
 tap-through, a flat price, and no number afterwards is the product
@@ -38552,7 +38552,7 @@ yes) and a results page to share (§2.5). Step one clears the door.
   refused at checkout (failed-precondition); a payment that somehow
   lands on an ad booking is logged `paid_ad_after_retirement` for a
   hand refund and writes nothing. The closer's ad arm stays for a row
-  sold before today, so a window bought under D369 still closes on its
+  sold before today, so a window bought under D374 still closes on its
   own day.
 - **`adBase` leaves the card.** `content/pricing.json`,
   `gen-pricing-ts.mjs`, `build-pricing.mjs` and the client's
@@ -38577,19 +38577,19 @@ rather than removed — the tick is the owner's.
 
 ### 4 · What pins it
 
-`paid.test.ts` ("the ad lane is retired (D370)": the refusal, and the
+`paid.test.ts` ("the ad lane is retired (D375)": the refusal, and the
 review guidelines no longer naming an ad), `pricing.test.ts` (no
 `adFlat`; the city rate at idx 1.75 rounds where the door prints it),
 `paid-landing.test.mjs` (no ad page shipped or named), `check:pricing`
 (no `adBase`), `smoke-overlays.test.jsx` (the door with one product),
 and the e2e's leg 13.
 
-## D371 · The menu: the door prints a price per reach, and a row opens the composer at it
+## D376 · The menu: the door prints a price per reach, and a row opens the composer at it
 
 **2026-09-05.** **Status:** binding, BUILT. Step §2.3 of
 [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), on the owner's *"go, yes to
 the link, keep your picks for the rest"*; the figures are the plan's
-(*"keep your picks"*), on the €0.02 line D368 set. Reverses nothing.
+(*"keep your picks"*), on the €0.02 line D373 set. Reverses nothing.
 
 ### 1 · What a buyer reads
 
@@ -38609,7 +38609,7 @@ one place the whole mechanism is stated.
 Picking a row opens the composer on that reach WITH THAT BUDGET
 chosen — the chips stay for adjusting. The bare *+ Ask a question*
 button still opens on the smallest preset: nobody chose a number
-there, and D367's reason stands (a control that defaults to more
+there, and D372's reason stands (a control that defaults to more
 money than the least is the wrong default for a button that charges
 it).
 
@@ -38621,7 +38621,7 @@ it).
   a lower price would print the door's own argument backwards).
 - `budgets` €5 · €10 · **€25** · €50 — the €20 chip moved to €25 so the
   menu's three figures are chips. €25 buys 1 250 answers at the quiet
-  line; the €10-buys-500 sentence D368 wrote still holds.
+  line; the €10-buys-500 sentence D373 wrote still holds.
 - `windowDays: 29` on the card, read by the server (`WINDOW_DAYS` in
   `paid.ts` is now the card's) and printed by the door wherever it
   said *29 days* — four literal sites, now one number, because a figure
@@ -38643,14 +38643,14 @@ without moving the figure), `check:pricing` (the menu's shape), and
 `paid.test.ts` through `WINDOW_DAYS` — every window assertion now
 reads the card.
 
-## D372 · Paid cards get their own places in the feed, and the price counts crowding beyond them
+## D377 · Paid cards get their own places in the feed, and the price counts crowding beyond them
 
 **2026-09-05.** **Status:** binding, BUILT. Step §2.2 of
 [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), on the owner's *"go, yes to
 the link, keep your picks for the rest"* — the density and the free
 count are the plan's picks. **Reverses** D195 §1's one paid card at a
 time (`SPONSOR_SLOT = 1`, the prototype's *"a feed with two is a feed
-for sale"*), and amends D368's index: the step now counts campaigns
+for sale"*), and amends D373's index: the step now counts campaigns
 beyond a scope's free places, not every campaign.
 
 ### 1 · What was wrong
@@ -38658,7 +38658,7 @@ beyond a scope's free places, not every campaign.
 Inventory did not grow with the app. One paid card per phone per day,
 whatever the app's size, meant every sale diluted the last — with two
 campaigns in a scope each got half the days, and a third buyer bought a
-third of nothing more. The crowding price (D368) was the honest reading
+third of nothing more. The crowding price (D373) was the honest reading
 of that arithmetic, and honest arithmetic on a fixed supply is still a
 fixed supply: the number of things the app could sell had nothing to
 do with the number of people using it.
@@ -38685,7 +38685,7 @@ do with the number of people using it.
   crowdFree)` — the rotation with the next buyer in it, less the
   places. Three campaigns in a scope each hold a place and the index
   reads ×1 for all of them; the fourth is the first to share, and pays
-  ×1.5 for it. A card with one free place is D368's exactly, and a
+  ×1.5 for it. A card with one free place is D373's exactly, and a
   card from before the field folds that way, so nothing published
   before today reads differently.
 - **The door reads the strip.** The crowding sentence is *room for 3
@@ -38705,7 +38705,7 @@ and the first week of use re-tunes it rather than defends it (the
 plan's §6). **A world campaign is in every device's rotation** with
 that device's city and country campaigns, so the per-scope free count
 is an approximation of the places a device actually shows — the same
-approximation D368's per-scope count already was, now with three
+approximation D373's per-scope count already was, now with three
 places instead of one under it. **The e2e's first sale no longer moves
 the index**: it fills the strip and leaves ×1, which is the design, and
 the leg asserts exactly that.
@@ -38716,13 +38716,13 @@ the leg asserts exactly that.
 the day's order rotating, both kinds in one order; the places in the
 interleave at 6 · 12 · 18, each card once, a short stream still served,
 a returning device's depth), `pricingFold.test.ts` (one campaign moves
-nothing, the fourth is the first step, one free place is D368),
+nothing, the fourth is the first step, one free place is D373),
 `pricing.test.ts` (`roomFor` and `crowdFor` off the strip, the demand
 words off what the price counts), `check:pricing` (`crowdFree` a whole
 number of places), `smoke-overlays` (the door), `feed-paid-answered`
 (an answered paid card parks), and the e2e's first-sale leg.
 
-## D373 · A sponsored question may carry one reviewed link, shown after the answer and counted by nobody
+## D378 · A sponsored question may carry one reviewed link, shown after the answer and counted by nobody
 
 **2026-09-05.** **Status:** binding, BUILT — **the owner's decision**
 (*"go, yes to the link, keep your picks for the rest"*), step §2.4 of
@@ -38799,13 +38799,13 @@ its preview line and the contract row), `check:content` (a committed
 sponsored question's `link` by shape), `check:policy-claims` (the two
 sentences), and the e2e.
 
-## D374 · The shareable results page: a sponsored question's numbers as one public web page
+## D379 · The shareable results page: a sponsored question's numbers as one public web page
 
 **2026-09-05.** **Status:** binding, BUILT. Step §2.5 of
 [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), the last, on the owner's
 *"go, yes to the link, keep your picks for the rest"*. Reverses
 nothing. With it the plan is the app: five steps, five records
-(D370–D374).
+(D375–D379).
 
 ### 1 · What it is
 
@@ -38814,7 +38814,7 @@ rewrite `/q/{qid}` — *Oslo said: 62% keep the harbour bath open*. The
 question, the buyer's name (or *a buyer who chose not to wear a
 name*), the split with counts, the audience they bought, the window
 (*runs* or *ran*), the PAID mark, the breakdown by the dims the buyer
-bought, and the buyer's link as its domain (D373). Rendered by
+bought, and the buyer's link as its domain (D378). Rendered by
 `functions/src/share.ts` (`resultsPageV2`, an HTTPS function) on the
 admin SDK, because a public page cannot sign in and the two documents
 it reads — `v2_questions/{qid}` and `v2_question_aggs/{qid}` — are

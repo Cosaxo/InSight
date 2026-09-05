@@ -731,7 +731,7 @@ ratchet).
 order below is SHIPPED — see [D174](DECISIONS.md#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
 for the three-state control, the three-hour linger and the `until` cap —
 and the control has since gone back to two states on the owner's word
-([D365](DECISIONS.md#d365--near-is-a-switch-again-off-or-on-and-the-timed-option-retires)):
+([D370](DECISIONS.md#d370--near-is-a-switch-again-off-or-on-and-the-timed-option-retires)):
 off or on, the linger and the cap unchanged. Everything else here is
 still design.** It began
 as *"when you are at a party or some sort of social event you can see what
@@ -802,7 +802,7 @@ and that second one is doing real work, see the linger below.
 
 **As built.** This section said *off · 2 hours · always* from
 2026-08-15, and D174 shipped it that way; on 2026-09-05 the owner
-retired the middle state (D365 — *"near should only have off and on
+retired the middle state (D370 — *"near should only have off and on
 option"*). What stands is the switch, and "on" is exactly what the
 always row below described:
 
@@ -904,7 +904,7 @@ of strangers.
    `presenceBeat` returns early on `document.hidden`. What shipped beside
    the control and the linger is `until` on the presence doc, so the timed
    option is exact rather than approximate, capped in `firestore.rules`.
-   The control went back to two states at D365; `until` and its cap stay.
+   The control went back to two states at D370; `until` and its cap stay.
 2. ~~**The finer grid** + the `STORE-FORMS.md` re-answer.~~ **DONE
    ([D175](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
    It was not a constant: the old ~1 km cell was the ceiling of the COARSE

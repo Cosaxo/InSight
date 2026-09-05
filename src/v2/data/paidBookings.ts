@@ -43,7 +43,7 @@ export interface MyBooking {
   headline: string;
   body: string;
   prompt: string;
-  /** the buyer's link (D373), or null */
+  /** the buyer's link (D378), or null */
   link: string | null;
   type: string;
   options: string[];
@@ -63,7 +63,7 @@ export interface MyBooking {
 }
 
 export interface BookingPayload {
-  /** one product since D370 — the ad half of this payload left with
+  /** one product since D375 — the ad half of this payload left with
    * the lane; `MyBooking` below still reads an old ad row */
   kind: "question";
   prompt: string;
@@ -73,10 +73,10 @@ export interface BookingPayload {
   scope: "city" | "country" | "world";
   dims: Record<string, string>;
   wearName: boolean;
-  /** The most the buyer will spend, whole euros (D367) — the cap the
+  /** The most the buyer will spend, whole euros (D372) — the cap the
    * quote locks. Absent on an ad, which is flat-priced. */
   budgetEur?: number;
-  /** The buyer's one https link (D373), shown after the answer; absent
+  /** The buyer's one https link (D378), shown after the answer; absent
    * for none. The server holds its shape, the review its substance. */
   link?: string;
 }

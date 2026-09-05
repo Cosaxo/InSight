@@ -36,7 +36,7 @@
 import React from "react";
 import { linkDomain, whyMatched, windowLabel, type Sponsor } from "../data/sponsored";
 /**
- * The buyer's link (D373), on the ANSWERED face of a sponsored card —
+ * The buyer's link (D378), on the ANSWERED face of a sponsored card —
  * never before the answer, so the question is answered as a question.
  *
  * The bare domain, so the reader knows whose page it is before tapping;

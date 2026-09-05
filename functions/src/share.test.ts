@@ -1,4 +1,4 @@
-// The shareable results page (D374): what the page states, what it never
+// The shareable results page (D379): what the page states, what it never
 // states, and the headers a page served from a function has to carry
 // itself. Rendered pure — no server, no Firestore — off the two public
 // documents' shapes.

@@ -310,12 +310,12 @@ describe("disable() — stop sharing means stop, now", () => {
   });
 });
 
-// ── off or on, and what "on" promises (D174 §2, D365) ─────────────────
+// ── off or on, and what "on" promises (D174 §2, D370) ─────────────────
 //
 // D174 put a timed state between off and on and pinned four cases on it
 // here: the default landing on `session`, a session clamping `until` to
 // its deadline, `always` getting the full linger, and an expired session
-// reading as off with no timer having run. D365 retired the timed state
+// reading as off with no timer having run. D370 retired the timed state
 // on the owner's word, so three of those cases have no subject. What
 // survives is the promise the on state makes — a bounded `until`, a real
 // margin inside the rules fence — and one new case: the upgrade path, a
@@ -345,7 +345,7 @@ describe("the visibility states", () => {
     // `deviceNow <= serverNow`: the only slack was network latency, and
     // any phone running a little fast had every beat refused, forever,
     // with a retry button that could not work. Recorded at D181 — for
-    // D174's `always`, which since D365 is every opted-in phone.
+    // D174's `always`, which since D370 is every opted-in phone.
     //
     // The device-clock condition cannot be reproduced here — the emulator
     // and this process share one clock — so what is asserted is the

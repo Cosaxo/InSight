@@ -58,7 +58,7 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
                       conjunctively by the DEVICE (data/sponsored.ts) —
                       the server is never asked who should see what — and
                       every matched dim prints on the band. `link`
-                      (D373) is the buyer's one https address: printed as
+                      (D378) is the buyer's one https address: printed as
                       its bare domain on the ANSWERED face only, opened in
                       the system browser with no referrer, and counted by
                       nobody. The window
@@ -254,7 +254,7 @@ v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
                                    asked who should see what
   from?                            D315: a self-serve ad's first serving
                                    day — pickPaid holds it until then. No
-                                   new ones since D370 retired the lane;
+                                   new ones since D375 retired the lane;
                                    a doc that carries it is a window sold
                                    before, and closes on its own day
   active?, seq, updatedAt
@@ -426,7 +426,7 @@ v2_presence/{uid}                  Near-by-radius presence (D84)
   at: request.time                 last write; the beat refreshes it
   until?: timestamp                when this position STOPS counting
                                    (D174) — the linger past the last
-                                   beat. (Until D365 the timed option
+                                   beat. (Until D370 the timed option
                                    clamped it to a session deadline; the
                                    switch is off or on now.) The
                                    count filters on it, and the rules cap

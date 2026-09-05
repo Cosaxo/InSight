@@ -1,7 +1,7 @@
 // pricing.ts — the rate card, typed, plus the one currency preference
 // every printed price reads (PAID-PLAN §6, D288 §3; the runbook's phase 3).
 //
-// TWO HALVES SINCE D366. The CONSTANTS — base, floor, ceiling, the caps,
+// TWO HALVES SINCE D371. The CONSTANTS — base, floor, ceiling, the caps,
 // the fx table, the trailing window — are content/pricing.json, committed,
 // clamped by scripts/check-pricing on CI, and imported here the way duel
 // and learn content already are; a deliberate re-pricing is still a PR.
@@ -9,7 +9,7 @@
 // day, the estimates, and the day they were folded for — is published by
 // the server onto `v2_meta/pricing` where the ledger changes (the payment
 // webhook, the nightly closer; functions/src/paid.ts publishPricing), and
-// laid over the committed file here when the door opens. Until D366 that
+// laid over the committed file here when the door opens. Until D371 that
 // half moved only when an operator ran scripts/build-pricing.mjs by hand
 // and committed the result, which after D313 automated the sale was
 // never: every self-serve sale moved the index by exactly nothing. The
@@ -30,13 +30,13 @@ export type Scope = "city" | "country" | "world";
 export interface CohortPricing {
   idx: number;
   booked: number[];
-  /** campaigns in rotation each of the next 14 days (D368) — what the
+  /** campaigns in rotation each of the next 14 days (D373) — what the
    * idx is folded from; absent on a card from before it */
   crowd?: number[];
   nextOpen: string | null;
 }
 /** A per-day answer expectation with its basis: how many campaigns, over
- * how many served days, and (D367) how many of those are still running. */
+ * how many served days, and (D372) how many of those are still running. */
 export interface Estimate { perDay: number; campaigns: number; days: number; running?: number }
 interface PricingFile {
   generated: string;
@@ -46,24 +46,24 @@ interface PricingFile {
    * quiet price */
   floorX: number;
   /** what each campaign beyond the free places adds to the multiplier
-   * (D368); no ceiling, because crowding has none */
+   * (D373); no ceiling, because crowding has none */
   crowdStep: number;
-  /** the places a scope has before campaigns share (D372): the feed
+  /** the places a scope has before campaigns share (D377): the feed
    * carries a paid card in every sixth place, so this many campaigns
    * each hold one and the multiplier counts the ones beyond */
   crowdFree: number;
   floorWeek: number;
-  /** the most a buyer may set as their budget (D367) — and the cap a
+  /** the most a buyer may set as their budget (D372) — and the cap a
    * client from before budgets existed is quoted at */
   capEur: number;
   /** the least */
   minEur: number;
   /** the one window every campaign runs, inclusive of its last day —
-   * the server's WINDOW_DAYS reads the same key (D371) */
+   * the server's WINDOW_DAYS reads the same key (D376) */
   windowDays: number;
   /** the presets the composer offers, ascending, inside [minEur, capEur] */
   budgets: number[];
-  /** the menu (D371): the preset a row on the door sells per reach —
+  /** the menu (D376): the preset a row on the door sells per reach —
    * each one of `budgets`, so picking a row opens on a pressed chip */
   menu: Record<Scope, number>;
   fx: Record<string, number>;
@@ -90,18 +90,18 @@ export const rate = (scope: Scope): number =>
   Math.round(PRICING.base * PRICING.cohorts[scope].idx * 1000) / 1000;
 
 /** How many answers a budget buys at a cohort's line in force — the
- * ceiling the closer bills up to, never a forecast (D367). */
+ * ceiling the closer bills up to, never a forecast (D372). */
 export const answersFor = (scope: Scope, eur: number): number =>
   Math.floor(eur / rate(scope));
 
-/** The menu price for a reach (D371): the budget the door's row sells
+/** The menu price for a reach (D376): the budget the door's row sells
  * the cohort at. A preset, not a quote — the line in force decides how
  * many answers it buys, which is what the row prints beside it. */
 export const menuEur = (scope: Scope): number => PRICING.menu[scope];
 
 /** How many campaigns are in a cohort's rotation, averaged over the
  * fortnight the idx is folded from — read off the crowd strip, to one
- * decimal (D368; the strip is what the fold counted). */
+ * decimal (D373; the strip is what the fold counted). */
 export const crowdFor = (scope: Scope): number => {
   const c = PRICING.cohorts[scope];
   const strip = c.crowd || c.booked || [];
@@ -109,7 +109,7 @@ export const crowdFor = (scope: Scope): number => {
   return Math.round((strip.reduce((a, n) => a + (n || 0), 0) / strip.length) * 10) / 10;
 };
 
-/** How many more campaigns fit before anyone shares (D372): the card's
+/** How many more campaigns fit before anyone shares (D377): the card's
  * free places less the rotation, a campaign on any day of the fortnight
  * counting as a place taken — the buyer is told the room that is
  * certainly there, never the room that is there on average. */
@@ -158,14 +158,14 @@ export function parseLive(live: unknown): Pick<PricingFile, "generated" | "cohor
     const idx = typeof c.idx === "number" && Number.isFinite(c.idx) ? c.idx : NaN;
     const booked = Array.isArray(c.booked) ? c.booked : null;
     if (Number.isNaN(idx) || !booked || booked.length !== FORWARD_DAYS || booked.some((b) => b !== 0 && b !== 1)) return null;
-    // The crowd strip is optional (a doc from before D368 lacks it) and,
+    // The crowd strip is optional (a doc from before D373 lacks it) and,
     // when present, must be the fortnight as counts.
     const crowd = c.crowd === undefined ? booked.map((b) => (b ? 1 : 0)) : Array.isArray(c.crowd) ? c.crowd : null;
     if (!crowd || crowd.length !== FORWARD_DAYS || crowd.some((n) => !Number.isInteger(n) || (n as number) < 0)) return null;
     const nextOpen = c.nextOpen == null ? null : isDay(c.nextOpen) ? c.nextOpen : undefined;
     if (nextOpen === undefined) return null;
     cohorts[scope] = {
-      // Held to the floor, never a ceiling (D368): crowding has none.
+      // Held to the floor, never a ceiling (D373): crowding has none.
       idx: Math.round(Math.max(COMMITTED.floorX, idx) * 100) / 100,
       booked: booked.map((b) => (b ? 1 : 0)),
       crowd: crowd as number[],
@@ -273,7 +273,7 @@ export const setCur = (c: string): void => {
 
 /**
  * Re-render on anything a printed price depends on: the currency
- * preference, and since D366 the live half landing. One list, because
+ * preference, and since D371 the live half landing. One list, because
  * every subscriber is a component that prints a price and wants both.
  */
 export const subscribeCur = (f: () => void): (() => void) => {

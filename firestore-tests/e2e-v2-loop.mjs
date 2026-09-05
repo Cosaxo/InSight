@@ -1762,7 +1762,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const buyer = await signInAnonymously(payAuth);
 
   // A budget outside the card's range is refused before anything is
-  // written (D367) — the sentence names the range the buyer can pick from.
+  // written (D372) — the sentence names the range the buyer can pick from.
   try {
     await httpsCallable(payFns, "bookPaidQuestionV2")({
       prompt: "Should the harbour bath stay open all winter?",
@@ -1776,7 +1776,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   ok("an out-of-range budget is refused with the range");
 
   // A link that is not an https address is refused before anything is
-  // written (D373) — the sentence says what shape it needs.
+  // written (D378) — the sentence says what shape it needs.
   try {
     await httpsCallable(payFns, "bookPaidQuestionV2")({
       prompt: "Should the harbour bath stay open all winter?",
@@ -1817,9 +1817,9 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (booking.review?.by !== "gates-only") {
     fail("emulator review must record by=gates-only, got " + JSON.stringify(booking.review));
   }
-  // The locked quote, off the LIVE card (D366) — which before any sale
+  // The locked quote, off the LIVE card (D371) — which before any sale
   // is the committed card's floor: base 0.02 × idx 1.0 (nobody else in
-  // rotation, D368) — with the buyer's €20 budget as the cap (D367).
+  // rotation, D373) — with the buyer's €20 budget as the cap (D372).
   // Read through the buyer's own client, the way the door reads it:
   // `v2_meta/*` is readable by any signed-in user.
   const liveCardNow = async () => {
@@ -1936,7 +1936,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     || purchase.get("stripePaymentIntent") !== "pi_e2e_1") {
     fail("purchase record malformed: " + JSON.stringify(purchase.data()));
   }
-  // THE SALE MOVED THE RATE CARD (D366, D368, D372). The webhook folded
+  // THE SALE MOVED THE RATE CARD (D371, D373, D377). The webhook folded
   // the ledger after going live and published the live half onto
   // v2_meta/pricing: the 29-day window starting tomorrow is one campaign
   // in the city's rotation on every day of the fortnight — the crowd
@@ -1977,7 +1977,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (qDoc.get("sponsor").buyer !== undefined) {
     fail("a nameless booking grew a buyer name: " + JSON.stringify(qDoc.get("sponsor")));
   }
-  // The buyer's link rides on the content (D373), whole, for every
+  // The buyer's link rides on the content (D378), whole, for every
   // device to print after the answer — and on the buyer's own record.
   if (qDoc.get("sponsor").link !== LINK) {
     fail("the buyer's link is not on the question doc: " + JSON.stringify(qDoc.get("sponsor")));
@@ -2037,7 +2037,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("a paid question takes answers and aggregates through the ordinary path");
 
-  // The shareable results page (D374): a public web page per sponsored
+  // The shareable results page (D379): a public web page per sponsored
   // question, served by an HTTPS function the hosting rewrite /q/{qid}
   // points at — reached here at the function's own path, with no token,
   // no account and no App Check, which is the whole point of it. The
@@ -2064,9 +2064,9 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (nonePage.status !== 404) fail("a missing question got a results page: " + nonePage.status);
   ok("the results page serves the sponsored question's public numbers to the open web, and nothing else");
 
-  // 13 · The ad lane is retired (D370): an ad booking is refused by name
+  // 13 · The ad lane is retired (D375): an ad booking is refused by name
   // before anything is written, and the committed ad pen's sparing
-  // still holds — a `paidad-` doc (an ad sold before D370, or a hand
+  // still holds — a `paidad-` doc (an ad sold before D375, or a hand
   // contract) survives a reseed over the deliberately empty file.
   try {
     await httpsCallable(payFns, "bookPaidQuestionV2")({
@@ -2082,7 +2082,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 
   const spared = "paidad-e2e-legacy";
   await adminDb.doc(`v2_ads/${spared}`).set({
-    seq: 100001, advertiser: "Harbour Sauna", headline: "Still here", body: "A window sold before D370.",
+    seq: 100001, advertiser: "Harbour Sauna", headline: "Still here", body: "A window sold before D375.",
     from: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
     until: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
     updatedAt: new Date(),

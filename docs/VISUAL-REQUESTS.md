@@ -106,7 +106,7 @@ version is in this file's history.
 - **why** — *"the axes exist to be connected"* (charter §1); AXES-PLAN
   §2: "That is the owner's sentence, drawn, on data that publishes
   today."
-- **status** — `requested` (the copy-level half built at D367; the
+- **status** — `requested` (the copy-level half built at D372; the
   shape is what remains).
 
 ### 2 · The corner doors for earned axes
@@ -165,11 +165,11 @@ version is in this file's history.
 
 ### 4 · The buying door reads as a price, not a formula
 
-**Asked 2026-09-05** — the owner: *"pricing seems unintuitive."* D366
+**Asked 2026-09-05** — the owner: *"pricing seems unintuitive."* D371
 made the numbers behind the door live; this request is for the shape
 that lets a buyer read them.
 
-- **asked by** — the owner, 2026-09-05; recorded at D366 §6.
+- **asked by** — the owner, 2026-09-05; recorded at D371 §6.
 - **surface** — the "Ask a question" overlay (`src/v2/spec/suggestions.jsx`,
   built from `design/standalone-2026-08-24/suggestions.jsx`): the rate
   board (three cohort rows), the scope ruler inside the composer, and
@@ -178,35 +178,35 @@ that lets a buyer read them.
 - **what a buyer reads today, and has to assemble** — per cohort: a
   demand word (*quiet · steady · contested*), the crowding as a sentence
   (*nobody else asking · 1 other in rotation*; it was a booked count, *0 of 14
-  booked*), a fourteen-tick strip and — since D371 — the MENU price
+  booked*), a fourteen-tick strip and — since D376 — the MENU price
   for the reach (*€10 · up to 500 answers · 29 days*; until then a
   per-answer rate, which now lives one tap in on the scope ruler and
   the contract sheet); the law
   (*€0.02 an answer with nobody else asking · +50% per other campaign
   in rotation · over the next 14 days · no ceiling · billed per answer
   · budgets €5 to €50 · unserved answers refund at close*) behind a
-  *How the price is set* tap since D367,
-  the crowding index since D368. In the composer a budget row (*€5 ·
+  *How the price is set* tap since D372,
+  the crowding index since D373. In the composer a budget row (*€5 ·
   €10 · €25 · €50* — the row's own price chosen when a row opened it,
   the smallest from the bare button) says what it buys at the line
   in force; the contract sheet says *Rate · locked at approval*, an
   estimate where a campaign has a measured rate (D288 §3, a served week
-  since D367), and *Your budget €25 up front · up to 1 250 answers ·
+  since D372), and *Your budget €25 up front · up to 1 250 answers ·
   unserved answers refund at close*.
-  D367 answered the arithmetic half of this request in copy and D371
+  D372 answered the arithmetic half of this request in copy and D376
   the menu half (`SPONSORED-PLAN.md` §2.3: one price per reach, one
   promise under it); what is still asked for is the SHAPE — the
   buyer's one question, *what will this cost me, and what does it
   buy*, as the thing the eye lands on, with the strip, the word and
   the presets around it rather than a column of rows.
 - **data and basis** — everything the door prints is on the live card
-  (`v2_meta/pricing` over `content/pricing.json`, D366): per cohort the
+  (`v2_meta/pricing` over `content/pricing.json`, D371): per cohort the
   idx, the booked strip, the next open day, and an estimate WITH its
   basis or none. A forecast may render only where the card carries a
   completed campaign (D288 §3's honesty), so the design needs a shape
   for *no estimate yet* that is not a blank — the booked strip and the
   open day are always real. (The flat ad lane printed its own figure
-  beside this until D370 retired it; one product now.)
+  beside this until D375 retired it; one product now.)
 - **states** — committed card (before the live half lands, or a demo
   build: the label says *committed*); live with an empty ledger (every
   cohort at the floor, all open); live with demand (one or more
@@ -227,7 +227,7 @@ that lets a buyer read them.
 - **constraints** — the overlay is past first paint (no eager bytes;
   `check:bundle` stands at its ceiling); one read per open for the live
   card and none for the committed one; tap targets
-  (`check:tap-targets`); the three OWNER-LIST rows D366 opened (the
+  (`check:tap-targets`); the three OWNER-LIST rows D371 opened (the
   floor, the cap's shape, the forward fortnight) may change the numbers
   under this design — design for a buyer-set budget as one of the
   states rather than assuming the flat cap.

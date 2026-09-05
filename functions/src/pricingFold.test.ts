@@ -1,4 +1,4 @@
-// pricingFold.test.ts — the demand fold and the live overlay (D366, D368).
+// pricingFold.test.ts — the demand fold and the live overlay (D371, D373).
 //
 // What these pin is the ARITHMETIC the door prints and the server
 // invoices by: the floor plus a step per campaign in the cohort's
@@ -53,7 +53,7 @@ describe("foldPricing — an empty ledger", () => {
   });
 });
 
-describe("foldPricing — the index is crowding beyond the free places, with no ceiling (D368, D372)", () => {
+describe("foldPricing — the index is crowding beyond the free places, with no ceiling (D373, D377)", () => {
   it("one campaign across the fortnight fills the strips and moves the index by nothing — it has a place of its own", () => {
     // The self-serve window (paid.ts WINDOW_DAYS): starts tomorrow, runs
     // 29 inclusive days — in the rotation on every day the fold looks at.
@@ -82,7 +82,7 @@ describe("foldPricing — the index is crowding beyond the free places, with no 
     expect(foldPricing(card, Array.from({ length: 20 }, () => row({ from: -3, to: 40 })), TODAY).cohorts.city.idx).toBe(10);
   });
 
-  it("a card with one free place is D368's card exactly — every other campaign crowds", () => {
+  it("a card with one free place is D373's card exactly — every other campaign crowds", () => {
     const one = { ...card, crowdFree: 1 };
     expect(foldPricing(one, [row({ from: 1, to: 29 })], TODAY).cohorts.city.idx).toBe(1.5);
     expect(foldPricing(one, [row({ from: 1, to: 29 }), row({ from: 1, to: 29 })], TODAY).cohorts.city.idx).toBe(2);
@@ -151,7 +151,7 @@ describe("foldPricing — the index is crowding beyond the free places, with no 
   });
 });
 
-describe("foldPricing — estimates only from campaigns with a measured rate (D288 §3, D367)", () => {
+describe("foldPricing — estimates only from campaigns with a measured rate (D288 §3, D372)", () => {
   it("withholds a forecast while no campaign has a measured rate", () => {
     // Running ten days but with no aggregate attached: the caller did
     // not read it, so the fold must not guess.
@@ -230,7 +230,7 @@ describe("mergeLivePricing — the committed card under a published live half", 
     expect(mergeLivePricing(card, { ...live, generated: "yesterday" })).toBe(card);
   });
 
-  it("holds a published idx to the card's floor, and to nothing above it (D368)", () => {
+  it("holds a published idx to the card's floor, and to nothing above it (D373)", () => {
     const wild = { ...live, cohorts: { ...live.cohorts,
       city: { ...live.cohorts.city, idx: 9 },
       country: { ...live.cohorts.country, idx: 0.1 },
@@ -260,7 +260,7 @@ describe("mergeLivePricing — the committed card under a published live half", 
     expect(merged.estimates.world).toEqual({ perDay: 400, campaigns: 3, days: 87 });
   });
 
-  it("keeps a running count that fits its basis and drops one that does not (D367)", () => {
+  it("keeps a running count that fits its basis and drops one that does not (D372)", () => {
     const merged = mergeLivePricing(card, { ...live, estimates: {
       city: { perDay: 40, campaigns: 2, days: 40, running: 1 },
       world: { perDay: 400, campaigns: 3, days: 87, running: 5 },

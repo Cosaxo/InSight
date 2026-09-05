@@ -1,11 +1,11 @@
 // The pages a buyer lands on after paying, and the promise each one makes.
 //
 // Stripe's success_url is where commerce hands the buyer back (D313).
-// From D315 to D370 there were two products and two pages, because the
+// From D315 to D375 there were two products and two pages, because the
 // question's page — your question is going live, it starts serving
 // tomorrow, everything it collects lands in Asked by you, the unserved
 // part refunds at close — was false of an ad in every sentence, and for a
-// while both products landed on it. D370 retired the ad lane; there is
+// while both products landed on it. D375 retired the ad lane; there is
 // one product and one page again, and what this file pins is that the
 // page still says the things that are true of a question, and that every
 // url the checkout hands Stripe is a file this repo ships. A typo in
@@ -38,7 +38,7 @@ describe("the checkout's landing pages", () => {
     }
   });
 
-  it("no longer ships or names the ad's landing page (D370)", () => {
+  it("no longer ships or names the ad's landing page (D375)", () => {
     expect(pages).not.toContain("paid-done-ad.html");
     expect(existsSync(join(root, "web", "paid-done-ad.html")), "web/paid-done-ad.html is back — the ad lane is retired").toBe(false);
   });

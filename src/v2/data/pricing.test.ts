@@ -18,7 +18,7 @@ describe("the posted line", () => {
     expect(rate("city")).toBe(Math.round(PRICING.base * PRICING.cohorts.city.idx * 1000) / 1000);
   });
 
-  it("the menu (D371) is a preset per reach, and the line decides what it buys", () => {
+  it("the menu (D376) is a preset per reach, and the line decides what it buys", () => {
     // Each menu price is one of the composer's chips — check:pricing
     // referees the file, this pins the module reading it — and the
     // answers it buys are answersFor at the line in force: the same
@@ -45,7 +45,7 @@ describe("the posted line", () => {
     expect(answersFor("country", menuEur("country"))).toBe(Math.floor(before / 2));
   });
 
-  it("says the room before anyone shares, off the crowd strip (D372)", () => {
+  it("says the room before anyone shares, off the crowd strip (D377)", () => {
     // The committed card is the empty ledger: every free place open.
     expect(crowdFor("city")).toBe(0);
     expect(roomFor("city")).toBe(PRICING.crowdFree);
@@ -74,9 +74,9 @@ describe("the posted line", () => {
     expect(roomFor("city")).toBe(0);
   });
 
-  it("maps the crowding beyond the places to the three demand words (D368, D372)", () => {
+  it("maps the crowding beyond the places to the three demand words (D373, D377)", () => {
     // The word reads the idx back through the card's own step — what the
-    // PRICE counts, which since D372 is the campaigns beyond the free
+    // PRICE counts, which since D377 is the campaigns beyond the free
     // places: none is quiet, about one is steady, two or more is
     // contested. Pinned at the committed floor and at two lifted lines,
     // so the edges are the case rather than today's ledger.
@@ -141,7 +141,7 @@ describe("formatting", () => {
   it("a lifted line's per-answer price keeps its cents in the exact form", () => {
     // At the floor the line is a round figure (€0.02); the first sale
     // lifts it to one the rate-card rounding would move. The live half
-    // laid over the card (D366) is how that happens.
+    // laid over the card (D371) is how that happens.
     expect(applyLive({
       generated: "2026-09-05",
       cohorts: {

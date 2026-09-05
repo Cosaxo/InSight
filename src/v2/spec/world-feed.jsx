@@ -4031,9 +4031,9 @@ class WorldFeed extends React.Component {
             style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{mk ? 'later' : 'skip'}</button>
         )}
         {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
-        {/* The buyer's link (D373), after the answer and only then — the
+        {/* The buyer's link (D378), after the answer and only then — the
             card's one way off-app, as its bare domain, nothing counted —
-            and beside it the results page's address (D374), the same
+            and beside it the results page's address (D379), the same
             numbers as one page anyone can open. */}
         {answered && q.sponsor ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -4201,11 +4201,11 @@ class WorldFeed extends React.Component {
     // carries the full length: the same side cards land, at the designed
     // rhythm among the fresh topics, with the surplus after them — which
     // at the fully caught-up end is exactly what the full walk produced.
-    // The paid places (D195, D372). Every sponsored card leaves the
+    // The paid places (D195, D377). Every sponsored card leaves the
     // ordinary stream and comes back in the day's order, one after every
     // SPONSOR_EVERY-th world card — the density is the unit of sale, so
     // it has to be a property of the code rather than of how many the
-    // bank happens to hold; until D372 at most ONE came back, at a fixed
+    // bank happens to hold; until D377 at most ONE came back, at a fixed
     // depth. The match runs HERE, on the device, against anchors the
     // device already has: the server is never asked who should see what.
     // Both kinds take the same places (D197): a sponsored QUESTION (path

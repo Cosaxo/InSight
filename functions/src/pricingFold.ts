@@ -1,6 +1,6 @@
 // pricingFold.ts — the demand fold behind the rate card, as ONE pure
 // function the server runs by machinery and the operator script runs by
-// hand (D366).
+// hand (D371).
 //
 // WHY THIS MOVED OUT OF scripts/build-pricing.mjs. PAID-PLAN §6 priced a
 // cohort by size × desire, with desire "recomputed by a script from the
@@ -20,7 +20,7 @@
 //
 // What each field is, and where its honesty comes from:
 //
-//   idx        The demand multiplier per cohort, and since D368 it
+//   idx        The demand multiplier per cohort, and since D373 it
 //              measures CROWDING with no ceiling:
 //                idx = floorX + crowdStep × (campaigns in rotation per
 //                      day, averaged over the next FORWARD_DAYS)
@@ -28,7 +28,7 @@
 //              (base is the quiet price). One other campaign across the
 //              fortnight: +crowdStep (×1.5 at the committed 0.5). Five:
 //              ×3.5. There is no cap, because the thing being measured
-//              has none. What it replaced: D366's ratio of BOOKED days
+//              has none. What it replaced: D371's ratio of BOOKED days
 //              over the trailing month and the coming fortnight, mapped
 //              into a floor and a ceiling — a signal that saturated at
 //              "every day booked" and then stopped moving however many
@@ -53,7 +53,7 @@
 //              `booked` all ones is what carries that (the door reads it).
 //   estimates  Per-answer-per-day expectations, WITHHELD until a cohort
 //              has a campaign to measure from (D288 §3's honesty, one
-//              step earlier since D367): a CLOSED question purchase
+//              step earlier since D372): a CLOSED question purchase
 //              contributes the answer total the closer wrote on it
 //              (`closed.answers`, off the public aggregate) over its
 //              inclusive window, and a RUNNING one contributes what the
@@ -99,7 +99,7 @@ export interface PurchaseRow {
 }
 
 /** Days a running campaign must have served before it is an estimate's
- * basis (D367). A week: enough that a weekend and a weekday are both in
+ * basis (D372). A week: enough that a weekend and a weekday are both in
  * it, short enough that a scope with one live campaign prints a figure
  * inside the campaign rather than after it. */
 export const ESTIMATE_MIN_DAYS = 7;
@@ -152,11 +152,11 @@ export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: strin
   if (todayUTC == null) throw new Error(`foldPricing: today must be YYYY-MM-DD, got ${JSON.stringify(today)}`);
   const floorX = card.floorX;
   const crowdStep = typeof card.crowdStep === "number" && card.crowdStep >= 0 ? card.crowdStep : 0.5;
-  // The free places (D372): the feed carries a paid card in every sixth
+  // The free places (D377): the feed carries a paid card in every sixth
   // place, so a scope's first `crowdFree` campaigns each hold a place of
   // their own and dilute nobody. The multiplier counts what the NEXT
   // buyer would push beyond that — the rotation with them in it, less
-  // the places — so a card with one free place is D368's exactly: every
+  // the places — so a card with one free place is D373's exactly: every
   // other campaign crowds.
   const crowdFree = typeof card.crowdFree === "number" && card.crowdFree >= 1 ? Math.floor(card.crowdFree) : 1;
 
@@ -189,7 +189,7 @@ export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: strin
 
     cohorts[scope] = { idx, booked, crowd, nextOpen: nextOpen === "tomorrow" ? null : nextOpen };
 
-    // estimates from campaigns with a measured rate (D288 §3, D367): a
+    // estimates from campaigns with a measured rate (D288 §3, D372): a
     // closed one off the answer total the closer wrote, a running one off
     // the aggregate total the caller attached, once it has served a week.
     let answers = 0, days = 0, campaigns = 0, running = 0;
@@ -232,7 +232,7 @@ export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: strin
  * Refuses, whole, anything not in shape: a live doc with a malformed
  * cohort is ignored rather than half-applied, and every idx is held to
  * the card's own floor — a published number under it is a bug, not a
- * price. No ceiling since D368: crowding has none.
+ * price. No ceiling since D373: crowding has none.
  */
 export function mergeLivePricing(card: PricingCard, live: unknown): PricingCard {
   if (!live || typeof live !== "object") return card;
@@ -247,7 +247,7 @@ export function mergeLivePricing(card: PricingCard, live: unknown): PricingCard 
     const idx = typeof c.idx === "number" && Number.isFinite(c.idx) ? c.idx : NaN;
     const booked = Array.isArray(c.booked) ? c.booked : null;
     if (Number.isNaN(idx) || !booked || booked.length !== FORWARD_DAYS || booked.some((b) => b !== 0 && b !== 1)) return card;
-    // The crowd strip is optional (a doc from before D368 lacks it) and,
+    // The crowd strip is optional (a doc from before D373 lacks it) and,
     // when present, must be the fortnight as counts.
     const crowd = c.crowd === undefined ? booked.map((b) => (b ? 1 : 0)) : Array.isArray(c.crowd) ? c.crowd : null;
     if (!crowd || crowd.length !== FORWARD_DAYS || crowd.some((n) => !Number.isInteger(n) || (n as number) < 0)) return card;

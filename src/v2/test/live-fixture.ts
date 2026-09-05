@@ -95,7 +95,7 @@ export interface LiveFixtureOptions {
    * asserting against a feed nobody serves.
    */
   sponsored?: boolean;
-  /** The sponsored card's link (D373), when `sponsored` — an https
+  /** The sponsored card's link (D378), when `sponsored` — an https
    * address the answered face prints as its domain. Off by default for
    * the same reason: no shipped question carries one. */
   sponsorLink?: string;

@@ -3876,7 +3876,7 @@ async function runBeat(cell?: string): Promise<void> {
     const db = await getDb();
     // `until` is when this position stops counting (D174). The linger is
     // what makes the feature work at all — a phone in a pocket has to keep
-    // standing in the room. Since D365 the switch has no timed state, so
+    // standing in the room. Since D370 the switch has no timed state, so
     // there is no session deadline to clamp to: every beat writes the
     // linger, and firestore.rules caps how far out this may be pushed, so
     // the promise does not rest on the client being ours.
@@ -3891,7 +3891,7 @@ async function runBeat(cell?: string): Promise<void> {
     // fast had EVERY presence beat refused with permission-denied.
     // `runBeat`'s catch reports "unavailable", the count stays null, and
     // the card offers a retry that cannot succeed — for the life of the
-    // install, on a four-minute loop. That was D174's `always`; since D365
+    // install, on a four-minute loop. That was D174's `always`; since D370
     // it is the only on state there is, so this is every opted-in phone.
     //
     // Recorded at D181 and parked there because the obvious fix — widening
@@ -3964,7 +3964,7 @@ function presenceBeat(cell?: string): Promise<void> {
   // longer exists. Every other queued writer in this file already checks
   // it; presence was the one that did not.
   if (torndown) return Promise.resolve();
-  // The switch is the whole state since D365 (the expired-session teardown
+  // The switch is the whole state since D370 (the expired-session teardown
   // D174 needed here is gone with the timed option). A loop still running
   // with the switch off can only be a beat queued across disable(); it
   // writes nothing.
@@ -4019,7 +4019,7 @@ const NEAR = {
   supported(): boolean {
     return locateSupported();
   },
-  // Off or on, and nothing between (D365): `mode()` and `until()` stood
+  // Off or on, and nothing between (D370): `mode()` and `until()` stood
   // here for D174's timed state and left with it.
   on(): boolean {
     return nearOptedIn();

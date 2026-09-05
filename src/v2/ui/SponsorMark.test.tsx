@@ -92,7 +92,7 @@ describe("what the sponsor receives", () => {
   });
 });
 
-describe("the buyer's link, after the answer (D373)", () => {
+describe("the buyer's link, after the answer (D378)", () => {
   it("is the bare domain, a plain anchor to the browser, with no referrer and the address verbatim", () => {
     render(<SponsorLink link="https://www.harboursauna.no/winter?season=2026" />);
     const a = screen.getByRole("link", { name: /harboursauna\.no/ }) as HTMLAnchorElement;

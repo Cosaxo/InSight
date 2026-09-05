@@ -152,7 +152,7 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
       <div style={{ marginTop: 5, fontFamily: SANS, fontSize: 11.5, fontWeight: 650, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
         <span style={{ fontWeight: 800, color: "var(--ink)" }}>{fmtN(total)}</span> of {fmtN(p.budget.cap)} budget · {pct}% — bills per answer at {fmtExact(p.budget.ratePerAnswer)}, stops at the cap
       </div>
-      {/* The results page (D374): the payoff, as an address the buyer can
+      {/* The results page (D379): the payoff, as an address the buyer can
           post — the same numbers everyone reads, on the open web. */}
       {p.qid ? (
         <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>

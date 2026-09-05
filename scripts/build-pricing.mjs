@@ -1,6 +1,6 @@
 // build-pricing.mjs — fold the purchase ledger into the rate card BY HAND:
 // publish the live half onto `v2_meta/pricing` and snapshot the whole card
-// into content/pricing.json (PAID-PLAN §6, D288 §3, D366).
+// into content/pricing.json (PAID-PLAN §6, D288 §3, D371).
 //
 //   npm run build --prefix functions          # once — the fold is compiled from functions/src
 //   node scripts/build-pricing.mjs --project prvfire33
@@ -9,7 +9,7 @@
 // Needs admin credentials (GOOGLE_APPLICATION_CREDENTIALS or `gcloud auth
 // application-default login`), or --emulator with the Firestore emulator up.
 //
-// WHEN TO RUN IT. Since D366 the server folds the ledger itself — the
+// WHEN TO RUN IT. Since D371 the server folds the ledger itself — the
 // payment webhook after every self-serve sale, the nightly closer every
 // day — so the self-serve loop never needs this script. It exists for
 // the sales the machinery does not carry: a contract recorded with
@@ -21,7 +21,7 @@
 //
 // ONE ARITHMETIC. This script used to carry its own copy of the fold,
 // which is how the index came to depend on somebody remembering to run
-// it (D366's finding). It now imports the compiled fold the server runs
+// it (D371's finding). It now imports the compiled fold the server runs
 // — functions/lib/pricingFold.js, the same relationship the e2e harness
 // and scripts/report-lib.mjs already have with functions/lib — so what an
 // operator publishes by hand and what the webhook publishes at 03:00 are
@@ -71,7 +71,7 @@ const today = new Date().toISOString().slice(0, 10);
 const cutoff = new Date(Date.parse(`${today}T00:00:00Z`) - 366 * 86400000).toISOString().slice(0, 10);
 const snap = await db.collection("v2_purchases").where("window.until", ">=", cutoff).limit(1000).get();
 const rows = snap.docs.map((d) => d.data());
-// A running campaign that has served a week is an estimate's basis (D367):
+// A running campaign that has served a week is an estimate's basis (D372):
 // its answer total so far is the public aggregate — the same read
 // paid.ts's publishPricing makes, so the two folds see the same rows.
 for (const row of rows) {

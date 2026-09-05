@@ -202,7 +202,7 @@ describe("the lists on this tree", () => {
   });
   it("reads visual requests by status and permissions by state", () => {
     const v = parseVisualRequests(read("docs/VISUAL-REQUESTS.md"));
-    // Four since D366 added the buying door (item 4) to the three the
+    // Four since D371 added the buying door (item 4) to the three the
     // program plan opened; a request moving to another status moves this.
     expect(v.requested.length).toBe(4);
     expect(v.built).toEqual([]);

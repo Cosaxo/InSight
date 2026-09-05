@@ -1,4 +1,4 @@
-// The share control of a sponsored question's results page (D374).
+// The share control of a sponsored question's results page (D379).
 //
 // Its own module rather than a second export of SponsorMark.tsx, and the
 // reason is the entry chunk: the buyer's room (AskedByYouOverlay) is in

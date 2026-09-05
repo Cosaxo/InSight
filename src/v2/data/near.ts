@@ -5,7 +5,7 @@
 // per-person choice; it dies with the account that made it (purge listener
 // below) and starts OFF for every new one.
 //
-// A SWITCH AGAIN SINCE D365 — off or on, the shape D84 shipped. D174 put a
+// A SWITCH AGAIN SINCE D370 — off or on, the shape D84 shipped. D174 put a
 // third state between them (`session`: visible for two hours, then not)
 // and made it the default, on the argument that forgetting is the failure
 // mode worth designing against. The owner's call (2026-09-05) retires it:
@@ -28,7 +28,7 @@ const LS_UNTIL = "insight.nearPresence.until.v1";
 function readOn(): boolean {
   try {
     const raw = localStorage.getItem(LS);
-    // "1" is D84's boolean and is the value written again since D365;
+    // "1" is D84's boolean and is the value written again since D370;
     // "always" is what D174 wrote for the standing option — same meaning.
     if (raw === "1" || raw === "always") return true;
     // A phone upgrading mid-SESSION lands OFF, on purpose: the timed

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The live half of the rate card (D366): the published document laid over
+// The live half of the rate card (D371): the published document laid over
 // the committed constants when the door opens. Its own file rather than
 // pricing.test.ts's, because these cases mock lib/firebase and the
 // arithmetic cases there must keep running against the real module.
@@ -57,7 +57,7 @@ beforeEach(async () => {
 afterEach(() => { S.throws = false; });
 
 describe("parseLive — the shape the door will print", () => {
-  it("takes a well-formed document, every cohort held to the committed floor and to no ceiling (D368)", () => {
+  it("takes a well-formed document, every cohort held to the committed floor and to no ceiling (D373)", () => {
     const p = pricing.parseLive(liveDoc({ cohorts: { ...liveDoc().cohorts,
       city: { idx: 9, booked: Array(14).fill(1), crowd: Array(14).fill(16), nextOpen: null },
       country: { idx: 0.2, booked: Array(14).fill(0), nextOpen: null },
@@ -66,7 +66,7 @@ describe("parseLive — the shape the door will print", () => {
     expect(p!.cohorts.city.idx).toBe(9);
     expect(p!.cohorts.city.crowd).toEqual(Array(14).fill(16));
     expect(p!.cohorts.country.idx).toBe(pricing.PRICING.floorX);
-    // no crowd strip on a doc from before D368: derived from `booked`
+    // no crowd strip on a doc from before D373: derived from `booked`
     expect(p!.cohorts.world.crowd).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     expect(p!.cohorts.world.nextOpen).toBe("2026-09-09");
     expect(p!.estimates.city).toEqual({ perDay: 42, campaigns: 1, days: 29 });
@@ -93,7 +93,7 @@ describe("parseLive — the shape the door will print", () => {
     expect(p!.estimates.world).toEqual({ perDay: 7, campaigns: 2, days: 58 });
   });
 
-  it("carries how many of an estimate's campaigns are still running, when it fits (D367)", () => {
+  it("carries how many of an estimate's campaigns are still running, when it fits (D372)", () => {
     const p = pricing.parseLive(liveDoc({ estimates: {
       city: { perDay: 42, campaigns: 2, days: 40, running: 1 },
       world: { perDay: 7, campaigns: 2, days: 58, running: 9 },
@@ -103,7 +103,7 @@ describe("parseLive — the shape the door will print", () => {
   });
 });
 
-describe("answersFor — what a budget buys at the line in force (D367)", () => {
+describe("answersFor — what a budget buys at the line in force (D372)", () => {
   it("is the budget over the rate, floored — a ceiling, never a forecast", () => {
     const r = pricing.rate("city");
     expect(pricing.answersFor("city", 100)).toBe(Math.floor(100 / r));

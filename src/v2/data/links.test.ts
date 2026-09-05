@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { inviteLinkFor, parseJoinCode, resultsLinkFor } from "./links";
 
-describe("resultsLinkFor — the results page's address (D374)", () => {
+describe("resultsLinkFor — the results page's address (D379)", () => {
   it("is the site's /q/{qid} rewrite, the id escaped", () => {
     expect(resultsLinkFor("paidq-abc_1")).toBe("https://prvfire33.web.app/q/paidq-abc_1");
     expect(resultsLinkFor("a b")).toBe("https://prvfire33.web.app/q/a%20b");

@@ -1810,7 +1810,7 @@ export function presenceNeighbors(cell: string): string[] {
  */
 export const PRESENCE_LINGER_MIN = 180;
 
-// `PRESENCE_SESSION_MIN = 120` stood here from D174 to D365 — the length of
+// `PRESENCE_SESSION_MIN = 120` stood here from D174 to D370 — the length of
 // the timed option, which the client clamped every `until` to. The option
 // is gone (the owner: off and on only), so is the deadline, and a constant
 // nothing reads is the drift this file is otherwise careful about.

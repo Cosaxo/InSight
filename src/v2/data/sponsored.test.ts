@@ -1,4 +1,4 @@
-// The paid places (D195, D372). Three of these are the commercial
+// The paid places (D195, D377). Three of these are the commercial
 // contract made executable — the density, the on-device match, and the
 // tail-only rule — and the last block binds the shipped bank to the
 // vocabulary the device can actually match, which no other gate sees.
@@ -32,7 +32,7 @@ function q(id: string, over: Partial<SponsoredQ> = {}): SponsoredQ {
 
 const OSLO = { city: "Oslo, NO", country: "NO", ageBand: "25-34" };
 
-describe("the places for paid cards (D372)", () => {
+describe("the places for paid cards (D377)", () => {
   it("is one in six, and every sponsored card leaves the ordinary stream for them", () => {
     expect(SPONSOR_EVERY).toBe(6);
     const pool = [
@@ -44,7 +44,7 @@ describe("the places for paid cards (D372)", () => {
     ];
     const { paid, rest } = partitionSponsored(pool, OSLO, 0);
     // All three come back, each once, in the day's order — the places
-    // are theirs. Until D372 one came back and two were held for other
+    // are theirs. Until D377 one came back and two were held for other
     // days: inventory that did not grow with the app.
     expect(paid.map((p) => (p.kind === "question" ? p.question.id : p.ad.id))).toEqual(["feed-p1", "feed-p2", "feed-p3"]);
     // The load-bearing half: NONE of them stays in the ordinary stream. A
@@ -110,7 +110,7 @@ describe("what the band is able to say", () => {
     expect(windowLabel("soon")).toBeNull();
   });
 
-  it("prints a link as its bare domain, and a non-https one as nothing (D373)", () => {
+  it("prints a link as its bare domain, and a non-https one as nothing (D378)", () => {
     // Whose page it is, not where on it — the full address on a card is
     // the click-out the ad rules refused.
     expect(linkDomain("https://www.harboursauna.no/winter?utm=x")).toBe("harboursauna.no");
@@ -210,7 +210,7 @@ describe("the shipped bank", () => {
   });
 });
 
-describe("the paid places take both kinds (D197, D372)", () => {
+describe("the paid places take both kinds (D197, D377)", () => {
   const ad = (id: string, over: Partial<FeedAd> = {}): FeedAd => ({
     id, advertiser: "Transit", headline: "H", body: "B", until: "2099-01-01", ...over,
   });

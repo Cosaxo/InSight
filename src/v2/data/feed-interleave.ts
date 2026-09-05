@@ -91,7 +91,7 @@ export interface InterleaveStreams<T> {
   testEvery?: number;
   lensEvery?: number;
   /**
-   * The day's paid cards, in order (D372; until then ONE card, D195).
+   * The day's paid cards, in order (D377; until then ONE card, D195).
    *
    * A stream with its own places rather than a single card: one lands
    * after every `paidEvery`th world card, each at most once, as far as

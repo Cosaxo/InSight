@@ -561,11 +561,11 @@ describe("NearPresence · the room", () => {
   // rendered, and a not-yet-sampled clock renders the MODE instead of
   // arithmetic on epoch zero.
   // The case that stood here pinned the timed state's countdown chip
-  // (D174). D365 retired the timed state on the owner's word — "near
+  // (D174). D370 retired the timed state on the owner's word — "near
   // should only have off and on option" — so what is pinned now is the
   // absence: the switch is the whole control, and nothing beside it
   // offers a deadline, a limit or a second mode.
-  it("offers the switch and nothing else about visibility — no chip, no deadline (D365)", () => {
+  it("offers the switch and nothing else about visibility — no chip, no deadline (D370)", () => {
     render(<NearLiveBody />);
     expect(screen.queryByRole("button", { name: /Visible for|no deadline|two-hour|limited time/i })).toBeNull();
     expect(document.body.textContent || "").not.toMatch(/\btimed\b|\balways\b/i);

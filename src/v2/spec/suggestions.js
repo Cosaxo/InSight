@@ -280,7 +280,7 @@ export const SUGGESTIONS = {
     const opts = (options || []).filter(Boolean);
     if (LIVE.enabled) {
       return import('../data/paidBookings').then((p) => p.submitBooking({
-        // One product since D370: the sponsored question. The ad half of
+        // One product since D375: the sponsored question. The ad half of
         // this payload (kind "ad", advertiser, headline, body) left with
         // the lane.
         kind: 'question',
@@ -291,10 +291,10 @@ export const SUGGESTIONS = {
         scope: scope || 'world',
         dims: dims || {},
         wearName: wearName !== false,
-        // The buyer's budget (D367) — whole euros; the server holds it to
+        // The buyer's budget (D372) — whole euros; the server holds it to
         // the card's range. Absent on an ad, which is flat-priced.
         ...(typeof budgetEur === 'number' ? { budgetEur: Math.round(budgetEur) } : {}),
-        // The buyer's one link (D373) — sent as typed; the server holds
+        // The buyer's one link (D378) — sent as typed; the server holds
         // its shape and the review its substance.
         ...(link && String(link).trim() ? { link: String(link).trim() } : {}),
       }));

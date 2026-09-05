@@ -164,7 +164,7 @@ export interface QuestionDoc {
   // and at most one coarse audience tag the DEVICE matches against its own
   // anchors. The window is `until` above rather than a field here, so the
   // label the disclosure prints and the filter that stops serving the card
-  // are one value. `link` (D373) is the buyer's one https address, shown
+  // are one value. `link` (D378) is the buyer's one https address, shown
   // as its bare domain after the answer and opened in the system browser.
   sponsor?: { buyer: string; audience?: Record<string, string>; link?: string };
 }

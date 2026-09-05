@@ -25,7 +25,7 @@
 // (reports sold standalone, subscriptions when they exist).
 //
 // A recorded row moves the rate card at the next nightly fold — the
-// closer republishes `v2_meta/pricing` every day (D366) — or now, with
+// closer republishes `v2_meta/pricing` every day (D371) — or now, with
 // scripts/build-pricing.mjs, which runs the same fold by hand and also
 // refreshes the committed content/pricing.json snapshot. The booked/open
 // days and the demand index the door prints are read from that published
@@ -145,4 +145,4 @@ console.log(`  ${kind} · ${scope}${place ? ` (${place})` : ""} · ${start} → 
 if (dims.length) console.log(`  dims: ${dims.join(" · ")}`);
 console.log("\nSame sitting, before you stand up:");
 console.log("  node scripts/build-pricing.mjs   # publish the live rate card now, and refresh the committed snapshot");
-console.log("  …or wait for the nightly closer's fold (D366). Either way the door prints the published card, never this row.");
+console.log("  …or wait for the nightly closer's fold (D371). Either way the door prints the published card, never this row.");

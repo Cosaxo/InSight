@@ -89,7 +89,7 @@ describe("the day's paid slot, on a device that already answered it", () => {
   });
 });
 
-describe("the buyer's link (D373)", () => {
+describe("the buyer's link (D378)", () => {
   // AFTER THE ANSWER, AND ONLY THEN. The question is answered as a
   // question; the link is the buyer's thank-you rather than the card's
   // purpose — so a fresh card carries no link at all, and the answered

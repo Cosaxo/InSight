@@ -100,7 +100,7 @@ describe("the overlays with no button — opened through the nav registry", () =
     await openVia("openSuggestions");
     expect(screen.getAllByText(/next open tomorrow/i)).toHaveLength(3);
     expect(document.body.textContent).not.toMatch(/contested|12 Sep/);
-    // The menu (D371): each row prints its price per reach and what that
+    // The menu (D376): each row prints its price per reach and what that
     // buys at the committed line — €0.02 with nobody else asking — over
     // the one window. The per-answer line is one tap in, not on the row.
     expect(screen.getByText(/up to 500 answers · 29 days/)).toBeTruthy();
@@ -114,12 +114,12 @@ describe("the overlays with no button — opened through the nav registry", () =
     fireEvent.change(screen.getByPlaceholderText("Option 1"), { target: { value: "Ferry" } });
     fireEvent.change(screen.getByPlaceholderText("Option 2"), { target: { value: "Bridge" } });
     expect(screen.getByText(/No campaign measured here yet — no forecast/)).toBeTruthy();
-    // The budget (D367): the presets off the card, the smallest chosen,
+    // The budget (D372): the presets off the card, the smallest chosen,
     // and the line saying what it buys — a ceiling, not a forecast.
     expect(screen.getByRole("button", { name: "€5", pressed: true })).toBeTruthy();
     expect(screen.getByRole("button", { name: "€50", pressed: false })).toBeTruthy();
     expect(screen.getByText(/up to 250 answers · only what arrives is billed/)).toBeTruthy();
-    // The buyer's link (D373): optional, and the composer says where it
+    // The buyer's link (D378): optional, and the composer says where it
     // will show — as the bare domain, after the answer.
     fireEvent.change(screen.getByPlaceholderText(/your-site\.no/), { target: { value: "https://www.harboursauna.no/winter" } });
     expect(screen.getByText(/shows as harboursauna\.no ↗ after the answer/)).toBeTruthy();
@@ -127,7 +127,7 @@ describe("the overlays with no button — opened through the nav registry", () =
     fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
     expect(screen.getByText(/harboursauna\.no · after the answer/)).toBeTruthy();
     // the contract sheet: the rate without the mechanism's multiplier
-    // (D367 put the law behind a tap), the budget as the cap, the
+    // (D372 put the law behind a tap), the budget as the cap, the
     // functional channel (D313 retired "arranged directly" the day the
     // loop stopped being a human), and no make-good clause — the refund
     // is the promise the closer actually keeps, and the old free-extension
@@ -142,7 +142,7 @@ describe("the overlays with no button — opened through the nav registry", () =
     expectNoBoundary("the composer and its contract sheet");
   });
 
-  // Picking a menu row (D371) opens the composer on that reach at that
+  // Picking a menu row (D376) opens the composer on that reach at that
   // price — the row's chip pressed, the ceiling it buys restated — with
   // the other chips still there to adjust.
   it("a menu row opens the composer at its own price", async () => {

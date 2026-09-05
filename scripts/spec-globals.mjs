@@ -224,7 +224,7 @@ for (const file of files) {
     // default and stops at the comma, the second wants the brace right
     // after `import`. Nothing in the spec layer had imported a default and
     // a named binding on one line until world-feed.jsx took SponsorLink
-    // beside SponsorMark (D373), and the named half read as a dangling
+    // beside SponsorMark (D378), and the named half read as a dangling
     // global. Seen by rule 3, fixed here rather than by an exception.
     /import\s+[A-Za-z_$][\w$]*\s*,\s*\{([^}]*)\}/g,
     /(?:const|let|var)\s*\{([^}]*)\}\s*=/g,

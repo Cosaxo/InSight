@@ -65,7 +65,7 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     `submitModVerdict`
   - `deleteAccount` — the one v1-era function that carries forward, and
     it still wipes the v1 collections (D13)
-  - `resultsPageV2` (D374) — an HTTPS function, not a callable: the
+  - `resultsPageV2` (D379) — an HTTPS function, not a callable: the
     shareable results page of a sponsored question, which the hosting
     rewrite `/q/**` in `firebase.json` points at. No App Check and no
     sign-in by design (it serves the open web); the page sets its own

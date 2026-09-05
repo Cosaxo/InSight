@@ -2,14 +2,14 @@
 
 **Status: plan only, being built step by step** — the owner's *"go,
 yes to the link, keep your picks for the rest"* (2026-09-05). Built
-all five steps: §2.1 (D370), §2.3 (D371), §2.2 (D372), §2.4 (D373),
-§2.5 (D374) — the plan is the app now, and each step's record is what
+all five steps: §2.1 (D375), §2.3 (D376), §2.2 (D377), §2.4 (D378),
+§2.5 (D379) — the plan is the app now, and each step's record is what
 binds; this page stays as the reasoning that produced them.
 Written 2026-09-05 on the owner's
 *"that sounds like a bad system — if I gave you complete creative
 freedom how would you remake it"* and *"that sounds better, lay a plan
 for building that"*. It reshapes the paid system D313, D315 and
-D366–D369 built around the ad lane, and it reverses three recorded
+D371–D374 built around the ad lane, and it reverses three recorded
 decisions by name (§4). Picking up any step graduates to a record in
 `DECISIONS.md`; the four decisions in §5 are the owner's and come
 first. The lists are not touched by this page — the steps go on
@@ -39,7 +39,7 @@ counted, shown one day in N, goes.
   card a day shared by rotation with everything else the scope sold.
 - **Inventory is one.** `SPONSOR_SLOT` is one paid card per phone per
   day, and every campaign in a scope rotates through it. Each sale
-  dilutes the last; the crowding price (D368) is the honest reading of
+  dilutes the last; the crowding price (D373) is the honest reading of
   that and rises as you grow. The number of things you can sell does
   not move with the number of people using the app.
 - **Two products where one is native.** The app is questions and
@@ -54,7 +54,7 @@ counted, shown one day in N, goes.
 
 Each is one pull request, green on its own, in the order of §3.
 
-### 2.1 · Retire the self-serve ad lane — BUILT, D370
+### 2.1 · Retire the self-serve ad lane — BUILT, D375
 
 **What.** The composer loses its *an ad* switch; `validateAdBooking`,
 `adPriceQuote`, the webhook's ad branch, the closer's ad branch, the
@@ -73,9 +73,9 @@ leg (§13), `src/v2/spec/suggestions.jsx`, `src/v2/data/paidBookings.ts`,
 `ui/AskedByYouOverlay.tsx`, `content/pricing.json` + `check:pricing`,
 `STORE-CUT-PLAN.md`'s table, `data-inventory.md`'s purchases row.
 
-**Size.** A day. **Reverses** D315, and D369's half about ads.
+**Size.** A day. **Reverses** D315, and D374's half about ads.
 
-### 2.2 · Paid cards get their own places in the feed — BUILT, D372
+### 2.2 · Paid cards get their own places in the feed — BUILT, D377
 
 **What.** `SPONSOR_SLOT = 1` and `SPONSOR_AT = 6` become one density:
 a paid card at every sixth world card — positions 6, 12, 18 … — up to
@@ -88,7 +88,7 @@ device, the match stays disclosed, the tail-never-core rule stays.
 **Why.** Inventory that grows with users. Sales stop diluting each
 other until the pool is longer than what a session scrolls past.
 
-**The price follows.** D368's crowding step applies only past a free
+**The price follows.** D373's crowding step applies only past a free
 count: `crowdFree` (three, a routine's pick) campaigns in a scope
 share nothing, and the multiplier counts the ones beyond. One constant
 in the card, one term in `pricingFold.ts`; the door's sentence becomes
@@ -104,11 +104,11 @@ in the card, one term in `pricingFold.ts`; the door's sentence becomes
 
 *Built as written. The multiplier counts the campaigns the NEXT buyer
 would push beyond the free places — a card with one free place is
-D368's exactly — and the door's sentence reads the crowd strip rather
+D373's exactly — and the door's sentence reads the crowd strip rather
 than the index back: "room for 3 more" until the places are taken,
 then "3 in rotation · sharing".*
 
-### 2.3 · The menu — BUILT, D371
+### 2.3 · The menu — BUILT, D376
 
 **What.** The rate board's three rows print a price per reach — city
 €10, country €25, everyone €50 — each with *up to N answers* at the
@@ -133,7 +133,7 @@ window (29) went onto the card so the row and the server read one
 number. The per-answer line left the rows for the ruler and the
 sheet — the row says the price and what it buys.*
 
-### 2.4 · One reviewed link — the owner's decision — BUILT, D373
+### 2.4 · One reviewed link — the owner's decision — BUILT, D378
 
 **What.** A sponsored question may carry `link`: one `https` URL,
 validated for shape, reviewed by the same automated review with a new
@@ -179,7 +179,7 @@ shorteners, no redirect services), and `firestore.rules` needed no
 line, because the question doc is server-written and the shape is
 the validator's. The link also rides on the buyer's purchase record.*
 
-### 2.5 · The shareable results page — BUILT, D374
+### 2.5 · The shareable results page — BUILT, D379
 
 **What.** A public page per sponsored question — *Oslo said: 62% keep
 the harbour bath open* — the question, the buyer's name, the split, the
@@ -232,11 +232,11 @@ and they buy reach with a way to convert.
 
 **Reverses:** D195 §1's one paid card (2.2); D197's no-link rule
 (2.4) and its ad product (2.1); D315's self-serve ad lane (2.1); the
-ad half of D369 (2.1). Each gets its own record when built, citing
+ad half of D374 (2.1). Each gets its own record when built, citing
 this page.
 
 **Leaves alone:** per-answer billing and the closer's refund (D164,
-D313 — the guarantee under the menu); the demand index's shape (D368,
+D313 — the guarantee under the menu); the demand index's shape (D373,
 with 2.2's free count); the review loop and Stripe (D313); the
 committed ad pen and `v2_ads` (a later sweep, its own record); the
 Apple 3.1.1 question of where the door lives (`STORE-CUT-PLAN.md` —
@@ -251,7 +251,7 @@ plan already wants); subscriptions and standalone reports
 2. **The density** (2.2) — one paid card in six is a routine's pick;
    one in four is what the big feeds run; one in eight is quieter.
 3. **The menu figures** (2.3) — €10 / €25 / €50 are this page's, on
-   the €0.02 line D368 set; the included answers follow from the line.
+   the €0.02 line D373 set; the included answers follow from the line.
 4. **The ad object** (2.1) — retire the self-serve lane only (this
    page), or the whole object including the committed pen and
    `v2_ads` (a bigger sweep, one more PR).
@@ -271,5 +271,5 @@ plan already wants); subscriptions and standalone reports
   names the buyer, who chose to wear their name (D228). Nothing per
   person, nothing new.
 - **A menu price nobody pays.** €10 for a city that yields forty
-  answers is the refund doing its job; the estimates (D367) are what
+  answers is the refund doing its job; the estimates (D372) are what
   turn the guarantee into a forecast over time.
