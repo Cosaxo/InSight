@@ -1767,9 +1767,9 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     await httpsCallable(payFns, "bookPaidQuestionV2")({
       prompt: "Should the harbour bath stay open all winter?",
       type: "binary", options: ["Keep it open", "Close for winter"],
-      topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 5,
+      topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 2,
     });
-    fail("a €5 budget was accepted");
+    fail("a €2 budget was accepted");
   } catch (e) {
     if (!/budget between/.test(String(e?.message))) fail("wrong refusal for an out-of-range budget: " + e?.message);
   }
@@ -1778,7 +1778,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const book = await httpsCallable(payFns, "bookPaidQuestionV2")({
     prompt: "Should the harbour bath stay open all winter?",
     type: "binary", options: ["Keep it open", "Close for winter"],
-    topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 100,
+    topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 20,
   });
   const bid = book.data?.id;
   if (!bid) fail("bookPaidQuestionV2 returned " + JSON.stringify(book.data));
@@ -1801,10 +1801,10 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     fail("emulator review must record by=gates-only, got " + JSON.stringify(booking.review));
   }
   // The locked quote, off the LIVE card (D366) — which before any sale
-  // is the committed card's floor: base 0.10 × idx 1.0 — with the
-  // buyer's €100 budget as the cap (D367). Read through the buyer's own
-  // client, the way the door reads it: `v2_meta/*` is readable by any
-  // signed-in user.
+  // is the committed card's floor: base 0.02 × idx 1.0 (nobody else in
+  // rotation, D368) — with the buyer's €20 budget as the cap (D367).
+  // Read through the buyer's own client, the way the door reads it:
+  // `v2_meta/*` is readable by any signed-in user.
   const liveCardNow = async () => {
     const s = await getDoc(doc(payDb, "v2_meta", "pricing"));
     return s.exists() ? s.data() : null;
@@ -1813,10 +1813,10 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const idxBefore = cardBefore?.cohorts?.city?.idx ?? 1;
   if (idxBefore !== 1) fail("the city index moved before anything was sold: " + JSON.stringify(cardBefore));
   const q = booking.quote || {};
-  if (q.ratePerAnswer !== 0.1 || q.capEur !== 100 || q.cap !== 1000 || q.windowDays !== 29) {
+  if (q.ratePerAnswer !== 0.02 || q.capEur !== 20 || q.cap !== 1000 || q.windowDays !== 29) {
     fail("quote is not the card's arithmetic over the buyer's budget: " + JSON.stringify(q));
   }
-  ok("review approved on gates alone (recorded as such) with the locked quote: €0.10 an answer, €100 budget, 1000 answers");
+  ok("review approved on gates alone (recorded as such) with the locked quote: €0.02 an answer, €20 budget, 1000 answers");
 
   // A gate decline, with the reason written to be shown. Duplicate
   // options are two indexes wearing one answer — the aggregate would
@@ -1915,21 +1915,25 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const purchase = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${bid}`));
   if (!purchase.exists()) fail("the webhook wrote no purchase record");
   if (purchase.get("state") !== "running" || purchase.get("qid") !== qid
-    || purchase.get("budget")?.ratePerAnswer !== 0.1 || purchase.get("budget")?.capEur !== 100
+    || purchase.get("budget")?.ratePerAnswer !== 0.02 || purchase.get("budget")?.capEur !== 20
     || purchase.get("stripePaymentIntent") !== "pi_e2e_1") {
     fail("purchase record malformed: " + JSON.stringify(purchase.data()));
   }
-  // THE SALE MOVED THE RATE CARD (D366). The webhook folded the ledger
-  // after going live and published the live half onto v2_meta/pricing:
-  // the 29-day window starting tomorrow books the whole fortnight, so
-  // the city index is off its floor NOW — not after an operator runs a
-  // script, and not 28 days later when a trailing-only index would have
-  // noticed. The other two cohorts did not move: the slot is per scope.
+  // THE SALE MOVED THE RATE CARD (D366, D368). The webhook folded the
+  // ledger after going live and published the live half onto
+  // v2_meta/pricing: the 29-day window starting tomorrow is one campaign
+  // in the city's rotation on every day of the fortnight, so the index is
+  // exactly one crowding step off its floor NOW — ×1.5 at the committed
+  // step — not after an operator runs a script. The other two cohorts
+  // did not move: the slot is per scope.
   const cardAfter = await liveCardNow();
   if (!cardAfter) fail("the webhook published no live rate card");
   const cityAfter = cardAfter.cohorts?.city || {};
-  if (!(cityAfter.idx > 1) || cityAfter.idx > 2.5) {
-    fail("the first sale left the city index at the floor: " + JSON.stringify(cardAfter.cohorts));
+  if (cityAfter.idx !== 1.5) {
+    fail("one campaign across the fortnight should read ×1.5: " + JSON.stringify(cardAfter.cohorts));
+  }
+  if (!Array.isArray(cityAfter.crowd) || cityAfter.crowd.some((n) => n !== 1)) {
+    fail("the crowd strip should show one campaign on every day: " + JSON.stringify(cityAfter));
   }
   if (!Array.isArray(cityAfter.booked) || cityAfter.booked.length !== 14 || cityAfter.booked.some((b) => b !== 1)) {
     fail("a 29-day window starting tomorrow should book the whole fortnight: " + JSON.stringify(cityAfter));
@@ -1940,7 +1944,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (cardAfter.generated !== new Date().toISOString().slice(0, 10)) {
     fail("the live card is not dated today: " + JSON.stringify(cardAfter.generated));
   }
-  ok(`the sale moved the rate card by machinery: city ×${cityAfter.idx}, 14 of 14 booked, country and world still ×1`);
+  ok(`the sale moved the rate card by machinery: city ×${cityAfter.idx} (one campaign in rotation), country and world still ×1`);
 
   // Any signed-in user reads the question — it is bank content now. The
   // MAIN account (a different uid) is the reader on purpose.
@@ -2032,8 +2036,8 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const ad1Snap = await settleAd(ad1.data.id);
   if (ad1Snap.get("status") !== "approved") fail("ad booking not approved: " + JSON.stringify(ad1Snap.data()));
   // Flat price off the LIVE card: adBase 320 × the city index the
-  // question's sale just lifted (D366) — no longer the committed floor's
-  // 288, and the assertion is against the number the door prints.
+  // question's sale just lifted (D366) — €480 at ×1.5 — and the
+  // assertion is against the number the door prints.
   const adCard = await liveCardNow();
   const adIdx = adCard?.cohorts?.city?.idx;
   if (!(adIdx > 1)) fail("the ad quote's basis should be the lifted city index: " + JSON.stringify(adCard));

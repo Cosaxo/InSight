@@ -22,7 +22,7 @@ import { useDialog } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
 import { SUGGESTIONS } from './suggestions.js';
 import { WORLD_TOPICS } from './world-feed-data.js';
-import { PRICING, rate, adFlat, answersFor, demandWord, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
+import { PRICING, rate, adFlat, answersFor, demandWord, othersFor, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
 // The dispatcher, for the one gate the live card's read needs: a demo
 // build (LIVE.enabled false) has no Firestore to read it from.
 import LIVE from '../data/live';
@@ -92,6 +92,16 @@ const sgNextOpen = (scope) => {
   return c.nextOpen == null ? 'tomorrow' : sgDay(c.nextOpen);
 };
 const SG_TONE = { quiet: 'var(--ink-3)', steady: 'var(--ochre-ink)', contested: 'var(--accent-ink)' };
+// The crowding, as a sentence (D368): how many other campaigns share the
+// cohort's rotation over the fortnight, averaged, to one decimal — the
+// same number the multiplier is folded from, so the word and the price
+// agree with what this says.
+const sgOthers = (scope) => {
+  const o = othersFor(scope);
+  if (o === 0) return 'nobody else asking';
+  const n = Number.isInteger(o) ? String(o) : o.toFixed(1);
+  return n + ' other' + (o === 1 ? '' : 's') + ' in rotation';
+};
 const sgScopeName = (SG, a) => (a === 'world' || a === 'like' ? 'Everyone' : SG.audienceLabel(a));
 
 // read-only preview of the answer shape, tinted by the suggestion's hue
@@ -235,10 +245,12 @@ function SgTok({ children }) {
 }
 
 // ── the rate card (PAID-PLAN §6): one row per cohort, all of it read off
-// the committed card — the posted line, the next 14 days as real ticks,
-// the demand word from the same idx the line is priced by.
+// the card in force — the posted line, the next 14 days as real ticks
+// (taller the more campaigns share the day, D368), the demand word from
+// the same crowding the line is priced by.
 function SgRateRow({ scope, name, onPick, i }) {
   const booked = PRICING.cohorts[scope].booked || [];
+  const crowd = PRICING.cohorts[scope].crowd || booked;
   const nBooked = booked.filter(Boolean).length;
   const firstOpen = booked.indexOf(0);
   const word = demandWord(scope);
@@ -252,7 +264,7 @@ function SgRateRow({ scope, name, onPick, i }) {
           <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 17.5, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--ink)' }}>{name}</span>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: SG_TONE[word] }}>{word}</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{nBooked} of {booked.length} booked</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{sgOthers(scope)}</span>
           </span>
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -260,16 +272,17 @@ function SgRateRow({ scope, name, onPick, i }) {
           <span style={{ display: 'block', marginTop: 3, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>per answer</span>
         </span>
       </div>
-      {/* the fortnight, as a strip whose HEIGHT is booked: a row of equal
-          ticks in two greys asked a buyer to compare shades, where a tall
-          tick and a short one is the same fact read at a glance */}
-      <div aria-label={nBooked + ' of the next ' + booked.length + ' days booked'} style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 16 }}>
+      {/* the fortnight, as a strip whose HEIGHT is crowding: an open day
+          is short, and each campaign sharing the day adds to the tick up
+          to three — the same count the price is folded from, read at a
+          glance rather than compared as shades */}
+      <div aria-label={nBooked + ' of the next ' + booked.length + ' days have someone asking'} style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 16 }}>
         {booked.map((b, j) => (
-          <span key={j} aria-hidden="true" className="sg-tick" style={{ flex: 1, borderRadius: 3, animationDelay: ((i || 0) * 70 + j * 22) + 'ms', height: b ? 16 : 7, background: j === firstOpen ? 'var(--accent)' : b ? 'color-mix(in oklch, ' + SG_TONE[word] + ' 85%, var(--surface-3))' : 'var(--surface-3)' }}></span>
+          <span key={j} aria-hidden="true" className="sg-tick" style={{ flex: 1, borderRadius: 3, animationDelay: ((i || 0) * 70 + j * 22) + 'ms', height: b ? 10 + Math.min(3, crowd[j] || 1) * 2 : 7, background: j === firstOpen ? 'var(--accent)' : b ? 'color-mix(in oklch, ' + SG_TONE[word] + ' 85%, var(--surface-3))' : 'var(--surface-3)' }}></span>
         ))}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>the next {booked.length} days — tall is booked</span>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>the next {booked.length} days — taller is busier</span>
         <span style={{ flex: 1 }}></span>
         {/* ONLY WHEN THERE IS ONE. `nextOpen` cannot express a sold-out
             cohort: build-pricing writes null both for "tomorrow is open"
@@ -325,11 +338,11 @@ function SgRateBoard({ SG, onPick }) {
       {law ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5, margin: '0 2px' }}>
           {[
-            fmt(PRICING.base) + ' an answer at quiet',
-            '× demand — booked ÷ available',
-            'the last ' + PRICING.trailingDays + ' days and the next ' + (PRICING.cohorts.world.booked || []).length,
+            fmt(PRICING.base) + ' an answer with nobody else asking',
+            '+' + Math.round(PRICING.crowdStep * 100) + '% per other campaign in rotation',
+            'over the next ' + (PRICING.cohorts.world.booked || []).length + ' days',
+            'no ceiling',
             ...(PRICING.floorX !== 1 ? ['floor ×' + PRICING.floorX] : []),
-            'ceiling ×' + PRICING.ceilX,
             'billed per answer',
             'budgets ' + fmt(PRICING.minEur) + ' to ' + fmt(PRICING.capEur),
           ].map((t) => <SgTok key={t}>{t}</SgTok>)}

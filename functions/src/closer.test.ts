@@ -370,7 +370,7 @@ describe("the closer republishes the rate card (D366)", () => {
     }
   });
 
-  it("folds what it just closed — a campaign that ran the trailing window lifts its scope's index", async () => {
+  it("folds what it just closed — the campaign leaves the rotation and becomes an estimate's basis", async () => {
     const start = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
     purchases.push({
       id: "p_city", data: {
@@ -383,13 +383,14 @@ describe("the closer republishes the rate card (D366)", () => {
     await runCloser();
     expect(stateOf("p_city")).toBe("closed");
     const card = published.at(-1)!.data as {
-      cohorts: Record<string, { idx: number }>;
+      cohorts: Record<string, { idx: number; crowd: number[] }>;
       estimates: Record<string, { perDay: number; campaigns: number; days: number }>;
     };
-    // 28 of the trailing 28 days occupied, none ahead: 28/42 of the way
-    // from the card's floor to its ceiling.
-    const { floorX, ceilX } = PRICING_CARD;
-    expect(card.cohorts.city.idx).toBe(Math.round((floorX + (28 / 42) * (ceilX - floorX)) * 100) / 100);
+    // Closed tonight, so it is in nobody's rotation tomorrow: the index
+    // reads crowding ahead (D368), and this scope has none left.
+    const { floorX } = PRICING_CARD;
+    expect(card.cohorts.city.idx).toBe(floorX);
+    expect(card.cohorts.city.crowd).toEqual(Array(14).fill(0));
     expect(card.cohorts.world.idx).toBe(floorX);
     // …and the campaign it closed tonight is already an estimate's basis,
     // off the answer total the closer itself wrote: 50 answers over the

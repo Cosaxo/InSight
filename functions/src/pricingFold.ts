@@ -20,22 +20,33 @@
 //
 // What each field is, and where its honesty comes from:
 //
-//   idx        The demand multiplier per cohort: occupied ÷ available
-//              slot-days, mapped LINEARLY into [floorX, ceilX] —
-//              idx = floorX + ratio × (ceilX − floorX), rounded to 2dp.
-//              The window the ratio is taken over is the trailing
-//              `trailingDays` PLUS the next FORWARD_DAYS — the fortnight
-//              the door already draws as its booked strip. The forward
-//              half is D366's one amendment to §6's "trailing window":
-//              a scope booked solid for the next two weeks is demand,
-//              now, and a trailing-only index kept calling it "quiet"
-//              until those days had passed. One slot per day per cohort
-//              (SPONSOR_SLOT stays the unit of sale — questions share a
-//              day by rotation, ads queue, either occupies it).
+//   idx        The demand multiplier per cohort, and since D368 it
+//              measures CROWDING with no ceiling:
+//                idx = floorX + crowdStep × (campaigns in rotation per
+//                      day, averaged over the next FORWARD_DAYS)
+//              rounded to 2dp. Nobody else asking that cohort: the floor
+//              (base is the quiet price). One other campaign across the
+//              fortnight: +crowdStep (×1.5 at the committed 0.5). Five:
+//              ×3.5. There is no cap, because the thing being measured
+//              has none. What it replaced: D366's ratio of BOOKED days
+//              over the trailing month and the coming fortnight, mapped
+//              into a floor and a ceiling — a signal that saturated at
+//              "every day booked" and then stopped moving however many
+//              buyers wanted the same cohort, which is what made the
+//              ceiling look like a cap on desire rather than the end of
+//              a scale (the owner, 2026-09-05). Questions share a day's
+//              slot by rotation and ads queue, so a crowded day is fewer
+//              answers per campaign — the price rises exactly when the
+//              answers are scarce. Running campaigns only, and only the
+//              days ahead: a campaign that ended last month is not in
+//              anybody's rotation.
 //   booked     The next FORWARD_DAYS as 0/1: day i is today+1+i, booked
 //              when any RUNNING slot campaign of that scope covers it.
 //              Real windows, nothing else — with an empty ledger the row
 //              is all zeros, which is true.
+//   crowd      The same fortnight as COUNTS — campaigns in rotation each
+//              day — which is what the idx is folded from and what the
+//              door's strip draws by height.
 //   nextOpen   The first uncovered day, ISO — or null when tomorrow is
 //              open, so the door can say "tomorrow" without a stale date.
 //              It CANNOT say "sold out": the shape is `null | day`, and
@@ -139,39 +150,36 @@ const covers = (p: PurchaseRow, t: number): boolean => {
 export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: string): PricingLive {
   const todayUTC = parseDay(today);
   if (todayUTC == null) throw new Error(`foldPricing: today must be YYYY-MM-DD, got ${JSON.stringify(today)}`);
-  const trailingDays = Number.isInteger(card.trailingDays) && card.trailingDays > 0 ? card.trailingDays : 28;
   const floorX = card.floorX;
-  const ceilX = card.ceilX;
+  const crowdStep = typeof card.crowdStep === "number" && card.crowdStep >= 0 ? card.crowdStep : 0.5;
 
   const cohorts = {} as Record<PricingScope, PricingCohort>;
   const estimates: PricingLive["estimates"] = {};
   for (const scope of PRICING_SCOPES) {
     // Ads occupy the SAME slot-days the demand index prices (D315), so
-    // they fold into occupied/booked with the questions. Estimates below
-    // predict answers per day, and an ad has no answers to predict from.
-    const slotRows = rows.filter((p) => (p.kind === "question" || p.kind === "ad") && p.scope === scope);
+    // they crowd the rotation with the questions. Estimates below predict
+    // answers per day, and an ad has no answers to predict from.
+    const slotRows = rows.filter((p) => (p.kind === "question" || p.kind === "ad") && p.scope === scope && p.state === "running");
 
-    // Occupied slot-days behind: any campaign that covered the day,
-    // whatever its state now — a closed campaign still had that day.
-    let sold = 0;
-    for (let i = 1; i <= trailingDays; i++) {
-      if (slotRows.some((p) => covers(p, todayUTC - i * DAY))) sold++;
-    }
-    // …and ahead: the fortnight as real windows, running campaigns only.
+    // The fortnight ahead as real windows: how many campaigns are in the
+    // rotation each day, and from that the strip, the first open day and
+    // the index.
     const booked: number[] = [];
+    const crowd: number[] = [];
     let nextOpen: string | null = null;
-    let ahead = 0;
+    let sum = 0;
     for (let i = 1; i <= FORWARD_DAYS; i++) {
       const t = todayUTC + i * DAY;
-      const b = slotRows.some((p) => p.state === "running" && covers(p, t)) ? 1 : 0;
-      booked.push(b);
-      ahead += b;
-      if (!b && nextOpen === null) nextOpen = i === 1 ? "tomorrow" : dayISO(t);
+      const n = slotRows.filter((p) => covers(p, t)).length;
+      crowd.push(n);
+      booked.push(n ? 1 : 0);
+      sum += n;
+      if (!n && nextOpen === null) nextOpen = i === 1 ? "tomorrow" : dayISO(t);
     }
-    const ratio = (sold + ahead) / (trailingDays + FORWARD_DAYS);
-    const idx = Math.round(Math.min(ceilX, Math.max(floorX, floorX + ratio * (ceilX - floorX))) * 100) / 100;
+    const others = sum / FORWARD_DAYS;
+    const idx = Math.round((floorX + crowdStep * others) * 100) / 100;
 
-    cohorts[scope] = { idx, booked, nextOpen: nextOpen === "tomorrow" ? null : nextOpen };
+    cohorts[scope] = { idx, booked, crowd, nextOpen: nextOpen === "tomorrow" ? null : nextOpen };
 
     // estimates from campaigns with a measured rate (D288 §3, D367): a
     // closed one off the answer total the closer wrote, a running one off
@@ -214,9 +222,9 @@ export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: strin
  * twenty-line shape check, each tested on its own side).
  *
  * Refuses, whole, anything not in shape: a live doc with a malformed
- * cohort is ignored rather than half-applied, and every idx is clamped
- * to the card's own floor and ceiling — the clamps are the mechanism,
- * and a published number outside them is a bug, not a price.
+ * cohort is ignored rather than half-applied, and every idx is held to
+ * the card's own floor — a published number under it is a bug, not a
+ * price. No ceiling since D368: crowding has none.
  */
 export function mergeLivePricing(card: PricingCard, live: unknown): PricingCard {
   if (!live || typeof live !== "object") return card;
@@ -231,12 +239,17 @@ export function mergeLivePricing(card: PricingCard, live: unknown): PricingCard 
     const idx = typeof c.idx === "number" && Number.isFinite(c.idx) ? c.idx : NaN;
     const booked = Array.isArray(c.booked) ? c.booked : null;
     if (Number.isNaN(idx) || !booked || booked.length !== FORWARD_DAYS || booked.some((b) => b !== 0 && b !== 1)) return card;
+    // The crowd strip is optional (a doc from before D368 lacks it) and,
+    // when present, must be the fortnight as counts.
+    const crowd = c.crowd === undefined ? booked.map((b) => (b ? 1 : 0)) : Array.isArray(c.crowd) ? c.crowd : null;
+    if (!crowd || crowd.length !== FORWARD_DAYS || crowd.some((n) => !Number.isInteger(n) || (n as number) < 0)) return card;
     const nextOpen = c.nextOpen === null || c.nextOpen === undefined ? null
       : typeof c.nextOpen === "string" && /^\d{4}-\d{2}-\d{2}$/.test(c.nextOpen) ? c.nextOpen : undefined;
     if (nextOpen === undefined) return card;
     cohorts[scope] = {
-      idx: Math.round(Math.min(card.ceilX, Math.max(card.floorX, idx)) * 100) / 100,
+      idx: Math.round(Math.max(card.floorX, idx) * 100) / 100,
       booked: booked.map((b) => (b ? 1 : 0)),
+      crowd: crowd as number[],
       nextOpen,
     };
   }

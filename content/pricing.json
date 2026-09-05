@@ -1,28 +1,43 @@
 {
  "generated": "2026-09-05",
  "currency": "EUR",
- "base": 0.1,
+ "base": 0.02,
  "floorX": 1.0,
- "ceilX": 2.5,
+ "crowdStep": 0.5,
  "floorWeek": 500,
- "capEur": 320,
- "minEur": 20,
+ "capEur": 50,
+ "minEur": 5,
  "budgets": [
-  50,
-  100,
-  200,
-  320
+  5,
+  10,
+  20,
+  50
  ],
  "adBase": 320,
  "fx": {
   "NOK": 11.6,
   "USD": 1.08
  },
- "trailingDays": 28,
  "cohorts": {
   "city": {
    "idx": 1.0,
    "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "crowd": [
     0,
     0,
     0,
@@ -58,11 +73,43 @@
     0,
     0
    ],
+   "crowd": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
    "nextOpen": null
   },
   "world": {
    "idx": 1.0,
    "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "crowd": [
     0,
     0,
     0,

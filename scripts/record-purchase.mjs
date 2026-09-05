@@ -4,10 +4,10 @@
 //   node scripts/record-purchase.mjs --project prvfire33 \
 //     --uid <buyerUid> --qid pd01 --scope city --place Oslo \
 //     --prompt "Should the night buses run all night?" --options "All night,The hours are fine" \
-//     --start 2026-08-24 --until 2026-09-21 --rate 0.10 --cap 1000 --cap-eur 100
+//     --start 2026-08-24 --until 2026-09-21 --rate 0.02 --cap 1000 --cap-eur 20
 //   node scripts/record-purchase.mjs --emulator --uid u1 --qid pd01 --scope world \
 //     --prompt "Sunrise or sunset?" --options "Sunrise,Sunset" \
-//     --start 2026-08-24 --until 2026-09-21 --rate 0.10 --cap 1000 --cap-eur 100
+//     --start 2026-08-24 --until 2026-09-21 --rate 0.02 --cap 1000 --cap-eur 20
 //
 // Needs admin credentials (GOOGLE_APPLICATION_CREDENTIALS or `gcloud auth
 // application-default login`), or --emulator with FIRESTORE_EMULATOR_HOST.

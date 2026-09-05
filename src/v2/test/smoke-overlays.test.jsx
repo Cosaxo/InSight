@@ -109,9 +109,9 @@ describe("the overlays with no button — opened through the nav registry", () =
     expect(screen.getByText(/No campaign measured here yet — no forecast/)).toBeTruthy();
     // The budget (D367): the presets off the card, the smallest chosen,
     // and the line saying what it buys — a ceiling, not a forecast.
-    expect(screen.getByRole("button", { name: "€50", pressed: true })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "€320", pressed: false })).toBeTruthy();
-    expect(screen.getByText(/up to 500 answers · only what arrives is billed/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "€5", pressed: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "€50", pressed: false })).toBeTruthy();
+    expect(screen.getByText(/up to 250 answers · only what arrives is billed/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
     // the contract sheet: the rate without the mechanism's multiplier
     // (D367 put the law behind a tap), the budget as the cap, the
@@ -120,7 +120,7 @@ describe("the overlays with no button — opened through the nav registry", () =
     // is the promise the closer actually keeps, and the old free-extension
     // line must stay out
     expect(screen.getByText(/per answer · locked at approval/)).toBeTruthy();
-    expect(screen.getByText(/€50 up front · up to 500 answers · unserved answers refund at close/)).toBeTruthy();
+    expect(screen.getByText(/€5 up front · up to 250 answers · unserved answers refund at close/)).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/×1 · |×0\.9|Your cap/);
     expect(screen.getByText(/Checked automatically before anything is charged\./)).toBeTruthy();
     expect(screen.getByText(/refunds automatically at close/)).toBeTruthy();

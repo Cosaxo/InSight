@@ -18,13 +18,25 @@ describe("the posted line", () => {
     expect(rate("city")).toBe(Math.round(PRICING.base * PRICING.cohorts.city.idx * 1000) / 1000);
   });
 
-  it("maps the idx bands to the three demand words", () => {
-    // With every idx at the committed floor the word is quiet; the words
-    // move only when the committed file does — this pins the mapping's
-    // edges, not today's ledger.
-    const t = (PRICING.cohorts.world.idx - PRICING.floorX) / (PRICING.ceilX - PRICING.floorX);
-    const expected = t < 1 / 3 ? "quiet" : t < 2 / 3 ? "steady" : "contested";
-    expect(demandWord("world")).toBe(expected);
+  it("maps the crowding to the three demand words (D368)", () => {
+    // The word reads the idx back through the card's own step: nobody
+    // else in rotation is quiet, about one other is steady, two or more
+    // is contested. Pinned at the committed floor and at two lifted
+    // lines, so the edges are the case rather than today's ledger.
+    expect(demandWord("world")).toBe("quiet");
+    const lifted = (idx: number) => applyLive({
+      generated: "2026-09-05",
+      cohorts: {
+        city: { idx, booked: Array(14).fill(1), nextOpen: null },
+        country: { idx: PRICING.floorX, booked: Array(14).fill(0), nextOpen: null },
+        world: { idx: PRICING.floorX, booked: Array(14).fill(0), nextOpen: null },
+      },
+      estimates: {},
+    });
+    lifted(PRICING.floorX + PRICING.crowdStep * 1); // one other
+    expect(demandWord("city")).toBe("steady");
+    lifted(PRICING.floorX + PRICING.crowdStep * 2.4); // more than two
+    expect(demandWord("city")).toBe("contested");
   });
 });
 

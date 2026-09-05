@@ -176,16 +176,18 @@ that lets a buyer read them.
   the contract sheet before "Book it". Reached from the daily tab's
   door and the account sheet's *Asked by you* row.
 - **what a buyer reads today, and has to assemble** — per cohort: a
-  demand word (*quiet · steady · contested*), a booked count (*0 of 14
+  demand word (*quiet · steady · contested*), the crowding as a sentence
+  (*nobody else asking · 1 other in rotation*; it was a booked count, *0 of 14
   booked*), a fourteen-tick strip and a per-answer rate; the law
-  (*€0.10 an answer at quiet · × demand — booked ÷ available · the last
-  28 days and the next 14 · ceiling ×2.5 · billed per answer · budgets
-  €20 to €320*) behind a *How the price is set* tap since D367. In the
-  composer a budget row (*€50 · €100 · €200 · €320*, the smallest
-  chosen) says what it buys at the line in force; the contract sheet
-  says *Rate · locked at approval*, an estimate where a campaign has a
-  measured rate (D288 §3, a served week since D367), and *Your budget
-  €50 up front · up to 500 answers · unserved answers refund at close*.
+  (*€0.02 an answer with nobody else asking · +50% per other campaign
+  in rotation · over the next 14 days · no ceiling · billed per answer
+  · budgets €5 to €50*) behind a *How the price is set* tap since D367,
+  the crowding index since D368. In the composer a budget row (*€5 ·
+  €10 · €20 · €50*, the smallest chosen) says what it buys at the line
+  in force; the contract sheet says *Rate · locked at approval*, an
+  estimate where a campaign has a measured rate (D288 §3, a served week
+  since D367), and *Your budget €5 up front · up to 250 answers ·
+  unserved answers refund at close*.
   D367 answered the arithmetic half of this request in copy; what is
   still asked for is the SHAPE — the buyer's one question, *what will
   this cost me, and what does it buy*, as the thing the eye lands on,

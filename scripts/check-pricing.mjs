@@ -15,12 +15,13 @@
 // src/v2/data/pricing.ts parseLive), each tested on its own side.
 //
 // What it holds, each line a recorded rule:
-//   - the constants are sane: base > 0, 0 < floorX ≤ ceilX, caps positive
-//     (§6's floor-and-ceiling — "a floor so every cohort stays buyable, a
-//     ceiling so the multiplier never turns the slot into a bidding war")
+//   - the constants are sane: base > 0, floorX > 0, crowdStep ≥ 0, caps
+//     positive (§6's floor — "so every cohort stays buyable"; the ceiling
+//     left at D368, because the index measures crowding and crowding has
+//     none)
 //   - cohorts are EXACTLY city · country · world (D164's three windows)
-//   - every idx sits inside [floorX, ceilX] — a value outside the clamps
-//     means the script's arithmetic and this file disagree
+//   - every idx sits at or above floorX — a value under the floor means
+//     the fold's arithmetic and this file disagree
 //   - every booked row is exactly 14 days of 0/1 — the door draws exactly
 //     that many ticks
 //   - nextOpen is null (= tomorrow) or an ISO day
@@ -58,7 +59,9 @@ if (!isDay(p.generated)) fail(`generated must be YYYY-MM-DD, got ${JSON.stringif
 if (p.currency !== "EUR") fail(`currency must be EUR (the rate card's own unit; display conversion is the client's), got ${JSON.stringify(p.currency)}`);
 if (!(typeof p.base === "number" && p.base > 0)) fail(`base must be a positive per-answer figure, got ${JSON.stringify(p.base)}`);
 if (!(typeof p.floorX === "number" && p.floorX > 0)) fail(`floorX must be positive, got ${JSON.stringify(p.floorX)}`);
-if (!(typeof p.ceilX === "number" && p.ceilX >= p.floorX)) fail(`ceilX must be ≥ floorX, got ${JSON.stringify(p.ceilX)}`);
+// The crowding step (D368): what each other campaign in rotation adds to
+// the multiplier. Zero is legal (a flat card); negative is not a price.
+if (!(typeof p.crowdStep === "number" && p.crowdStep >= 0)) fail(`crowdStep must be a non-negative number, got ${JSON.stringify(p.crowdStep)}`);
 if (!(typeof p.capEur === "number" && p.capEur > 0)) fail(`capEur must be positive, got ${JSON.stringify(p.capEur)}`);
 // The buyer's budget (D367): capEur is the MOST a buyer may set, minEur
 // the least, and `budgets` the presets the composer offers — each inside
@@ -76,7 +79,6 @@ else {
 // price is one committed figure × the scope's demand index.
 if (!(typeof p.adBase === "number" && p.adBase > 0)) fail(`adBase must be a positive flat window figure, got ${JSON.stringify(p.adBase)}`);
 if (!(typeof p.floorWeek === "number" && p.floorWeek > 0)) fail(`floorWeek must be positive, got ${JSON.stringify(p.floorWeek)}`);
-if (!(Number.isInteger(p.trailingDays) && p.trailingDays > 0)) fail(`trailingDays must be a positive integer, got ${JSON.stringify(p.trailingDays)}`);
 // The display-conversion table is part of the committed card: a rate the
 // client would otherwise hardcode is a fact that drifts, so it lives here,
 // dated by `generated` and diffed like the prices it converts.
@@ -94,10 +96,14 @@ if (seen.join(",") !== [...SCOPES].sort().join(","))
 for (const scope of SCOPES) {
   const c = cohorts[scope];
   if (!c) continue;
-  if (!(typeof c.idx === "number" && c.idx >= p.floorX && c.idx <= p.ceilX))
-    fail(`${scope}.idx ${JSON.stringify(c.idx)} is outside [${p.floorX}, ${p.ceilX}] — the clamps are the mechanism`);
+  if (!(typeof c.idx === "number" && Number.isFinite(c.idx) && c.idx >= p.floorX))
+    fail(`${scope}.idx ${JSON.stringify(c.idx)} is under the floor ${p.floorX} — the floor is the mechanism`);
   if (!Array.isArray(c.booked) || c.booked.length !== 14 || c.booked.some((b) => b !== 0 && b !== 1))
     fail(`${scope}.booked must be exactly 14 entries of 0/1`);
+  // The crowding strip (D368): campaigns in rotation per day, the count
+  // the idx is folded from. Optional so a card from before it parses.
+  if (c.crowd !== undefined && (!Array.isArray(c.crowd) || c.crowd.length !== 14 || c.crowd.some((n) => !Number.isInteger(n) || n < 0)))
+    fail(`${scope}.crowd must be exactly 14 non-negative integers`);
   if (!(c.nextOpen === null || isDay(c.nextOpen)))
     fail(`${scope}.nextOpen must be null (= tomorrow) or YYYY-MM-DD, got ${JSON.stringify(c.nextOpen)}`);
 }
@@ -137,4 +143,4 @@ if (fails.length) {
   process.exit(1);
 }
 const nBooked = SCOPES.map((s) => `${s} ${cohorts[s].booked.filter(Boolean).length}/14`).join(" · ");
-console.log(`check-pricing OK — base €${p.base}/answer, idx ${SCOPES.map((s) => `${s} ×${cohorts[s].idx}`).join(" · ")}; booked ${nBooked}; ${Object.keys(est).length} estimate(s), each with its basis.`);
+console.log(`check-pricing OK — base €${p.base}/answer, +${Math.round(p.crowdStep * 100)}% per campaign in rotation, budgets €${p.minEur}–€${p.capEur}; idx ${SCOPES.map((s) => `${s} ×${cohorts[s].idx}`).join(" · ")}; booked ${nBooked}; ${Object.keys(est).length} estimate(s), each with its basis.`);

@@ -27,7 +27,14 @@ import PRICING_JSON from "../../../content/pricing.json";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
 
 export type Scope = "city" | "country" | "world";
-export interface CohortPricing { idx: number; booked: number[]; nextOpen: string | null }
+export interface CohortPricing {
+  idx: number;
+  booked: number[];
+  /** campaigns in rotation each of the next 14 days (D368) — what the
+   * idx is folded from; absent on a card from before it */
+  crowd?: number[];
+  nextOpen: string | null;
+}
 /** A per-day answer expectation with its basis: how many campaigns, over
  * how many served days, and (D367) how many of those are still running. */
 export interface Estimate { perDay: number; campaigns: number; days: number; running?: number }
@@ -35,8 +42,12 @@ interface PricingFile {
   generated: string;
   currency: string;
   base: number;
+  /** the multiplier with nobody else in rotation — 1, so base is the
+   * quiet price */
   floorX: number;
-  ceilX: number;
+  /** what each other campaign in rotation adds to the multiplier (D368);
+   * no ceiling, because crowding has none */
+  crowdStep: number;
   floorWeek: number;
   /** the most a buyer may set as their budget (D367) — and the cap a
    * client from before budgets existed is quoted at */
@@ -47,7 +58,6 @@ interface PricingFile {
   budgets: number[];
   adBase: number;
   fx: Record<string, number>;
-  trailingDays: number;
   cohorts: Record<Scope, CohortPricing>;
   estimates: Partial<Record<Scope, Estimate>>;
 }
@@ -80,20 +90,28 @@ export const adFlat = (scope: Scope): number =>
 export const answersFor = (scope: Scope, eur: number): number =>
   Math.floor(eur / rate(scope));
 
-/** The demand word the door prints, mapped from the idx bands. */
+/** How many other campaigns are in a cohort's rotation, averaged over
+ * the fortnight the idx is folded from — the idx read back through the
+ * card's own step, to one decimal (D368). */
+export const othersFor = (scope: Scope): number => {
+  const step = PRICING.crowdStep;
+  if (!(step > 0)) return 0;
+  return Math.max(0, Math.round(((PRICING.cohorts[scope].idx - PRICING.floorX) / step) * 10) / 10);
+};
+
+/** The demand word the door prints: nobody else · about one other · two
+ * or more, read off the crowding rather than a share of a ceiling. */
 export const demandWord = (scope: Scope): "quiet" | "steady" | "contested" => {
-  const x = PRICING.cohorts[scope].idx;
-  const span = PRICING.ceilX - PRICING.floorX || 1;
-  const t = (x - PRICING.floorX) / span;
-  return t < 1 / 3 ? "quiet" : t < 2 / 3 ? "steady" : "contested";
+  const o = othersFor(scope);
+  return o < 0.5 ? "quiet" : o < 1.5 ? "steady" : "contested";
 };
 
 // ── the live half ───────────────────────────────────────────────────
 // The same shape check functions/src/pricingFold.ts mergeLivePricing
 // makes server-side, kept short enough that two copies can be read
 // against each other: refuse a doc not in shape WHOLE (never two cohorts
-// live and one stale), clamp every idx into the committed floor and
-// ceiling, and take an estimate only with its basis.
+// live and one stale), hold every idx to the committed floor, and take
+// an estimate only with its basis.
 
 const isDay = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
@@ -112,11 +130,17 @@ export function parseLive(live: unknown): Pick<PricingFile, "generated" | "cohor
     const idx = typeof c.idx === "number" && Number.isFinite(c.idx) ? c.idx : NaN;
     const booked = Array.isArray(c.booked) ? c.booked : null;
     if (Number.isNaN(idx) || !booked || booked.length !== FORWARD_DAYS || booked.some((b) => b !== 0 && b !== 1)) return null;
+    // The crowd strip is optional (a doc from before D368 lacks it) and,
+    // when present, must be the fortnight as counts.
+    const crowd = c.crowd === undefined ? booked.map((b) => (b ? 1 : 0)) : Array.isArray(c.crowd) ? c.crowd : null;
+    if (!crowd || crowd.length !== FORWARD_DAYS || crowd.some((n) => !Number.isInteger(n) || (n as number) < 0)) return null;
     const nextOpen = c.nextOpen == null ? null : isDay(c.nextOpen) ? c.nextOpen : undefined;
     if (nextOpen === undefined) return null;
     cohorts[scope] = {
-      idx: Math.round(Math.min(COMMITTED.ceilX, Math.max(COMMITTED.floorX, idx)) * 100) / 100,
+      // Held to the floor, never a ceiling (D368): crowding has none.
+      idx: Math.round(Math.max(COMMITTED.floorX, idx) * 100) / 100,
       booked: booked.map((b) => (b ? 1 : 0)),
+      crowd: crowd as number[],
       nextOpen,
     };
   }

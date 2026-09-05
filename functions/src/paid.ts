@@ -350,9 +350,11 @@ export function priceQuote(
   card = PRICING_CARD,
   budgetEur: number | null = null,
 ): PaidQuote {
-  const idx = Math.min(Math.max(card.cohorts[scope].idx, card.floorX), card.ceilX);
-  // 4 decimals: rounding is for the day a recomputed idx carries more
-  // digits than a price should (base 0.10 × idx 1.43 = 0.143 exactly).
+  // Held to the floor only: the index measures crowding and has no
+  // ceiling (D368). A stored idx under the floor is a bug, not a price.
+  const idx = Math.max(card.cohorts[scope].idx, card.floorX);
+  // 4 decimals: rounding is for the day a folded idx carries more digits
+  // than a price should (base 0.02 × idx 1.75 = 0.035 exactly).
   const ratePerAnswer = Math.round(card.base * idx * 10000) / 10000;
   // The buyer's budget IS the cap (D367), held to the card's range here
   // too — the validator already refused anything outside it, and a
@@ -368,7 +370,7 @@ export function priceQuote(
  * the same inventory the question path occupies, priced by the same idx,
  * with no meter because an ad produces nothing to meter. */
 export function adPriceQuote(scope: "city" | "country" | "world", card = PRICING_CARD): PaidAdQuote {
-  const idx = Math.min(Math.max(card.cohorts[scope].idx, card.floorX), card.ceilX);
+  const idx = Math.max(card.cohorts[scope].idx, card.floorX);
   const flatEur = Math.round(card.adBase * idx * 100) / 100;
   return { flatEur, windowDays: WINDOW_DAYS };
 }

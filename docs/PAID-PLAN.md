@@ -328,6 +328,27 @@ for the forty answers they get, not for a window that might deliver
 nothing — and a flat window price becomes fair only once these
 estimates exist for every scope.
 
+**The index is crowding, with no ceiling; the quiet price is €0.02 —
+DECIDED, D368 (2026-09-05).** The owner, on the ceiling above: *"a
+demographic doesn't have a cap on how desired it is"* — and it was
+right about what the index measured, too: booked days saturate at
+"all of them" and then stop moving however many buyers want the same
+cohort, so the ceiling was the end of a scale, not a cap on desire.
+The multiplier is now `floorX + crowdStep × (campaigns in the cohort's
+rotation per day, averaged over the next 14 days)`: nobody else, the
+floor; one other campaign across the fortnight, ×1.5; five, ×3.5; no
+cap. Running campaigns and the days ahead only — a campaign that ended
+last month is in nobody's rotation. Questions share a day's slot by
+rotation and ads queue, so a crowded day is fewer answers per
+campaign, and the price rises exactly when the answers are scarce.
+The buyer is protected without a ceiling by the two things already
+built: the rate locked at booking and the budget bounding the spend.
+The "trailing window" term and the floor-and-ceiling mapping in the
+paragraph above are retired with it. And on *"isn't that still
+ridiculously high?"*: `base` is €0.02 (€10 buys 500 answers with
+nobody else asking), budgets €5 · €10 · €20 · €50, a €5 minimum. The
+ad window did not follow and is on `OWNER-LIST.md`.
+
 **The vocabulary widening this pricing needs — DECIDED, D228
 (2026-08-22)**: `sponsor.audience` now takes **one to three dims** (the
 owner's example cohort — "men 20–30 in the US" — is exactly three),

@@ -38320,3 +38320,105 @@ follow the per-answer cut — it did not move here, because the owner's
 sentence was about answers. And the door's shape, which is
 `VISUAL-REQUESTS.md` item 4 with its copy-level half now built and the
 layout still asked for.
+
+## D368 · The index is crowding, with no ceiling, and the quiet price is €0.02
+
+**2026-09-05.** **Status:** binding, BUILT. Two of the owner's
+sentences, the same afternoon as D367: *"isn't that still ridiculously
+high?"* about €0.10 an answer, and, about the multiplier's ceiling,
+*"a demographic doesn't have a cap on how desired it is"*. The second
+was right about more than the cap, and this record says how.
+
+### 1 · What the ceiling was actually capping
+
+D366's index was a share: booked slot-days over available ones,
+across the trailing month and the fortnight ahead, mapped linearly
+between a floor and a ceiling. A share saturates. Once every day in
+the window was booked the multiplier sat at ×2.5 and did not move
+however many more buyers wanted that cohort — so the ceiling was not a
+cap on desire, it was the end of a scale that could not see desire at
+all. Ten buyers queuing for the same fortnight read exactly like one.
+The owner's question exposed the signal, not the constant.
+
+### 2 · What it measures now
+
+Questions in a scope share the daily slot by rotation and ads queue
+behind each other (D195, D315), so the honest measure of how wanted a
+cohort is on a given day is **how many campaigns are in its
+rotation** — and that number has no ceiling. The fold
+(`functions/src/pricingFold.ts`) now counts, for each of the next 14
+days, the running question and ad campaigns covering that day, and
+publishes the count as a `crowd` strip beside the 0/1 `booked` one.
+The multiplier is:
+
+```
+idx = floorX + crowdStep × (campaigns in rotation per day, averaged over the next 14 days)
+```
+
+with `floorX` 1 and `crowdStep` 0.5 on the committed card: nobody
+else asking, the floor; one other campaign across the fortnight, ×1.5;
+two, ×2; five, ×3.5; twenty, ×11. No trailing term — a campaign that
+ended last month is in nobody's rotation — and no clamp above the
+floor anywhere: the fold, both overlay parsers, `priceQuote`,
+`adPriceQuote` and `check:pricing` hold an idx to the floor and to
+nothing else. `ceilX` and `trailingDays` leave the card.
+
+Why crowding is the right signal for a per-answer price: a crowded
+day is fewer answers per campaign, because the slot's answers are
+shared. The price rises exactly when the answers are scarce, which is
+what a demand multiplier is for. And the buyer needs no ceiling to be
+safe from it — the rate is locked at booking (D313) and the budget
+bounds the spend (D367); a cohort that ever priced itself absurd would
+simply not sell until it calmed down, which is the mechanism working.
+
+### 3 · The door
+
+The rate row says the crowding as a sentence — *nobody else asking* ·
+*1 other in rotation* · *2.4 others in rotation* — in place of the
+booked count, off the same idx read back through the card's step
+(`othersFor`), so the word, the sentence and the price cannot
+disagree. The strip's ticks are taller the more campaigns share the
+day, up to three. The demand word maps from crowding: under half an
+other is quiet, under one and a half is steady, more is contested. The
+law's tokens: *€0.02 an answer with nobody else asking · +50% per
+other campaign in rotation · over the next 14 days · no ceiling ·
+billed per answer · budgets €5 to €50*.
+
+### 4 · The price
+
+`base` €0.10 → **€0.02**; `minEur` 20 → **5**; `budgets` **5 · 10 ·
+20 · 50**; `capEur` 320 → **50**. The owner's frame was a person
+asking their city something, not a panel buyer: €10 buys 500 answers
+with nobody else asking, €5 buys 250. The old €0.10 sits at the cheap
+end of survey panels and was still a whim's worth of money too many.
+The ad window (`adBase` €320) did not move, because the sentences
+were about answers; it now crowds the same rotation and takes the same
+uncapped multiplier, so it is the dearest thing on the door by a
+distance and is on `OWNER-LIST.md` as a row.
+
+A client from before D367 still quotes at `capEur` when it sends no
+budget — now €50, the most a budget can be, and less than the €320 it
+displayed. Never more than shown; that rule holds.
+
+### 5 · What pins it
+
+`pricingFold.test.ts` — the floor on an empty ledger; one campaign
+→ ×1.5 with both strips; two, five and twenty with no cap; half a
+fortnight is half a step; closed and past campaigns count for nothing;
+an ad crowds and a subscription does not; a zero step is a flat card;
+the overlay taking, deriving and refusing the crowd strip and holding
+an idx to the floor only. `paid.test.ts` — the quotes floor-held and
+uncapped (idx 9 quotes ×9). `closer.test.ts` — a campaign closed
+tonight leaves the rotation and lifts nothing. `pricing.test.ts` and
+`pricing-live.test.ts` — the words off crowding, the client parser's
+floor and strip. `smoke-overlays.test.jsx` — €5 chosen, €50 offered,
+*up to 250 answers*. The e2e — a €2 budget refused with the range, a
+€20 booking at €0.02 × 1,000, the sale reading exactly ×1.5 with a
+crowd strip of ones, the ad quoting €480 off it.
+
+### 6 · What is still the owner's
+
+The step (0.5 is a routine's pick: one other campaign is half again
+the price), the ad window's flat price, and the fortnight as the
+horizon — the booking runs 29 days and the index reads 14, the strip
+the buyer already sees; reading the whole 29 is one constant.

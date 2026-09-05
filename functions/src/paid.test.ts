@@ -242,9 +242,9 @@ describe("validatePaidBooking", () => {
 
   it("holds the budget to the card's range in whole euros, and reads a missing one as the cap (D367)", () => {
     const { minEur, capEur } = PRICING_CARD;
-    const ok = validatePaidBooking({ ...BOOKING, budgetEur: 100 });
+    const ok = validatePaidBooking({ ...BOOKING, budgetEur: 20 });
     if ("error" in ok) throw new Error(ok.error);
-    expect(ok.ok.budgetEur).toBe(100);
+    expect(ok.ok.budgetEur).toBe(20);
     // Outside the range, either way, and not a whole euro: refused with
     // the range in the sentence, which is what the buyer needs to change.
     for (const bad of [minEur - 1, capEur + 1, 99.5, "100", NaN]) {
@@ -267,8 +267,8 @@ describe("validatePaidBooking", () => {
 describe("priceQuote", () => {
   it("prices off the committed card and locks the arithmetic", () => {
     const q = priceQuote("city", {
-      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
-      generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 0.9, booked: [], nextOpen: null },
         country: { idx: 0.9, booked: [], nextOpen: null },
@@ -284,8 +284,8 @@ describe("priceQuote", () => {
 
   it("makes the buyer's budget the cap, and holds it to the card's range (D367)", () => {
     const card = {
-      base: 0.1, floorX: 1, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
-      generated: "2026-09-05", currency: "EUR", fx: {}, trailingDays: 28, adBase: 320,
+      base: 0.1, floorX: 1, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
+      generated: "2026-09-05", currency: "EUR", fx: {}, adBase: 320,
       cohorts: {
         city: { idx: 1, booked: [], nextOpen: null },
         country: { idx: 1.5, booked: [], nextOpen: null },
@@ -307,10 +307,10 @@ describe("priceQuote", () => {
     expect(priceQuote("city", card, 5000).capEur).toBe(320);
   });
 
-  it("clamps a card idx that escaped its own bounds", () => {
+  it("holds a card idx to the floor, and to nothing above it (D368)", () => {
     const card = {
-      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
-      generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 9, booked: [], nextOpen: null },
         country: { idx: 0.1, booked: [], nextOpen: null },
@@ -318,7 +318,7 @@ describe("priceQuote", () => {
       },
       estimates: {},
     };
-    expect(priceQuote("city", card).ratePerAnswer).toBe(0.4); // 0.16 × 2.5 ceiling
+    expect(priceQuote("city", card).ratePerAnswer).toBe(1.44); // 0.16 × 9 — crowding has no ceiling
     expect(priceQuote("country", card).ratePerAnswer).toBe(0.144); // 0.16 × 0.9 floor
   });
 });
@@ -606,8 +606,8 @@ describe("validatePaidBooking — kind ad", () => {
 
 describe("adPriceQuote", () => {
   const card = {
-    base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
-    generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
+    base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+    generated: "2026-08-24", currency: "EUR", fx: {},
     cohorts: {
       city: { idx: 0.9, booked: [], nextOpen: null },
       country: { idx: 3, booked: [], nextOpen: null },
@@ -615,10 +615,10 @@ describe("adPriceQuote", () => {
     },
     estimates: {},
   };
-  it("is one flat figure — adBase × the clamped idx — and the window", () => {
+  it("is one flat figure — adBase × the idx, floor-held and uncapped — and the window", () => {
     expect(adPriceQuote("city", card)).toEqual({ flatEur: 288, windowDays: WINDOW_DAYS });
     expect(adPriceQuote("world", card).flatEur).toBe(480);
-    expect(adPriceQuote("country", card).flatEur).toBe(800); // idx 3 clamps to 2.5
+    expect(adPriceQuote("country", card).flatEur).toBe(960); // idx 3 — no ceiling (D368)
   });
 });
 

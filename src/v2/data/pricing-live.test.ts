@@ -36,7 +36,7 @@ const committed = () => JSON.parse(JSON.stringify(pricing.PRICING)) as typeof pr
 const liveDoc = (over: Record<string, unknown> = {}) => ({
   generated: "2026-09-05",
   cohorts: {
-    // 1.6 sits in the middle band: (1.6 − 0.9) / 1.6 = 0.44 → "steady".
+    // 1.6 is 1.2 others at the committed step of 0.5 → "steady".
     city: { idx: 1.6, booked: Array(14).fill(1), nextOpen: null },
     country: { idx: 0.9, booked: Array(14).fill(0), nextOpen: null },
     world: { idx: 1.1, booked: [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], nextOpen: "2026-09-09" },
@@ -57,12 +57,23 @@ beforeEach(async () => {
 afterEach(() => { S.throws = false; });
 
 describe("parseLive — the shape the door will print", () => {
-  it("takes a well-formed document, every cohort clamped into the committed bounds", () => {
-    const p = pricing.parseLive(liveDoc({ cohorts: { ...liveDoc().cohorts, city: { idx: 9, booked: Array(14).fill(1), nextOpen: null } } }));
+  it("takes a well-formed document, every cohort held to the committed floor and to no ceiling (D368)", () => {
+    const p = pricing.parseLive(liveDoc({ cohorts: { ...liveDoc().cohorts,
+      city: { idx: 9, booked: Array(14).fill(1), crowd: Array(14).fill(16), nextOpen: null },
+      country: { idx: 0.2, booked: Array(14).fill(0), nextOpen: null },
+    } }));
     expect(p).not.toBeNull();
-    expect(p!.cohorts.city.idx).toBe(pricing.PRICING.ceilX);
+    expect(p!.cohorts.city.idx).toBe(9);
+    expect(p!.cohorts.city.crowd).toEqual(Array(14).fill(16));
+    expect(p!.cohorts.country.idx).toBe(pricing.PRICING.floorX);
+    // no crowd strip on a doc from before D368: derived from `booked`
+    expect(p!.cohorts.world.crowd).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     expect(p!.cohorts.world.nextOpen).toBe("2026-09-09");
     expect(p!.estimates.city).toEqual({ perDay: 42, campaigns: 1, days: 29 });
+  });
+
+  it("refuses a malformed crowd strip, whole", () => {
+    expect(pricing.parseLive(liveDoc({ cohorts: { ...liveDoc().cohorts, city: { idx: 1, booked: Array(14).fill(0), crowd: [0, 1], nextOpen: null } } }))).toBeNull();
   });
 
   it("refuses junk, a missing cohort, a short strip and a non-day, whole", () => {
