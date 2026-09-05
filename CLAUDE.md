@@ -505,9 +505,12 @@ an emergency rules fix.
   routine writes to them through the PR it is already opening, or a
   run-log line the console folds in; it never edits a tick, a status
   word or another account's tag — those are the owner's.
-  [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
+  [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why,
   [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
-  every program lane defers to.
+  every program lane defers to, and
+  [`docs/RECREATE.md`](docs/RECREATE.md) is how any session, on any of
+  the three subscriptions, puts a missing Routine back — the Routines
+  are the one part of the program that does not live in git.
 - **A pull request is merged by the PR shepherd, not by hand.** The
   owner's merge instruction is the `merge-when-green` label; the shepherd
   Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
