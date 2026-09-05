@@ -547,6 +547,19 @@ export function parseRegister(text) {
   for (const block of String(text).split(/\n(?=## )/)) {
     const h = /^## \d+ · Session (\d)/.exec(block);
     if (h) account = `Claude ${h[1]}`;
+    // A section that is NOT somebody's block ends the last one. Without
+    // this the account carried forward, and §5 — the ops and program
+    // lanes, chartered rather than owned — had its eight rows drawn as
+    // Claude 3's, because §4 is the last Session heading above it. §4 was
+    // "the block nobody has claimed" and had no table at all, so Claude
+    // 3's true count was zero; it has one now, verified against
+    // `list_triggers`, which is what this guard was waiting for. §5's own
+    // text says four of those lanes are
+    // Claude 2's and four exist nowhere yet, and that its ids are
+    // transcribed from `OPS-RUNBOOK.md` rather than read from
+    // `list_triggers`. Beliefs about the tree are not a verified block,
+    // which is the one thing this table is for.
+    else if (/^## /.test(block)) account = null;
     if (!account) continue;
     const lines = block.split("\n");
     for (let i = 0; i < lines.length; i++) {
@@ -556,7 +569,18 @@ export function parseRegister(text) {
         const cell = (c) => clean(c || "").replace(/`/g, "");
         const name = cell(cells[0]).replace(/^InSight /, "");
         if (!name) continue;
-        rows.push({ account, name, trigger: cell(cells[1]), schedule: clean(cells[2] || "").replace(/^`([^`]*)`.*/, "$1").replace(/`/g, "") });
+        const trigger = cell(cells[1]);
+        // A row whose Trigger id cell is not an id is a lane with no
+        // Routine — deleted from the account, or not yet created — and the
+        // register documents both on purpose, because "the console keeper
+        // does not exist" is the fact somebody needs. It is not a Routine,
+        // though, and the console draws this table as the program's live
+        // health: emitting these would report a deleted lane as firing and
+        // hand every consumer a trigger of "— deleted 2026-09-04 (was
+        // trig_…)". Skipped here rather than filtered at each call site, so
+        // a new consumer cannot forget.
+        if (!/^trig_/.test(trigger)) continue;
+        rows.push({ account, name, trigger, schedule: clean(cells[2] || "").replace(/^`([^`]*)`.*/, "$1").replace(/`/g, "") });
       }
     }
   }

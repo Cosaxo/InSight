@@ -202,8 +202,13 @@ describe("the lists on this tree", () => {
   });
   it("reads visual requests by status and permissions by state", () => {
     const v = parseVisualRequests(read("docs/VISUAL-REQUESTS.md"));
-    expect(v.requested.length).toBe(3);
-    expect(v.built).toEqual([]);
+    // 4 since D368 added the interest-profile panel (0b). The web ask door
+    // it also added moved Designed → Built at D369, one day later — the
+    // SECTION is the status, not the `status` line inside the entry, so an
+    // entry that is built and left under Designed reads as still waiting.
+    expect(v.requested.length).toBe(4);
+    expect(v.designed).toEqual([]);
+    expect(v.built.length).toBe(1);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });
@@ -257,6 +262,73 @@ describe("the register", () => {
   });
   it("is null, not empty, when the file is not on main", () => {
     expect(parseRegister(null)).toBeNull();
+  });
+
+  it("does not carry an account past its own section", () => {
+    // The shape of the real file, and the bug it produced: §4 is the last
+    // Session heading, it holds no table, and §5's table is NOT anybody's
+    // verified block — it is the chartered ops lanes, ids transcribed from
+    // a runbook. Before this, all of §5 was drawn as Claude 3's, so the
+    // console reported eight routines for an account whose true count is
+    // zero, one of them (the PR shepherd) already listed under Claude 2
+    // and none of them read from `list_triggers`.
+    const withOps = `# The register
+
+## 2 · Session 1 — the content lanes
+
+| Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
+| --- | --- | --- | --- | --- | --- |
+| InSight feed lane | \`trig_1\` | \`30 9 * * *\` — daily 09:30 | dev | x | self |
+
+## 4 · Session 3 — the block nobody has claimed
+
+Nobody has written this block.
+
+## 5 · The ops and program lanes — chartered, relaying nothing
+
+| Lane | Trigger id | Fires (UTC) | Merge authority |
+| --- | --- | --- | --- |
+| PR shepherd | \`trig_9\` | \`20 6,16 * * *\` | squash |
+`;
+    expect(parseRegister(withOps)).toEqual([
+      { account: "Claude 1", name: "feed lane", trigger: "trig_1", schedule: "30 9 * * *" },
+    ]);
+  });
+
+  it("reads the register on main without inventing an account", () => {
+    // Against the committed file rather than a fixture, because the bug
+    // was invisible in every fixture written for it: §2 declares its own
+    // count in prose ("eleven Routines"), and that is the one number here
+    // a parser cannot fake.
+    const rows = parseRegister(read("docs/ROUTINES.md"));
+    const byAccount = {};
+    for (const r of rows) byAccount[r.account] = (byAccount[r.account] || 0) + 1;
+    expect(byAccount["Claude 1"]).toBe(11);
+    // §4 was a placeholder and Claude 3's count was zero; the block is
+    // written now, and its own prose declares the number the same way §2
+    // does — "four Routines enabled" — which is again the number a parser
+    // cannot fake. Its table also carries two lanes that have no Routine
+    // (the merge shift, deleted; the console keeper, never created), and
+    // those are deliberately NOT rows: see parseRegister.
+    expect(byAccount["Claude 3"]).toBe(4);
+    expect(rows.every((r) => /^trig_/.test(r.trigger))).toBe(true);
+  });
+
+  it("skips a register row that names no Routine", () => {
+    // The console draws this table as the program's live health, so a lane
+    // documented as gone or not-yet-created must not arrive as a Routine
+    // whose trigger id is the sentence explaining its absence.
+    const withGaps = `## 4 · Session 3 — the program lanes
+
+| Routine | Trigger id | Schedule (UTC) | Binding |
+| --- | --- | --- | --- |
+| InSight axiom builder | \`trig_a\` | \`30 6 * * *\` | relay |
+| InSight merge shift | — deleted 2026-09-04 (was \`trig_b\`) | \`15 23 * * *\` when it existed | none |
+| InSight console keeper | — | \`45 5 * * *\` | not created |
+`;
+    expect(parseRegister(withGaps)).toEqual([
+      { account: "Claude 3", name: "axiom builder", trigger: "trig_a", schedule: "30 6 * * *" },
+    ]);
   });
 });
 

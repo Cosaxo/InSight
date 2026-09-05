@@ -1,0 +1,40 @@
+{
+ "source": "content/pricing.json",
+ "committed": "2026-08-24",
+ "perAnswerBaseEur": 0.16,
+ "capEur": 320,
+ "adBaseEur": 320,
+ "floorIndex": 0.9,
+ "ceilingIndex": 2.5,
+ "refundDays": 29,
+ "windowEqualsTrailing": false,
+ "cohorts": [
+  {
+   "key": "city",
+   "label": "Your city",
+   "index": 0.9
+  },
+  {
+   "key": "country",
+   "label": "Your country",
+   "index": 0.9
+  },
+  {
+   "key": "world",
+   "label": "Everyone",
+   "index": 0.9
+  }
+ ],
+ "fx": {
+  "EUR": {
+   "sym": "€",
+   "rate": 1,
+   "pre": true
+  },
+  "NOK": {
+   "sym": "kr",
+   "rate": 11.6,
+   "pre": false
+  }
+ }
+}

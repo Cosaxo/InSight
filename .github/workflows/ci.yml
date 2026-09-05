@@ -164,6 +164,15 @@ jobs:
       # among them. Reads firebase.json only — client config, so it belongs
       # here and not on backend-checks.yml.
       - run: npm run check:web-headers
+      # The hash half, which check:web-headers deliberately does not do —
+      # it reads header KEYS, not values. A drifted script hash is silent:
+      # the browser refuses the script and the page renders as a form that
+      # does nothing, with every other gate green.
+      - run: npm run check:csp-hashes
+      # The web ask door's price card is generated from content/pricing.json
+      # and paid.ts's WINDOW_DAYS, so a refold that does not regenerate it
+      # leaves the door quoting a price the ledger has moved past.
+      - run: npm run check:ask-pricing
       # Every collection the rules grant access to is named in
       # data-inventory.md — the document app-privacy.json derives the App
       # Store privacy label from (D130). A name check, like check:globals.

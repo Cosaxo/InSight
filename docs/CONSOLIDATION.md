@@ -98,12 +98,14 @@ daily state.
 
 ## 2 · The floor: what survives any cut
 
-**Eighteen GitHub Actions workflows already run the mechanical half of
-the program on no subscription at all**, and three of them arrived by
+**Nineteen GitHub Actions workflows already run the mechanical half of
+the program on no subscription at all**, and four of them arrived by
 moving work off an account rather than by adding anything: the console
 (`console.yml`, D352), the production reader (`production-reader.yml`,
-D359) and the PR shepherd (`pr-shepherd.yml`, 2026-09-04). Each was a
-Claude lane; each is now a script that costs nothing from any bucket.
+D359), the PR shepherd (`pr-shepherd.yml`, 2026-09-04) and the App Check
+watch (`appcheck.yml`, D367). Each was a Claude lane; each is now a
+script that costs nothing from any bucket — and the fourth arrived the
+day after this page was written, which is the rule below working.
 
 The rule that produced them is the rule to keep applying: **anything
 that reads state and renders it belongs in Actions, not in a

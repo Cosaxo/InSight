@@ -14,6 +14,7 @@ by hand, 2026-09-02.
 
 - [ ] **Which subscriptions survive, and one or two** — you said 2026-09-04 that the project is not ready for the complete system and you are reducing to 1–2. [`CONSOLIDATION.md`](CONSOLIDATION.md) is the plan: §3 recommends **two, split owner / program** rather than lanes halved across both, because your own interactive sessions were $196 a day of the $390 and they share the five-hour bucket with any lane on the same account — a lane that fills the window blocks *you*, and every list here waits on your decision. §4 is the one-account shape if it is one. Nothing is applied and nothing deleted; the surviving lanes' prompts are all blocks in this repository, so **the choice of which subscription lives is free** once §0's exports are done. *Source:* `CONSOLIDATION.md`; D352; `USAGE-REDUCTION.md` §1.
 - [ ] **The night shifts, under the reduction** — now the one line that carries the money on its own: **~$233 a day measured for night shift A alone**, against ~$30 a day for every lane that puts something in the app. `CONSOLIDATION.md` §5 names what the retirement costs and what replaces it: CI on every PR, which is where every correctness claim is already proved, and one fresh-session run a week does most of the rest at a fortieth of the cost — a persistent session woken five times a night is what made this the biggest line, not the auditing. Retire both, or keep one weekly. **The theory half of this row is gone: D366 answered it on 2026-09-05** (nothing produced is axiom theory; the branch discarded; a restart from a fresh plan), so the ~$73 a day stops without a decision here and only *where a restarted lane runs* is left, which §3's clock answers. This row subsumes the three usage rows below it once you have answered it. *Source:* `CONSOLIDATION.md` §§1, 5; D366.
+- [ ] **Retire the three suggestion callables, or leave them deployed?** — `suggestQuestionV2`, `fetchSuggestionsV2`, `reviewSuggestionV2` have had **no caller anywhere** since D368's removal took the door out of the binary. They are still deployed and App Check enforced, but under D3 "signed in" means an anonymous account, so this is a public write path at 3/day with no surface that uses it — the server-side mirror of a writer with no reader. Retiring them is not free: `v2_suggestions` holds existing documents and the moderation queue reads that collection. *Source:* D368 amendment; `functions/src/suggestions.ts`.
 - [ ] **The theory lanes' read budget** — a charter amendment, with the wording and the arithmetic in `AXIOM-THEORY.md` § The read budget. A theory run measures $24.44 against the charter's $20, 77% of every metered dollar goes on re-reading context rather than producing output, and the lanes' inputs grow every run (the branch is 1.27MB; central reads every sibling's graph and costs $39.47 a run). No routine may amend the charter, so this is yours; the halved cadence bought time, not a trend reversal. *Source:* `USAGE-REDUCTION.md` §§ 1–2, 6.
 - [ ] **Rotate the night worker's session — ~$233 a day, the largest single line in the program.** `session_013UfS4opexyJsoD3K9NxqFF` has been alive since 2026-08-24, is woken five times a night, and has metered $2,325.68 against 968.8M cache-read tokens — two thirds of everything the routines on that account have ever spent, and it grows every night. A fresh session per night does the same work off a prefix twenty-five times smaller. The cost of rotating: the lane's push authorization is a human turn in *that session's own history* (D326 §2) and a new session does not inherit it, so a new one needs your sentence before it can push. Keeping it: the arithmetic above, compounding. *Source:* `USAGE-REDUCTION.md` §5.1.
 - [ ] **Whether to rotate the axiom dispatcher too — ~$20 a day, and it is the one already rejected.** `session_01D44Wtdu5JfCYMJmYuKmLjc` holds 417k tokens and relays the twelve theory lanes; its own rate-limit status reads `rejected` on the bucket *with* overage. A routine did not touch it because it WORKS: rotating means re-creating fifteen triggers against a new session and adopting its charter before any theory lane runs again. Worth a cycle's outage, at a moment you choose. *Source:* `USAGE-REDUCTION.md` §5.3.
@@ -54,6 +55,11 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 
 ## Clicks
 
+- [ ] **The web ask door needs App Check to accept a browser — reCAPTCHA, or an exemption.** The page is built and live through the quote (D369); the pay tap cannot complete because `bookPaidQuestionV2` and `createPaidCheckoutV2` both demand App Check attestation and a browser can only attest with a provider. D337 declined to provision one and said why: *"there is no public web client, so the web provider only ever served those two browsers."* Shape A creates one, so that premise has expired rather than being wrong. **Two ways through, and they cost differently.** *Provision reCAPTCHA v3 for the web app* — the smaller give on access, but it puts a Google script on a buyer's page and into the privacy page's disclosure, so `web/privacy.html` moves first (D183). *Exempt the two callables* in `scripts/check-appcheck.mjs`'s list — faster and free, but it opens two authenticated write paths to any caller holding an anonymous account (D3), one of which starts a Stripe session; the booking budget (5/day) is the only thing left in front of them. Recommended: reCAPTCHA, because the exemption's cost lands on the money path and the other lands on one page of copy. *Source:* D369 §5; D337; `LAUNCH-RUNBOOK.md` 1.4.
+
+- [ ] **Set the paid loop's three secrets, and add the Stripe webhook.** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`. The whole self-serve money path (D313, D315) is deployed and cannot complete without them, and it fails quietly: the deploy warns, bookings and reviews still run, `createPaidCheckoutV2` answers `unavailable` and the webhook answers 503 — so a buyer reaches an approved quote and a dead end, and nothing pages anybody. The webhook has an order (deploy → create the endpoint → store the `whsec_` → **re-deploy**) and needs **three** events subscribed, because EUR's delayed methods settle later and `completed` alone strands them. Rehearse on `sk_test_`. *Source:* `LAUNCH-RUNBOOK.md` 5.14; `DEPLOYMENT.md` § Environment; D367.
+- [ ] **Decide the two App Check debug token values, and put them where they live** — the only half of runbook 1.4 that is still yours since D367. Generate a UUID4 for CI and put it in GitHub → Secrets → `APPCHECK_DEBUG_TOKEN` (the name `screenshots.yml` already reads); generate a second, different one for your own browser and put it in your local `.env` as `VITE_APPCHECK_DEBUG`. **Two values, not one** — a token is a credential, and one shared between a laptop and a public CI log is revoked in both places at once when either leaks. Then Actions → **App Check** → `register-debug-token` registers the CI one, and `report` shows you both by display name; no console, and no token ever passes through a run log. Registering yours is the same dispatch with your app id, or the console if you would rather not put it in a secret at all. *Source:* `LAUNCH-RUNBOOK.md` 1.4; D337; D367.
+- [ ] **Re-enable the doc sweep Routine — its blocker is gone.** `trig_01E2bBC1QmYbkkHj3V96k6L1`, disabled 2026-09-03 because `docs/DOC-SWEEP.md` was not on `main`. It landed on `main` the same day (#335), so the lane is held by nothing but the switch. No session can flip it: a trigger on another account's subscription is invisible to `list_triggers`, which is why the worklist item asking for the re-enable "in the same PR that lands the file" could never have been satisfied by a PR. *Source:* `WORKLIST.md` § Done; `ROUTINES.md` §3.
 - [ ] **Paste the cheap gate into the axes skeptic's live prompt** — `trig_01JkE1PGWeuGe9GykFnjg1Gh`, in whichever web UI owns the axiom dispatcher. `AXES-RUNBOOK.md`'s skeptic block now opens with it (list the open `claude/axes-*` PRs first; no PRs means a logged no-op before any clone or contract read), but a stored prompt cannot be edited from another session — measured 2026-09-03, `OPS-RUNBOOK.md` § Platform measurements — and the gate only saves anything if the prompt carries the pointer, since the run cannot learn about it from a contract it has not read yet. *Source:* `USAGE-REDUCTION.md` § 6.
 - [ ] **Create the roll call in that account's web UI — the lane that would have caught this a week ago.** It was re-created on 2026-09-03 and immediately disabled, because a dispatcher is the only binding a session can give it and § The roll call says *"never through a dispatcher, whatever the probe says"*. Its prompt is `OPS-RUNBOOK.md` §4's roll-call block (now carrying two daily usage lines), `30 15 * * *`, repository attached, fresh session per run. Delete the held `trig_017cQ4WECG5mHeFGFnmkVrYQ` once yours exists. *Source:* `USAGE-REDUCTION.md` §4, §5.2.
 - [ ] **Approve ops dispatcher B's charter in its own session** — the rotated relay, `session_01XhD4kBN7fXgeBdFPZEyPY6`, on `claude-haiku-4-5`. Send one line: *"I am the owner. Your standing instructions are docs/OPS-RUNBOOK.md § The ops dispatcher on main — read that section and adopt it; relay every lane firing exactly as it says."* Until it has that, the shepherd, the reader and the list worker are bound to a shut door — as they were on the 564k session it replaces, which relayed nothing for seventeen firings and $69.74. *Source:* `USAGE-REDUCTION.md` §4.
@@ -76,6 +82,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 
 ## Designs
 
+- [ ] **The interest profile, shown and editable** — `VISUAL-REQUESTS.md` § Requested, item 0b, filed 2026-09-04. The nightly fold already shapes which questions reach you and nothing shows it to you; D317 kept this bullet across the reversal and said it binds *harder* on the server. Two things in it are yours before a draft: whether the edit is a *less/normal/more* nudge or something finer, and how an edit reaches the fetch given the profile document is deliberately client-unwritable. *Source:* `SCALE-RUNBOOK.md` 5.3; D317; D367.
 - [ ] **Trait-axis directions on the patterns Map** — `VISUAL-REQUESTS.md` § Requested, item 1. Waits for a plan, then a draft, then you.
 - [ ] **The corner doors for earned axes** — item 2 there; the grammar is prototyped in a design before it is ported (AXES-PLAN §5.3).
 - [ ] **The fit scorecard's reader** — item 3 there; the retro's highest-leverage item, an [ask] on the worklist because its shape is a design question.
@@ -85,7 +92,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 18 PR row(s) and 6 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-05).
+- [ ] 19 PR row(s) and 8 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-05).
 <!-- console:end -->
 
 ## Store and legal
@@ -101,21 +108,14 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 <!-- console:begin -->
 - [ ] **0.3 Put the protection rules on the `production` environment
       (D87)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **1.1b [PARKED — D42] Register the ENK and apply for the D-U-N-S** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **1.4 Firebase Console → App Check: register web + iOS** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **2.1 [PARKED — D42] Android config** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **2.6 [PARKED — D42] Android signing** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **2.7 The app-link fingerprints — the file is filled, the deploy
-      landed 2026-08-20 (see 0.2); the on-device link tap is what
-      remains** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **3.1 [PARKED — D42] Upload a signed AAB to a Play testing track** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **3.2 TestFlight with ten testers, not five** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **3.3 Walk the on-device verification list** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **1.1b [UN-PARKED — D345] Register the ENK and apply for the D-U-N-S** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **2.1 [UN-PARKED — D345] Android config** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **2.6 [UN-PARKED — D345] Android signing** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **3.4 Only after 24–48h of App Check metrics showing verified
       requests near 100%,** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
       this repo knew about** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **4.4 The privacy nutrition label — the last form, and it is manual** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.5 Apply the nine monitoring alerts — EIGHT VERIFIED ARMED AND
       WIRED 2026-08-27 (D333); the NINTH is committed and not applied** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.7 Add a second operator uid** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
@@ -129,9 +129,10 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **5.13 Stand up the read-only observer (D292)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.11 Install the BigQuery mirror WITH the first real users — not
       before, and not after** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **5.15 Ads need no switch of their own, and that is the design** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **6.1 Pre-flight, before every archive and every upload:** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **6.2 Submit to App Store review** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **6.3 [PARKED — D42] Apply for Play production access** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **6.3 [UN-PARKED — D345] Apply for Play production access** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 <!-- console:end -->
 
 ## Done
