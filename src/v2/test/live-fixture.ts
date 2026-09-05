@@ -642,6 +642,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       { id: "pulse-pace", prompt: "What pace was today?", options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"] },
       { id: "pulse-sleep", prompt: "How did you sleep?", options: ["Badly", "Patchy", "OK", "Well", "Deeply"] },
     ]),
+    // No pending pulse answer in the fixture: its votes are seeded, so the
+    // fold has counted them. The real store returns the option index only
+    // while `unaggregated` still holds it.
+    pulsePending: () => null,
     pulseVotes: (baseQid: string) => {
       const out: Record<string, number> = {};
       for (const [aid, v] of Object.entries(votes)) {

@@ -4800,7 +4800,7 @@ const LIVE = {
         const n = Number(opt);
         if (Number.isFinite(n)) mine[qid] = n;
       }
-      const members = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
+      const { members, following } = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
       // Names for anyone the shared cache did not already hold. Batched,
       // and after the fold rather than before it — the likeness is
       // computed from answers and does not wait on a display name.
@@ -4810,10 +4810,16 @@ const LIVE = {
         for (const m of members) m.name = state.names[m.uid] || "";
       }
       state.circle = members;
-      // The fold already knows the membership, so the cheap view rides
+      // The fold already read the membership, so the cheap view rides
       // along for free — a Friends chip opened after the Circle stop pays
-      // no read at all.
-      state.follows = members.map((m) => m.uid);
+      // no read at all. From `following`, NOT from `members`: the fold
+      // drops anyone whose answers could not be read, and rebuilding the
+      // follow cache from the survivors turned a refused read into an
+      // unfollow for the rest of the session. That is exactly the failure
+      // the note on `loadFollows` warns about — two caches that can
+      // disagree about who your friends are — arriving through the cache
+      // that was supposed to be free.
+      state.follows = following;
     } catch (err) {
       reportError(err, { where: "loadCircle" });
       // null, not [] — "could not ask" and "you follow nobody" are
@@ -6345,6 +6351,18 @@ const LIVE = {
     const aid = `${baseQid}_${day}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // UNFOLDED UNTIL THE TRIGGER SAYS OTHERWISE — the store's own
+    // convention, and this was the ONE vote path that skipped it. `vote`,
+    // `editVote`, the catalog write and the rank write all set it; the
+    // pulse write set `state.votes` and stopped, so nothing downstream
+    // could tell that today's published aggregate predates your answer.
+    // The pulse card then read the raw document and reported a crowd you
+    // were not in — "0% of 4 answers today" under "you · Brisk", on the
+    // very answer it was reporting. The existing clears (the settle pass
+    // and the snapshot reconcile) key on the document id, and a pulse
+    // answer is an ordinary answer document, so nothing new has to unset
+    // it.
+    state.unaggregated[aid] = optionIdx;
     markPending(aid, String(optionIdx));
     notify();
     return (async () => {
@@ -6362,8 +6380,21 @@ const LIVE = {
         cacheVote(aid, optionIdx);
         clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
-        clearPending(aid);
+        // `rollbackPending` rather than the two lines this used to hold:
+        // it is, in its own comment, "the one copy of what a refused
+        // answer has to undo", and this path had drifted from it. Once
+        // this write started marking the answer unfolded — so today's
+        // crowd could count the reader in — the hand-rolled undo was
+        // incomplete, and nothing else clears a pulse id: the store's two
+        // clears iterate AGGREGATE documents fetched through its own
+        // drains, and pulse aggregates are fetched by `data/pulse`
+        // instead. So a refused write left the mark set for the session
+        // and the reveal added a vote nobody cast, to an option nobody
+        // chose. The extra deletes are no-ops here (this path never sets
+        // `inflight`, and a pulse id is not in the feed mirror), which is
+        // the argument for using the shared copy rather than curating a
+        // second list of what to undo.
+        rollbackPending(aid);
         notify();
         reportError(err, { where: "votePulse", qid: aid });
       }
@@ -6372,6 +6403,21 @@ const LIVE = {
   /** Every pulse day this device knows it answered: day → optionIdx.
    * Derived from the hydrated vote mirror, so a second device's answers
    * arrive with ordinary hydration and no extra read. */
+  /**
+   * Today's pulse answer while it is NOT yet in the published aggregate —
+   * the option index, or null once the fold has counted it.
+   *
+   * Read by `data/pulse` so today's crowd can include the reader the same
+   * way `pickCanon` already includes an unfolded pick: once the trigger
+   * folds it the published document counts it, so only `unaggregated`
+   * adds. Null rather than -1 so a caller that forgets the check draws
+   * nothing readable and fails a test rather than shifting every share by
+   * one (the D72 shape).
+   */
+  pulsePending(baseQid: string): number | null {
+    const aid = `${baseQid}_${utcDayKey(0)}`;
+    return aid in state.unaggregated ? state.unaggregated[aid] : null;
+  },
   pulseVotes(baseQid: string): Record<string, number> {
     const out: Record<string, number> = {};
     const prefix = `${baseQid}_`;
