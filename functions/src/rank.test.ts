@@ -152,6 +152,52 @@ describe("computeRank", () => {
     expect(out.learn.topics.cell.qids).toEqual(["learn-cell1"]);
   });
 
+  it("counts a straddler on every shelf it can be met through, not just its home", () => {
+    // The defect this exists for: the topic sheet used to count the
+    // device's PAGE, so a fresh install read "Dilemmas · 1 question"
+    // over a bank of 26. The count it needs is membership, and `qids`
+    // is home placement — so `carry` has to differ from `qids.length`
+    // here or the sheet is back to under-reporting straddlers.
+    const bank = [
+      q("feed-a", "feed", "food", 0),
+      q("feed-b", "feed", "food", 1, { also: ["tech"] }),
+      q("feed-c", "feed", "tech", 2),
+    ];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.food.qids).toEqual(["feed-a", "feed-b"]);
+    expect(feed.topics.food.carry).toBe(2);
+    // tech pages one and carries two — the number the sheet draws.
+    expect(feed.topics.tech.qids).toEqual(["feed-c"]);
+    expect(feed.topics.tech.carry).toBe(2);
+  });
+
+  it("gives an also-only topic an entry that pages nothing and counts honestly", () => {
+    // No question calls `movies` home, so the home walk never makes it a
+    // key — and a reader who filters on membership can still meet one
+    // there. An absent key would draw the shelf as empty.
+    const bank = [q("feed-a", "feed", "food", 0, { also: ["movies"] })];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.movies).toEqual({ qids: [], total: 0, carry: 1 });
+  });
+
+  it("does not double-count a question that names its own home in also", () => {
+    const bank = [q("feed-a", "feed", "food", 0, { also: ["food", "tech"] })];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.food.carry).toBe(1);
+    expect(feed.topics.tech.carry).toBe(1);
+  });
+
+  it("counts carry over the SERVED roster — a killed or out-of-window question is on no shelf", () => {
+    const bank = [
+      q("feed-live", "feed", "food", 0, { also: ["tech"] }),
+      q("feed-dead", "feed", "food", 1, { active: false, also: ["tech"] }),
+      q("feed-later", "feed", "food", 2, { from: "2099-01-01", also: ["tech"] }),
+    ];
+    const feed = computeRank(bank, new Map(), TODAY).feed;
+    expect(feed.topics.food.carry).toBe(1);
+    expect(feed.topics.tech.carry).toBe(1);
+  });
+
   it("files a topic-less entry under a name a client can ask for", () => {
     const bank = [q("feed-x", "feed", "food", 0, { topic: null })];
     const { feed } = computeRank(bank, new Map(), TODAY);
@@ -187,7 +233,7 @@ describe("runBankRank", () => {
     expect(put.map((p) => p.surface).sort()).toEqual(["feed", "learn"]);
     const feed = put.find((p) => p.surface === "feed")!.doc;
     expect(feed.day).toBe("2026-08-26");
-    expect(feed.topics.food).toEqual({ qids: ["feed-a"], total: 7 });
+    expect(feed.topics.food).toEqual({ qids: ["feed-a"], total: 7, carry: 1 });
     expect(summary).toEqual({ surfaces: 2, topics: 2, ranked: 2 });
   });
 });

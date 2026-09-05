@@ -105,6 +105,9 @@ import LiveReadGame from '../ui/LiveReadGame.tsx';
 // which is the rule pct.ts retired for drawing a smaller count at a larger
 // percentage.
 import { sharePcts } from '../data/pct.ts';
+// What the BANK holds per topic, where a live build has published it —
+// the topic sheet's count. See its use for why the pool cannot answer.
+import { feedTopicTotal } from '../data/bankPager.ts';
 import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
@@ -2799,11 +2802,13 @@ class WorldFeed extends React.Component {
     //
     // The honest replacement is the thing D96 part 3 already made true and
     // never showed anyone: a live build runs EVERY subject its bank stocks,
-    // always on. So this names them, counts them out of the same pool the
-    // feed is built from, and gives each the mute the chip row has. Every
+    // always on. So this names them, counts them out of the bank the feed
+    // is served from, and gives each the mute the chip row has. Every
     // number here is measured — questions in the bank, and how many of them
     // you have answered. No member counts, no vibes, nothing this build
-    // cannot source.
+    // cannot source. (Out of the bank, not the pool: see the count below —
+    // it read the pool until the night of 2026-09-05, and the pool has
+    // been a page since D321.)
     //
     // Channels only, not scenes and leaves: those two have a follow to
     // remove and surfaces that own it (the profile's scenes card, search),
@@ -2835,8 +2840,31 @@ class WorldFeed extends React.Component {
         if (done) s.done++;
       });
     });
+    // THE BANK'S COUNT WHERE THE PUBLISHED ORDER CARRIES ONE, the pool's
+    // otherwise — the same rule LEARN.total() follows, and here for the
+    // same reported failure. Since D321 the feed's pool is core plus at
+    // most FEED_PAGE tail rows per topic per boot, so counting it claimed
+    // what the device had fetched. MEASURED on today's bank, first boot:
+    // every topic under-reads, `fav` at 12 of 24 and `music` at 15 of 24,
+    // and it heals only as later boots pull the next page. The published
+    // count is MEMBERSHIP (rank.ts's
+    // `carry`, home ∪ also) because that is what this row means and what
+    // the mute below acts on; the client cannot compute it, since it sees
+    // `also` only on the questions it already holds.
+    //
+    // `done` stays the pool's, and is not the same kind of number: the
+    // pager heals history by id, so every feed question this account has
+    // answered is fetched back into the pool whatever page it was on.
+    // What you have answered is therefore fully in the pool even when
+    // what there is to answer is not.
+    //
+    // Null (a demo build, or before the order loads) falls through to the
+    // pool, which in a demo build IS the whole bank.
     const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
-      .map((t) => ({ ...t, ...(stock[t.id] || { n: 0, done: 0 }) }))
+      .map((t) => {
+        const s = stock[t.id] || { n: 0, done: 0 };
+        return { ...t, ...s, n: feedTopicTotal(t.id) ?? s.n };
+      })
       .filter((t) => t.n > 0);
     const topicRow = (t) => {
       const on = catsOn[t.id] !== false;

@@ -199,7 +199,7 @@ import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBan
 // below.
 import {
   FEED_PAGE, LEARN_PAGE, followedFields, learnHistoryIds, pageSizesByInterest,
-  topUpPages, type PageOrderDoc,
+  publishFeedTotals, topUpPages, type PageOrderDoc,
 } from "./bankPager";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
@@ -2885,13 +2885,18 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
         return null;
       }
     })();
-    const { rows } = await topUpPages(
+    const { rows, totals } = await topUpPages(
       { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
       cachedBankIds(),
       null,
       answered,
       pageSizesByInterest(profile, FEED_PAGE),
     );
+    // Before the `rows.length` gate, not inside it: a device whose cache
+    // already holds this boot's page fetches nothing and still has to be
+    // told what the bank holds, or the topic sheet counts the pool on
+    // exactly the boots where the pool is furthest behind the bank.
+    publishFeedTotals(totals);
     if (rows.length) {
       const byId = new Map(state.feedBank.map((q) => [q.id, q]));
       for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
