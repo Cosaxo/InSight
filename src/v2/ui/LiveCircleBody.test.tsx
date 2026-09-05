@@ -111,6 +111,32 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     expect(screen.queryByText(/Couldn’t read anyone/)).toBeNull();
   });
 
+  it("does not say nobody follows you back when the followers read was REFUSED", () => {
+    // `mutual: null` is "we could not ask", and the fold sets it that way
+    // for the whole circle when fetchFollowersOf rejects. The sentence
+    // under the header turns that absence into a claim about other people
+    // — and the guard that stops it was added with no case: replacing
+    // `mutualsKnown` with `true` left the whole suite green.
+    LIVE.circle = () => [
+      { ...placed("u_a"), mutual: null },
+      { ...placed("u_b"), mutual: null },
+    ];
+    LIVE.follows = () => ["u_a", "u_b"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/By likeness/)).toBeTruthy();
+    expect(screen.queryByText(/nobody is told/)).toBeNull();
+  });
+
+  it("…and does say it when the read landed and nobody does", () => {
+    // THE CONTROL. A guard that never let the sentence through would pass
+    // the case above and silently delete a true thing the stop is there to
+    // say.
+    LIVE.circle = () => [placed("u_a"), placed("u_b")];
+    LIVE.follows = () => ["u_a", "u_b"];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/following is one-way, nobody is told/)).toBeTruthy();
+  });
+
   it("draws the rings and you when you follow nobody", () => {
     const { container } = render(<LiveCircleBody />);
     // The drawing is the claim. Before D172 this arm replaced it with a
