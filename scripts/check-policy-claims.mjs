@@ -113,6 +113,10 @@ export const CLAIMS = [
     /buyer&rsquo;s own link[\s\S]{0,120}?only after you have answered/i],
   ["D373 · and a tap on it is counted by nobody",
     /opens their site in your browser[\s\S]{0,80}?we count\s+nothing/i],
+  // D374 · the results page is a PUBLIC surface, and the page says what
+  // it carries and what it never does — the counts, never a name.
+  ["D374 · a bought question's numbers are a public web page, and it never names who answered",
+    /served as a web page\s+anyone can open[\s\S]{0,240}?never who\s+answered/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
   // The row above pins the SEAL and says nothing about who reads the

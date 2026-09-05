@@ -1194,3 +1194,8 @@ export {
 // LEDGER_RETENTION_DAYS. This repairs the breakdown too, at any age, and
 // is the safety net every later projection change rests on.
 export { rebuildAggregateV2 } from "./replay";
+// D374: the shareable results page — a public web page per sponsored
+// question at the hosting rewrite /q/{qid}, rendered here on the admin
+// SDK off the two public documents. onRequest, and no App Check, because
+// it serves the open web; the reasoning is share.ts's header.
+export { resultsPageV2 } from "./share";

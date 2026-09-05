@@ -57,6 +57,7 @@ import { SPONSOR_EVERY, partitionSponsored } from '../data/sponsored.ts';
 import { askWindow } from '../data/askWindow.ts';
 import { utcDayIndex } from '../data/deck.ts';
 import SponsorMark, { SponsorLink } from '../ui/SponsorMark.tsx';
+import { SponsorShare } from '../ui/SponsorShare.tsx';
 import AdCard from '../ui/AdCard.tsx';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
@@ -4031,8 +4032,15 @@ class WorldFeed extends React.Component {
         )}
         {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
         {/* The buyer's link (D373), after the answer and only then — the
-            card's one way off-app, as its bare domain, nothing counted. */}
-        {answered && q.sponsor && q.sponsor.link ? <SponsorLink link={q.sponsor.link}></SponsorLink> : null}
+            card's one way off-app, as its bare domain, nothing counted —
+            and beside it the results page's address (D374), the same
+            numbers as one page anyone can open. */}
+        {answered && q.sponsor ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {q.sponsor.link ? <SponsorLink link={q.sponsor.link}></SponsorLink> : null}
+            <SponsorShare qid={q.id}></SponsorShare>
+          </div>
+        ) : null}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
       </div>
     );

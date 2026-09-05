@@ -38798,3 +38798,81 @@ domain on the answered one), `smoke-overlays` (the composer's field,
 its preview line and the contract row), `check:content` (a committed
 sponsored question's `link` by shape), `check:policy-claims` (the two
 sentences), and the e2e.
+
+## D374 · The shareable results page: a sponsored question's numbers as one public web page
+
+**2026-09-05.** **Status:** binding, BUILT. Step §2.5 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), the last, on the owner's
+*"go, yes to the link, keep your picks for the rest"*. Reverses
+nothing. With it the plan is the app: five steps, five records
+(D370–D374).
+
+### 1 · What it is
+
+A public page per SPONSORED question, on the open web, at the hosting
+rewrite `/q/{qid}` — *Oslo said: 62% keep the harbour bath open*. The
+question, the buyer's name (or *a buyer who chose not to wear a
+name*), the split with counts, the audience they bought, the window
+(*runs* or *ran*), the PAID mark, the breakdown by the dims the buyer
+bought, and the buyer's link as its domain (D373). Rendered by
+`functions/src/share.ts` (`resultsPageV2`, an HTTPS function) on the
+admin SDK, because a public page cannot sign in and the two documents
+it reads — `v2_questions/{qid}` and `v2_question_aggs/{qid}` — are
+signed-in-readable (D98); cached five minutes at the CDN, so a shared
+address that gets popular costs two document reads a minute rather
+than two a view. A bank question has no page (404 with a sentence): a
+paid question is content with a buyer behind it and a result the
+buyer paid to be able to point at; the bank's own questions have no
+such person and no such address.
+
+A *share results* control on the answered face of every sponsored
+card and on the buyer's room row copies the address — the clipboard,
+as the invite link does, because a copied address is a share on every
+platform without a share sheet.
+
+### 2 · What it exposes, and to whom (D334's shape)
+
+The same fold the app draws, to a reader with no account. `counts`,
+and the bought dims' rows of `by` — never an answer row, never a uid,
+never a name but the buyer's own chosen one. Inside the app a
+signed-in reader gets every published dim, and sign-in is
+anonymous-first, so the page opens nothing a stranger with the app
+cannot already read; what is new is the door — a browser with no app.
+The privacy page says the page exists and never names who answered,
+pinned by `check:policy-claims`; the inventory's two rows name the
+open web as a reader for a sponsored question. The store forms move
+by nothing: nothing is collected. Whether the page should carry EVERY
+published dim rather than the bought ones is the owner's — on
+`OWNER-LIST.md`, with the shapes and what each exposes — because the
+plan's sentence and the app's own signed-in breadth read differently
+and a routine does not pick between them on a public surface.
+
+### 3 · What it costs, stated
+
+**A scraping surface** — one question's public numbers per request,
+cached, no listing, `noindex`; a crawler gets what a signed-in reader
+gets, five minutes stale. **Two copies of two client rules** — the
+percentage rule (`sharePcts`, pct.ts's largest remainder) and
+`linkDomain` — because a Cloud Function cannot import a client module;
+`share.test.ts` pins the shapes pct.ts's own test does, so a drift is
+a red test rather than a 51/48 under a 51/49. **Outside two gates by
+shape**: `check:appcheck` reads callables and an HTTPS function is not
+one (the reasoning is `share.ts`'s header — it serves the open web);
+`check:web-headers` reads the files under `web/` and a rewrite served
+from a function is not one, so the page sets the same three headers
+itself and the test pins them. **The functions tree cannot import
+`scripts/report-lib.mjs`**, so the page folds the documents directly
+rather than reusing the report builder the plan named.
+
+### 4 · What pins it
+
+`share.test.ts` (the page's content escaped, the split, the audience,
+the window in both tenses, the PAID mark, the link's domain, the
+bought dim's rows and not the others, the nameless buyer, the three
+404s, the headers, the id parser, the two copied rules),
+`links.test.ts` (`resultsLinkFor`), `SponsorMark.test.tsx` and
+`AskedByYouOverlay.test.tsx` (the share control copies `/q/{qid}`),
+`check:deploy-targets` (the function is in the deploy list),
+`check:policy-claims`, and the e2e (the page for the sold question
+with its answer, its headers and its cache; no page for a bank
+question or a missing one; no uid on it).

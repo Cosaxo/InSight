@@ -2037,6 +2037,33 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("a paid question takes answers and aggregates through the ordinary path");
 
+  // The shareable results page (D374): a public web page per sponsored
+  // question, served by an HTTPS function the hosting rewrite /q/{qid}
+  // points at — reached here at the function's own path, with no token,
+  // no account and no App Check, which is the whole point of it. The
+  // same public numbers the card draws, the PAID mark, the buyer's link
+  // as its domain, the security headers a page under web/ carries; and a
+  // bank question, which no buyer stands behind, has no page.
+  const pageUrl = (q) => `http://127.0.0.1:5001/demo-insight/${FUNCTIONS_REGION}/resultsPageV2/q/${q}`;
+  const pageRes = await fetch(pageUrl(qid));
+  const pageHtml = await pageRes.text();
+  if (pageRes.status !== 200) fail("the results page did not render: " + pageRes.status + " " + pageHtml.slice(0, 200));
+  if (!/text\/html/.test(pageRes.headers.get("content-type") || "")) fail("the results page is not html: " + pageRes.headers.get("content-type"));
+  if (pageRes.headers.get("x-content-type-options") !== "nosniff" || pageRes.headers.get("referrer-policy") !== "no-referrer" || !pageRes.headers.get("content-security-policy")) {
+    fail("the results page is missing a security header: " + JSON.stringify(Object.fromEntries(pageRes.headers)));
+  }
+  if (!/max-age=300/.test(pageRes.headers.get("cache-control") || "")) fail("the results page is not cached for five minutes: " + pageRes.headers.get("cache-control"));
+  if (!pageHtml.includes("Should the harbour bath stay open all winter?")) fail("the results page does not carry the question");
+  if (!pageHtml.includes(">PAID<")) fail("the results page does not wear the PAID mark");
+  if (!/<strong>1<\/strong> answer\b/.test(pageHtml)) fail("the results page does not count the one answer: " + pageHtml.slice(0, 400));
+  if (!pageHtml.includes("harboursauna.no ↗")) fail("the results page does not print the buyer's link as its domain");
+  if (pageHtml.includes(uid) || pageHtml.includes(buyer.user.uid)) fail("the results page leaks a uid");
+  const bankPage = await fetch(pageUrl("f01"));
+  if (bankPage.status !== 404) fail("a bank question got a results page: " + bankPage.status);
+  const nonePage = await fetch(pageUrl("no-such-question"));
+  if (nonePage.status !== 404) fail("a missing question got a results page: " + nonePage.status);
+  ok("the results page serves the sponsored question's public numbers to the open web, and nothing else");
+
   // 13 · The ad lane is retired (D370): an ad booking is refused by name
   // before anything is written, and the committed ad pen's sparing
   // still holds — a `paidad-` doc (an ad sold before D370, or a hand

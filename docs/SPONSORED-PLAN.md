@@ -2,9 +2,9 @@
 
 **Status: plan only, being built step by step** — the owner's *"go,
 yes to the link, keep your picks for the rest"* (2026-09-05). Built
-so far: §2.1 (D370), §2.3 (D371), §2.2 (D372), §2.4 (D373). Each step
-binds only once its own record lands; the rest of this page is the
-plan, not the app.
+all five steps: §2.1 (D370), §2.3 (D371), §2.2 (D372), §2.4 (D373),
+§2.5 (D374) — the plan is the app now, and each step's record is what
+binds; this page stays as the reasoning that produced them.
 Written 2026-09-05 on the owner's
 *"that sounds like a bad system — if I gave you complete creative
 freedom how would you remake it"* and *"that sounds better, lay a plan
@@ -179,7 +179,7 @@ shorteners, no redirect services), and `firestore.rules` needed no
 line, because the question doc is server-written and the shape is
 the validator's. The link also rides on the buyer's purchase record.*
 
-### 2.5 · The shareable results page
+### 2.5 · The shareable results page — BUILT, D374
 
 **What.** A public page per sponsored question — *Oslo said: 62% keep
 the harbour bath open* — the question, the buyer's name, the split, the
@@ -202,6 +202,15 @@ serves the open web; `check:appcheck`'s list with the reason),
 
 **Size.** Two days — the largest piece, and the only one with a new
 public surface.
+
+*Built as written, with two things the page could not know: the
+functions tree cannot import `scripts/report-lib.mjs`, so the page
+folds the two public documents directly (a copy of the client's
+percentage rule, pinned to its shapes); and `check:appcheck` reads
+callables only, so an HTTPS function is outside its list by shape —
+the reasoning sits in `share.ts`'s header instead. The breakdown is by
+the bought dims, as this section says; whether the page should carry
+every published dim is on `OWNER-LIST.md`.*
 
 ## 3 · Order of work
 

@@ -6,7 +6,14 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { inviteLinkFor, parseJoinCode } from "./links";
+import { inviteLinkFor, parseJoinCode, resultsLinkFor } from "./links";
+
+describe("resultsLinkFor — the results page's address (D374)", () => {
+  it("is the site's /q/{qid} rewrite, the id escaped", () => {
+    expect(resultsLinkFor("paidq-abc_1")).toBe("https://prvfire33.web.app/q/paidq-abc_1");
+    expect(resultsLinkFor("a b")).toBe("https://prvfire33.web.app/q/a%20b");
+  });
+});
 
 describe("parseJoinCode", () => {
   it("round-trips the link the app itself shares", () => {

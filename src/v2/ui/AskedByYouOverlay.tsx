@@ -27,6 +27,7 @@ import { loadMine, mine, mineFailed, subscribePurchases, type Purchase } from ".
 // receipt. scripts/quote-copy.test.mjs pins the rule.
 import { fmtExact, subscribeCur } from "../data/pricing";
 import { SPONSOR_EVERY } from "../data/sponsored";
+import { SponsorShare } from "./SponsorShare";
 import { askWindow } from "../data/askWindow";
 import { sharePcts } from "../data/pct";
 // The switch lives in its own module since phase 4: the ask-a-question
@@ -151,6 +152,14 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
       <div style={{ marginTop: 5, fontFamily: SANS, fontSize: 11.5, fontWeight: 650, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
         <span style={{ fontWeight: 800, color: "var(--ink)" }}>{fmtN(total)}</span> of {fmtN(p.budget.cap)} budget · {pct}% — bills per answer at {fmtExact(p.budget.ratePerAnswer)}, stops at the cap
       </div>
+      {/* The results page (D374): the payoff, as an address the buyer can
+          post — the same numbers everyone reads, on the open web. */}
+      {p.qid ? (
+        <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ flex: 1, fontFamily: SANS, fontSize: 11, fontWeight: 650, color: "var(--ink-3)", lineHeight: 1.4 }}>A public page of these results, for anyone you send it to.</span>
+          <SponsorShare qid={p.qid} />
+        </div>
+      ) : null}
       <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
         <span aria-hidden="true" style={{ flex: 1, height: 2, borderRadius: 99, background: "var(--surface-3)", position: "relative", overflow: "hidden" }}>
           <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, Math.round(((daysTotal - daysLeft) / daysTotal) * 100))}%`, background: "color-mix(in oklch, var(--ink) 30%, transparent)" }}></span>

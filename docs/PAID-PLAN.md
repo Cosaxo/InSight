@@ -376,6 +376,18 @@ referrer, and nothing is counted. D197's no-link rule stays for the
 committed ad pen; for questions it is reversed by this record. The
 privacy page says so, pinned by `check:policy-claims`.
 
+**The shareable results page — DECIDED, D374 (2026-09-05;
+`SPONSORED-PLAN.md` §2.5).** A public web page per sponsored question
+at `/q/{qid}` — the question, the buyer's name, the split, the
+audience bought and the breakdown by those dims, the window, the PAID
+mark, the buyer's link as its domain — rendered server-side by
+`functions/src/share.ts` on the admin SDK, cached five minutes, with
+the security headers a page under `web/` carries. A *share results*
+control in the buyer's room and on the answered card copies the
+address. The payoff a buyer points at; every post is the app's own
+advertisement. The privacy page says the page exists and never names
+who answered, pinned by `check:policy-claims`.
+
 **Ads run from the day after payment and share the rotation; the ad
 window follows the cut — DECIDED, D369 (2026-09-05).** The owner:
 *"make the ad price follow the same cut, and how do ads work right

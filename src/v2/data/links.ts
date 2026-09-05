@@ -43,6 +43,12 @@ export function inviteLinkFor(code: string): string {
   return `${SITE_ORIGIN}/join/${code}`;
 }
 
+/** The shareable results page of a sponsored question (D374): the
+ * hosting rewrite /q/{qid}, served by functions/src/share.ts. */
+export function resultsLinkFor(qid: string): string {
+  return `${SITE_ORIGIN}/q/${encodeURIComponent(qid)}`;
+}
+
 // Accepts the shapes a join URL can arrive in: the canonical /join/CODE
 // path, the fallback page's /join.html?c=CODE, and a bare "join/CODE"
 // from a custom scheme. Returns the normalized code or null.
