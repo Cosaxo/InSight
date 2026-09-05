@@ -39007,3 +39007,75 @@ ruler, switch currency, quote, decline, change form — with no CSP
 violation and no page error, at 360px with no horizontal scroll. Both
 defects in §3 came out of that run. The two gates were mutation-tested
 by breaking the thing each protects.
+
+## D370 · Night shift B goes back to five flows — the audit stops at a commit cap, not at the clock
+
+**2026-09-05.** **Status:** binding. The owner's instruction, given at
+21:15 UTC: *"return the night shift to 5 opus ultra code runs as it now
+finished with 80 minutes left so could have way much more work."*
+Applied at 21:17:55 UTC — `trig_01GNe14hPrZcYzXkFHjPH2bW`,
+`0 20,0,4 * * *` → `0 20,22,0,2,4 * * *`. This reverses the night-shift
+half of D359's L1 lever after two nights, and only that half: L2's two
+disabled improvers stand, and no other lane's cadence moved.
+
+**What the tree says about why the flow ended early**, measured on the
+three nights that actually ran the three-flow schedule (night-authored
+commits, `console:` and merges from `main` excluded):
+
+| night | 20:00 audit | 00:00 audit | 04:00 closing |
+| --- | ---: | ---: | ---: |
+| `nightb-20260904` | **8** | 3 | 2 |
+| `nightb-20260905` | **8** | **8** | 2 |
+| `nightb-20260906` | **8** (20:13 → 21:01) | — | — |
+
+The 20:00 flow landed exactly 8 on all three, and 8 is the per-flow
+commit cap the brief sets in its stop rule. So the flow is stopped by
+the cap, never by its 95 minutes: tonight's ran 60 of them and went
+idle at 21:04 with roughly half an hour of budget unspent — and then,
+under three flows, with a further three hours before its next firing.
+That gap is what the restore closes; the 22:00 flow fires tonight.
+
+**The arithmetic the cut was made on does not survive the
+measurement.** `design/night-shift-b-brief-2026-09-03.md` argued for
+three flows from *"the four audit flows landed 6 · 6 · 6 · 6 commits …
+that is a CAP being hit, not a tree being exhausted, and the cap was
+8."* Six is not eight, so on its own numbers that night was the one
+case where the cap was **not** what stopped the flows. The three nights
+above are the ones that hit it, and they hit it under the schedule the
+argument produced. The conclusion drawn from it — that a night
+re-derives findings a bigger list would have carried — may still be
+true; what is now measured is that cutting the flows removed 16
+commits of nightly headroom from a lane whose flows were already ending
+with time on the clock.
+
+**What did not need to move.** The stored prompt was never edited —
+`update_trigger` refuses a prompt edit on a Routine bound to another
+session (D359 §6's measured refusal, `PERMISSIONS.md`), so only the
+schedule half of L1 ever landed. That leaves the Routine carrying its
+original five-flow brief verbatim: *"20 · 22 · 00 · 02 → AUDIT flow, 95
+minutes"*, *"all five firings resolve to the same date"*. For two nights
+the schedule and the brief disagreed and the brief was the one telling
+the truth about the design; restoring the cron put them back in sync
+without touching a byte of the contract. The owner action that was open
+against this lane — paste the three-flow brief — is therefore
+**withdrawn, not done**: pasting it now would re-cut the night.
+`design/night-shift-b-brief-2026-09-03.md` is kept, marked superseded,
+because its fan-out-cap reasoning is the input to the open question
+below and not something to lose.
+
+**Opus and ultracode were already true and are not this record's
+doing.** Read off the bound session at 21:17 UTC:
+`session_01M9cvEjdQmWYjgrWvaoXiK9` runs `claude-opus-5` at effort
+`xhigh` with `ultracode: true`, and the brief's first paragraph says
+*"Mode is ultracode"*. A model change could not have been made from
+here in any case — `update_trigger`'s model field reaches only Routines
+that create a fresh session per fire, and this one is bound.
+
+**What is left open, and it is the owner's.** The cap of 8 is now the
+binding constraint on every audit flow, so five flows raise the night's
+ceiling from 16 commits to 32 but each flow still stops early. Raising
+the cap is a prompt edit, which is the refusal above — it needs the
+same one paste at claude.ai/code/routines that L1's half needed, and
+this record does not make that change or recommend a number for it
+without a night measured at five flows first. `OWNER-LIST.md` carries
+the row.

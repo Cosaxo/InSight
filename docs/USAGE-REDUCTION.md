@@ -226,6 +226,48 @@ Each of these is an owner action, and each has its row on
    expensive kind, on an account that is dropping runs today. The
    cheapest reduction available is the one not yet spent.
 
+## L1's night-shift half is reversed, 2026-09-05 (D370)
+
+*Deliberately unnumbered: §6 already cites § 5.1 meaning §5's first
+item, and a heading by that number would steal the reference.*
+
+The owner put night shift B back to five firings a night the evening of
+2026-09-05: `0 20,0,4 * * *` → `0 20,22,0,2,4 * * *`, applied 21:17:55
+UTC. It is the only reversal on this page and it does not touch L2 —
+the two disabled improvers stand.
+
+**Why, and it is a measurement rather than a preference.** Counting
+night-authored commits per flow on the three nights that actually ran
+the three-flow schedule (`console:` commits and merges from `main`
+excluded):
+
+| night | 20:00 audit | 00:00 audit | 04:00 closing |
+| --- | ---: | ---: | ---: |
+| `nightb-20260904` | **8** | 3 | 2 |
+| `nightb-20260905` | **8** | **8** | 2 |
+| `nightb-20260906` | **8** | — | — |
+
+Eight is the per-flow commit cap in the lane's own stop rule, so the
+20:00 flow was ending on the cap every night and never on its 95
+minutes — tonight's spent 60 of them. Under three flows that left the
+lane idle from 21:04 to 00:00. The cut therefore bought its saving by
+removing 16 commits of nightly headroom from flows that were already
+finishing early, which is not the trade §4.1 priced.
+
+**What this page got wrong, kept rather than tidied.** The three-flow
+case was built on *"the four audit flows landed 6 · 6 · 6 · 6 commits …
+that is a CAP being hit … and the cap was 8"* — six is not eight, so
+that night is the one case in the record where the cap was **not** the
+stop. The cap-is-binding conclusion happens to be true; the night cited
+for it was not the evidence.
+
+**The cost side is unchanged and still real.** §6's arithmetic holds:
+firings hours apart are cache-cold, so five flows cost roughly five
+cold prefixes rather than three. The lever that would actually cut a
+bound night lane's bill is the context ceiling — `OPS-RUNBOOK.md` §0,
+and §5's first item for the case already priced — not the cadence.
+Cadence is the owner's, and the owner has ruled.
+
 ## 6 · The second round, the same afternoon — where the 77% went
 
 The first round cut firings. Pricing the tokens said the firings were

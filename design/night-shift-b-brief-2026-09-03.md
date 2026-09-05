@@ -1,3 +1,13 @@
+> **SUPERSEDED 2026-09-05 — DO NOT PASTE THIS INTO THE ROUTINE (D370).**
+> The owner restored night shift B to five flows, which is what the
+> Routine's live prompt already describes; pasting this three-flow text
+> would re-cut the night. Kept because its fan-out-cap reasoning is the
+> input to the open commit-cap question on `OWNER-LIST.md` — and because
+> its own arithmetic is the thing D370 corrects: it argues from
+> "6 · 6 · 6 · 6 commits … that is a CAP being hit … and the cap was 8",
+> and six is not eight. The nights that did hit the cap hit it at 8,
+> under the schedule this brief produced.
+
 InSight night shift B — one flow of an unattended nightly loop on Cosaxo/InSight. Nobody is
 watching. Work the whole budget, stop on time, and leave a branch the owner can read at
 breakfast. Mode is ultracode: fan out ONCE a night, verify adversarially. The fan-out width is

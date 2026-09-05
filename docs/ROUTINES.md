@@ -90,6 +90,20 @@ for two days, which is what rule 3 and CLAUDE.md's "in the same PR" exist to
 prevent. Re-verified here from `list_triggers` rather than from the last
 row, per this file's own instruction.
 
+**Night shift B is back at five flows, 2026-09-05 (D370).** The owner
+reversed the night-shift half of L1 after two nights — the audit flows
+were stopping at their 8-commit cap with the clock unspent, not at the
+95 minutes, so cutting two flows removed headroom rather than
+re-derivation. Only the cron moved. The Routine's stored prompt has
+described five flows all along, because `update_trigger` refuses a
+prompt edit on a Routine bound to another session and only L1's
+schedule half ever landed; for those two nights the schedule and the
+brief disagreed, and this row said `three` while the lane's own
+contract said `20 · 22 · 00 · 02`. Restoring the cron closed the gap
+from the schedule side. Rule 2 with a second edge on it: a row can be a
+faithful reading of `list_triggers` and still record a Routine at odds
+with its own prompt, and only reading both together shows it.
+
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
 | Nightly algorithm improvement **(DISABLED 2026-09-03)** | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |
@@ -102,7 +116,7 @@ row, per this file's own instruction.
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
 | InSight roll call (Claude 1) | `trig_01JQiMDMk2m4SfPjCKgbCF2o` | `35 15 * * *` — daily 15:35 (17:35 Oslo) | fresh session, model `claude-sonnet-5` | nothing — read-only; one comment per day on the **Ops run log** issue | never merges; never pushes; never labels |
 | InSight list worker (Claude 1) | `trig_01JRBox3KomrnVEfeMZnrHmC` | `0 16 * * *` — daily 16:00 (18:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/worklist-<slug>` — `docs/WORKLIST.md` and whatever the item it takes names | never merges; never labels |
-| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,0,4 * * *` — **three** flows; 20:00 and 00:00 audit at 95 min, 04:00 closing at 110 min (cut from five 2026-09-03, `updated_at` 14:28:12Z — the L1 lever) | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
+| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,22,0,2,4 * * *` — **five** flows; 20:00 · 22:00 · 00:00 · 02:00 audit at 95 min, 04:00 closing at 110 min (cut to three 2026-09-03 as the L1 lever, restored by the owner 2026-09-05, `updated_at` 21:17:55Z — D370) | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9`, `claude-opus-5` at effort `xhigh`, `ultracode` on | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
 
 **Contracts.** The five content lanes defer to `QUESTION-FARM.md` and
 re-read it every run — the prompt is a summary and the manual outranks
