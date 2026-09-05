@@ -1955,6 +1955,24 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (qDoc.get("sponsor").buyer !== undefined) {
     fail("a nameless booking grew a buyer name: " + JSON.stringify(qDoc.get("sponsor")));
   }
+  // The days the buyer paid for, on the question path. `from`/`until` were
+  // checked for truthiness only, so the window could be any length: the
+  // quote assertion above reads the constant, not the dates goLive wrote.
+  // Against the quote the CALLABLE returned, so a change that moved one
+  // and not the other fails here rather than shipping a mismatch.
+  {
+    const from = qDoc.get("from"), until = qDoc.get("until");
+    const span = Math.round(
+      (Date.parse(`${until}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
+    if (span !== q.windowDays) {
+      fail(`the paid question serves ${span} days, the buyer paid for ${q.windowDays}: ${from}..${until}`);
+    }
+    // …and it starts tomorrow, not today: today's decks are already dealt
+    // on every device that booted this morning, which is the reason the
+    // window is written the way it is.
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    if (from !== tomorrow) fail(`the paid question starts ${from}, not tomorrow (${tomorrow})`);
+  }
   ok("payment went live: purchase + disclosed question in one transaction");
 
   // At-least-once delivery: the SAME event again answers 200 and mints
@@ -2014,6 +2032,9 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // reseed NOT eating what the webhook wrote.
   const dayKey = (off) => new Date(Date.now() + off * 86400000).toISOString().slice(0, 10);
   const dayAfter = (k) => new Date(Date.parse(`${k}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  // Days a [from, until] window SERVES, both ends inclusive.
+  const spanDays = (from, until) =>
+    Math.round((Date.parse(`${until}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
 
   const bookAd = (headline) => httpsCallable(payFns, "bookPaidQuestionV2")({
     kind: "ad", advertiser: "Harbour Sauna", headline,
@@ -2065,6 +2086,19 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     || adDoc1.get("advertiser") !== "Harbour Sauna" || !adDoc1.get("updatedAt")) {
     fail("live ad doc missing its serving shape: " + JSON.stringify(adDoc1.data()));
   }
+  // …AND IT SERVES THE DAYS THE BUYER PAID FOR. The quote's `windowDays`
+  // is asserted above, but that reads the constant; these are the dates
+  // goLive actually wrote, which is what the money bought. Nothing held
+  // them: the queue check below is stated RELATIVELY (second starts the
+  // day after the first ends) so it holds under any window length, and the
+  // question leg one section up checked `from`/`until` for truthiness
+  // only. Measured against the ad quote's own promise rather than a
+  // literal, so the two cannot drift apart silently.
+  if (spanDays(w1.start, w1.until) !== adQuote.windowDays) {
+    fail(`the ad serves ${spanDays(w1.start, w1.until)} days, the buyer paid for ${adQuote.windowDays}`
+      + `: ${w1.start}..${w1.until}`);
+  }
+  ok("the ad serves exactly the window its quote sold");
   ok("ad payment went live: purchase + v2_ads doc in one transaction");
 
   // Day-exclusivity: a second ad in the same scope QUEUES — its window
