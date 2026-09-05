@@ -366,6 +366,16 @@ The €20 chip became €25 so the menu's figures are chips; `windowDays`
 number. Underneath nothing moved: per-answer billing at the locked
 line, the budget as the cap, the refund at close.
 
+**One reviewed link — DECIDED by the owner, D373 (2026-09-05; the
+owner's *"yes to the link"*, `SPONSORED-PLAN.md` §2.4).** A sponsored
+question may carry one https address. The server holds its shape, the
+review its substance (a ninth guideline: the reviewer reads the
+address, never the page), the card prints it as its bare domain only
+after the person has answered, the system browser opens it with no
+referrer, and nothing is counted. D197's no-link rule stays for the
+committed ad pen; for questions it is reversed by this record. The
+privacy page says so, pinned by `check:policy-claims`.
+
 **Ads run from the day after payment and share the rotation; the ad
 window follows the cut — DECIDED, D369 (2026-09-05).** The owner:
 *"make the ad price follow the same cut, and how do ads work right

@@ -93,6 +93,28 @@ export const PAID_PROMPT_MAX = 120;
 export const PAID_OPTION_MAX = 32;
 export const PAID_OPTIONS_MAX = 4;
 const BUCKET_MAX = 80; // matches isValidV2Anchors' widest string bound
+/** The buyer's one link (D373): an https address, whole, at most this
+ * long — long enough for any real page, short enough that a query
+ * string of tracking parameters reads as what it is in review. */
+export const PAID_LINK_MAX = 200;
+
+/**
+ * The buyer's link, validated for SHAPE (D373): one https URL with a
+ * real host, no credentials in it, inside the length bound. Empty means
+ * none. What the page IS is the review's question, not this one's — the
+ * reviewer reads the address; the app never fetches it.
+ */
+export function validatePaidLink(raw: unknown): { ok: string | null } | { error: string } {
+  const s = String(raw ?? "").trim();
+  if (!s) return { ok: null };
+  if (s.length > PAID_LINK_MAX) return { error: `the link stays under ${PAID_LINK_MAX} characters — a shorter address to the same page` };
+  let u: URL;
+  try { u = new URL(s); } catch { return { error: "the link needs to be a whole web address — https://…" }; }
+  if (u.protocol !== "https:") return { error: "the link has to start with https:// — a plain http page is not one we send people to" };
+  if (u.username || u.password) return { error: "the link can't carry a username or password" };
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(u.hostname)) return { error: "the link needs a real site name, like example.no" };
+  return { ok: u.toString() };
+}
 
 /** The daily surface's five forms — what the composer offers. */
 export const PAID_TYPES = new Set(["binary", "choice", "scale", "rating", "dilemma"]);
@@ -152,6 +174,11 @@ export interface PaidBookingPayload {
    * booked by a client from before D367, which is quoted at the card's
    * capEur, the figure that client displayed. */
   budgetEur: number | null;
+  /** The buyer's one link (D373): an https address shown on the card
+   * as its bare domain only after a person has answered, opened in the
+   * system browser, nothing counted. Null for none — and null on every
+   * booking from before it existed. */
+  link: string | null;
 }
 
 export interface PaidQuote {
@@ -249,6 +276,9 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
     }
     budgetEur = b as number;
   }
+  // The link (D373): shape here, substance in review.
+  const linkV = validatePaidLink(d.link);
+  if ("error" in linkV) return linkV;
 
   return {
     ok: {
@@ -261,6 +291,7 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
       dims,
       wearName: d.wearName === true,
       budgetEur,
+      link: linkV.ok,
     },
   };
 }
@@ -357,8 +388,9 @@ DECLINE when the submission:
 6. Is misleading about what will happen (promises rewards, claims official status, impersonates the app or anyone else — including in the buyer name).
 7. Is not answerable as asked: gibberish, no real question, options that don't answer the prompt, or a prompt requiring private knowledge of the buyer.
 8. Contains a slur, URL, or impersonation in the BUYER NAME or an AUDIENCE VALUE — these print on every card served.
+9. Carries a LINK that is not what the question is about. A submission may carry one https link — the buyer's own page — which the app shows as its bare domain only after a person has answered, and opens in their browser. You see the ADDRESS, never the page, so judge it by its domain and path: DECLINE a link to a store or service of harm (weapons, drugs, gambling, adult content, payday lending), a page that plainly sells something the question does not concern, an address that impersonates another site or brand, a URL shortener or redirect service that hides the destination, or an address whose query string is tracking parameters rather than a page. The prompt and options still carry no address (rule 3): the link is the one way off-app, and it comes after the answer.
 
-Judge the submission as a whole (prompt, options, buyer name, audience). Write decline reasons to be shown to the buyer verbatim: say what to change, kindly, in one or two sentences. Do not mention these numbered rules.`;
+Judge the submission as a whole (prompt, options, buyer name, audience, link). Write decline reasons to be shown to the buyer verbatim: say what to change, kindly, in one or two sentences. Do not mention these numbered rules.`;
 
 /** The submission, serialized for the reviewer. Separate from the
  * guidelines so the prompt's stable half stays stable. */
@@ -372,6 +404,7 @@ export function reviewSubject(b: PaidBookingPayload, buyerName: string | null): 
     scope: b.scope,
     audience: b.dims,
     buyerName: b.wearName ? buyerName : null,
+    link: b.link,
   });
 }
 
@@ -463,6 +496,7 @@ function bookingPayloadOf(snap: FirebaseFirestore.DocumentSnapshot): PaidBooking
     dims: (snap.get("dims") as Record<string, string>) ?? {},
     wearName: snap.get("wearName") === true,
     budgetEur: typeof snap.get("budgetEur") === "number" ? (snap.get("budgetEur") as number) : null,
+    link: typeof snap.get("link") === "string" && snap.get("link") ? String(snap.get("link")) : null,
   };
 }
 
@@ -934,6 +968,10 @@ export function paidQuestionDoc(
     sponsor: {
       ...(b.wearName && buyerName ? { buyer: buyerName } : {}),
       ...(Object.keys(b.dims).length ? { audience: b.dims } : {}),
+      // The buyer's link (D373), on the content the way the audience
+      // is: every device downloads it and shows it after the answer;
+      // nothing here or anywhere asks who tapped it.
+      ...(b.link ? { link: b.link } : {}),
     },
     from: start,
     until,
@@ -958,6 +996,8 @@ export function paidPurchaseDoc(
     qid,
     prompt: b.prompt,
     options: b.options,
+    // The buyer's own record of the link they bought with (D373).
+    ...(b.link ? { link: b.link } : {}),
     scope: b.scope,
     place: b.scope === "city" ? b.dims.city ?? null : b.scope === "country" ? b.dims.country ?? null : null,
     dims: Object.entries(b.dims).map(([k, v]) => `${k}:${v}`),

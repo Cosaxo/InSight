@@ -15,6 +15,7 @@ import {
   pickPaid,
   whyMatched,
   windowLabel,
+  linkDomain,
   type FeedAd,
   type SponsoredQ,
 } from "./sponsored";
@@ -107,6 +108,17 @@ describe("what the band is able to say", () => {
     expect(windowLabel("2026-08-21")).toBe("until 21 Aug");
     expect(windowLabel(undefined)).toBeNull();
     expect(windowLabel("soon")).toBeNull();
+  });
+
+  it("prints a link as its bare domain, and a non-https one as nothing (D373)", () => {
+    // Whose page it is, not where on it — the full address on a card is
+    // the click-out the ad rules refused.
+    expect(linkDomain("https://www.harboursauna.no/winter?utm=x")).toBe("harboursauna.no");
+    expect(linkDomain("https://Example.NO")).toBe("example.no");
+    expect(linkDomain(undefined)).toBeNull();
+    expect(linkDomain("http://harboursauna.no")).toBeNull();
+    expect(linkDomain("harboursauna.no")).toBeNull();
+    expect(linkDomain("javascript:alert(1)")).toBeNull();
   });
 });
 

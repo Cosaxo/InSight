@@ -1775,10 +1775,27 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("an out-of-range budget is refused with the range");
 
+  // A link that is not an https address is refused before anything is
+  // written (D373) — the sentence says what shape it needs.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      prompt: "Should the harbour bath stay open all winter?",
+      type: "binary", options: ["Keep it open", "Close for winter"],
+      topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 20,
+      link: "http://harboursauna.no/winter",
+    });
+    fail("an http link was accepted");
+  } catch (e) {
+    if (!/https/.test(String(e?.message))) fail("wrong refusal for a malformed link: " + e?.message);
+  }
+  ok("a link that is not https is refused by shape");
+
+  const LINK = "https://harboursauna.no/winter";
   const book = await httpsCallable(payFns, "bookPaidQuestionV2")({
     prompt: "Should the harbour bath stay open all winter?",
     type: "binary", options: ["Keep it open", "Close for winter"],
     topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 20,
+    link: LINK,
   });
   const bid = book.data?.id;
   if (!bid) fail("bookPaidQuestionV2 returned " + JSON.stringify(book.data));
@@ -1960,7 +1977,13 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (qDoc.get("sponsor").buyer !== undefined) {
     fail("a nameless booking grew a buyer name: " + JSON.stringify(qDoc.get("sponsor")));
   }
-  ok("payment went live: purchase + disclosed question in one transaction");
+  // The buyer's link rides on the content (D373), whole, for every
+  // device to print after the answer — and on the buyer's own record.
+  if (qDoc.get("sponsor").link !== LINK) {
+    fail("the buyer's link is not on the question doc: " + JSON.stringify(qDoc.get("sponsor")));
+  }
+  if (purchase.get("link") !== LINK) fail("the purchase record lost the link: " + JSON.stringify(purchase.data()));
+  ok("payment went live: purchase + disclosed question in one transaction, the buyer's link on both");
 
   // At-least-once delivery: the SAME event again answers 200 and mints
   // nothing new — the status guard is the idempotency.

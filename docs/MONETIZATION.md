@@ -100,7 +100,10 @@ sixth world card since D372 (`data/sponsored.ts`, `SPONSOR_EVERY`; a
 single slot, `SPONSOR_SLOT`, before it), the coarse audience tags matched **on
 the device** against the published breakdown dims (one to three since
 D228, matched conjunctively and each printed on the band), `until` as the
-window, and `sponsor` as a provenance source `check:quality` holds in both
+window, `sponsor.link` — since D373 the buyer's one https address, shown
+as its bare domain only after a person has answered, opened in the system
+browser, and counted by nobody (the review reads the address; the app
+never fetches it) — and `sponsor` as a provenance source `check:quality` holds in both
 directions. Since D228 the buyer may be an **individual** as well as a
 company, and the printed name is the buyer's to wear or omit — the word
 PAID is not: the band renders from the sponsor block's presence, because

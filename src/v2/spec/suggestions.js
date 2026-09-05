@@ -146,7 +146,7 @@ function liveBookings() {
     // an ad row wears its headline where a question wears its prompt —
     // one card shape in the room, two products behind it (D315)
     prompt: r.kind === 'ad' ? r.headline : r.prompt,
-    advertiser: r.advertiser, adBody: r.body,
+    advertiser: r.advertiser, adBody: r.body, link: r.link || null,
     type: r.type, options: r.options,
     topic: r.topic, by: 'You', hue: hueOf(r.id), status: r.status,
     ago: agoOf(r.atMs), atMs: r.atMs, cadence: 'once',
@@ -276,7 +276,7 @@ export const SUGGESTIONS = {
    *   { ok: true, id }              — booked; the review is running
    *   { ok: false, code, message }  — the server's refusal, shown verbatim
    */
-  submitPaid({ prompt, type, options, topic, scope, dims, wearName, budgetEur }) {
+  submitPaid({ prompt, type, options, topic, scope, dims, wearName, budgetEur, link }) {
     const opts = (options || []).filter(Boolean);
     if (LIVE.enabled) {
       return import('../data/paidBookings').then((p) => p.submitBooking({
@@ -294,6 +294,9 @@ export const SUGGESTIONS = {
         // The buyer's budget (D367) — whole euros; the server holds it to
         // the card's range. Absent on an ad, which is flat-priced.
         ...(typeof budgetEur === 'number' ? { budgetEur: Math.round(budgetEur) } : {}),
+        // The buyer's one link (D373) — sent as typed; the server holds
+        // its shape and the review its substance.
+        ...(link && String(link).trim() ? { link: String(link).trim() } : {}),
       }));
     }
     // Demo: the ask lands in the local room as "review", same as ever —

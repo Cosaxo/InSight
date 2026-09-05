@@ -43,6 +43,8 @@ export interface MyBooking {
   headline: string;
   body: string;
   prompt: string;
+  /** the buyer's link (D373), or null */
+  link: string | null;
   type: string;
   options: string[];
   topic: string | null;
@@ -74,6 +76,9 @@ export interface BookingPayload {
   /** The most the buyer will spend, whole euros (D367) — the cap the
    * quote locks. Absent on an ad, which is flat-priced. */
   budgetEur?: number;
+  /** The buyer's one https link (D373), shown after the answer; absent
+   * for none. The server holds its shape, the review its substance. */
+  link?: string;
 }
 
 export type BookingResult = { ok: true; id: string } | { ok: false; code: string; message: string };
@@ -151,6 +156,7 @@ function parseRow(id: string, d: Record<string, unknown>): MyBooking {
     headline: str(d.headline),
     body: str(d.body),
     prompt: str(d.prompt),
+    link: d.link ? str(d.link) : null,
     type: str(d.type, "binary"),
     options: Array.isArray(d.options) ? d.options.map((o) => str(o)) : [],
     topic: d.topic == null ? null : str(d.topic),
@@ -238,7 +244,7 @@ export async function submitBooking(p: BookingPayload): Promise<BookingResult> {
     const res = await call<{ id?: string }>("bookPaidQuestionV2", p);
     const id = res?.id ?? "";
     rows = [
-      { advertiser: "", headline: "", body: "", ...p, id, status: "review", note: null, quote: null, win: null, qid: null, atMs: Date.now() },
+      { advertiser: "", headline: "", body: "", link: null, ...p, id, status: "review", note: null, quote: null, win: null, qid: null, atMs: Date.now() },
       ...(rows ?? []),
     ];
     notify();

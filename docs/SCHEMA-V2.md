@@ -57,7 +57,11 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
                       from the published breakdown dims, matched
                       conjunctively by the DEVICE (data/sponsored.ts) —
                       the server is never asked who should see what — and
-                      every matched dim prints on the band. The window
+                      every matched dim prints on the band. `link`
+                      (D373) is the buyer's one https address: printed as
+                      its bare domain on the ANSWERED face only, opened in
+                      the system browser with no referrer, and counted by
+                      nobody. The window
                       is `until` above rather than a field here, so the
                       band's label and the serving filter are one value. A
                       sponsored question is never `core`

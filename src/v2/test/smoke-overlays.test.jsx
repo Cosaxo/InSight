@@ -119,7 +119,13 @@ describe("the overlays with no button — opened through the nav registry", () =
     expect(screen.getByRole("button", { name: "€5", pressed: true })).toBeTruthy();
     expect(screen.getByRole("button", { name: "€50", pressed: false })).toBeTruthy();
     expect(screen.getByText(/up to 250 answers · only what arrives is billed/)).toBeTruthy();
+    // The buyer's link (D373): optional, and the composer says where it
+    // will show — as the bare domain, after the answer.
+    fireEvent.change(screen.getByPlaceholderText(/your-site\.no/), { target: { value: "https://www.harboursauna.no/winter" } });
+    expect(screen.getByText(/shows as harboursauna\.no ↗ after the answer/)).toBeTruthy();
+    expect(screen.getByText(/after answering: harboursauna\.no ↗/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
+    expect(screen.getByText(/harboursauna\.no · after the answer/)).toBeTruthy();
     // the contract sheet: the rate without the mechanism's multiplier
     // (D367 put the law behind a tap), the budget as the cap, the
     // functional channel (D313 retired "arranged directly" the day the

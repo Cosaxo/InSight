@@ -104,6 +104,15 @@ export const CLAIMS = [
     /scrolled past or skipped stays on your device and is not\s+collected/i],
   ["D288 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
     /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
+  // D373 · the one way off-app: after the answer, and counted by nobody.
+  // Two tokens, because the two halves are separate promises — WHEN the
+  // link shows (the question is answered as a question) and WHAT we do
+  // with a tap (nothing) — and a page that kept one and lost the other
+  // would be the half-corrected promise this file exists to notice.
+  ["D373 · a bought question's link shows only after you have answered",
+    /buyer&rsquo;s own link[\s\S]{0,120}?only after you have answered/i],
+  ["D373 · and a tap on it is counted by nobody",
+    /opens their site in your browser[\s\S]{0,80}?we count\s+nothing/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
   // The row above pins the SEAL and says nothing about who reads the

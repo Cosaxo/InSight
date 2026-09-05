@@ -38721,3 +38721,80 @@ nothing, the fourth is the first step, one free place is D368),
 words off what the price counts), `check:pricing` (`crowdFree` a whole
 number of places), `smoke-overlays` (the door), `feed-paid-answered`
 (an answered paid card parks), and the e2e's first-sale leg.
+
+## D373 · A sponsored question may carry one reviewed link, shown after the answer and counted by nobody
+
+**2026-09-05.** **Status:** binding, BUILT — **the owner's decision**
+(*"go, yes to the link, keep your picks for the rest"*), step §2.4 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md). **Reverses** D197's no-link
+rule for sponsored QUESTIONS; the committed ad pen keeps it
+(`check:content`'s URL nose on ads stands). This is the one step of
+the plan that was the owner's to take rather than a routine's, and
+the plan's §2.4 is the ask in D334's shape: what it exposes (nothing
+about any user — a link is the buyer's public content on a card any
+signed-in user already reads), which of the four it touches (the
+privacy page, which moves first), and the smallest shape that gets
+the value (after the answer; the bare domain; nothing counted).
+
+### 1 · What a buyer can do, and what a reader sees
+
+The composer has a *link · optional* field: one https address. The
+server holds its shape (`validatePaidLink` — https, a real host, no
+credentials, under 200 characters; a plain domain or an http address
+is refused with a sentence that says what shape it needs), the review
+holds its substance (a ninth guideline: the reviewer reads the
+ADDRESS and never the page, and declines a store of harm, a page
+plainly selling something the question does not concern, an
+impersonation, a shortener or redirect service that hides the
+destination, or a query string that is tracking parameters rather
+than a page). The link rides on the question doc's `sponsor` block
+the way the audience does — every device downloads it — and on the
+buyer's purchase record.
+
+On the card it is NOT there until the person has answered. The
+answered face then carries *PAID harboursauna.no ↗*: the bare domain
+(`linkDomain` — never the path, never a `www.`), a plain anchor to the
+system browser with `noreferrer noopener`, the address verbatim. The
+app counts nothing: no tap log, no impression, no parameter of ours.
+After the answer rather than before, so the question is answered as a
+question and the link is the buyer's thank-you rather than the card's
+purpose (the plan's own line).
+
+### 2 · What moves with it
+
+`web/privacy.html` says it in the buyer's paragraph — *shown only
+after you have answered … we count nothing* — pinned as two claims in
+`check:policy-claims`, because WHEN the link shows and WHAT a tap
+does are separate promises and a page that kept one and lost the
+other would be the half-corrected promise that gate exists to notice.
+`data-inventory.md`'s bought-question and booking rows name the
+field; `SCHEMA-V2.md`'s sponsor block does; `MONETIZATION.md` path 2
+does. The store forms move by nothing: no data is collected and no
+tracking is added. No consent requirement in law is reached.
+`firestore.rules` needed no line: the question doc is server-written
+and the shape is the validator's.
+
+### 3 · What it costs, stated
+
+**A link that lies.** The review is automated and reads an address,
+not a page, and a page can change after approval. The guards are the
+visible domain, the after-answer placement, and the report control
+every card carries (D83) — a reported sponsored question is hidden by
+the same verdict path a take is. **The system browser, not an in-app
+one.** A tap leaves the app; that is the honest shape for a link the
+app does not count, and the cost is a reader who does not come back
+by themselves. **The e2e's paid leg now carries a link** and asserts
+it on both documents, and refuses an http one by shape first.
+
+### 4 · What pins it
+
+`paid.test.ts` (`validatePaidLink` by shape, the round trip with a
+link, the doc and the record carrying it, the reviewer's subject
+naming it, the guideline's link clause), `sponsored.test.ts`
+(`linkDomain`), `SponsorMark.test.tsx` (the anchor: bare domain,
+`_blank`, `noreferrer`, the address verbatim, nothing for a non-https
+value), `feed-paid-answered.test.jsx` (no link on the fresh card, the
+domain on the answered one), `smoke-overlays` (the composer's field,
+its preview line and the contract row), `check:content` (a committed
+sponsored question's `link` by shape), `check:policy-claims` (the two
+sentences), and the e2e.

@@ -51,6 +51,36 @@ export interface Sponsor {
    * to everyone. Each matched dim is printed on the band (`whyMatched`).
    */
   audience?: Record<string, string>;
+  /**
+   * The buyer's one link (D373): an https address, validated for shape
+   * by the server and for substance by the review. The card prints it as
+   * its bare domain (`linkDomain`) ONLY after the person has answered —
+   * the question is answered as a question, and the link is the buyer's
+   * thank-you rather than the card's purpose — and opens it in the
+   * system browser with no referrer of ours. Nothing is counted: no tap
+   * log, no parameter added. Absent for no link, which is every question
+   * bought before it existed.
+   */
+  link?: string;
+}
+
+/**
+ * The bare domain a link prints as — `harboursauna.no`, never the path
+ * and never a `www.`: what a reader needs to decide whether to tap is
+ * WHOSE page it is, and a full address on a card is the click-out the
+ * ad rules refused. Null when the value is not an https address, so a
+ * malformed one that somehow reached content prints nothing rather than
+ * a broken control.
+ */
+export function linkDomain(link: string | undefined): string | null {
+  if (!link) return null;
+  try {
+    const u = new URL(link);
+    if (u.protocol !== "https:") return null;
+    return u.hostname.replace(/^www\./i, "").toLowerCase() || null;
+  } catch {
+    return null;
+  }
 }
 
 /**

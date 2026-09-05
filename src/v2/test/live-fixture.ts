@@ -95,6 +95,10 @@ export interface LiveFixtureOptions {
    * asserting against a feed nobody serves.
    */
   sponsored?: boolean;
+  /** The sponsored card's link (D373), when `sponsored` — an https
+   * address the answered face prints as its domain. Off by default for
+   * the same reason: no shipped question carries one. */
+  sponsorLink?: string;
   /**
    * Put one ad in the pool (D197). Off by default and opt-in for the same
    * reason `sponsored` is: `content/ads.json` ships empty, so a fixture
@@ -857,7 +861,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       // D195: the disclosure travels ON the card, so world-feed's dispatch
       // reads the same field buildFeedGlobals emits.
       ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
-        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }
+        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" }, ...(opts.sponsorLink ? { link: opts.sponsorLink } : {}) }, until: "2099-01-01" }
         : {}),
       // D231: the ask window travels ON the card too, for the same reason
       // — world-feed reads the fields buildFeedGlobals emits.

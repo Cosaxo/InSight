@@ -56,7 +56,7 @@ import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
 import { SPONSOR_EVERY, partitionSponsored } from '../data/sponsored.ts';
 import { askWindow } from '../data/askWindow.ts';
 import { utcDayIndex } from '../data/deck.ts';
-import SponsorMark from '../ui/SponsorMark.tsx';
+import SponsorMark, { SponsorLink } from '../ui/SponsorMark.tsx';
 import AdCard from '../ui/AdCard.tsx';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
@@ -4030,6 +4030,9 @@ class WorldFeed extends React.Component {
             style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{mk ? 'later' : 'skip'}</button>
         )}
         {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
+        {/* The buyer's link (D373), after the answer and only then — the
+            card's one way off-app, as its bare domain, nothing counted. */}
+        {answered && q.sponsor && q.sponsor.link ? <SponsorLink link={q.sponsor.link}></SponsorLink> : null}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
       </div>
     );

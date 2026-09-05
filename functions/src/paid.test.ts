@@ -32,6 +32,8 @@ import {
   reviewSubject,
   validatePaidBooking,
   type PaidBookingPayload,
+  validatePaidLink,
+  PAID_LINK_MAX,
 } from "./paid";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKey } from "./pure";
@@ -47,6 +49,7 @@ const BOOKING: PaidBookingPayload = {
   dims: { city: "Oslo, NO" },
   wearName: true,
   budgetEur: null,
+  link: null,
 };
 
 describe("the buyer name is read off a field the profile can actually hold", () => {
@@ -301,6 +304,39 @@ describe("reviewGates", () => {
   });
 });
 
+describe("validatePaidLink — the buyer's one link, by shape (D373)", () => {
+  it("takes a whole https address and nothing else", () => {
+    expect(validatePaidLink("https://harboursauna.no/winter")).toEqual({ ok: "https://harboursauna.no/winter" });
+    expect(validatePaidLink("  https://Example.NO/a?b=1  ")).toEqual({ ok: "https://example.no/a?b=1" });
+    // none is none — the field is optional, and blank is not an error
+    expect(validatePaidLink(undefined)).toEqual({ ok: null });
+    expect(validatePaidLink("   ")).toEqual({ ok: null });
+    expect(validatePaidLink("harboursauna.no")).toHaveProperty("error");
+    expect(validatePaidLink("http://harboursauna.no")).toEqual({ error: expect.stringMatching(/https/) });
+    expect(validatePaidLink("javascript:alert(1)")).toHaveProperty("error");
+    expect(validatePaidLink("https://user:pw@harboursauna.no")).toHaveProperty("error");
+    expect(validatePaidLink("https://localhost/x")).toHaveProperty("error");
+    expect(validatePaidLink(`https://harboursauna.no/${"x".repeat(PAID_LINK_MAX)}`)).toHaveProperty("error");
+  });
+
+  it("rides the booking through the validator, the stored reader and the round trip", () => {
+    const withLink = validatePaidBooking({ ...BOOKING, link: "https://harboursauna.no/winter" });
+    if ("error" in withLink) throw new Error(withLink.error);
+    expect(withLink.ok.link).toBe("https://harboursauna.no/winter");
+    const again = validatePaidBooking(withLink.ok);
+    if ("error" in again) throw new Error(again.error);
+    expect(again.ok).toEqual(withLink.ok);
+    expect(validatePaidBooking({ ...BOOKING, link: "ftp://harboursauna.no" })).toHaveProperty("error");
+    // and it is on the question doc, as the audience is — or absent
+    const doc = paidQuestionDoc(withLink.ok, "Olaf", "2026-08-27", "2026-09-24", 1) as { sponsor: Record<string, unknown> };
+    expect(doc.sponsor.link).toBe("https://harboursauna.no/winter");
+    const none = paidQuestionDoc(BOOKING, "Olaf", "2026-08-27", "2026-09-24", 1) as { sponsor: Record<string, unknown> };
+    expect(none.sponsor).not.toHaveProperty("link");
+    // the reviewer reads it
+    expect(JSON.parse(reviewSubject(withLink.ok, "Olaf")).link).toBe("https://harboursauna.no/winter");
+  });
+});
+
 describe("REVIEW_GUIDELINES", () => {
   // The instruction is a constant so these pins can hold the load-bearing
   // rules IN the prompt — a guideline that silently falls out of an
@@ -311,6 +347,10 @@ describe("REVIEW_GUIDELINES", () => {
     expect(REVIEW_GUIDELINES).toMatch(/push-polling/i);
     expect(REVIEW_GUIDELINES).toMatch(/buyer name or an audience value/i);
     expect(REVIEW_GUIDELINES).toMatch(/shown to the buyer verbatim/i);
+    // The link clause (D373): the reviewer sees the address, not the
+    // page, and the prompt still carries none.
+    expect(REVIEW_GUIDELINES).toMatch(/one https link[\s\S]{0,200}?after a person has answered/i);
+    expect(REVIEW_GUIDELINES).toMatch(/shortener or redirect/i);
   });
   it("serializes the subject with the name only when worn (D228)", () => {
     expect(JSON.parse(reviewSubject(BOOKING, "Olaf")).buyerName).toBe("Olaf");

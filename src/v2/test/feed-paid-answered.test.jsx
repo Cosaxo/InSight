@@ -23,8 +23,8 @@
 // the chrome around them.
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
-import { installLive } from "./live-fixture";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { FEED_OPTIONS, installLive } from "./live-fixture";
 import { growUntil } from "./mount-app";
 
 vi.setConfig({ testTimeout: 15000 });
@@ -86,5 +86,28 @@ describe("the day's paid slot, on a device that already answered it", () => {
     // …and it is not merely hidden: it is behind the expander, collapsed,
     // which is where every other answered card goes.
     expect(screen.queryByText(/Fixture Transit/), "the buyer is still named in the fresh feed").toBeNull();
+  });
+});
+
+describe("the buyer's link (D373)", () => {
+  // AFTER THE ANSWER, AND ONLY THEN. The question is answered as a
+  // question; the link is the buyer's thank-you rather than the card's
+  // purpose — so a fresh card carries no link at all, and the answered
+  // face prints it as the bare domain, a plain anchor to the browser.
+  it("is not on the fresh card, and is on the answered one as its domain", async () => {
+    live = installLive({ feedCards: CARDS, sponsored: true, anchors: MATCHING, sponsorLink: "https://www.harboursauna.no/winter" });
+    render(<WorldFeed cats={{}} onToggle={() => {}} beats={false} />);
+    await growUntil(() => screen.queryAllByText("PAID").length > 0, "the paid band");
+    expect(screen.queryByRole("link", { name: /harboursauna/ }), "a link before the answer").toBeNull();
+    expect(document.body.textContent).not.toMatch(/harboursauna/);
+    // answer it: the paid card is the last one, so its option is the last
+    // button wearing the fixture's first label
+    const opts = screen.getAllByRole("button", { name: new RegExp(`^${FEED_OPTIONS[0]}`) });
+    fireEvent.click(opts[opts.length - 1]);
+    const a = await screen.findByRole("link", { name: /harboursauna\.no/ });
+    expect(a.getAttribute("href")).toBe("https://www.harboursauna.no/winter");
+    expect(a.getAttribute("rel")).toMatch(/noreferrer/);
+    expect(a.textContent).toMatch(/harboursauna\.no ↗/);
+    expect(a.textContent).not.toMatch(/winter/);
   });
 });

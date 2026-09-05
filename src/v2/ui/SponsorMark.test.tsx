@@ -20,7 +20,7 @@
 //      money behind it.
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import SponsorMark from "./SponsorMark";
+import SponsorMark, { SponsorLink } from "./SponsorMark";
 
 afterEach(cleanup);
 
@@ -89,5 +89,26 @@ describe("what the sponsor receives", () => {
     // and the who-voted sheet is named.
     expect(container.textContent).not.toContain("never names");
     expect(container.textContent).not.toContain("never your profile");
+  });
+});
+
+describe("the buyer's link, after the answer (D373)", () => {
+  it("is the bare domain, a plain anchor to the browser, with no referrer and the address verbatim", () => {
+    render(<SponsorLink link="https://www.harboursauna.no/winter?season=2026" />);
+    const a = screen.getByRole("link", { name: /harboursauna\.no/ }) as HTMLAnchorElement;
+    expect(a.getAttribute("href")).toBe("https://www.harboursauna.no/winter?season=2026");
+    expect(a.getAttribute("target")).toBe("_blank");
+    expect(a.getAttribute("rel")).toMatch(/noreferrer/);
+    expect(a.textContent).toMatch(/harboursauna\.no ↗/);
+    expect(a.textContent).not.toMatch(/winter|season/);
+    // the word PAID rides with it: the link is the paid card's, not the app's
+    expect(a.textContent).toMatch(/PAID/);
+  });
+
+  it("renders nothing for a link that is not an https address", () => {
+    const { container } = render(<SponsorLink link="http://harboursauna.no" />);
+    expect(container.querySelector("a")).toBeNull();
+    const none = render(<SponsorLink link={undefined} />);
+    expect(none.container.querySelector("a")).toBeNull();
   });
 });

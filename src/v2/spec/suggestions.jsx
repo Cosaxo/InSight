@@ -28,7 +28,7 @@ import { PRICING, rate, answersFor, menuEur, demandWord, crowdFor, roomFor, fmt,
 import LIVE from '../data/live';
 // Imported so the printed slot position cannot drift from the one the feed
 // actually holds (data/sponsored.ts is the seller of record).
-import { SPONSOR_EVERY } from '../data/sponsored';
+import { SPONSOR_EVERY, linkDomain } from '../data/sponsored';
 import { CurSwitch } from '../ui/CurSwitch';
 
 // suggestions.jsx — "Ask a question": the paid door as a page (overlay).
@@ -177,6 +177,9 @@ function SgMine({ s, SG, onResend }) {
       <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 16.5, lineHeight: 1.26, letterSpacing: '-0.32px', textWrap: 'pretty' }}>{s.prompt}</div>
       {s.kind === 'ad' && s.adBody ? (
         <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>{s.adBody}</div>
+      ) : null}
+      {s.link && linkDomain(s.link) ? (
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--accent-ink)' }}>{linkDomain(s.link) + ' ↗ · after the answer'}</div>
       ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
         <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: col }}></span>
@@ -423,6 +426,11 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
   const [audience, setAudience] = useSgState(initialAudience || 'world');
   const [wearName, setWearName] = useSgState(true);
   const [ageDim, setAgeDim] = useSgState(false);
+  // The buyer's one link (D373): optional, https, shown as its bare
+  // domain after a person has answered. Typed here; the server holds its
+  // shape and the review its substance.
+  const [link, setLink] = useSgState('');
+  const linkDom = linkDomain(link.trim());
   const [paidStep, setPaidStep] = useSgState('form');
   // The most the buyer will spend (D367): a preset off the card. From a
   // menu row it is the row's price — the buyer chose that number (D371);
@@ -496,6 +504,7 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
       topic: topic ? topic.id : null,
       scope: scopeKey, dims, wearName,
       budgetEur: budget,
+      link: link.trim(),
     });
     setSending(false);
     if (res && res.ok === false) { setRefusal(res.message); return; }
@@ -592,6 +601,9 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
                 // stale while the checkout sits open.
                 ['Window', 'from the day after you pay · ' + PRICING.windowDays + ' days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
+                // The link (D373) is on the sheet as the domain the card
+                // will print — the reviewer sees the whole address.
+                ...(link.trim() ? [['Link', (linkDom || link.trim()) + ' · after the answer']] : []),
                 ['Rate', fmt(rate(scopeKey)) + ' per answer · locked at approval'],
                 ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * PRICING.windowDays) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's') + (est.running ? ' (' + est.running + ' still running)' : '')]] : []),
                 // The budget is the cap (D367): what is charged up front,
@@ -662,6 +674,17 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
                 <SgDoorChip on={wearName} label="wear your name" onTap={() => setWearName(!wearName)}></SgDoorChip>
               </div>
             </div>
+            {/* The buyer's link (D373): one https address, printed as its
+                bare domain after the answer, opened in the browser, and
+                nothing counted. After the answer rather than before, so
+                the question is answered as a question. */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                <span style={sgLabel}>link · optional</span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{linkDom ? 'shows as ' + linkDom + ' ↗ after the answer' : 'shown after the answer · nothing counted'}</span>
+              </div>
+              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://your-site.no/page" inputMode="url" autoComplete="url" autoCapitalize="none" spellCheck={false} style={{ ...sgInput, padding: '10px 13px', marginTop: 7 }}></input>
+            </div>
             <div style={{ border: '1px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', borderRadius: 14, background: 'var(--surface-2)', padding: '11px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={sgLabel}>what everyone sees</span>
@@ -675,6 +698,7 @@ function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, opacity: 0.72, whiteSpace: 'nowrap', flexShrink: 0 }}>{PRICING.windowDays} days</span>
               </div>
               <div style={{ marginTop: 7, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45 }}>{whyLine}</div>
+              {linkDom ? <div style={{ marginTop: 5, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 750, color: 'var(--accent-ink)' }}>{'after answering: ' + linkDom + ' ↗'}</div> : null}
               {/* "counts and cuts — never names" was the pre-D98 promise, false
                   since answers went public: the buyer reads what any signed-in
                   user reads. SponsorMark.tsx says the honest version on the

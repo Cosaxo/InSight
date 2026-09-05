@@ -2,9 +2,9 @@
 
 **Status: plan only, being built step by step** — the owner's *"go,
 yes to the link, keep your picks for the rest"* (2026-09-05). Built
-so far: §2.1 (D370), §2.3 (D371), §2.2 (D372). Each step binds only
-once its own record lands; the rest of this page is the plan, not the
-app.
+so far: §2.1 (D370), §2.3 (D371), §2.2 (D372), §2.4 (D373). Each step
+binds only once its own record lands; the rest of this page is the
+plan, not the app.
 Written 2026-09-05 on the owner's
 *"that sounds like a bad system — if I gave you complete creative
 freedom how would you remake it"* and *"that sounds better, lay a plan
@@ -133,7 +133,7 @@ window (29) went onto the card so the row and the server read one
 number. The per-answer line left the rows for the ruler and the
 sheet — the row says the price and what it buys.*
 
-### 2.4 · One reviewed link — the owner's decision
+### 2.4 · One reviewed link — the owner's decision — BUILT, D373
 
 **What.** A sponsored question may carry `link`: one `https` URL,
 validated for shape, reviewed by the same automated review with a new
@@ -171,6 +171,13 @@ type, `ui/SponsorMark.tsx` and the card's answered state,
 the e2e (a link on the booking, on the doc, refused when malformed).
 
 **Size.** A day of code; the policy lines are the same PR.
+
+*Built as written, on the owner's "yes to the link". Two things the
+page could not know: the reviewer reads the ADDRESS and never the
+page (the guideline says so, and judges by domain and path — no
+shorteners, no redirect services), and `firestore.rules` needed no
+line, because the question doc is server-written and the shape is
+the validator's. The link also rides on the buyer's purchase record.*
 
 ### 2.5 · The shareable results page
 
