@@ -2493,6 +2493,61 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(asked, "the demo build paid for a crowd it does not count over").not.toHaveBeenCalled();
   });
 
+  // ── the same effect, under the shell that re-renders on its notify (D364) ──
+  //
+  // The fetch the case above pins is also a hazard. The real loadKindred
+  // notifies in its `finally`, app-shell re-renders on every notify
+  // (`liveTick`), and the profile overlay re-renders with it — so the card
+  // has to ride that re-render as an UPDATE. Until 2026-09-05 the overlay
+  // defined its four result panels inside its own render body (`const
+  // Big5Panel = () => <ResultProfileCard …/>`), which is a new component
+  // type on every render, which React treats as an unmount and a fresh
+  // mount. The mount effect re-ran, notified, and re-ran. Every reveal
+  // animation on the card restarted on each pass — a restarted petal sits
+  // at its `from` frame, scale 0.12 and opacity 0, so the rose drew EMPTY
+  // while it shook — paced by the network while the voter lists landed,
+  // then as fast as React could commit once they were cached and the
+  // loader ran synchronously, until the WebView died. Reported from a
+  // device on the Big 5 and Politics tabs as "the bars and charts vibrate
+  // faster and faster, then the app crashes".
+  //
+  // Mounted through the WHOLE app, because the loop needs the shell's
+  // subscriber: the card rendered alone (the cases above) has no parent to
+  // re-render it, so it cannot see this.
+  describe("survives the notify its own loader sends (D364)", () => {
+    afterEach(() => { delete window.__profileSub; });
+
+    it("mounts the card once under a shell that re-renders on every notify", async () => {
+      // The loader as the real one behaves: it notifies when it lands.
+      // Through the fixture's `vote`, which is its notify path (each call
+      // fans out to every subscriber, liveTick included), on a fresh qid
+      // each time because vote() is one answer per question. CAPPED, so
+      // the failure mode is a count and not a hung suite — measured on the
+      // pre-fix overlay: nine calls, one per cap-bounded remount.
+      let n = 0;
+      const asked = vi.fn(async () => { if (n < 8) live.LIVE.vote(`d364-${n++}`, "1"); });
+      const expectNoBoundary = mountLive({}, (l) => {
+        hydrateTestResults(BIG5_RESULT);
+        l.LIVE.loadKindred = asked;
+        // The subtab is remembered on `window`, and reading it is how the
+        // overlay opens anywhere but General.
+        window.__profileSub = "big5";
+      });
+      await openHeaderOverlay("profile");
+      await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+      const rose = screen.getByRole("img", { name: /Trait scores as petals/ });
+      expect(asked, "the card re-mounted on its own loader's notify").toHaveBeenCalledTimes(1);
+      // And a notify from anywhere else — an aggregate landing, a vote —
+      // must leave the card's DOM in place: a remount is a new <svg>, and
+      // a new <svg> is every petal animation starting over.
+      act(() => { live.LIVE.vote("d364-elsewhere", "1"); });
+      expect(screen.getByRole("img", { name: /Trait scores as petals/ }), "a store notify rebuilt the rose")
+        .toBe(rose);
+      expect(asked, "a store notify re-ran the card's mount effect").toHaveBeenCalledTimes(1);
+      expectNoBoundary("profile/big5 under a store notify");
+    });
+  });
+
   it("keeps the persona's same-type friends in demo mode", () => {
     // The control again, and it is load-bearing: `sameType` returning [] for
     // everyone would satisfy the case above without a live gate existing.

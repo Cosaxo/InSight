@@ -37889,3 +37889,86 @@ so an unbounded field is a download every reader of that person pays
 for), and a 120-char cap on a circle take's `qid`, which the world branch
 four lines up already had. Neither touches the three labelled denies.
 Verified: nothing in the tree writes either stamp field.
+
+## D364 · A component defined inside a render is a remount per render: the profile's result panels, and the loop that shook the rose until the app died
+
+**2026-09-05.** **Status:** binding. The fix is in, the case is pinned,
+and the rule it states is the one to carry: **a component is defined
+once, at module scope; what varies per render is a prop or inline JSX.**
+
+### What the owner saw
+
+On a device, the Big 5 and Politics tabs of the profile: the petal rose
+drew empty — two rings, the centre dot, every label, and no petals — and
+the bars under it vibrated, faster and faster, until the app died. Two
+screenshots, both with the rose blank.
+
+### What it was
+
+Four links, each correct on its own:
+
+1. `spec/profile-overlay.jsx` defined `TestProgress`, `Big5Panel`,
+   `PoliticsPanel`, `ValuesPanel` and `AttachmentPanel` **inside
+   `ProfileOverlay`'s render body**. A function created during render is
+   a new component type on every render, and React reconciles a changed
+   type as an unmount and a fresh mount of everything beneath it — not as
+   an update. So every re-render of the overlay rebuilt the result card
+   from nothing.
+2. `ResultProfileCard`'s mount effect calls `LIVE.loadKindred()` (the
+   2026-08-31 fix that gave the card's counted percentiles a loader of
+   their own, kept at D363). A remount re-runs a mount effect.
+3. `loadKindred` notifies in its `finally`. While the twelve voter lists
+   are landing it suspends on `loadVoters` and the flag guard returns
+   early on re-entry; once every list is cached the body runs to its
+   `finally` **synchronously**, notify included.
+4. `app-shell` re-renders on every notify (`liveTick`), and the overlay
+   re-renders with it.
+
+Mount → loadKindred → notify → shell → overlay → new type → remount →
+mount effect → loadKindred → notify. Paced by the network while the
+lists landed — one visible restart per landing — then as fast as React
+could commit. Each pass restarted every reveal animation on the card,
+and both fill `both`: a `roseGrow` petal restarted every frame sits at
+its `from` keyframe, scale 0.12 and opacity 0, which is the empty rose in
+the screenshots, and an `rpv2-bar` restarted every frame is the
+vibration. React's nested-update limit throws only for updates made
+during commit; an update from a passive effect loops until the WebView
+runs out of something.
+
+Every gate was green. `check:globals` is name-level, `tsc -b` does not
+read the spec layer, and the mount suites render the card alone or open
+the tab once and assert on copy — nothing re-rendered the overlay's
+parent while a result card was on it, so nothing saw the second mount.
+
+### The fix
+
+`TestProgress` is at module scope with its comment; the four panels are
+the four `<ResultProfileCard …/>` elements written inline in the tab
+body, which is what they were wrappers around. No behaviour changes on a
+render that does not repeat. The store's `finally` notify is left as it
+is: `vote.test.ts` pins its placement and the reason, and a no-op notify
+is harmless under a tree that updates — the fault was the tree.
+
+`smoke-live.test.jsx` mounts the WHOLE app on the Big 5 tab with a
+loader that notifies as the real one does, capped at eight so the
+failure is a count rather than a hung suite, and pins two things: the
+loader is asked once, and the rose is the same `<svg>` after a store
+notify. Measured on the pre-fix overlay: nine calls, and a rebuilt rose.
+Rendered alone, the card cannot see this — it has no parent to
+re-render it — which is why the three loader cases above it stayed
+green through the whole of it.
+
+### What to watch
+
+- **The shape, not the file.** `segment-explorer.jsx`'s `SXCaret` and the
+  indented `function` declarations in `group-daily.jsx`, `lens-cards.jsx`,
+  `logic-test.jsx` and their siblings are at module scope inside a file
+  wrapper, not inside a render — checked. The profile overlay was the
+  only render body defining components. A new one is a remount per
+  parent render from the day it is written, and it only becomes a loop
+  when something under it notifies on mount.
+- **Any mount effect that calls a loader which notifies** — `loadKindred`
+  here, `loadCityKindred` in `LiveSimilarityField`, `loadVoters` behind
+  the People lens — is one inline component away from this. The guard
+  is the rule at the top of this record, and the case is the shape to
+  copy: mount the whole app, notify from outside, count the mounts.
