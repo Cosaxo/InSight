@@ -201,6 +201,9 @@ export default function LiveRolesPanel(): React.ReactElement {
   ) => {
     const avg = blendRoles(settings.map((s) => s.res));
     const t = avg ? typeOf(kind, avg.dims) : null;
+    // The unit `RoleResult.n` is actually counted in, in the panel's own
+    // words — the same two phrases the empty state and the thin rows use.
+    const dayUnit = kind === "duo" ? "you both guessed" : "you played";
     // The list draws whenever there is more than one thing to put in it —
     // a second reading, or a setting still on its way. With one reading
     // and nothing else, a row would only repeat the card above it.
@@ -234,10 +237,21 @@ export default function LiveRolesPanel(): React.ReactElement {
                     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginTop: 3, lineHeight: 1.4, textWrap: "pretty" }}>{t.line}</div>
                   </>
                 )}
+                {/* NOT "revealed days" — that is the one thing this number is
+                    not. `RoleResult.n` is the same unit the floor checks:
+                    days BOTH of you guessed for a 1v1 (duoRuns drops the
+                    rest), days YOU played for a group. A pair can reveal
+                    eight days and guess on three, so "3 revealed days" was
+                    false about a pair that revealed eight — the exact copy
+                    bug roles.ts says it exists to keep out of this panel,
+                    in the only line that had not been fixed for it. The
+                    empty state and the thin rows already say "days you both
+                    guessed" and "revealed days you played"; this now says
+                    the same thing in the same words. */}
                 <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)", marginTop: 4 }}>
                   {settings.length === 1
-                    ? `${avg.n} revealed ${avg.n === 1 ? "day" : "days"}`
-                    : `across ${settings.length} · ${avg.n} revealed days`}
+                    ? `${avg.n} ${avg.n === 1 ? "day" : "days"} ${dayUnit}`
+                    : `across ${settings.length} · ${avg.n} days ${dayUnit}`}
                 </div>
               </div>
             </div>

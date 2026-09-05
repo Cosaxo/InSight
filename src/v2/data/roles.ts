@@ -84,7 +84,7 @@ export interface RoleDim {
   note: string;
 }
 export interface RoleResult {
-  /** Revealed days behind this reading — the weight a blend gives it. */
+  /** Days behind this reading, in the unit the floor counts — both guessed for a 1v1, played for a group. NOT revealed days — the weight a blend gives it. */
   n: number;
   dims: RoleDim[];
 }
@@ -210,7 +210,7 @@ export function groupRole(
 
 // ── the average across settings ─────────────────────────────────────────
 /**
- * Blend several settings into one portrait, weighted by revealed days.
+ * Blend several settings into one portrait, weighted by those days.
  *
  * A three-day duel must not swing the portrait as hard as a twenty-four
  * day one. The blended dims carry NO `note`: a receipt belongs to one
