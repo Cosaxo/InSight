@@ -1666,9 +1666,9 @@ export interface SeedOptionConflict {
   /**
    * Which frozen field changed. Absent means `options`, which is what every
    * conflict was until catalogue questions turned out to have none — see
-   * the `domain` arm below.
+   * the `domain` and `type` arms below.
    */
-  field?: "options" | "domain";
+  field?: "options" | "domain" | "type";
   stored: string[];
   desired: string[];
 }
@@ -1715,6 +1715,31 @@ export function seedOptionConflict(
   const dDesired = typeof desired.domain === "string" ? desired.domain : "";
   if (dStored !== dDesired) {
     return { qid, field: "domain", stored: [dStored || "(none)"], desired: [dDesired || "(none)"] };
+  }
+
+  // …AND THE TYPE, which is the outermost of the three: it decides what a
+  // stored answer even IS. `optionIdx` for vote/binary/choice, an order
+  // string for rank, `entity` for catalog, a bucket for dial. Change it on
+  // a question people have answered and every stored answer is re-read
+  // under the new rule — a catalogue key becomes an option index, a rank's
+  // order becomes nonsense, and the published aggregate is folded from
+  // then on as though it had always been the new form.
+  //
+  // Nothing else catches it. `options` is equal on both sides for a
+  // vote→catalog change (a catalog question ships `options: []`, so does
+  // an emptied vote), and `domain` is equal whenever neither side is a
+  // catalogue. It reaches the rules too: `isCatalogAnswer` gates on
+  // `type == "catalog"`, so a retyped question changes which answer shapes
+  // production accepts, silently and immediately.
+  //
+  // Same argument as `domain` one field over, and the same measurement
+  // behind it: across all 33 commits that have ever touched the feed bank,
+  // no existing question's type has changed once. This refuses something
+  // that has never legitimately happened, which is what a freeze is for.
+  const tStored = typeof stored.type === "string" ? stored.type : "";
+  const tDesired = typeof desired.type === "string" ? desired.type : "";
+  if (tStored !== tDesired) {
+    return { qid, field: "type", stored: [tStored || "(none)"], desired: [tDesired || "(none)"] };
   }
   return null;
 }
