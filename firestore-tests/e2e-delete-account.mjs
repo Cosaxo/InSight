@@ -635,9 +635,18 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
-  // Flags that NAME them, which the author-only sweep could not see: a
-  // report on their take (keyed `{qid}_{uid}`, since a world take's id is
-  // its author's) and a report on their face (`target: {uid}`).
+  // Flags that NAME them, which the author-only sweep could not see.
+  //
+  // TWO ROWS, TWO DIFFERENT SWEEPS, and the note here used to imply one:
+  // it said the take flag was reached "keyed `{qid}_{uid}`, since a world
+  // take's id is its author's", which describes the id and not any query
+  // this suite exercises. `MY_TAKE` still EXISTS when erasure runs, so
+  // this row is taken by the takes loop's `where("takeId","in", ids)`.
+  // Only the FACE row exercises `where("target","==", uid)` — measured by
+  // neutering that query, which leaves this row green and the face row
+  // red. The uncovered case is a flag on a take the author deleted first;
+  // nothing reaches it (see the sweep's own note in functions/src/index.ts)
+  // and nothing here pretends to.
   [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
   [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],

@@ -364,14 +364,35 @@ export const deleteAccount = onCall(
       //
       // A flag carries the uid of whoever cast it, and separately the thing
       // it reports. Sweeping only the author left every report AGAINST this
-      // account standing: an avatar flag carries `target: {uid}` outright,
-      // and a flag on a world take carries `takeId: "{qid}_{uid}"`, because
-      // a world take's id IS qid_uid. Nothing else reaches them —
-      // clearFlagsFor only runs for targets the moderation queue actually
-      // considers, and the queue's floor is MOD_QUEUE_MIN_FLAGS, so one or
-      // two reports on a departed account's face or take were residue
-      // forever. In the one collection whose stated posture is that erasure
-      // takes "their takes and flags".
+      // account standing: clearFlagsFor only runs for targets the
+      // moderation queue actually considers, and the queue's floor is
+      // MOD_QUEUE_MIN_FLAGS, so one or two reports on a departed account's
+      // face were residue forever. In the one collection whose stated
+      // posture is that erasure takes "their takes and flags".
+      //
+      // WHAT THIS REACHES IS AVATAR FLAGS, AND ONLY THOSE. The paragraph
+      // here used to say it reached a flag on a world take as well, "since
+      // a world take's id IS qid_uid" — which is true of the id and says
+      // nothing about this query. `isTakeFlag()` in firestore.rules pins a
+      // take flag's fields to exactly ["takeId", "gid", "uid", "at"]: there
+      // is no `target` on one, so this equality cannot match a take flag,
+      // ever. The `target` field exists only on the avatar arm, which
+      // carries it (the rule's own note) so the rule can reach the avatar
+      // document without doing string surgery on an id.
+      //
+      // The reachable residue is therefore: report cast on a world take →
+      // the author deletes their own take (permitted, "your speech stays
+      // yours to withdraw") → the flag is orphaned → the author erases.
+      // The takes loop above finds no take, so `takeId in ids` never names
+      // it, and this cannot see it. Confirmed against the real callable in
+      // the emulator, not reasoned. Closing it needs either a `target` on
+      // take flags (a rules change, and one that must stay OPTIONAL: a
+      // released ruleset applies instantly while installed clients update
+      // over weeks, so requiring the field would refuse every report from
+      // an app already on a phone) or a trigger that clears a take's flags
+      // when the take is deleted, which is what the queue build's own
+      // `settled` sweep already does for targets that clear the floor.
+      // Neither is a comment's call — see the night list.
       await deleteQueryDocs(db.collection("v2_flags").where("target", "==", uid));
       // The face, both halves (D178). The document is one delete; the
       // BYTES are the first thing this function has ever had to remove

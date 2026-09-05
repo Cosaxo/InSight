@@ -856,6 +856,36 @@ async function revealGroupDay(
     // Stamped only on the odd ones out, so the common case — everyone on the
     // same question — writes exactly the document it wrote before D71.
     const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
+    // WHO THE REVEAL SAYS WAS THERE, computed once and used twice: as the
+    // `members` field, and as the set the `names` map is cut down to.
+    //
+    // It was computed once and used ONCE. `names` above is built over the
+    // group's whole roster, and `members` is a strict subset of it —
+    // revealMembersFor drops anyone who joined after the day ended and did
+    // not play. So a person who joined this morning was NAMED in
+    // yesterday's reveal while not being in its `members`, and if they
+    // later left the circle, `deleteAccount`'s membership-independent
+    // sweep — which walks `members` — could not find them. Their display
+    // name stayed in a document every signed-in user may read, after they
+    // had asked to be erased. Confirmed against the real callable in the
+    // emulator, not reasoned: the name survived the erasure.
+    //
+    // Narrowed rather than indexed, because the field's own note two
+    // screens down already says `members` is "what the reveal's names are
+    // drawn against" — the invariant was written down and not enforced.
+    // Nothing is lost: every name any surface draws belongs to someone in
+    // `members` (a voter is always kept), and a pick can only name someone
+    // who was a member when the answer was written, which is before the
+    // day ended — so a picked person is in `members` too, or is out of the
+    // roster entirely and had no name here either way.
+    const revealMembers = revealMembersFor(
+      members,
+      joinedAtMs(gsnap.get("memberJoinedAt")),
+      dayKey,
+      Object.keys(freshVotes),
+    );
+    const revealNames: Record<string, string> = {};
+    for (const uid of revealMembers) revealNames[uid] = names[uid] ?? "";
     // The people this day's picks name — see the field's own note below.
     const pickedUids = [...new Set(
       Object.values(freshVotes)
@@ -879,7 +909,7 @@ async function revealGroupDay(
       day: dayKey,
       qid: freshQid ?? qid,
       votes: freshVotes,
-      names,
+      names: revealNames,
       // Membership AT REVEAL TIME.
       //
       // THIS NO LONGER GATES THE READ, and the paragraph that used to
@@ -928,12 +958,7 @@ async function revealGroupDay(
       // instantly while gen2 functions roll out over minutes. No rule
       // requires it now, so removing the field costs an erasure sweep and
       // the reveal's names, not a window of unreadable documents.
-      members: revealMembersFor(
-        members,
-        joinedAtMs(gsnap.get("memberJoinedAt")),
-        dayKey,
-        Object.keys(freshVotes),
-      ),
+      members: revealMembers,
       // WHO THE PICKS NAME, as an index erasure can walk.
       //
       // A pick answer copies the picked person's uid into `votes.<voter>
