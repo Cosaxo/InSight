@@ -6347,8 +6347,21 @@ const LIVE = {
         cacheVote(aid, optionIdx);
         clearPending(aid);
       } catch (err) {
-        delete state.votes[aid];
-        clearPending(aid);
+        // `rollbackPending` rather than the two lines this used to hold:
+        // it is, in its own comment, "the one copy of what a refused
+        // answer has to undo", and this path had drifted from it. Once
+        // this write started marking the answer unfolded — so today's
+        // crowd could count the reader in — the hand-rolled undo was
+        // incomplete, and nothing else clears a pulse id: the store's two
+        // clears iterate AGGREGATE documents fetched through its own
+        // drains, and pulse aggregates are fetched by `data/pulse`
+        // instead. So a refused write left the mark set for the session
+        // and the reveal added a vote nobody cast, to an option nobody
+        // chose. The extra deletes are no-ops here (this path never sets
+        // `inflight`, and a pulse id is not in the feed mirror), which is
+        // the argument for using the shared copy rather than curating a
+        // second list of what to undo.
+        rollbackPending(aid);
         notify();
         reportError(err, { where: "votePulse", qid: aid });
       }
