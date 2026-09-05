@@ -1,11 +1,16 @@
 # Ops runbook — the routines that keep the routine program honest, and the list worker
 
-**Status: mixed — five of the eight Routines exist (the roll call, the
-production reader, the release recorder and the list worker, created
-2026-09-02 and bound to the ops dispatcher, and the PR shepherd, created
-the same day on an hourly schedule and bound to that same dispatcher
-session — which is why it can merge but cannot renumber, `PERMISSIONS.md`);
-the probe, the pulse responder and the dependency shepherd do not yet.**
+**Status: mixed — four of the eight lanes are Routines that exist (the
+roll call, the production reader, the release recorder and the list
+worker, created 2026-09-02 and bound to the ops dispatcher); the PR
+shepherd is not a Routine at all but an **Action**,
+`.github/workflows/pr-shepherd.yml`, since 2026-09-03 — which is why it
+can merge but cannot renumber (`PERMISSIONS.md`, and § The PR shepherd
+for the two halves); the probe, the pulse responder and the dependency
+shepherd do not exist yet.** This line said the shepherd was a Routine
+"created the same day on an hourly schedule" for two days after that
+stopped being true, and `ROUTINES.md` §5 said it did not exist at all —
+between them they cost a hand merge on 2026-09-05 (D370).
 § The account-side inventory has the ids and what stopped the other
 three. This file is the contract each one defers to from its first
 fire, written before the first fire on purpose: the doc sweep lane was scheduled on 2026-08-30
@@ -142,7 +147,7 @@ they live in one runbook and share one run log.
 | --- | --- | --- | --- | --- | --- |
 | **Platform probe** | one-off, Run now | `claude-sonnet-5` | its own container | one probe branch, one docs PR to § Platform measurements | never |
 | **Roll call** | daily `30 15 * * *` UTC · API | `claude-sonnet-5` | `list_triggers`, `list_sessions` | one comment a day; Sundays the ledger | n/a (read-only) |
-| **PR shepherd** | `55 */3 * * *` UTC — every third hour, re-paced 2026-09-03 from the `55 * * * *` it was created with, because on the 564k-token dispatcher an hourly fire measured **$6.96** (2.90M cache-read tokens to emit 3,396) and thirteen of the first sixteen found no work. The GitHub `pull_request` triggers this row once specified are **not** wired (the Claude GitHub App is not installed — `PERMISSIONS.md`), so the cron is all there is | `claude-opus-5` | every open non-draft PR except dependabot's, plus any PR carrying `merge-when-green` | merge commits from `main`, renumbers, one verdict comment per state change; a squash merge of a PR the owner labelled `merge-when-green`, on green | **only** a PR the owner labelled `merge-when-green`, and only green — § The PR shepherd |
+| **PR shepherd** — an **Action**, not a Routine (D370) | `55 */3 * * *` UTC — every third hour, the cadence the Routine was re-paced to on 2026-09-03 because on the 564k-token dispatcher an hourly fire measured **$6.96** (2.90M cache-read tokens to emit 3,396) and thirteen of the first sixteen found no work; an Action costs no bucket, so the cadence is now about how long a green PR should wait. **The event triggers ARE wired** — `pull_request_target` labeled / ready_for_review / reopened, and `check_suite` completed — because a workflow needs no GitHub App. This row said they were not for two days after the move | n/a — a workflow, no model | every open PR against `main` carrying `merge-when-green` | a squash merge, on green and mergeable, plus one run-log line every run including an idle one | **only** a PR the owner labelled `merge-when-green`, and only green. It never renumbers, never resolves a conflict, never pushes, never labels, and never merges a PR with ZERO checks — § The PR shepherd |
 | **Production reader** | daily `40 6 * * *` UTC | `claude-sonnet-5` | the observe and pulse runs' logs, the pulse trail | one comment a day | n/a (read-only) |
 | **Release recorder** | API, from `ios-release.yml` after an upload | `claude-opus-5` | the fire payload, the run list | one docs PR per delivery | never |
 | **Pulse responder** | API, from `pulse.yml` when the scheduled operator gate is red | `claude-opus-5` | the gate's output, `monitoring/pulse.json`, the pen | a promotion or scorecard PR, or a report | never |

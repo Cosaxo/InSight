@@ -39007,3 +39007,89 @@ ruler, switch currency, quote, decline, change form — with no CSP
 violation and no page error, at 360px with no horizontal scroll. Both
 defects in §3 came out of that run. The two gates were mutation-tested
 by breaking the thing each protects.
+
+## D370 · The shepherd moved and three documents did not, so a session merged by hand on a belief the tree had already corrected
+
+**2026-09-05.** The PR shepherd's mechanical half stopped being a Routine
+on 2026-09-03 and became
+`.github/workflows/pr-shepherd.yml`, an Action. Four places in the tree
+recorded that correctly the same day. Three did not, and two days later
+they cost a hand merge.
+
+### 1 · What was true, and what three documents said
+
+The Action is live and works: seventeen runs, all successful, firing on
+`pull_request_target` `labeled` as well as every third hour. Run 14 fired
+on PR #394's label and that PR merged.
+
+Recorded correctly on 2026-09-03: `OWNER-LIST.md`'s *"Re-create the PR
+shepherd in the web UI"* row, ticked and marked **withdrawn — no click
+needed**; `PERMISSIONS.md`'s grant row, closed as *"routed around — the
+Action does it"*; `OPS-RUNBOOK.md` § The PR shepherd, which describes the
+two halves; and `MERGE-LIST.md` #386 and #393.
+
+Not recorded, and each wrong in its own direction:
+
+- **`ROUTINES.md` §5** said *"The PR shepherd is not among them"* and
+  gave its trigger id as *"none — refused from a session; the owner's to
+  create in the web UI."* True of the Routine, and read as the whole
+  story.
+- **`OPS-RUNBOOK.md`'s status line** said the shepherd was a Routine
+  *"created the same day on an hourly schedule"* — describing the thing
+  that had been replaced, in the same file whose § The PR shepherd
+  describes the replacement.
+- **`OWNER-LIST.md`** carried *"Create the four missing ops lanes — the
+  PR shepherd first"* **directly below** the row withdrawing exactly
+  that. Two adjacent rows in one file, contradicting.
+
+### 2 · What it cost
+
+A session asked to merge PR #395 read `ROUTINES.md` §5, concluded the
+shepherd did not exist, told the owner the `merge-when-green` label
+would have nothing to act on it, and squash-merged by hand — recording
+the false premise in the merge commit. The label would have merged it,
+most likely within the minute, on the `labeled` event.
+
+Nothing broke: the merge was correct, green and instructed. What was
+spent is the audited path — the run-log line, and the Action's refusal
+to merge a PR with **zero** checks, which the obvious hand-merge reads as
+green because `every()` on an empty array is true.
+
+**The finding is about negative statements.** A document saying a thing
+EXISTS is checked constantly, by everyone who uses it. A document saying
+a thing DOES NOT exist is checked by nobody, because there is nothing to
+use. `ROUTINES.md` §5 was written as a correction — its own opening words
+are *"Corrected 2026-09-02 evening, and the correction is the point"* —
+and a correction that records a failure without recording the fix beside
+it stays true about the past and becomes wrong about the present. The
+register whose subject is that no session can see another account's
+lanes could not see the lane that had stopped being one.
+
+The generalisable rule, now written into §5 itself: **a section that
+records a failure has to record the fix beside it.** Not in a sibling
+file, not in a decision record — beside it, where the reader who believes
+the failure is standing.
+
+### 3 · The rule the owner relaxed
+
+CLAUDE.md said *"a pull request is merged by the PR shepherd, not by
+hand."* The owner amended it here: **a session may merge directly when
+the owner says to.** Everything else stands — the owner's word is still
+the only thing that starts a merge, whether it arrives as the label, as a
+tick on `MERGE-LIST.md`, or as an instruction in a session; neither label
+is a session's to apply on its own judgement, and neither is a merge.
+
+The label stays the preferred path and the bullet says why: it is
+audited, it logs, and it refuses the zero-checks case. What is gone is
+the clause that made a hand merge a process violation even when the owner
+asked for one — which is the clause the #395 session would have had to
+break either way, having convinced itself the alternative did not exist.
+
+### 4 · What this does not change
+
+The judgement half is still a session's and still cannot merge:
+renumbering a colliding decision record, resolving a conflict, bringing a
+branch current, reading a diff. `no-shepherd` is still the opt-out. D299
+still says what a session owes before the label goes on — a green head
+with `main` merged in and its numbers moved — and no push after it,
+because a commit by anyone but the shepherd spends the grant.

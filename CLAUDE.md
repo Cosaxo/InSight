@@ -508,19 +508,28 @@ an emergency rules fix.
   [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
   [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
   every program lane defers to.
-- **A pull request is merged by the PR shepherd, not by hand.** The
-  owner's merge instruction is the `merge-when-green` label; the shepherd
-  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
-  brings the branch current with `main`, moves colliding decision numbers,
-  waits for green and squash-merges. What a session owes it before the
-  label goes on: a green head with `main` already merged in and its
-  decision numbers already moved (D299) — and then no push, because a
-  commit by anyone but the shepherd after the label spends the grant.
-  `no-shepherd` is the opt-out. Neither label is a session's to apply on
-  its own judgement: the owner's word puts `merge-when-green` there —
-  applied directly, or as a tick on the PR's row in
-  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
-  into the label once the PR is green on its current head (D352).
+- **The label is how a pull request merges; the owner may also just say
+  merge (D370).** The `merge-when-green` label is the owner's merge
+  instruction, and `.github/workflows/pr-shepherd.yml` — an **Action**,
+  not a Routine — squash-merges every labelled PR whose checks are green
+  and which GitHub reports mergeable, on the `labeled` event and every
+  third hour. What a session owes it before the label goes on: a green
+  head with `main` already merged in and its decision numbers already
+  moved (D299) — and then no push, because a commit by anyone but the
+  shepherd after the label spends the grant. `no-shepherd` is the opt-out.
+
+  **A session may merge directly when the owner says to**, which is the
+  rule D370 relaxed after a session merged #395 by hand having convinced
+  itself the shepherd did not exist. Nothing else moved: the owner's word
+  is still the only thing that starts a merge, whether it arrives as the
+  label, as a tick on the PR's row in
+  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) (which the merge shift turns
+  into the label once the PR is green on its current head, D352), or as
+  an instruction in a session. **Neither label is a session's to apply on
+  its own judgement, and neither is a merge.** Prefer the label when there
+  is no reason not to: it is the audited path, it logs to the run log, and
+  it refuses a PR with zero checks — a case the obvious hand-merge reads
+  as green.
 - **A Routine you create, re-pace, rebind or retire is registered in
   [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
   subscriptions run scheduled lanes against this one repository and no

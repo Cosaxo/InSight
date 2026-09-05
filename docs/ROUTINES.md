@@ -449,12 +449,27 @@ list worker — bound to an ops dispatcher session
 (`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The PR shepherd is not among
 them.** So this section previously told a reader the shepherd was live
 and gave its next fire time; that was wrong, and the label on PR #365
-has had nothing to act on it from the first minute. PR #364 has since
+had nothing to act on it. PR #364 has since
 filled four rows of `OPS-RUNBOOK.md`'s inventory with real ids and
 written the reason into the rest: **three lanes could not be created
 from a session at all** — the shepherd, the pulse responder and the
 dependency shepherd were refused by the permission classifier, and are
 the owner's to create in Claude 2's web UI.
+
+**AND THE SHEPHERD NO LONGER NEEDS ONE (2026-09-03, D370).** Everything
+above is true of the ROUTINE and stopped being the whole story the next
+day: the mechanical half moved to
+[`.github/workflows/pr-shepherd.yml`](../.github/workflows/pr-shepherd.yml),
+an **Action**, which merges a labelled, green, mergeable PR with the
+default token — no Routine, no connector, no subscription, no click.
+`OWNER-LIST.md` withdrew the create-it row the same day and
+`PERMISSIONS.md` closed the grant as *"routed around"*; this section was
+not updated with them, and on 2026-09-05 a session read it, concluded
+the shepherd did not exist at all, and merged PR #395 by hand on that
+belief. **A section that records a failure has to record the fix beside
+it**, or it goes on being true about the past and wrong about the
+present — which is this register's own subject, pointed at itself. The
+row below carries the same correction.
 
 The lesson is rule 2's, one rung up: **the owner's word establishes that
 a Routine exists, not which one.** Only `list_triggers` from the owning
@@ -471,7 +486,7 @@ transcribed id is a belief about the tree rather than about the account.
 
 | Lane | Trigger id | Fires (UTC) | Merge authority |
 | --- | --- | --- | --- |
-| **PR shepherd** | **none — refused from a session; the owner's to create in the web UI** | `20 6,16 * * *`, plus GitHub `pull_request` events — opened, ready_for_review, reopened, **labeled**, closed-and-merged, base `main` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner approved, only while the grant is intact |
+| **PR shepherd** | **not a Routine — an Action, `.github/workflows/pr-shepherd.yml` (D370)**; the Routine was refused from a session and is not needed | `55 */3 * * *`, plus `pull_request_target` **labeled** / ready_for_review / reopened and `check_suite` completed, base `main` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner approved, only while the grant is intact. The judgement half (renumbering, conflicts, bringing a branch current) is still a session's and still cannot merge |
 | Roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `30 15 * * *` | none — read-only |
 | Production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `40 6 * * *` | none — read-only |
 | List worker | `trig_01USe4xEhJ57MRjgThykdRzM` | `0 17 * * *` | never |
