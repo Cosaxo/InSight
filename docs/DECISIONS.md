@@ -37890,7 +37890,89 @@ for), and a 120-char cap on a circle take's `qid`, which the world branch
 four lines up already had. Neither touches the three labelled denies.
 Verified: nothing in the tree writes either stamp field.
 
-## D364 · The 2026-09-05 night review: two shifts merged as one tree — 50 commits kept, one defect the composition created, and the kilobyte that finally tripped
+## D364 · A component defined inside a render is a remount per render: the profile's result panels, and the loop that shook the rose until the app died
+
+**2026-09-05.** **Status:** binding. The fix is in, the case is pinned,
+and the rule it states is the one to carry: **a component is defined
+once, at module scope; what varies per render is a prop or inline JSX.**
+
+### What the owner saw
+
+On a device, the Big 5 and Politics tabs of the profile: the petal rose
+drew empty — two rings, the centre dot, every label, and no petals — and
+the bars under it vibrated, faster and faster, until the app died. Two
+screenshots, both with the rose blank.
+
+### What it was
+
+Four links, each correct on its own:
+
+1. `spec/profile-overlay.jsx` defined `TestProgress`, `Big5Panel`,
+   `PoliticsPanel`, `ValuesPanel` and `AttachmentPanel` **inside
+   `ProfileOverlay`'s render body**. A function created during render is
+   a new component type on every render, and React reconciles a changed
+   type as an unmount and a fresh mount of everything beneath it — not as
+   an update. So every re-render of the overlay rebuilt the result card
+   from nothing.
+2. `ResultProfileCard`'s mount effect calls `LIVE.loadKindred()` (the
+   2026-08-31 fix that gave the card's counted percentiles a loader of
+   their own, kept at D363). A remount re-runs a mount effect.
+3. `loadKindred` notifies in its `finally`. While the twelve voter lists
+   are landing it suspends on `loadVoters` and the flag guard returns
+   early on re-entry; once every list is cached the body runs to its
+   `finally` **synchronously**, notify included.
+4. `app-shell` re-renders on every notify (`liveTick`), and the overlay
+   re-renders with it.
+
+Mount → loadKindred → notify → shell → overlay → new type → remount →
+mount effect → loadKindred → notify. Paced by the network while the
+lists landed — one visible restart per landing — then as fast as React
+could commit. Each pass restarted every reveal animation on the card,
+and both fill `both`: a `roseGrow` petal restarted every frame sits at
+its `from` keyframe, scale 0.12 and opacity 0, which is the empty rose in
+the screenshots, and an `rpv2-bar` restarted every frame is the
+vibration. React's nested-update limit throws only for updates made
+during commit; an update from a passive effect loops until the WebView
+runs out of something.
+
+Every gate was green. `check:globals` is name-level, `tsc -b` does not
+read the spec layer, and the mount suites render the card alone or open
+the tab once and assert on copy — nothing re-rendered the overlay's
+parent while a result card was on it, so nothing saw the second mount.
+
+### The fix
+
+`TestProgress` is at module scope with its comment; the four panels are
+the four `<ResultProfileCard …/>` elements written inline in the tab
+body, which is what they were wrappers around. No behaviour changes on a
+render that does not repeat. The store's `finally` notify is left as it
+is: `vote.test.ts` pins its placement and the reason, and a no-op notify
+is harmless under a tree that updates — the fault was the tree.
+
+`smoke-live.test.jsx` mounts the WHOLE app on the Big 5 tab with a
+loader that notifies as the real one does, capped at eight so the
+failure is a count rather than a hung suite, and pins two things: the
+loader is asked once, and the rose is the same `<svg>` after a store
+notify. Measured on the pre-fix overlay: nine calls, and a rebuilt rose.
+Rendered alone, the card cannot see this — it has no parent to
+re-render it — which is why the three loader cases above it stayed
+green through the whole of it.
+
+### What to watch
+
+- **The shape, not the file.** `segment-explorer.jsx`'s `SXCaret` and the
+  indented `function` declarations in `group-daily.jsx`, `lens-cards.jsx`,
+  `logic-test.jsx` and their siblings are at module scope inside a file
+  wrapper, not inside a render — checked. The profile overlay was the
+  only render body defining components. A new one is a remount per
+  parent render from the day it is written, and it only becomes a loop
+  when something under it notifies on mount.
+- **Any mount effect that calls a loader which notifies** — `loadKindred`
+  here, `loadCityKindred` in `LiveSimilarityField`, `loadVoters` behind
+  the People lens — is one inline component away from this. The guard
+  is the rule at the top of this record, and the case is the shape to
+  copy: mount the whole app, notify from outside, count the mounts.
+## D365 · The 2026-09-05 night review: two shifts merged as one tree — 50 commits kept, one defect the composition created, and the kilobyte that finally tripped
 
 **2026-09-05.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
 fifty commits are kept as written; nothing was reverted. What this review
@@ -38019,6 +38101,41 @@ modulepreload list — `explain-sheet` (8.6 KB), `result-rose` (4.9),
 own change with its own load-order risk and not something a review does on
 the way past. Written into the constant's note so the next reader meets it
 there.
+
+### The number this record wears, and the order that gave it
+
+**It was written as D364 and is D365, because two labelled pull requests
+claimed the same number twenty-three minutes apart.** #398 (this record)
+was created 12:40:14 UTC and labelled 12:53:19; #399 — a component
+defined inside a render body, remounting the profile's result panels
+until the app died — was created 12:53:36 and labelled 12:53:44. Both
+were green, both appended a `## D364` at the end of this file, and
+neither could pre-empt the other by taking D365 first: `check:docs`
+refuses a hole as firmly as a duplicate, so until D364 exists on `main`
+a record numbered D365 is a hole. `OPS-RUNBOOK.md` §916 is written for
+exactly this — *merge one, never hold both* — and says not to ask the
+owner for an order the arithmetic already gives.
+
+The arithmetic here gave #399, and not the way this session predicted.
+The tie-break is the older label, which is #398's by twenty-five
+seconds; what actually decided it is that the shepherd Action sorts by
+`created_at` and evaluates mergeability per PR **inside** its loop, so
+the run that woke on #399's last check found #398 still recomputing
+after `main` had moved and merged #399 alone. That is the Action working
+as written, and the outcome is the one §916 wants either way: one merged,
+the other renumbered onto the next free number with every citation moved
+(`scripts/check-bundle.mjs`'s ceiling note and the `OWNER-LIST.md` row),
+`check:docs` holding the result.
+
+**The finding is that the tie-break and the implementation disagree.**
+The contract breaks ties toward the older LABEL; the Action breaks them
+by older CREATION and cannot see a label's timestamp at all. They agree
+whenever PRs are labelled in the order they were opened and diverge
+whenever they are not — which is every time an older PR waits on a
+review and a newer one is waved through. Nothing was lost here, because
+the two orders cost the same renumber. Left as a note rather than a fix:
+changing the sort is a change to the lane that merges everything, and it
+wants its own PR and its own case in `scripts/pr-shepherd.test.mjs`.
 
 ### What to watch
 

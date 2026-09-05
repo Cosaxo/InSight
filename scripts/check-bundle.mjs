@@ -804,7 +804,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // world-feed — both lazy) started importing them, so each rides its
 // consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.
 // Band ~11 KB, same posture.
-// 630 → 642 (2026-09-05, D364's night review): the composed night tree
+// 630 → 642 (2026-09-05, D365's night review): the composed night tree
 // measured 631 against 630 and the fixes that spent the kilobyte are all
 // in eager modules — the pulse write marking its answer unfolded so the
 // card counts you in the crowd it reports, the Circle rebuilding its
