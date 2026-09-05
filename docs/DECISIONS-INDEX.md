@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 379 lines instead of
-38,346. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 380 lines instead of
+38,368. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -393,3 +393,4 @@ detect it.
 | **D363** | [The 2026-09-04 night review: two shifts merged as one tree — 45 commits kept, one comment corrected, and the night that had nothing to collide with](DECISIONS.md#d363--the-2026-09-04-night-review-two-shifts-merged-as-one-tree--45-commits-kept-one-comment-corrected-and-the-night-that-had-nothing-to-collide-with) | — | 37759 |
 | **D364** | [Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key](DECISIONS.md#d364--four-launch-documents-said-things-that-had-stopped-being-true-and-the-one-step-that-needs-no-apple-account-demanded-an-apple-key) | — | 37893 |
 | **D365** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d365--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | — | 38260 |
+|  | ↳ *amendment 2026-09-05* — [The legacy free-suggestion rows go with the overlay](DECISIONS.md#d365-amendment-2026-09-05--the-legacy-free-suggestion-rows-go-with-the-overlay) | — | 38348 |

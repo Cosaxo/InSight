@@ -38343,3 +38343,25 @@ The web door's visual is `VISUAL-REQUESTS.md` item 0, filed with this
 record: a page is a surface, so it is a request → plan → draft → the
 owner → built (D352). The removal half needs no design and is scoped in
 `STORE-CUT-PLAN.md` §4 phase 2.
+
+
+## D365 amendment (2026-09-05) · The legacy free-suggestion rows go with the overlay
+
+**The owner, asked whether they still have anything to show:** *"no it is
+to be removed."*
+
+`SgMine` draws two things: the paid bookings, and the older free
+suggestion rows (`status: 'picked'`, with their resend). Shape A takes
+`SuggestOverlay` out whole, so those rows lose their only surface — and
+rather than finding them a new home they are **deleted with it**.
+
+So `STORE-CUT-PLAN.md` §4 phase 2 gains no exception: the overlay leaves
+whole, `data/paidBookings.ts` goes with it, and the free-suggestion path
+goes too. `AskedByYouOverlay` is still untouched — it reads this
+account's own purchase docs and the same public aggregates everyone
+reads, which is already the reader shape and is why A is cheap.
+
+**What to check while removing them rather than after:** whether anything
+still WRITES a `status: 'picked'` row. A writer with no reader is the
+mirror of the dead-publication residue `check:globals` rule 5 exists for,
+and it would sit in the tree producing documents nothing can display.
