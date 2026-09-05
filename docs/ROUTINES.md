@@ -488,7 +488,7 @@ Six more were chartered on the same account the same day, by D352's
 | Lane | Fires (UTC) | Model | Merge authority |
 | --- | --- | --- | --- |
 | **The merge shift** | `15 5,7,9,11,13,15,17,19 * * *` and `15 23 * * *` | `claude-opus-5`, high effort, ultracode | applies `merge-when-green` to a PR the owner approved; never merges |
-| The axiom builder | `30 6,12,18 * * *` | `claude-fable-5-1` orchestrating | never |
+| The axiom builder | `30 6 * * *` | `claude-fable-5-1` orchestrating | never |
 | The console keeper | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | n/a |
 | The console improver | `0 14 * * 0` | `claude-fable-5-1` | never |
 | The to-do doer (Claude 3) | `0 18 * * *` | the list worker's | never |
@@ -577,7 +577,7 @@ all.
 15 ·  merge shift 15:15 · roll call 15:30
 16 ·  PR shepherd 16:20
 17 ·  list worker 17:00 · merge shift 17:15 · console keeper 17:45
-18 ·  to-do doer (Claude 3) 18:00 · axiom builder 18:30
+18 ·  to-do doer (Claude 3) 18:00
 19 ·  merge shift 19:15
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
