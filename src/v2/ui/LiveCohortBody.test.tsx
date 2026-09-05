@@ -38,6 +38,7 @@ import { resolve } from "node:path";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
   // ATTACHED BY DEFAULT, so every case below is about a store that has
   // finished looking. It was absent from this mock entirely, which meant
   // `LIVE.attached` read `undefined` — and the whole suite stayed green

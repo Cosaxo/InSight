@@ -28,7 +28,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PRESENCE_LINGER_MIN } from "./pure";
+import { PRESENCE_LINGER_MIN, PRESENCE_SESSION_MIN } from "./pure";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const rules = readFileSync(resolve(root, "firestore.rules"), "utf8");
@@ -64,5 +64,53 @@ describe("the presence linger, in both languages", () => {
     expect(/duration\.value\(\d+, 'm'\)/.test(arm)).toBe(true);
     const src = readFileSync(resolve(root, "functions/src/v2social.ts"), "utf8");
     expect(src).toContain("PRESENCE_LINGER_MIN * 60_000");
+  });
+});
+
+/**
+ * THE SESSION IS THE SAME PAIR, ONE SHELF UP, AND IT WAS WORSE.
+ *
+ * `PRESENCE_SESSION_MIN` (pure.ts) has no reader anywhere in the tree —
+ * repo-wide it appears three times and is read zero times. What actually
+ * governs D174's "visible for a while" is `NEAR_SESSION_MS` in the client,
+ * and `near.ts` says twice that it mirrors the server constant: "session
+ * visible for PRESENCE_SESSION_MIN, then not", and "Mirrors
+ * PRESENCE_SESSION_MIN."
+ *
+ * Nothing held them equal. Measured: 120 -> 1 on the server constant left
+ * the functions suite, the script suite and the client suite all green —
+ * so the number the client cites as its authority could say one minute
+ * while the client kept using two hours, and the comment would still read
+ * as true.
+ *
+ * Its sibling one line above got this treatment after exactly this
+ * failure. The session pair was left as it was.
+ */
+describe("the near session, in both languages", () => {
+  const near = readFileSync(resolve(root, "src/v2/data/near.ts"), "utf8");
+
+  it("holds the client's session length to the server's constant", () => {
+    const m = /export const NEAR_SESSION_MS = (\d+) \* 60_000;/.exec(near);
+    expect(m, "could not find NEAR_SESSION_MS in src/v2/data/near.ts").toBeTruthy();
+    expect(Number(m![1])).toBe(PRESENCE_SESSION_MIN);
+  });
+
+  it("and the client still says it is mirroring that constant", () => {
+    // If the comment goes, this pin is holding two numbers together for a
+    // reason nobody has written down any more — which is how the pair got
+    // into this state. A rename that drops the citation should be
+    // deliberate.
+    expect(near, "near.ts stopped citing PRESENCE_SESSION_MIN as its source")
+      .toContain("PRESENCE_SESSION_MIN");
+  });
+
+  it("states the session in minutes on both sides, so the units cannot drift", () => {
+    // The server names minutes; the client multiplies by 60_000. A unit
+    // change on either side is a silent factor of sixty — the same trap
+    // the linger's own unit case exists for.
+    expect(near).toContain("* 60_000");
+    const pure = readFileSync(resolve(root, "functions/src/pure.ts"), "utf8");
+    expect(/PRESENCE_SESSION_MIN = \d+;/.test(pure),
+      "PRESENCE_SESSION_MIN stopped being a plain minute count").toBe(true);
   });
 });

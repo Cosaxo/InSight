@@ -7,6 +7,11 @@
 // exported function, so nothing here could reach any of it.
 import { describe, it, expect } from "vitest";
 import { securedPages, ruleIsSecure, REQUIRED } from "./check-web-headers.mjs";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 const SECURE = (source) => ({
   source,
@@ -21,6 +26,31 @@ const CONTENT_TYPE_ONLY = {
   source: "/.well-known/apple-app-site-association",
   headers: [{ key: "Content-Type", value: "application/json" }],
 };
+
+describe("the page walk covers the whole served tree", () => {
+  // Hosting serves everything under the public dir; the walk read the top
+  // level only. Measured before the fix: `web/legal/tos.html` was served
+  // with no CSP, no nosniff and no Referrer-Policy, and the gate did not
+  // even count it — this gate's own founding failure, one directory down.
+  //
+  // The walk itself is inside the run guard, so what is held here is the
+  // property that makes it correct: the page list is built recursively,
+  // and a nested path is matched against a rule by the same name-reading
+  // that matches a top-level one.
+  it("is recursive", () => {
+    const src = readFileSync(resolve(here, "check-web-headers.mjs"), "utf8");
+    expect(src, "the page walk stopped being recursive — a page in a subdirectory would be unseen")
+      .toMatch(/readdirSync\([\s\S]{0,60}?recursive:\s*true/);
+  });
+
+  it("a nested page is only covered when a rule names it", () => {
+    // The two halves the recursion feeds: an uncovered nested page is not
+    // in the secured set, and one a rule does name is.
+    const rule = SECURE("{/,/legal/tos.html}");
+    expect(securedPages([rule]).has("legal/tos.html")).toBe(true);
+    expect(securedPages([SECURE("{/,/home.html}")]).has("legal/tos.html")).toBe(false);
+  });
+});
 
 describe("check:web-headers reads the headers, not just the source list", () => {
   it("counts a page in a rule that sets all three", () => {

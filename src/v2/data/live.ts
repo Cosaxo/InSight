@@ -199,7 +199,7 @@ import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBan
 // below.
 import {
   FEED_PAGE, LEARN_PAGE, followedFields, learnHistoryIds, pageSizesByInterest,
-  topUpPages, type PageOrderDoc,
+  publishFeedTotals, topUpPages, type PageOrderDoc,
 } from "./bankPager";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
@@ -212,7 +212,7 @@ import {
   hasPublishedCounts,
   isCore,
   isFeedQid,
-  rankCrowdFor,
+  rankCrowd,
   CANON_BOARD_N,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
@@ -445,6 +445,12 @@ const state = {
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
   testAggsLoaded: false,
+  // Set when loadSimilarity throws. `testAggsLoaded` stays false on a
+  // throw, which is right — nothing was read — but it makes "failed"
+  // indistinguishable from "never asked", and a reader that treats either
+  // as "nobody has answered" states an absence it did not measure. Same
+  // distinction purchases.ts keeps, and for the same reason.
+  testAggsFailed: false,
   // The follow graph's loaded state (D101). null = not asked, or asked
   // and failed; [] = asked, and you follow nobody. The stop says
   // different things for those two.
@@ -2879,13 +2885,18 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
         return null;
       }
     })();
-    const { rows } = await topUpPages(
+    const { rows, totals } = await topUpPages(
       { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
       cachedBankIds(),
       null,
       answered,
       pageSizesByInterest(profile, FEED_PAGE),
     );
+    // Before the `rows.length` gate, not inside it: a device whose cache
+    // already holds this boot's page fetches nothing and still has to be
+    // told what the bank holds, or the topic sheet counts the pool on
+    // exactly the boots where the pool is furthest behind the bank.
+    publishFeedTotals(totals);
     if (rows.length) {
       const byId = new Map(state.feedBank.map((q) => [q.id, q]));
       for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
@@ -3034,13 +3045,19 @@ function buildFeedGlobals(): void {
       // arm below is precisely the wrong-shaped card D12 pulled.
       if (q.type === "rank") {
         const agg = state.aggs[q.id];
+        const rc = rankCrowd(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated);
         return {
           id: q.id,
           cat: q.topic || "culture",
           type: "rank",
           prompt: q.prompt,
           items: q.options,
-          crowd: rankCrowdFor(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated),
+          crowd: rc?.crowd ?? null,
+          // The crowd the order actually rests on, which is NOT `agg.total`
+          // — the viewer is subtracted out of it when their own fold has
+          // landed. The card states a match against this crowd, so this is
+          // the number it has to state the match against (D146).
+          crowdN: rc?.n ?? 0,
           votes: agg?.total ?? 0,
           ...(q.also && q.also.length ? { also: q.also } : {}),
           live: true,
@@ -5008,6 +5025,8 @@ const LIVE = {
   async loadSimilarity(): Promise<void> {
     if (!this.enabled || state.similarityLoading) return;
     state.similarityLoading = true;
+    // A retry clears the previous failure before it starts.
+    state.testAggsFailed = false;
     notify();
     try {
       if (!state.testAggsLoaded) {
@@ -5081,6 +5100,7 @@ const LIVE = {
       // too now. Same shape as the Near stop's fix three nights ago: the
       // loader belongs to the surface that reads it.
     } catch (err) {
+      state.testAggsFailed = true;
       reportError(err, { where: "loadSimilarity" });
     } finally {
       state.similarityLoading = false;
@@ -5089,6 +5109,19 @@ const LIVE = {
   },
   similarityLoading(): boolean {
     return state.similarityLoading;
+  },
+  /**
+   * Have the test aggregates been read? 'loading' | 'ready' | 'failed'.
+   *
+   * For the surfaces that fold `agg.by` cells rather than people, where
+   * `similarityLoading` alone cannot tell "the read failed" from "nobody
+   * has answered" — the throw leaves `testAggsLoaded` false, so both look
+   * identical, and the Mirror's Compare lens stated the second about a
+   * whole city on the strength of the first.
+   */
+  testAggsState(): "loading" | "ready" | "failed" {
+    if (state.testAggsLoaded) return "ready";
+    return state.testAggsFailed ? "failed" : "loading";
   },
   // The bank's core test items — the same filter that publishes
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
@@ -6758,6 +6791,7 @@ function resetForNewUid(uid: string): void {
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.
   state.testAggsLoaded = false;
+  state.testAggsFailed = false;
   state.circle = null;
   state.circleLoading = false;
   // The follow cache is the same graph one view over, and it is dropped

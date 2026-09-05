@@ -52,7 +52,7 @@ const h = vi.hoisted(() => ({
   // The published serving orders (D319) the pagers read, keyed by
   // surface. Empty = no fold has run, which is every pre-D319 test's
   // world.
-  rankOrders: {} as Record<string, { topics: Record<string, { qids: string[]; total: number }> }>,
+  rankOrders: {} as Record<string, { topics: Record<string, { qids: string[]; total: number; carry?: number }> }>,
   // The owner's interest profile (D322), served at their own taste path.
   tasteProfile: null as null | { t: Record<string, number>; n: number },
 }));
@@ -900,5 +900,44 @@ describe("question-bank cache", () => {
     const cold = cachedIds.filter((id) => id.startsWith("feed-cold")).length;
     expect(cold).toBeGreaterThan(0);
     expect(cold).toBeLessThan(12);
+  });
+
+  it("tells the topic sheet what the BANK holds, on a boot that fetches nothing", async () => {
+    // The learn twin above proves the totals reach a sheet on a boot that
+    // pages. This proves the harder half: a device whose cache already
+    // holds this boot's page fetches no rows at all — and that is exactly
+    // the boot on which the sheet must not fall back to counting a pool,
+    // because a warm cache is where pool and bank drift furthest. Publish
+    // inside the `rows.length` gate and this goes red while every other
+    // case stays green.
+    const tailDoc = (id: string, topic: string) =>
+      q(id, 1000, { surface: "feed", topic });
+    h.bankDocs = [q("q_1", 1000), tailDoc("feed-d0", "dilemma")];
+    h.rankOrders.feed = {
+      // `carry` above `qids.length`, and both above what the device holds:
+      // the order lists one dilemma, the shelf carries nine (eight of them
+      // straddlers homed elsewhere), and the pool will hold one. Three
+      // distinguishable numbers, so the assertion names which one the
+      // sheet is being handed.
+      topics: { dilemma: { qids: ["feed-d0"], total: 4, carry: 9 } },
+    };
+    await bootLive();
+    const { feedTopicTotal } = await import("./bankPager");
+    await vi.waitFor(() => {
+      expect(feedTopicTotal("dilemma")).toBe(9);
+    });
+
+    // Second boot, same store: the page is cached, so the pager fetches
+    // nothing — and still has to say what the shelf carries.
+    const { resetFeedTotals } = await import("./bankPager");
+    resetFeedTotals();
+    expect(feedTopicTotal("dilemma")).toBeNull();
+    await bootLive();
+    await vi.waitFor(() => {
+      expect(
+        feedTopicTotal("dilemma"),
+        "a warm boot left the sheet counting its pool",
+      ).toBe(9);
+    });
   });
 });
