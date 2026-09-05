@@ -191,6 +191,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
 
   let fieldFiles = 0;
+  let fieldTags = 0;
   for (const file of FILES) {
     const rel = relative(ROOT, file);
     if (SKIP_FILES.has(rel)) continue;
@@ -220,6 +221,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const consts = styleConsts(src);
 
     for (const tag of ["input", "textarea"]) {
+      fieldTags += tagsIn(src, tag).length;
       for (const { text, index } of tagsIn(src, tag)) {
         const type = /\btype\s*=\s*["']([a-z]+)["']/.exec(text);
         if (type && NO_ZOOM.has(type[1])) continue;
@@ -309,6 +311,23 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       "check:touch-zoom FAILED: not one file in the walk contains an <input> "
       + "or <textarea>.\nThe tag filter is broken — fix it rather than letting "
       + "this pass vacuously.",
+    );
+    process.exit(1);
+  }
+
+  // …AND THE SCANNER ITSELF, which neither floor above measured. `fieldFiles`
+  // counts files matching a whole-file regex, never `tagsIn`'s output — so
+  // the JSX half could be entirely dead with both floors satisfied.
+  // Measured: breaking the tag regex left this gate green at "13 files with
+  // a field", because the files still contained the string. `tagsIn` is the
+  // thing that decides what is examined, so it is what the floor has to
+  // count. check-tap-targets already does this correctly.
+  if (!fieldTags) {
+    console.error(
+      "check:touch-zoom FAILED: the tag scanner returned no <input> or "
+      + `<textarea> at all, across ${fieldFiles} file(s) that contain one.`
+      + "\nThe scanner is broken — fix it rather than letting this pass "
+      + "vacuously.",
     );
     process.exit(1);
   }
