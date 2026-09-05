@@ -499,8 +499,6 @@ export const loadOverlays = retryable(async () => {
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');
   await import('./spec/city-overlay.jsx');
-  await import('./spec/suggestions.js');
-  await import('./spec/suggestions.jsx');
   await import('./spec/logic-test.jsx');
 });
 

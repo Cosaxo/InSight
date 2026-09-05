@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.svg" />
+  <title>Ask InSight a question</title>
+  <meta name="description" content="Put your question to a city, a country, or everyone. Priced per answer, capped, and the unserved part refunds itself." />
+  <!--
+    THE WEB ASK DOOR (D368, shape A). The €320 purchase funnel is not in
+    the app binary and must not go back into it: the whole reason this
+    page exists is that a call to action for a €320 purchase, sitting in
+    a consumer app's profile tab, is the shape Apple reviews under
+    guideline 3.1.1 — and the category argument that would excuse it
+    (3.1.3(e), campaign purchases) is strong while the app-shape argument
+    is weak. `STORE-CUT-PLAN.md` has the reasoning; the app keeps the
+    results room and this page keeps the till.
+
+    Extracted from Claude Design's accepted draft at
+    design/ask-2026-09-05/. The states, the ruler and the refund
+    arithmetic are that draft's; the prices are not — they come from
+    web/ask-pricing.json, which scripts/build-ask-pricing.mjs generates
+    from content/pricing.json and WINDOW_DAYS. Read that script's header
+    before touching a number here: the refund window is the one field
+    that is NOT a rename of anything in the pricing file, and wiring it
+    to the file's nearest-looking field would shorten a payment promise
+    by a day.
+
+    NO FRAMEWORK, NO CDN, ONE INLINE SCRIPT. Every sibling in web/ is
+    static under `default-src 'none'`, and this page keeps that: the
+    script below is pinned by sha256 in firebase.json's CSP, which
+    `npm run check:csp-hashes` holds to the file. A drifted hash does not
+    warn — the browser simply refuses the script and the page renders as
+    a dead form, so the gate is the only thing standing between an edit
+    here and a silent outage.
+
+    THE PAY TAP IS NOT OPEN YET, and the block is App Check, not code.
+    `bookPaidQuestionV2` and `createPaidCheckoutV2` both demand App Check
+    attestation, and D337 declined to provision the web reCAPTCHA
+    provider on the stated grounds that "there is no public web client".
+    This page is one. Until the owner rules (OWNER-LIST.md), the pay tap
+    reports the door as closed rather than throwing a raw 403 at a buyer
+    — everything up to and including the quote is live and correct.
+  -->
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: oklch(0.981 0.004 80);
+      --surface: oklch(0.994 0.0025 80);
+      --rule: oklch(0.905 0.006 74);
+      --ink: oklch(0.216 0.011 70);
+      --ink-2: oklch(0.41 0.011 68);
+      --ink-3: oklch(0.472 0.010 68);
+      --accent: oklch(0.52 0.14 265);
+      --panel: oklch(0.235 0.045 285);
+      --panel-ink: oklch(0.965 0.006 80);
+      --panel-muted: oklch(0.72 0.02 285);
+      --panel-soft: oklch(0.86 0.012 285);
+      --panel-rule: oklch(0.40 0.04 285);
+      --panel-well: oklch(0.29 0.045 285);
+      --ok: oklch(0.72 0.12 150);
+      --warn: oklch(0.75 0.13 85);
+      --stop: oklch(0.62 0.15 40);
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: var(--paper); color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.5; padding: 28px 20px 64px;
+      -webkit-text-size-adjust: 100%;
+    }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 27px; line-height: 1.18; letter-spacing: -0.02em; font-weight: 800; }
+    .lede { color: var(--ink-2); margin-top: 10px; font-size: 15px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--rule);
+      border-radius: 14px; padding: 18px; margin-top: 22px;
+    }
+    .kicker {
+      font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+      color: var(--ink-3); font-weight: 700;
+    }
+    label.field { display: block; margin-top: 14px; }
+    .field > span { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    input[type="text"], textarea {
+      width: 100%; font: inherit; color: var(--ink); background: var(--paper);
+      border: 1px solid var(--rule); border-radius: 9px; padding: 9px 11px;
+    }
+    input[type="text"]:focus-visible, textarea:focus-visible,
+    button:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 2px;
+    }
+    textarea { resize: vertical; min-height: 68px; }
+    .count { font-size: 12px; color: var(--ink-3); text-align: right; margin-top: 4px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip {
+      font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+      padding: 7px 12px; border-radius: 999px;
+      border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2);
+      /* 44px tap target, per check:tap-targets' rule for the app. This
+         page is not scanned by it, but a buyer on a phone is the point. */
+      min-height: 44px;
+    }
+    .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: oklch(0.965 0.004 75); }
+    .hint { font-size: 13px; color: var(--ink-3); margin-top: 7px; }
+    .opt-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .opt-row .num {
+      flex: none; width: 22px; height: 22px; border-radius: 6px; background: var(--paper);
+      border: 1px solid var(--rule); font-size: 12px; font-weight: 700; color: var(--ink-3);
+      display: grid; place-items: center;
+    }
+    .icon-btn {
+      flex: none; min-width: 44px; min-height: 44px; font: inherit; cursor: pointer;
+      background: none; border: 1px solid var(--rule); border-radius: 9px; color: var(--ink-3);
+    }
+    .link-btn {
+      font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 10px;
+      background: none; border: 0; color: var(--accent); padding: 8px 0; min-height: 44px;
+    }
+    .steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .step {
+      font-size: 12px; color: var(--ink-3); border: 1px dashed var(--rule);
+      border-radius: 7px; padding: 5px 9px; background: var(--paper);
+    }
+    .ruler { margin-top: 10px; padding: 16px 4px 6px; touch-action: none; cursor: pointer; }
+    .track { position: relative; height: 34px; }
+    .track .line { position: absolute; left: 4%; right: 4%; top: 16px; height: 2px; background: var(--rule); }
+    .stop { position: absolute; transform: translateX(-50%); text-align: center; top: 0; }
+    .stop .tick { width: 1.5px; height: 12px; background: var(--rule); margin: 8px auto 0; border-radius: 2px; }
+    .stop[data-on="1"] .tick { width: 3px; height: 14px; background: var(--accent); }
+    .stop .name { font-size: 12px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+    .stop[data-on="1"] .name { font-weight: 800; color: var(--ink); }
+    .scope-read { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 26px; }
+    .scope-read b { font-size: 19px; }
+    .muted { color: var(--ink-3); font-size: 13px; }
+    .flat-note {
+      margin-top: 10px; font-size: 13px; color: var(--ink-3);
+      border-left: 2px solid var(--rule); padding-left: 10px;
+    }
+    .pay {
+      display: block; width: 100%; margin-top: 18px; min-height: 48px; cursor: pointer;
+      font: inherit; font-size: 15px; font-weight: 700;
+      background: var(--ink); color: oklch(0.965 0.004 75);
+      border: 0; border-radius: 11px; padding: 13px;
+    }
+    .pay[disabled] { opacity: 0.45; cursor: not-allowed; }
+    .panel {
+      background: var(--panel); color: var(--panel-ink);
+      border-radius: 14px; padding: 18px; margin-top: 22px;
+    }
+    .panel .kicker { color: var(--panel-muted); }
+    .panel .well {
+      background: var(--panel-well); border: 1px solid var(--panel-rule);
+      border-radius: 10px; padding: 13px; margin-top: 13px;
+    }
+    .panel dl { display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; margin-top: 12px; font-size: 14px; }
+    .panel dt { color: var(--panel-soft); }
+    .panel dd { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+    .status { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
+    .dot[data-state="declined"] { background: var(--stop); }
+    .dot[data-state="held"] { background: var(--warn); animation: pulse 1.4s ease infinite; }
+    .dot[data-state="paying"] { animation: pulse 1.4s ease infinite; }
+    @keyframes pulse { 50% { opacity: 0.35; } }
+    @media (prefers-reduced-motion: reduce) { .dot { animation: none !important; } }
+    .panel button {
+      font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; min-height: 44px;
+      margin-top: 14px; padding: 11px 16px; border-radius: 10px; border: 0;
+      background: var(--panel-ink); color: var(--panel);
+    }
+    .panel .ghost { background: none; color: var(--panel-soft); border: 1px solid var(--panel-rule); margin-left: 8px; }
+    .curbar { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    footer { margin-top: 30px; font-size: 12.5px; color: var(--ink-3); }
+    footer a { color: var(--ink-2); }
+    .prov { margin-top: 8px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="kicker">InSight</p>
+  <h1>Ask a question, and watch a place answer it.</h1>
+  <p class="lede">
+    Your question goes to everyone in a city, a country, or the whole app —
+    beside the daily one they already answer. You pay per answer, never more
+    than the cap, and whatever goes unanswered comes back to you.
+  </p>
+
+  <!-- ── compose ─────────────────────────────────────────────────── -->
+  <section class="card" id="compose">
+    <p class="kicker">Your question</p>
+
+    <label class="field">
+      <span>The question itself</span>
+      <textarea id="prompt" maxlength="120" spellcheck="true"
+        placeholder="Should Oslo&rsquo;s night buses run all night at weekends?"></textarea>
+    </label>
+    <p class="count"><span id="promptLen">0</span> / 120</p>
+
+    <label class="field" for="type-binary"><span>How people answer</span></label>
+    <div class="chips" id="types" role="group" aria-label="How people answer"></div>
+    <p class="hint" id="typeHint"></p>
+
+    <div id="optionsWrap">
+      <div id="options"></div>
+      <button type="button" class="link-btn" id="addOpt">+ Add an option</button>
+    </div>
+    <div class="steps" id="fixedSteps" hidden></div>
+
+    <label class="field" style="margin-top:18px"><span>Who gets asked</span></label>
+    <div class="ruler" id="ruler" role="slider" tabindex="0"
+         aria-label="Who gets asked" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" aria-valuetext="Your city">
+      <div class="track" id="track"><div class="line"></div></div>
+    </div>
+    <div class="scope-read">
+      <div>
+        <b id="scopeRate">—</b>
+        <span class="muted">per answer · <span id="scopeIdx">—</span></span>
+      </div>
+      <div class="muted">up to <b id="scopeAnswers">—</b> answers</div>
+    </div>
+    <p class="flat-note" id="flatNote" hidden></p>
+
+    <button type="button" class="pay" id="quoteBtn">Get a price</button>
+  </section>
+
+  <!--
+    OUTSIDE the composer on purpose. This started inside it, and the quote
+    panel hides the composer — so the one moment a buyer most wants their
+    own currency, checking a €320 charge before paying it, was the one
+    moment the switch was not on screen. Found by driving the page rather
+    than by reading it. Showing a price in another currency is a display
+    preference, not a step of composing, so it belongs to the page.
+  -->
+  <div class="curbar">
+    <span class="muted" id="curLabel">Show prices in</span>
+    <div class="chips" id="currencies" role="group" aria-labelledby="curLabel"></div>
+  </div>
+
+  <!-- ── the quote panel: quoted · paying · declined · held ───────── -->
+  <section class="panel" id="panel" hidden aria-live="polite">
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="panelStatus"></span>
+    </div>
+    <p class="kicker" id="panelKicker" style="margin-top:10px"></p>
+
+    <div class="well" id="quoteWell">
+      <p id="quotePrompt" style="font-weight:700"></p>
+      <dl>
+        <dt>Audience</dt><dd id="qAudience"></dd>
+        <dt>Per answer</dt><dd id="qRate"></dd>
+        <dt>Charged now (the cap)</dt><dd id="qCap"></dd>
+        <dt>Answers that buys</dt><dd id="qAnswers"></dd>
+      </dl>
+    </div>
+
+    <p class="muted" id="refundLine" style="color:var(--panel-soft);margin-top:13px;font-size:13.5px"></p>
+
+    <p id="declineReason" hidden style="color:var(--panel-soft);margin-top:13px;font-size:13.5px"></p>
+    <p id="heldReason" hidden style="color:var(--panel-soft);margin-top:13px;font-size:13.5px"></p>
+
+    <div>
+      <button type="button" id="payBtn">Pay and open the window</button>
+      <button type="button" class="ghost" id="backBtn">Change it</button>
+    </div>
+    <p class="muted" id="payNote" style="color:var(--panel-muted);margin-top:12px;font-size:12.5px"></p>
+  </section>
+
+  <footer>
+    <p>
+      Prices come from <b id="provFile">content/pricing.json</b>, committed
+      <b id="provDate">—</b> — the same file the app reads. Nobody is quoted a
+      number another buyer cannot see.
+    </p>
+    <p class="prov">
+      <a href="/terms.html">Terms</a> ·
+      <a href="/privacy.html">Privacy</a> ·
+      <a href="/">InSight</a>
+    </p>
+    <p class="prov">
+      Every answer on InSight is public, and a sponsored question is labelled
+      as one wherever it appears.
+    </p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // The question forms, mapped onto what the money path will actually
+  // accept. PAID_TYPES in functions/src/paid.ts is
+  // binary · choice · scale · rating · dilemma — so `binary` and `choice`
+  // are the same control here, chosen by how many options you write, and
+  // the design's fifth idea ("Rank") is deliberately absent: there is no
+  // rank type to sell, and a form that composes something the validator
+  // refuses is worse than one that never offers it.
+  var TYPES = [
+    { key: "pick", label: "Pick one", hint: "2–4 options · you see the split", min: 2, max: 4,
+      ph: ["One side", "The other", "A third", "A fourth"], add: "option" },
+    { key: "scale", label: "Agree / disagree", hint: "a statement · answered on a five-step scale", min: 0, max: 0,
+      steps: ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"] },
+    { key: "rating", label: "Rate 1–10", hint: "a “how much” · answered as a 1–10 histogram", min: 0, max: 0,
+      steps: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] }
+  ];
+
+  var st = {
+    P: null, panel: null, scope: 0, cur: "EUR",
+    prompt: "", type: "pick", opts: ["", ""]
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── money ──────────────────────────────────────────────────────
+  // Rounding bands: thousands to the hundred, hundreds to the ten, tens
+  // to the unit, and anything under ten to the cent. A price is a claim,
+  // so it is rounded where a reader would round it rather than to a
+  // machine's idea of precision.
+  //
+  // THE UNDER-TEN BAND IS WIDER THAN THE DESIGN'S, and the reason is a
+  // currency the draft was never rendered in. The draft rounded to whole
+  // units from 1 upward, which is right for the cap and wrong for the
+  // per-answer rate: €0.144 shows as €0.14, but the same rate in kroner
+  // is 1.67 and rounded to "2 kr" — a fifth over, on the one number a
+  // buyer multiplies by the answer count to check the arithmetic. Caught
+  // by rendering the page in a browser rather than by reading it, which
+  // is also why it stayed invisible: in EUR every band is correct.
+  function fmt(eur) {
+    var c = (st.P && st.P.fx[st.cur]) || { sym: "€", rate: 1, pre: true };
+    var v = eur * c.rate;
+    if (v >= 1000) v = Math.round(v / 100) * 100;
+    else if (v >= 100) v = Math.round(v / 10) * 10;
+    else if (v >= 10) v = Math.round(v);
+    else v = Math.round(v * 100) / 100;
+    var s = v >= 10 ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : v.toFixed(2);
+    return c.pre ? c.sym + s : s + " " + c.sym;
+  }
+  function n(v) { return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+
+  function cohort() { return st.P.cohorts[st.scope]; }
+  function rate() { return st.P.perAnswerBaseEur * cohort().index; }
+  function answers() { return Math.floor(st.P.capEur / rate()); }
+  function typeDef() {
+    for (var i = 0; i < TYPES.length; i++) if (TYPES[i].key === st.type) return TYPES[i];
+    return TYPES[0];
+  }
+
+  /** What the callable will be sent. `binary` or `choice` by option
+   *  count, matching the app's own two names for the same control. */
+  function wireType() {
+    if (st.type !== "pick") return st.type;
+    return st.opts.filter(function (o) { return o.trim(); }).length > 2 ? "choice" : "binary";
+  }
+
+  // ── compose ────────────────────────────────────────────────────
+  function drawTypes() {
+    var box = $("types");
+    box.textContent = "";
+    TYPES.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.id = "type-" + t.key;
+      b.textContent = t.label;
+      b.setAttribute("aria-pressed", String(t.key === st.type));
+      b.addEventListener("click", function () {
+        st.type = t.key;
+        if (t.max) {
+          var keep = [];
+          for (var i = 0; i < Math.max(t.min, st.opts.length); i++) keep.push(st.opts[i] || "");
+          st.opts = keep.slice(0, t.max);
+        }
+        draw();
+      });
+      box.appendChild(b);
+    });
+    $("typeHint").textContent = typeDef().hint;
+  }
+
+  function drawOptions() {
+    var T = typeDef();
+    $("optionsWrap").hidden = !T.max;
+    $("fixedSteps").hidden = !!T.max;
+
+    if (!T.max) {
+      var steps = $("fixedSteps");
+      steps.textContent = "";
+      T.steps.forEach(function (s) {
+        var e = document.createElement("span");
+        e.className = "step";
+        e.textContent = s;
+        steps.appendChild(e);
+      });
+      return;
+    }
+
+    var wrap = $("options");
+    wrap.textContent = "";
+    st.opts.forEach(function (v, i) {
+      var row = document.createElement("div");
+      row.className = "opt-row";
+
+      var num = document.createElement("span");
+      num.className = "num";
+      num.textContent = String(i + 1);
+      num.setAttribute("aria-hidden", "true");
+      row.appendChild(num);
+
+      var input = document.createElement("input");
+      input.type = "text";
+      input.value = v;
+      input.maxLength = 32;              // PAID_OPTION_MAX
+      input.placeholder = T.ph[i] || "";
+      input.setAttribute("aria-label", "Option " + (i + 1));
+      input.addEventListener("input", function () {
+        st.opts[i] = input.value;
+        refreshQuoteButton();
+      });
+      row.appendChild(input);
+
+      if (st.opts.length > T.min) {
+        var rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "icon-btn";
+        rm.textContent = "×";
+        rm.setAttribute("aria-label", "Remove option " + (i + 1));
+        rm.addEventListener("click", function () {
+          st.opts.splice(i, 1);
+          draw();
+        });
+        row.appendChild(rm);
+      }
+      wrap.appendChild(row);
+    });
+
+    var add = $("addOpt");
+    add.hidden = st.opts.length >= T.max;
+    add.textContent = "+ Add an " + (T.add || "option");
+  }
+
+  // ── the ruler ──────────────────────────────────────────────────
+  var XS = [9, 50, 91];
+
+  function drawRuler() {
+    var track = $("track");
+    track.textContent = "";
+    var line = document.createElement("div");
+    line.className = "line";
+    track.appendChild(line);
+
+    st.P.cohorts.forEach(function (c, i) {
+      var stop = document.createElement("div");
+      stop.className = "stop";
+      stop.style.left = XS[i] + "%";
+      stop.setAttribute("data-on", i === st.scope ? "1" : "0");
+      var name = document.createElement("div");
+      name.className = "name";
+      name.textContent = c.label;
+      var tick = document.createElement("div");
+      tick.className = "tick";
+      stop.appendChild(name);
+      stop.appendChild(tick);
+      track.appendChild(stop);
+    });
+
+    var r = $("ruler");
+    r.setAttribute("aria-valuenow", String(st.scope + 1));
+    r.setAttribute("aria-valuetext", st.P.cohorts[st.scope].label);
+  }
+
+  function scopeFromEvent(e) {
+    var el = $("ruler");
+    var box = el.getBoundingClientRect();
+    var f = (e.clientX - box.left) / box.width;
+    return f < 0.29 ? 0 : f < 0.71 ? 1 : 2;
+  }
+
+  function drawScope() {
+    $("scopeRate").textContent = fmt(rate());
+    $("scopeIdx").textContent = "×" + cohort().index.toFixed(1);
+    $("scopeAnswers").textContent = n(answers());
+
+    // When the ledger is empty every cohort sits at the floor index, so
+    // all three scopes cost the same and the ruler looks broken. It is
+    // not: the spread IS demand, and there has been none yet. Saying so
+    // is cheaper than a reader deciding the page is wrong.
+    var idx = st.P.cohorts.map(function (c) { return c.index; });
+    var flat = idx.every(function (v) { return v === idx[0]; });
+    var note = $("flatNote");
+    note.hidden = !flat;
+    if (flat) {
+      note.textContent =
+        "All three cost the same today. The multiplier is demand — how much of "
+        + "each audience is already booked — and nothing is, so every scope sits "
+        + "at the floor of ×" + st.P.floorIndex.toFixed(1) + ". It rises to ×"
+        + st.P.ceilingIndex.toFixed(1) + " as days fill.";
+    }
+  }
+
+  function setScope(i) {
+    if (i == null || i === st.scope) return;
+    st.scope = i;
+    drawRuler();
+    drawScope();
+  }
+
+  // ── the quote panel ────────────────────────────────────────────
+  // Place-scoped civic questions are editorial and never sold —
+  // QUESTION-FARM.md hard rule 6. Checked here so the buyer learns it
+  // before paying rather than from a decline after; the reviewer is
+  // still the authority and will say the same thing.
+  var CIVIC = /\b(kommune|council|mayor|ordfører|ministry|minister|government|regjering|parliament|storting|election|valg)\b/i;
+
+  function showPanel(state) {
+    st.panel = state;
+    var P = st.P, a = answers(), r = rate();
+    var served = Math.round(a * 0.67);
+
+    $("panel").hidden = false;
+    $("compose").hidden = state !== null && state !== "declined";
+
+    $("dot").setAttribute("data-state", state);
+    $("panelStatus").textContent =
+      state === "declined" ? "Declined" :
+      state === "held" ? "Held" :
+      state === "paying" ? "Paying" : "Ready to pay";
+    $("panelKicker").textContent =
+      state === "declined" ? "reviewed" :
+      state === "held" ? "review is down" :
+      state === "paying" ? "leaving for stripe" : "quoted · price locked";
+
+    $("quoteWell").hidden = state === "declined";
+    $("quotePrompt").textContent = st.prompt;
+    $("qAudience").textContent = P.cohorts[st.scope].label;
+    $("qRate").textContent = fmt(r);
+    $("qCap").textContent = fmt(P.capEur);
+    $("qAnswers").textContent = "up to " + n(a);
+
+    $("refundLine").hidden = state === "declined";
+    $("refundLine").textContent =
+      "You are charged " + fmt(P.capEur) + " now. The question runs for "
+      + P.refundDays + " days; if it is answered " + n(served) + " times instead of "
+      + n(a) + ", the " + n(a - served) + " unserved answers come back to you as "
+      + fmt((a - served) * r) + ". Nobody has to ask.";
+
+    $("declineReason").hidden = state !== "declined";
+    $("declineReason").textContent =
+      "Questions asked in the voice of an authority — a council, a ministry, an "
+      + "election — are put by the editors, never sold. Rephrase it as something "
+      + "people answer about their own lives and it goes through.";
+
+    $("heldReason").hidden = state !== "held";
+    $("heldReason").textContent =
+      "The reviewer is not answering right now, so your question is held rather "
+      + "than declined. It is checked again every half hour and you are not "
+      + "charged until it clears. Nothing is lost by closing this page.";
+
+    $("payBtn").hidden = state !== "quoted";
+    $("backBtn").textContent = state === "declined" ? "Rewrite it" : "Change it";
+    $("payNote").textContent = state === "quoted" ? PAY_NOTE : "";
+    $("panel").scrollIntoView({ block: "nearest" });
+  }
+
+  function hidePanel() {
+    st.panel = null;
+    $("panel").hidden = true;
+    $("compose").hidden = false;
+  }
+
+  // The pay tap is blocked on App Check, not on this code — see the
+  // comment at the top of this file. A buyer gets a sentence rather than
+  // a 403, and the sentence is true.
+  var PAY_NOTE =
+    "Card payment is not open yet — the last piece of setup is on us, not on "
+    + "you. Your question and its price are exactly what you will be charged "
+    + "when it opens.";
+
+  function refreshQuoteButton() {
+    var T = typeDef();
+    var ok = st.prompt.trim().length > 0;
+    if (T.max) {
+      var filled = st.opts.filter(function (o) { return o.trim(); }).length;
+      ok = ok && filled >= 2;
+    }
+    $("quoteBtn").disabled = !ok;
+  }
+
+  function draw() {
+    drawTypes();
+    drawOptions();
+    drawRuler();
+    drawScope();
+    refreshQuoteButton();
+  }
+
+  // ── currency ───────────────────────────────────────────────────
+  function drawCurrencies() {
+    var box = $("currencies");
+    box.textContent = "";
+    Object.keys(st.P.fx).forEach(function (code) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = code;
+      b.setAttribute("aria-pressed", String(code === st.cur));
+      b.addEventListener("click", function () {
+        st.cur = code;
+        drawCurrencies();
+        drawScope();
+        if (st.panel) showPanel(st.panel);
+      });
+      box.appendChild(b);
+    });
+  }
+
+  // ── wiring ─────────────────────────────────────────────────────
+  $("prompt").addEventListener("input", function (e) {
+    st.prompt = e.target.value.slice(0, 120);
+    $("promptLen").textContent = String(st.prompt.length);
+    refreshQuoteButton();
+  });
+  $("addOpt").addEventListener("click", function () {
+    var T = typeDef();
+    if (st.opts.length < T.max) { st.opts.push(""); draw(); }
+  });
+  $("quoteBtn").addEventListener("click", function () {
+    showPanel(CIVIC.test(st.prompt) ? "declined" : "quoted");
+  });
+  $("backBtn").addEventListener("click", hidePanel);
+  $("payBtn").addEventListener("click", function () { showPanel("paying"); });
+
+  var dragging = false;
+  var ruler = $("ruler");
+  ruler.addEventListener("pointerdown", function (e) {
+    dragging = true;
+    setScope(scopeFromEvent(e));
+    if (ruler.setPointerCapture) ruler.setPointerCapture(e.pointerId);
+  });
+  ruler.addEventListener("pointermove", function (e) { if (dragging) setScope(scopeFromEvent(e)); });
+  ruler.addEventListener("pointerup", function () { dragging = false; });
+  ruler.addEventListener("pointercancel", function () { dragging = false; });
+  // A slider that only takes a drag is a slider a keyboard cannot reach.
+  ruler.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") { setScope(Math.min(2, st.scope + 1)); e.preventDefault(); }
+    if (e.key === "ArrowLeft" || e.key === "ArrowDown") { setScope(Math.max(0, st.scope - 1)); e.preventDefault(); }
+    if (e.key === "Home") { setScope(0); e.preventDefault(); }
+    if (e.key === "End") { setScope(2); e.preventDefault(); }
+  });
+
+  // ── boot ───────────────────────────────────────────────────────
+  fetch("/ask-pricing.json", { credentials: "omit" })
+    .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+    .then(function (P) {
+      st.P = P;
+      $("provFile").textContent = P.source;
+      $("provDate").textContent = P.committed;
+      drawCurrencies();
+      draw();
+    })
+    .catch(function () {
+      // No prices means no page. Saying nothing, or drawing a form that
+      // quotes zero, is the version of this that takes somebody's money
+      // against a number nobody committed.
+      $("compose").textContent = "";
+      var p = document.createElement("p");
+      p.className = "muted";
+      p.textContent =
+        "The price card did not load, so there is nothing here to quote. "
+        + "Reload, and if it keeps happening the door is down rather than sold out.";
+      $("compose").appendChild(p);
+    });
+})();
+</script>
+</body>
+</html>

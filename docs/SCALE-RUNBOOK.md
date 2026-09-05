@@ -210,11 +210,42 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       shape was checked against the gate; the write itself rides on
       `check:quality` catching a malformed row in CI.
 
-- [ ] **3.2 Batch approval, human on the merge.** The human's unit of work
-      becomes approving a batch, never reading one. **The two-gate
-      property must survive**: a scheduled job still never holds write
-      access to production content. If a change here would let the farm
-      merge itself, it is the wrong change. · **Size:** S.
+- [x] ~~**3.2 Batch approval, human on the merge.**~~ **STRUCK — REVERSED
+      BY [D212](DECISIONS.md), 2026-08-19, and this row stood unticked for
+      a fortnight after (D367).** Struck rather than deleted, per D106's
+      rule that a reversal must stay visible.
+
+      The original read: *"The human's unit of work becomes approving a
+      batch, never reading one. **The two-gate property must survive**: a
+      scheduled job still never holds write access to production content.
+      If a change here would let the farm merge itself, it is the wrong
+      change."*
+
+      **Both halves are gone, and D212 names each.** It reverses "the
+      merge half of D162" — this step's own title — on the owner's ask,
+      *"remove the need for a human to approve the questions."* Its §2 is
+      this step's content shipped: `PROMOTE_PACE = 2` in
+      `farm-budget.mjs`, each run promoting the two oldest pen entries
+      through `promote -- --source farm --review ai` and shipping
+      promotion and batch in one PR — 14/week at the daily cadence, which
+      is D97's target as arithmetic.
+
+      And the constraint this step made load-bearing is the one D212
+      records giving up **in those words**: *"The two-gate design existed
+      so a scheduled job never decides what production serves. That
+      property is gone for question content."* What bounds the blast
+      radius instead is the gate set in front of the merge, the
+      `active: false` kill switch behind it, the retrospective audit, and
+      scope — **D212 covers question content only**; code, rules, schema,
+      functions and policy keep ordinary human review, and core membership
+      stays the one per-question human act.
+
+      **The reason this is struck rather than quietly ticked**: a routine
+      read this row on 2026-09-04 as the buildable next step and was one
+      step from implementing it — which would have re-imposed, as new
+      work, a human hold the owner had explicitly asked to remove. A stale
+      row that merely lags is a nuisance; one that points a builder in the
+      reverse of a stated instruction is a defect.
 
 - [x] **3.3 Sampled audit — one in twenty. DONE 2026-08-15**, landed with
       3.1 because the audit is the only real check on a reviewer that
@@ -228,6 +259,15 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       seven rounds to zero, so a per-batch gate would pass while nothing
       was ever audited.
 
+      **Amended by D212 and not recorded here until D367:** that
+      cumulative check is a **warning, not an error**
+      (`checkProvenance` returns `{errs, warn}`). The sample keeps its
+      D162 job, but a person falling behind on audits can no longer turn
+      CI red and stop the lanes — which was a human approval gate wearing
+      a sampling rate. The per-row review verdict and the explicit
+      `audited` boolean stay hard errors, because those are facts a run
+      must state rather than work a person must keep up with.
+
 - [ ] **3.4 Measure-and-retire. BLOCKED ON TRAFFIC.** The scorecard
       already computes evenness and already emits retirement proposals;
       wiring them to `active: false` closes the loop. Needs published
@@ -240,8 +280,11 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
 - [ ] **4.1 Raise the budget regulator** in `scripts/farm-budget.mjs`. Its
       pinned property is that sustained generation equals measured
       promotion throughput, so **this step is a consequence of phase 3,
-      not an alternative to it** — raising the cap without raising review
-      throughput produces PRs, not questions. · **Gate:**
+      not an alternative to it** — raising the cap without raising
+      throughput produces PRs, not questions. Since D212 that throughput
+      is `PROMOTE_PACE`, not a person's reading, which is what makes this
+      step reachable at all: the constraint it waits on is now a constant
+      in `farm-budget.mjs` rather than someone's queue. · **Gate:**
       `farm-budget.test.mjs`, `check:figures`. · **Size:** S.
 
 - [ ] **4.2 Point the volume at the feed surface.** It can retire; daily
@@ -253,37 +296,89 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       cost prose has been wrong in the same direction four times. ·
       **Size:** S.
 
-## Phase 5 — The interest model (D163)
+## Phase 5 — The interest model (D163 → D317, D322)
 
-Ordering the tail. Only meaningful once the tail has content, so it
-follows phase 4.
+**REWRITTEN 2026-09-04 (D367). Three of these four rows described a model
+the owner had already moved to the server**, and a routine reading them
+was one step from building an on-device reader under a constraint that had
+been deliberately crossed. The header said "(D163)" for nine days after
+D317 reversed the row D163 narrowed.
 
-- [ ] **5.1 Read the state the device already writes.** `insight.feedPass.v1`
-      (pass — holds forever), `insight.feedDefer.v1` (D121 — expires),
-      `insight.readRoom.v1`, `insight.feedVotes.v1`. **No new collection**;
-      this step is a reader. If it adds a signal that needs storing,
-      stop and re-read D163 — the whole shape depends on nothing new
-      leaving the device. · **Size:** S.
+D317, 2026-08-26, on the owner's words — *"this app should absolutely
+track what you personally like — if not, it does not work"* — and its own
+framing: *"D163 named its own crossing 'a considered position being
+crossed, not an oversight'; so is this one, and it is the owner crossing
+it."* The architectural reason is in that record: under a global published
+order everyone is handed the same head, so a device model can only sort
+the window it was given — **a taste model that never leaves the phone
+cannot reach into the fetch.**
 
-- [ ] **5.2 Per-topic weights, on-device, feeding tail order only.** The
-      signal table in [`ATTENTION.md`](ATTENTION.md) §3 stands: a
-      scroll-past is weak and counts only against a *seen* denominator, an
-      explicit pass is strong. **The daily is untouched and the Mirror is
-      untouched** (phase 2 enforces the second). · **Gate:** a test that
-      the daily's selection does not read the model. · **Size:** M.
+- [x] ~~**5.1 Read the state the device already writes.**~~ **STRUCK —
+      the shape it protects was reversed by D317** (D106: a reversal stays
+      visible). It read *"No new collection; this step is a reader. If it
+      adds a signal that needs storing, stop and re-read D163 — the whole
+      shape depends on nothing new leaving the device."*
 
-- [ ] **5.3 Show it and let them edit it.** A profile panel listing the
-      learned weights, each adjustable, with a reset. **Not optional
-      polish** — D163 turns on it, and `ATTENTION.md`'s line is the
-      reason: a Mirror that secretly models you is a contradiction in
-      terms. · **Size:** M.
+      That sentence is now D317's **phase 2**, not its phase 1, and it is
+      explicitly not licensed: behaviour — shown, passed, deferred — still
+      never leaves the device, and *"what you merely scrolled past or
+      skipped stays on your device and is not collected"* is a **pinned
+      claim** in `web/privacy.html` held by `check:policy-claims`. Building
+      that upload must retire the pinned row in the same commit as the
+      record licensing it. The four keys are untouched and stay local.
 
-- [ ] **5.4 Confirm no store form moved.** Nothing uploaded means
-      `data-inventory.md`'s "not collected" stays literally true. Check
-      it rather than assume it — this is the step where an innocuous
-      "just log it to see if it works" would quietly make the filing
-      false. · **Gate:** `check:data-inventory`, and re-read
-      `STORE-FORMS.md`. · **Size:** S.
+- [x] ~~**5.2 Per-topic weights, on-device, feeding tail order only.**~~
+      **BUILT SERVER-SIDE at D322**, 2026-08-26: `functions/src/taste.ts`
+      (`fitTasteV2`, nightly 03:27 UTC) counts this person's FEED answers
+      by topic off the agg-events ledger — no new signal, because answers
+      are already server-side and public (D98). The document is
+      `v2_users/{uid}/taste/profile` `{t, n, at}`: owner-readable,
+      client-unwritable, never listable. The one reader is
+      `bankPager.pageSizesByInterest`, and its floors are the D96 posture
+      kept: a topic under `TASTE_TOPIC_MIN` still pages at max(4, a third),
+      never zero, **because a cold topic must stay discoverable or the
+      profile could never change**; under `TASTE_MIN_TOTAL` the feed is
+      byte-identical to the pre-profile feed.
+
+      **What this row got right and D317 kept:** the daily stays global —
+      cohort comparison is meaningless if different people got different
+      questions — and the Mirror folds core only (D161). Personal
+      selection is the tail's and learn's. Ad targeting stays refused: the
+      profile picks questions and does nothing else.
+
+- [ ] **5.3 Show it and let them edit it. THE ONE ROW STILL LIVE, and it
+      binds harder than when it was written.** D317 kept it across the
+      reversal in those terms: *"'A Mirror that secretly models you is a
+      contradiction in terms' does not move to the server with the model —
+      it binds harder there."*
+
+      **The gap, measured 2026-09-04 rather than assumed.** The profile is
+      folded nightly and `bank-pager.ts` already shapes what you are handed
+      with it — and **no surface anywhere shows it to you, lets you edit it
+      or resets it.** `web/privacy.html` says *"Your interest profile: only
+      you"*, and the rules make that true; what is missing is any way for
+      "only you" to actually look. D322 shipped owner-*readability* as
+      D163's "shown" carried over — a rules fact, not a screen.
+
+      **It needs a design first** (CLAUDE.md, D352): a panel is a module,
+      so it is a `VISUAL-REQUESTS.md` request → plan → draft → the owner →
+      built. Filed there 2026-09-04. · **Size:** M.
+
+- [x] ~~**5.4 Confirm no store form moved.**~~ **ANSWERED, and the answer
+      is that one DID.** D322 moved it in the same commit as the feature,
+      which is the order D183 asks for: User Content gained **Product
+      Personalisation** in both `STORE-FORMS.md` and
+      `design/store/app-privacy.json`, held equal by `check:store-forms`.
+      `docs/data-inventory.md` gained the collection's row,
+      `web/privacy.html` states the arithmetic with three sentences pinned
+      by `check:policy-claims`, and the erasure e2e seeds and asserts the
+      profile's sweep against the real emulated `deleteAccount` — so *"deleting
+      your account deletes it"* is a tested sentence rather than a claim.
+
+      The row's instinct was right and its expected answer was wrong: it
+      guarded against an innocuous "just log it to see if it works" making
+      the filing false. What actually happened is the filing moving with
+      the feature, on purpose.
 
 ## Phase 6 — Needs a population
 
