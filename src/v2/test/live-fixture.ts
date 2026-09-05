@@ -600,6 +600,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // states that a place has answered nothing. The fixture has them, so
     // "ready" — the loading and failed arms are driven per case.
     testAggsState: () => "ready" as "loading" | "ready" | "failed",
+    kindredState: () => "ready" as "loading" | "ready" | "failed",
     testFeedItems: () => [],
     myTestResults: () => ({
       big5: { title: "Big Five", dims: [
