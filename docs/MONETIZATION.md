@@ -168,8 +168,11 @@ is where it has always been until a decision record says otherwise.
 
 ## Ruled out by standing posture
 
-Narrower than "no ads" — ads are path 3. What stays out is the
-**tracking apparatus**, because other standing records pin it:
+Narrower than "no ads" — ads are path 3 (the committed pen; the
+self-serve ad lane D315 built on it retired at D370, the sponsored
+question being the one paid product — `SPONSORED-PLAN.md`). What
+stays out is the **tracking apparatus**, because other standing
+records pin it:
 
 - **Advertising/analytics identifiers and per-user targeting.** The
   data inventory declares none collected, and QUESTION-FARM.md draws

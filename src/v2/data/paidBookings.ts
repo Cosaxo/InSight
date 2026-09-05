@@ -61,14 +61,13 @@ export interface MyBooking {
 }
 
 export interface BookingPayload {
-  kind: "question" | "ad";
+  /** one product since D370 — the ad half of this payload left with
+   * the lane; `MyBooking` below still reads an old ad row */
+  kind: "question";
   prompt: string;
   type: string;
   options: string[];
   topic: string | null;
-  advertiser: string;
-  headline: string;
-  body: string;
   scope: "city" | "country" | "world";
   dims: Record<string, string>;
   wearName: boolean;
@@ -239,7 +238,7 @@ export async function submitBooking(p: BookingPayload): Promise<BookingResult> {
     const res = await call<{ id?: string }>("bookPaidQuestionV2", p);
     const id = res?.id ?? "";
     rows = [
-      { ...p, id, status: "review", note: null, quote: null, win: null, qid: null, atMs: Date.now() },
+      { advertiser: "", headline: "", body: "", ...p, id, status: "review", note: null, quote: null, win: null, qid: null, atMs: Date.now() },
       ...(rows ?? []),
     ];
     notify();

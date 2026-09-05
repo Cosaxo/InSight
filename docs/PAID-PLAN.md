@@ -76,6 +76,11 @@ all:**
 
 ## 1 · What is for sale — three products, one window
 
+> **D370 (2026-09-05):** the self-serve feed ad D315 added beside these
+> is retired — the sponsored question is the one paid product, per
+> [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md). The three below are this
+> plan's own and unchanged.
+
 1. **A paid question** — the D195 machinery as shipped: `sponsor`
    provenance, disclosure band, `until` window, at-most-coarse audience
    tag, the single rotating slot. New here: the window is bounded at

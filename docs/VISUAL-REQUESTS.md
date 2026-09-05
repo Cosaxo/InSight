@@ -199,8 +199,8 @@ that lets a buyer read them.
   basis or none. A forecast may render only where the card carries a
   completed campaign (D288 §3's honesty), so the design needs a shape
   for *no estimate yet* that is not a blank — the booked strip and the
-  open day are always real. The flat ad lane (D315) prints one figure
-  for the window and must keep reading as a different product.
+  open day are always real. (The flat ad lane printed its own figure
+  beside this until D370 retired it; one product now.)
 - **states** — committed card (before the live half lands, or a demo
   build: the label says *committed*); live with an empty ledger (every
   cohort at the floor, all open); live with demand (one or more

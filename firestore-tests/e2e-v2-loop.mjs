@@ -2011,103 +2011,34 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("a paid question takes answers and aggregates through the ordinary path");
 
-  // 13 · The ad lane (D315): same loop, a different product — flat quote,
-  // queued day-exclusive windows, the webhook writing v2_ads, and the
-  // reseed NOT eating what the webhook wrote.
-  const dayKey = (off) => new Date(Date.now() + off * 86400000).toISOString().slice(0, 10);
+  // 13 · The ad lane is retired (D370): an ad booking is refused by name
+  // before anything is written, and the committed ad pen's sparing
+  // still holds — a `paidad-` doc (an ad sold before D370, or a hand
+  // contract) survives a reseed over the deliberately empty file.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      kind: "ad", advertiser: "Harbour Sauna", headline: "The water is warmer than you think",
+      body: "Open every morning from six, all winter.",
+      scope: "city", dims: { city: "Oslo, NO" },
+    });
+    fail("an ad booking was accepted after the lane was retired");
+  } catch (e) {
+    if (!/ask a question instead/.test(String(e?.message))) fail("wrong refusal for an ad booking: " + e?.message);
+  }
+  ok("an ad booking is refused by name — the sponsored question is the one product");
 
-  const bookAd = (headline) => httpsCallable(payFns, "bookPaidQuestionV2")({
-    kind: "ad", advertiser: "Harbour Sauna", headline,
-    body: "Open every morning from six, all winter.",
-    scope: "city", dims: { city: "Oslo, NO" },
+  const spared = "paidad-e2e-legacy";
+  await adminDb.doc(`v2_ads/${spared}`).set({
+    seq: 100001, advertiser: "Harbour Sauna", headline: "Still here", body: "A window sold before D370.",
+    from: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    until: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+    updatedAt: new Date(),
   });
-  const settleAd = async (id) => {
-    for (let i = 0; i < 40; i++) {
-      const s = await getDoc(doc(payDb, "v2_paid_bookings", id));
-      if (s.exists() && s.get("status") !== "review") return s;
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    fail("the ad review never settled " + id);
-    return null;
-  };
-
-  const ad1 = await bookAd("The water is warmer than you think");
-  const ad1Snap = await settleAd(ad1.data.id);
-  if (ad1Snap.get("status") !== "approved") fail("ad booking not approved: " + JSON.stringify(ad1Snap.data()));
-  // Flat price off the LIVE card: adBase 320 × the city index the
-  // question's sale just lifted (D366) — €480 at ×1.5 — and the
-  // assertion is against the number the door prints.
-  const adCard = await liveCardNow();
-  const adIdx = adCard?.cohorts?.city?.idx;
-  if (!(adIdx > 1)) fail("the ad quote's basis should be the lifted city index: " + JSON.stringify(adCard));
-  // adBase is €40 since D369 (the same cut the per-answer price took).
-  const adFlatExpected = Math.round(40 * adIdx * 100) / 100;
-  const adQuote = ad1Snap.get("quote") || {};
-  if (adQuote.flatEur !== adFlatExpected || adQuote.windowDays !== 29) {
-    fail(`ad quote is not adBase × the live idx (expected ${adFlatExpected}): ` + JSON.stringify(adQuote));
-  }
-  ok(`an ad books and approves at the flat live price: €${adFlatExpected} = 40 × ${adIdx}`);
-
-  const adEvent = (evtId, csId, bid, pi) => JSON.stringify({
-    id: evtId, object: "event", type: "checkout.session.completed",
-    // `payment_status: "paid"` for the same reason the question's fixture
-    // carries it: a completion is not a payment for every method.
-    data: { object: { id: csId, object: "checkout.session", client_reference_id: bid, metadata: { bid }, payment_intent: pi, payment_status: "paid" } },
-  });
-  const adPaid = await signedPost(adEvent("evt_e2e_ad1", "cs_ad1", ad1.data.id, "pi_ad1"), whsec);
-  if (adPaid.status !== 200) fail("ad webhook answered " + adPaid.status);
-  const ad1Live = await getDoc(doc(payDb, "v2_paid_bookings", ad1.data.id));
-  const adId1 = ad1Live.get("adId");
-  if (ad1Live.get("status") !== "live" || adId1 !== `paidad-${ad1.data.id}`) {
-    fail("ad payment did not go live: " + JSON.stringify(ad1Live.data()));
-  }
-  const adPurchase1 = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${ad1.data.id}`));
-  if (!adPurchase1.exists() || adPurchase1.get("kind") !== "ad" || adPurchase1.get("priceEur") !== adFlatExpected) {
-    fail("ad purchase malformed: " + JSON.stringify(adPurchase1.data()));
-  }
-  const w1 = adPurchase1.get("window");
-  if (w1.start !== dayKey(1)) fail("first ad in an empty scope must start tomorrow, got " + JSON.stringify(w1));
-  // The ad doc is bank content any signed-in user reads, in the seed's
-  // own field shape plus the queued-start `from` the client filter honours.
-  const adDoc1 = await getDoc(doc(db, "v2_ads", adId1));
-  if (!adDoc1.exists() || adDoc1.get("from") !== w1.start || adDoc1.get("until") !== w1.until
-    || adDoc1.get("advertiser") !== "Harbour Sauna" || !adDoc1.get("updatedAt")) {
-    fail("live ad doc missing its serving shape: " + JSON.stringify(adDoc1.data()));
-  }
-  ok("ad payment went live: purchase + v2_ads doc in one transaction");
-
-  // A second ad in the same scope SHARES the rotation from tomorrow
-  // (D369) — D315's queue, which started it the day after the first
-  // one ended, is gone — and it is quoted off the crowding it joins:
-  // the question and the first ad, two campaigns in the city's rotation
-  // on every day of the fortnight, so ×2.0 at the committed step. (The
-  // ad being quoted is not in the ledger yet; it crowds the NEXT buyer.)
-  const ad2 = await bookAd("Warmer still on Tuesdays");
-  const ad2Snap = await settleAd(ad2.data.id);
-  const ad2Quote = ad2Snap.get("quote") || {};
-  if (ad2Quote.flatEur !== Math.round(40 * 2 * 100) / 100) {
-    fail("the second ad should be quoted off two campaigns in rotation (×2.0): " + JSON.stringify(ad2Quote));
-  }
-  const ad2Paid = await signedPost(adEvent("evt_e2e_ad2", "cs_ad2", ad2.data.id, "pi_ad2"), whsec);
-  if (ad2Paid.status !== 200) fail("second ad webhook answered " + ad2Paid.status);
-  const adPurchase2 = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${ad2.data.id}`));
-  const w2 = adPurchase2.get("window");
-  if (w2.start !== dayKey(1) || w2.until !== w1.until) {
-    fail(`second ad did not share the rotation from tomorrow: first ${JSON.stringify(w1)}, second ${JSON.stringify(w2)}`);
-  }
-  ok(`a second ad in the scope runs from tomorrow beside the first, quoted €${ad2Quote.flatEur} off the two it joins`);
-
-  // The reseed must not eat sold ads: content/ads.json is deliberately
-  // empty, so without the paidad- sparing runSeedAds would delete BOTH
-  // docs here — this assertion is the sparing's pin, not a formality.
   await httpsCallable(fns, "seedContentV2")({});
-  if (!(await getDoc(doc(db, "v2_ads", adId1))).exists()) {
-    fail("a reseed deleted a sold ad — the paidad- sparing is broken");
+  if (!(await getDoc(doc(db, "v2_ads", spared))).exists()) {
+    fail("a reseed deleted a paidad- doc — the sparing is broken");
   }
-  if (!(await getDoc(doc(db, "v2_ads", `paidad-${ad2.data.id}`))).exists()) {
-    fail("a reseed deleted the queued sold ad");
-  }
-  ok("a reseed leaves sold ads standing (the seed spares paidad- ids)");
+  ok("a reseed leaves a paidad- doc standing (the seed spares the prefix)");
 }
 
 console.log("\nALL E2E CHECKS PASSED");

@@ -38505,3 +38505,81 @@ conversation, not a fix.
 holding an uncapped idx), `pricingFold.test.ts` (an ad crowds the
 rotation like a question), `smoke-overlays.test.jsx` (the door's
 copy), and the e2e (§2).
+
+## D370 · Ads leave the door: the sponsored question is the one paid product
+
+**2026-09-05.** **Status:** binding, BUILT. The owner, on the ad lane
+D369 had just made saleable: *"that sounds like a bad system — if I
+gave you complete creative freedom how would you remake it"*, then
+*"lay a plan for building that"*, then *"go, yes to the link, keep
+your picks for the rest"*. The plan is
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md); this record is its §2.1,
+the first step and the one every later step assumes. It reverses
+D315's self-serve ad lane and the ad half of D369, and it leaves
+D197's ad OBJECT alone — the committed pen, `runSeedAds`, `AdCard`,
+`v2_ads` and their rules stay, empty, for a hand contract (the plan's
+§5 point 4, the owner's pick by default).
+
+### 1 · Why the lane goes rather than gets fixed
+
+D369 §3 named it: an ad here has no link and nothing is counted, which
+makes automated review tolerable and keeps the app free of a tracker —
+and is also what an advertiser will not pay for. A text card with no
+tap-through, a flat price, and no number afterwards is the product
+nobody buys twice, and a door that sells two things a buyer has to
+choose between is a door that explains itself before it sells. The
+plan's answer is one product with a reason to buy it — a question with
+a name on the card, its own places in the feed (§2.2), a menu price by
+reach (§2.3), one reviewed link after answering (§2.4, the owner's
+yes) and a results page to share (§2.5). Step one clears the door.
+
+### 2 · What changed
+
+- **The door sells a question.** `suggestions.jsx` loses the product
+  switch, the ad inputs, the ad preview and the ad rows of the
+  contract sheet; `submitPaid` sends `kind: "question"` always, and
+  `paidBookings.ts`'s payload type says so. The room's old rows keep
+  their `kind === 'ad'` branch, because a booking made before today is
+  still a row a buyer can open.
+- **The server refuses an ad by name.** `validatePaidBooking` answers
+  *"ads aren't sold here any more — ask a question instead"* to
+  `kind: "ad"` — the same refusal register as every other message on
+  the door. `validateAdBooking`, `adPriceQuote`, `PaidAdQuote`, the
+  `AD_*` bounds, the review prompt's ad paragraph, `paidAdDoc` and
+  `paidAdPurchaseDoc` are gone. A booking that reached review before
+  the retirement is declined in a transaction with that same note
+  rather than reviewed, quoted or held; an approved-but-unpaid ad is
+  refused at checkout (failed-precondition); a payment that somehow
+  lands on an ad booking is logged `paid_ad_after_retirement` for a
+  hand refund and writes nothing. The closer's ad arm stays for a row
+  sold before today, so a window bought under D369 still closes on its
+  own day.
+- **`adBase` leaves the card.** `content/pricing.json`,
+  `gen-pricing-ts.mjs`, `build-pricing.mjs` and the client's
+  `PRICING` drop it; `check:pricing` fails the card if the key comes
+  back. `adFlat` goes with it.
+- **One landing page.** `web/paid-done-ad.html` is deleted; checkout
+  always returns to `paid-done.html`, and `firebase.json`'s header
+  list and `paid-landing.test.mjs` follow.
+- The e2e's leg 13 books an ad, is refused by name, and then seeds a
+  `paidad-` doc by hand to prove `runSeedAds` still spares the prefix
+  — the pen's contract with a window sold before today.
+
+### 3 · What it costs, stated
+
+A buyer who wanted a plain ad has nothing to buy until §2.4 lands the
+link and §2.2 the places — the plan's order puts the menu first
+because the menu is the door's own sentence and the link needs the
+review clause the menu's copy sets up. Between this commit and §2.4
+the app sells exactly what it sold under D313: a sponsored question
+with a name on it. The ad price row on `OWNER-LIST.md` is annotated
+rather than removed — the tick is the owner's.
+
+### 4 · What pins it
+
+`paid.test.ts` ("the ad lane is retired (D370)": the refusal, and the
+review guidelines no longer naming an ad), `pricing.test.ts` (no
+`adFlat`; the city rate at idx 1.75 rounds where the door prints it),
+`paid-landing.test.mjs` (no ad page shipped or named), `check:pricing`
+(no `adBase`), `smoke-overlays.test.jsx` (the door with one product),
+and the e2e's leg 13.

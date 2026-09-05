@@ -6,7 +6,7 @@
 // convenience, an unknown currency falls back to the contract's own EUR,
 // and the preference dies with the account like every insight.* key.
 import { beforeEach, describe, expect, it } from "vitest";
-import { PRICING, adFlat, applyLive, cur, demandWord, fmt, fmtExact, rate, setCur } from "./pricing";
+import { PRICING, applyLive, cur, demandWord, fmt, fmtExact, rate, setCur } from "./pricing";
 
 beforeEach(() => {
   localStorage.clear();
@@ -81,25 +81,22 @@ describe("formatting", () => {
     expect(fmtExact(288)).toBe("€288");
   });
 
-  it("a lifted line's flat price is a figure `fmt` would move", () => {
-    // At the floor the flat price is a round figure (€320 since D367's
-    // floor of ×1.0), so the case above would look hypothetical — until
-    // the first sale lifts the index. The live half laid over the card
-    // (D366) is how that happens, and the shape it produces is exactly
-    // the one the rounding distorts.
+  it("a lifted line's per-answer price keeps its cents in the exact form", () => {
+    // At the floor the line is a round figure (€0.02); the first sale
+    // lifts it to one the rate-card rounding would move. The live half
+    // laid over the card (D366) is how that happens.
     expect(applyLive({
       generated: "2026-09-05",
       cohorts: {
-        city: { idx: 1.43, booked: Array(14).fill(1), nextOpen: null },
+        city: { idx: 1.75, booked: Array(14).fill(1), nextOpen: null },
         country: { idx: 1, booked: Array(14).fill(0), nextOpen: null },
         world: { idx: 1, booked: Array(14).fill(0), nextOpen: null },
       },
       estimates: {},
     })).toBe(true);
-    const flat = adFlat("city"); // €57.20 at adBase 40 × 1.43 (D369)
-    expect(flat).toBeGreaterThan(10);
-    expect(fmtExact(flat), "the lifted ad price no longer needs the exact form")
-      .not.toBe(fmt(flat));
+    expect(rate("city")).toBe(0.035);
+    expect(fmtExact(0.035), "the exact form dropped a cent").toBe("€0.04");
+    expect(fmt(0.035)).toBe("€0.04");
   });
 
   it("refuses an unknown currency and stays on EUR", () => {

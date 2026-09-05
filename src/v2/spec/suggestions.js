@@ -276,18 +276,18 @@ export const SUGGESTIONS = {
    *   { ok: true, id }              — booked; the review is running
    *   { ok: false, code, message }  — the server's refusal, shown verbatim
    */
-  submitPaid({ kind, prompt, type, options, topic, advertiser, headline, body, scope, dims, wearName, budgetEur }) {
+  submitPaid({ prompt, type, options, topic, scope, dims, wearName, budgetEur }) {
     const opts = (options || []).filter(Boolean);
     if (LIVE.enabled) {
       return import('../data/paidBookings').then((p) => p.submitBooking({
-        kind: kind === 'ad' ? 'ad' : 'question',
+        // One product since D370: the sponsored question. The ad half of
+        // this payload (kind "ad", advertiser, headline, body) left with
+        // the lane.
+        kind: 'question',
         prompt: String(prompt || '').trim(),
         type: type || 'binary',
         options: opts,
         topic: topic || null,
-        advertiser: String(advertiser || '').trim(),
-        headline: String(headline || '').trim(),
-        body: String(body || '').trim(),
         scope: scope || 'world',
         dims: dims || {},
         wearName: wearName !== false,
@@ -299,7 +299,7 @@ export const SUGGESTIONS = {
     // Demo: the ask lands in the local room as "review", same as ever —
     // there is no demo payment and nothing here pretends one.
     return this.submit({
-      prompt: kind === 'ad' ? headline : prompt,
+      prompt,
       type, options: opts, topic: topic || '', cadence: 'once', audience: scope || 'world',
     });
   },

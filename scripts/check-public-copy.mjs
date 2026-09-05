@@ -65,9 +65,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // thing that goes stale, and it did: the note beside `join.html` said it
 // "was the one page in web/ this list did not name", which was false the
 // day it was written. `paid-done.html` and `paid-cancel.html` had landed
-// the same day, and `paid-done-ad.html` followed — the pages a buyer
-// lands on straight out of Stripe Checkout, carrying both classes this
-// gate reads: a who-can-see-what claim ("the same public numbers every
+// the same day (and `paid-done-ad.html` followed, until D370 retired the
+// ad lane with it) — the pages a buyer lands on straight out of Stripe
+// Checkout, carrying both classes this gate reads: a who-can-see-what claim ("the same public numbers every
 // voter reads") and a contract claim ("the unserved part refunds to your
 // card automatically at close").
 //

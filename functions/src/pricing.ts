@@ -20,7 +20,6 @@ export interface PricingCard {
   capEur: number;
   minEur: number;
   budgets: number[];
-  adBase: number;
   fx: Record<string, number>;
   cohorts: Record<"city" | "country" | "world", PricingCohort>;
   estimates: Record<string, { perDay: number; campaigns: number; days: number; running?: number }>;
@@ -40,7 +39,6 @@ export const PRICING_CARD: PricingCard = {
   20,
   50
  ],
- "adBase": 40,
  "fx": {
   "NOK": 11.6,
   "USD": 1.08

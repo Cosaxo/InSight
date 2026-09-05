@@ -1,6 +1,9 @@
 # The sponsored question as the one paid product — the plan
 
-**Status: plan only** — nothing here is built, and nothing here binds.
+**Status: plan only, being built step by step** — the owner's *"go,
+yes to the link, keep your picks for the rest"* (2026-09-05). Built
+so far: §2.1 (D370). Each step binds only once its own record lands;
+the rest of this page is the plan, not the app.
 Written 2026-09-05 on the owner's
 *"that sounds like a bad system — if I gave you complete creative
 freedom how would you remake it"* and *"that sounds better, lay a plan
@@ -50,7 +53,7 @@ counted, shown one day in N, goes.
 
 Each is one pull request, green on its own, in the order of §3.
 
-### 2.1 · Retire the self-serve ad lane
+### 2.1 · Retire the self-serve ad lane — BUILT, D370
 
 **What.** The composer loses its *an ad* switch; `validateAdBooking`,
 `adPriceQuote`, the webhook's ad branch, the closer's ad branch, the

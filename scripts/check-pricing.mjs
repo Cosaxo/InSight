@@ -75,9 +75,9 @@ else {
     if (i > 0 && !(b > p.budgets[i - 1])) fail(`budgets must ascend — ${JSON.stringify(p.budgets)}`);
   });
 }
-// The flat ad window (D315): an ad has no answers to bill per, so its
-// price is one committed figure × the scope's demand index.
-if (!(typeof p.adBase === "number" && p.adBase > 0)) fail(`adBase must be a positive flat window figure, got ${JSON.stringify(p.adBase)}`);
+// `adBase` — the flat ad window (D315) — left the card at D370 with the
+// self-serve ad lane; a card that still carries it is stale.
+if (p.adBase !== undefined) fail("adBase is no longer a price — the ad lane retired at D370; drop it from the card");
 if (!(typeof p.floorWeek === "number" && p.floorWeek > 0)) fail(`floorWeek must be positive, got ${JSON.stringify(p.floorWeek)}`);
 // The display-conversion table is part of the committed card: a rate the
 // client would otherwise hardcode is a fact that drifts, so it lives here,

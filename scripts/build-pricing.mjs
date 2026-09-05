@@ -62,9 +62,8 @@ const { foldPricing, PRICING_SCOPES, servedDays, ESTIMATE_MIN_DAYS } = await imp
 const db = adminDb({ projectId, emulator });
 
 const prev = JSON.parse(readFileSync(OUT, "utf8"));
-const { base, floorX, ceilX, adBase } = prev;
-if (!(base > 0) || !(floorX > 0) || !(ceilX >= floorX)) die("pricing.json constants are out of shape — fix the file first");
-if (!(adBase > 0)) die("adBase must be a positive flat window figure (D315) — fix the file first");
+const { base, floorX, crowdStep } = prev;
+if (!(base > 0) || !(floorX > 0) || !(crowdStep >= 0)) die("pricing.json constants are out of shape (base, floorX, crowdStep) — fix the file first");
 
 const today = new Date().toISOString().slice(0, 10);
 // The same bound the server's fold reads (paid.ts publishPricing): every

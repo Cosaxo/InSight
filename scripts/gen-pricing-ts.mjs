@@ -51,7 +51,6 @@ export function generatePricingTs(json) {
     "  capEur: number;\n" +
     "  minEur: number;\n" +
     "  budgets: number[];\n" +
-    "  adBase: number;\n" +
     "  fx: Record<string, number>;\n" +
     "  cohorts: Record<\"city\" | \"country\" | \"world\", PricingCohort>;\n" +
     "  estimates: Record<string, { perDay: number; campaigns: number; days: number; running?: number }>;\n" +

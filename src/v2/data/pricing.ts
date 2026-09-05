@@ -56,7 +56,6 @@ interface PricingFile {
   minEur: number;
   /** the presets the composer offers, ascending, inside [minEur, capEur] */
   budgets: number[];
-  adBase: number;
   fx: Record<string, number>;
   cohorts: Record<Scope, CohortPricing>;
   estimates: Partial<Record<Scope, Estimate>>;
@@ -79,11 +78,6 @@ export const PRICING: PricingFile = { ...COMMITTED };
 /** The posted per-answer line for a cohort: base × its idx in force. */
 export const rate = (scope: Scope): number =>
   Math.round(PRICING.base * PRICING.cohorts[scope].idx * 1000) / 1000;
-
-/** The ad window's flat line (D315): adBase × the same idx — one figure
- * for the whole window, because an ad has nothing to meter. */
-export const adFlat = (scope: Scope): number =>
-  Math.round(PRICING.adBase * PRICING.cohorts[scope].idx * 100) / 100;
 
 /** How many answers a budget buys at a cohort's line in force — the
  * ceiling the closer bills up to, never a forecast (D367). */

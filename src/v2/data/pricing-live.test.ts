@@ -122,7 +122,6 @@ describe("applyLive — the card in force moves, and every printed price with it
     expect(pricing.PRICING.generated).toBe("2026-09-05");
     expect(pricing.PRICING.cohorts.city.idx).toBe(1.6);
     expect(pricing.rate("city")).toBe(Math.round(before.base * 1.6 * 1000) / 1000);
-    expect(pricing.adFlat("city")).toBe(Math.round(before.adBase * 1.6 * 100) / 100);
     expect(pricing.demandWord("city")).toBe("steady");
     expect(pricing.PRICING.base).toBe(before.base);
     expect(pricing.PRICING.capEur).toBe(before.capEur);
