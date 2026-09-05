@@ -110,8 +110,13 @@ export interface Member {
   uid: string;
   /** Display name, or "" when the account has not set one. */
   name: string;
-  /** True when they follow you back — derived, never stored. */
-  mutual: boolean;
+  /** True when they follow you back — derived, never stored. NULL when the
+   *  followers read was refused: "we could not ask" is not "they do not",
+   *  and a screen that states the second on the strength of the first is
+   *  making a claim about another person it never checked. The two places
+   *  that read this already treat a falsy value as "draw no badge", which
+   *  is the safe direction; only the SENTENCE has to know the difference. */
+  mutual: boolean | null;
   /** How alike your answers are, over what you have both answered. */
   like: Agreement;
   /** qid → optionIdx, as read. */
@@ -376,7 +381,15 @@ export async function loadCircle(
   if (!uids.length) return { members: [], following: [] };
   const [answerSets, followers] = await Promise.all([
     Promise.all(uids.map((u) => fetchAnswersOf(db, u).catch(() => null))),
-    fetchFollowersOf(db, me, uids).catch(() => new Set<string>()),
+    // null, NOT an empty set. An empty set is a real answer — "nobody
+    // follows you back" — and swallowing the refusal into it is what let
+    // the Circle stop print "following is one-way, nobody is told" after a
+    // read it never got. This function's own docstring names that outcome
+    // as the failure it exists to prevent; the paging cause was fixed and
+    // the swallowed-error cause outlived it. Every sibling loader in the
+    // store keeps the same distinction ("absent is 'we could not ask',
+    // empty is 'nobody answered'").
+    fetchFollowersOf(db, me, uids).catch(() => null),
   ]);
   const out: Member[] = [];
   uids.forEach((uid, i) => {
@@ -385,7 +398,7 @@ export async function loadCircle(
     out.push({
       uid,
       name: names(uid),
-      mutual: followers.has(uid),
+      mutual: followers ? followers.has(uid) : null,
       like: agreement(myAnswers, answers),
       answers,
     });

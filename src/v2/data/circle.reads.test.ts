@@ -28,6 +28,9 @@ const h = vi.hoisted(() => ({
   /** Make the answers read for these uids reject, so "their answers could
    *  not be read" can be told apart from "they are not your friend". */
   answersFailFor: [] as string[],
+  /** Make the FOLLOWERS read reject, so "we could not ask who follows you
+   *  back" can be told apart from "nobody does". */
+  followersFail: false,
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -62,6 +65,9 @@ vi.mock("firebase/firestore", () => ({
     // really reaches that read and the case cannot pass vacuously.
     const failing = h.answersFailFor.some((u) => q?.path === `v2_users/${u}/answers`);
     if (failing) return Promise.reject(new Error("permission-denied"));
+    if (h.followersFail && q?.path === "following") {
+      return Promise.reject(new Error("permission-denied"));
+    }
     const idIn = (q?.wheres || []).find((w) => w[0] === "__name__" && w[1] === "in");
     const want = idIn
       ? new Set((idIn[2] as Array<{ path: string }>).map((r) => r.path))
@@ -85,7 +91,7 @@ vi.mock("firebase/firestore", () => ({
   },
 }));
 
-beforeEach(() => { h.queries = []; h.docs = []; h.answersFailFor = []; });
+beforeEach(() => { h.queries = []; h.docs = []; h.answersFailFor = []; h.followersFail = false; });
 
 const following = (owner: string, to: string, atSeconds: number) => ({
   id: to,
@@ -291,5 +297,39 @@ describe("loadCircle keeps the follow set separate from the fold", () => {
     h.docs = [following("me", "u_grace", 100)];
     const got = await loadCircle({} as never, "me", { q1: 0 }, () => "");
     expect(got.following).toEqual(["u_grace"]);
+  });
+});
+
+// ── "NOBODY IS TOLD" IS A CLAIM, AND A REFUSED READ WAS MAKING IT ───────
+//
+// `fetchFollowersOf(...).catch(() => new Set())` turned a failed read into
+// the same value as "nobody follows you back", so LiveCircleBody printed
+// "By likeness · following is one-way, nobody is told" — a positive fact
+// about other people, stated by a screen that could not ask. Its own
+// docstring names that outcome as the thing it exists to prevent.
+//
+// `mutual: null` rather than a second return value: the two places that
+// read it already treat a falsy value as "no badge", which is the safe
+// direction, so only the SENTENCE has to learn the difference.
+describe("a refused followers read is not 'nobody follows you back'", () => {
+  it("marks mutuality unknown rather than false", async () => {
+    const { loadCircle } = await import("./circle");
+    h.docs = [following("me", "u_grace", 100)];
+    h.followersFail = true;
+    const got = await loadCircle({} as never, "me", { q1: 0 }, () => "");
+    expect(got.members).toHaveLength(1);
+    expect(
+      got.members[0].mutual,
+      "a refused read was recorded as a definite 'they do not follow you back'",
+    ).toBeNull();
+  });
+
+  it("still answers false when the read landed and they do not — the control", async () => {
+    // Without this, "always unknown" would satisfy the case above and cost
+    // every mutual badge in the app.
+    const { loadCircle } = await import("./circle");
+    h.docs = [following("me", "u_grace", 100)];
+    const got = await loadCircle({} as never, "me", { q1: 0 }, () => "");
+    expect(got.members[0].mutual).toBe(false);
   });
 });
