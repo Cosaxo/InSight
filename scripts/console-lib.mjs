@@ -547,6 +547,17 @@ export function parseRegister(text) {
   for (const block of String(text).split(/\n(?=## )/)) {
     const h = /^## \d+ · Session (\d)/.exec(block);
     if (h) account = `Claude ${h[1]}`;
+    // A section that is NOT somebody's block ends the last one. Without
+    // this the account carried forward, and §5 — the ops and program
+    // lanes, chartered rather than owned — had its eight rows drawn as
+    // Claude 3's, because §4 is the last Session heading above it. §4 is
+    // "the block nobody has claimed" and has no table at all, so Claude
+    // 3's true count is zero; §5's own text says four of those lanes are
+    // Claude 2's and four exist nowhere yet, and that its ids are
+    // transcribed from `OPS-RUNBOOK.md` rather than read from
+    // `list_triggers`. Beliefs about the tree are not a verified block,
+    // which is the one thing this table is for.
+    else if (/^## /.test(block)) account = null;
     if (!account) continue;
     const lines = block.split("\n");
     for (let i = 0; i < lines.length; i++) {
