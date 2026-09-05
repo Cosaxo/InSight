@@ -2973,7 +2973,7 @@ class WorldFeed extends React.Component {
         </div>
         {/* the in-reach way into the ask-a-question door (the paid path,
             D288 §1) — the rail's + adds topics, this proposes a question */}
-        <button className="press" onClick={() => { this.setState({ sheet: null }); NAV.openSuggestions(); }} style={{ marginTop: 14, padding: '11px 0', border: '0.5px solid var(--rule)', background: 'var(--surface-2)', borderRadius: 14, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)', WebkitAppearance: 'none' }}>Ask a question</button>
+        
       </div>
     );
   }

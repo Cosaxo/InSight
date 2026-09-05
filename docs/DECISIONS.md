@@ -38286,3 +38286,592 @@ The gate is a gate rather than a paragraph on the program's own finding:
 `go-10` says unschematized conventions never converge across
 fresh-session lanes, and §1 asking for cross-axis connection in prose
 produced no scenario in 129 claims.
+## D367 · Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key
+
+**Date:** 2026-09-04 · **Status:** Adopted (corrections, not new policy —
+each restores a document to what the tree already does)
+
+**What opened it.** The owner asked what is missing before the app is
+ready. Answering meant reading the launch documents as instructions rather
+than as prose, and four of them turned out to be wrong in the direction
+that looks like progress.
+
+### 1 · Play was un-parked three days before the ordered list noticed
+
+[D345](#d345--play-is-un-parked-on-an-enk-and-the-two-code-items-that-had-no-owner-get-built)
+lifted D42's park on 2026-09-01, onto D41's organization route, and built
+release signing and `play-release.yml` in the same decision. It named
+neither `LAUNCH-RUNBOOK.md` nor `SHIP-CHECKLIST.md`. So the owner's
+ordered list carried nine `[PARKED — D42]` markers and a heading reading
+**"iOS only, as of 2026-08-04"**, understating the remaining launch work
+by an entire platform — six steps (1.1b, 1.2, 2.1, 2.6, 3.1, 6.3) plus
+three halves (1.4's Android provider, 2.7's fingerprint, Play's Data
+Safety form).
+
+Corrected here: the heading, every marker, and the `check:store-copy`
+paragraph that called `REPLACE_WITH_PLAY_SIGNING_SHA256` *"a permanent
+non-blocker under D42"*. It stopped being permanent at D345 — it is a real
+value Play Console mints at App signing, which is why that decision added
+`--first-upload` for the chicken-and-egg.
+
+**No gate could have caught this, and that is the finding.** `check:docs`
+proves the map names every document; `check:figures` proves a listed
+number equals the tree. Neither reads whether a *sentence* is still true —
+which is exactly `docs/DOC-SWEEP.md`'s subject, and §3 below is why that
+lane was not running.
+
+### 2 · The ten TestFlight testers were a pre-D98 requirement
+
+Runbook 3.2 demanded *"ten testers, not five"* and gave its reason in the
+next clause: the public mirror publishes once per 5 answers (D7), so a
+group of 6–9 watches the world count sit on "5+" and never move. **That
+machinery does not exist.** D98 removed the k-floor outright on
+2026-08-11 — `AGG_MIN_N` and `PUBLISH_EVERY` are gone, and
+`functions/src/v2.ts` says so at the lines where they lived — so a count
+of 1 publishes as 1.
+
+The step had already been corrected further down (*"There is no k-floor
+since D98: the first answer publishes exactly"*) while its heading still
+demanded the crowd the removed cadence needed: one step, two answers, and
+the stale one was the heading. **Two testers is enough to start** — duels
+work at N=2 and are the surface worth testing first, which the step
+already said. More testers is a device-coverage argument, which is real;
+it is not a threshold to wait behind.
+
+This is [D327](#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic)'s
+shape one document over — copy that outlived the arithmetic it was written
+for. There it was twelve captions still selling the floor; here it is an
+instruction to gather the crowd that floor needed.
+
+### 3 · The doc sweep is held by a condition that is met
+
+`docs/DOC-SWEEP.md` landed on `main` 2026-09-03 (#335). Its Routine
+(`trig_01E2bBC1QmYbkkHj3V96k6L1`) is still disabled, and `ROUTINES.md`
+still said the file *"is not on `main`"*. The worklist row asked for the
+re-enable *"in the same PR that lands the file"*, and **no PR can do
+that** — a trigger on another account's subscription is invisible to
+`list_triggers`, which returns the caller's and nothing else. So the ask
+was unsatisfiable as written and the lane stayed off.
+
+Recorded as an owner click rather than as work. The lane that exists to
+catch a stale sentence was disabled by one, which is the cheapest possible
+argument for turning it back on.
+
+### 4 · `asc-push --privacy` demanded credentials for a section that cannot use them
+
+The privacy nutrition label is the one launch step with no Apple endpoint
+behind it ([D73](#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead)),
+so `--privacy` prints a form. It nonetheless exited on the missing
+`ASC_KEY_ID`/`ASC_ISSUER_ID`/private key, then resolved the app over the
+network — a credential gate and a round trip in front of a printout.
+
+**This is the failure `SHIP-CHECKLIST.md` §1 records twice for the seed
+step**, and records in those words: an instruction survives review because
+running it needs something nobody has, so nobody runs it. Here it guarded
+the step whose output is a legal statement, and whose whole virtue is that
+the printout — not the prose — is the artefact.
+
+`NEEDS_APPLE = TEXT || AGE_RATING || SCREENSHOTS`; a privacy-only run
+prints and exits above the gate. Its closing line deliberately does **not**
+reuse the tail's *"App Store Connect already matches the repo"*, because
+that run never asked Apple anything and claiming agreement with a service
+it did not contact is the one kind of sentence this file exists to keep
+out of a launch step. Pinned by a test that runs the script with every
+`ASC_*` variable stripped and asserts the whole row set prints and that
+zero requests are made — red before the change, which was measured rather
+than assumed.
+
+### What is deliberately not decided here
+
+Nothing about **whether** to ship Play, which is D345's and stands; and
+nothing about the App Check debug tokens, which
+[D337](#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens)
+settled and which remain an owner action at the console — though the
+Firebase App Check management API can create them
+(`projects.apps.debugTokens.create`, a UUID4 supplied at creation) and set
+`enforcementMode` (`projects.services.patch`), so the console is a choice
+rather than a constraint. Establishing that as a workflow is its own
+decision, and it is not taken here.
+
+### 5 · Three money-path items that were on no list at all
+
+Added after the owner asked why Stripe, ads and BigQuery were absent from
+the answer above. One of the three was a reading failure and two were real
+gaps, and the gaps are the expensive kind: **a shipped pipeline with no
+step that turns it on**.
+
+**BigQuery was on the list** — `LAUNCH-RUNBOOK.md` 5.11 (the answers
+mirror, deliberately installed *with* the first real users so the weeks
+whose data is most worth having are covered) and 5.12 (Cloud Billing
+export, which turns the Authentication-tier question from a console hunt
+into a query). Both open, both correctly filed as post-launch. Nothing
+moved here except the answer's brevity.
+
+**Stripe was not, and the whole self-serve loop depends on it.** D313 and
+D315 shipped `functions/src/paid.ts` end to end — compose, automated
+review, server-side price, Stripe Checkout, and a webhook that writes the
+purchase record and the live question in one transaction. Three secrets
+are unset, `DEPLOYMENT.md` § Environment documents them, and **no step
+anywhere said to fill them in**. The failure is deliberately quiet:
+the deploy warns and succeeds, bookings and reviews still run,
+`createPaidCheckoutV2` answers `unavailable` and `stripeWebhookV2`
+answers 503 — so a buyer reaches an approved quote and a dead end with
+nothing paging anybody. Now runbook 5.14, with the webhook's ordering
+(deploy → endpoint → `whsec_` → re-deploy) and its three events, because
+subscribing to `checkout.session.completed` alone strands every
+delayed-method EUR buyer at approved, having paid.
+
+**Ads need no switch, and the absence was the design** — recorded at
+runbook 5.15 because an unexplained absence reads like an omission. Since
+D315 a self-serve ad is written by the payment webhook into `v2_ads` at
+`paidad-*`, so turning on ads *is* turning on Stripe. `content/ads.json`
+stays empty on purpose: a row without a contract prints a company's name
+on a card nobody bought, which is D1's no-fabrication rule pointed at
+money.
+
+### 6 · The step whose window closes at submission, and it was on no list either
+
+`STORE-CUT-PLAN.md` has been **plan only** since the owner opened it
+2026-08-31, and it is the one unadopted plan in this tree with an expiry
+date. It recommends shape A — the paid door is not in the app — and the
+two facts that make A nearly free are both facts about *timing*:
+
+- **Zero sales.** Every `booked` array in `content/pricing.json` is still
+  all zeros across city, country and world. Verified 2026-09-04 rather
+  than quoted: nothing migrates, no revenue is lost.
+- **The app has never been submitted**, so under shape A the door is never
+  *removed* — it simply was not there. Doing this after a rejection costs
+  a review cycle and a flag on the account.
+
+The exposure is guideline 3.1.1, and the plan's own reading of it is the
+honest one: the category argument is strong (3.1.3(e) *forbids* IAP for
+campaign purchases, and Play has never required its billing for ad spend),
+the app-shape argument is weak — a consumer app with a €320 B2B door in
+its profile tab is Meta's "Boost Post" shape, and Meta lost that — and
+**the app shape is what gets reviewed**. The link-out entitlement does not
+rescue it here: Norway is EEA, not EU, so the DMA permission likely does
+not apply to the first market this product prices in, which that plan's §7
+flags as unverified and which is still unverified.
+
+Filed as runbook **6.0**, immediately before the pre-flight, and as an
+owner decision. Keeping the door is a legitimate answer and needs the same
+record. What is not legitimate is reaching 6.2 without having chosen,
+because that is choosing to keep it at the moment the choice costs most —
+and a plan whose whole argument is *do this before you submit* had no
+place on the ordered list that says when you submit.
+
+### 10 · The interest model was moved to the server nine days ago, and Phase 5 still described the device one
+
+Third time in one session, and the deepest. Told to build, the session
+picked `SCALE-RUNBOOK.md` **5.1** — a reader over four device keys, size
+S, whose text ends *"if it adds a signal that needs storing, stop and
+re-read D163 — the whole shape depends on nothing new leaving the
+device."* All four keys exist and are written today, so the row was
+buildable exactly as specified.
+
+**D317 (2026-08-26) reversed the row D163 narrowed**, on the owner's
+words: *"this app should absolutely track what you personally like — if
+not, it does not work."* Its own framing is the one worth keeping: *"D163
+named its own crossing 'a considered position being crossed, not an
+oversight'; so is this one, and it is the owner crossing it."* The
+architectural reason is not preference — under a global published order
+everyone is handed the same head, so a device model can only sort the
+window it was given: **a taste model that never leaves the phone cannot
+reach into the fetch.**
+
+**D322 built it the same day.** `functions/src/taste.ts`, nightly, feed
+answers counted by topic off the ledger; `v2_users/{uid}/taste/profile`,
+owner-readable and client-unwritable; `bankPager.pageSizesByInterest`
+wired into the feed top-up. Phase 5's header said "(D163)" for nine days
+after.
+
+**What the check found that the strike did not.** Three of the four rows
+are dead, and the fourth is live and unbuilt — **5.3, shown and
+editable**, the single bullet D317 kept across the reversal and said
+binds *harder* afterwards: *"A Mirror that secretly models you is a
+contradiction in terms."* Measured rather than assumed: the profile is
+folded nightly, `bank-pager.ts` already shapes what a device is handed
+with it, and **no surface anywhere shows it, edits it or resets it.**
+`web/privacy.html` promises *"Your interest profile: only you"* — the
+rules make that true and no screen makes it useful. D322 shipped
+owner-*readability*, which is a rules fact rather than a panel.
+
+Filed as `VISUAL-REQUESTS.md` item 0 rather than built, per D352: a panel
+is a module, so it is a request → plan → draft → the owner → built. Two
+questions inside it are the owner's and are on `OWNER-LIST.md` — whether
+the edit is a *less/normal/more* nudge or something finer, and how an edit
+reaches the fetch at all, since the profile is deliberately
+client-unwritable (a self-writable profile would let a device forge its
+own fetch weighting, which is a sponsored-targeting hole the day
+audiences exist).
+
+**5.4 is answered rather than struck, and its answer inverts it.** It
+asked to confirm no store form moved. One did: D322 moved User Content to
+gain Product Personalisation in `STORE-FORMS.md` and `app-privacy.json`
+together, held equal by `check:store-forms`, with the data-inventory row,
+the privacy arithmetic and an erasure e2e in the same commit. The row
+guarded against a filing going quietly false; what happened is a filing
+moving with its feature, on purpose.
+
+**The pattern, now nine rows deep in two days and worth stating once.**
+Every stale row this session found was a decision that landed without
+updating what it invalidated, and the three that cost the most all had
+the same shape: **a constraint written down as a rule, kept standing
+after the owner had removed it.** D42's park, D162's human hold, D163's
+device-only model — each reversed by name, each leaving behind an
+instruction pointing the opposite way. The tree's own defence against
+this is `docs/DOC-SWEEP.md`, whose lane has been disabled since 2026-09-03
+for a blocker that cleared the same day.
+
+### 9 · A sixth stale row, and this one pointed at building the opposite of an instruction
+
+The session's next build was going to be `SCALE-RUNBOOK.md` **3.2, batch
+approval** — size S, marked buildable, and the step §7 above identified as
+the real head of the question-volume chain. Reading the pipeline before
+writing any code found that **D212 reversed it on 2026-08-19**, by name,
+and the row has stood unticked ever since.
+
+D212's own words: it reverses *"the merge half of D162 ('the human on the
+merge, not on the reading')"* — which is 3.2's title — on the owner's ask,
+*"remove the need for a human to approve the questions."* Its §2 is 3.2's
+content already shipped: `PROMOTE_PACE = 2`, each run promoting the two
+oldest pen entries through `promote --source farm --review ai`, promotion
+and batch in one PR, 14/week at the daily cadence.
+
+**And 3.2's stated constraint is the exact property D212 records giving
+up.** The step made it load-bearing — *"the two-gate property must
+survive… if a change here would let the farm merge itself, it is the wrong
+change"* — while D212 says plainly: *"The two-gate design existed so a
+scheduled job never decides what production serves. That property is gone
+for question content."* What bounds the radius now is the gate set, the
+`active: false` kill switch, the retrospective audit, and scope: question
+content only, with code, rules, schema and policy keeping ordinary review
+and core membership still the one per-question human act.
+
+**Why this one is worse than the other five.** Those misled a reader about
+state. This one pointed a builder at work that would have re-imposed, as
+new engineering, a hold the owner had explicitly asked to remove — the
+opposite direction to a stated instruction, arrived at by following a
+document faithfully. The safeguard that caught it was not a gate: it was
+reading the pipeline before writing to it, which is the same habit that
+caught §7 and cost the same fifteen minutes.
+
+Struck rather than deleted (D106). Two neighbours were stale in the same
+direction and are amended with it: **3.3**'s cumulative audit-rate check
+became a *warning* at D212 — a person behind on audits can no longer turn
+CI red and stop the lanes — while the per-row verdict and `audited`
+boolean stay hard errors; and **4.1**'s "consequence of phase 3" now tracks
+`PROMOTE_PACE` rather than a person's reading, which is what makes that
+step reachable at all.
+
+**What this leaves.** The question-volume chain is shorter than it looked:
+its first step is not batch approval, which is shipped, but Phase 4 —
+raising the budget regulator, pointing volume at the feed surface, and
+re-running the cost model at the new rate. None of it is blocked on a
+person any more.
+
+### 8 · The security review's one probe, closed even though it stayed below the bar
+
+A security review of this branch's own diff found **nothing at confidence
+≥ 7**, and confirmed by measurement rather than by reading what the code
+claims: only `type: choice` and `type: boolean` inputs reach the
+workflow's shell (probed with `DISPLAY_NAME='CI"; id; echo "'`, which
+stayed one argv element); the `asc-push` early exit crosses no privilege
+boundary; `api()` composes its host from module constants, so nothing
+operator-supplied reaches the authority component; and `set -o pipefail`
+plus the AND-list branches behave under `errexit`, with an unmatched
+`case` falling through to the read-only report.
+
+**One sub-threshold observation is fixed here anyway**, because it is one
+line and it guards the single property this file claims. The register
+error path prints `res.message` — Google's string, not ours — and the
+token is in that request's BODY, so an API that echoed a value it
+rejected would put a bypass credential in a run log. The review stubbed
+Google's ESF type-mismatch form (`Invalid value at 'debug_token.token'
+(TYPE_STRING), "…"`) and the script printed the token verbatim.
+
+It stayed below the bar for a good reason: it needs an unverified
+upstream property, `token` is a plain string field, and GitHub's masker
+would catch a verbatim secret on the step log. **What the review noticed
+that the masker argument misses** is the second surface: the workflow
+tees this output and `cat`s it inside a `{ … } >> "$GITHUB_STEP_SUMMARY"`
+redirect, which never passes the runner's masker at all.
+
+So: a `redact()` at the one leak site, guarded against an empty token
+because `"abc".split("")` returns every character. And the coverage gap
+that made the probe necessary is closed — the non-echo property was
+pinned on a 200 create and on the list path but **not on a 4xx**, which
+is the only place the token is in a body and the printed string is
+upstream. Two cases now: the rejection that echoes it prints
+`<redacted>`, and the ordinary 403 that names a missing IAM role still
+reads as itself. Mutation-verified — removing the scrub turns the first
+one red.
+
+Recorded rather than absorbed because the finding is a shape worth
+keeping: **the test suite asserted the property on the paths where it was
+easy and not on the path where the value is actually in flight.**
+
+### 7 · A fifth stale document, and this one redirected the work
+
+Found while starting what the previous section called the largest buildable
+item. `FEATURE-COMPLETE.md` lists *"the core/tail enforcement half"* as open
+and asks for three things: the filter placement written down per call site,
+the fold filter extended beyond `LiveCohortBody` to the similarity fields
+and Kindred, and a test that a non-core aggregate never reaches a Mirror
+stop.
+
+**All three were settled before that page was compiled, and two of them
+were settled by being decided unnecessary.** `SCALE-RUNBOOK.md` Phase 2 is
+fully ticked: 2.2 applied the filter on 2026-08-15, 2.3 shipped the
+mutation-verified test the same day, and 2.1 decided the placement on
+**2026-08-19 — the day `FEATURE-COMPLETE.md` was compiled**, which is
+exactly how it captured the question instead of the answer.
+
+Checked against the code rather than against 2.1's prose, because a
+runbook tick is a claim like any other:
+
+- the five lenses take `qs` as a prop from `LiveCohortBody`'s already
+  filtered list, so they inherit the filter and a second one would be
+  ceremony;
+- `LiveSimilarityField` reads `LIVE.myTestResults()` with
+  `CORE_TEST_KINDS` — test instruments, core by construction — and never
+  touches the feed archive.
+
+**The cost of this one was not a wrong sentence, it was a wrong plan.**
+The row ends *"Never ship the interest model before this"*, which reads as
+the interest model being blocked on core/tail. It is not: Phase 5 follows
+**Phase 4**, because ordering a tail is meaningless until the tail has
+content. The buildable next step is **3.2 batch approval** — the runbook
+marks it buildable now, size S, and it is what unblocks raising the farm
+budget, which is what produces the tail, which is what makes an interest
+model mean anything.
+
+That ordering was stated correctly in the runbook the whole time. A stale
+index row that names a real dependency in the wrong place is worse than one
+that is merely out of date, and this session followed it before checking —
+which is the argument for `docs/DOC-SWEEP.md` made a fifth time, and the
+last of the five in which the reader who was misled was a routine rather
+than the owner.
+
+## D368 · Shape A adopted: the paid door leaves the app, and buying moves to the web
+
+**Date:** 2026-09-05 · **Status:** Adopted — the owner, on being given the
+three shapes and the arithmetic: *"let go whith a"*. `STORE-CUT-PLAN.md`
+has been plan only since 2026-08-31 and stops being so here.
+
+**The decision.** The €320 purchase funnel leaves the binary.
+`SuggestOverlay` and its entry point go; buying lives on the web at
+`web/ask.html`; the app keeps the results room. Store cut: **0%
+everywhere**.
+
+**Taken before submission on purpose, and that is most of the argument.**
+Both facts that make A nearly free are facts about timing, and both
+expire the moment the app is submitted:
+
+- **Zero sales.** Every `booked` array in `content/pricing.json` is all
+  zeros across city, country and world — verified against the tree
+  2026-09-04, not quoted. Nothing migrates and no revenue is lost.
+- **Never reviewed.** Under A the door is not *removed*; it simply was
+  not there. After a rejection the same change costs a review cycle and
+  a flag on the account.
+
+**The reason that is not about money.** A paid question is billed on
+answers (D164): the buyer pays the cap and the closer refunds
+`(cap − answers) × rate` 29 days later, computed from a public aggregate
+both sides read. **In-app purchase has no primitive for that** — a
+developer cannot issue a programmatic partial refund; refunds are the
+store's to grant on the customer's request. Routing this through IAP
+would not make the closer expensive, it would delete it, and with it the
+promise the buyer is shown at the moment of payment. The position is
+therefore *the billing model and IAP are incompatible*, which is a much
+stronger thing to say to a reviewer than *we would rather not pay the
+cut*.
+
+**Why not C, which was the free option if it worked.** The category
+argument is strong — 3.1.3(e) *forbids* IAP for advertising-campaign
+purchases, and Play has never required its billing for ad spend. The
+app-shape argument is weak: 3.1.3(e) covers apps "for the sole purpose
+of" campaign management, "not offered to a general audience", and
+InSight is a consumer app with a €320 B2B door in its profile tab. That
+is Meta's "Boost Post" shape and Meta lost it. **The app shape is what
+gets reviewed.**
+
+**And the link-out entitlement does not rescue it here — verified rather
+than assumed.** The DMA is an EU regulation and Norway is EEA, not EU.
+Checked 2026-09-04 against EFTA's own listing: the DMA is marked
+EEA-relevant and under scrutiny by Iceland, Liechtenstein and Norway,
+with **no Joint Committee decision in force**. So the first market this
+product prices in is likely under Apple's standard worldwide terms, with
+anti-steering intact. `STORE-CUT-PLAN.md` §7 flagged this as the fact it
+would most like to be wrong about; it is not wrong.
+
+### What this costs, stated rather than discovered later
+
+**It reverses D337's premise**, which was decided the day before the
+question was asked. That record's reasoning — *"no Firebase SDK is
+loaded anywhere in hosting"*, the web reCAPTCHA provider *"was for
+nobody, on the user side"* — was right about the tree as it stood and
+false the moment a public web door exists. **Provisioning reCAPTCHA is
+the actual bill for avoiding the cut**, and it is far cheaper than
+€48–96 a sale. An amendment to D337, not a reversal: the App Check
+enforcement ordering of runbook 3.4 still applies.
+
+**The app loses "ask a question" as a capability.** Worth naming plainly:
+`SuggestOverlay` is the only asking surface and it leaves. In practice
+nobody was going to spend €320 from a profile tab — which is both why
+the discoverability loss is small and exactly why a reviewer would read
+the app as a general-audience app selling in-app.
+
+### What is NOT decided here
+
+Two questions `STORE-CUT-PLAN.md` §8 puts to the owner remain open and
+stay on `OWNER-LIST.md`:
+
+1. **Does buying require a Google-linked account?** Recommended yes, and
+   §4 phase 3 argues it is forced rather than chosen: accounts are
+   anonymous-first (D3), and an anonymous uid cannot be reached from
+   another browser, so a buyer's campaign would be invisible in their own
+   app.
+2. **Do the legacy free-suggestion rows in `SgMine` still have anything
+   to show?** If not they leave with the overlay.
+
+The web door's visual is `VISUAL-REQUESTS.md` item 0, filed with this
+record: a page is a surface, so it is a request → plan → draft → the
+owner → built (D352). The removal half needs no design and is scoped in
+`STORE-CUT-PLAN.md` §4 phase 2.
+
+
+## D368 amendment (2026-09-05) · The legacy free-suggestion rows go with the overlay
+
+**The owner, asked whether they still have anything to show:** *"no it is
+to be removed."*
+
+`SgMine` draws two things: the paid bookings, and the older free
+suggestion rows (`status: 'picked'`, with their resend). Shape A takes
+`SuggestOverlay` out whole, so those rows lose their only surface — and
+rather than finding them a new home they are **deleted with it**.
+
+So `STORE-CUT-PLAN.md` §4 phase 2 gains no exception: the overlay leaves
+whole, `data/paidBookings.ts` goes with it, and the free-suggestion path
+goes too. `AskedByYouOverlay` is still untouched — it reads this
+account's own purchase docs and the same public aggregates everyone
+reads, which is already the reader shape and is why A is cheap.
+
+**What to check while removing them rather than after:** whether anything
+still WRITES a `status: 'picked'` row. A writer with no reader is the
+mirror of the dead-publication residue `check:globals` rule 5 exists for,
+and it would sit in the tree producing documents nothing can display.
+
+
+## D368 amendment (2026-09-05) · The account is required at the pay tap, and the requirement is an identity rather than Google
+
+**The owner, on the recommendation:** *"yes do that."* This settles the
+last question `STORE-CUT-PLAN.md` §8 left open, and it settles it
+differently from that plan's default in two ways.
+
+**WHEN: at the pay tap, not before composing.** §8.2 implied sign-in up
+front. That is the wrong order for this pipeline specifically, because
+the automated review runs **before** payment and can decline: gating at
+compose means a buyer makes an account, writes their ask, and is then
+told no — the signup cost taken and a refusal given back. Composing stays
+open to anyone; the account is asked for at the pay tap and nowhere else,
+so **a decline costs the visitor nothing.**
+
+The obvious objection is that it strands the booking, and it does not:
+`linkWithPopup` upgrades an anonymous Firebase user **in place**, so an
+ask written under the anonymous web uid keeps its id through the link.
+Anonymous sign-in is enabled and measured working (2026-08-04).
+
+**WHY an account is required at all**, which §8.2 gets right and this
+keeps: an anonymous uid cannot be reached from another browser, so the
+buyer's campaign would be invisible in their own app — and
+`AskedByYouOverlay` is precisely the surface that stays in the app after
+the door leaves. A purchase you cannot come back to is not a purchase,
+least of all one that refunds 29 days later off a number both sides read.
+
+**WHAT: a reachable identity, not Google specifically.** The plan says
+Google because that is the link path the app already has, which is a
+reason to ship Google first rather than a reason to require it. The buyer
+here is a city, an agency or a brand, and a €320 B2B purchase is exactly
+the case where a personal Google account is unwelcome. Firebase
+email-link is the natural second provider and stores no password. Google
+ships first; the sign-in state is drawn so a second provider is a row
+rather than a redesign.
+
+**The cost of that second provider, named now rather than found later.**
+`design/store/app-privacy.json`'s EMAIL_ADDRESS row states its basis as
+*"Only if the user links Google."* Adding email-link leaves the ANSWER
+Yes and makes the REASON false — the D116/D180 shape, of which this
+branch has already recorded five instances. It moves in the same commit
+as the provider, or it becomes the sixth.
+
+`VISUAL-REQUESTS.md` item 0's states were rewritten with this record
+rather than after it, because the order changes which states the page has
+to draw.
+
+## D368 amendment (2026-09-05) · The door is out of the binary, and it had five entry points rather than one
+
+Shape A's removal half, built. The owner: *"yeah that sounds good."*
+
+**`STORE-CUT-PLAN.md` §4 phase 2 named one entry point and there were
+five.** It said *"remove the door entry (`PaidMineCard`,
+`profile-general.jsx`)"*. Measured against the tree before editing it:
+
+1. `app-shell.jsx` — a **"+" icon button in the header**, `aria-label="Ask
+   a question"`, one tap from anywhere in the app. Its own comment said
+   so: *"one tap from anywhere."*
+2. `app-shell.jsx` — `openSuggestions`, registered on the nav registry.
+3. `daily-split.jsx` — *"Have a question in mind? Ask it →"* under the
+   daily.
+4. `world-feed.jsx` — an **"Ask a question"** button inside a feed sheet.
+5. `profile-general.jsx` — `PaidMineCard`, the one the plan named.
+
+Following the plan literally would have left **four live purchase calls
+to action in the shipped binary**, which is precisely the exposure D368
+exists to remove — and the most exposed of them, the header "+", was the
+one furthest from the file the plan pointed at. The plan was written from
+the overlay outwards; the entry points had grown inwards.
+
+### What was removed
+
+All five entry points, and `spec/suggestions.jsx`, `spec/suggestions.js`,
+`data/paidBookings.ts` and `data/suggestions.ts` with their suites.
+`ui/AskedByYouOverlay.tsx` is untouched, as the plan said: it reads this
+account's own purchase docs and the same public aggregates everyone
+reads, which is already the reader shape and is why A was cheap.
+`ui/CurSwitch.tsx` stays — AskedByYou renders it too.
+
+The legacy free-suggestion rows went with it, per the owner's *"no it is
+to be removed"*, and the check that answer asked for came back clean: the
+only `status: 'picked'` writer left was the deleted store's own demo row,
+so nothing in the tree now produces a document no surface can display.
+
+### What the gates required, and it is the useful part
+
+`check:globals` refused the change three times before it passed, each
+time for a real reason: four now-dead imports in `profile-general.jsx`,
+the coupling baseline needing to come down **32 → 30**, and
+`src/v2/README.md` quoting the old figure. `check:figures` then caught
+`CLAUDE.md`'s bridge count (53 → 52). None of that is ceremony — each is
+a claim the tree no longer supported.
+
+**Two test suites were inverted rather than deleted, which is the
+better outcome.** `smoke-live.test.jsx` asserted an ask-a-question button
+was present in two places; both now assert that **no** such control
+exists anywhere in the app. That is the property App Review actually
+reads the binary for, so the removal is now pinned by a test that fails
+if any entry point comes back.
+
+### The one thing NOT decided here, and it needs the owner
+
+**Three deployed callables now have no caller anywhere:**
+`suggestQuestionV2`, `fetchSuggestionsV2` and `reviewSuggestionV2`
+(`functions/src/suggestions.ts`). They remain deployed, App Check
+enforced, and reachable — and under D3 "signed in" is an anonymous
+account, so a public write path at `SUGGEST_PER_DAY = 3` now exists with
+no surface that uses it. That is the server-side mirror of the
+writer-with-no-reader this removal was told to check for.
+
+Retiring them is its own decision — existing `v2_suggestions` documents
+and the moderation queue read that collection — so it goes to
+`OWNER-LIST.md` rather than being taken here.

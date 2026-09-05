@@ -166,7 +166,7 @@ directions.
 | [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md) | Recent events as feed cards, each with a discussion window. The rework of the parked prediction slot; no code exists | plan |
 | [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |
 | [`PAID-PLAN.md`](PAID-PLAN.md) | Paid questions with downloadable reports, place-score subscriptions, and cohort pricing by size and demand — the owner's 2026-08-21 ask measured against the standing constraints. §3's edit-flow matrix (D226), §4's logic cut (D227) and §2's report builder (D251) are built; the rest waits on demand evidence | mixed |
-| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. The funnel is in the app binary today; the plan moves it to the web and keeps the results room. Nothing built — adoption is a decision record | plan |
+| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D368)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | decided |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
 | [`../SECURITY.md`](../SECURITY.md) | The security policy, at the repo root rather than in `docs/` because that is where GitHub looks for it — and `web/privacy.html` names it to a user by filename, so it is a live promise, not a courtesy | tree |
@@ -183,6 +183,7 @@ than of a subject:
 | `content/README.md` | The question bank formats and how content reaches the seed |
 | `design/README.md` | The frozen prototype and its revisions |
 | `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
+| `design/ask-2026-09-05/README.md` | The web ask door (D368 shape A), and **the adapter contract the build needs** — the draft was fed a shaped pricing resource, so eight names differ from `content/pricing.json`, and `refundDays` must come from `WINDOW_DAYS` rather than from `trailingDays`, which is a day shorter than the promise |
 
 ## 5 · The gates
 
