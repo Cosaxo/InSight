@@ -22,6 +22,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
   uid: "u_me",
   subscribe: () => () => {},
   loadCircle: async () => {},

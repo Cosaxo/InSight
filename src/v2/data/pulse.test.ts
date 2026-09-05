@@ -29,6 +29,10 @@ vi.mock("./live", () => ({
     anchors: () => ({ city: "Oslo, NO", country: "NO" }),
     pulseQs: () => [],
     pulseVotes: () => ({}),
+    // Never pending here: this file reads cadences, not crowds. Present
+    // because the module calls it unconditionally, the way the real store
+    // always defines it.
+    pulsePending: () => null,
     votePulse: () => Promise.resolve(),
     subscribe: () => () => {},
   },

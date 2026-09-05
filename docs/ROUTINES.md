@@ -74,23 +74,35 @@ exactly what three subscriptions produce.
 
 **Account** `014fdf19-504c-4a97-bdfb-e305156fcd9d` ·
 **environment** `env_01Ri3fw8gD9Py3LmTQ9hTYCL` ·
-**verified** 2026-09-03 12:57 UTC against `list_triggers`, **eleven**
-Routines, all enabled — the nine below plus the two program lanes this
-account gained at phase 5.1.
+**verified** 2026-09-05 00:22 UTC against `list_triggers`, **eleven**
+Routines, **nine enabled and two disabled** — the nine below plus the two
+program lanes this account gained at phase 5.1.
+
+The two disabled are `InSight DB scalability` and `Nightly algorithm
+improvement`, both paused by the owner 2026-09-03 14:25/14:30 UTC with no
+`ended_reason` — the L1/L2 usage levers `USAGE-REDUCTION.md` §6 records and
+`docs/PERMISSIONS.md` already reflects. They keep their rows below, marked,
+because a disabled lane that vanishes from the register reads as a lane
+nobody ever built.
+
+That same sitting re-paced night shift B and this file did not move with it
+for two days, which is what rule 3 and CLAUDE.md's "in the same PR" exist to
+prevent. Re-verified here from `list_triggers` rather than from the last
+row, per this file's own instruction.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
-| Nightly algorithm improvement | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |
+| Nightly algorithm improvement **(DISABLED 2026-09-03)** | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |
 | InSight question farm (daily) | `trig_015gV8je1wJ8yRsk2zAKp6oe` | `0 7 * * *` — daily 07:00 | dev session `session_01AvNkZgRvvMCu8zqhZtuMH5` | `claude/question-farm-<date>` — `content/daily-questions.json` | self-merge (D212) |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, a new domain catalogue Sunday | same dev session | `claude/catalog-question-<date>`, domains `claude/catalog-domain-<name>` — `src/v2/spec/pick-data.js`, `public/` | self-merge (D212) |
-| InSight DB scalability | `trig_01WSJVxHtUqioRRvSs6pc31E` | `0 8 * * 1-5` — weekdays, hard stop 12:00 (10:00–14:00 Oslo) | fresh session | `claude/daily-database-optimization-j03rdh` — Firestore schema, the aggregation pipeline, client read paths | no PR — the owner opens it |
+| InSight DB scalability **(DISABLED 2026-09-03)** | `trig_01WSJVxHtUqioRRvSs6pc31E` | `0 8 * * 1-5` — weekdays, hard stop 12:00 (10:00–14:00 Oslo) | fresh session | `claude/daily-database-optimization-j03rdh` — Firestore schema, the aggregation pipeline, client read paths | no PR — the owner opens it |
 | InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 | same dev session | `claude/learn-cards-<date>` — `content/learn-questions.json` | self-merge (D212) |
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — Wed 10:00 | same dev session | `claude/duel-questions-<date>` — `content/duel-questions.json` | self-merge (D212) |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
 | InSight roll call (Claude 1) | `trig_01JQiMDMk2m4SfPjCKgbCF2o` | `35 15 * * *` — daily 15:35 (17:35 Oslo) | fresh session, model `claude-sonnet-5` | nothing — read-only; one comment per day on the **Ops run log** issue | never merges; never pushes; never labels |
 | InSight list worker (Claude 1) | `trig_01JRBox3KomrnVEfeMZnrHmC` | `0 16 * * *` — daily 16:00 (18:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/worklist-<slug>` — `docs/WORKLIST.md` and whatever the item it takes names | never merges; never labels |
-| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,22,0,2,4 * * *` — five flows; 20/22/00/02 audit at 95 min, 04:00 closing at 110 min | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
+| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,0,4 * * *` — **three** flows; 20:00 and 00:00 audit at 95 min, 04:00 closing at 110 min (cut from five 2026-09-03, `updated_at` 14:28:12Z — the L1 lever) | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
 
 **Contracts.** The five content lanes defer to `QUESTION-FARM.md` and
 re-read it every run — the prompt is a summary and the manual outranks
@@ -568,34 +580,38 @@ all.
 ### The clock (UTC)
 
 ```
-00 ·  night B audit 00:00–01:35 · nightly algorithm improvement 00:04 → 03:00
+00 ·  night B audit 00:00–01:35
 01 ·  night shift A audit 01:00–02:35
-02 ·  night B audit 02:00–03:35 · theory review 02:02 (odd)
+02 ·  theory review 02:02 (odd)
 03 ·  night shift A audit 03:00–04:35
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50 · console keeper 05:45
 06 ·  PR shepherd 06:20 · axiom builder 06:30 · production reader 06:40
 07 ·  question farm 07:00
-08 ·  catalog question · DB scalability 08:00 → 12:00 · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
+08 ·  catalog question · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
 09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · feed lane 09:30
 10 ·  duel lane (Wed) 10:00 · theory 10:02
 11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory 11:02
 12 ·  axes retro (Sun) 12:00 · theory 12:02
 13 ·  theory ties 13:02 (odd)
 14 ·  console improver 14:00 (Sun) · theory interests 14:02 (odd)
-15 ·  merge shift 15:15 · roll call 15:30 · roll call (Claude 3) 15:40
+15 ·  roll call 15:30 · roll call (Claude 3) 15:40
 16 ·  PR shepherd 16:20
 17 ·  list worker 17:00 · console keeper 17:45
 18 ·  to-do doer (Claude 3) 18:00
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
-22 ·  night B audit 22:00–23:35
+22 ·  (free — night B no longer fires here)
 23 ·  night shift A audit 23:00–00:35
 ```
 
 The two night shifts interleave on the hour by design — A on odd hours,
 B on even — so neither is ever mid-flow alone with a stale view of the
-other's work. Everything else is stacked rather than scheduled against
+other's work. **B now fires at only three of its four even hours** (20, 00,
+04), so 22:00 and 02:00 carry an A flow with no B flow beside it. The
+interleave still holds where B fires; what is gone is the guarantee that
+every A flow has a B flow within the hour, which is worth knowing before
+reading a gap here as a free slot. Everything else is stacked rather than scheduled against
 anything: the 08:00–09:30 window can carry eight firings across three
 accounts, and the only ones that can see each other are the ones sharing
 session 1's bound dev session. Since D352 the merge shift adds a firing
@@ -609,8 +625,8 @@ seven-day window this session read on 2026-09-02 is the same window to
 the second — same `resetsAt`, same `allowed_warning` — that the Axiom
 dispatcher reports. One bucket behind seventeen Routines, a night worker
 running at xhigh with ultracode on, and every interactive session on the
-account. Session 1's nine draw on a different bucket, and neither account
-can spend the other's.
+account. Session 1's eleven — nine live, two paused — draw on a different bucket,
+and neither account can spend the other's.
 
 The two consequences point opposite ways. **Inside** an account an
 expensive lane throttles its siblings — the night worker's session record

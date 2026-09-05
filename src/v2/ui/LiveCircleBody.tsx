@@ -151,6 +151,13 @@ function LiveCircleBody() {
 
   const myVotes = LIVE.myVotes();
   const mutuals = members.filter((m) => m.mutual).length;
+  // `mutual` is null when the followers read was REFUSED, which is not the
+  // same fact as nobody following you back — and the sentence below stated
+  // the second on the strength of the first, about other people, on a
+  // screen that never got an answer. The badge above needs no change: a
+  // null is falsy and drawing no badge is the safe direction. The sentence
+  // does, because it is the only place that turns the absence into a claim.
+  const mutualsKnown = members.every((m) => m.mutual !== null);
 
   // The "so what" line under the field (2026-08-24): the picture's two
   // extremes, said once. Names only — the ranking is the pct the People
@@ -255,7 +262,9 @@ function LiveCircleBody() {
           <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
             {mutuals > 0
               ? <>By likeness · {mutuals} {mutuals === 1 ? "follows" : "follow"} you back</>
-              : <>By likeness · following is one-way, nobody is told</>}
+              : mutualsKnown
+              ? <>By likeness · following is one-way, nobody is told</>
+              : <>By likeness</>}
           </div>
         )}
       </div>

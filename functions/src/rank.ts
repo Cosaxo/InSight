@@ -89,6 +89,16 @@ export interface RankTopicOrder {
   qids: string[];
   /** Answers across the topic — the topic sheet's honest count feed. */
   total: number;
+  /** How many questions the topic CARRIES: home plus every `also` door
+   * (docs/TAGS-PLAN.md §2). `qids` is home placement only, because that
+   * is what paging needs — a straddler must be fetched once, from one
+   * page, not once per shelf it appears on. But the topic sheet counts
+   * membership, so `qids.length` under-reports every straddler and the
+   * client cannot recover the difference: it sees `also` only on the
+   * questions it already holds. So the fold, which sees the whole bank,
+   * states it. Equal to `qids.length` on any surface without `also`
+   * (learn), which is why the reader can take it unconditionally. */
+  carry: number;
 }
 
 export interface RankDoc {
@@ -142,11 +152,27 @@ export function computeRank(
       (q) => q.surface === surface && q.active !== false && inWindow(q, today),
     );
     const topics: Record<string, RankTopicOrder> = {};
+    // Membership, counted over the same roster the order is built from:
+    // a topic carries a question if it is its home OR one of its `also`
+    // doors. Kept beside the home walk rather than folded into it because
+    // the two answer different questions — what to PAGE, and what to
+    // COUNT — and a topic can be an `also` door with no home question at
+    // all, which still belongs on the sheet.
+    const carried: Record<string, number> = {};
     for (const q of roster) {
       // A topic-less entry still serves; "" would make a key nothing
       // renders, so it files under a name the client can ask for.
       const topic = q.topic ?? "untopiced";
-      (topics[topic] ??= { qids: [], total: 0 }).qids.push(q.id);
+      (topics[topic] ??= { qids: [], total: 0, carry: 0 }).qids.push(q.id);
+      for (const t of new Set([topic, ...(q.also ?? [])])) {
+        carried[t] = (carried[t] ?? 0) + 1;
+      }
+    }
+    // An `also`-only topic has no home question, so the home walk never
+    // made it a key. It still carries questions a reader can reach, so it
+    // gets an entry that pages nothing and counts honestly.
+    for (const t of Object.keys(carried)) {
+      topics[t] ??= { qids: [], total: 0, carry: 0 };
     }
     for (const t of Object.keys(topics)) {
       const rows = topics[t].qids.map((qid) => {
@@ -168,6 +194,7 @@ export function computeRank(
       topics[t] = {
         qids: rows.map((r) => r.qid),
         total: rows.reduce((s, r) => s + r.total, 0),
+        carry: carried[t] ?? 0,
       };
     }
     out[surface] = { day: today, basis: BASIS, topics };
