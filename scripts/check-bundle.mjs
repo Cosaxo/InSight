@@ -853,13 +853,25 @@ const MAX_TOTAL_JS_KB = 2440;
 //     MECHANISM is stale there ("reads window.RMLenses" predates D354's
 //     sweep, which made it an import).
 //
-// WHAT ACTUALLY HOLDS THEM, for whoever does this next: explain-sheet and
-// result-rose are both pulled by result-card.jsx, and result-card is pulled
-// by passive-meter.jsx (23.1 KB, itself eager) and profile-overlay.jsx.
-// So the deferral is that chain, not three leaves — a bigger change than
-// this entry first implied, with the load-order risk sitting on
-// passive-meter rather than on the leaves. relmap-lenses is not part of it
-// and should be left alone.
+// WHAT ACTUALLY HOLDS THEM, traced to the anchor so the next attempt does
+// not have to: explain-sheet and result-rose are both pulled by
+// result-card.jsx; result-card and type-marks.jsx (4.9 KB, also on the
+// list) are both pulled by passive-meter.jsx (23.1 KB); and passive-meter
+// is imported and RENDERED by app-shell.jsx — `<PassiveMeter />` in the
+// header, unconditionally, on every screen, "because it reports across
+// tabs, not just the feed". relmap-lenses is not part of this chain and
+// should be left alone.
+//
+// SO THIS IS NOT A LOAD-ORDER PROBLEM, which is what an earlier draft of
+// this same entry assumed when it put the risk "on passive-meter". The
+// chain terminates in something that is ON SCREEN IN THE FIRST FRAME.
+// Deferring it is mechanically easy — app-shell.jsx already React.lazy's
+// four things and the pattern is right there — and the cost is that the
+// header's lens ring pops in after the paint instead of arriving with it.
+// That is a design call about the header, not a refactor, which is why
+// nothing here does it on the way past. ~38 KB sits behind that one call
+// (passive-meter, result-card, type-marks, result-rose, explain-sheet),
+// which is three bands rather than one, so it is worth asking properly.
 const MAX_EAGER_KB = 642;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
