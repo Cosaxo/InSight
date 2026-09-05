@@ -49,11 +49,13 @@ export function generatePricingTs(json) {
     "  ceilX: number;\n" +
     "  floorWeek: number;\n" +
     "  capEur: number;\n" +
+    "  minEur: number;\n" +
+    "  budgets: number[];\n" +
     "  adBase: number;\n" +
     "  fx: Record<string, number>;\n" +
     "  trailingDays: number;\n" +
     "  cohorts: Record<\"city\" | \"country\" | \"world\", PricingCohort>;\n" +
-    "  estimates: Record<string, { perDay: number; campaigns: number; days: number }>;\n" +
+    "  estimates: Record<string, { perDay: number; campaigns: number; days: number; running?: number }>;\n" +
     "}\n" +
     "export const PRICING_CARD: PricingCard = " +
     JSON.stringify(data, null, 1) +

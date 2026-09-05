@@ -46,6 +46,7 @@ import {
 } from "./paid";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKey } from "./pure";
+import { PRICING_CARD } from "./pricing";
 
 const BOOKING: PaidBookingPayload = {
   kind: "question",
@@ -59,6 +60,7 @@ const BOOKING: PaidBookingPayload = {
   scope: "city",
   dims: { city: "Oslo, NO" },
   wearName: true,
+  budgetEur: null,
 };
 
 const AD: PaidBookingPayload = {
@@ -73,6 +75,7 @@ const AD: PaidBookingPayload = {
   scope: "city",
   dims: { city: "Oslo, NO" },
   wearName: true,
+  budgetEur: null,
 };
 
 describe("the buyer name is read off a field the profile can actually hold", () => {
@@ -236,12 +239,35 @@ describe("validatePaidBooking", () => {
     if ("error" in r) throw new Error(r.error);
     expect(r.ok.topic).toBeNull();
   });
+
+  it("holds the budget to the card's range in whole euros, and reads a missing one as the cap (D367)", () => {
+    const { minEur, capEur } = PRICING_CARD;
+    const ok = validatePaidBooking({ ...BOOKING, budgetEur: 100 });
+    if ("error" in ok) throw new Error(ok.error);
+    expect(ok.ok.budgetEur).toBe(100);
+    // Outside the range, either way, and not a whole euro: refused with
+    // the range in the sentence, which is what the buyer needs to change.
+    for (const bad of [minEur - 1, capEur + 1, 99.5, "100", NaN]) {
+      const r = validatePaidBooking({ ...BOOKING, budgetEur: bad });
+      expect("error" in r, `budget ${String(bad)} should be refused`).toBe(true);
+      if ("error" in r) expect(r.error).toMatch(new RegExp(`€${minEur}.*€${capEur}`));
+    }
+    // A client from before budgets existed sends none. It showed the cap
+    // as the price, so the cap is what it is quoted — never a smaller
+    // figure it never displayed.
+    const { budgetEur: _b, ...legacy } = BOOKING;
+    void _b;
+    const r = validatePaidBooking(legacy);
+    if ("error" in r) throw new Error(r.error);
+    expect(r.ok.budgetEur).toBeNull();
+    expect(priceQuote("city", PRICING_CARD, r.ok.budgetEur).capEur).toBe(capEur);
+  });
 });
 
 describe("priceQuote", () => {
   it("prices off the committed card and locks the arithmetic", () => {
     const q = priceQuote("city", {
-      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, floorWeek: 500,
+      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
       generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
       cohorts: {
         city: { idx: 0.9, booked: [], nextOpen: null },
@@ -256,9 +282,34 @@ describe("priceQuote", () => {
     expect(q.windowDays).toBe(WINDOW_DAYS);
   });
 
+  it("makes the buyer's budget the cap, and holds it to the card's range (D367)", () => {
+    const card = {
+      base: 0.1, floorX: 1, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
+      generated: "2026-09-05", currency: "EUR", fx: {}, trailingDays: 28, adBase: 320,
+      cohorts: {
+        city: { idx: 1, booked: [], nextOpen: null },
+        country: { idx: 1.5, booked: [], nextOpen: null },
+        world: { idx: 1, booked: [], nextOpen: null },
+      },
+      estimates: {},
+    };
+    const q = priceQuote("city", card, 100);
+    expect(q.ratePerAnswer).toBe(0.1);
+    expect(q.capEur).toBe(100);
+    expect(q.cap).toBe(1000);
+    // The lifted line buys fewer answers for the same money — the budget
+    // is the constant, the count is what the demand index moves.
+    expect(priceQuote("country", card, 100).cap).toBe(Math.floor(100 / 0.15));
+    // Null is the pre-D367 booking: the card's cap.
+    expect(priceQuote("city", card, null).capEur).toBe(320);
+    // The clamps hold here too, whatever a stored figure says.
+    expect(priceQuote("city", card, 5).capEur).toBe(20);
+    expect(priceQuote("city", card, 5000).capEur).toBe(320);
+  });
+
   it("clamps a card idx that escaped its own bounds", () => {
     const card = {
-      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, floorWeek: 500,
+      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
       generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
       cohorts: {
         city: { idx: 9, booked: [], nextOpen: null },
@@ -555,7 +606,7 @@ describe("validatePaidBooking — kind ad", () => {
 
 describe("adPriceQuote", () => {
   const card = {
-    base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, adBase: 320, floorWeek: 500,
+    base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
     generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
     cohorts: {
       city: { idx: 0.9, booked: [], nextOpen: null },

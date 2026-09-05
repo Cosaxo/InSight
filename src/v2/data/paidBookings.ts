@@ -72,6 +72,9 @@ export interface BookingPayload {
   scope: "city" | "country" | "world";
   dims: Record<string, string>;
   wearName: boolean;
+  /** The most the buyer will spend, whole euros (D367) — the cap the
+   * quote locks. Absent on an ad, which is flat-priced. */
+  budgetEur?: number;
 }
 
 export type BookingResult = { ok: true; id: string } | { ok: false; code: string; message: string };

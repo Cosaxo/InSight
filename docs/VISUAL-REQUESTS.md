@@ -106,7 +106,8 @@ version is in this file's history.
 - **why** — *"the axes exist to be connected"* (charter §1); AXES-PLAN
   §2: "That is the owner's sentence, drawn, on data that publishes
   today."
-- **status** — `requested`.
+- **status** — `requested` (the copy-level half built at D367; the
+  shape is what remains).
 
 ### 2 · The corner doors for earned axes
 
@@ -175,17 +176,21 @@ that lets a buyer read them.
   the contract sheet before "Book it". Reached from the daily tab's
   door and the account sheet's *Asked by you* row.
 - **what a buyer reads today, and has to assemble** — per cohort: a
-  demand word (*quiet · steady · contested*), a multiplier (*×0.9
-  today*), a booked count (*0 of 14 booked*), a fourteen-tick strip, a
-  per-answer rate, and a token row stating the law (*€0.16 base · ×
-  demand — sold ÷ available · over the trailing 28 · floor ×0.9 ·
-  ceiling ×2.5 · billed per answer · capped at €320*). The contract
-  sheet adds *Rate · locked at approval*, an estimate only where a
-  completed campaign exists (D288 §3), and *Your cap €320 up front ·
-  unserved answers refund at close*. The question a buyer actually has
-  — *what will this cost me, and what does it buy* — is answered
-  nowhere in one place; the multiplier and the floor/ceiling tokens
-  are the mechanism's vocabulary, not a buyer's.
+  demand word (*quiet · steady · contested*), a booked count (*0 of 14
+  booked*), a fourteen-tick strip and a per-answer rate; the law
+  (*€0.10 an answer at quiet · × demand — booked ÷ available · the last
+  28 days and the next 14 · ceiling ×2.5 · billed per answer · budgets
+  €20 to €320*) behind a *How the price is set* tap since D367. In the
+  composer a budget row (*€50 · €100 · €200 · €320*, the smallest
+  chosen) says what it buys at the line in force; the contract sheet
+  says *Rate · locked at approval*, an estimate where a campaign has a
+  measured rate (D288 §3, a served week since D367), and *Your budget
+  €50 up front · up to 500 answers · unserved answers refund at close*.
+  D367 answered the arithmetic half of this request in copy; what is
+  still asked for is the SHAPE — the buyer's one question, *what will
+  this cost me, and what does it buy*, as the thing the eye lands on,
+  with the strip, the word and the presets around it rather than a
+  column of rows.
 - **data and basis** — everything the door prints is on the live card
   (`v2_meta/pricing` over `content/pricing.json`, D366): per cohort the
   idx, the booked strip, the next open day, and an estimate WITH its

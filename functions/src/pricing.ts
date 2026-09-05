@@ -18,20 +18,29 @@ export interface PricingCard {
   ceilX: number;
   floorWeek: number;
   capEur: number;
+  minEur: number;
+  budgets: number[];
   adBase: number;
   fx: Record<string, number>;
   trailingDays: number;
   cohorts: Record<"city" | "country" | "world", PricingCohort>;
-  estimates: Record<string, { perDay: number; campaigns: number; days: number }>;
+  estimates: Record<string, { perDay: number; campaigns: number; days: number; running?: number }>;
 }
 export const PRICING_CARD: PricingCard = {
- "generated": "2026-08-24",
+ "generated": "2026-09-05",
  "currency": "EUR",
- "base": 0.16,
- "floorX": 0.9,
+ "base": 0.1,
+ "floorX": 1,
  "ceilX": 2.5,
  "floorWeek": 500,
  "capEur": 320,
+ "minEur": 20,
+ "budgets": [
+  50,
+  100,
+  200,
+  320
+ ],
  "adBase": 320,
  "fx": {
   "NOK": 11.6,
@@ -40,7 +49,7 @@ export const PRICING_CARD: PricingCard = {
  "trailingDays": 28,
  "cohorts": {
   "city": {
-   "idx": 0.9,
+   "idx": 1,
    "booked": [
     0,
     0,
@@ -60,7 +69,7 @@ export const PRICING_CARD: PricingCard = {
    "nextOpen": null
   },
   "country": {
-   "idx": 0.9,
+   "idx": 1,
    "booked": [
     0,
     0,
@@ -80,7 +89,7 @@ export const PRICING_CARD: PricingCard = {
    "nextOpen": null
   },
   "world": {
-   "idx": 0.9,
+   "idx": 1,
    "booked": [
     0,
     0,

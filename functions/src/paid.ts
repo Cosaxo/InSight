@@ -54,7 +54,7 @@ import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { utcDayKey } from "./pure";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { PRICING_CARD, type PricingCard } from "./pricing";
-import { foldPricing, mergeLivePricing, type PurchaseRow } from "./pricingFold";
+import { ESTIMATE_MIN_DAYS, foldPricing, mergeLivePricing, servedDays, type PurchaseRow } from "./pricingFold";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -155,6 +155,12 @@ export interface PaidBookingPayload {
    * carry e.g. an age band. */
   dims: Record<string, string>;
   wearName: boolean;
+  /** The most the buyer will spend, whole euros (D367): the cap the
+   * quote locks and Stripe charges up front, refunded per unserved
+   * answer at close. Null on ads (flat-priced) — and null on a question
+   * booked by a client from before D367, which is quoted at the card's
+   * capEur, the figure that client displayed. */
+  budgetEur: number | null;
 }
 
 export interface PaidQuote {
@@ -248,6 +254,17 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
   if (scope === "city" && dims.country) {
     return { error: "one place per ask — the city already names it" };
   }
+  // The budget (D367): whole euros inside the card's range. Absent means
+  // a client from before the budget existed, whose door showed the cap —
+  // so the cap is what it is quoted, never a smaller figure it never saw.
+  let budgetEur: number | null = null;
+  if (d.budgetEur !== undefined && d.budgetEur !== null) {
+    const b = d.budgetEur;
+    if (!Number.isInteger(b) || (b as number) < PRICING_CARD.minEur || (b as number) > PRICING_CARD.capEur) {
+      return { error: `pick a budget between €${PRICING_CARD.minEur} and €${PRICING_CARD.capEur}` };
+    }
+    budgetEur = b as number;
+  }
 
   return {
     ok: {
@@ -262,6 +279,7 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
       scope,
       dims,
       wearName: d.wearName === true,
+      budgetEur,
     },
   };
 }
@@ -316,6 +334,8 @@ function validateAdBooking(d: Record<string, unknown>): { ok: PaidBookingPayload
       // The advertiser is always printed (D197) — there is no nameless
       // ad, so the flag is structural rather than a choice.
       wearName: true,
+      // Flat-priced: an ad has no budget to set (D315).
+      budgetEur: null,
     },
   };
 }
@@ -325,12 +345,21 @@ function validateAdBooking(d: Record<string, unknown>): { ok: PaidBookingPayload
  * display and never the invoice. Locked into the booking at approval so
  * a card recompute mid-flow cannot move a price someone already saw.
  */
-export function priceQuote(scope: "city" | "country" | "world", card = PRICING_CARD): PaidQuote {
+export function priceQuote(
+  scope: "city" | "country" | "world",
+  card = PRICING_CARD,
+  budgetEur: number | null = null,
+): PaidQuote {
   const idx = Math.min(Math.max(card.cohorts[scope].idx, card.floorX), card.ceilX);
-  // 4 decimals: base 0.16 × idx 0.9 = 0.144 exactly; rounding is for the
-  // day a recomputed idx carries more digits than a price should.
+  // 4 decimals: rounding is for the day a recomputed idx carries more
+  // digits than a price should (base 0.10 × idx 1.43 = 0.143 exactly).
   const ratePerAnswer = Math.round(card.base * idx * 10000) / 10000;
-  const capEur = card.capEur;
+  // The buyer's budget IS the cap (D367), held to the card's range here
+  // too — the validator already refused anything outside it, and a
+  // stored booking from before the budget existed carries null, which
+  // quotes at the card's own cap.
+  const want = typeof budgetEur === "number" && Number.isFinite(budgetEur) ? Math.round(budgetEur) : card.capEur;
+  const capEur = Math.min(card.capEur, Math.max(card.minEur, want));
   const cap = Math.floor(capEur / ratePerAnswer);
   return { ratePerAnswer, capEur, cap, windowDays: WINDOW_DAYS };
 }
@@ -538,6 +567,7 @@ function bookingPayloadOf(snap: FirebaseFirestore.DocumentSnapshot): PaidBooking
     scope: snap.get("scope"),
     dims: (snap.get("dims") as Record<string, string>) ?? {},
     wearName: snap.get("wearName") === true,
+    budgetEur: typeof snap.get("budgetEur") === "number" ? (snap.get("budgetEur") as number) : null,
   };
 }
 
@@ -612,7 +642,7 @@ async function reviewBooking(db: Firestore, bid: string): Promise<void> {
   // or the last nightly closer published — the same document the door
   // prints from, so the figure the buyer read is the figure locked here.
   const card = await liveCard(db);
-  const quote = payload.kind === "ad" ? adPriceQuote(payload.scope, card) : priceQuote(payload.scope, card);
+  const quote = payload.kind === "ad" ? adPriceQuote(payload.scope, card) : priceQuote(payload.scope, card, payload.budgetEur);
   await db.runTransaction(async (tx) => {
     const cur = await tx.get(ref);
     if (!cur.exists || cur.get("status") !== "review") return;
@@ -1432,6 +1462,8 @@ export const PRICING_ROWS_DAYS = 366;
  * contemplates (one slot per scope per day), and a bound so a scheduled
  * job cannot grow an unbounded read. */
 export const PRICING_ROWS_MAX = 1000;
+/** The most running campaigns one fold reads an aggregate for (D367). */
+export const PRICING_PROGRESS_MAX = 50;
 
 /**
  * Fold the ledger and publish the live half of the card. Best-effort:
@@ -1450,6 +1482,20 @@ export async function publishPricing(db: Firestore, today = utcDayKey(0)): Promi
       .limit(PRICING_ROWS_MAX)
       .get();
     const rows = snap.docs.map((d) => d.data() as PurchaseRow);
+    // A running campaign that has served a week is an estimate's basis
+    // (D367): its answer total so far is the public aggregate, one read
+    // per such campaign — a handful at most, and bounded so the webhook
+    // never waits on a runaway ledger.
+    let reads = 0;
+    for (const row of rows) {
+      if (row.kind !== "question" || row.state !== "running" || !row.qid) continue;
+      if (servedDays(row, today) < ESTIMATE_MIN_DAYS) continue;
+      if (reads >= PRICING_PROGRESS_MAX) break;
+      reads += 1;
+      const agg = await db.collection("v2_question_aggs").doc(row.qid).get();
+      const counts = (agg.exists ? agg.get("counts") : null) as Record<string, number> | null;
+      if (counts) row.progress = { answers: Object.values(counts).reduce((a, b) => a + (Number(b) || 0), 0) };
+    }
     const live = foldPricing(PRICING_CARD, rows, today);
     await db.collection("v2_meta").doc("pricing").set({ ...live, at: FieldValue.serverTimestamp() });
     logger.info(`[paid] rate card published for ${today}: ${(["city", "country", "world"] as const).map((s) => `${s} ×${live.cohorts[s].idx}`).join(" · ")} (${rows.length} row(s) folded)`, {

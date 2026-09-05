@@ -8,12 +8,12 @@
 // live doc is ignored whole, never half-applied, and an idx outside the
 // clamps is clamped, because the clamps are the mechanism.
 import { describe, expect, it } from "vitest";
-import { FORWARD_DAYS, foldPricing, mergeLivePricing, type PurchaseRow } from "./pricingFold";
+import { ESTIMATE_MIN_DAYS, FORWARD_DAYS, foldPricing, mergeLivePricing, servedDays, type PurchaseRow } from "./pricingFold";
 import type { PricingCard } from "./pricing";
 
 const card: PricingCard = {
   generated: "2026-08-24", currency: "EUR", base: 0.16, floorX: 0.9, ceilX: 2.5,
-  floorWeek: 500, capEur: 320, adBase: 320, fx: { NOK: 11.6 }, trailingDays: 28,
+  floorWeek: 500, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], adBase: 320, fx: { NOK: 11.6 }, trailingDays: 28,
   cohorts: {
     city: { idx: 0.9, booked: Array(14).fill(0), nextOpen: null },
     country: { idx: 0.9, booked: Array(14).fill(0), nextOpen: null },
@@ -31,6 +31,7 @@ const row = (p: Partial<PurchaseRow> & { from: number; to: number }): PurchaseRo
   ...(p.scope ? { scope: p.scope } : {}),
   ...(p.state ? { state: p.state } : {}),
   ...(p.closed ? { closed: p.closed } : {}),
+  ...(p.progress ? { progress: p.progress } : {}),
 });
 
 describe("foldPricing — an empty ledger", () => {
@@ -120,10 +121,38 @@ describe("foldPricing — the index moves the moment a window is sold", () => {
   });
 });
 
-describe("foldPricing — estimates only from completed campaigns (D288 §3)", () => {
-  it("withholds a forecast while nothing has closed", () => {
+describe("foldPricing — estimates only from campaigns with a measured rate (D288 §3, D367)", () => {
+  it("withholds a forecast while no campaign has a measured rate", () => {
+    // Running ten days but with no aggregate attached: the caller did
+    // not read it, so the fold must not guess.
     const live = foldPricing(card, [row({ from: -10, to: 18 })], TODAY);
     expect(live.estimates.city).toBeUndefined();
+  });
+
+  it("counts a running campaign once it has served a week, and says it is running", () => {
+    // Started eight days ago: 9 inclusive days served, 180 answers so far.
+    const live = foldPricing(card, [row({ from: -8, to: 20, progress: { answers: 180 } })], TODAY);
+    expect(live.estimates.city).toEqual({ perDay: 20, campaigns: 1, days: 9, running: 1 });
+    // …but not before the week is up, however many answers it has.
+    const young = foldPricing(card, [row({ from: -3, to: 25, progress: { answers: 400 } })], TODAY);
+    expect(young.estimates.city).toBeUndefined();
+    expect(ESTIMATE_MIN_DAYS).toBe(7);
+  });
+
+  it("mixes a closed campaign and a running one into one basis", () => {
+    const live = foldPricing(card, [
+      row({ from: -40, to: -12, state: "closed", closed: { answers: 2900 } }), // 29 days
+      row({ from: -13, to: 15, progress: { answers: 700 } }), // 14 served days
+    ], TODAY);
+    expect(live.estimates.city).toEqual({ perDay: Math.round(3600 / 43), campaigns: 2, days: 43, running: 1 });
+  });
+
+  it("servedDays counts inclusive days up to today and never past the window", () => {
+    expect(servedDays(row({ from: 1, to: 29 }), TODAY)).toBe(0); // not started
+    expect(servedDays(row({ from: 0, to: 28 }), TODAY)).toBe(1); // started today
+    expect(servedDays(row({ from: -6, to: 22 }), TODAY)).toBe(7); // a week
+    expect(servedDays(row({ from: -40, to: -12 }), TODAY)).toBe(29); // ended: the whole window
+    expect(servedDays({ kind: "question" }, TODAY)).toBe(0); // no window
   });
 
   it("folds closed question campaigns off the closer's answer total, basis carried", () => {
@@ -187,6 +216,15 @@ describe("mergeLivePricing — the committed card under a published live half", 
       world: { perDay: 400, campaigns: 3, days: 87 },
     } });
     expect(merged.estimates.city).toBeUndefined();
+    expect(merged.estimates.world).toEqual({ perDay: 400, campaigns: 3, days: 87 });
+  });
+
+  it("keeps a running count that fits its basis and drops one that does not (D367)", () => {
+    const merged = mergeLivePricing(card, { ...live, estimates: {
+      city: { perDay: 40, campaigns: 2, days: 40, running: 1 },
+      world: { perDay: 400, campaigns: 3, days: 87, running: 5 },
+    } });
+    expect(merged.estimates.city).toEqual({ perDay: 40, campaigns: 2, days: 40, running: 1 });
     expect(merged.estimates.world).toEqual({ perDay: 400, campaigns: 3, days: 87 });
   });
 });

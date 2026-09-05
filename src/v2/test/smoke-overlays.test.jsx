@@ -106,13 +106,22 @@ describe("the overlays with no button — opened through the nav registry", () =
     fireEvent.change(screen.getByPlaceholderText(/Sunrise or sunset/i), { target: { value: "Ferry or bridge?" } });
     fireEvent.change(screen.getByPlaceholderText("Option 1"), { target: { value: "Ferry" } });
     fireEvent.change(screen.getByPlaceholderText("Option 2"), { target: { value: "Bridge" } });
-    expect(screen.getByText(/No completed campaign here yet — no forecast/)).toBeTruthy();
+    expect(screen.getByText(/No campaign measured here yet — no forecast/)).toBeTruthy();
+    // The budget (D367): the presets off the card, the smallest chosen,
+    // and the line saying what it buys — a ceiling, not a forecast.
+    expect(screen.getByRole("button", { name: "€50", pressed: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "€320", pressed: false })).toBeTruthy();
+    expect(screen.getByText(/up to 500 answers · only what arrives is billed/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
-    // the contract sheet: rate at the floor index, the functional channel
-    // (D313 retired "arranged directly" the day the loop stopped being a
-    // human), and no make-good clause — the refund is the promise the
-    // closer actually keeps, and the old free-extension line must stay out
-    expect(screen.getByText(/per answer · ×0\.9 · locked at approval/)).toBeTruthy();
+    // the contract sheet: the rate without the mechanism's multiplier
+    // (D367 put the law behind a tap), the budget as the cap, the
+    // functional channel (D313 retired "arranged directly" the day the
+    // loop stopped being a human), and no make-good clause — the refund
+    // is the promise the closer actually keeps, and the old free-extension
+    // line must stay out
+    expect(screen.getByText(/per answer · locked at approval/)).toBeTruthy();
+    expect(screen.getByText(/€50 up front · up to 500 answers · unserved answers refund at close/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/×1 · |×0\.9|Your cap/);
     expect(screen.getByText(/Checked automatically before anything is charged\./)).toBeTruthy();
     expect(screen.getByText(/refunds automatically at close/)).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/Arranged directly|no self-serve yet/);

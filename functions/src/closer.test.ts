@@ -155,6 +155,9 @@ vi.mock("stripe", () => ({
 }));
 
 const { closePaidCampaignsV2, CLOSER_PAGE, CLOSER_MAX_PAGES } = await import("./paid");
+// The committed card the closer's fold reads its clamps from — the
+// expectations below are arithmetic over it, not today's numbers.
+const { PRICING_CARD } = await import("./pricing");
 
 const YESTERDAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const NEXT_YEAR = "2099-01-01";
@@ -362,7 +365,7 @@ describe("the closer republishes the rate card (D366)", () => {
     const card = published[0].data as { generated: string; cohorts: Record<string, { idx: number; booked: number[] }> };
     expect(card.generated).toBe(new Date().toISOString().slice(0, 10));
     for (const scope of ["city", "country", "world"]) {
-      expect(card.cohorts[scope].idx).toBe(0.9);
+      expect(card.cohorts[scope].idx).toBe(PRICING_CARD.floorX);
       expect(card.cohorts[scope].booked).toHaveLength(14);
     }
   });
@@ -383,9 +386,11 @@ describe("the closer republishes the rate card (D366)", () => {
       cohorts: Record<string, { idx: number }>;
       estimates: Record<string, { perDay: number; campaigns: number; days: number }>;
     };
-    // 28 of the trailing 28 days occupied, none ahead: 28/42 of the way up.
-    expect(card.cohorts.city.idx).toBe(Math.round((0.9 + (28 / 42) * 1.6) * 100) / 100);
-    expect(card.cohorts.world.idx).toBe(0.9);
+    // 28 of the trailing 28 days occupied, none ahead: 28/42 of the way
+    // from the card's floor to its ceiling.
+    const { floorX, ceilX } = PRICING_CARD;
+    expect(card.cohorts.city.idx).toBe(Math.round((floorX + (28 / 42) * (ceilX - floorX)) * 100) / 100);
+    expect(card.cohorts.world.idx).toBe(floorX);
     // …and the campaign it closed tonight is already an estimate's basis,
     // off the answer total the closer itself wrote: 50 answers over the
     // 28 inclusive days of the window (today−28 through yesterday).

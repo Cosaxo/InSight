@@ -55,7 +55,7 @@ if (emulator && !process.env.FIRESTORE_EMULATOR_HOST) {
   process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 }
 if (!existsSync(FOLD)) die("functions/lib/pricingFold.js is not built — run `npm run build --prefix functions` first (the fold is the server's, compiled from functions/src/pricingFold.ts)");
-const { foldPricing, PRICING_SCOPES } = await import(pathToFileURL(FOLD).href);
+const { foldPricing, PRICING_SCOPES, servedDays, ESTIMATE_MIN_DAYS } = await import(pathToFileURL(FOLD).href);
 
 // NAMES THE DATABASE. `getFirestore()` binds to `(default)`, which this
 // app does not use and which no longer exists — see scripts/admin-db.mjs.
@@ -72,6 +72,16 @@ const today = new Date().toISOString().slice(0, 10);
 const cutoff = new Date(Date.parse(`${today}T00:00:00Z`) - 366 * 86400000).toISOString().slice(0, 10);
 const snap = await db.collection("v2_purchases").where("window.until", ">=", cutoff).limit(1000).get();
 const rows = snap.docs.map((d) => d.data());
+// A running campaign that has served a week is an estimate's basis (D367):
+// its answer total so far is the public aggregate — the same read
+// paid.ts's publishPricing makes, so the two folds see the same rows.
+for (const row of rows) {
+  if (row.kind !== "question" || row.state !== "running" || !row.qid) continue;
+  if (servedDays(row, today) < ESTIMATE_MIN_DAYS) continue;
+  const agg = await db.collection("v2_question_aggs").doc(row.qid).get();
+  const counts = agg.exists ? agg.get("counts") || {} : null;
+  if (counts) row.progress = { answers: Object.values(counts).reduce((a, b) => a + (Number(b) || 0), 0) };
+}
 const live = foldPricing(prev, rows, today);
 
 await db.collection("v2_meta").doc("pricing").set({ ...live, at: new Date() });

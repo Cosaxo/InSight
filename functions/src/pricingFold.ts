@@ -41,12 +41,17 @@
 //              It CANNOT say "sold out": the shape is `null | day`, and
 //              `booked` all ones is what carries that (the door reads it).
 //   estimates  Per-answer-per-day expectations, WITHHELD until a cohort
-//              has a completed campaign to measure from (D288 §3): only
-//              CLOSED question purchases contribute, each as the answer
-//              total the closer wrote on it (`closed.answers`, off the
-//              public aggregate) over its inclusive window, and the entry
-//              carries its basis (campaigns, days). An empty ledger prints
-//              prices and open days — never a forecast.
+//              has a campaign to measure from (D288 §3's honesty, one
+//              step earlier since D367): a CLOSED question purchase
+//              contributes the answer total the closer wrote on it
+//              (`closed.answers`, off the public aggregate) over its
+//              inclusive window, and a RUNNING one contributes what the
+//              public aggregate says so far — attached by the caller as
+//              `progress.answers` — over the days it has served, once
+//              that is ESTIMATE_MIN_DAYS or more. The entry carries its
+//              basis (campaigns, days, and how many are still running).
+//              An empty ledger prints prices and open days — never a
+//              forecast; a week of a real campaign is a real rate.
 //
 // The subscriptions kind is ignored here on purpose: a subscription buys
 // a metric's continuity, not the daily slot (PAID-PLAN §5), so it moves
@@ -72,17 +77,42 @@ export interface PurchaseRow {
   kind?: string;
   scope?: string;
   state?: string;
+  qid?: string;
   window?: { start?: string; until?: string };
   closed?: { answers?: number };
+  /** A RUNNING question campaign's answer total so far, off the public
+   * aggregate — read and attached by the caller (paid.ts publishPricing,
+   * scripts/build-pricing.mjs), because the fold is pure. Rows without
+   * it contribute nothing to the estimate, whatever they have served. */
+  progress?: { answers?: number };
+}
+
+/** Days a running campaign must have served before it is an estimate's
+ * basis (D367). A week: enough that a weekend and a weekday are both in
+ * it, short enough that a scope with one live campaign prints a figure
+ * inside the campaign rather than after it. */
+export const ESTIMATE_MIN_DAYS = 7;
+
+/** Inclusive days a campaign has served up to `today` — 0 when it has
+ * not started or has no window. Exported so a caller knows WHICH running
+ * rows need an aggregate read before the fold. */
+export function servedDays(row: PurchaseRow, today: string): number {
+  const t = parseDay(today);
+  const a = parseDay(row.window?.start);
+  const b = parseDay(row.window?.until);
+  if (t == null || a == null || b == null || a > t || b < a) return 0;
+  const end = Math.min(t, b);
+  return Math.round((end - a) / DAY) + 1;
 }
 
 /** What the fold publishes: the demand-derived half of the card. The
  * constants (base, floor, ceiling, caps, fx) stay in the committed file
  * and are never here — a deliberate re-pricing is a PR, not a fold. */
+export interface PricingEstimate { perDay: number; campaigns: number; days: number; running?: number }
 export interface PricingLive {
   generated: string;
   cohorts: Record<PricingScope, PricingCohort>;
-  estimates: Partial<Record<PricingScope, { perDay: number; campaigns: number; days: number }>>;
+  estimates: Partial<Record<PricingScope, PricingEstimate>>;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -143,22 +173,34 @@ export function foldPricing(card: PricingCard, rows: PurchaseRow[], today: strin
 
     cohorts[scope] = { idx, booked, nextOpen: nextOpen === "tomorrow" ? null : nextOpen };
 
-    // estimates only from completed campaigns (D288 §3), off the answer
-    // total the closer wrote — the public aggregate, read once by it.
-    let answers = 0, days = 0, campaigns = 0;
+    // estimates from campaigns with a measured rate (D288 §3, D367): a
+    // closed one off the answer total the closer wrote, a running one off
+    // the aggregate total the caller attached, once it has served a week.
+    let answers = 0, days = 0, campaigns = 0, running = 0;
     for (const p of rows) {
-      if (p.kind !== "question" || p.scope !== scope || p.state !== "closed") continue;
-      const n = p.closed?.answers;
-      if (typeof n !== "number" || !Number.isFinite(n) || n < 0) continue;
-      const a = parseDay(p.window?.start);
-      const b = parseDay(p.window?.until);
-      if (a == null || b == null || b < a) continue;
-      answers += n;
-      days += Math.round((b - a) / DAY) + 1; // inclusive of its last day, like the window
-      campaigns++;
+      if (p.kind !== "question" || p.scope !== scope) continue;
+      if (p.state === "closed") {
+        const n = p.closed?.answers;
+        if (typeof n !== "number" || !Number.isFinite(n) || n < 0) continue;
+        const a = parseDay(p.window?.start);
+        const b = parseDay(p.window?.until);
+        if (a == null || b == null || b < a) continue;
+        answers += n;
+        days += Math.round((b - a) / DAY) + 1; // inclusive of its last day, like the window
+        campaigns++;
+      } else if (p.state === "running") {
+        const n = p.progress?.answers;
+        if (typeof n !== "number" || !Number.isFinite(n) || n < 0) continue;
+        const served = servedDays(p, today);
+        if (served < ESTIMATE_MIN_DAYS) continue;
+        answers += n;
+        days += served;
+        campaigns++;
+        running++;
+      }
     }
     if (campaigns > 0 && days > 0) {
-      estimates[scope] = { perDay: Math.round(answers / days), campaigns, days };
+      estimates[scope] = { perDay: Math.round(answers / days), campaigns, days, ...(running ? { running } : {}) };
     }
   }
 
@@ -203,12 +245,14 @@ export function mergeLivePricing(card: PricingCard, live: unknown): PricingCard 
   for (const scope of PRICING_SCOPES) {
     const e = rawEst[scope] as Record<string, unknown> | undefined;
     if (!e || typeof e !== "object") continue;
-    const { perDay, campaigns, days } = e;
+    const { perDay, campaigns, days, running } = e;
     // The basis ships with the figure or the figure does not ship.
     if (!Number.isInteger(perDay) || (perDay as number) < 0) continue;
     if (!Number.isInteger(campaigns) || (campaigns as number) < 1) continue;
     if (!Number.isInteger(days) || (days as number) < 1) continue;
-    estimates[scope] = { perDay: perDay as number, campaigns: campaigns as number, days: days as number };
+    const est: PricingEstimate = { perDay: perDay as number, campaigns: campaigns as number, days: days as number };
+    if (Number.isInteger(running) && (running as number) > 0 && (running as number) <= (campaigns as number)) est.running = running as number;
+    estimates[scope] = est;
   }
   return { ...card, generated, cohorts, estimates };
 }

@@ -31,8 +31,8 @@ The arithmetic, off `content/pricing.json`:
 
 | | figure |
 | --- | --- |
-| Question sale | €320 up front (`capEur`), 2222 answers at €0.144 |
-| Ad sale | €288 flat (`adBase` €320 × idx 0.9) |
+| Question sale | the buyer's budget up front — €50 to €320 (`budgets`, D367) — at €0.10 an answer at quiet (`base`), so the €320 budget buys up to 3,200 |
+| Ad sale | €320 flat (`adBase` × idx 1.0 at quiet) |
 | Store cut at 30% | €96 |
 | Store cut at 15% (small-business / first $1M) | €48 |
 | Stripe on the same €320, EU card | ≈ €5 |

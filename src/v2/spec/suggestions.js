@@ -276,7 +276,7 @@ export const SUGGESTIONS = {
    *   { ok: true, id }              — booked; the review is running
    *   { ok: false, code, message }  — the server's refusal, shown verbatim
    */
-  submitPaid({ kind, prompt, type, options, topic, advertiser, headline, body, scope, dims, wearName }) {
+  submitPaid({ kind, prompt, type, options, topic, advertiser, headline, body, scope, dims, wearName, budgetEur }) {
     const opts = (options || []).filter(Boolean);
     if (LIVE.enabled) {
       return import('../data/paidBookings').then((p) => p.submitBooking({
@@ -291,6 +291,9 @@ export const SUGGESTIONS = {
         scope: scope || 'world',
         dims: dims || {},
         wearName: wearName !== false,
+        // The buyer's budget (D367) — whole euros; the server holds it to
+        // the card's range. Absent on an ad, which is flat-priced.
+        ...(typeof budgetEur === 'number' ? { budgetEur: Math.round(budgetEur) } : {}),
       }));
     }
     // Demo: the ask lands in the local room as "review", same as ever —

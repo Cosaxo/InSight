@@ -81,6 +81,25 @@ describe("parseLive — the shape the door will print", () => {
     expect(p!.estimates.city).toBeUndefined();
     expect(p!.estimates.world).toEqual({ perDay: 7, campaigns: 2, days: 58 });
   });
+
+  it("carries how many of an estimate's campaigns are still running, when it fits (D367)", () => {
+    const p = pricing.parseLive(liveDoc({ estimates: {
+      city: { perDay: 42, campaigns: 2, days: 40, running: 1 },
+      world: { perDay: 7, campaigns: 2, days: 58, running: 9 },
+    } }));
+    expect(p!.estimates.city).toEqual({ perDay: 42, campaigns: 2, days: 40, running: 1 });
+    expect(p!.estimates.world).toEqual({ perDay: 7, campaigns: 2, days: 58 });
+  });
+});
+
+describe("answersFor — what a budget buys at the line in force (D367)", () => {
+  it("is the budget over the rate, floored — a ceiling, never a forecast", () => {
+    const r = pricing.rate("city");
+    expect(pricing.answersFor("city", 100)).toBe(Math.floor(100 / r));
+    pricing.applyLive(liveDoc()); // city ×1.6: the same money buys fewer
+    expect(pricing.answersFor("city", 100)).toBe(Math.floor(100 / pricing.rate("city")));
+    expect(pricing.answersFor("city", 100)).toBeLessThan(Math.floor(100 / r));
+  });
 });
 
 describe("applyLive — the card in force moves, and every printed price with it", () => {

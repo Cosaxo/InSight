@@ -309,6 +309,25 @@ the arithmetic and the one-term way back. The owner's other sentence
 door's numbers are on `OWNER-LIST.md` and the door's shape is
 `VISUAL-REQUESTS.md` item 4.
 
+**The buyer sets the budget, the base is the quiet price, and a
+served week is a basis — DECIDED, D367 (2026-09-05).** The owner's
+*"yeah lets do that"* to the four calls D366 left open, plus *"the
+price per answer right now is a bit high"*. The paragraph at the top
+of this section — *"against a budget cap the buyer sets"* — is now
+built as written: the composer offers the card's presets (€50 · €100 ·
+€200 · €320, the smallest chosen), the server holds any figure to
+€20–€320, the quote locks the buyer's budget as its cap, and the
+closer's per-answer bill and refund are unchanged underneath. The
+floor is ×1.0 so `base` IS the quiet price, and `base` is €0.10 (a
+routine's pick, on `OWNER-LIST.md`). Estimates fold in a running
+campaign once it has served seven days, basis stated. And the law is
+behind a tap on the board rather than read first. Per-answer billing
+stays, on the owner's question and this argument: it is the honest
+model while a scope's yield is unknown — a buyer in a small city pays
+for the forty answers they get, not for a window that might deliver
+nothing — and a flat window price becomes fair only once these
+estimates exist for every scope.
+
 **The vocabulary widening this pricing needs — DECIDED, D228
 (2026-08-22)**: `sponsor.audience` now takes **one to three dims** (the
 owner's example cohort — "men 20–30 in the US" — is exactly three),

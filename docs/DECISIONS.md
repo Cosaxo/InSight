@@ -38212,3 +38212,111 @@ rate, a cap and a refund promise, and asks the buyer to assemble the
 price from them. What a buyer wants to read is *what will this cost me
 and what does it buy* — `VISUAL-REQUESTS.md` item 4 asks Claude Design
 for that shape, on the data this record makes live.
+
+## D367 · The buyer sets the budget, the base is the quiet price, and a served week is a basis — per-answer billing stays
+
+**2026-09-05.** **Status:** binding, BUILT. The owner's words, in
+order: *"yeah lets do that"* to D366 §6's list — the buyer-set budget,
+the floor at ×1.0, the law behind a tap, estimates from running
+campaigns, the forward fortnight kept; *"i think the price per answer
+right now is a bit high?"*; and *"should it be priced per answer?"*.
+Three calls the owner's, one number a routine's (§3), and one question
+answered with an argument the owner can overrule (§2).
+
+### 1 · What a buyer does now
+
+The composer carries a **budget** row — the card's presets, €50 · €100 ·
+€200 · €320, the smallest chosen — and says beside it what that buys
+at the line in force: *up to 500 answers · only what arrives is
+billed*. The contract sheet's cap row is *Your budget €50 up front · up
+to 500 answers · unserved answers refund at close*; the approved row
+says *budget* where it said *capped at*; the pay button charges the
+budget. PAID-PLAN §6's first paragraph — *"against a budget cap the
+buyer sets"* — is now built as written; D313 had fixed the cap at
+`capEur` so the checkout had one amount, and a city buyer paid the
+world's cap to be refunded most of it.
+
+Server-side (`paid.ts`): the payload carries `budgetEur`, whole euros,
+held to the card's `minEur`–`capEur` (€20–€320) by the validator with
+the range in the refusal; `priceQuote` makes it the cap and holds it to
+the range again; the quote locks it at verdict time as before, Stripe
+charges it, and the closer's per-answer bill and refund are untouched
+underneath. A booking with no budget — a client from before this
+record, whose door showed the cap as the price — is quoted at the
+card's cap: never a smaller figure it never displayed.
+
+The board's law — base, the demand ratio, the window, the ceiling, the
+budget range — is behind a *How the price is set* tap, and the rows and
+the sheet no longer print the multiplier: a buyer comes for the price,
+and *×1.43* is the mechanism's word. The promise that stays in view is
+D182's carve-out: *the line you lock at booking is the line you keep*.
+
+### 2 · Per answer stays, and why — the owner's question
+
+*"Should it be priced per answer?"* The answer built here is yes, sold
+as a budget, on this argument: per-answer billing (D164) is the honest
+model while a scope's yield is unknown. A buyer in a small city pays
+for the forty answers they get, not for a window that might deliver
+nothing; a flat window price is fair only when the app can say what a
+window delivers, per scope — which is exactly what §4's estimates
+build toward, and what no scope has today. The budget makes the buyer's
+question — *what will this cost me at most* — one number they choose,
+and the refund is the guarantee behind it rather than the shape of the
+price. Ads stay flat (D315) because an ad has nothing to meter. The
+day every scope carries an estimate, a flat *29 days for Oslo: €X* is
+one PR: the quote takes the estimate times the line, the closer's
+refund arithmetic is switched off for that kind, and the budget row
+becomes a price. Not built, not needed yet, and the owner's to ask for.
+
+### 3 · The numbers
+
+- **`floorX` 0.9 → 1.0**, so `base` is the quiet price and the card no
+  longer prints a base beside a smaller figure everybody actually pays.
+- **`base` €0.16 → €0.10.** *"A bit high"* named no figure, so this is
+  a routine's pick and is on `OWNER-LIST.md` as one: a round number a
+  buyer can multiply in their head (€100 buys 1,000 at quiet), the
+  anchor single-question panels have priced at, and a 29% cut on the
+  €0.14 the door printed. The ceiling stays ×2.5, so contested reads
+  €0.25 and a €100 budget buys 400 there. The ad window is untouched:
+  €320 flat at quiet, €800 at the ceiling.
+- **`minEur` 20, `budgets` [50, 100, 200, 320]** — new keys, held by
+  `check:pricing` (ascending, whole euros, inside the range) and
+  embedded into `functions/src/pricing.ts` by the same regen.
+- The committed snapshot's cohorts sit at the new floor, ×1.0, dated
+  today; the live half republishes on the next sale or tonight.
+
+### 4 · Estimates from a served week
+
+D288 §3 withheld a per-day answer estimate until a cohort had a
+COMPLETED campaign. That kept the door from inventing a number and also
+kept it from printing a real one: a campaign ten days into its window
+has a measured rate. The fold now counts a running question campaign
+once it has served `ESTIMATE_MIN_DAYS` (7) — its answer total off the
+public aggregate, one read per such campaign, bounded at 50 per fold —
+over the days it has served, and the basis says how many of its
+campaigns are still running (*from 2 campaigns (1 still running)*).
+Closed campaigns count as before. The honesty D288 §3 asked for is
+unchanged: a real rate over real days, basis printed; what moved is
+when the first real rate exists.
+
+### 5 · What pins it
+
+`functions/src/paid.test.ts` — the budget held to the range in whole
+euros, a missing one read as the cap, the quote making the budget the
+cap and clamping a stored figure; `pricingFold.test.ts` — the served
+week, the mixed basis, `servedDays`, the `running` field's shape;
+`src/v2/data/pricing-live.test.ts` — `running` parsed, `answersFor` as
+a ceiling; `smoke-overlays.test.jsx` — the presets with the smallest
+pressed, the *up to 500 answers* line, the sheet's budget row, and the
+multiplier gone from the door; `firestore-tests/e2e-v2-loop.mjs` — a €5
+budget refused with the range, a €100 booking quoted at €0.10 × 1,000
+and charged €100, the purchase row carrying it, the index lifted from
+×1.0 by the sale.
+
+### 6 · What is still the owner's
+
+The figure itself (§3, on the list). Whether the ad window should
+follow the per-answer cut — it did not move here, because the owner's
+sentence was about answers. And the door's shape, which is
+`VISUAL-REQUESTS.md` item 4 with its copy-level half now built and the
+layout still asked for.

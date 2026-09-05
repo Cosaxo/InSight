@@ -28,7 +28,9 @@ import { getDb, getFirestoreApi } from "../../lib/firebase";
 
 export type Scope = "city" | "country" | "world";
 export interface CohortPricing { idx: number; booked: number[]; nextOpen: string | null }
-export interface Estimate { perDay: number; campaigns: number; days: number }
+/** A per-day answer expectation with its basis: how many campaigns, over
+ * how many served days, and (D367) how many of those are still running. */
+export interface Estimate { perDay: number; campaigns: number; days: number; running?: number }
 interface PricingFile {
   generated: string;
   currency: string;
@@ -36,7 +38,13 @@ interface PricingFile {
   floorX: number;
   ceilX: number;
   floorWeek: number;
+  /** the most a buyer may set as their budget (D367) — and the cap a
+   * client from before budgets existed is quoted at */
   capEur: number;
+  /** the least */
+  minEur: number;
+  /** the presets the composer offers, ascending, inside [minEur, capEur] */
+  budgets: number[];
   adBase: number;
   fx: Record<string, number>;
   trailingDays: number;
@@ -66,6 +74,11 @@ export const rate = (scope: Scope): number =>
  * for the whole window, because an ad has nothing to meter. */
 export const adFlat = (scope: Scope): number =>
   Math.round(PRICING.adBase * PRICING.cohorts[scope].idx * 100) / 100;
+
+/** How many answers a budget buys at a cohort's line in force — the
+ * ceiling the closer bills up to, never a forecast (D367). */
+export const answersFor = (scope: Scope, eur: number): number =>
+  Math.floor(eur / rate(scope));
 
 /** The demand word the door prints, mapped from the idx bands. */
 export const demandWord = (scope: Scope): "quiet" | "steady" | "contested" => {
@@ -112,11 +125,13 @@ export function parseLive(live: unknown): Pick<PricingFile, "generated" | "cohor
   for (const scope of SCOPES) {
     const e = rawEst[scope] as Record<string, unknown> | undefined;
     if (!e || typeof e !== "object") continue;
-    const { perDay, campaigns, days } = e;
+    const { perDay, campaigns, days, running } = e;
     if (!Number.isInteger(perDay) || (perDay as number) < 0) continue;
     if (!Number.isInteger(campaigns) || (campaigns as number) < 1) continue;
     if (!Number.isInteger(days) || (days as number) < 1) continue;
-    estimates[scope] = { perDay: perDay as number, campaigns: campaigns as number, days: days as number };
+    const est: Estimate = { perDay: perDay as number, campaigns: campaigns as number, days: days as number };
+    if (Number.isInteger(running) && (running as number) > 0 && (running as number) <= (campaigns as number)) est.running = running as number;
+    estimates[scope] = est;
   }
   return { generated: l.generated, cohorts, estimates };
 }

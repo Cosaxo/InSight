@@ -6,7 +6,7 @@
 // convenience, an unknown currency falls back to the contract's own EUR,
 // and the preference dies with the account like every insight.* key.
 import { beforeEach, describe, expect, it } from "vitest";
-import { PRICING, adFlat, cur, demandWord, fmt, fmtExact, rate, setCur } from "./pricing";
+import { PRICING, adFlat, applyLive, cur, demandWord, fmt, fmtExact, rate, setCur } from "./pricing";
 
 beforeEach(() => {
   localStorage.clear();
@@ -69,13 +69,24 @@ describe("formatting", () => {
     expect(fmtExact(288)).toBe("€288");
   });
 
-  it("today's committed ad price is a figure `fmt` would move", () => {
-    // Not a number this file owns (check:pricing referees the card) — it
-    // is why the case above is not hypothetical: the shipped flat price
-    // is exactly the shape the rounding distorts.
+  it("a lifted line's flat price is a figure `fmt` would move", () => {
+    // At the floor the flat price is a round figure (€320 since D367's
+    // floor of ×1.0), so the case above would look hypothetical — until
+    // the first sale lifts the index. The live half laid over the card
+    // (D366) is how that happens, and the shape it produces is exactly
+    // the one the rounding distorts.
+    expect(applyLive({
+      generated: "2026-09-05",
+      cohorts: {
+        city: { idx: 1.43, booked: Array(14).fill(1), nextOpen: null },
+        country: { idx: 1, booked: Array(14).fill(0), nextOpen: null },
+        world: { idx: 1, booked: Array(14).fill(0), nextOpen: null },
+      },
+      estimates: {},
+    })).toBe(true);
     const flat = adFlat("city");
     expect(flat).toBeGreaterThan(100);
-    expect(fmtExact(flat), "the committed ad price no longer needs the exact form")
+    expect(fmtExact(flat), "the lifted ad price no longer needs the exact form")
       .not.toBe(fmt(flat));
   });
 

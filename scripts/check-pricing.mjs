@@ -25,7 +25,10 @@
 //     that many ticks
 //   - nextOpen is null (= tomorrow) or an ISO day
 //   - estimates carry their basis or do not exist (D288 §3: no forecast
-//     without a completed campaign behind it — campaigns ≥ 1, days ≥ 1)
+//     without a campaign behind it — campaigns ≥ 1, days ≥ 1; since D367 a
+//     campaign that has served a week counts, and `running` says how many)
+//   - the buyer's budget range is sane (D367): minEur below capEur, and
+//     every preset a whole-euro figure inside it, ascending
 //
 // Run: node scripts/check-pricing.mjs   (wired into ci.yml's client job —
 // client content, so it stays OFF backend-checks.yml: nothing here says
@@ -57,6 +60,18 @@ if (!(typeof p.base === "number" && p.base > 0)) fail(`base must be a positive p
 if (!(typeof p.floorX === "number" && p.floorX > 0)) fail(`floorX must be positive, got ${JSON.stringify(p.floorX)}`);
 if (!(typeof p.ceilX === "number" && p.ceilX >= p.floorX)) fail(`ceilX must be ≥ floorX, got ${JSON.stringify(p.ceilX)}`);
 if (!(typeof p.capEur === "number" && p.capEur > 0)) fail(`capEur must be positive, got ${JSON.stringify(p.capEur)}`);
+// The buyer's budget (D367): capEur is the MOST a buyer may set, minEur
+// the least, and `budgets` the presets the composer offers — each inside
+// that range, ascending, so the door never offers a figure the server
+// would refuse.
+if (!(typeof p.minEur === "number" && p.minEur > 0 && p.minEur < p.capEur)) fail(`minEur must be positive and below capEur, got ${JSON.stringify(p.minEur)}`);
+if (!Array.isArray(p.budgets) || p.budgets.length < 2) fail(`budgets must list at least two presets, got ${JSON.stringify(p.budgets)}`);
+else {
+  p.budgets.forEach((b, i) => {
+    if (!(Number.isInteger(b) && b >= p.minEur && b <= p.capEur)) fail(`budgets[${i}] ${JSON.stringify(b)} is not a whole-euro figure inside [${p.minEur}, ${p.capEur}]`);
+    if (i > 0 && !(b > p.budgets[i - 1])) fail(`budgets must ascend — ${JSON.stringify(p.budgets)}`);
+  });
+}
 // The flat ad window (D315): an ad has no answers to bill per, so its
 // price is one committed figure × the scope's demand index.
 if (!(typeof p.adBase === "number" && p.adBase > 0)) fail(`adBase must be a positive flat window figure, got ${JSON.stringify(p.adBase)}`);
@@ -93,6 +108,9 @@ for (const [scope, e] of Object.entries(est)) {
   if (!(Number.isInteger(e.perDay) && e.perDay >= 0)) fail(`estimates.${scope}.perDay must be a non-negative integer`);
   if (!(Number.isInteger(e.campaigns) && e.campaigns >= 1)) fail(`estimates.${scope} without campaigns ≥ 1 — a forecast needs a completed campaign behind it (D288 §3)`);
   if (!(Number.isInteger(e.days) && e.days >= 1)) fail(`estimates.${scope}.days must be ≥ 1 — the basis ships with the figure`);
+  // D367: a campaign still serving may be part of the basis after a week;
+  // the count of those rides along so the door can say so.
+  if (e.running !== undefined && !(Number.isInteger(e.running) && e.running >= 0 && e.running <= e.campaigns)) fail(`estimates.${scope}.running must be an integer between 0 and campaigns`);
 }
 
 // ── the functions copy (D313) ───────────────────────────────────────────

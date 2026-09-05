@@ -22,7 +22,7 @@ import { useDialog } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
 import { SUGGESTIONS } from './suggestions.js';
 import { WORLD_TOPICS } from './world-feed-data.js';
-import { PRICING, rate, adFlat, demandWord, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
+import { PRICING, rate, adFlat, answersFor, demandWord, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
 // The dispatcher, for the one gate the live card's read needs: a demo
 // build (LIVE.enabled false) has no Firestore to read it from.
 import LIVE from '../data/live';
@@ -189,7 +189,7 @@ function SgMine({ s, SG, onResend }) {
                  card in the composer keeps `fmt`, which is what it is
                  for; a quote already struck is not a rate card. */
               ? 'Approved at ' + fmtExact(s.quote.flatEur) + ' flat — it runs ' + s.quote.windowDays + ' days from your scope\'s first open ad day after you pay.'
-              : 'Approved at ' + fmtExact(s.quote.ratePerAnswer) + ' per answer, capped at ' + fmtExact(s.quote.capEur) + ' — it runs ' + s.quote.windowDays + ' days from the day after you pay, and the unserved part refunds at close.'}
+              : 'Approved at ' + fmtExact(s.quote.ratePerAnswer) + ' per answer, budget ' + fmtExact(s.quote.capEur) + ' — it runs ' + s.quote.windowDays + ' days from the day after you pay, and the unserved part refunds at close.'}
           </span>
           <button className="press" onClick={pay} disabled={payBusy} style={{ alignSelf: 'flex-start', padding: '9px 15px', borderRadius: 999, cursor: payBusy ? 'default' : 'pointer', WebkitAppearance: 'none', border: 'none', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
             {/* `fmtExact`, not `fmt`: this control charges the figure it
@@ -252,7 +252,7 @@ function SgRateRow({ scope, name, onPick, i }) {
           <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 17.5, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--ink)' }}>{name}</span>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: SG_TONE[word] }}>{word}</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{nBooked} of {booked.length} booked · ×{PRICING.cohorts[scope].idx} today</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{nBooked} of {booked.length} booked</span>
           </span>
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
@@ -292,6 +292,10 @@ function SgRateRow({ scope, name, onPick, i }) {
 
 function SgRateBoard({ SG, onPick }) {
   useCurTick();
+  // The law is one tap away rather than read first (D367, the owner's
+  // "unintuitive"): a buyer comes for the price, and the multiplier, the
+  // window and the ceiling are the mechanism's vocabulary, not theirs.
+  const [law, setLaw] = useSgState(false);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 2px' }}>
@@ -305,25 +309,32 @@ function SgRateBoard({ SG, onPick }) {
       <SgRateRow scope="city" name={sgScopeName(SG, 'city')} i={0} onPick={() => onPick('city')}></SgRateRow>
       <SgRateRow scope="country" name={sgScopeName(SG, 'country')} i={1} onPick={() => onPick('country')}></SgRateRow>
       <SgRateRow scope="world" name="Everyone" i={2} onPick={() => onPick('world')}></SgRateRow>
-      {/* THE LAW AS TOKENS, not a paragraph (2026-09-02). Every clause
-          below is one fact off the committed rate card, and a buyer
-          checking one of them had to read four lines of prose to find it.
-          The sentence that stays is the one that is a PROMISE rather than
-          a figure — D182's own carve-out, COPY.md §3. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5, margin: '2px 2px 0' }}>
-        {[
-          fmt(PRICING.base) + ' base',
-          '× demand — sold ÷ available',
-          'over the trailing ' + PRICING.trailingDays,
-          'floor ×' + PRICING.floorX,
-          'ceiling ×' + PRICING.ceilX,
-          'billed per answer',
-          'capped at ' + fmt(PRICING.capEur),
-        ].map((t) => <SgTok key={t}>{t}</SgTok>)}
+      {/* THE LAW AS TOKENS, not a paragraph (2026-09-02), and behind a
+          tap since D367. Every clause is one fact off the card in force.
+          The sentence that stays in view is the one that is a PROMISE
+          rather than a figure — D182's own carve-out, COPY.md §3. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '-3px 2px 0' }}>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+          The line you lock at booking is the line you keep.
+        </span>
+        <span style={{ flex: 1 }}></span>
+        <button className="press" type="button" aria-expanded={law} onClick={() => setLaw(!law)} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 750, color: 'var(--accent-ink)', whiteSpace: 'nowrap' }}>
+          {law ? 'Hide' : 'How the price is set'}
+        </button>
       </div>
-      <div style={{ margin: '-3px 2px 0', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-        The line you lock at booking is the line you keep.
-      </div>
+      {law ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5, margin: '0 2px' }}>
+          {[
+            fmt(PRICING.base) + ' an answer at quiet',
+            '× demand — booked ÷ available',
+            'the last ' + PRICING.trailingDays + ' days and the next ' + (PRICING.cohorts.world.booked || []).length,
+            ...(PRICING.floorX !== 1 ? ['floor ×' + PRICING.floorX] : []),
+            'ceiling ×' + PRICING.ceilX,
+            'billed per answer',
+            'budgets ' + fmt(PRICING.minEur) + ' to ' + fmt(PRICING.capEur),
+          ].map((t) => <SgTok key={t}>{t}</SgTok>)}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -394,6 +405,10 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const [wearName, setWearName] = useSgState(true);
   const [ageDim, setAgeDim] = useSgState(false);
   const [paidStep, setPaidStep] = useSgState('form');
+  // The most the buyer will spend (D367): a preset off the card, the
+  // smallest first — a control that defaults to more money than the
+  // least is the wrong default for a button that charges it.
+  const [budget, setBudget] = useSgState(PRICING.budgets[0]);
   const [sending, setSending] = useSgState(false);
   // the server's refusal, shown verbatim — the messages are written to be
   // shown (the budget, a form bound)
@@ -442,8 +457,8 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
     : 'under ' + PRICING.floorWeek + ' answers a week it runs as ' + parentLabel + ', your dims still printed';
   const underFloor = est && !extraDims && est.perDay * 7 < PRICING.floorWeek;
   const floorLine = (() => {
-    if (!est) return ['No completed campaign here yet — no forecast', floorRule].filter(Boolean).join('; ') + '.';
-    const head = '≈ ' + sgFmtN(est.perDay) + ' answers a day for all of ' + scopeName + ' · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's');
+    if (!est) return ['No campaign measured here yet — no forecast', floorRule].filter(Boolean).join('; ') + '.';
+    const head = '≈ ' + sgFmtN(est.perDay) + ' answers a day for all of ' + scopeName + ' · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's') + (est.running ? ' (' + est.running + ' still running)' : '');
     if (extraDims) return head + ' — your cut is smaller; ' + floorRule + '.';
     if (underFloor) return head + ' — ' + (floorRule || 'under the ' + PRICING.floorWeek + '-a-week floor') + '.';
     return head + ' — clears the ' + PRICING.floorWeek + '-a-week floor.';
@@ -467,6 +482,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
         kind: 'question', prompt, type, options: needOpts ? opts : [],
         topic: topic ? topic.id : null,
         scope: scopeKey, dims, wearName,
+        budgetEur: budget,
       });
     setSending(false);
     if (res && res.ok === false) { setRefusal(res.message); return; }
@@ -596,7 +612,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 // the sheet could go stale holding.
                 ['Window', 'first open ad day after you pay · 29 days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
-                ['Price', fmt(adFlat(scopeKey)) + ' flat · ×' + PRICING.cohorts[scopeKey].idx + ' · locked at approval'],
+                ['Price', fmt(adFlat(scopeKey)) + ' flat · locked at approval'],
               ] : [
                 ['Scope', scopeName],
                 // The functional window (D313): serving starts the day
@@ -604,9 +620,11 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 // stale while the checkout sits open.
                 ['Window', 'from the day after you pay · 29 days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
-                ['Rate', fmt(rate(scopeKey)) + ' per answer · ×' + PRICING.cohorts[scopeKey].idx + ' · locked at approval'],
-                ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * 29) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's')]] : []),
-                ['Your cap', fmt(PRICING.capEur) + ' up front · unserved answers refund at close'],
+                ['Rate', fmt(rate(scopeKey)) + ' per answer · locked at approval'],
+                ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * 29) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's') + (est.running ? ' (' + est.running + ' still running)' : '')]] : []),
+                // The budget is the cap (D367): what is charged up front,
+                // what the closer bills answers against, what comes back.
+                ['Your budget', fmt(budget) + ' up front · up to ' + sgFmtN(answersFor(scopeKey, budget)) + ' answers · unserved answers refund at close'],
               ]).map((r, i, arr) => (
                 <div key={r[0]} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '7px 0', borderBottom: i < arr.length - 1 ? '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' : 'none' }}>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{r[0]}</span>
@@ -719,11 +737,27 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 </div>
               ) : null}
             </div>
+            {/* The budget (D367): the most this will cost, chosen by the
+                buyer from the card's presets, and what it buys at the
+                line in force — a ceiling on answers, never a forecast
+                (the forecast, where one exists, is the floor line above).
+                Not for an ad, which is one flat figure for the window. */}
+            {adMode ? null : (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <span style={sgLabel}>budget — the most you'll spend</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>up to {sgFmtN(answersFor(scopeKey, budget))} answers · only what arrives is billed</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+                  {PRICING.budgets.map((b) => <SgDoorChip key={b} on={budget === b} label={fmt(b)} onTap={() => setBudget(b)}></SgDoorChip>)}
+                </div>
+              </div>
+            )}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{adMode ? fmt(adFlat(scopeKey)) + ' / window' : fmt(rate(scopeKey)) + ' / answer'}</span>
-                  <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 600, color: 'var(--ink-3)' }}>×{PRICING.cohorts[scopeKey].idx} · locked at booking</span>
+                  <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 600, color: 'var(--ink-3)' }}>{adMode ? 'locked at booking' : fmt(budget) + ' budget · up to ' + sgFmtN(answersFor(scopeKey, budget)) + ' answers · locked at booking'}</span>
                 </span>
                 <span style={{ flex: 1 }}></span>
                 <CurSwitch></CurSwitch>
