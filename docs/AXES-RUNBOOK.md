@@ -41,7 +41,7 @@ remembered:
 Three Routines, extending the five in `docs/QUESTION-FARM.md`
 § Scheduled runs. Same governance, restated where it differs:
 
-| Lane | Proposed schedule (UTC) | Contract | May edit | Merge authority |
+| Lane | Schedule (UTC) | Contract | May edit | Merge authority |
 | --- | --- | --- | --- | --- |
 | **Axes build** | `0 11 * * 2` — weekly, Tue 11:00 | § The build lane | the files its step names, plus ticking that step's own checkbox here in the same PR | **never merges** — skeptic then owner |
 | **Axes skeptic** | `0 11 * * 3` — weekly, Wed 11:00 | § The skeptic lane | nothing — review comments and the run log only | n/a |

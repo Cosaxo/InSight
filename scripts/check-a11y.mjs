@@ -54,7 +54,6 @@ import { ESLint } from "eslint";
 // take the cursor:
 //
 //   relmap.jsx        the people search, rendered only when `searchOpen`
-//   suggestions.jsx   the question field of an overlay opened by a button
 //   world-feed.jsx    the counter-reply box, rendered only when `replyTo`
 //                     names this take
 //   group-daily.jsx   the group-name field of a sheet the user opened
@@ -73,6 +72,12 @@ import { ESLint } from "eslint";
 // one deliberate autoFocus. D250 routed it through `useDialog` (the hook
 // D24 gave the other eight overlays), which traps Tab, restores focus on
 // unmount, and focuses the button itself — so the prop went with it.
+//
+// suggestions.jsx was on the list too — the question field of the ask
+// overlay, the same keep as the two pickers — and left it by deletion
+// rather than by fix: D368 took the purchase funnel out of the binary, so
+// the file and its finding went together. Entry deleted, not zeroed, per
+// the rule at the top.
 //
 // TweaksPanel.jsx is the drag handle of the host-era debug panel. It is a
 // pointer affordance by nature, and `src/dev/` is behind a build-time flag
@@ -139,7 +144,6 @@ const BASELINE = {
   "src/dev/TweaksPanel.jsx": 1,
   "src/v2/spec/group-daily.jsx": 1,
   "src/v2/spec/relmap.jsx": 1,
-  "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/world-feed.jsx": 1,
   "src/v2/ui/CityPicker.tsx": 1,
   "src/v2/ui/PickSearch.tsx": 1,
