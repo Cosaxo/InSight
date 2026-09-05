@@ -113,7 +113,13 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   store would not make the closer expensive — it would delete it, and
   with it the promise shown at the moment of payment. That is a far
   stronger thing to be able to say than a preference about fees.
-- **status** — `requested`
+- **status** — `designed` 2026-09-05, extracted to
+  `design/ask-2026-09-05/`. Its README carries the adapter contract the
+  build needs: the draft was fed a shaped pricing resource, so eight
+  names and two structures differ from `content/pricing.json` — and
+  `refundDays` must come from `WINDOW_DAYS` in `functions/src/paid.ts`,
+  never from `trailingDays`, which is a different quantity and one day
+  shorter than the promise.
 
 ### 0b · The interest profile, shown and editable
 

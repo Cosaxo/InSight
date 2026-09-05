@@ -179,6 +179,7 @@ than of a subject:
 | `content/README.md` | The question bank formats and how content reaches the seed |
 | `design/README.md` | The frozen prototype and its revisions |
 | `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
+| `design/ask-2026-09-05/README.md` | The web ask door (D365 shape A), and **the adapter contract the build needs** — the draft was fed a shaped pricing resource, so eight names differ from `content/pricing.json`, and `refundDays` must come from `WINDOW_DAYS` rather than from `trailingDays`, which is a day shorter than the promise |
 
 ## 5 · The gates
 
