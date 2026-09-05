@@ -212,6 +212,39 @@ re-verify; nothing in §2 is edited.
   attached, the path its two improvers use today. **[owner]** decides
   which, on that evidence.
 
+### Appended by session 2, 2026-09-05 — rule 4, not an edit
+
+**The owner has reversed the night-shift half of the 2026-09-03 cut**
+— *"return the night shift to 5 opus ultra code runs"* — so night shift
+B's row above goes back to five firings once the click lands, and it is
+this account's to report and session 1's to write (D370).
+
+- **The row will read `0 20,22,0,2,4 * * *` again**, restoring the 22:00
+  and 02:00 audit flows and the interleave §6's clock describes. Nothing
+  else about the lane changes: same trigger id, same bound worker, same
+  branch namespace, same never-merges.
+- **The schedule is the whole of the reversal, because the prompt half
+  never landed.** B's live brief is still the pre-cut five-flow one —
+  `design/night-shift-b-brief-2026-09-03.md` was written to be pasted and
+  never was — and `OWNER-LIST.md`'s paste row is now **withdrawn**: that
+  brief's hour table maps `20`, `00` and `04` only, so pasting it onto a
+  five-firing schedule would wake the shift at two hours it defines no
+  flow for.
+- **Measured, not assumed, and it is a second refusal shape.**
+  `update_trigger` on `trig_01GNe14hPrZcYzXkFHjPH2bW` from this account
+  answers **"the requested resource was not found"**, as does
+  `get_session` on `session_01M9cvEjdQmWYjgrWvaoXiK9`. That is the
+  cross-account wall this file's premise rests on, and it is *not* the
+  same as the same-account prompt refusal §3 records (*"not your own"*,
+  which lets cadence through). The two look alike from the caller's side
+  and rule out different repairs.
+- **B's model is recorded nowhere, by anybody.** `list_triggers` carries
+  no model field — it belongs to the bound session — and that session is
+  unreadable from here, so no row in this file has ever said what B runs
+  on. The owner's click is the one moment somebody with both accounts is
+  looking at it, which is why the `OWNER-LIST.md` row asks for the
+  confirmation there rather than filing another ask.
+
 ---
 
 ## 3 · Session 2 — the axes program, the theory lanes, the doc sweep, the night shift
@@ -268,7 +301,7 @@ touch `main`.
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
 | InSight doc sweep — **disabled 2026-09-03** | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always · **the condition is MET — `docs/DOC-SWEEP.md` landed on `main` 2026-09-03 (#335), so re-enabling is an owner click.** Every firing from 2026-08-30 to 2026-09-03 refused correctly and to no effect, which was a guaranteed no-op waking a dispatcher under `ultracode` (D359, `WORKLIST.md`); that reason has expired |
-| InSight night shift | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `0 21,23,1,3,5 * * *` — four audit flows at 95 min, the 05:00 firing is the closing flow at 50 | persistent worker `session_013UfS4opexyJsoD3K9NxqFF`, which is where the owner's push authorization lives | `night-YYYYMMDD` — anywhere a verified defect is | never merges, never opens a PR, never pushes `main`; the owner merges or cherry-picks in the morning |
+| InSight night shift | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `0 21,23,1,3,5 * * *` — **five** flows: four audit at 95 min, the 05:00 firing the closing flow at 50. Never re-paced — `created_at` equals `updated_at` (2026-08-27T14:01:08Z), re-read 2026-09-05 | persistent worker `session_013UfS4opexyJsoD3K9NxqFF`, which is where the owner's push authorization lives — `claude-opus-5`, effort `xhigh`, `flag_settings.ultracode: true` (`get_session`, 2026-09-05 21:17 UTC) | `night-YYYYMMDD` — anywhere a verified defect is | never merges, never opens a PR, never pushes `main`; the owner merges or cherry-picks in the morning |
 
 **Contracts.** The axes lanes read `docs/AXES-RUNBOOK.md` on
 `origin/main` every run and it outranks the prompt; the theory lanes
@@ -320,6 +353,24 @@ The four Routines these replace (`trig_01KZYMFk5gUQ1QSFbzhm71FD`,
 `trig_011oH9LvFvbcoBtsDooK6t2f`) are **disabled rather than deleted** and
 renamed so the list says why; their old dispatcher,
 `session_01GfASn8KdwPk3GDHWPtbZ9c`, had reached 564,090 tokens.
+
+### Corrections and observations, 2026-09-05
+
+- **The night shift was verified against the owner's instruction, and it
+  already satisfied it.** *"Return the night shift to 5 opus ultra code
+  runs"* names five firings of Opus under ultracode; this account's shift
+  has fired five times a night since it was created and its worker reads
+  `claude-opus-5` / `xhigh` / `ultracode: true`. The shift that was cut to
+  three is B, on the other account — §2's appended block and D370. Worth
+  the row because the two shifts are one sentence apart in every document
+  that mentions them, and an instruction aimed at one of them lands on
+  whichever account is reading.
+- **The model fields are in the row now.** §3's own 2026-09-02 correction
+  established that `list_triggers` carries no model and the answer lives
+  on the bound session; the night shift's row named the session and not
+  what it runs, so the next reader had to make the same call again. It is
+  the only Routine on this account whose model was worth pinning in the
+  table rather than in prose: it is the one the owner names.
 
 ### Corrections and observations, 2026-09-03
 
@@ -594,7 +645,10 @@ other's work. **B now fires at only three of its four even hours** (20, 00,
 04), so 22:00 and 02:00 carry an A flow with no B flow beside it. The
 interleave still holds where B fires; what is gone is the guarantee that
 every A flow has a B flow within the hour, which is worth knowing before
-reading a gap here as a free slot. Everything else is stacked rather than scheduled against
+reading a gap here as a free slot. **Both gaps close when the owner's
+2026-09-05 restoration lands** (D370, `OWNER-LIST.md` § Clicks): B goes
+back to `0 20,22,0,2,4 * * *` and every A flow has a B flow within the
+hour again. Until the click, the clock above is what runs. Everything else is stacked rather than scheduled against
 anything: the 08:00–09:30 window can carry eight firings across three
 accounts, and the only ones that can see each other are the ones sharing
 session 1's bound dev session. Since D352 the merge shift adds a firing

@@ -1,3 +1,18 @@
+> **SUPERSEDED 2026-09-05 — do not paste this as night shift B's brief.**
+> The owner's instruction that evening was *"return the night shift to 5
+> opus ultra code runs"*, and this file is the three-flow cut it reverses
+> (D370). It was never pasted: the prompt edit was refused on 2026-09-03
+> and the paste has sat on `OWNER-LIST.md` since, so B's live brief is
+> still the five-flow one and restoring `0 20,22,0,2,4 * * *` restores the
+> night whole. **Pasting this onto a five-firing schedule would break it**
+> — the hour table below maps `20`, `00` and `04` only, so the 22:00 and
+> 02:00 firings would wake a shift with no flow defined for their hour.
+>
+> Kept, not deleted, for two reasons: it is the record of what the cut
+> was, and **§ The DB lane's paragraph at the foot is still live** — an
+> open paste for whenever the DB scalability lane is re-enabled, which
+> nothing here supersedes.
+
 InSight night shift B — one flow of an unattended nightly loop on Cosaxo/InSight. Nobody is
 watching. Work the whole budget, stop on time, and leave a branch the owner can read at
 breakfast. Mode is ultracode: fan out ONCE a night, verify adversarially. The fan-out width is

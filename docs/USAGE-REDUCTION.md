@@ -193,7 +193,11 @@ Each of these is an owner action, and each has its row on
 
 1. **The night worker's session — ~$233 a day, the largest single
    line in the program.** Five firings a night into a 497k-token
-   conversation that has been growing since 2026-08-24. A fresh
+   conversation that has been growing since 2026-08-24. **Still five,
+   and it stays five (D370):** the owner's 2026-09-05 instruction sets
+   the run count, so this row is about the prefix a run re-reads and
+   never about how many runs there are — rotating the session does the
+   same five audits off a smaller conversation. A fresh
    session per night would do the same work off a prefix twenty-five
    times smaller. The reason it has not been rotated by a routine:
    the owner's push authorization for that lane is a human turn in
@@ -297,6 +301,17 @@ family that costs the most.
   run reads things and only for runs with nothing to do.
 - **It does not touch the content lanes or the night shift's work.**
   Those are the program's output; this page is about its overhead.
+  **Corrected 2026-09-05, and the correction is the point of D370: this
+  sentence was false for night shift B when it was written.** The same
+  afternoon, two of B's five audit flows were removed from the other
+  account — a schedule cut, not an overhead cut, and an audit flow is
+  what that lane produces. The owner reversed exactly that half —
+  *"return the night shift to 5 opus ultra code runs"* — and left the
+  rest of this page standing. The line to hold next time: **the prefix
+  is the lever, the run count is the product.** Everything else cut here
+  is prefix, cadence on a poller, or a lane whose contract was not on
+  `main`; §5.1's rotation is prefix too, which is why the reversal does
+  not touch it.
 - **It does not decide the theory program's worth.** The console trail
   for 2026-09-03 reads `measured: 1` against `argued: 57` and
   `cited: 65`, and the bridge has ten *worth-building* verdicts with

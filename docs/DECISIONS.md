@@ -39007,3 +39007,143 @@ ruler, switch currency, quote, decline, change form — with no CSP
 violation and no page error, at 360px with no horizontal scroll. Both
 defects in §3 came out of that run. The two gates were mutation-tested
 by breaking the thing each protects.
+
+## D370 · The night shift goes back to five runs a night — and only one of the two was ever cut
+
+**2026-09-05.** **Status:** binding — it reverses the night-shift half of
+2026-09-03's usage cut, and nothing else of it. The owner's words this
+evening: *"return the night shift to 5 opus ultra code runs."* Read as
+five firings a night, each an Opus run under `ultracode`, because that is
+the shape the phrase names and the shape one of the two shifts still has.
+
+### What was actually true when the instruction arrived
+
+Two night shifts audit this tree from two accounts, and **only one of them
+had been cut.** Read field by field off `list_triggers` and `get_session`
+on 2026-09-05 21:17 UTC, not off this file:
+
+| | Trigger | Schedule when the instruction arrived | Bound worker |
+| --- | --- | --- | --- |
+| **A** — `InSight night shift`, Claude 2 (this account) | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `0 21,23,1,3,5 * * *` — **five**, and `created_at` equals `updated_at` (2026-08-27T14:01:08Z), so it has never been re-paced at all | `session_013UfS4opexyJsoD3K9NxqFF` — `configured_model` and `last_served_model` both `claude-opus-5`, `effort_level: xhigh`, `flag_settings.ultracode: true` |
+| **B** — `InSight night shift B`, Claude 1 | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,0,4 * * *` — **three**, cut from `0 20,22,0,2,4` on 2026-09-03 at 14:28:12Z | `session_01M9cvEjdQmWYjgrWvaoXiK9` — model recorded nowhere in this tree, and unreadable from here |
+
+**So shift A already is the instruction**, and its prompt says so in its
+own second sentence — *"FIVE flows a night, not four"*. There was nothing
+to restore on this account; the whole of the change is one field on the
+other one.
+
+### The measurement: this account cannot make the change
+
+`update_trigger` on B's id with `cron_expression: 0 20,22,0,2,4 * * *`
+answers **"the requested resource was not found"**, and `get_session` on
+B's worker answers the same. That is the **cross-account** refusal — a
+different thing from the prompt refusal already on `PERMISSIONS.md`
+(*"editing the prompt of a routine whose fires deliver into a session that
+is not your own is not available via this tool"*) — that one is
+same-account, inferred from the fact that the *schedule* half of the same
+call landed, so the trigger was reachable and only the prompt was
+withheld. Both are worth having in writing precisely
+because they look alike from the caller's side and rule out different
+repairs: the first says *ask the owner*, the second says *delete and
+recreate, or ask the owner*. `ROUTINES.md`'s premise holds — no account
+can see, read or touch another's Routines — so the restoration is a click,
+and this record is what makes it a one-field click instead of a research
+task.
+
+### The reversal is one field, because the other half never landed
+
+B's live prompt is **still the pre-cut five-flow brief** — inferred, not
+read: no account here can see it. The evidence is that the L1 re-shape
+was written to `design/night-shift-b-brief-2026-09-03.md` *in order to be
+pasted*, the refusal above stopped the paste, and it has been an open
+click on `OWNER-LIST.md` and an open row on `PERMISSIONS.md` ever since,
+both of which say in terms that the old brief is what runs. The owner
+confirms it in the same visit as the click, which is the cheapest place
+to confirm it. So:
+
+- **Restoring `0 20,22,0,2,4 * * *` restores the night whole.** The live
+  brief already maps all five hours to flows; nothing else has to move.
+- **And the pending paste is now withdrawn, not merely deprioritised.**
+  That brief *is* the cut: three flows, one fan-out a night, and an hour
+  table whose only entries are `20`, `00` and `04` — `date -u +%H`
+  decides, nothing else. Pasted onto a five-firing schedule it would wake
+  a shift at 22:00 and 02:00 with no flow defined for the hour it arrived
+  in. A reversal that left that row open would have re-cut the night
+  through the prompt three days after restoring it through the schedule.
+
+The file stays in `design/` with a superseded banner rather than being
+deleted: it holds the DB scalability lane's paragraph at its foot, which
+is a separate open paste, and it is the record of what the cut was.
+
+### The arithmetic, and whose it is
+
+From the brief's own measurements (the only ones for B; this account
+cannot read that bucket, and rate limits do not cross accounts):
+
+| B's night | Flows | Fan-outs | Commit ceiling, nominal | Cost |
+| --- | ---: | ---: | ---: | ---: |
+| Before the cut, and after this reversal | 5 | one per audit flow | 25 | ~$297 |
+| Today — cut schedule, live five-flow prompt | 3 | 2 | 16 | ~$178 |
+| If the L1 brief had been pasted | 3 | 1 | 32 | ~$140 |
+
+So the reversal costs about **$119 a night** against today. What it buys,
+measured off `MERGE-LIST.md` rather than off the ceiling column, is
+between six and twelve commits: `nightb-20260903`, the last five-flow
+night, landed **25**; the two full three-flow nights since landed **13**
+and **19**. (Shift A's five-flow nights over the same window: 35, 32,
+32.) Worth reading the 19 twice — the nominal ceiling for a three-flow
+night is 16, so the cap the brief reasoned from is not what is binding,
+and the honest claim for the restoration is *two more audits of the tree
+and roughly a third more output*, not *nine more commits*. The cost is
+the owner's trade to make and they have made it; it is written down here
+because a cost nobody writes down is the one the next lane cuts again
+from the usage page alone.
+
+### The finding: a run count was cut as if it were overhead
+
+`USAGE-REDUCTION.md` §7 says, in its own list of what the round
+deliberately does not do: *"It does not touch the content lanes or the
+night shift's work."* For shift B that was **false when it was written** —
+two of its five audit flows had been removed the same afternoon, and an
+audit flow is the lane's work, not its overhead. The page's other cuts
+really are overhead (cadence on a poller, a 564k relay prefix, a lane
+whose contract was not on `main`), which is what made the exception easy
+to file beside them.
+
+The distinction the reversal draws, and the one a future cost pass should
+use: **the prefix is the lever, the run count is the product.**
+`USAGE-REDUCTION.md` §5.1 — rotate the night worker's session, ~$233 a
+day, the largest single line in the program — survives this instruction
+untouched, because rotating a session changes what a run re-reads and not
+how many runs there are. It is still the owner's row, for the reason it
+always was: the push authorization is a human turn in that session's own
+history (D326 §2) and a fresh session does not inherit it.
+
+### One drift, measured on the way past
+
+`OWNER-LIST.md` cites `USAGE-REDUCTION.md` **§4.1**, **§4.2/L2**,
+**§4.3/L9** and the levers as **L1**/**L2**. The page on `main` has no
+subsections under §4 and no L-numbers anywhere: the labels come from the
+draft the rows were written against. Nothing is wrong in the rows'
+substance — §4 and §6 carry the arithmetic they point at — so this is a
+citation to repair, not a claim to correct, and it is left as one line
+here rather than repaired across another account's rows. It is also why
+this record cites the brief and `PERMISSIONS.md` for B's figures rather
+than a §4.1 that does not resolve.
+
+### What this does not change
+
+- **Shift A.** Five firings, Opus, xhigh, ultracode — verified, not
+  assumed, and untouched. `ROUTINES.md` §3's row now carries the model
+  fields it was missing, because `list_triggers` has no model field and
+  the answer only exists on the bound session.
+- **The rest of D359.** The PR shepherd at eight firings, the theory lanes
+  on four days, the ops lanes rebound onto an empty dispatcher, the
+  cheap-gate rule — all unaffected. This reverses one lever on one lane.
+- **Every merge rule and push rule for both shifts.** Neither merges,
+  neither opens a PR, neither pushes `main` or the other's branch
+  namespace.
+
+Numbered D370 on `claude/night-shift-opus-ultra-runs-dplskh`; `main`
+mints numbers while branches are open, so this number moves before the
+merge label goes on if another branch claims it first (D299).
