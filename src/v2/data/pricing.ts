@@ -54,8 +54,14 @@ interface PricingFile {
   capEur: number;
   /** the least */
   minEur: number;
+  /** the one window every campaign runs, inclusive of its last day —
+   * the server's WINDOW_DAYS reads the same key (D371) */
+  windowDays: number;
   /** the presets the composer offers, ascending, inside [minEur, capEur] */
   budgets: number[];
+  /** the menu (D371): the preset a row on the door sells per reach —
+   * each one of `budgets`, so picking a row opens on a pressed chip */
+  menu: Record<Scope, number>;
   fx: Record<string, number>;
   cohorts: Record<Scope, CohortPricing>;
   estimates: Partial<Record<Scope, Estimate>>;
@@ -83,6 +89,11 @@ export const rate = (scope: Scope): number =>
  * ceiling the closer bills up to, never a forecast (D367). */
 export const answersFor = (scope: Scope, eur: number): number =>
   Math.floor(eur / rate(scope));
+
+/** The menu price for a reach (D371): the budget the door's row sells
+ * the cohort at. A preset, not a quote — the line in force decides how
+ * many answers it buys, which is what the row prints beside it. */
+export const menuEur = (scope: Scope): number => PRICING.menu[scope];
 
 /** How many other campaigns are in a cohort's rotation, averaged over
  * the fortnight the idx is folded from — the idx read back through the

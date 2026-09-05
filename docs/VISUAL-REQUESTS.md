@@ -178,21 +178,27 @@ that lets a buyer read them.
 - **what a buyer reads today, and has to assemble** — per cohort: a
   demand word (*quiet · steady · contested*), the crowding as a sentence
   (*nobody else asking · 1 other in rotation*; it was a booked count, *0 of 14
-  booked*), a fourteen-tick strip and a per-answer rate; the law
+  booked*), a fourteen-tick strip and — since D371 — the MENU price
+  for the reach (*€10 · up to 500 answers · 29 days*; until then a
+  per-answer rate, which now lives one tap in on the scope ruler and
+  the contract sheet); the law
   (*€0.02 an answer with nobody else asking · +50% per other campaign
   in rotation · over the next 14 days · no ceiling · billed per answer
-  · budgets €5 to €50*) behind a *How the price is set* tap since D367,
+  · budgets €5 to €50 · unserved answers refund at close*) behind a
+  *How the price is set* tap since D367,
   the crowding index since D368. In the composer a budget row (*€5 ·
-  €10 · €20 · €50*, the smallest chosen) says what it buys at the line
+  €10 · €25 · €50* — the row's own price chosen when a row opened it,
+  the smallest from the bare button) says what it buys at the line
   in force; the contract sheet says *Rate · locked at approval*, an
   estimate where a campaign has a measured rate (D288 §3, a served week
-  since D367), and *Your budget €5 up front · up to 250 answers ·
+  since D367), and *Your budget €25 up front · up to 1 250 answers ·
   unserved answers refund at close*.
-  D367 answered the arithmetic half of this request in copy; what is
-  still asked for is the SHAPE — the buyer's one question, *what will
-  this cost me, and what does it buy*, as the thing the eye lands on,
-  with the strip, the word and the presets around it rather than a
-  column of rows.
+  D367 answered the arithmetic half of this request in copy and D371
+  the menu half (`SPONSORED-PLAN.md` §2.3: one price per reach, one
+  promise under it); what is still asked for is the SHAPE — the
+  buyer's one question, *what will this cost me, and what does it
+  buy*, as the thing the eye lands on, with the strip, the word and
+  the presets around it rather than a column of rows.
 - **data and basis** — everything the door prints is on the live card
   (`v2_meta/pricing` over `content/pricing.json`, D366): per cohort the
   idx, the booked strip, the next open day, and an estimate WITH its

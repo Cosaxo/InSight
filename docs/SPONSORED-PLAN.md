@@ -2,8 +2,8 @@
 
 **Status: plan only, being built step by step** — the owner's *"go,
 yes to the link, keep your picks for the rest"* (2026-09-05). Built
-so far: §2.1 (D370). Each step binds only once its own record lands;
-the rest of this page is the plan, not the app.
+so far: §2.1 (D370), §2.3 (D371). Each step binds only once its own
+record lands; the rest of this page is the plan, not the app.
 Written 2026-09-05 on the owner's
 *"that sounds like a bad system — if I gave you complete creative
 freedom how would you remake it"* and *"that sounds better, lay a plan
@@ -101,7 +101,7 @@ in the card, one term in `pricingFold.ts`; the door's sentence becomes
 *"a feed with two is a feed for sale"* — the owner's line to retire,
 §5).
 
-### 2.3 · The menu
+### 2.3 · The menu — BUILT, D371
 
 **What.** The rate board's three rows print a price per reach — city
 €10, country €25, everyone €50 — each with *up to N answers* at the
@@ -119,6 +119,12 @@ budget), `content/pricing.json` (a `menu` block: scope → preset),
 item 4 (this is its copy half, done; the shape still waits on design).
 
 **Size.** Half a day. Reverses nothing.
+
+*Built as written, with one figure moved: the €20 chip became €25 so
+the menu's three prices are three of the composer's chips, and the
+window (29) went onto the card so the row and the server read one
+number. The per-answer line left the rows for the ruler and the
+sheet — the row says the price and what it buys.*
 
 ### 2.4 · One reviewed link — the owner's decision
 

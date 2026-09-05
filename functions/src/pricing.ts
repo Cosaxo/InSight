@@ -19,7 +19,9 @@ export interface PricingCard {
   floorWeek: number;
   capEur: number;
   minEur: number;
+  windowDays: number;
   budgets: number[];
+  menu: Record<"city" | "country" | "world", number>;
   fx: Record<string, number>;
   cohorts: Record<"city" | "country" | "world", PricingCohort>;
   estimates: Record<string, { perDay: number; campaigns: number; days: number; running?: number }>;
@@ -33,12 +35,18 @@ export const PRICING_CARD: PricingCard = {
  "floorWeek": 500,
  "capEur": 50,
  "minEur": 5,
+ "windowDays": 29,
  "budgets": [
   5,
   10,
-  20,
+  25,
   50
  ],
+ "menu": {
+  "city": 10,
+  "country": 25,
+  "world": 50
+ },
  "fx": {
   "NOK": 11.6,
   "USD": 1.08

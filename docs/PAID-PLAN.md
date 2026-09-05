@@ -354,6 +354,15 @@ ridiculously high?"*: `base` is €0.02 (€10 buys 500 answers with
 nobody else asking), budgets €5 · €10 · €20 · €50, a €5 minimum. The
 ad window did not follow and is on `OWNER-LIST.md`.
 
+**The menu — DECIDED, D371 (2026-09-05; `SPONSORED-PLAN.md` §2.3).**
+The door's three rows print a price per reach — city €10, country
+€25, everyone €50 — each with *up to N answers* at the line in force
+and the window, and picking a row opens the composer at that budget.
+The €20 chip became €25 so the menu's figures are chips; `windowDays`
+(29) joined the card so the server's window and the door's read one
+number. Underneath nothing moved: per-answer billing at the locked
+line, the budget as the cap, the refund at close.
+
 **Ads run from the day after payment and share the rotation; the ad
 window follows the cut — DECIDED, D369 (2026-09-05).** The owner:
 *"make the ad price follow the same cut, and how do ads work right

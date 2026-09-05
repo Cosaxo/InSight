@@ -6,7 +6,7 @@
 // convenience, an unknown currency falls back to the contract's own EUR,
 // and the preference dies with the account like every insight.* key.
 import { beforeEach, describe, expect, it } from "vitest";
-import { PRICING, applyLive, cur, demandWord, fmt, fmtExact, rate, setCur } from "./pricing";
+import { PRICING, answersFor, applyLive, cur, demandWord, fmt, fmtExact, menuEur, rate, setCur } from "./pricing";
 
 beforeEach(() => {
   localStorage.clear();
@@ -16,6 +16,33 @@ beforeEach(() => {
 describe("the posted line", () => {
   it("is base × the committed idx — no other arithmetic", () => {
     expect(rate("city")).toBe(Math.round(PRICING.base * PRICING.cohorts.city.idx * 1000) / 1000);
+  });
+
+  it("the menu (D371) is a preset per reach, and the line decides what it buys", () => {
+    // Each menu price is one of the composer's chips — check:pricing
+    // referees the file, this pins the module reading it — and the
+    // answers it buys are answersFor at the line in force: the same
+    // arithmetic the composer prints, so a row and its composer agree.
+    for (const scope of ["city", "country", "world"] as const) {
+      expect(PRICING.budgets).toContain(menuEur(scope));
+      expect(answersFor(scope, menuEur(scope))).toBe(Math.floor(menuEur(scope) / rate(scope)));
+    }
+    expect(menuEur("city")).toBeLessThanOrEqual(menuEur("country"));
+    expect(menuEur("country")).toBeLessThanOrEqual(menuEur("world"));
+    // Crowding lifts the line and the same price buys fewer: the menu
+    // figure does not move, the count under it does.
+    const before = answersFor("country", menuEur("country"));
+    expect(applyLive({
+      generated: "2026-09-05",
+      cohorts: {
+        city: { idx: 1, booked: Array(14).fill(0), nextOpen: null },
+        country: { idx: 2, booked: Array(14).fill(1), nextOpen: null },
+        world: { idx: 1, booked: Array(14).fill(0), nextOpen: null },
+      },
+      estimates: {},
+    })).toBe(true);
+    expect(menuEur("country")).toBe(PRICING.menu.country);
+    expect(answersFor("country", menuEur("country"))).toBe(Math.floor(before / 2));
   });
 
   it("maps the crowding to the three demand words (D368)", () => {

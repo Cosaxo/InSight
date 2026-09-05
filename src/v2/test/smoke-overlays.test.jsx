@@ -100,6 +100,13 @@ describe("the overlays with no button — opened through the nav registry", () =
     await openVia("openSuggestions");
     expect(screen.getAllByText(/next open tomorrow/i)).toHaveLength(3);
     expect(document.body.textContent).not.toMatch(/contested|12 Sep/);
+    // The menu (D371): each row prints its price per reach and what that
+    // buys at the committed line — €0.02 with nobody else asking — over
+    // the one window. The per-answer line is one tap in, not on the row.
+    expect(screen.getByText(/up to 500 answers · 29 days/)).toBeTruthy();
+    expect(screen.getByText(/up to 1 250 answers · 29 days/)).toBeTruthy();
+    expect(screen.getByText(/up to 2 500 answers · 29 days/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/per answer/i);
     // into the composer — the accessible name needs the "+", because the
     // header's compose icon answers to the bare phrase too
     fireEvent.click(screen.getByRole("button", { name: /^\+ Ask a question$/i }));
@@ -127,6 +134,20 @@ describe("the overlays with no button — opened through the nav registry", () =
     expect(document.body.textContent).not.toMatch(/Arranged directly|no self-serve yet/);
     expect(document.body.textContent).not.toMatch(/under 80% of the estimate|extends free/);
     expectNoBoundary("the composer and its contract sheet");
+  });
+
+  // Picking a menu row (D371) opens the composer on that reach at that
+  // price — the row's chip pressed, the ceiling it buys restated — with
+  // the other chips still there to adjust.
+  it("a menu row opens the composer at its own price", async () => {
+    const expectNoBoundary = mountApp();
+    await openVia("openSuggestions");
+    fireEvent.click(screen.getByRole("button", { name: /up to 1 250 answers · 29 days/ }));
+    expect(screen.getByRole("button", { name: "€25", pressed: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "€5", pressed: false })).toBeTruthy();
+    expect(screen.getByText(/up to 1 250 answers · only what arrives is billed/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Price it for/ }).textContent).not.toMatch(/Everyone/);
+    expectNoBoundary("the composer opened from a menu row");
   });
 
   it("opens a person's profile", async () => {

@@ -78,8 +78,10 @@ export const BOOKINGS_PER_DAY = 5;
 
 /** The fixed window every self-serve question runs (the door's "29 days"
  * chip; PAID-PLAN §8's 366-day gate bounds it from far above). Inclusive
- * of its last day: until = start + WINDOW_DAYS - 1. */
-export const WINDOW_DAYS = 29;
+ * of its last day: until = start + WINDOW_DAYS - 1. On the rate card
+ * since D371, because the door prints it beside a price and a figure
+ * printed in two places is one that drifts. */
+export const WINDOW_DAYS = PRICING_CARD.windowDays;
 
 // ── form bounds, mirrored by value ──────────────────────────────────────
 // The same figures suggestions.ts mirrors from scripts/question-quality.mjs

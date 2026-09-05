@@ -50,7 +50,9 @@ export function generatePricingTs(json) {
     "  floorWeek: number;\n" +
     "  capEur: number;\n" +
     "  minEur: number;\n" +
+    "  windowDays: number;\n" +
     "  budgets: number[];\n" +
+    "  menu: Record<\"city\" | \"country\" | \"world\", number>;\n" +
     "  fx: Record<string, number>;\n" +
     "  cohorts: Record<\"city\" | \"country\" | \"world\", PricingCohort>;\n" +
     "  estimates: Record<string, { perDay: number; campaigns: number; days: number; running?: number }>;\n" +

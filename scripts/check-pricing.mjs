@@ -30,6 +30,13 @@
 //     campaign that has served a week counts, and `running` says how many)
 //   - the buyer's budget range is sane (D367): minEur below capEur, and
 //     every preset a whole-euro figure inside it, ascending
+//   - the menu (D371) names a preset per cohort — city · country ·
+//     world, each one of `budgets` so the composer opens on a chip it
+//     can press, non-decreasing outward, because a wider reach at a
+//     lower price would print the door's own argument backwards
+//   - windowDays is the one window every campaign runs (D313's 29): a
+//     positive whole number, read by the server's booking path and
+//     printed by the door, so neither can say a different figure
 //
 // Run: node scripts/check-pricing.mjs   (wired into ci.yml's client job —
 // client content, so it stays OFF backend-checks.yml: nothing here says
@@ -75,6 +82,23 @@ else {
     if (i > 0 && !(b > p.budgets[i - 1])) fail(`budgets must ascend — ${JSON.stringify(p.budgets)}`);
   });
 }
+// The menu (D371): the price a row on the door prints per reach — a
+// preset budget per cohort, sold as "up to N answers" at the line in
+// force. Each must be one of the composer's chips, or picking a row
+// would open on a budget no chip shows pressed.
+const menu = p.menu && typeof p.menu === "object" ? p.menu : null;
+if (!menu) fail(`menu must map city · country · world to a preset budget, got ${JSON.stringify(p.menu)}`);
+else {
+  const keys = Object.keys(menu).sort();
+  if (keys.join(",") !== "city,country,world") fail(`menu must name exactly city · country · world, got [${keys.join(", ")}]`);
+  const budgets = Array.isArray(p.budgets) ? p.budgets : [];
+  for (const scope of ["city", "country", "world"]) {
+    const m = menu[scope];
+    if (!budgets.includes(m)) fail(`menu.${scope} ${JSON.stringify(m)} is not one of the budget presets ${JSON.stringify(budgets)}`);
+  }
+  if (!(menu.city <= menu.country && menu.country <= menu.world)) fail(`menu must not fall as the reach widens — city ≤ country ≤ world, got ${JSON.stringify(menu)}`);
+}
+if (!(Number.isInteger(p.windowDays) && p.windowDays > 0)) fail(`windowDays must be a positive whole number of days, got ${JSON.stringify(p.windowDays)}`);
 // `adBase` — the flat ad window (D315) — left the card at D370 with the
 // self-serve ad lane; a card that still carries it is stale.
 if (p.adBase !== undefined) fail("adBase is no longer a price — the ad lane retired at D370; drop it from the card");
@@ -143,4 +167,4 @@ if (fails.length) {
   process.exit(1);
 }
 const nBooked = SCOPES.map((s) => `${s} ${cohorts[s].booked.filter(Boolean).length}/14`).join(" · ");
-console.log(`check-pricing OK — base €${p.base}/answer, +${Math.round(p.crowdStep * 100)}% per campaign in rotation, budgets €${p.minEur}–€${p.capEur}; idx ${SCOPES.map((s) => `${s} ×${cohorts[s].idx}`).join(" · ")}; booked ${nBooked}; ${Object.keys(est).length} estimate(s), each with its basis.`);
+console.log(`check-pricing OK — base €${p.base}/answer, +${Math.round(p.crowdStep * 100)}% per campaign in rotation, budgets €${p.minEur}–€${p.capEur}, menu €${p.menu.city} · €${p.menu.country} · €${p.menu.world} for ${p.windowDays} days; idx ${SCOPES.map((s) => `${s} ×${cohorts[s].idx}`).join(" · ")}; booked ${nBooked}; ${Object.keys(est).length} estimate(s), each with its basis.`);

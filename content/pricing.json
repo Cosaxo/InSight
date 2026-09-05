@@ -2,24 +2,30 @@
  "generated": "2026-09-05",
  "currency": "EUR",
  "base": 0.02,
- "floorX": 1.0,
+ "floorX": 1,
  "crowdStep": 0.5,
  "floorWeek": 500,
  "capEur": 50,
  "minEur": 5,
+ "windowDays": 29,
  "budgets": [
   5,
   10,
-  20,
+  25,
   50
  ],
+ "menu": {
+  "city": 10,
+  "country": 25,
+  "world": 50
+ },
  "fx": {
   "NOK": 11.6,
   "USD": 1.08
  },
  "cohorts": {
   "city": {
-   "idx": 1.0,
+   "idx": 1,
    "booked": [
     0,
     0,
@@ -55,7 +61,7 @@
    "nextOpen": null
   },
   "country": {
-   "idx": 1.0,
+   "idx": 1,
    "booked": [
     0,
     0,
@@ -91,7 +97,7 @@
    "nextOpen": null
   },
   "world": {
-   "idx": 1.0,
+   "idx": 1,
    "booked": [
     0,
     0,

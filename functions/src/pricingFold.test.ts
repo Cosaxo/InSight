@@ -13,7 +13,8 @@ import type { PricingCard } from "./pricing";
 
 const card: PricingCard = {
   generated: "2026-09-05", currency: "EUR", base: 0.02, floorX: 1, crowdStep: 0.5,
-  floorWeek: 500, capEur: 50, minEur: 5, budgets: [5, 10, 20, 50], adBase: 320, fx: { NOK: 11.6 },
+  floorWeek: 500, capEur: 50, minEur: 5, windowDays: 29, budgets: [5, 10, 25, 50],
+  menu: { city: 10, country: 25, world: 50 }, fx: { NOK: 11.6 },
   cohorts: {
     city: { idx: 1, booked: Array(14).fill(0), crowd: Array(14).fill(0), nextOpen: null },
     country: { idx: 1, booked: Array(14).fill(0), crowd: Array(14).fill(0), nextOpen: null },

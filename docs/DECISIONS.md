@@ -38583,3 +38583,62 @@ review guidelines no longer naming an ad), `pricing.test.ts` (no
 `paid-landing.test.mjs` (no ad page shipped or named), `check:pricing`
 (no `adBase`), `smoke-overlays.test.jsx` (the door with one product),
 and the e2e's leg 13.
+
+## D371 · The menu: the door prints a price per reach, and a row opens the composer at it
+
+**2026-09-05.** **Status:** binding, BUILT. Step §2.3 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), on the owner's *"go, yes to
+the link, keep your picks for the rest"*; the figures are the plan's
+(*"keep your picks"*), on the €0.02 line D368 set. Reverses nothing.
+
+### 1 · What a buyer reads
+
+Three rows, one number each: **your city €10 · your country €25 ·
+everyone €50**, under each *up to N answers · 29 days*, N being what
+the figure buys at the cohort's line in force — 500, 1 250, 2 500
+with nobody else asking; fewer, for the same figure, where the
+rotation is crowded. The demand word and the crowding sentence stay
+beside the name; the strip stays under. The per-answer line left the
+row: it is one tap in, under each stop of the scope ruler and on the
+contract sheet's *Rate* line, where the buyer locks it. A buyer reads
+one number and one promise; the law stays behind its tap, with one
+token added — *unserved answers refund at close* — because the
+guarantee under a menu price is the refund, and the tokens are the
+one place the whole mechanism is stated.
+
+Picking a row opens the composer on that reach WITH THAT BUDGET
+chosen — the chips stay for adjusting. The bare *+ Ask a question*
+button still opens on the smallest preset: nobody chose a number
+there, and D367's reason stands (a control that defaults to more
+money than the least is the wrong default for a button that charges
+it).
+
+### 2 · What moved on the card
+
+- `menu: { city: 10, country: 25, world: 50 }` on `content/pricing.json`;
+  `check:pricing` holds each to be one of `budgets` (so a row opens on a
+  chip that shows pressed) and non-decreasing outward (a wider reach at
+  a lower price would print the door's own argument backwards).
+- `budgets` €5 · €10 · **€25** · €50 — the €20 chip moved to €25 so the
+  menu's three figures are chips. €25 buys 1 250 answers at the quiet
+  line; the €10-buys-500 sentence D368 wrote still holds.
+- `windowDays: 29` on the card, read by the server (`WINDOW_DAYS` in
+  `paid.ts` is now the card's) and printed by the door wherever it
+  said *29 days* — four literal sites, now one number, because a figure
+  printed beside a price in two places is one that drifts.
+
+The server's booking path is unchanged: it prices `budgetEur` inside
+[minEur, capEur] as before, and a menu price is a budget the client
+sends like any chip. The estimate (where one exists) and the floor
+rule print in the composer as they did.
+
+### 3 · What pins it
+
+`smoke-overlays.test.jsx` (the three rows print their menu price and
+what it buys at the committed line, no per-answer line on the board;
+the country row opens the composer with €25 pressed and the ceiling
+restated), `pricing.test.ts` (the menu is presets, the count under it
+is `answersFor` at the line, and a lifted line halves the count
+without moving the figure), `check:pricing` (the menu's shape), and
+`paid.test.ts` through `WINDOW_DAYS` — every window assertion now
+reads the card.

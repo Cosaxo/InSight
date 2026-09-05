@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 384 lines instead of
-38,586. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 385 lines instead of
+38,645. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -394,7 +394,8 @@ detect it.
 | **D364** | [A component defined inside a render is a remount per render: the profile's result panels, and the loop that shook the rose until the app died](DECISIONS.md#d364--a-component-defined-inside-a-render-is-a-remount-per-render-the-profiles-result-panels-and-the-loop-that-shook-the-rose-until-the-app-died) | — | 37893 |
 | **D365** | [Near is a switch again: off or on, and the timed option retires](DECISIONS.md#d365--near-is-a-switch-again-off-or-on-and-the-timed-option-retires) | — | 37976 |
 | **D366** | [The rate card folds itself: the demand index moves on every sale and every night, and the door prints the published card](DECISIONS.md#d366--the-rate-card-folds-itself-the-demand-index-moves-on-every-sale-and-every-night-and-the-door-prints-the-published-card) | D368 (+1) | 38049 |
-| **D367** | [The buyer sets the budget, the base is the quiet price, and a served week is a basis — per-answer billing stays](DECISIONS.md#d367--the-buyer-sets-the-budget-the-base-is-the-quiet-price-and-a-served-week-is-a-basis--per-answer-billing-stays) | D368 | 38216 |
-| **D368** | [The index is crowding, with no ceiling, and the quiet price is €0.02](DECISIONS.md#d368--the-index-is-crowding-with-no-ceiling-and-the-quiet-price-is-002) | D369 | 38324 |
+| **D367** | [The buyer sets the budget, the base is the quiet price, and a served week is a basis — per-answer billing stays](DECISIONS.md#d367--the-buyer-sets-the-budget-the-base-is-the-quiet-price-and-a-served-week-is-a-basis--per-answer-billing-stays) | D371 (+1) | 38216 |
+| **D368** | [The index is crowding, with no ceiling, and the quiet price is €0.02](DECISIONS.md#d368--the-index-is-crowding-with-no-ceiling-and-the-quiet-price-is-002) | D371 (+1) | 38324 |
 | **D369** | [Ads run from the day after payment and share the rotation, and the ad window follows the cut](DECISIONS.md#d369--ads-run-from-the-day-after-payment-and-share-the-rotation-and-the-ad-window-follows-the-cut) | D370 | 38426 |
 | **D370** | [Ads leave the door: the sponsored question is the one paid product](DECISIONS.md#d370--ads-leave-the-door-the-sponsored-question-is-the-one-paid-product) | — | 38509 |
+| **D371** | [The menu: the door prints a price per reach, and a row opens the composer at it](DECISIONS.md#d371--the-menu-the-door-prints-a-price-per-reach-and-a-row-opens-the-composer-at-it) | — | 38587 |

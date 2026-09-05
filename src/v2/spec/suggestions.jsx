@@ -22,7 +22,7 @@ import { useDialog } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
 import { SUGGESTIONS } from './suggestions.js';
 import { WORLD_TOPICS } from './world-feed-data.js';
-import { PRICING, rate, answersFor, demandWord, othersFor, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
+import { PRICING, rate, answersFor, menuEur, demandWord, othersFor, fmt, fmtExact, subscribeCur, loadLiveCard, isLive } from '../data/pricing';
 // The dispatcher, for the one gate the live card's read needs: a demo
 // build (LIVE.enabled false) has no Firestore to read it from.
 import LIVE from '../data/live';
@@ -245,15 +245,21 @@ function SgTok({ children }) {
 }
 
 // ── the rate card (PAID-PLAN §6): one row per cohort, all of it read off
-// the card in force — the posted line, the next 14 days as real ticks
-// (taller the more campaigns share the day, D368), the demand word from
-// the same crowding the line is priced by.
+// the card in force — since D371 the MENU price for the reach (a preset
+// budget, sold as "up to N answers" at the line in force), the next 14
+// days as real ticks (taller the more campaigns share the day, D368),
+// the demand word from the same crowding the line is priced by. The
+// per-answer line the buyer locks is one tap in, on the scope ruler and
+// the contract sheet: a buyer reads one number and one promise here,
+// and the answer count is where crowding shows — a busy cohort buys
+// fewer answers for the same figure, never a different figure.
 function SgRateRow({ scope, name, onPick, i }) {
   const booked = PRICING.cohorts[scope].booked || [];
   const crowd = PRICING.cohorts[scope].crowd || booked;
   const nBooked = booked.filter(Boolean).length;
   const firstOpen = booked.indexOf(0);
   const word = demandWord(scope);
+  const eur = menuEur(scope);
   return (
     <button className="card press sg-rise" onClick={onPick} style={{ width: '100%', boxSizing: 'border-box', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 11, padding: '14px 15px 15px', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', animationDelay: (i || 0) * 70 + 'ms' }}>
       {/* the place leads, its price answers — the two things a buyer is
@@ -268,8 +274,8 @@ function SgRateRow({ scope, name, onPick, i }) {
           </span>
         </span>
         <span style={{ flexShrink: 0, textAlign: 'right' }}>
-          <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(rate(scope))}</span>
-          <span style={{ display: 'block', marginTop: 3, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>per answer</span>
+          <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(eur)}</span>
+          <span style={{ display: 'block', marginTop: 3, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>up to {sgFmtN(answersFor(scope, eur))} answers · {PRICING.windowDays} days</span>
         </span>
       </div>
       {/* the fortnight, as a strip whose HEIGHT is crowding: an open day
@@ -319,9 +325,11 @@ function SgRateBoard({ SG, onPick }) {
         <span style={{ flex: 1 }}></span>
         <CurSwitch></CurSwitch>
       </div>
-      <SgRateRow scope="city" name={sgScopeName(SG, 'city')} i={0} onPick={() => onPick('city')}></SgRateRow>
-      <SgRateRow scope="country" name={sgScopeName(SG, 'country')} i={1} onPick={() => onPick('country')}></SgRateRow>
-      <SgRateRow scope="world" name="Everyone" i={2} onPick={() => onPick('world')}></SgRateRow>
+      {/* Picking a row opens the composer on that reach AT THAT PRICE
+          (D371) — the budget chips stay for adjusting. */}
+      <SgRateRow scope="city" name={sgScopeName(SG, 'city')} i={0} onPick={() => onPick('city', menuEur('city'))}></SgRateRow>
+      <SgRateRow scope="country" name={sgScopeName(SG, 'country')} i={1} onPick={() => onPick('country', menuEur('country'))}></SgRateRow>
+      <SgRateRow scope="world" name="Everyone" i={2} onPick={() => onPick('world', menuEur('world'))}></SgRateRow>
       {/* THE LAW AS TOKENS, not a paragraph (2026-09-02), and behind a
           tap since D367. Every clause is one fact off the card in force.
           The sentence that stays in view is the one that is a PROMISE
@@ -345,6 +353,7 @@ function SgRateBoard({ SG, onPick }) {
             ...(PRICING.floorX !== 1 ? ['floor ×' + PRICING.floorX] : []),
             'billed per answer',
             'budgets ' + fmt(PRICING.minEur) + ' to ' + fmt(PRICING.capEur),
+            'unserved answers refund at close',
           ].map((t) => <SgTok key={t}>{t}</SgTok>)}
         </div>
       ) : null}
@@ -401,7 +410,7 @@ const sgInput = {
 // on the web → live — and the sheet states exactly that, because the
 // old "human contract today" sentence stopped being true the day the
 // loop stopped needing one.
-function SgForm({ SG, initialAudience, onDone, onCancel }) {
+function SgForm({ SG, initialAudience, initialBudget, onDone, onCancel }) {
   const [prompt, setPrompt] = useSgState('');
   const [type, setType] = useSgState('binary');
   const [opts, setOpts] = useSgState(['', '']);
@@ -413,10 +422,12 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const [wearName, setWearName] = useSgState(true);
   const [ageDim, setAgeDim] = useSgState(false);
   const [paidStep, setPaidStep] = useSgState('form');
-  // The most the buyer will spend (D367): a preset off the card, the
-  // smallest first — a control that defaults to more money than the
-  // least is the wrong default for a button that charges it.
-  const [budget, setBudget] = useSgState(PRICING.budgets[0]);
+  // The most the buyer will spend (D367): a preset off the card. From a
+  // menu row it is the row's price — the buyer chose that number (D371);
+  // from the bare button, the smallest — a control that defaults to
+  // more money than the least is the wrong default for a button that
+  // charges it. The chips stay for adjusting either way.
+  const [budget, setBudget] = useSgState(PRICING.budgets.includes(initialBudget) ? initialBudget : PRICING.budgets[0]);
   const [sending, setSending] = useSgState(false);
   // the server's refusal, shown verbatim — the messages are written to be
   // shown (the budget, a form bound)
@@ -577,10 +588,10 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 // The functional window (D313): serving starts the day
                 // after payment lands — never a pre-picked day that goes
                 // stale while the checkout sits open.
-                ['Window', 'from the day after you pay · 29 days'],
+                ['Window', 'from the day after you pay · ' + PRICING.windowDays + ' days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
                 ['Rate', fmt(rate(scopeKey)) + ' per answer · locked at approval'],
-                ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * 29) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's') + (est.running ? ' (' + est.running + ' still running)' : '')]] : []),
+                ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * PRICING.windowDays) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's') + (est.running ? ' (' + est.running + ' still running)' : '')]] : []),
                 // The budget is the cap (D367): what is charged up front,
                 // what the closer bills answers against, what comes back.
                 ['Your budget', fmt(budget) + ' up front · up to ' + sgFmtN(answersFor(scopeKey, budget)) + ' answers · unserved answers refund at close'],
@@ -645,7 +656,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                   self-serve — a chip that books nothing different would be
                   a control that lies. It returns when that lane does. */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
-                <SgDoorChip on={true} label="29 days" onTap={() => {}}></SgDoorChip>
+                <SgDoorChip on={true} label={PRICING.windowDays + ' days'} onTap={() => {}}></SgDoorChip>
                 <SgDoorChip on={wearName} label="wear your name" onTap={() => setWearName(!wearName)}></SgDoorChip>
               </div>
             </div>
@@ -659,7 +670,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 {wearName ? <span aria-hidden="true" style={{ width: 1, height: 12, background: 'color-mix(in oklch, var(--surface) 42%, transparent)', flexShrink: 0 }}></span> : null}
                 {wearName ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{SG.meName()}</span> : null}
                 <span aria-hidden="true" style={{ width: 1, height: 12, background: 'color-mix(in oklch, var(--surface) 42%, transparent)', flexShrink: 0 }}></span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, opacity: 0.72, whiteSpace: 'nowrap', flexShrink: 0 }}>29 days</span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, opacity: 0.72, whiteSpace: 'nowrap', flexShrink: 0 }}>{PRICING.windowDays} days</span>
               </div>
               <div style={{ marginTop: 7, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45 }}>{whyLine}</div>
               {/* "counts and cuts — never names" was the pre-D98 promise, false
@@ -722,6 +733,8 @@ function SuggestOverlay({ onClose }) {
   const SG = useSuggestions();
   const [formOpen, setFormOpen] = useSgState(false);
   const [formAud, setFormAud] = useSgState('world');
+  // null = the bare button: the composer picks its own smallest preset.
+  const [formBudget, setFormBudget] = useSgState(null);
   const c = SG.counts();
   const mine = SG.mine();
   // While a booking sits in "checking", poll its row: the automated
@@ -749,11 +762,11 @@ function SuggestOverlay({ onClose }) {
       </div>
       <div className="app-body" style={{ paddingBottom: 44 }}>
         {formOpen ? (
-          <SgForm SG={SG} initialAudience={formAud} onDone={() => setFormOpen(false)} onCancel={() => setFormOpen(false)}></SgForm>
+          <SgForm SG={SG} initialAudience={formAud} initialBudget={formBudget} onDone={() => setFormOpen(false)} onCancel={() => setFormOpen(false)}></SgForm>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <button className="press" onClick={() => { setFormAud('world'); setFormOpen(true); }} style={{
+              <button className="press" onClick={() => { setFormAud('world'); setFormBudget(null); setFormOpen(true); }} style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 padding: '15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none',
                 background: 'var(--accent)', border: 'none', boxShadow: 'var(--shadow-card)',
@@ -763,7 +776,7 @@ function SuggestOverlay({ onClose }) {
                 One paid slot a day, each place — reviewed, and the card always says PAID.
               </div>
             </div>
-            <SgRateBoard SG={SG} onPick={(scope) => { setFormAud(scope); setFormOpen(true); }}></SgRateBoard>
+            <SgRateBoard SG={SG} onPick={(scope, eur) => { setFormAud(scope); setFormBudget(eur); setFormOpen(true); }}></SgRateBoard>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ ...sgLabel, margin: '0 2px' }}>yours{c.mine ? ' · ' + c.mine : ''}</div>
               {mine.map((x) => (
