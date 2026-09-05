@@ -804,7 +804,52 @@ const MAX_TOTAL_JS_KB = 2440;
 // world-feed — both lazy) started importing them, so each rides its
 // consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.
 // Band ~11 KB, same posture.
-const MAX_EAGER_KB = 630;
+// 630 → 642 (2026-09-05, the owner's call — "raise the ceiling and note
+// why"): THE FIRST ENTRY HERE THAT BUYS ROOM RATHER THAN BANKING IT, and
+// the note the gate's own failure message asks for.
+//
+// WHY THE APP GOT BIGGER. Eighteen bug fixes across the 2026-09-05 night,
+// two shifts. None of them adds a feature and none is optional; what grew
+// is the store, and it grew because three of the fixes needed the store to
+// KNOW something it had not been recording:
+//   · the pulse write now marks its answer unfolded, and publishes that
+//     through `pulsePending`, so the reveal can count the reader into the
+//     crowd it reports instead of reading a document written before they
+//     answered;
+//   · `loadCircle` hands back who you FOLLOW separately from who it could
+//     place, so a refused answer read stops reading as an unfollow;
+//   · the refused-write path uses the shared `rollbackPending` instead of
+//     a hand-rolled undo that had drifted from it.
+// `data/live.ts` is eager, so all three land in first paint. Comments are
+// stripped by the production build — verified, not assumed: the shipped
+// `live` chunk contains none of the night's comment text — so the 461
+// bytes that chunk gained are code.
+//
+// MEASURED, on three trees, at 2026-09-05 09:5x UTC:
+//   origin/main @ 668c9af8 ......... 629.888 KB — 115 bytes under the old
+//                                    ceiling, which is what made this a
+//                                    decision rather than a slow drift
+//   nightb-20260905 ................ 630.368 KB — +492 B, 377 B over
+//   composed, both shifts @ 9a2f8153 630.724 KB — +836 B, 741 B over
+// 642 restores the ~11 KB band every entry above keeps (11.28 KB over the
+// composed figure). It is a 1.9% rise in what first paint must fetch.
+//
+// THE POSTURE IS UNCHANGED, and it is the line directly above this block:
+// the freed room is not headroom for the next eager feature. 12 KB was
+// bought to clear 741 bytes because a band of one kilobyte is not a band —
+// the 630 ceiling had 115 bytes left and cost a night's work a red gate
+// for half a kilobyte of correctness. It is not a licence to spend eleven.
+//
+// THE CHEAPEST WAY BACK DOWN, measured while deciding this and left for
+// whoever wants the room: `spec/sample-data.js` is 54 KB of source and
+// ships 40.5 KB into the eager graph on a SHIPPING build, because
+// `app-shell.jsx` — the entry — statically imports one constant from it
+// (`IS_DATA`), as do seven other spec modules. The module has two exports.
+// Splitting the constant the shell needs away from the demo population it
+// sits beside would free several times this entire band. Not attempted in
+// the night that raised this line: eight files, three of them being edited
+// by the other shift at the time.
+const MAX_EAGER_KB = 642;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
