@@ -864,9 +864,19 @@ function ScoresLens({ qs, shortName, scope }: {
   // then the card is exactly the single-crowd card it has always been
   const anyAway = scored.some((r) => r.away);
 
+  // Whether YOU are one of the people the empty sentence is about to say
+  // do not exist. Mirrors `scored`'s own filter — a question that rates
+  // this stop, ordinal, and answered by you — because the sentence below
+  // is about exactly the rows that filter dropped.
+  const mineOnly = rates.some((q) => ORDINAL_TYPES.has(q.type || "") && q.mine >= 0);
+
   if (!scored.length) {
-    // Two different emptinesses, and collapsing them would hide which one
-    // this is. Neither is "withheld" — that category is gone (D98).
+    // THREE different emptinesses. `scored` drops a row when neither crowd
+    // has a mean, and your own score is not a crowd — so rating a place
+    // nobody else has rated yet, or rating one in the seconds before the
+    // fold lands, emptied this card and printed "Nobody here has scored
+    // Oslo yet." over a score you had just given it. Neither is
+    // "withheld" — that category is gone (D98).
     //
     // The first is now also the shape a pre-D187 bank takes: the questions
     // exist in `content/` and the seeded docs carry no `rates` until an
@@ -879,7 +889,9 @@ function ScoresLens({ qs, shortName, scope }: {
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
         <LlEmpty>
           {rates.length
-            ? <>Nobody here has scored {shortName} yet.</>
+            ? (mineOnly
+              ? <>Just your score so far.</>
+              : <>Nobody here has scored {shortName} yet.</>)
             : <>Nothing scored yet — questions that rate {shortName} land here.</>}
         </LlEmpty>
         {!!asks.length && <PlaceAsks asks={asks} />}

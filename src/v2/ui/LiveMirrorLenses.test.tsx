@@ -537,6 +537,23 @@ describe("Scores", () => {
     expect(screen.getByText(/you have not rated it/i)).toBeTruthy();
   });
 
+  it("does not say nobody scored it to the person who scored it", () => {
+    // `scored` drops a row when neither crowd has a mean, and your own
+    // score is not a crowd — so rating a place nobody else has rated yet,
+    // or rating one in the seconds before the fold lands, empties this
+    // card. It then printed "Nobody here has scored Oslo yet." over a
+    // score you had just given it.
+    const onlyMine: LensQuestion = {
+      ...RATED,
+      counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      all: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      mine: 8,
+    };
+    mount("scores", [onlyMine]);
+    expect(screen.getByText(/just your score so far/i)).toBeTruthy();
+    expect(screen.queryByText(/nobody here has scored/i)).toBeNull();
+  });
+
   // ── D187: the card is about the PLACE ──
   //
   // The three cases below are the ones that were green while the release
@@ -591,8 +608,15 @@ describe("Scores", () => {
     // the habit the withheld-cell era left behind (D98). "Nobody" means
     // nobody ANYWHERE since D288 §2 — a city cell at zero with answers
     // from elsewhere is the ring-only case below, not this one.
-    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0] }]);
+    //
+    // `mine: -1`, which this case needed all along and did not say: it
+    // spread RATED's `mine: 8`, so it was asserting "nobody here has
+    // scored Oslo" for a viewer who HAD scored it — the defect the case
+    // above now holds, sitting inside the case that names the distinction.
+    // "Nobody anywhere" has never included the reader.
+    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0], mine: -1 }]);
     expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
+    expect(screen.queryByText(/just your score so far/i)).toBeNull();
   });
 
   // ── D288 §2: the second crowd ──
