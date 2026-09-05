@@ -76,15 +76,14 @@ Read in this order. Each file opens with its own status line.
 | --- | --- | --- |
 | 0 | `research/axiom-theory/paper-00-joint-model.md` | The joint latent model *is* the data structure: three geometries, axes as measurement models with bias models, sufficient statistics as the currency so the join runs where the private column lives, the pairing ledger, one currency for everything, and the self-extending property |
 | 0a | `research/axiom-theory/paper-00a-design-as-pattern-finder.md` | The serving policy is the experiment: when each person yields one observation a day, choosing what to observe dominates any estimator, and the policy is population-scale sequential design under a spine, repetition schedules, pairing allocation and a survival term |
-| 1 | `research/axiom-theory/paper-01-genome-x-logic.md` | Measured ability meets the genome: the genetics of reasoning measured directly rather than through schooling, and the keyed score as the calibration weight for the whole system |
+| 1 | `research/axiom-theory/paper-01-genome-x-logic.md` | Measured ability meets the genome: the genetics of reasoning measured directly rather than through schooling, and the keyed score as what lets the bank, the trait scales and the guessing record be read with ability partialled out |
+| 2 | `research/axiom-theory/paper-02-observers-x-self-report.md` | What the people who know you see: observers' sealed predictions and aggregate ratings as the bias corrector for every self-report axis, a prediction split into the population's answer, the category's answer and what only acquaintance supplies, legibility and perceptiveness as separate traits, meta-accuracy measured before the reveal, and the reveal as a randomizable event whose bundled treatments are pulled apart |
+| 3 | `research/axiom-theory/paper-03-genome-x-bank.md` | The genetics of what was never asked: imported genomes against a bank of unbounded depth, an item-level map of heritable against circumstantial, the bank's recovered factors tested for genetic coherence, culture read where a heritable share moves across countries at fixed ancestry, discovery items served blind to the genome, and a privacy budget spent by design against a bank with no end |
+| 4 | `research/axiom-theory/paper-04-declared-difference.md` | The shape of a declared difference: a self-declared neurotype read across every axis as a joint distribution rather than a score, including whether reading others differs in people in general or in the people one knows, how legible declared people are, their day-to-day variability, the bank's own items that separate them, and the genetic continuum into the undeclared, under a no-screening boundary and with the declaration's custody left as an ask |
+| 5 | `research/axiom-theory/paper-05-body-x-repeated.md` | Which changes are the body: daily occasion reports of sleep, energy and illness crossed with every repeated measure, the state share of every item and trait, timescales, direction where a measured channel stands beside the perceived one, illness as an observational event, body-sensitivity as a trait, and the bad-day reporting gap as the condition that matters most |
 
-Planned, in the order the ranked crossings suggest: the sealed guess
-against every self-report axis (ties as the bias corrector); the genome
-against the bank at full depth (the genetics of never-phenotyped
-things); the logic test against the bank (reasoning items in the clothes
-of opinions); the neurotype signature (a declared condition read across
-thirty measurements including legibility to others); body occasions
-against every repeated measure (which changes are the body); the
+Planned, in the order the ranked crossings suggest: the logic test
+against the bank (reasoning items in the clothes of opinions); the
 learned representation with its auditable distilled layer; custody-
 preserving computation for the genome crossings; causal patterns from
 within-unit events.

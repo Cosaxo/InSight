@@ -37925,8 +37925,11 @@ renumbers whichever merges later.
 - **`research/`**, a top-level directory marked in its README as theory
   research and not the app, with the axiom paper series under
   `research/axiom-theory/`: paper 0 (the joint model as the data
-  structure), paper 0a (the serving policy as the experiment) and paper 1
-  (measured ability meets the genome). Each paper is a research paper —
+  structure), paper 0a (the serving policy as the experiment), paper 1
+  (measured ability meets the genome), paper 2 (what the people who know
+  you see), paper 3 (the genetics of what was never asked), paper 4 (the
+  shape of a declared difference) and paper 5 (which changes are the
+  body). Each paper is a research paper —
   abstract, the problem as the world has it, each axis alone, the
   crossing's mechanism, what becomes knowable, the return path to the
   other axes, the conditions, the requirements scale generates, the
@@ -37936,7 +37939,12 @@ renumbers whichever merges later.
   residual absorbing a test's unreliability; secure aggregation buying
   input privacy only; a deterministic serving rule destroying the overlap
   that makes selection estimable; illness not being an intervention) are
-  in the papers as conditions rather than in this record as prose.
+  in the papers as conditions rather than in this record as prose. The
+  reviews are separate sessions given the paper and the five rules, asked
+  for defects a frontier researcher in the relevant fields would raise,
+  and forbidden to add citations; each has returned between fifteen and
+  twenty-five findings, most of them real, which is the measured reason
+  the review step is part of the unit of work.
 - **`check:theory`** on the `ci` lint job: the papers' form — status
   line, perfect-form sentence, abstract, two or more axes named,
   conditions and potential sections, and none of the citation or
@@ -37998,3 +38006,40 @@ tree shapes — is held by `check:theory`; what cannot — whether a paper is
 worth building toward — is the owner's five-minute read, and no rubric
 replaces it, because a rubric is a gradient and the last one rewarded
 exactly the wrong things.
+
+## D364 amendment (2026-09-05) · Observer ratings reach their target only in aggregate
+
+The owner, on paper 2's one design question: *"aggregate only for the
+ratings."* Paper 2 (`research/axiom-theory/paper-02-observers-x-self-report.md`)
+adds a second question to the sealed-prediction record — not only *what
+will they answer* but *what is true of them* — and asked which of two
+shapes the rating channel takes when built. Ruled: a person sees only the
+aggregate of their observers' ratings, never any one rating, and no
+aggregate is shown until enough observers stand behind it that none can
+be read out of it.
+
+What follows when the channel is built, so it is on the record now rather
+than discovered then. The rule is a DISPLAY rule, not a storage rule:
+every rating is held at dyad resolution with its tie type, because the
+perceiver, target and relationship terms the paper reads are computable
+only from ratings that have not been collapsed. What is denied is
+attribution — an individual rating is readable as a single datum by the
+observer who made it and by the fold that aggregates it, and by nobody
+else, not its target and not a third party, because a rating anyone else
+could read invites the retaliation that makes any honest report about
+another person unsafe. And the aggregate republishes only under a
+schedule that forbids recovering one rating from two aggregates — a
+minimum increment in observer count between releases, coarsening or noise
+under a stated budget — because a target who sees the aggregate over n
+observers and again over n+1 has been handed the new rating by
+subtraction, and the target knows who their observers are. That is a fourth deny beside the three `CLAUDE.md` names,
+and the closest of the three is flag authorship, refused for the same
+reason. It is a departure from D98's *answers are public* for one data
+kind, and the departure is principled rather than a privacy floor: a
+rating is a claim about someone else, and its custody follows the person
+it is about. When built, it lands as the governed process always does —
+the rule at its path with a test in both directions, `web/privacy.html`
+first (D183), the data-inventory row, the store forms — and the minimum
+observer count behind an aggregate is a design number the first cohorts
+set, priced in the build's own record — a release schedule rather than
+a single count. Nothing is built by this amendment.
