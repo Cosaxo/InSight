@@ -709,9 +709,14 @@ declaration. Nothing gates the rows themselves: a Routine is account-side
 state, so no command in this tree can recompute one, which is exactly why
 rule 2 says verify and rule 4 says leave another account's rows alone.
 
+**Nothing gates the section numbers either.** §8 was appended as a second
+`## 7` on 2026-09-03 and stood that way for two days: `check:docs` reads
+this file's map entry and its status line, not its headings. Number a new
+section from the last one in the file, not from the one you were reading.
+
 ---
 
-## 7 · The overview — one sentence per routine
+## 8 · The overview — one sentence per routine
 
 What each routine does and for whom, beside the rows above that say when
 it fires and what it writes. `PROGRAM-RUNBOOK.md` phase 5.3 asks for this
