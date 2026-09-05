@@ -560,26 +560,47 @@ export const PULSE = {
     if (!LIVE.enabled) return DEMO_BINS[id] ?? DEMO_BINS.world;
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     if (!agg) return [0, 0, 0, 0, 0];
+    // YOUR OWN UNFOLDED ANSWER JOINS AT READ TIME, the store's convention
+    // (`pickCanon`, live.ts): once the trigger folds it the published
+    // document already counts it, so only a PENDING answer adds. Without
+    // this the reveal drew its crowd off a document written before you
+    // answered — so "you · Brisk" sat above "0% of 4 answers today", the
+    // percentage of the very step it was naming, with your bar at the
+    // minimum height. `PULSE.answer` forces a refetch and reliably loses
+    // the race with the fold; `ensureToday` then short-circuits on
+    // `loadedForKey`, so that pre-vote crowd was frozen for the session.
+    const pend = LIVE.pulsePending ? LIVE.pulsePending(pid) : null;
+    const mineIdx = typeof pend === "number" && pend >= 0 ? pend : -1;
     if (id === "world") {
-      const total = agg.total || 0;
+      const total = (agg.total || 0) + (mineIdx >= 0 ? 1 : 0);
       return Array.from({ length: 5 }, (_, i) =>
-        total > 0 ? Math.round(100 * (agg.counts?.[String(i)] ?? 0) / total) : 0);
+        total > 0 ? Math.round(100 * ((agg.counts?.[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / total) : 0);
     }
     const cut = LIVE.anchors() || {};
     const bucket = id === "city" ? cut.city : cut.country;
     const cell = bucket ? agg.by?.[id]?.[bucket] : undefined;
-    const n = cell ? Object.values(cell).reduce((a, b) => a + b, 0) : 0;
+    // The scoped cut is your own cohort, so a pending answer of yours
+    // belongs in it too — same join, same reason as the world cut above.
+    const base = cell ? Object.values(cell).reduce((a, b) => a + b, 0) : 0;
+    const n = base + (mineIdx >= 0 && cell ? 1 : 0);
     return Array.from({ length: 5 }, (_, i) =>
-      n > 0 && cell ? Math.round(100 * (cell[String(i)] ?? 0) / n) : 0);
+      n > 0 && cell ? Math.round(100 * ((cell[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / n) : 0);
   },
   todayN(pid: string, id: string): number {
     if (!LIVE.enabled) {
       const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[2];
       return s.n[DAYS - 1];
     }
+    // The denominator the card prints beside the share above, so it joins
+    // the same way — a crowd stated as "of 4" while the share was worked
+    // out over five would be the same wrong number twice.
+    const pendN = LIVE.pulsePending && LIVE.pulsePending(pid) != null ? 1 : 0;
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
+    // No document at all is still zero, not one: the card's "first answer
+    // today" arm is about an absent reading, and a pending answer with
+    // nothing published yet is exactly that — you ARE the first.
     if (!agg) return 0;
-    return cutOf(agg, id).n;
+    return cutOf(agg, id).n + pendN;
   },
   mineToday(pid: string): number | null {
     // NOT `days(pid)[DAYS - 1].v` (D244). That fold nulls every day the

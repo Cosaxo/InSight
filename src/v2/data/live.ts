@@ -6312,6 +6312,18 @@ const LIVE = {
     const aid = `${baseQid}_${day}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    // UNFOLDED UNTIL THE TRIGGER SAYS OTHERWISE — the store's own
+    // convention, and this was the ONE vote path that skipped it. `vote`,
+    // `editVote`, the catalog write and the rank write all set it; the
+    // pulse write set `state.votes` and stopped, so nothing downstream
+    // could tell that today's published aggregate predates your answer.
+    // The pulse card then read the raw document and reported a crowd you
+    // were not in — "0% of 4 answers today" under "you · Brisk", on the
+    // very answer it was reporting. The existing clears (the settle pass
+    // and the snapshot reconcile) key on the document id, and a pulse
+    // answer is an ordinary answer document, so nothing new has to unset
+    // it.
+    state.unaggregated[aid] = optionIdx;
     markPending(aid, String(optionIdx));
     notify();
     return (async () => {
@@ -6339,6 +6351,21 @@ const LIVE = {
   /** Every pulse day this device knows it answered: day → optionIdx.
    * Derived from the hydrated vote mirror, so a second device's answers
    * arrive with ordinary hydration and no extra read. */
+  /**
+   * Today's pulse answer while it is NOT yet in the published aggregate —
+   * the option index, or null once the fold has counted it.
+   *
+   * Read by `data/pulse` so today's crowd can include the reader the same
+   * way `pickCanon` already includes an unfolded pick: once the trigger
+   * folds it the published document counts it, so only `unaggregated`
+   * adds. Null rather than -1 so a caller that forgets the check draws
+   * nothing readable and fails a test rather than shifting every share by
+   * one (the D72 shape).
+   */
+  pulsePending(baseQid: string): number | null {
+    const aid = `${baseQid}_${utcDayKey(0)}`;
+    return aid in state.unaggregated ? state.unaggregated[aid] : null;
+  },
   pulseVotes(baseQid: string): Record<string, number> {
     const out: Record<string, number> = {};
     const prefix = `${baseQid}_`;
