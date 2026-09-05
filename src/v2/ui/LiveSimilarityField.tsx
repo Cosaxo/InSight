@@ -851,12 +851,27 @@ function PlacesField({ scope, myFlat }: {
     (n === 1 ? what : what === "city" ? "cities" : "countries");
 
   if (!profiles.length) {
+    // THREE EMPTINESSES, NOT TWO. This branched on `similarityLoading()`
+    // alone, and that flag is false again the moment `loadSimilarity()`
+    // RETURNS — including when it threw. So a failed read drew "No
+    // country has answered a score question yet" as a finding about the
+    // whole world, and kept drawing it for the life of the mount, since
+    // the throw leaves `testAggsLoaded` false with nothing to retry it.
+    // The largest population claim the app makes, made out of an error.
+    //
+    // `testAggsState()` is the reader written for exactly this (it says so
+    // in its docstring) and this arm did not call it, while the CityField
+    // arm above — which has the same shape — was already covered. These
+    // profiles are folded from `agg.by` cells, so it applies here.
+    const cells = LIVE.testAggsState();
     return (
       <SfEmptyField
         caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}>
-        {loading
+        {loading || cells === "loading"
           ? <>Reading profiles…</>
-          : <>No {what} has answered a score question yet.</>}
+          : cells === "failed"
+            ? <>Couldn’t read the scores here. Close and reopen to try again.</>
+            : <>No {what} has answered a score question yet.</>}
       </SfEmptyField>
     );
   }
