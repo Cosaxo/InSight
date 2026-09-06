@@ -134,7 +134,7 @@ export const IS_TEST_AVG = {
   // people sit with their group more often than against it, so a neutral
   // baseline would call an ordinary run remarkable.
   //
-  // ON THE CHANCE SCALE since D381 (data/roles.ts, ROLES-PLAN §3.2): every
+  // ON THE CHANCE SCALE since D385 (data/roles.ts, ROLES-PLAN §3.2): every
   // rate is scored against luck per day, so 50 is guessing at random and
   // the ordinary run sits ABOVE it. Re-authored from the raw figures that
   // stood here (read/seen 62, like 54; group with-the-majority 66, agree

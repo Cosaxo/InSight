@@ -214,7 +214,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-52 modules are already off the bridge — they export and publish nothing,
+53 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -361,7 +361,15 @@ pre-D98 privacy vocabulary, in copy a user reads — D116),
 `docs/data-inventory.md`, which the store privacy label derives from —
 D130, plus D257's reader column held to the two read rules a script may
 read literally), `check:versions`,
-`check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
+`check:bundle`, **`check:eager-content`** (question content may not be in
+the static first-paint graph — the gate that exists because
+`daily-questions.js`, the file the farm lane appends to every day, was
+fetched before the app could paint, which made the bank's size the app's
+start-up cost and put two content lanes behind the eager budget; the
+worst edge was invisible to `check:bundle`, since a module inlined into
+the entry chunk has no chunk of its own to name, and the answer twice was
+to raise the ceiling instead. Its allowlist is a shrink-only ratchet in
+`check:globals` rule 4's shape), `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
 catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
 and `check:catalogs` — the last three also run on the deploy path,

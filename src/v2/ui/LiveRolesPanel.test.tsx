@@ -44,7 +44,7 @@ vi.mock("../data/live", () => ({
         ? Promise.reject(new Error("permission-denied"))
         : Promise.resolve()),
       revealHistoryLoading: (gid: string) => LOADING.has(gid),
-      // The bank the fold asks about a day's option count and kind (D381).
+      // The bank the fold asks about a day's option count and kind (D385).
       bankQ: (qid: string) => BANK[qid] || null,
     },
   },
@@ -92,7 +92,7 @@ describe("with no settings at all", () => {
   });
 });
 
-describe("the day's kind (D381)", () => {
+describe("the day's kind (D385)", () => {
   it("does not count a mirror day toward the floor, and says how far the count got", () => {
     // Two ordinary days both guessed and one day about each other: the
     // old fold called this pair ready, on a day that measures how you are

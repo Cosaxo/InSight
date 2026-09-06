@@ -377,7 +377,7 @@ export interface DuelAggState {
   plays: number; // group-days revealed
   total: number; // persons counted — the unit the k-floor applies to
   counts: Record<string, number>; // per-option, bank-option questions only
-  guessTotal: number; // guesses cast — a duo's at the partner, a group's at the room (D381)
+  guessTotal: number; // guesses cast — a duo's at the partner, a group's at the room (D385)
   guessMatches: number; // …of which landed: the partner's actual pick, or an option tied for the top
 }
 
@@ -514,7 +514,7 @@ export function duelAggDelta(
       if (guess === votes[1 - i].optionIdx) guessMatches++;
     }
   } else if (mode === "group") {
-    // A group's guess is a call on where the room lands (D381): a hit
+    // A group's guess is a call on where the room lands (D385): a hit
     // when it names an option tied for the top of the counted votes.
     // Scored only against a room of two or more — with one counted vote
     // the "room" is the guesser, and calling your own answer is not a

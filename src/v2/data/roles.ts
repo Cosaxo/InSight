@@ -14,7 +14,7 @@
 // collection. That is what makes Roles "real on arrival" rather than a
 // backend item (D167).
 //
-// ── the scale (D381, ROLES-PLAN §3.2) ──────────────────────────────────
+// ── the scale (D385, ROLES-PLAN §3.2) ──────────────────────────────────
 //
 // Every rate here is scored AGAINST LUCK, per day, and then averaged: a
 // hit counts 1, a miss counts −1/(k−1) for a day with k options, and the
@@ -40,7 +40,7 @@
 // you are seen, which is a different measurement from reading their
 // preferences, and the same answer on such a day means you each picked
 // "Warm" about the other, which says nothing about being alike. The
-// bank's `d` tag reaches the seed as `topic` since D381 (the group's
+// bank's `d` tag reaches the seed as `topic` since D385 (the group's
 // kind already rode that field), so a `mirror` day is held apart: it
 // moves none of the four dims and lands in its own receipt rows
 // (`asides`). Without a lookup every day reads as an ordinary one, which
@@ -103,7 +103,7 @@ export const MIRROR = "mirror";
 /** What the fold asks the bank about a day's question: how many options
  * it had, and what kind of day it was. The store's `bankQ` has this shape
  * (`kind` is the seeded `topic`: a group's us/pick/classic, a 1v1's
- * day/heat/mirror/ahead since D381). */
+ * day/heat/mirror/ahead since D385). */
 export interface BankEntryLike {
   options?: readonly string[] | null;
   kind?: string | null;

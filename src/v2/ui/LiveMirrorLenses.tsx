@@ -778,8 +778,13 @@ const awayCounts = (all: number[], counts: number[]): number[] =>
 // this lens whether or not they answer — so an ask beside them leaks
 // nothing the card did not already say. The scale is D305's ramp row,
 // one tap, same stored optionIdx as everywhere else.
-function PlaceAsks({ asks }: {
+function PlaceAsks({ asks, total }: {
   asks: Array<{ id: string; text: string; optionCount: number }>;
+  /** How many asks the scope still holds for this account — the pool,
+   *  not the page. Since D384 the device fetches a bounded page of ask
+   *  DOCUMENTS but knows every ask ID, so the line below counts the pool
+   *  and stays true on a stop whose pool is larger than the page. */
+  total: number;
 }) {
   // A cap, not a queue: three at a time keeps the card a card, and the
   // list recomputes as votes land, so the tail arrives by itself.
@@ -812,9 +817,9 @@ function PlaceAsks({ asks }: {
           </div>
         </div>
       ))}
-      {asks.length > show.length && (
+      {total > show.length && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          {asks.length - show.length} more after these.
+          {total - show.length} more after these.
         </span>
       )}
     </div>
@@ -837,6 +842,10 @@ function ScoresLens({ qs, shortName, scope }: {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
   const asks = LIVE.enabled ? LIVE.placeAsks(scope) : [];
+  // The pool's size, which is not `asks.length` once the pool is paged
+  // (D384) — the asks are the page this device holds, the total is what
+  // the scope still has for this account.
+  const askTotal = LIVE.enabled ? LIVE.placeAskTotal(scope) : 0;
   // Which crowd the numbers and the sort describe (D288 §2): a viewing
   // lens, not a claim about the viewer — the viewer's own crowd is their
   // anchor's fact, and their tick draws the same either way. Transient on
@@ -894,7 +903,7 @@ function ScoresLens({ qs, shortName, scope }: {
               : <>Nobody here has scored {shortName} yet.</>)
             : <>Nothing scored yet — questions that rate {shortName} land here.</>}
         </LlEmpty>
-        {!!asks.length && <PlaceAsks asks={asks} />}
+        {!!asks.length && <PlaceAsks asks={asks} total={askTotal} />}
       </div>
     );
   }
@@ -1066,7 +1075,7 @@ function ScoresLens({ qs, shortName, scope }: {
           (docs/COPY.md). */}
       {!!asks.length && (
         <div style={{ borderTop: "0.5px solid var(--rule)", paddingTop: 13 }}>
-          <PlaceAsks asks={asks} />
+          <PlaceAsks asks={asks} total={askTotal} />
         </div>
       )}
     </div>

@@ -112,6 +112,47 @@ if (qsnap.empty) fail("daily bank empty");
 const q0 = qsnap.docs[0];
 ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slice(0, 40) + "…\"");
 
+// 3a · THE DAILY'S SEQ SPACE IS DENSE IN THE DATABASE (D383), which is the
+// precondition the paged boot rests on and the one thing only this harness
+// can prove. The client computes its seven deck positions from a published
+// LENGTH and then asks for `seq in [...]`; that maps a position to a
+// question only while the daily's seqs run 0..n-1 with no holes. Every
+// other suite checks the COMPILED bank — this checks what the real seed
+// actually wrote, which is the copy the device reads. A hole here is a
+// device on a different question from everyone else, with no symptom
+// anywhere: the deck renders, the counts publish, and the cohort readings
+// quietly stop meaning "we answered the same thing".
+{
+  const all = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "daily"), orderBy("seq")));
+  const seqs = all.docs.map((d) => d.get("seq"));
+  const holes = seqs.filter((v, i) => v !== i);
+  if (holes.length)
+    fail("the seeded daily seq space is not dense 0..n-1 — `seq` is not a "
+      + "position and the paged deck (D383) would disagree across devices; "
+      + "first bad index " + seqs.findIndex((v, i) => v !== i));
+  // …and the shape the nightly fold would publish agrees with it. The
+  // client REFUSES the fast path unless maxSeq === n - 1, so if these ever
+  // part company the daily silently reverts to fetching the whole surface.
+  if (seqs.length && seqs[seqs.length - 1] !== seqs.length - 1)
+    fail("maxSeq !== n - 1 on the seeded daily bank — the client would "
+      + "refuse the paged deck and fetch the surface whole");
+  ok("daily seq space is dense 0.." + (seqs.length - 1) + " in the database — the paged deck's precondition holds");
+
+  // …and the Scores pool the fold would publish is drawn from documents
+  // that really carry `rates` (D384). The device fetches these BY ID off
+  // the published list, so an id naming a question that is not a place
+  // ask is a wasted read on every boot, and one naming nothing at all is
+  // a read that returns nothing forever.
+  const asks = all.docs.filter((d) =>
+    d.get("active") !== false && d.get("type") === "rating" && typeof d.get("rates") === "string");
+  if (!asks.length)
+    fail("no seeded daily doc is an active place ask — the Scores pool (D384) would be empty");
+  const scopes = [...new Set(asks.map((d) => d.get("rates")))].sort();
+  ok("Scores pool: " + asks.length + " place asks over " + scopes.join(", ") + " — paged by id, not queried off the surface");
+}
+
 // 3b · the doc shape the schema promises actually lands (D234). For two
 // releases core/tag/rates (and until/sponsor/also/the call trio) were in
 // SCHEMA-V2.md, in the client's readers — and in no write: the seed's
@@ -739,7 +780,7 @@ ok("duo streak = 1");
   const mkGroup = await httpsCallable(fns, "createGroupV2")({ name: "Marker Crew", mode: "group" });
   const mkGid = mkGroup.data.gid;
   const mkDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
-  // …with a call on where the room lands (D381): a group answer may carry
+  // …with a call on where the room lands (D385): a group answer may carry
   // `guessIdx` like a duo's, and the reveal below must publish it.
   await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_${mkDay}`), {
     qid: "group-gu0", surface: "group", optionIdx: 1, guessIdx: 1,
@@ -764,7 +805,7 @@ ok("duo streak = 1");
   const mkVotes = mkRevealSnap.get("votes") || {};
   if (mkVotes[uid]?.guessIdx !== 1)
     fail("the group reveal dropped the call on the room: " + JSON.stringify(mkVotes[uid]));
-  ok("a group reveal carries the member's call on the room (D381)");
+  ok("a group reveal carries the member's call on the room (D385)");
   ok("indexed scan found the marked group and revealed it");
 
   // Settling the day must clear it, or every later run re-reads this group

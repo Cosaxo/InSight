@@ -448,7 +448,7 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
-  // A 1v1 question's DOMAIN rides `topic` (D381) — `day` (everyday),
+  // A 1v1 question's DOMAIN rides `topic` (D385) — `day` (everyday),
   // `heat` (under pressure), `mirror` (a read of the other person), `ahead`
   // (the future, romantic only) — the way a group question's kind does.
   // The source has always carried it as `d` and the demo layer read it

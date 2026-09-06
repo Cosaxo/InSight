@@ -227,7 +227,7 @@ export function IS_nearWhy(testKey, dims, a) {
 //     taxes rare types by a fixed, small penalty — enough to break near-ties
 //     toward the plausible answer, never enough to overrule a real match.
 //  4. A TYPE IS IN THE RUNNING ONLY WHEN THE DIMS THAT DEFINE IT ARE THERE
-//     (D381, ROLES-PLAN §3.6). A fold may omit a dim it cannot yet measure
+//     (D385, ROLES-PLAN §3.6). A fold may omit a dim it cannot yet measure
 //     — a group role before any pick day has a snapshot, say — and a type
 //     whose whole identity is that dim would then be scored on the dims it
 //     has no opinion about, at the low weights rule 1 gives them, and win

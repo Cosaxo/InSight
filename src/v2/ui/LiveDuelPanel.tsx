@@ -20,7 +20,7 @@
 //     list of people and a list of names is not;
 //   · the reveal as BARS with faces on them, not "name — option" rows;
 //   · answering that MORPHS into guessing, instead of asking for both at
-//     once and gating a button on the pair. Since D381 a GROUP card
+//     once and gating a button on the pair. Since D385 a GROUP card
 //     morphs too: the second tap is a call on where the room will land,
 //     which is the one reading that makes the group instrument spread
 //     (ROLES-PLAN §3.5). The write shape did not change — rules admitted
@@ -858,7 +858,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
     return <div style={col(0)}>{rows}</div>;
   }
 
-  // Your call on where the room would land (D381), read against the bars
+  // Your call on where the room would land (D385), read against the bars
   // above it: a hit when it named an option that tied for the top. A room
   // of one is you, so a day only you answered draws no row — calling your
   // own vote is not a read. Split days are excluded the way duoRows
@@ -1275,7 +1275,7 @@ function LdCard({ g, vh, nextName, newest }: {
     );
   } else if (q && pick != null) {
     // the morph: you have answered, now read them — or, in a circle, read
-    // the room (D381): the same second tap, asking where most will land
+    // the room (D385): the same second tap, asking where most will land
     body = (
       <div style={{ ...col(12), animation: "popIn .3s cubic-bezier(0.2,0.8,0.2,1)" }} key="guess">
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>

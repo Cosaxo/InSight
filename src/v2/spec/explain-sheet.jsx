@@ -24,7 +24,7 @@ const { useState } = React;
 const EX = {
   // the 1v1 and group readings as instruments (2026-08-24) — the Roles
   // panel's roses read these through the same ⓘ as every test
-  // Every rate is scored against luck since D381 (data/roles.ts): 50 is
+  // Every rate is scored against luck since D385 (data/roles.ts): 50 is
   // guessing at random, 100 is right every day, whatever the day's option
   // count — which is what lets a two-way day and a pick day share a petal.
   duo: {

@@ -40190,14 +40190,401 @@ political consent guard's five checks, and a sealed duel answer's own
 fields, every one of which could be deleted with the whole suite green.
 The baseline may only come down, the same shape as `check:globals` rule 4.
 
-## D381 · The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess
+## D381 · Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on
+
+**2026-09-06.** **Status:** binding as a RELEASE RECORD and a PRE-FLIGHT
+VERDICT. One number moved — `appBuild` 29 → 30 — and no code changed.
+This is the release prep for build 30, and what it found first is that
+build 29 had already gone out.
+
+### What the run list said
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 50 (`33651487283`, 2026-09-02T15:53:40Z) is the highest run in
+  `ios-release.yml`'s list, 50 of 50.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (16:00:26Z → 16:02:20Z, 1m 54s of transfer). `UPLOAD SUCCEEDED with no
+  errors`, delivery UUID `e82cc4de-1466-4ce8-800f-a58dfb33e8c9`,
+  6,143,472 bytes. **Build 29 is spent.**
+- Run 49 (`33650731413`, 15:46:32Z) is its dry run — same commit, seven
+  minutes earlier, step 17 `skipped`. Twelfth pair of this shape.
+- `appBuild` at run 50's **own `head_sha`** — `74c84a0`, D159's rule
+  rather than any commit someone merged — is **29**.
+- The tree at `0469f5e` reads **29**.
+
+29 is not greater than 29, so the verdict is **bump**, not *run as-is*.
+`appBuild` went 29 → 30 with `check:versions --fix`, which carried it into
+`android/app/build.gradle` and `ios/App/App.xcodeproj` — five numbers
+across three files. `LAUNCH-RUNBOOK.md` 5.6 followed, because
+`check:figures` owns that sentence and went red until it did.
+
+**Had this not been read, the dispatch would have cost ~150 minutes of
+macOS quota for nothing.** Every gate in the tree passes at a stale build
+number — they compare the tree against itself — and App Store Connect
+refuses a reused number *after* the transfer completes. The archive signs,
+the export signs, both entitlement gates pass, ~6 MB moves, and Apple says
+no.
+
+### The remedy for this exact failure ran, and was empty
+
+D339 caught the same thing five days earlier and did more than record it:
+it added step 18, *Fire the release recorder*, to `ios-release.yml`, on
+the reasoning that **the step which uploaded is the one thing that cannot
+forget the upload happened.** Build 29 is the first release since that
+step existed — verified rather than inferred: at `8abb8e5`, which runs 47
+and 48 archived, the workflow's last two steps are `Upload to App Store
+Connect` and `What happens next` with no recorder between them, and at
+`74c84a0` the step is there. Its entire output was:
+
+```
+##[notice]release recorder not wired (ROUTINE_RELEASE_FIRE_URL /
+ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand,
+docs/IOS-RELEASE.md has the shape
+```
+
+The step is written to be inert and never red when the variable and the
+secret are missing, and that is right — a build that uploaded is delivered
+whatever the step does, and a red run over a shipped build is the
+confusion D339 itself records. But the consequence is that **the fix and
+the absence of the fix look identical from inside the repository.** Step
+18 reads `success` in both worlds; nothing in the tree can read the run
+list, so nothing could report that the recorder had never once fired.
+
+**A remedy waiting on a click nobody has made is not yet a remedy.** The
+click is not new — `OWNER-LIST.md` § Clicks has carried *"Set the four
+fire secrets"* since the console's first fold — but it was filed as
+plumbing for a lane that did not exist yet. It is now measurable: one
+unmade click, one unrecorded delivery, one pre-flight that opened on a
+spent number. That row now says so.
+
+This is the fifth delivery to go unrecorded (runs 25/26, 29–31 in D198,
+39/40 in D273, 45/46 in D339, now 49/50), and the sixth pre-flight to open
+on a spent build. The tally of bumps is level again at nine and nine —
+held (20, 21, 22, 28, 33, 36, 42, 44, 48) against skipped (18, 19, 24, 26,
+31, 38, 40, 46, 50) — one release after D339's amendment recorded the held
+count leading for the first time.
+
+### What the skip refutes, and what it does not
+
+D186 and D198 read the failure as an ordering: the bump sticks when it is
+made *from* step 17's conclusion while the step list is on screen, and is
+skipped when a session comes back later or not at all. Nothing here
+contradicts that — runs 49 and 50 were dispatched by the owner, no session
+held the step list, and the number sat for four days and 50 commits.
+
+What it does say is that the reading has stopped being useful on its own.
+Nine skips have each been diagnosed and each diagnosis has been correct;
+the failure recurs anyway, because every remedy so far has been a habit
+proposed to whoever happens to be holding the tree next. D339's step 18 is
+the first that is not — it is the only one keyed to the event rather than
+to attention — which is precisely why its being unwired is the finding
+here rather than a footnote. **The invariant that would end this keys on
+the run list, and the only thing in this system that can both read the run
+list and write to the tree is a Routine the workflow fires.**
+
+### The gap, and D159
+
+Both runs archived `74c84a0`, so D159's trap did not fire — the fifth
+release since run 21 where the dry run and the upload name one tree, after
+39/40, 43/44, 45/46 and 47/48. It was not arranged this time. `74c84a0` is
+*"pulse: trail row for 2026-09-02"*, a Routine's commit rather than any
+release commit, which is run 22's and run 46's shape: the dispatch ran
+against the branch as it stood. That is the case D159 exists for, and
+reading `appBuild` at the run's own `head_sha` is what made the comparison
+answerable.
+
+50 commits rode in the 29 → 30 gap, over four days — the third widest
+after build 26's 193 and build 27's 130.
+
+### What build 30 carries that build 29 did not
+
+D274 established that this prep asks the question, so: the 50 commits are
+mostly content and program work — catalogue domains (films, videogames,
+pk36), the farm's promotions, two night reviews, the console's folds — but
+three of them reach the binary and one of those is the reason to want this
+build on a device.
+
+- **A crash is fixed.** D364: the profile's Big 5 and Politics panels
+  defined their result components *inside* a render, so every render
+  remounted them — the owner's own report was the petal rose drawing empty
+  while the bars under it vibrated faster and faster until the app died.
+  Build 29 has that; build 30 does not.
+- **The paid door leaves the app** (#395). `paidBookings.ts`,
+  `suggestions.ts` and their surfaces come out of the bundle — the door
+  moved to `web/ask.html` (D369) — so the binary loses two write paths it
+  no longer offers.
+- **Near is a switch again**, off or on, the timed option retired (D370).
+
+Nothing in the three changes what the app *collects*, which is the store
+forms' question: no new field, no new purpose, no new recipient — the paid
+door's removal only subtracts. `check:store-forms`, `check:policy-claims`
+and `check:public-copy` are green on this tree, and `web/privacy.html` is
+unchanged. So this build moves no form, and 6.2 is not reopened by it.
+
+### When to revisit
+
+**At the dispatch**, on the two points that have each cost a release.
+Read `appBuild` at the run's own `head_sha` rather than at the commit that
+merged this record — `main` gains pulse rows on a schedule and `74c84a0`
+is one. And make the bump to 31 off step 17's own conclusion while the
+step list is on screen, which is the only arrangement that has ever made
+it stick (D186, D198, D273).
+
+Per D198 and D273 both, this verdict is a report about a comparison and
+never a promise about the tree: **a verdict has a shelf life of exactly
+one dispatch, and a bump has a shelf life of exactly one upload.**
+
+**And at the click.** If the four fire secrets are set before the next
+release, build 30's delivery should record itself and the next pre-flight
+is the test of whether that is true. If they are not, this entry is the
+sixth in a row and the reading above stands unchanged.
+
+## D382 · Question content is not first-paint bytes, and a gate says so
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
+in the words that are the rule: *"a iPhone should not download all the
+questions like YouTube does not download all the videos."* Said before —
+D316 records the same sentence about the READ path (*"one does not need
+to answer every question, like one does not need to watch every YouTube
+video"*) and built the paged bank for it. This record is the other half,
+the one nobody had measured: the questions were also in the BUNDLE.
+
+### What was true
+
+`src/v2/spec/daily-questions.js` — 36 KB of demo questions, and the file
+the question farm appends to **every day** — was fetched before the app
+could paint. So the bank's size was the app's start-up cost, and enough
+questions made a content lane unmergeable: on 2026-09-04 the farm's PR
+#391 failed `check:bundle` at 632 KB against 630, and on 2026-09-05 the
+feed lane aborted against the same wall with 60 pre-flighted questions
+parked. **The answer both times was to raise the ceiling** — 630 → 642 at
+D365, 645 → 630 → 642 across the entries above it. Nothing was wrong with
+those raises on their own terms; what was missing is that nobody asked
+why a *question* was in first paint at all.
+
+### The three edges, because two were invisible
+
+`check:bundle` reads `dist/index.html`, so it sees a module only when the
+bundler gives it a chunk of its own. That found one edge and hid two:
+
+1. `spec-index.js`'s side-effect line — the eager list. Removing it moved
+   the graph **2 KB**, which is the measurement that proved it was not
+   the cause.
+2. `daily-split.jsx` — the landing tab, **inlined into the entry chunk**,
+   so it has no chunk to name. Its static `import { DAILYQ }` is used at
+   two sites, both gated on `DAILYSPLIT_DQ_SYNC`, which carries exactly
+   one demo id (`'Pineapple on pizza?'`). On a live build the archive was
+   fetched for nothing at all. Now loaded on that id's first use; both
+   call sites already had a correct path for a missing store.
+3. `map-branches.js` — also in the entry chunk — imported the archive for
+   `EMERGENT_CATS`: fourteen labels and hues derived from `CAT_META`, and
+   not a question. `daily-cats.js` now carries the taxonomy, and
+   `question-quality.mjs` (the only site that parses `CAT_META`, checked
+   rather than assumed against D197's three-copies trap) reads it there.
+
+Measured, shipping-build recipe: **631 → 596 KB eager.** `MAX_EAGER_KB`
+goes 642 → **607**, the file's own ~11 KB band, rather than banking the
+35 KB as slack — the same thing D354's sweep did at 645 → 630.
+
+### The gate, and why it is a source walk
+
+`check:eager-content` walks **static** imports from `src/v2/main.jsx` and
+fails when question content is reachable. A `import()` is not an edge,
+which is the point: that is how a surface should reach content. It reads
+source rather than `dist/`, because edge 2 above is exactly what a
+chunk-name check cannot see, and it prints the import chain rather than
+the file alone — naming the file leaves you to find the edge, which is
+the part that took the measuring.
+
+Its allowlist is a **shrink-only ratchet** (`check:globals` rule 4's
+shape): six demo archives still eager because a first-paint surface still
+imports them statically — `sample-data`, `duels-data` and the
+`content/duel-questions.json` it drags with it, `world-feed-data` (the
+feed lane's continuum twins, so that lane's half of this is NOT fixed
+here), `test-feed-data`, `archetype-data`. Each line names its reason; a
+module that stops being eager fails the gate too, asking for its line
+out. Removing the last one deletes the list. Both refusals were run
+against a deliberately broken tree, and are pinned in
+`scripts/check-eager-content.test.mjs` — including that the fix the
+gate's message asks for actually passes it.
+
+### What this does not do
+
+It does not touch the **read** path: a cold boot still fetches the
+surfaces `BANK_SURFACES` names. D316's paging is built for learn (D320)
+and the feed tail (D321); the daily, the tests, the duels and the feed's
+core still ship whole, the last deliberately (D161, the Mirror's corpus).
+The daily is the one that grows every day, and it is the obvious next
+one. Recorded here rather than done, with the arithmetic where the next
+session will find it.
+
+## D383 · The daily pages: a published length, seven documents, and the density it rests on
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
+who had said it before and been half-answered: *"an iPhone should not
+download all the questions like YouTube does not download all the
+videos."* D316 recorded that sentence for the read path and built the
+paging for learn (D320) and the feed's tail (D321); D382 took the
+questions out of the BUNDLE. The daily was left in both places, and it is
+the one surface a scheduled lane appends to every single day.
+
+### What was true
+
+A cold boot read **847 documents**, and `BANK_SURFACES` carried `daily`
+— all 130 of them, growing by one a day for as long as the farm runs.
+`rank.ts` had excluded the daily from the published order for a good
+reason, written down: the daily is **positional**, everyone answers the
+same question on the same day, and that is what makes a cohort reading
+mean anything. The conclusion drawn from it was that the daily could not
+page. That does not follow.
+
+### What a device actually needs
+
+`computeDeckIds` indexes `(today - epoch - back) mod n`. The bank is the
+*resolution* of that index, not an input to it — the only input is **n**.
+So the server publishes the length and the device computes its own seven
+positions:
+
+- `v2_rank/daily` = `{ n, maxSeq }`, written by the nightly `rankBankV2`
+  beside the two orders. Not an order: a length. `dailyShape` filters the
+  bank exactly as the client's `splitBanks` does, tombstones included —
+  retired dailies stay counted, because dropping one shifts every visible
+  day on every device (the probe in `live.ts`: retiring one question
+  changed 7 of 7 pager cards).
+- The device computes positions **locally**, which is what keeps the
+  midnight rollover working — a published deck would hand out yesterday's
+  question until the 03:07 fold ran. It fetches `back` from -1, so
+  tomorrow's card is in hand before the day turns.
+- `where("surface","==","daily"), where("seq","in",[…])` — equality only,
+  so no composite index. Seven documents, or eight across a rollover, **at
+  any bank size**.
+
+`computeDeckSeqs` and `computeDeckIds` are pinned against each other over
+800 days at six bank sizes, because a disagreement between them is two
+users answering different questions on the same day with nothing to show
+for it.
+
+### The density it rests on, and the refusal that guards it
+
+Position maps to `seq` only while the daily's seq space is dense from
+zero. `live.ts`'s own boot query already stated it ("per-surface and
+contiguous") and **nothing enforced it**. So `maxSeq` is published to be
+CHECKED: `maxSeq === n - 1` or the fast path is off and the device fetches
+the daily surface whole, exactly as every build before this one. Three
+other conditions take the same fallback — no shape document, an
+unreadable one, and a short answer to the deck query (a document deleted
+rather than retired). There is no partial-deck outcome.
+
+`firestore-tests/e2e-v2-loop.mjs` proves the density on the **database**
+rather than on the compiled bank: it reads what the real seed wrote and
+fails on the first hole. That is the copy the device reads, and it is the
+only harness that can see it.
+
+### The two folds that wanted the whole bank
+
+`aggregated()` (the Mirror's Answers and Scores rows) is "every daily you
+have ANSWERED" — so it heals from history, the feed's own pattern one
+surface over, bounded by the person's answers and cached afterwards.
+`placeAsks()` (the Scores lens's pool) is "every active `rating` daily
+naming this place that I have NOT answered", which history cannot supply,
+so it is a bounded query after first paint. Both run in `topUpBankPages`,
+never at boot.
+
+**The rating pool is the remaining linear term, and it is not fixed here.**
+29 of 130 dailies carry `rating` today; at ten times the bank it is ten
+times that. The shape it wants is the same one this record uses — the
+scope's ask ids published in the shape document — and it is written down
+rather than built because the deck was the term that grew every day.
+
+### What it costs
+
+One extra round trip on a boot where the day has moved: the shape rides
+out with the bank's own reads (D356's argument, applied to the fourth
+thing the boot needs), and the deck's rows are a dependent trip. A
+same-day relaunch fetches no question at all. A cold boot: **847 → ~725
+documents**, and the daily's term stops growing.
+
+## D384 · The Scores pool pages too: ids in the shape document, documents by the page
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
+— *"fix the rating pool too"* — against the term D383 recorded as owed
+rather than fixed. This is that record's own follow-up, and it is what
+finishes taking the daily off the boot.
+
+### What D383 left standing
+
+The daily's deck went to seven documents at any bank size, but the Scores
+lens's pool did not. `placeAsks()` answers "every active `rating` daily
+that names this place and I have NOT answered" — the one daily fold
+history cannot supply, because its whole subject is what you have not
+answered yet. So D383 made it a query over the surface: honest, correct,
+and **linear** — 29 of 130 dailies today and the same fraction of any
+bank. At ten times the bank it is ten times the reads, which is the shape
+the paging exists to remove.
+
+### The pool is ids, and the count is what makes it work
+
+`v2_rank/daily` now carries `rates: { city: [...], country: [...],
+world: [...] }` — the ask ids per scope, active only, in seq order so a
+device that answered the head meets the same tail tomorrow rather than a
+reshuffle. The device:
+
+- subtracts **its own votes locally** — nothing per-person reaches the
+  server for this (D163's line), and it is also what makes the remaining
+  count exact without a read;
+- fetches documents for the first `PLACE_ASK_PAGE` (24) per scope it has
+  not met, by id, through the same `fetchByIds` the other pagers use;
+- keeps the document as the authority on `active` and on which scope a
+  question names, because the published list is a night old and a console
+  edit is not.
+
+**The count is the half that is easy to get wrong, so it is its own
+member.** The lens draws three asks and prints *"N more after these"* —
+a user-visible number. While the pool was the whole surface, `asks.length`
+was that number by accident. Page the fetch and it silently becomes an
+undercount: *"1 more after these"* on a stop holding forty. So
+`placeAskTotal(scope)` counts the published ids minus this account's
+votes, `placeAsks(scope)` returns what can be drawn, and the lens reads
+one for the list and the other for the sentence. Pinned as its own case —
+a page of four against a pool of forty must print 37.
+
+### Where it degrades, and to what
+
+No published pool — a demo build, a project whose nightly fold has not
+run, a malformed document — and `dailyRatesPool` is null: `placeAskTotal`
+falls back to counting the drawn rows, which is exactly right then,
+because the device is holding the whole surface. The pool is cleared on
+the same path that clears the length and never on the other one.
+
+**One bug this found in D383's own code**, recorded because it was the
+dangerous kind: the fallback cleared `dailyBankN` before checking whether
+the device already held daily rows. On a warm PAGED boot whose shape read
+failed — one small document, one network blip — that turned a stale
+length into no length, and the deck's positions were then computed
+against the eight rows in hand instead of the bank's. The device would
+have painted a different day's question from everyone else, off its own
+disk, with nothing anywhere to say so. A stale length is a stale deck; a
+cleared one is a wrong deck, so the fallback now returns before clearing.
+
+### What it costs
+
+Nothing at boot that was not already there: the ask ids ride the shape
+document the deck already reads, and the page rides the top-up that
+already fetches the Mirror's answered rows. The pool's read cost stops
+being a function of the bank — 24 per scope, once, cached after. The
+document grows instead: ~1,100 ids at ten times the bank, ~13 KB, well
+inside the limit rank.ts's header already prices, and the sharding
+graduation recorded there covers the case beyond it.
+
+## D385 · The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess
 
 **2026-09-06.** **Status:** binding, built. The owner's *"yes build the
 first two steps"* on [`ROLES-PLAN.md`](ROLES-PLAN.md) §5, the same day
-the plan was written and the same day its §2 was measured. Numbered on
-this branch's base (main's last record is D380); the standing collision
-pattern (D289) may renumber it at merge — the open PR #405 carries a
-D381 of its own on its branch.
+the plan was written and the same day its §2 was measured. Written as D381 on this
+branch and renumbered to D385 before its pull request opened: main took
+D381–D384 (#405, #407) while the branch was open — the collision pattern
+D289 names, met one more time.
 
 ### What the plan found, in one line each
 
@@ -40299,7 +40686,8 @@ type maths; the seal; the reveal's readers (D98).
 `test:unit` (2 685), `test --prefix functions` (705), `test:scripts`
 (957), `lint`, `tsc -b`, `check:globals` (30, unmoved), `check:content`,
 `check:figures`, `check:docs`, `check:public-copy`, `check:tap-targets`,
-`check:a11y`, `check:bundle` (eager 633 KB against the 642 ceiling —
-the matcher's rule 4 and the explain copy are in the eager graph, about
-3 KB; D365's row on `OWNER-LIST.md` says what the band is for), and
-`test:e2e:all` on one emulator boot.
+`check:a11y`, `check:bundle` (eager 599 KB against the 607 ceiling on
+the merged tree — D382 had just taken the question content out of first
+paint and re-based the ceiling; the matcher's rule 4 and the explain
+copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
+one emulator boot.
