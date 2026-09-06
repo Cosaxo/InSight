@@ -1122,7 +1122,7 @@ start.
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
 
-      **THE SOAK NEVER STARTED, AND THE 0% WAS THE SHIPPING BUILD (D387,
+      **THE SOAK NEVER STARTED, AND THE 0% WAS THE SHIPPING BUILD (D388,
       2026-09-06).** Every reading of these metrics — 2026-08-27's ~3,750
       requests all MISSING, the console on 2026-09-06 at 0% verified —
       was explained as browsers and CI, and was in fact every phone too:
