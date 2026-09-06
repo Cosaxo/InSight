@@ -1,0 +1,8 @@
+google-services.json: PLACEHOLDER (secret empty) — Firebase initialised against a project that does not exist; nothing reaches a backend
+avd: pixel_7 on system-images;android-34;google_apis;x86_64
+android: 14 · sdk_gphone64_x86_64 (attempt 1)
+emulator: disappeared during the launch on attempt 1
+android: 14 · sdk_gphone64_x86_64 (attempt 2)
+emulator: disappeared during the launch on attempt 2
+process: UNKNOWN — the emulator disappeared during the launch twice; emulator.log is the evidence
+drive: skipped
