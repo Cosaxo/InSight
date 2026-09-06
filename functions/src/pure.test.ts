@@ -31,6 +31,7 @@ import {
   modVerdictId,
   seedDocMatches,
   seedOptionConflict,
+  seedMapClears,
   describeSeedOptionConflicts,
   SEEDED_FIELDS,
   foldCanonAnchors,
@@ -1486,6 +1487,57 @@ describe("the duel question-level signal (D40 part 3)", () => {
 
 // ── D52: shipped option sets are immutable ──────────────────────
 
+describe("seedMapClears — the map key `merge: true` cannot remove", () => {
+  // Verified against the emulator rather than reasoned about: storing
+  // `{a:1,b:2}` and then `set({nodes:{a:1}}, {merge:true})` reads back
+  // `{a:1,b:2}` — the key survives — while an ARRAY in the same write is
+  // replaced wholesale. So without a clear pass the story keeps the node,
+  // `seedDocMatches` keeps seeing the difference, and the seed rewrites
+  // that document on every run, churning the `updatedAt` cursor every
+  // returning device reads the bank with.
+  const story = (nodes: Record<string, unknown>) => ({
+    surface: "feed", type: "path", prompt: "?", options: [],
+    nodes, endings: { good: "x" },
+  });
+
+  it("names a field that lost a key", () => {
+    const prior = story({ a: 1, b: 2 });
+    expect(seedMapClears(prior, story({ a: 1 }))).toEqual(["nodes"]);
+  });
+
+  it("says nothing when the map only GAINED a key — merge handles that", () => {
+    // The whole point of the narrow shape: an added node needs no clear,
+    // and clearing anyway would make every growth a two-write no-op.
+    expect(seedMapClears(story({ a: 1 }), story({ a: 1, b: 2 }))).toEqual([]);
+  });
+
+  it("says nothing when a key's VALUE changed but none was removed", () => {
+    expect(seedMapClears(story({ a: 1 }), story({ a: 9 }))).toEqual([]);
+  });
+
+  it("ignores arrays, which merge already replaces", () => {
+    const a = { surface: "feed", type: "vote", options: ["x", "y"], prompt: "?" };
+    const b = { surface: "feed", type: "vote", options: ["x"], prompt: "?" };
+    expect(seedMapClears(a, b)).toEqual([]);
+  });
+
+  it("ignores a field that is absent or changing type — the caller owns those", () => {
+    expect(seedMapClears(story({ a: 1 }), { surface: "feed", type: "path", prompt: "?" }))
+      .toEqual([]);
+    expect(seedMapClears({ nodes: "a string" }, story({ a: 1 }))).toEqual([]);
+  });
+
+  it("names every affected field, not just the first", () => {
+    const prior = { ...story({ a: 1, b: 2 }), endings: { good: "x", bad: "y" } };
+    expect(seedMapClears(prior, story({ a: 1 })).sort()).toEqual(["endings", "nodes"]);
+  });
+
+  it("is empty for a doc that does not exist yet", () => {
+    expect(seedMapClears(null, story({ a: 1 }))).toEqual([]);
+    expect(seedMapClears(undefined, story({ a: 1 }))).toEqual([]);
+  });
+});
+
 describe("seedOptionConflict — the edit the seed must refuse", () => {
   const desired = {
     surface: "daily", seq: 3, type: "binary", domain: null,
@@ -1575,6 +1627,50 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     expect(seedOptionConflict("daily-003", noField, { ...noField, domain: "dogs" })).not.toBeNull();
   });
 
+  it("refuses a retype, where neither options nor domain can say so", () => {
+    // `type` decides what a stored answer IS — `optionIdx` for
+    // vote/binary/choice, an order string for rank, `entity` for catalog.
+    // Change it under people who have answered and every stored answer is
+    // re-read under the new rule, and the published aggregate is folded
+    // from then on as though it had always been the new form.
+    //
+    // The two existing freezes are both blind to it: a vote question
+    // emptied to a catalog one has `options: []` on both sides, and
+    // `domain` agrees whenever neither side is a catalogue.
+    const vote = { type: "vote", options: [], domain: null, prompt: "Favourite?" };
+    const c = seedOptionConflict("f-42", vote, { ...vote, type: "catalog" });
+    expect(c).not.toBeNull();
+    expect(c?.field).toBe("type");
+    expect(c?.stored).toEqual(["vote"]);
+    expect(c?.desired).toEqual(["catalog"]);
+
+    // It reaches the rules, which is why this is not merely a fold
+    // question: `isCatalogAnswer` gates on `type == "catalog"`, so a
+    // retyped question changes which answer shapes production accepts.
+    const rank = { type: "rank", options: ["a", "b"], domain: null };
+    expect(seedOptionConflict("f-43", rank, { ...rank, type: "vote" })?.field).toBe("type");
+  });
+
+  it("leaves an unchanged type alone, however it is spelled", () => {
+    // The freeze must not wedge the seed for the other ~490 docs. Absent
+    // and "" are one value here, as they are for `domain`.
+    const q = { type: "binary", options: ["Messi", "Ronaldo"], domain: null };
+    expect(seedOptionConflict("daily-003", q, { ...q })).toBeNull();
+    const noType = { options: ["Messi", "Ronaldo"], domain: null };
+    expect(seedOptionConflict("daily-003", noType, { ...noType })).toBeNull();
+    // …and ACQUIRING one is a change, same as domain.
+    expect(seedOptionConflict("daily-003", noType, { ...noType, type: "binary" })?.field).toBe("type");
+  });
+
+  it("reports the options conflict first when both moved", () => {
+    // Ordering is deliberate: the options line is the one an operator has
+    // read a hundred times, and the new arm sits behind it rather than
+    // displacing it.
+    const a = { type: "vote", options: ["Yes", "No"], domain: null };
+    const c = seedOptionConflict("f-44", a, { ...a, type: "choice", options: ["No", "Yes"] });
+    expect(c?.field).toBe("options");
+  });
+
   it("describes conflicts in a form an operator can act on", () => {
     const line = describeSeedOptionConflicts([
       { qid: "daily-003", stored: ["Messi", "Ronaldo"], desired: ["Ronaldo", "Messi"] },
@@ -1587,6 +1683,9 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     expect(describeSeedOptionConflicts([
       { qid: "pick-pk04", field: "domain", stored: ["pokemon"], desired: ["dogs"] },
     ])).toContain("pick-pk04 (domain): [pokemon] -> [dogs]");
+    expect(describeSeedOptionConflicts([
+      { qid: "f-42", field: "type", stored: ["vote"], desired: ["catalog"] },
+    ])).toContain("f-42 (type): [vote] -> [catalog]");
   });
 });
 

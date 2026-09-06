@@ -48,6 +48,7 @@ import {
   seedDocMatches,
   SEEDED_FIELDS,
   seedOptionConflict,
+  seedMapClears,
   describeSeedOptionConflicts,
   type BreakdownCounts,
   type EditFlow,
@@ -519,6 +520,26 @@ export async function runSeedV2(
         }
       }
     }
+    // …and the same thing one level down, for a MAP that lost a key.
+    // `merge: true` merges maps key by key instead of replacing them
+    // (arrays it does replace), so a Crossroads story that drops a node
+    // keeps it forever while `seedDocMatches` keeps seeing the difference —
+    // the doc is rewritten on every run, churning `updatedAt`, which is the
+    // cursor every returning device reads the bank with. Verified against
+    // the emulator.
+    //
+    // Two writes to one document in one batch, applied in order: clear the
+    // field, then merge the payload. Counted as two ops against the 450
+    // ceiling below, because it is two.
+    const clears = seedMapClears(prior, payload);
+    if (clears.length) {
+      batch.set(
+        refs[i],
+        Object.fromEntries(clears.map((f) => [f, FieldValue.delete()])),
+        { merge: true },
+      );
+      inBatch++;
+    }
     payload.updatedAt = FieldValue.serverTimestamp();
     // Honor a source-carried `active: false` on FIRST create (it used to be
     // hardcoded true, which silently discarded the flag the content layer's
@@ -529,7 +550,15 @@ export async function runSeedV2(
     batch.set(refs[i], payload, { merge: true });
     written++;
     // Firestore batches cap at 500 ops.
-    if (++inBatch === 450) {
+    //
+    // `>=`, not `===`. The map-clear pass above can add a SECOND op in one
+    // iteration, so the counter steps 449 → 450 (unchecked, inside that
+    // branch) → 451 here, and an equality never matches again: the batch
+    // then grows without bound and the final commit throws, losing every
+    // write since the last flush. Reachable on any run that rewrites 450+
+    // documents with at least one map clear among them, which is what a
+    // full repair reseed of the 847-document bank is.
+    if (++inBatch >= 450) {
       await batch.commit();
       batch = db.batch();
       inBatch = 0;

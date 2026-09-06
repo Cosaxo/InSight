@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { stripComments } from "./strip-comments.mjs";
 import { bankArrayFrom } from "./v2content-lib.mjs";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -58,8 +59,23 @@ export function bankDocs() {
 // whatever was true in August. The scan is narrow on purpose — it matches
 // the exact declaration, so a changed VALUE is picked up and a changed SHAPE
 // is an error. Same trade bankDocs() below already takes.
+//
+// AND OVER COMMENT-STRIPPED SOURCE, which it was not until now. `.match`
+// returns the FIRST hit, so a superseded value parked in a comment above
+// the live declaration is what the whole cost model prices from. Measured,
+// not supposed: one line reading ``// Was `export const DECK_DAYS = 3;`
+// until the pager widened.`` above the real declaration repriced boot 21 →
+// 15 reads, reattach 28 → 12, the Hit scenario's Firestore bill $2,568 →
+// $2,462 and total daily reads 205 → 183 — with `test:scripts` 855/855
+// green, because the tripwire that pins DECK_DAYS re-implements the same
+// blind regex against the same file.
+//
+// This is the class swept out of check-anchors, check-cities,
+// account-level-lib and check-figures on 2026-09-05, and this file was
+// missed — the file whose header cites D47 and D200 for exactly this
+// failure. Ten pins read through here.
 function readNum(rel, re, what) {
-  const src = readFileSync(join(ROOT, rel), "utf8");
+  const src = stripComments(readFileSync(join(ROOT, rel), "utf8"));
   const m = src.match(re);
   if (!m) {
     throw new Error(
@@ -79,7 +95,7 @@ function readNum(rel, re, what) {
 // The string form of the same trade, for the one input that is a place
 // rather than a count.
 function readStr(rel, re, what) {
-  const src = readFileSync(join(ROOT, rel), "utf8");
+  const src = stripComments(readFileSync(join(ROOT, rel), "utf8"));
   const m = src.match(re);
   if (!m) {
     throw new Error(

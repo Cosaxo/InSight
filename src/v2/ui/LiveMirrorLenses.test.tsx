@@ -191,6 +191,48 @@ describe("People", () => {
   // drawn as cards rather than listed as names. The claims below are the
   // ones that survived the redraw plus the ones it added.
 
+  it("does not put the world's portrait under the name of a city", () => {
+    // `by` is one dimension deep — `dim → bucket → counts`, so there is no
+    // age×city cross and an age histogram for Oslo is not in the published
+    // data. `mixFor(by, "ageBand")` sums every bucket, which is everyone.
+    // The card printed that under "in Oslo" on the City and Country stops:
+    // a different population, presented as the one you are standing in.
+    mount("people", [Q], "Oslo", "city");
+    expect(screen.queryByText("in Oslo")).toBe(null);
+    expect(screen.getByText("everyone, not just Oslo")).toBeTruthy();
+    cleanup();
+
+    mount("people", [Q], "Norway", "country");
+    expect(screen.getByText("everyone, not just Norway")).toBeTruthy();
+  });
+
+  it("still says `in` at World, where the numbers are the stop", () => {
+    // The other direction, and the reason this is a label fix and not a
+    // deletion: at World the fold and the stop are the same population,
+    // so the qualifier would be the restating clause D182 deletes.
+    mount("people", [Q], "the world", "world");
+    // getAll, not get: the mix footer says "in the world" too, and a
+    // getByText that started passing because a second element appeared
+    // would be a test about the wrong node.
+    expect(screen.getAllByText("in the world").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/everyone, not just/)).toBe(null);
+  });
+
+  it("draws the SAME numbers on every stop, which is what the label is for", () => {
+    // If the figures moved with the stop the label would be the wrong
+    // fix. They do not — the card cannot cut them — so this pins the
+    // premise the sentence above rests on. 20 answers carry an age in the
+    // fixture, on all three.
+    const totals = (["city", "country", "world"] as const).map((sc) => {
+      cleanup();
+      mount("people", [Q], "Oslo", sc);
+      return screen.getByText("answers with an age").parentElement?.textContent;
+    });
+    expect(totals[0]).toBe(totals[2]);
+    expect(totals[1]).toBe(totals[2]);
+    expect(totals[2]).toMatch(/20/);
+  });
+
   it("draws a gender split that adds up to a hundred", () => {
     // The bar is 100%-STACKED: the same number is each segment's width
     // and the label printed inside it, so a set that does not sum to 100
@@ -325,8 +367,12 @@ describe("People", () => {
   });
 
   it("says the card is empty rather than drawing an empty shape", () => {
-    mount("people", [{ ...Q, by: {} }]);
-    expect(screen.getByText(/no ages or genders here yet/i)).toBeTruthy();
+    // "…here yet" read as the stop on a stop this card is not cut to —
+    // "nobody in Oslo" where the fact is "nobody anywhere". Same defect
+    // as the subtitle above, one arm over.
+    mount("people", [{ ...Q, by: {} }], "Oslo", "city");
+    expect(screen.getByText(/nobody has filled in an age or gender yet/i)).toBeTruthy();
+    expect(screen.queryByText(/here yet/i)).toBe(null);
   });
 });
 
@@ -494,6 +540,23 @@ describe("Scores", () => {
     expect(screen.getByText(/you have not rated it/i)).toBeTruthy();
   });
 
+  it("does not say nobody scored it to the person who scored it", () => {
+    // `scored` drops a row when neither crowd has a mean, and your own
+    // score is not a crowd — so rating a place nobody else has rated yet,
+    // or rating one in the seconds before the fold lands, empties this
+    // card. It then printed "Nobody here has scored Oslo yet." over a
+    // score you had just given it.
+    const onlyMine: LensQuestion = {
+      ...RATED,
+      counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      all: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      mine: 8,
+    };
+    mount("scores", [onlyMine]);
+    expect(screen.getByText(/just your score so far/i)).toBeTruthy();
+    expect(screen.queryByText(/nobody here has scored/i)).toBeNull();
+  });
+
   // ── D187: the card is about the PLACE ──
   //
   // The three cases below are the ones that were green while the release
@@ -548,8 +611,15 @@ describe("Scores", () => {
     // the habit the withheld-cell era left behind (D98). "Nobody" means
     // nobody ANYWHERE since D288 §2 — a city cell at zero with answers
     // from elsewhere is the ring-only case below, not this one.
-    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0] }]);
+    //
+    // `mine: -1`, which this case needed all along and did not say: it
+    // spread RATED's `mine: 8`, so it was asserting "nobody here has
+    // scored Oslo" for a viewer who HAD scored it — the defect the case
+    // above now holds, sitting inside the case that names the distinction.
+    // "Nobody anywhere" has never included the reader.
+    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0], mine: -1 }]);
     expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
+    expect(screen.queryByText(/just your score so far/i)).toBeNull();
   });
 
   // ── D288 §2: the second crowd ──

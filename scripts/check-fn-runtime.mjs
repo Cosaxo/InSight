@@ -22,6 +22,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
 import { isExplicit } from "./fn-runtime-lib.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -184,8 +185,15 @@ if (served.length !== 1) {
 }
 
 const REGION_TS = resolve(root, "src/lib/region.ts");
+// Comment-stripped: `.match` takes the first hit, so a superseded region
+// parked in a comment above the live declaration is what this compares
+// against the deploy — and it would compare it to the RIGHT answer while
+// the client called the wrong one. Same class as the two catalogue
+// ceilings, and the same deploy path. Measured: with the old line parked
+// above `us-central1` this gate exited 0.
 const clientRegion = (() => {
-  const m = readFileSync(REGION_TS, "utf8").match(/export const FUNCTIONS_REGION = "([^"]+)"/);
+  const m = stripComments(readFileSync(REGION_TS, "utf8"))
+    .match(/export const FUNCTIONS_REGION = "([^"]+)"/);
   return m ? m[1] : null;
 })();
 if (!clientRegion) {
