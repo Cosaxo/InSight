@@ -1,0 +1,17 @@
+google-services.json: PLACEHOLDER (secret empty) — Firebase initialised against a project that does not exist; nothing reaches a backend
+avd: pixel_7 on system-images;android-35;google_apis;x86_64
+renderer: -gpu swiftshader_indirect
+booted: 15 · sdk_gphone64_x86_64 (boot 1, attempt 1)
+process: alive 10s after launch (boot 1)
+emulator process gone at 22:38:20 UTC
+renderer: -gpu swiftshader_indirect
+booted: 15 · sdk_gphone64_x86_64 (boot 2, attempt 1)
+process: alive 10s after launch (boot 2)
+emulator process gone at 22:40:31 UTC
+renderer: -gpu swiftshader_indirect
+booted: 15 · sdk_gphone64_x86_64 (boot 3, attempt 1)
+process: alive 10s after launch (boot 3)
+emulator process gone at 22:42:20 UTC
+emulator process at the end: GONE (a host-side crash, if adb lost it)
+logs collected at 22:44:20 UTC
+drive: failure

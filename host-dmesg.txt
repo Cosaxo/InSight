@@ -1,0 +1,2 @@
+[  589.682461] RenderThread[4711]: segfault at 558a1411ded0 ip 00005589da51156f sp 00007f94f938f2c0 error 4 likely on CPU 2 (core 1, socket 0)
+[  589.682483] RenderThread[4710]: segfault at 558a14645ed0 ip 00005589da51156f sp 00007f94f723d2c0 error 4 likely on CPU 0 (core 0, socket 0)
