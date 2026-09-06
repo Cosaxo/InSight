@@ -137,7 +137,7 @@ describe("a night whose review has already merged", () => {
 
 | \`nightb-20260905\` | 19 | one commit later |
 
-## D388 · An amendment that re-states an old table
+## D393 · An amendment that re-states an old table
 
 | \`nightb-20260905\` | 18 | as D365 took it |
 `);
@@ -316,10 +316,15 @@ describe("the lists on this tree", () => {
     // cast (item 6) on 2026-09-06. The web ask door D368 also added moved
     // Designed → Built at D369 — the SECTION is the status, not the
     // `status` line inside the entry, so an entry that is built and left
-    // under Designed reads as still waiting.
-    expect(v.requested.length).toBe(7);
+    // under Designed reads as still waiting. Built is 2 since D393 filed
+    // the first-launch walkthrough (item 7) straight under Built the same
+    // day: built on the owner's direct ask without the drafted step, and
+    // recorded there rather than skipped silently. Requested is 8 since
+    // D402 filed the logic test's worked example (item 8): a screen, so a
+    // request under D352 rather than a build.
+    expect(v.requested.length).toBe(8);
     expect(v.designed).toEqual([]);
-    expect(v.built.length).toBe(1);
+    expect(v.built.length).toBe(2);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

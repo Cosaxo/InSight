@@ -21,6 +21,11 @@ import {
   breakdownBucket,
   foldAnchors,
   BREAKDOWN_MAX_BUCKETS,
+  OVERFLOW_SHARDS,
+  overflowShard,
+  capBoundShards,
+  overflowTail,
+  retargetTail,
   catalogEntityKey,
   buildModQueueFrom,
   tallyFirstFlagInto,
@@ -617,6 +622,50 @@ describe("per-anchor breakdowns", () => {
     expect(by.city["Newcomer, NO"], "a publishable bucket was evicted for a newcomer")
       .toBeUndefined();
     expect(by.city).toEqual(before);
+  });
+
+  it("reports what the cap discarded — an eviction with its victim, a refusal with the newcomer — and nothing while slots are free (D398)", () => {
+    // Pure code has no logger, so the fold REPORTS through a callback and
+    // the trigger turns each call into the `agg_evict` line the alert chain
+    // counts. Three things pinned: silence while the cap is not binding
+    // (a metric that fired on ordinary folds would page on every answer),
+    // the eviction naming the victim and the count it lost, and the
+    // refusal — the outcome the old eviction test could not see — naming
+    // the newcomer that never got a cell.
+    const seen: Array<[string, string, string, number]> = [];
+    const onCap = (kind: string, dim: string, bucket: string, total: number) => {
+      seen.push([kind, dim, bucket, total]);
+    };
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      foldAnchors(by, { city: `Junk${i}, NO` }, 0, onCap);
+    }
+    expect(seen, "reported while slots were still free").toEqual([]);
+
+    // The 25th city evicts the smallest sub-floor bucket — the first junk
+    // value, one answer — and the report says which and how many.
+    foldAnchors(by, { city: "Oslo, NO" }, 1, onCap);
+    expect(seen).toEqual([["evicted", "city", "Junk0, NO", 1]]);
+
+    // Every slot published: the newcomer is refused, and the report says
+    // so with a zero — it never held a count to lose.
+    const full: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(full, { city: `Full${i}, NO` }, 0, onCap);
+    }
+    seen.length = 0;
+    foldAnchors(full, { city: "Newcomer, NO" }, 0, onCap);
+    expect(seen).toEqual([["refused", "city", "Newcomer, NO", 0]]);
+    expect(full.city["Newcomer, NO"]).toBeUndefined();
+
+    // The catalog fold shares the rule and the report (pure.ts admitBucket
+    // is the one place both go through).
+    seen.length = 0;
+    foldCanonAnchors(full, { city: "Another, NO" }, "pikachu", onCap);
+    expect(seen).toEqual([["refused", "city", "Another, NO", 0]]);
+
+    // …and a fold with no callback is the fold it always was.
+    expect(() => foldAnchors(full, { city: "Quiet, NO" }, 0)).not.toThrow();
   });
 
   // The five publishableBreakdown cases that stood here — sub-floor
@@ -2207,3 +2256,101 @@ describe("validRankOrder / foldRankOrder — the order fold's trust boundary (D2
     expect(rank).toEqual([2, 0, 1, 3]);
   });
 });
+
+// ── the tail (D400) ──────────────────────────────────────────────
+
+describe("the breakdown cap's tail (D400)", () => {
+  type By = Record<string, Record<string, Record<string, number>>>;
+  const sum = (cell: Record<string, number>) => Object.values(cell).reduce((a, b) => a + b, 0);
+  /** hot ∪ tail for one dim, as a reader who summed both would see it. */
+  const union = (hot: By, pending: Map<number, By>, dim: string) => {
+    const out: Record<string, Record<string, number>> = {};
+    const take = (buckets: Record<string, Record<string, number>> | undefined) => {
+      for (const [b, cell] of Object.entries(buckets ?? {})) {
+        const t = out[b] || (out[b] = {});
+        for (const [k, n] of Object.entries(cell)) t[k] = (t[k] || 0) + n;
+      }
+    };
+    take(hot[dim]);
+    for (const shard of pending.values()) take(shard[dim]);
+    return out;
+  };
+
+  it("hashes a bucket to its shard the way the client does — the vectors are pinned on both sides", () => {
+    // src/v2/data/overflow.test.ts pins the same literals against the
+    // client's copy; a divergence means a device opens the wrong shard and
+    // reads its own city as absent.
+    expect(OVERFLOW_SHARDS).toBe(8);
+    expect(["Oslo, NO", "Bergen, NO", "Trondheim, NO", "NO", "PT", "Tail01, NO", "São Paulo, BR"].map(overflowShard))
+      .toEqual([5, 7, 4, 2, 1, 3, 7]);
+    for (const b of ["", "x", "a".repeat(40)]) expect(overflowShard(b)).toBeGreaterThanOrEqual(0);
+    for (const b of ["", "x", "a".repeat(40)]) expect(overflowShard(b)).toBeLessThan(OVERFLOW_SHARDS);
+  });
+
+  it("an eviction moves the victim's whole cell to the tail and a refusal starts the newcomer there — hot ∪ tail is exact", () => {
+    const by: By = {};
+    const { tail, pending } = overflowTail(new Map());
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) foldAnchors(by, { city: `Junk${i}, NO` }, i % 2, undefined, tail);
+    expect(pending.size, "nothing reaches the tail while slots are free").toBe(0);
+    // The 25th evicts Junk0 (one answer, option 0) — into the tail, whole.
+    foldAnchors(by, { city: "Oslo, NO" }, 1, undefined, tail);
+    expect(by.city["Junk0, NO"]).toBeUndefined();
+    expect(by.city["Oslo, NO"]).toEqual({ "1": 1 });
+    expect(pending.get(overflowShard("Junk0, NO"))?.city["Junk0, NO"]).toEqual({ "0": 1 });
+    // Every slot published: the newcomer is refused from the hot map and
+    // counted in the tail instead of nowhere.
+    const full: By = {};
+    const flow = overflowTail(new Map());
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(full, { city: `Full${i}, NO` }, 0, undefined, flow.tail);
+    }
+    foldAnchors(full, { city: "Newcomer, NO" }, 1, undefined, flow.tail);
+    expect(full.city["Newcomer, NO"]).toBeUndefined();
+    expect(flow.pending.get(overflowShard("Newcomer, NO"))?.city["Newcomer, NO"]).toEqual({ "1": 1 });
+    expect(sum(union(full, flow.pending, "city")["Newcomer, NO"])).toBe(1);
+    expect(Object.values(union(full, flow.pending, "city")).reduce((a, c) => a + sum(c), 0))
+      .toBe(BREAKDOWN_MAX_BUCKETS * FLOOR + 1);
+  });
+
+  it("a bucket the tail holds STAYS there — counted where it is, never split across the two", () => {
+    // The shards as the trigger would have read them: Newcomer already in
+    // the tail with one answer, and a sub-floor hot slot it COULD evict.
+    const hot: By = { city: {} };
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) hot.city[`Junk${i}, NO`] = { "0": 1 };
+    const shards = new Map([[overflowShard("Newcomer, NO"), { city: { "Newcomer, NO": { "1": 1 } } }]]);
+    const { tail, pending } = overflowTail(shards);
+    foldAnchors(hot, { city: "Newcomer, NO" }, 0, undefined, tail);
+    expect(hot.city["Newcomer, NO"], "re-admitted to the hot map beside its tail cell").toBeUndefined();
+    expect(Object.keys(hot.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+    expect(pending.get(overflowShard("Newcomer, NO"))?.city["Newcomer, NO"]).toEqual({ "0": 1 });
+  });
+
+  it("capBoundShards names a shard only for a dimension AT the cap that lacks the bucket", () => {
+    const under: By = { city: { "Oslo, NO": { "0": 1 } }, country: { NO: { "0": 1 } } };
+    expect(capBoundShards(under, { city: "Bergen, NO", country: "PT" })).toEqual([]);
+    const at: By = { city: {}, country: {} };
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) { at.city[`C${i}, NO`] = { "0": 1 }; at.country[`X${i}`] = { "0": 1 }; }
+    // present in the hot map → no read; absent → its shard
+    expect(capBoundShards(at, { city: "C3, NO" })).toEqual([]);
+    expect(capBoundShards(at, { city: "Oslo, NO" })).toEqual([overflowShard("Oslo, NO")]);
+    // two capped dims → both shards, sorted and deduped; a dim the answer
+    // does not carry is not read; a dim with no hot map is not at the cap
+    const both = capBoundShards(at, { city: "Oslo, NO", country: "NO", ageBand: "25-34" });
+    expect(both).toEqual([...new Set([overflowShard("Oslo, NO"), overflowShard("NO")])].sort((a, b) => a - b));
+    expect(capBoundShards(null, { city: "Oslo, NO" })).toEqual([]);
+    expect(capBoundShards(at, null)).toEqual([]);
+  });
+
+  it("retargetTail moves the edit inside the tail under retargetAnchors' own skip rule", () => {
+    const s = overflowShard("Tail01, NO");
+    const shards = new Map([[s, { city: { "Tail01, NO": { "0": 2 } } }]]);
+    expect([...retargetTail(shards, { city: "Tail01, NO" }, 0, 1).entries()])
+      .toEqual([[s, { city: { "Tail01, NO": { "0": -1, "1": 1 } } }]]);
+    // the cell does not hold the old option → left alone, increment included
+    expect(retargetTail(shards, { city: "Tail01, NO" }, 1, 0).size).toBe(0);
+    // a bucket the tail does not hold → nothing to move (the hot map's job)
+    expect(retargetTail(shards, { city: "Oslo, NO" }, 0, 1).size).toBe(0);
+    expect(retargetTail(shards, null, 0, 1).size).toBe(0);
+  });
+});
+

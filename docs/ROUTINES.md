@@ -5,7 +5,7 @@
 > live account that owns them, both on 2026-09-02; §4 has no rows and no
 > owner yet; §5's lanes are their contracts plus what a decision record
 > says about them, with no id readable from any account here; §9 is the
-> cost hunt, chartered 2026-09-06 (D393) and not yet created on any
+> cost hunt, chartered 2026-09-06 (D403) and not yet created on any
 > account — the one section that IS proposed, and it says so in its
 > first line. Nothing else here is proposed.
 
@@ -758,7 +758,7 @@ with a Fable session at the end reviewing and adjusting their work.
 Named the cost hunt — hunters and a reviewer — on the owner's word
 that it must not share the night shift's name, or the two are
 confusing to refer to.
-`COST-HUNT.md` is the contract and D393 the record — both written
+`COST-HUNT.md` is the contract and D403 the record — both written
 before any Routine exists, so that the first fire finds its section
 (the doc sweep and the now lane each fired for days into a contract
 that was not on `main`; this lane will not).

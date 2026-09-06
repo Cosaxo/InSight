@@ -46,8 +46,9 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   the trait web. Not a Mirror stop: this is a thing about the app's
   behaviour toward you, not a reading of a population.
 - **data and basis** — `v2_users/{uid}/taste/profile` `{t, n, at}` —
-  per-topic feed-answer counts, folded nightly by `fitTasteV2`
-  (`functions/src/taste.ts`), owner-readable and client-unwritable. One
+  per-topic feed-answer counts, folded nightly by the taste fold
+  (`functions/src/taste.ts`, inside `digestEngagementV2` since D399),
+  owner-readable and client-unwritable. One
   document GET; the same one `bank-pager.ts` already consults, so a
   session-cached read costs nothing extra. The floors are the copy's
   spine, not a footnote: under `TASTE_MIN_TOTAL` (10 answers) the profile
@@ -405,6 +406,55 @@ it is planned here.
   for. Every input is public (D98) and already on screen with names.
 - **status** — `requested` (waits on the plan's owner call).
 
+### 8 · The logic test's worked example — one solved matrix before item 1
+
+- **title · asked by** — *How a matrix works* · a session, 2026-09-06
+  (D402), the one administration step matrix tests take that the Logic
+  overlay does not.
+- **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), between
+  opening it and the first puzzle. Today the overlay opens straight into
+  item 1; the two weight-1 items double as the instruction, which means
+  a first-time taker spends real items learning the format and the
+  floor of the scale carries that cost. A verified attempt (D57) opens
+  the same way, on the clock.
+- **data and basis** — nothing live. One fixed, hand-picked matrix in
+  the generator's vocabulary (a shape cycle is the natural one: three
+  shapes, each once per row and column), drawn with its answer ALREADY
+  in the goal cell and the five distractors shown struck or dimmed, so
+  the reader sees a solved one before they are asked to solve one. No
+  answer key ships: the example is not a generated item and is never a
+  scored one. D1's empty state does not arise.
+- **states** — **first open** (no saved result on the device): the
+  example, then *Begin*. **Return** (a saved result exists): the result
+  screen as today, with the example reachable from a small row —
+  *see how a matrix works* — never in the way of Retake or Verified.
+  **Verified attempt**: the example is shown BEFORE `logicStartV2` is
+  called, so no clock is running while it is read. **Demo**: identical;
+  the example depends on nothing live.
+- **interaction** — one tap on *Begin* starts the attempt. Optionally,
+  tapping the struck options could say in one line why each is wrong
+  (*already in this row*, *wrong size*) — the same five words the
+  generator's mutant comments use — but the request is for the picture
+  first; D182's order.
+- **vocabulary** — the overlay's own tiles (`tileBase`, `Matrix`, the
+  raised option buttons), the test's accent (`LOGIC_COL`, the Likeness
+  colour), the kickers *The pattern* / *Pick what fills the ?* it already
+  uses. The standalone family in `design/standalone-2026-08-20/` for the
+  card and button shapes. Copy under D182: the picture carries the
+  instruction; one sentence at most.
+- **constraints** — the overlay is a lazy chunk (`loadOverlays()`), so
+  the cost is bytes in that chunk only; `check:bundle`'s ceiling is
+  the whole app's, not the chunk's. No reads. Tap targets per
+  `check:tap-targets`. The example's matrix must be renderable by
+  `Prim` as it stands — no new glyphs for the example alone.
+- **why** — the tests axiom (`AXIOMS.md`, operational): tst-3's ability
+  link function says guessing and ceilings matter for logic, and a
+  format-learning cost on the first items is floor noise that a
+  worked example removes. D402 recorded this as the one administration
+  step deferred, and as a screen rather than a control, so it is a
+  request under D352 rather than a build.
+- **status** — `requested`.
+
 ## Planned
 
 ## Drafted
@@ -413,6 +463,53 @@ it is planned here.
 
 
 ## Built
+
+### 7 · The first-launch walkthrough — how the app works, before the questions
+
+- **title · asked by** — *How InSight works* · the owner, 2026-09-06,
+  directly to a session: *"create a walkthrough for the first time someone
+  uses the app that explains how it works."* **Built the same day on the
+  direct ask, without the drafted step** — recorded here rather than
+  skipped silently, because the rule at the top of this file is the
+  owner's and a screen built past it should say so. D393 is the record.
+- **surface** — its own root over the app, on a first launch of a live
+  build, BEFORE D151's *A few things about you* (`src/v2/main.jsx`
+  sequences the two); and the account sheet's *How InSight works · Show
+  again* row (`ui/LivePrivacyPanel.tsx`), which re-opens it any time.
+- **data and basis** — none. Five pages the same for every account, and
+  every claim on them is one the app already makes: the split (D1), the
+  three reaches with *sealed until tomorrow* (`web/privacy.html`'s D5
+  row), the anchors an answer carries (D8, D151) and the instruments that
+  fill from the feed (D121), the Mirror's seven stops (D111), and the
+  blunt sentence — *your answers are public, under your name* (D183,
+  D98). The Patterns tab is NOT on it (D265: no teaser), pinned by test.
+- **states** — first launch: five pages, Next / Back / Skip, *Start* on
+  the last; re-opened from the row: the same, ending in *Done*; a live
+  build whose boot did not attach: shown (a first launch on a train is a
+  first launch); the demo build: never.
+- **interaction** — Next and Back, Skip from any page, Escape, a swipe
+  either way, the arrow keys; a swipe or a key past the last page stays
+  put — a gesture is not a commit. Focus is trapped inside and restored
+  to the opener on close (`useDialog`, D24).
+- **vocabulary** — the daily ruler's accents for World · Circle · 1v1
+  (`app-shell`'s `DOCK_STOPS`), the Mirror's for its seven stops
+  (`mirror-tab`'s `MIRROR_POPS`), the iris as the header draws it (D302),
+  the serif prompt voice on the example card (D362), the paid door's
+  `.sg-rise` entrance, `.kicker`; the copy rule D182 — a picture, a title,
+  a sentence or two, no caption for a shape the reader is looking at.
+- **constraints** — zero eager bytes (602 KB before and after, against
+  607); its own 10.6 KB chunk, after first paint, live builds only;
+  46 px buttons (`check:tap-targets`); `check:a11y`'s ratchet unchanged;
+  `check:public-copy` and `check:policy-claims` green over the new copy.
+- **why** — `CLAUDE.md`'s first paragraph: the daily is the smaller half,
+  and nothing on it said so. A person who answers for a week without
+  finding the Mirror has used a poll with a streak.
+- **status** — `built` 2026-09-06 (D393). **What a canvas would still
+  improve:** the five illustrations, which are drawn from the tree's
+  vocabulary rather than from a design — a redraw replaces `Art` in
+  `src/v2/ui/LiveWalkthrough.tsx` and nothing else; the gate and the
+  tests pin claims, not pictures. Optional, and on `OWNER-LIST.md` §
+  Designs as such.
 
 ### 0 · The web ask door — where a question is bought
 

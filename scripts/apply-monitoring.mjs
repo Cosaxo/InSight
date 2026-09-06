@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// apply-monitoring.mjs — put the nine alert policies in place, in one command.
+// apply-monitoring.mjs — put the ten alert policies in place, in one command.
 //
 //   node scripts/apply-monitoring.mjs --email you@example.com            # report
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
 //
 // WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
-// steps: a notification channel, seven log-based metrics, and nine policies
+// steps: a notification channel, eight log-based metrics, and ten policies
 // that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one
@@ -82,6 +82,17 @@ const METRICS = [
     filter: 'severity>=WARNING AND jsonPayload.metric="agg_contention"',
   },
   {
+    // The breakdown cube's cap (pure.ts BREAKDOWN_MAX_BUCKETS) discarding
+    // a cohort count — a sub-floor bucket evicted for a newcomer, or the
+    // newcomer refused because every slot is published. Silent from the
+    // day the cap was written until D398; dormant until a question has
+    // answers from 25 cities or countries, and its first firing is the
+    // evidence ALGORITHM-REFLECTION §4.4 builds the overflow document on.
+    name: "agg_evict",
+    description: "onV2AnswerCreated dropped a breakdown bucket at BREAKDOWN_MAX_BUCKETS (evicted or refused)",
+    filter: 'severity>=WARNING AND jsonPayload.metric="agg_evict"',
+  },
+  {
     // The scheduled reveal scan's heartbeat. Filtered to mode="indexed" —
     // the schedule's mode — on purpose: runDuelReveals is shared with
     // revealDuelsNowV2's manual lever, which defaults to "full", and an
@@ -95,8 +106,12 @@ const METRICS = [
   // was never the gap; nothing was reading it. Registered here so the
   // silence policies below have a metric to be absent from.
   {
+    // Emitted from the nightly pass (nightly.ts, `digestEngagementV2`)
+    // since D399 folded the three ledger readers into one invocation; the
+    // policy file keeps its fitPatternsV2 name because that is the display
+    // name the ARMED policy carries, and a renamed policy is a new one.
     name: "patterns_fit",
-    description: "fitPatternsV2 completed a nightly fit (02:37 UTC)",
+    description: "the nightly Patterns fit completed — inside digestEngagementV2 since D399 (02:23 UTC)",
     filter: 'jsonPayload.metric="patterns_fit"',
   },
   {
@@ -106,7 +121,7 @@ const METRICS = [
   },
   {
     name: "engagement_digest",
-    description: "digestEngagementV2 completed a nightly digest (02:23 UTC)",
+    description: "digestEngagementV2 completed the nightly engagement pipeline (02:23 UTC; the same pass carries the Patterns fit and the taste fold since D399)",
     filter: 'jsonPayload.metric="engagement_digest"',
   },
   // The paid pipeline had NO metric registered at all, so none of its money
@@ -128,6 +143,9 @@ const METRICS = [
 const POLICIES = [
   "monitoring/onV2AnswerCreated-errors.json",
   "monitoring/onV2AnswerCreated-contention.json",
+  // The cap alert (D398): the same trigger, the same "not an error" shape
+  // as contention — the answer folds, the count for one cohort does not.
+  "monitoring/onV2AnswerCreated-evictions.json",
   "monitoring/scheduledDuelReveals-silent.json",
   // …and the same shape for the two nightly jobs, which had no policy at
   // all until an audit counted the schedules against this list. A cron that
