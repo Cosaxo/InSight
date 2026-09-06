@@ -14,6 +14,7 @@ import {
   AUDIENCE_DIMS_MAX,
   LIKERT,
   checkoutLineItem,
+  expirePriorSession,
   dayPlus,
   PAID_OPTIONS_MAX,
   PAID_PROMPT_MAX,
@@ -917,5 +918,55 @@ describe("checkoutLineItem — the amount and what the charge says it is for", (
   it("prints the rate without trailing zeros — it is money, not a float dump", () => {
     const d = checkoutLineItem(q).price_data.product_data;
     expect(d.description).not.toMatch(/€\d+\.\d*0(\D|$)/);
+  });
+});
+
+// ── the one line between a buyer and paying twice ───────────────────────
+//
+// Pressing Pay a second time mints a second Checkout session, and the
+// first stays payable for Stripe's default day — `web/paid-cancel.html`
+// invites exactly that ("opens a fresh payment page"). If both complete,
+// `goLive` records the second payment and does NOT refund it. Expiring the
+// prior session is the whole of the defence.
+//
+// It lived inside `createPaidCheckoutV2`, one line past the throw for a
+// missing Stripe key — so the emulator cannot reach it and the e2e asserts
+// that refusal instead. Measured before this block existed: swapping
+// `expire` for `retrieve`, which leaves the old session payable, left the
+// whole functions suite, the functions build and every script test green.
+describe("expirePriorSession", () => {
+  const spy = () => {
+    const calls: string[] = [];
+    return {
+      calls,
+      client: { checkout: { sessions: { expire: async (id: string) => { calls.push(id); return {}; } } } },
+    };
+  };
+
+  it("expires the session the booking is holding", async () => {
+    const s = spy();
+    await expirePriorSession(s.client, { sessionId: "cs_prior" }, "b1");
+    expect(s.calls, "the prior session was left payable").toEqual(["cs_prior"]);
+  });
+
+  it("does nothing when the booking holds none", async () => {
+    // The control: "always expire" would throw on a first checkout, where
+    // there is no prior session and `stripe` field at all.
+    const s = spy();
+    await expirePriorSession(s.client, undefined, "b1");
+    await expirePriorSession(s.client, {}, "b1");
+    await expirePriorSession(s.client, { sessionId: "" }, "b1");
+    expect(s.calls).toEqual([]);
+  });
+
+  it("swallows a refusal, because a failure here must not stop the buyer paying", async () => {
+    // Stripe refuses to expire a session that is already complete or
+    // expired — and a session that completed while this ran is exactly the
+    // case goLive's duplicate guard exists for. The caller mints the new
+    // session regardless, so this must not throw.
+    const client = {
+      checkout: { sessions: { expire: async () => { throw new Error("already completed"); } } },
+    };
+    await expect(expirePriorSession(client, { sessionId: "cs_done" }, "b1")).resolves.toBeUndefined();
   });
 });
