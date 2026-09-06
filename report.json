@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-09-06T22:20:37Z",
+  "source": "android:emulator-5554",
+  "mode": null,
+  "target": "sdk_gphone64_x86_64 · com.cosaxo.insight",
+  "profiles": {},
+  "screens": [],
+  "skipped": [],
+  "fatal": "page.evaluate: Target page, context or browser has been closed\n    at /home/runner/work/InSight/InSight/scripts/device-screens.mjs:483:33"
+}
