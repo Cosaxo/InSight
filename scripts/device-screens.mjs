@@ -325,8 +325,19 @@ async function runProfile(profileId, profile, { open, close, frame }) {
       await scene.drive(page, ctx);
     } catch (e) {
       // Capture whatever is on screen at the failure — the PNG is the
-      // evidence — and carry on: one run reports every wall.
-      const entry = await ctx.snap(`${scene.id}-FAILED`, { compare: false });
+      // evidence — and carry on: one run reports every wall. When the page
+      // itself is gone (the emulator died under the scene) there is
+      // nothing to capture, and the entry says so; the next scene's open()
+      // is where a reboot happens.
+      let entry;
+      try {
+        entry = await ctx.snap(`${scene.id}-FAILED`, { compare: false });
+      } catch {
+        n += 1;
+        entry = { profile: profileId, scene: scene.id, n: String(n).padStart(2, "0"), id: `${scene.id}-FAILED`, file: "(none)",
+          checks: {}, pageErrors: [], consoleErrors: [], failedRequests: [], unchanged: false };
+        report.screens.push(entry);
+      }
       entry.driveError = String(e && e.message ? e.message : e).slice(0, 300);
       console.log(`    drive failed: ${entry.driveError}`);
     }
@@ -390,7 +401,7 @@ if (!android) {
   // and the adb screenshot the workflow took before is the evidence.
   const probe = await withTimeout(pw._android.devices(), 30_000, "adb devices");
   if (!probe.length) { console.error("device-screens: no Android device on adb."); process.exit(1); }
-  const serial = probe[0].serial();
+  let serial = probe[0].serial();
   const model = probe[0].model();
   await probe[0].close().catch(() => {});
   const profileId = `android-${slug(model)}`;
@@ -447,7 +458,41 @@ if (!android) {
   // the reload (the WebView's navigation replaces the devtools target, the
   // fourth run's lesson), which is what the fresh attach is for. Only when
   // the page is gone does the app get stopped, cleared and started again.
+  // When the emulator itself is gone — on GitHub's runners its process
+  // crashes one to three minutes after the WebView starts drawing
+  // (.github/device-screens/android-boot.sh has the measurements) — the
+  // command in DEVICE_SCREENS_REBOOT boots a new one with the app launched
+  // on it, at most twice a run, and the drive carries on from the scene it
+  // was about to do. Without the hook a dead emulator ends the run with
+  // what it had, which the report says.
+  const REBOOT = process.env.DEVICE_SCREENS_REBOOT || "";
+  let reboots = 0;
+  const deviceGone = () => { try { adb("get-state"); return false; } catch { return true; } };
+  async function rebootAndAttach(why) {
+    if (!REBOOT) throw new Error(`the emulator is gone (${why}) and DEVICE_SCREENS_REBOOT is not set`);
+    if (reboots >= 2) throw new Error(`the emulator is gone (${why}) and both reboots this run allows are spent`);
+    reboots += 1;
+    report.reboots = reboots;
+    console.log(`    the emulator is gone (${why.slice(0, 80)}) — rebooting it (${reboots}/2)`);
+    execFileSync("bash", ["-c", REBOOT], { stdio: "inherit", timeout: 15 * 60_000 });
+    const again = await withTimeout(pw._android.devices(), 30_000, "adb devices after the reboot");
+    if (!again.length) throw new Error("no Android device on adb after the reboot");
+    serial = again[0].serial();
+    await again[0].close().catch(() => {});
+    // The boot script launched the app: a first launch, storage clean.
+    return attach();
+  }
+
   async function launch(prev) {
+    try {
+      return await launchOnce(prev);
+    } catch (e) {
+      if (!deviceGone()) throw e;
+      return rebootAndAttach(String(e && e.message ? e.message : e));
+    }
+  }
+
+  async function launchOnce(prev) {
     let restart = !prev || prev.page.isClosed();
     if (!restart) {
       try {
@@ -474,12 +519,14 @@ if (!android) {
     if (!clean) {
       console.log("    the reload did not take — starting the app again");
       await next.device.close().catch(() => {});
-      return launch(null);
+      return launchOnce(null);
     }
     return next;
   }
 
-  const first = await attach();
+  let first;
+  try { first = await attach(); }
+  catch (e) { if (!deviceGone()) throw e; first = await rebootAndAttach(String(e && e.message ? e.message : e)); }
   const size = await first.page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight, s: window.devicePixelRatio }));
   console.log(`  WebView ${size.w}×${size.h} @${size.s}`);
   let current = first;

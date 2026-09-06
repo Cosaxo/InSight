@@ -75,11 +75,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      # google_apis rather than google_apis_playstore: the plugins want
-      # Google Play services (present in both), and the Play Store image
-      # cannot be rooted or resized. API 34 boots fastest of the current
-      # x86_64 images on these runners.
-      AVD_IMAGE: "system-images;android-34;google_apis;x86_64"
+      # Android 15, and google_apis rather than google_apis_playstore. The
+      # image is the one measured choice in this file: the Android 12 and
+      # 13 images never crash and cannot render the app (their WebViews
+      # predate color-mix(), oklch and dvh — every capture a colourless
+      # page), Android 14 renders it and its emulator crashed host-side on
+      # every variant tried, and Android 15 renders it and lived longest
+      # before the same crash. android-boot.sh's header has the runs.
+      AVD_IMAGE: "system-images;android-35;google_apis;x86_64"
       APP_ID: com.cosaxo.insight
       # One directory both tools agree on. On the runner image avdmanager
       # writes the AVD under one home and the emulator searches another
@@ -168,101 +171,16 @@ jobs:
           echo "--- AVDs the emulator can see:"; "$ANDROID_HOME/emulator/emulator" -list-avds
           echo "avd: $DEVICE on $AVD_IMAGE" >> results/android/environment.txt
 
-      # One step for boot, install and launch, because the launch is what
-      # decides whether the boot was real: runs 34061114032 and 34061299385
-      # reported sys.boot_completed at forty seconds and had no device left
-      # two seconds after `am start`, while two runs before them on the same
-      # image launched fine. An emulator that dies at the app's first launch
-      # is rebooted and the launch tried again; the last death is a
-      # verdict, written into environment.txt with the emulator's own log.
-      # Three attempts, two renderer settings — the function's comment has
-      # the reasoning.
+      # Boot, install, launch and the launch captures live in
+      # .github/device-screens/android-boot.sh, because the drive needs the
+      # same thing again when the emulator dies under it: on these runners
+      # the emulator process crashes one to three minutes after the WebView
+      # starts drawing (the script's header has the measurements), so a run
+      # expects to boot more than once. The step exits with the app alive
+      # on a booted device, or with environment.txt saying every attempt
+      # lost it.
       - name: Boot, install, launch, capture the launch
-        run: |
-          boot() {
-            # $1 is the renderer for this attempt. The freezes the lane has
-            # had — the guest gone from adb two seconds after `am start`, no
-            # line in the emulator's log (runs 34061114032, 34061299385,
-            # the ninth run on both of its attempts) — all sit at the moment
-            # the WebView starts drawing, and the same image survived that
-            # moment on three other runs. The host-side renderer's Vulkan
-            # path is the suspect: its log warns about unmapping protected
-            # ranges on every boot, and WebView on Android 14 reaches for
-            # Vulkan first. So Vulkan is off for the first two attempts, and
-            # the third gives up on host rendering altogether.
-            pkill -f "emulator/qemu" 2>/dev/null || true
-            sleep 3
-            : > results/android/emulator.log
-            echo "renderer: $1" >> results/android/environment.txt
-            # The full path, never `emulator` off PATH: the SDK ships a legacy
-            # launcher under tools/ that dies with "Missing emulator engine
-            # program" when it is found first.
-            # shellcheck disable=SC2086
-            "$ANDROID_HOME/emulator/emulator" -avd screens -no-window $1 -no-snapshot -noaudio -no-boot-anim \
-              -camera-back none -camera-front none -memory 3072 >> results/android/emulator.log 2>&1 &
-            EMU=$!
-            # When it dies, say when: the emulator has left its log without a
-            # last line on every crash so far, and the moment is the one
-            # fact that places the crash against what the app was doing.
-            ( while kill -0 "$EMU" 2>/dev/null; do sleep 1; done; echo "emulator process gone at $(date -u +%H:%M:%S) UTC" >> results/android/environment.txt ) &
-            sleep 8
-            echo "--- emulator, first seconds:"; head -40 results/android/emulator.log || true
-            # No `adb wait-for-device`: it blocks forever when the emulator
-            # process has already died. Poll the boot property and fail the
-            # moment the emulator is gone — its log is then the diagnosis.
-            for i in $(seq 1 120); do
-              if ! kill -0 "$EMU" 2>/dev/null; then
-                echo "the emulator process exited before the device booted"; tail -80 results/android/emulator.log; return 1
-              fi
-              [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
-              sleep 5
-            done
-            [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || { echo "no boot in ten minutes"; adb devices || true; tail -80 results/android/emulator.log; return 1; }
-            # sys.boot_completed flips while the system is still settling:
-            # wait for the boot animation to stop and give it a moment more
-            # before asking it to install anything.
-            for i in $(seq 1 60); do
-              [ "$(adb shell getprop init.svc.bootanim 2>/dev/null | tr -d '\r')" = "stopped" ] && break
-              sleep 2
-            done
-            sleep 15
-            # No animation scales: a capture taken mid-transition is a capture
-            # of nothing, and the script's waits are tuned for the app's own
-            # motion, not the OS's.
-            adb shell settings put global window_animation_scale 0 || true
-            adb shell settings put global transition_animation_scale 0 || true
-            adb shell settings put global animator_duration_scale 0 || true
-            adb shell input keyevent 82 || true
-            return 0
-          }
-          launch() {
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            adb logcat -c || true
-            adb shell am start -W -n "$APP_ID/.MainActivity" || true
-            sleep 2;  adb exec-out screencap -p > results/android/00-launch-2s.png || true
-            sleep 8;  adb exec-out screencap -p > results/android/00-launch-10s.png || true
-            adb get-state > /dev/null 2>&1
-          }
-          RENDERERS=("-gpu swiftshader_indirect -feature -Vulkan" "-gpu swiftshader_indirect -feature -Vulkan" "-gpu off")
-          for attempt in 1 2 3; do
-            echo "::group::attempt $attempt — boot (${RENDERERS[$((attempt - 1))]})"
-            if ! boot "${RENDERERS[$((attempt - 1))]}"; then echo "::endgroup::"; continue; fi
-            echo "::endgroup::"
-            echo "android: $(adb shell getprop ro.build.version.release | tr -d '\r') · $(adb shell getprop ro.product.model | tr -d '\r') (attempt $attempt)" >> results/android/environment.txt
-            if launch; then
-              if adb shell pidof "$APP_ID" > /dev/null 2>&1; then
-                echo "process: alive 10s after launch" >> results/android/environment.txt
-              else
-                echo "process: GONE 10s after launch — a launch crash; logcat-errors.txt has it" >> results/android/environment.txt
-              fi
-              exit 0
-            fi
-            echo "the emulator disappeared during the launch (attempt $attempt)"
-            echo "emulator: disappeared during the launch on attempt $attempt" >> results/android/environment.txt
-          done
-          echo "process: UNKNOWN — the emulator disappeared during the launch on every attempt; emulator.log is the evidence" >> results/android/environment.txt
-          echo "::error::the emulator did not survive the app's launch on any attempt"
-          exit 1
+        run: bash .github/device-screens/android-boot.sh
 
       # Ambient, never a dependency (scripts/store-render.mjs). No browser
       # download: the browser here is the app's own WebView.
@@ -274,6 +192,10 @@ jobs:
       - name: Drive the WebView, screen by screen
         id: drive
         continue-on-error: true
+        env:
+          # What the driver runs when the emulator dies under it, up to
+          # twice a run — the same boot the step above did.
+          DEVICE_SCREENS_REBOOT: bash .github/device-screens/android-boot.sh
         run: |
           set -o pipefail
           node scripts/device-screens.mjs --android --pkg "$APP_ID" --out results/android 2>&1 | tee results/android/drive.log
