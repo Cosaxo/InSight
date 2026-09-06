@@ -1,0 +1,400 @@
+				"Managed" => <bool: 0x1e6e64540>: true
+				"RunningBoardLaunchedIdentity" => <dictionary: 0x106e5c660> { count = 6, transaction: 0, voucher = 0x0, contents =
+					"TYPE" => <int64: 0x899a36c8bb34f187>: 4
+					"v" => <data: 0x1039227c0>: { length = 86 bytes, contents = 0x7b226164646974696f6e616c456e7669726f6e6d656e7456... }
+					"h" => <int64: 0x899a36c8bb339d57>: 60830
+					"i" => <string: 0x106e47b70> { string cache = 0x0, length = 27, contents = "com.apple.WebKit.WebContent" }
+					"r" => <int64: 0x899a36c8bb34f1b7>: 2
+					"H" => <dictionary: 0x106e5f300> { count = 2, transaction: 0, voucher = 0x0, contents =
+						"TYPE" => <int64: 0x899a36c8bb34f1b7>: 2
+						"EAI" => <string: 0x106e47f60> { string cache = 0x0, length = 18, contents = "com.cosaxo.insight" }
+					}
+				}
+				"RunningBoardLaunched" => <bool: 0x1e6e64540>: true
+				"LaunchRequestEndpointIdentifiers" => <dictionary: 0x106e5f540> { count = 1, transaction: 0, voucher = 0x0, contents =
+					"com.apple.WebKit.WebContent" => <bool: 0x1e6e64540>: true
+				}
+			}
+		}
+		"EnvironmentVariables" => <dictionary: 0x106e5d9e0> { count = 2, transaction: 0, voucher = 0x0, contents =
+			"EXTENSION_KIT_EXTENSION_TYPE" => <string: 0x106e46f70> { string cache = 0x0, length = 1, contents = "8" }
+			"BSServiceDomains" => <string: 0x106e46e80> { string cache = 0x0, length = 2, contents = "{}" }
+		}
+		"_ProcessType" => <string: 0x106e47000> { string cache = 0x0, length = 3, contents = "App" }
+		"_OmitSandboxParameters" => <bool: 0x1e6e64560>: false
+		"_MultipleInstances" => <bool: 0x1e6e64540>: true
+		"ServiceType" => <string: 0x106e47030> { string cache = 0x0, length = 11, contents = "Application" }
+		"_AbandonCoalition" => <bool: 0x1e6e64560>: false
+		"_ManagedBy_Services" => <array: 0x106e44210> { count = 1, capacity = 8, contents =
+			0: <string: 0x106e46e20> { string cache = 0x0, length = 27, contents = "com.apple.WebKit.WebContent" }
+		}
+		"ProgramArguments" => <array: 0x106e46310> { count = 3, capacity = 8, contents =
+			0: <string: 0x106e452f0> { string cache = 0x0, length = 244, contents = "/Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/ExtensionKit/Extensions/WebContentExtension.appex/com.apple.WebKit.WebContent" }
+			1: <string: 0x106e45b00> { string cache = 0x0, length = 16, contents = "-LaunchArguments" }
+			2: <string: 0x106e47ab0> { string cache = 0x0, length = 108, contents = "eyJzZXJ2aWNlTmFtZSI6ImNvbS5hcHBsZS5XZWJLaXQuV2ViQ29udGVudCIsInR5cGUiOjgsImVuaGFuY2VkU2VjdXJpdHkiOmZhbHNlfQ==" }
+		}
+	}
+	"CFBundlePackageType" => <string: 0x106e44ea0> { string cache = 0x0, length = 4, contents = "XPC!" }
+}
+2026-09-06 20:33:49.747 Df runningboardd[17209:28dcb] [com.apple.runningboard:general] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] reported to RB as running
+2026-09-06 20:33:49.748 Df runningboardd[17209:286f1] [com.apple.runningboard:ttl] Acquiring assertion targeting [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] from originator [app<com.cosaxo.insight((null))>:60830] with description <RBSAssertionDescriptor| "Taking assertion for pid 60848" ID:17209-60830-1355 target:60848 attributes:[
+	<RBSDomainAttribute| domain:"com.apple.extensionkit" name:"BackgroundAppExtension" sourceEnvironment:"(null)">,
+	<RBSDomainAttribute| domain:"com.apple.extensionkit" name:"HandleMessage" sourceEnvironment:"(null)">
+	]>
+2026-09-06 20:33:49.748 Df runningboardd[17209:286f1] [com.apple.runningboard:ttl] Assertion 17209-60830-1355 (target:[xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848]) will be created as active
+2026-09-06 20:33:49.749 Df runningboardd[17209:286f4] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}: running-active (role: UserInteractiveNonFocal) (endowments: (null))
+2026-09-06 20:33:49.749 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] Resuming task.
+2026-09-06 20:33:49.750 Df SpringBoard[17206:28416] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-active-NotVisible
+2026-09-06 20:33:49.767 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] Set darwin role to: UserInteractiveNonFocal
+2026-09-06 20:33:49.768 E  runningboardd[17209:28dcb] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] Error 1 setting Carplay mode to 0: Operation not permitted
+2026-09-06 20:33:49.769 Df App[60830:28e32] [com.apple.extensionkit:launch] Created new process ExtensionProcess: bundleID: com.apple.WebKit.Networking instance ID: Optional([_EXExtensionInstanceIdentifier: C30E6A5B-151F-4556-8F5F-D80B50C3757D]) pid: 60848.
+2026-09-06 20:33:49.769 Df App[60830:28e32] [com.apple.WebKit:Process] AssertionCapability::AssertionCapability: taking assertion Foreground
+2026-09-06 20:33:49.772 Df runningboardd[17209:286f1] [com.apple.runningboard:ttl] Acquiring assertion targeting [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] from originator [app<com.cosaxo.insight((null))>:60830] with description <RBSAssertionDescriptor| "Browser Engine helper assertion targeting pid 60848" ID:17209-60830-1356 target:60848 attributes:[
+	<RBSDomainAttribute| domain:"com.apple.browserenginekit" name:"Foreground" sourceEnvironment:"(null)">
+	]>
+2026-09-06 20:33:49.773 Df runningboardd[17209:286f1] [com.apple.runningboard:ttl] Assertion 17209-60830-1356 (target:[xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848]) will be created as active
+2026-09-06 20:33:49.775 Df runningboardd[17209:286f1] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}: running-active (role: UserInteractiveFocal) (endowments: (null))
+2026-09-06 20:33:49.776 Df runningboardd[17209:286ef] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] Set darwin role to: UserInteractiveFocal
+2026-09-06 20:33:49.817 Df App[60830:28dc8] (CoreFoundation) *** Terminating app due to uncaught exception 'com.firebase.core', reason: '`FirebaseApp.configure()` could not find a valid GoogleService-Info.plist in your project. Please download one from https://console.firebase.google.com/.'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x00000001804c3dec __exceptionPreprocess + 172
+	1   libobjc.A.dylib                     0x0000000180063438 objc_exception_throw + 72
+	2   CoreFoundation                      0x00000001804c3cfc -[NSException initWithCoder:] + 0
+	3   App.debug.dylib                     0x00000001069aa734 +[FIRApp configure] + 120
+	4   App.debug.dylib                     0x00000001067ec2d0 $s28FirebaseAuthenticationPlugin0aB0C6plugin6configAc2AC_AA0aB6ConfigVtcfc + 672
+	5   App.debug.dylib                     0x00000001067ec020 $s28FirebaseAuthenticationPlugin0aB0C6plugin6configAc2AC_AA0aB6ConfigVtcfC + 76
+	6   App.debug.dylib                     0x00000001068058b8 $s28FirebaseAuthenticationPluginAAC4loadyyF + 108
+	7   App.<…>
+2026-09-06 20:33:49.817 Df backboardd[17227:28e1d] [com.apple.iohid:default] Connection removed: IOHIDEventSystemConnection uuid:A0870D67-87AC-4921-A54C-E6DCD5F28BEB pid:60830 process:App type:Passive entitlements:0x0 caller:BackBoardServices: ___getHIDEventSystemClient_block_invoke + 296 attributes:{
+    HighFrequency = 0;
+    bundleID = "com.cosaxo.insight";
+    pid = 60830;
+} state:0x1 events:0 mask:0x0 dropped:0 dropStatus:0 droppedMask:0x0 lastDroppedTime:NONE
+2026-09-06 20:33:49.818 Df backboardd[17227:28e1d] [com.apple.BackBoard:HID] Removing client connection <BKHIDClientConnection: 0x10b61b340; IOHIDEventSystemConnectionRef: 0x103f4cc00; vpid: 60830(v1E2A0); taskPort: 0x23393; bundleID: com.cosaxo.insight> for client: IOHIDEventSystemConnection uuid:A0870D67-87AC-4921-A54C-E6DCD5F28BEB pid:60830 process:App type:Passive entitlements:0x0 caller:BackBoardServices: ___getHIDEventSystemClient_block_invoke + 296 attributes:{
+    HighFrequency = 0;
+    bundleID = "com.cosaxo.insight";
+    pid = 60830;
+} state:0x1 events:0 mask:0x0 dropped:0 dropStatus:0 droppedMask:0x0 lastDroppedTime:NONE source:HID
+2026-09-06 20:33:49.818 Df SpringBoard[17206:28dcc] [com.apple.KeyboardArbiter:Handle] com.cosaxo.insight(60830) lostConnection (invalidation)
+2026-09-06 20:33:49.818 E  SpringBoard[17206:28416] [com.apple.FrontBoard:ProcessScene] [0x11bf74600:(FBSceneManager):sceneID:com.cosaxo.insight-default] Scene creation failed: <NSError: 0x11e849dd0; domain: FBWorkspaceScene; code: 2 ("scene-creation-failed"); "Scene create failed. (null)">
+2026-09-06 20:33:49.818 E  SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] [(FBSceneManager):sceneID:com.cosaxo.insight-default] Update failed: <NSError: 0x11e975b30; domain: FBSceneErrorDomain; code: 1 ("operation-failed"); "Scene update failed."> {
+    NSUnderlyingError = <NSError: 0x11e84a160; domain: BSServiceConnectionErrorDomain; code: 3 ("OperationFailed"); "XPC error received on message reply handler">;
+}
+2026-09-06 20:33:49.819 Df SpringBoard[17206:28416] [com.apple.FrontBoard:ProcessScene] [0x11bf74600:(FBSceneManager):sceneID:com.cosaxo.insight-default] Scene action [Logical Activate][0x6ccc] completed with success: 0
+2026-09-06 20:33:49.819 Df SpringBoard[17206:28416] [com.apple.FrontBoard:ProcessWorkspace] [app<com.cosaxo.insight>:60830] Workspace connection invalidated.
+2026-09-06 20:33:49.819 Df SpringBoard[17206:28416] [com.apple.FrontBoard:Process] [app<com.cosaxo.insight>:60830] Now flagged as pending exit for reason: workspace client connection invalidated
+2026-09-06 20:33:49.820 E  SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] [(FBSceneManager):sceneID:com.cosaxo.insight-default] Update failed: <NSError: 0x11e975860; domain: FBSceneErrorDomain; code: 1 ("operation-failed"); "Scene update failed."> {
+    NSUnderlyingError = <NSError: 0x11e84b360; domain: BSServiceConnectionErrorDomain; code: 3 ("OperationFailed"); "XPC error received on message reply handler">;
+}
+2026-09-06 20:33:49.821 Df SpringBoard[17206:28dcc] [com.apple.KeyboardArbiter:Handle] RX com.cosaxo.insight(60830) setWindowContextID:0 windowState:Disabled level:0.0
+    focusContext:(null)
+2026-09-06 20:33:49.821 E  SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] [(FBSceneManager):sceneID:com.cosaxo.insight-default] Update failed: <NSError: 0x11e9761f0; domain: FBSceneErrorDomain; code: 1 ("operation-failed"); "Scene update failed."> {
+    NSUnderlyingError = <NSError: 0x11e84b300; domain: BSServiceConnectionErrorDomain; code: 3 ("OperationFailed"); "XPC error received on message reply handler">;
+}
+2026-09-06 20:33:49.823 E  SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] [(FBSceneManager):sceneID:com.cosaxo.insight-default] Update failed: <NSError: 0x11e975d70; domain: FBSceneErrorDomain; code: 1 ("operation-failed"); "Scene update failed."> {
+    NSUnderlyingError = <NSError: 0x11e849dd0; domain: FBWorkspaceScene; code: 2 ("scene-creation-failed"); "Scene create failed. (null)"> {
+        NSUnderlyingError = <NSError: 0x11e84aa30; domain: BSServiceConnectionErrorDomain; code: 3 ("OperationFailed"); "XPC error received on message reply handler">;
+    };
+}
+2026-09-06 20:33:49.823 Df SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] Invalidating scene: (FBSceneManager):sceneID:com.cosaxo.insight-default
+2026-09-06 20:33:49.823 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:KeyboardFocus] [com.apple.springboard] removing scene: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default pid: 60830 for reason: willRemoveExternalForegroundApplicationSceneHandle
+2026-09-06 20:33:49.825 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:KeyboardFocus] [coordinator] _removeSceneFromRecents willRemoveExternalForegroundApplicationSceneHandle pid:60830 scene:com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default now:<empty>
+2026-09-06 20:33:49.825 Df SpringBoard[17206:c48c] [com.apple.UIKit:SceneDeactivation] No longer tracking: <FBScene: 0x125c73a00; FBSceneManager:sceneID:com.cosaxo.insight-default>
+2026-09-06 20:33:49.826 Df SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] [(FBSceneManager):sceneID:com.cosaxo.insight-default] scene content state changed: notReady
+2026-09-06 20:33:49.826 Df SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] [(FBSceneManager):sceneID:com.cosaxo.insight-default][1] Scene invalidated.
+2026-09-06 20:33:49.826 Df SpringBoard[17206:c48c] [com.apple.FrontBoard:ProcessWorkspace] [app<com.cosaxo.insight>:60830] Unregistering scene: <FBUIApplicationWorkspaceScene: 0x11bf74600; (FBSceneManager):sceneID:com.cosaxo.insight-default>
+2026-09-06 20:33:49.827 Df SpringBoard[17206:28dcc] [com.apple.FrontBoard:ProcessScene] [0x11bf74600:(FBSceneManager):sceneID:com.cosaxo.insight-default] Invalidated for connection: 0x11ab22040.
+2026-09-06 20:33:49.827 E  SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] Ignoring update for invalidated scene: (FBSceneManager):sceneID:com.cosaxo.insight-default
+2026-09-06 20:33:49.827 Df SpringBoard[17206:28dcc] [com.apple.FrontBoard:ProcessWorkspace] [app<com.cosaxo.insight>:60830] Workspace interruption policy did change: default
+2026-09-06 20:33:49.827 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:AppProtection] <BSCompoundAssertion:0x1181b4500> (SBApplicationAppProtectionAssistant: 0x1181b4080 - com.cosaxo.insight) invalidate acq:0x10934cc40 count:1
+2026-09-06 20:33:49.827 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:AppProtection] Informing <APSystemAppOutlet: 0x108d710b0> that <APApplication: com.cosaxo.insight> will become background as far as we know
+2026-09-06 20:33:49.827 Df SpringBoard[17206:28dcc] [com.apple.FrontBoard:Process] [app<com.cosaxo.insight>:60830] Setting process visibility to: Unknown
+2026-09-06 20:33:49.828 Df SpringBoard[17206:c48c] [com.apple.appprotection:framework] All scenes dismissed for <APApplication: com.cosaxo.insight>
+2026-09-06 20:33:49.828 Df SpringBoard[17206:28dcc] [com.apple.FrontBoard:ProcessWorkspace] [app<com.cosaxo.insight>:60830] Workspace state did change: FV-Focal[100] --> XX-None[0] (assertion dropped).
+2026-09-06 20:33:49.829 Df SpringBoard[17206:c48c] [com.apple.UIKit:KBProxyForwarding] <StateMachine:0x108c03cc0> Presentation environment invalidated: <_UISceneKeyboardProxyLayerForwardingPresentationScene: 0x1185023d0> Tracking scene: <FBScene: 0x125c73a00; (null):sceneID:com.cosaxo.insight-default>
+2026-09-06 20:33:49.830 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:AppSwitcher] [Main (EmbeddedDisplay)] dispatch event:
+<SBSceneReadySwitcherModifierEvent: 0x11e975b30; type: SceneReady; appLayout: <SBAppLayout: 0x11e97e900; primary: com.cosaxo.insight:default; environment: main> {
+    configuration = full;
+    environment = main;
+    centerConfiguration = undefined;
+    preferredDisplayOrdinal = 0;
+    continuousExposeIdentifier = com.cosaxo.insight;
+    layoutItems = {
+        primary = <SBDisplayItem: 0x11ab89f00; type: App; bundleIdentifier: com.cosaxo.insight; uniqueIdentifier: sceneID:com.cosaxo.insight-default>;
+    }
+}>
+2026-09-06 20:33:49.835 Df runningboardd[17209:286ef] [com.apple.runningboard:process] XPC connection invalidated: [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:49.846 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:Common] Front display did change: <SBApplication: 0x108fe6c00; com.cosaxo.insight>
+2026-09-06 20:33:49.857 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:ZStack] Resolved Stack (update(Switcher)) [
+    Highest: ⬇ ,
+    SystemAperture: ⬇ ,
+    BannerItems: ⬇ ,
+    HUD: ⬇ ,
+    TransientOverlayPresentation: ⬇ ,
+    CoverSheet: ⬇ ,
+    Switcher: ownsHomeGesture; FGActive; homeAffordanceDrawingSuppressed: N->Y; suppressedBundles: com.cosaxo.insight->(none); suppressedScenes: 1->0,
+    HomeScreen: BG->FGActive
+]
+2026-09-06 20:33:49.892 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:AppSwitcher] <SBFullScreenSwitcherLiveContentOverlayCoordinator: 0x11c600000> Removing SwitcherScene overlay for: <SBAppLayout: 0x11e97e900; primary: com.cosaxo.insight:default; environment: main>, animated: NO
+2026-09-06 20:33:49.902 Df runningboardd[17209:286ef] [com.apple.runningboard:ttl] Invalidating assertion 17209-17206-1351 (target:[app<com.cosaxo.insight((null))>:60830]) from originator [osservice<com.apple.SpringBoard>:17206]
+2026-09-06 20:33:49.902 Df runningboardd[17209:286ef] [com.apple.runningboard:ttl] Invalidating assertion 17209-17206-1352 (target:[app<com.cosaxo.insight((null))>:60830]) from originator [osservice<com.apple.SpringBoard>:17206]
+2026-09-06 20:33:49.941 Df launchd_sim[17193:28653] [user/501:] service inactive: UIKitApplication:com.cosaxo.insight[1f69][rb-legacy]
+2026-09-06 20:33:49.955 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:KeyboardFocus] rules: (scene setting) REMOVED keyboardFocus environment from scene: sceneID:com.cosaxo.insight-default
+2026-09-06 20:33:49.955 E  SpringBoard[17206:c48c] [com.apple.FrontBoard:Scene] Ignoring update for invalidated scene: (FBSceneManager):sceneID:com.cosaxo.insight-default
+2026-09-06 20:33:49.957 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:Common] Application process state changed for com.cosaxo.insight: <SBApplicationProcessState: 0x11866a620; pid: 60830; taskState: Running; visibility: Unknown>
+2026-09-06 20:33:50.034 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] [app<com.cosaxo.insight((null))>:60830] termination reported by launchd (2, 6, 6)
+2026-09-06 20:33:50.034 Df runningboardd[17209:28dcb] [com.apple.runningboard:process] Removing process: [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:50.035 Df mediaremoted[17213:28dd0] [com.apple.runningboard:process] Hit the server for a process handle 41aad3f0000edb0 that resolved to: [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848]
+2026-09-06 20:33:50.035 Df mediaremoted[17213:28dd0] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.045 Df SpringBoard[17206:28dcc] [com.apple.FrontBoard:ProcessWorkspace] [app<com.cosaxo.insight>:60830] Dropping launch assertion.
+2026-09-06 20:33:50.054 Df SpringBoard[17206:28416] [com.apple.appprotection:framework] told auth provider com.cosaxo.insight was dimissed. result:true err:(null)
+2026-09-06 20:33:50.070 Df runningboardd[17209:28dcb] [com.apple.runningboard:job] Removing launch job for: [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:50.085 Df launchd_sim[17193:288f9] [user/501:] removing service: UIKitApplication:com.cosaxo.insight[1f69][rb-legacy]
+2026-09-06 20:33:50.086 Df runningboardd[17209:286ef] [com.apple.runningboard:ttl] Invalidating assertion 17209-17206-1349 (target:app<com.cosaxo.insight((null))>) from originator [osservice<com.apple.SpringBoard>:17206]
+2026-09-06 20:33:50.086 Df SpringBoard[17206:28e3e] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-active-NotVisible
+2026-09-06 20:33:50.087 Df runningboardd[17209:286f4] [com.apple.runningboard:monitor] Calculated state for app<com.cosaxo.insight((null))>: none (role: UserInteractiveFocal) (endowments: {(
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:(null)  0>
+)})
+2026-09-06 20:33:50.088 Df SpringBoard[17206:28dc9] [com.apple.runningboard:monitor] Received state update for 60830 (app<com.cosaxo.insight((null))>, none-Visible
+2026-09-06 20:33:50.092 Df runningboardd[17209:28dcb] [com.apple.runningboard:job] Removed job for [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:50.092 Df runningboardd[17209:28dcb] [com.apple.runningboard:process] Removing assertions for terminated process: [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:50.092 Df runningboardd[17209:28dc2] [com.apple.runningboard:general] Full encoding handle [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849], with data e698dad60000edb1, and pid 60849
+2026-09-06 20:33:50.092 Df runningboardd[17209:28dcb] [com.apple.runningboard:assertion] Removed last relative-start-date-defining assertion for process xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}
+2026-09-06 20:33:50.093 Df runningboardd[17209:28dcb] [com.apple.runningboard:assertion] Removed last relative-start-date-defining assertion for process app<com.cosaxo.insight((null))>
+2026-09-06 20:33:50.093 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849] Memory Limits: active 0 inactive 0
+ <RBJetsamProperties| tasklimit=0
+(null)>
+2026-09-06 20:33:50.093 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849] This process will be managed.
+2026-09-06 20:33:50.093 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] Suspending assertion 17209-60830-1355 (target:[xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848])
+2026-09-06 20:33:50.093 E  runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849] Memorystatus failed with unexpected error: Operation not permitted (1)
+2026-09-06 20:33:50.093 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] Suspending assertion 17209-60830-1356 (target:[xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848])
+2026-09-06 20:33:50.093 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849] is not freezer eligible, disabling freezing.
+2026-09-06 20:33:50.093 E  runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849] Memorystatus failed with unexpected error: Invalid argument (22)
+2026-09-06 20:33:50.094 Df runningboardd[17209:28dc2] [com.apple.runningboard:ttl] Now tracking process: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849]
+2026-09-06 20:33:50.095 Df runningboardd[17209:286f2] [com.apple.runningboard:process] Notifying connection [osservice<com.apple.SpringBoard>:17206] that process [app<com.cosaxo.insight((null))>:60830] exited with context <RBSProcessExitContext| specific, status:<RBSProcessExitStatus| domain:signal(2) code:SIGABRT(6)>>
+2026-09-06 20:33:50.095 Df runningboardd[17209:286ef] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}: running-suspended (role: None) (endowments: (null))
+2026-09-06 20:33:50.095 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] Suspending task.
+2026-09-06 20:33:50.096 Df SpringBoard[17206:26aa9] [com.apple.runningboard:process] Calling process death completion block for handle [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:50.096 Df SpringBoard[17206:26aa9] [com.apple.FrontBoard:Process] [app<com.cosaxo.insight>:60830] Process exited: <RBSProcessExitContext| specific, status:<RBSProcessExitStatus| domain:signal(2) code:SIGABRT(6)>>.
+2026-09-06 20:33:50.096 Df SpringBoard[17206:26aa9] [com.apple.FrontBoard:Process] [app<com.cosaxo.insight>:60830] Setting process task state to: Not Running
+2026-09-06 20:33:50.096 Df SpringBoard[17206:28dc9] [com.apple.FrontBoard:ProcessWorkspace] [app<com.cosaxo.insight>:60830] Invalidating workspace.
+2026-09-06 20:33:50.096 Df SpringBoard[17206:28dc9] [com.apple.FrontBoard:ProcessWorkspace] Removing source registration for processHandle: [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:50.098 Df SpringBoard[17206:28dc9] [com.apple.FrontBoard:Process] Removing: <FBApplicationProcess: 0x11c782d00; app<com.cosaxo.insight>:60830(v1E2A0)>
+2026-09-06 20:33:50.098 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:Workspace] Process exited: <FBApplicationProcess: 0x11c782d00; app<com.cosaxo.insight>:60830(v1E2A0)> -> <RBSProcessExitContext| specific, status:<RBSProcessExitStatus| domain:signal(2) code:SIGABRT(6)>>
+2026-09-06 20:33:50.102 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:Common] Application process state changed for com.cosaxo.insight: (null)
+2026-09-06 20:33:50.103 Df runningboardd[17209:286ef] [com.apple.runningboard:monitor] Calculated state for app<com.cosaxo.insight((null))>: none (role: None) (endowments: (null))
+2026-09-06 20:33:50.103 Df SpringBoard[17206:28e3e] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.104 Df runningboardd[17209:286ef] [com.apple.runningboard:monitor] Calculated state for app<com.cosaxo.insight((null))>: none (role: None) (endowments: (null))
+2026-09-06 20:33:50.104 Df runningboardd[17209:286ef] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}: running-suspended (role: None) (endowments: (null))
+2026-09-06 20:33:50.105 E  runningboardd[17209:28dcb] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] pid_suspend() failed with error 1: Operation not permitted
+2026-09-06 20:33:50.106 Df SpringBoard[17206:28e3e] [com.apple.runningboard:monitor] Received state update for 60830 (app<com.cosaxo.insight((null))>, none-NotVisible
+2026-09-06 20:33:50.106 Df runningboardd[17209:28dc2] [com.apple.runningboard:ttl] Executing launch request for xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]} (Launching extension com.apple.WebKit.GPU(B2F4D72E-6038-4DC1-B84D-C1B17EF42E8C for host 60830) from requestor: [app<com.cosaxo.insight((null))>:60830]
+2026-09-06 20:33:50.107 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] Set darwin role to: None
+2026-09-06 20:33:50.107 Df runningboardd[17209:28dc2] [com.apple.runningboard:job] Creating and launching job for: xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}
+2026-09-06 20:33:50.107 Df SpringBoard[17206:2836b] [com.apple.runningboard:process] Hit the server for a process handle 698dad60000edb1 that resolved to: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849]
+2026-09-06 20:33:50.107 Df SpringBoard[17206:2836b] [com.apple.runningboard:monitor] Received state update for 60849 (xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.107 Df runningboardd[17209:286f1] [com.apple.runningboard:job_oversize] '091C17F1-AF8A-43BB-9660-EDF8C6CE99B7' Submitting extension overlay (host PID 60830, path /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/ExtensionKit/Extensions/GPUExtension.appex/com.apple.WebKit.GPU):
+<dictionary: 0x106d1c840> { count = 2, transaction: 0, voucher = 0x0, contents =
+	"XPCService" => <dictionary: 0x106d1c420> { count = 15, transaction: 0, voucher = 0x0, contents =
+		"_ManagedBy" => <string: 0x106c1afd0> { string cache = 0x0, length = 22, contents = "com.apple.runningboard" }
+		"RunLoopType" => <string: 0x106ca3300> { string cache = 0x0, length = 9, contents = "NSRunLoop" }
+		"Platform" => <int64: 0x899a36c8bb34f19f>: 7
+		"JoinExistingSession" => <bool: 0x1e6e64560>: false
+		"_SandboxProfile" => <string: 0x106e44840> { string cache = 0x0, length = 20, contents = "com.apple.WebKit.GPU" }
+		"_AdditionalSubServices" => <dictionary: 0x10381c060> { count = 0, transaction: 0, voucher = 0x0, contents =
+		}
+		"EnvironmentVariables" => <dictionary: 0x106e5f360> { count = 2, transaction: 0, voucher = 0x0, contents =
+			"EXTENSION_KIT_EXTENSION_TYPE" => <string: 0x106e46160> { string cache = 0x0, length = 1, contents = "8" }
+			"BSServiceDomains" => <string: 0x106e47960> { string cache = 0x0, length = 2, contents = "{}" }
+		}
+		"_ProcessType" => <string: 0x106e44420> { string cache = 0x0, length = 3, contents = "App" }
+		"_AdditionalProperties" => <dictionary: 0x106d1ee80> { count = 1, transaction: 0, voucher = 0x0, contents =
+			"RunningBoard" => <dictionary: 0x106c7f960> { count = 4, transaction: 0, voucher = 0x0, contents =
+				"Managed" => <bool: 0x1e6e64540>: true
+				"RunningBoardLaunchedIdentity" => <dictionary: 0x10381c660> { count = 6, transaction: 0, voucher = 0x0, contents =
+					"TYPE" => <int64: 0x899a36c8bb34f187>: 4
+					"v" => <data: 0x103922940>: { length = 79 bytes, contents = 0x7b226164646974696f6e616c456e7669726f6e6d656e7456... }
+					"h" => <int64: 0x899a36c8bb339d57>: 60830
+					"i" => <string: 0x106c18210> { string cache = 0x0, length = 20, contents = "com.apple.WebKit.GPU" }
+					"r" => <int64: 0x899a36c8bb34f1b7>: 2
+					"H" => <dictionary: 0x103bcf900> { count = 2, transaction: 0, voucher = 0x0, contents =
+						"TYPE" => <int64: 0x899a36c8bb34f1b7>: 2
+						"EAI" => <string: 0x106c1be40> { string cache = 0x0, length = 18, contents = "com.cosaxo.insight" }
+					}
+				}
+				"RunningBoardLaunched" => <bool: 0x1e6e64540>: true
+				"LaunchRequestEndpointIdentifiers" => <dictionary: 0x106e5f300> { count = 1, transaction: 0, voucher = 0x0, contents =
+					"com.apple.WebKit.GPU" => <bool: 0x1e6e64540>: true
+				}
+			}
+		}
+		"_OmitSandboxParameters" => <bool: 0x1e6e64560>: false
+		"_MultipleInstances" => <bool: 0x1e6e64540>: true
+		"ServiceType" => <string: 0x106e47cc0> { string cache = 0x0, length = 11, contents = "Application" }
+		"_AbandonCoalition" => <bool: 0x1e6e64560>: false
+		"_ManagedBy_Services" => <array: 0x106ca2130> { count = 1, capacity = 8, contents =
+			0: <string: 0x106cb9170> { string cache = 0x0, length = 20, contents = "com.apple.WebKit.GPU" }
+		}
+		"ProgramArguments" => <array: 0x106e45590> { count = 3, capacity = 8, contents =
+			0: <string: 0x106e441b0> { string cache = 0x0, length = 230, contents = "/Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/ExtensionKit/Extensions/GPUExtension.appex/com.apple.WebKit.GPU" }
+			1: <string: 0x106e46c70> { string cache = 0x0, length = 16, contents = "-LaunchArguments" }
+			2: <string: 0x106ca1530> { string cache = 0x0, length = 96, contents = "eyJzZXJ2aWNlTmFtZSI6ImNvbS5hcHBsZS5XZWJLaXQuR1BVIiwidHlwZSI6OCwiZW5oYW5jZWRTZWN1cml0eSI6ZmFsc2V9" }
+		}
+	}
+	"CFBundlePackageType" => <string: 0x106e44a50> { string cache = 0x0, length = 4, contents = "XPC!" }
+}
+2026-09-06 20:33:50.108 Df runningboardd[17209:286ef] [com.apple.runningboard:general] [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849] reported to RB as running
+2026-09-06 20:33:50.201 Df SpringBoard[17206:28dc9] [com.apple.UserNotifications:RemoteNotifications] [com.cosaxo.insight] com.cosaxo.insight application state changed to <RBSProcessState| task:none debug:none endowmentNamespace:[
+	com.apple.frontboard.visibility
+	]>
+2026-09-06 20:33:50.203 Df mediaremoted[17213:263b2] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-active-NotVisible
+2026-09-06 20:33:50.282 E  runningboardd[17209:28dca] [com.apple.runningboard:general] RBSStateCapture remove item called for untracked item 17209-17206-1349 (target:app<com.cosaxo.insight((null))>)
+2026-09-06 20:33:50.283 Df SpringBoard[17206:28dc9] [com.apple.UserNotifications:RemoteNotifications] [com.cosaxo.insight] Ignore becoming background for application without push registration
+2026-09-06 20:33:50.364 Df testmanagerd[59613:2826a] [com.apple.runningboard:monitor] Received state update for 60830 (app<com.cosaxo.insight((null))>, none-Visible
+2026-09-06 20:33:50.364 Df testmanagerd[59613:2826a] [com.apple.dt.xctest:Default] Process monitor update handler invoked for com.cosaxo.insight
+2026-09-06 20:33:50.364 Df testmanagerd[59613:2826a] [com.apple.dt.xctest:Default] Computed display ID com.cosaxo.insight from embeddedApplicationIdentifier: com.cosaxo.insight, xpcServiceIdentifier: (null), bundleID: com.cosaxo.insight
+2026-09-06 20:33:50.364 Df testmanagerd[59613:2826a] [com.apple.dt.xctest:Default] <XCTDProcessMonitor: 0x1064b0d40> passing update com.cosaxo.insight@/Users/runner/Library/Developer/CoreSimulator/Devices/0130C0CE-9E1A-4769-A6A0-FA820D0295E6/data/Containers/Bundle/Application/ED93B072-31F9-4F70-B4C5-E5B7D6472A48/App.app processName: App pid: 60830 state: not running to <XCTDProcessManagementServicesProvider: 0x106484fc0>
+2026-09-06 20:33:50.364 Df testmanagerd[59613:2826a] [com.apple.dt.xctest:Default] <XCTestSession: 0x105eb2520> pid 59865 com.cosaxo.insight@/Users/runner/Library/Developer/CoreSimulator/Devices/0130C0CE-9E1A-4769-A6A0-FA820D0295E6/data/Containers/Bundle/Application/ED93B072-31F9-4F70-B4C5-E5B7D6472A48/App.app processName: App pid: 60830 state: not running
+2026-09-06 20:33:50.423 Df runningboardd[17209:28dc2] [com.apple.runningboard:general] Full encoding handle [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850], with data fb55a4910000edb2, and pid 60850
+2026-09-06 20:33:50.423 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850] Memory Limits: active 0 inactive 0
+ <RBJetsamProperties| tasklimit=0
+(null)>
+2026-09-06 20:33:50.423 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850] This process will be managed.
+2026-09-06 20:33:50.423 E  runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850] Memorystatus failed with unexpected error: Operation not permitted (1)
+2026-09-06 20:33:50.423 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850] is not freezer eligible, disabling freezing.
+2026-09-06 20:33:50.423 E  runningboardd[17209:28dc2] [com.apple.runningboard:process] [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850] Memorystatus failed with unexpected error: Invalid argument (22)
+2026-09-06 20:33:50.423 Df runningboardd[17209:28dc2] [com.apple.runningboard:ttl] Now tracking process: [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850]
+2026-09-06 20:33:50.423 Df runningboardd[17209:286f1] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}: running-suspended (role: None) (endowments: (null))
+2026-09-06 20:33:50.424 Df runningboardd[17209:28dc2] [com.apple.runningboard:general] [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850] reported to RB as running
+2026-09-06 20:33:50.425 Df SpringBoard[17206:283b8] [com.apple.runningboard:process] Hit the server for a process handle 1b55a4910000edb2 that resolved to: [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850]
+2026-09-06 20:33:50.425 Df SpringBoard[17206:283b8] [com.apple.runningboard:monitor] Received state update for 60850 (xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.444 Df testmanagerd[59613:2826a] [com.apple.runningboard:monitor] Received state update for 60830 (app<com.cosaxo.insight((null))>, none-NotVisible
+2026-09-06 20:33:50.607 Df locationd[25441:28412] [com.apple.runningboard:process] Hit the server for a process handle 41aad3f0000edb0 that resolved to: [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848]
+2026-09-06 20:33:50.633 Df locationd[25441:28412] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.646 Df mediaremoted[17213:28dd0] [com.apple.runningboard:process] Hit the server for a process handle 698dad60000edb1 that resolved to: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849]
+2026-09-06 20:33:50.646 Df mediaremoted[17213:28dd0] [com.apple.runningboard:monitor] Received state update for 60830 (app<com.cosaxo.insight((null))>, none-NotVisible
+2026-09-06 20:33:50.646 Df mediaremoted[17213:28dd0] [com.apple.runningboard:monitor] Received state update for 60849 (xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.647 Df mediaremoted[17213:28dd0] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.677 Df locationd[25441:28cf2] [com.apple.runningboard:process] Hit the server for a process handle 698dad60000edb1 that resolved to: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849]
+2026-09-06 20:33:50.688 Df locationd[25441:28cf2] [com.apple.runningboard:process] Hit the server for a process handle 1b55a4910000edb2 that resolved to: [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850]
+2026-09-06 20:33:50.688 Df locationd[25441:28cf2] [com.apple.runningboard:monitor] Received state update for 60830 (app<com.cosaxo.insight((null))>, none-NotVisible
+2026-09-06 20:33:50.688 Df locationd[25441:28cf2] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.688 Df locationd[25441:28cf2] [com.apple.runningboard:monitor] Received state update for 60849 (xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.688 Df locationd[25441:28cf2] [com.apple.runningboard:monitor] Received state update for 60850 (xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:50.688 Df locationd[25441:28412] [com.apple.locationd.Core:Core] {"msg":"RBS #AppMonitor process monitor update handler invoked", "pid":60830, "bundleID":com.cosaxo.insight, "state":1}
+2026-09-06 20:33:50.689 Df locationd[25441:272f0] [com.apple.locationd.Core:Core] {"msg":"RBS #dic AppMonitor received Termination", "pid":60830, "bundleId":com.cosaxo.insight, "isUserKill":0}
+2026-09-06 20:33:50.690 Df locationd[25441:272f0] [com.apple.locationd.Core:Core] {"msg":"RBS #AppMonitor Post Application State Change Notification", "notification":Terminated, "pid":60830, "bundleId":com.cosaxo.insight}
+2026-09-06 20:33:50.690 Df locationd[25441:28412] [com.apple.locationd.Core:Core] {"msg":"#CLIUA AppMonitor notification", "notification":1, "pid":60830, "bundleId":com.cosaxo.insight, "ClientKey":icom.cosaxo.insight:}
+2026-09-06 20:33:50.690 Df locationd[25441:28412] [com.apple.locationd.Core:Core] {"msg":"#CLIUA Marking change", "clientKey":icom.cosaxo.insight:, "reason":Process state from RunningBoard, "AssertionLevel":5, "coming":0}
+2026-09-06 20:33:50.690 Df locationd[25441:28412] [com.apple.locationd.Core:Core] {"msg":"#CLIUA updating AssertionRecord", "ClientKey":icom.cosaxo.insight:, "AssertionLevel":5}
+2026-09-06 20:33:50.690 Df locationd[25441:28412] [com.apple.locationd.Core:Core] {"msg":"#CLIUA AssertionRecord updated", "ClientKey":icom.cosaxo.insight:, "AssertionLevel":0}
+2026-09-06 20:33:50.690 Df locationd[25441:28412] [com.apple.locationd.Core:Core] {"msg":"#CLIUA in-use level changed for client", "ClientKey":icom.cosaxo.insight:}
+2026-09-06 20:33:50.690 Df locationd[25441:28412] [com.apple.locationd.Core:Core] {"msg":"computing freshAuthorizationContext", "Client":icom.cosaxo.insight:, "BigSwitch":1, "InUseLevel":0}
+2026-09-06 20:33:50.721 Df mediaremoted[17213:28ddd] [com.apple.runningboard:process] Hit the server for a process handle 1b55a4910000edb2 that resolved to: [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850]
+2026-09-06 20:33:50.721 Df mediaremoted[17213:28ddd] [com.apple.runningboard:monitor] Received state update for 60850 (xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}, running-suspended-NotVisible
+2026-09-06 20:33:56.195 Df SpringBoard[17206:28e40] [com.apple.SplashBoard:SnapshotReaper] <XBApplicationSnapshotManifestImpl: 0x11e851a80> [com.cosaxo.insight] Reaping invalid snapshot <XBApplicationSnapshot: 0x125c90e00; …0CEFBFCAC31F> [com.cosaxo.insight]
+ invalidReason: expired. expirationDate: 0001-01-01 00:00:00 +0000; how long ago (seconds): 63924496436.195168
+2026-09-06 20:33:56.195 Df SpringBoard[17206:28e40] [com.apple.SplashBoard:FileManifest] <XBApplicationSnapshotManifestImpl: 0x11e851a80> [com.cosaxo.insight] Deleting snapshot <XBApplicationSnapshot: 0x125c90e00; …0CEFBFCAC31F> [com.cosaxo.insight] for reason: _contentType: GeneratedDefault(1)
+2026-09-06 20:33:56.196 Df SpringBoard[17206:28e40] [com.apple.SplashBoard:FileManifest] <XBApplicationSnapshotManifestImpl: 0x11e851a80> [com.cosaxo.insight] We don't have any snapshots, so we're clearing our manifest data.
+2026-09-06 20:33:57.305 Df SpringBoard[17206:28e40] [com.apple.SplashBoard:FileManifest] <XBApplicationSnapshotManifestImpl: 0x11e851a80> [com.cosaxo.insight] We don't have any snapshots, so we're clearing our manifest data.
+2026-09-06 20:34:09.985 Df runningboardd[17209:286f2] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848] termination reported by launchd (2, 15, 15)
+2026-09-06 20:34:09.985 Df runningboardd[17209:28dc2] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850] termination reported by launchd (2, 15, 15)
+2026-09-06 20:34:09.986 Df runningboardd[17209:286f2] [com.apple.runningboard:process] Removing process: [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848]
+2026-09-06 20:34:09.986 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] Removing process: [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850]
+2026-09-06 20:34:09.987 Df runningboardd[17209:286f2] [com.apple.runningboard:process] Removing assertions for terminated process: [xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}:60848]
+2026-09-06 20:34:09.988 Df runningboardd[17209:28dc2] [com.apple.runningboard:process] Removing assertions for terminated process: [xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}:60850]
+2026-09-06 20:34:09.988 Df runningboardd[17209:286f4] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}: none (role: None) (endowments: (null))
+2026-09-06 20:34:09.988 Df runningboardd[17209:286f4] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}: none (role: None) (endowments: (null))
+2026-09-06 20:34:09.989 Df runningboardd[17209:28dcb] [com.apple.runningboard:ttl] [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849] termination reported by launchd (2, 15, 15)
+2026-09-06 20:34:09.989 Df runningboardd[17209:28dcb] [com.apple.runningboard:process] Removing process: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849]
+2026-09-06 20:34:09.989 Df runningboardd[17209:28dcb] [com.apple.runningboard:process] Removing assertions for terminated process: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}:60849]
+2026-09-06 20:34:09.990 Df runningboardd[17209:286f4] [com.apple.runningboard:monitor] Calculated state for xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}: none (role: None) (endowments: (null))
+2026-09-06 20:34:09.990 Df SpringBoard[17206:28dcc] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, none-NotVisible
+2026-09-06 20:34:09.991 Df SpringBoard[17206:28dcc] [com.apple.runningboard:monitor] Received state update for 60849 (xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}, none-NotVisible
+2026-09-06 20:34:09.991 Df SpringBoard[17206:28dcc] [com.apple.runningboard:monitor] Received state update for 60850 (xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}, none-NotVisible
+2026-09-06 20:34:10.021 Df locationd[25441:2614d] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, none-NotVisible
+2026-09-06 20:34:10.026 Df mediaremoted[17213:23e68] [com.apple.runningboard:monitor] Received state update for 60848 (xpcservice<com.apple.WebKit.Networking([app<com.cosaxo.insight((null))>:60830])>{vt hash: 114736818}[uuid:C30E6A5B-151F-4556-8F5F-D80B50C3757D]{definition:com.apple.WebKit.Networking[extension][client]}, none-NotVisible
+2026-09-06 20:34:10.031 Df locationd[25441:28cf2] [com.apple.runningboard:monitor] Received state update for 60849 (xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}, none-NotVisible
+2026-09-06 20:34:10.031 Df locationd[25441:28cf2] [com.apple.runningboard:monitor] Received state update for 60850 (xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}, none-NotVisible
+2026-09-06 20:34:10.035 Df mediaremoted[17213:28ddd] [com.apple.runningboard:monitor] Received state update for 60849 (xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:60830])>{vt hash: 71395982}[uuid:569CBDF7-6642-43FC-8A1C-6E5AF8C067CC]{definition:com.apple.WebKit.WebContent[extension][client]}, none-NotVisible
+2026-09-06 20:34:10.035 Df mediaremoted[17213:28ddd] [com.apple.runningboard:monitor] Received state update for 60850 (xpcservice<com.apple.WebKit.GPU([app<com.cosaxo.insight((null))>:60830])>{vt hash: 223737757}[uuid:091C17F1-AF8A-43BB-9660-EDF8C6CE99B7]{definition:com.apple.WebKit.GPU[extension][client]}, none-NotVisible
+2026-09-06 20:35:25.303 Df searchd[63216:2b08c] [com.apple.spotlight:default] _allInstalledApplicationsIdentifiers: {(
+    "com.apple.Passbook",
+    "com.cosaxo.insight",
+    "com.apple.MobileAddressBook",
+    "com.apple.Fitness",
+    "com.apple.DocumentsApp",
+    "com.apple.MobileSMS",
+    "com.apple.Maps",
+    "com.apple.Passwords",
+    "com.apple.mobilecal",
+    "com.apple.Bridge",
+    "com.apple.BarcodeScanner",
+    "com.apple.Preferences",
+    "com.apple.reminders",
+    "com.apple.news",
+    "com.apple.TVRemoteUIService",
+    "com.apple.Health",
+    "com.apple.mobileslideshow",
+    "com.apple.mobilesafari",
+    "com.apple.shortcuts",
+    "com.apple.Preview"
+)}
+2026-09-06 20:35:29.742 Df nanotimekitcompaniond[17995:235f6] [com.apple.NanoTimeKit:UpNext] Setting data sources for SiriDefaultsPhoneThirdPartyDataSources - {(
+    "com.cosaxo.insight"
+)}
+2026-09-06 20:35:31.168 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:Library] library category map update received: <SBHLibraryMutableCategoryMap: 0x11e92e900; generatedDate: 2026-09-06 20:35:31 +0000; uniqueIdentifier: 10B4D21E-6267-4836-BB6E-A1FFAAEF9836; loadedFromDisk: NO; _localizedCategoryNameByCategoryIdentifier: (empty)> categoryIdentifiers = {
+    3001;
+    3000;
+}
+sortedApplicationIdentifiersByCategoryIdentifier = {
+    <SBHLibraryCategoryIdentifier: 0x107a82580; localizedDisplayName: " System"> = {
+        com.apple.Bridge;
+        com.apple.DocumentsApp;
+        com.apple.Fitness;
+        com.apple.Health;
+        com.apple.Maps;
+        com.apple.MobileAddressBook;
+        com.apple.MobileSMS;
+        com.apple.Passbook;
+        com.apple.Passwords;
+        com.apple.Preferences;
+        com.apple.Preview;
+        com.apple.mobilecal;
+        com.apple.mobilesafari;
+        com.apple.mobileslideshow;
+        com.apple.news;
+        com.apple.reminders;
+        com.apple.shortcuts;
+    }
+    <SBHLibraryCategoryIdentifier: 0x107a82640; localizedDisplayName: Other> = {
+        com.cosaxo.insight;
+2026-09-06 20:35:31.168 Df SpringBoard[17206:c48c] [com.apple.SpringBoard:Library] Installing category map <SBHLibraryMutableCategoryMap: 0x11e92e900; generatedDate: 2026-09-06 20:35:31 +0000; uniqueIdentifier: 10B4D21E-6267-4836-BB6E-A1FFAAEF9836; loadedFromDisk: NO; _localizedCategoryNameByCategoryIdentifier: (empty)> categoryIdentifiers = {
+    3001;
+    3000;
+}
+sortedApplicationIdentifiersByCategoryIdentifier = {
+    <SBHLibraryCategoryIdentifier: 0x107a82580; localizedDisplayName: " System"> = {
+        com.apple.Bridge;
+        com.apple.DocumentsApp;
+        com.apple.Fitness;
+        com.apple.Health;
+        com.apple.Maps;
+        com.apple.MobileAddressBook;
+        com.apple.MobileSMS;
+        com.apple.Passbook;
+        com.apple.Passwords;
+        com.apple.Preferences;
+        com.apple.Preview;
+        com.apple.mobilecal;
+        com.apple.mobilesafari;
+        com.apple.mobileslideshow;
+        com.apple.news;
+        com.apple.reminders;
+        com.apple.shortcuts;
+    }
+    <SBHLibraryCategoryIdentifier: 0x107a82640; localizedDisplayName: Other> = {
+        com.cosaxo.insight;
+     - animated <decode: missing data>
+2026-09-06 20:35:37.049 Df log[64839:0] [com.apple.log:] log run noninteractively, parent: 17193 (launchd_sim), args: 'log' 'show' '--last' '20m' '--style' 'compact' '--predicate' 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"'
