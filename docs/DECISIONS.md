@@ -41846,3 +41846,90 @@ costs one document read per answer, and it needs an answer for the case
 where a profile edit and an answer race (measured: the answer is refused
 until the profile write lands). `OWNER-LIST.md` carries it as that
 question instead.
+
+## D396 · You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
+after D395 surfaced it — *"fix the invented cohort thing too"*.
+
+### The hole
+
+`firestore.rules` checks that an answer's anchors are **plausible** — ten
+strings of sane length — and never that they are the **author's**. A
+hand-written client can file its own answer under any cohort it likes:
+city Tokyo, profession Surgeon. Two things read those anchors, and both
+believe them:
+
+- the **fold** (`functions/src/v2.ts` → `breakdownFor`/`foldAnchors`),
+  which builds the published aggregate every Mirror cut is drawn from;
+- the **People lens**, which reads other users' anchors off their answer
+  rows to say who someone is (`live.ts`, the voter fold — *"the People
+  lens says who someone is (profession, age band)"*).
+
+So an invention lands in the population's numbers and on a card
+describing a person.
+
+### The rule that would fix it, and why it is not this
+
+Built and measured: `allow create` comparing the answer's anchors to the
+author's profile document. It works — the invented cohort is refused —
+and it refuses **two writes that are correct**:
+
+1. **The blanked city.** `answerAnchors(rates)` deliberately empties the
+   city on a question that rates one when the city is unconfirmed. The
+   answer says `""` where the profile says `"Oslo"`. The divergence is
+   the app's own decision.
+2. **The stale mirror.** The profile is read at boot and on a failed
+   network phase; `wake()` does not re-read it. So a second device holds
+   a stale profile for the **whole session** after an edit elsewhere, and
+   every answer it writes would be refused for the duration.
+
+(2) settles it. The window is a session, not a moment, and the failure is
+a refused answer. **A rules-side equality check cannot be made correct
+here** in any form: a stale value is not empty, so no "or blank"
+allowance reaches it.
+
+### What replaced it
+
+`honestAnchors(claimed, profile)` in `pure.ts`, applied by the create
+fold:
+
+- an **empty, null or absent** value is *withheld* and kept exactly as
+  written — so the blanked city and the answer written before any profile
+  existed both survive untouched;
+- a **non-empty** value must be the profile's, or it is replaced by it;
+- a key the profile does not carry is **dropped** — inventing a whole
+  field is the same act as changing one.
+
+*A client may say less about itself than its profile does. It may not say
+something else.*
+
+The **document is corrected too**, not only the fold, because the People
+lens reads the row rather than the aggregate — and because D8's snapshot
+is what `onV2AnswerUpdated` re-reads to retarget the −old/+new delta, so
+a fold using one set and a document holding another would subtract from
+cells it never added to.
+
+### What it costs, and the shape of the cost
+
+The author's profile joins the **existing** `tx.getAll` in the fold's
+transaction: one more billed read, and **not** a second round trip — the
+lock window on `v2_question_aggs/{qid}`, which is what D7's ~1-write/sec
+ceiling is about, is unchanged. `TRIGGER_READS.world` moves 2 → 3, and
+`pulse.test.mjs`'s tripwire caught the change before this record existed,
+which is what it is for.
+
+The write back to the answer happens **only when the claim differs**, so
+an honest client — every client this repo ships — pays one read and no
+write. The write is the liar's cost, and it logs.
+
+### The e2e was describing a state the app cannot produce
+
+Fixing this turned up that `e2e-v2-loop.mjs` wrote answers carrying
+anchors **without ever writing a profile** — five sites. The client
+cannot do that: `answerAnchors()` reads `state.profile.anchors`, which is
+only non-empty after `saveAnchors` has written the profile. So the
+profile-then-answer ordering the fold now depends on had never been
+exercised end to end, in the suite whose whole job is the real loop. All
+five now write the profile first, and the run reports **zero**
+corrections.

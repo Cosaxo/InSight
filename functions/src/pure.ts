@@ -856,6 +856,57 @@ function evictForNewBucket(
   return true;
 }
 
+// YOU MAY WITHHOLD AN ANCHOR; YOU MAY NOT INVENT ONE (D396).
+//
+// The rules check that an answer's anchors are PLAUSIBLE — ten strings of
+// sane length — never that they are the author's. A hand-written client can
+// file its own answer under any cohort it likes, and every cut the Mirror
+// draws is folded from these. Two consumers read them: this fold, and the
+// People lens, which describes a person from the anchors on their answer
+// rows.
+//
+// WHY THIS IS NOT IN firestore.rules, which is where it belongs and where it
+// cannot go. A rule comparing the snapshot to the profile document was built
+// and measured, and it refuses two writes that are correct:
+//
+//   1. `answerAnchors(rates)` deliberately BLANKS the city on a question
+//      that rates one, when the city is unconfirmed. The answer's city is
+//      "" while the profile's is "Oslo" — a divergence the app creates on
+//      purpose.
+//   2. The profile mirror is read at boot and on a failed network phase,
+//      and `wake()` does NOT re-read it. So a second device holds a stale
+//      profile for the WHOLE SESSION after an edit elsewhere, and every
+//      answer it writes would be refused for the duration.
+//
+// (2) is what settles it: the window is a session, not a moment, and the
+// failure is a refused answer. So the check moves to the one place that
+// always sees the truth — the trigger, which reads the author's profile in
+// the batched read it already makes.
+//
+// The shape is not "overwrite with the profile", because that would undo
+// (1). An empty or absent value is a WITHHELD anchor and stays withheld; a
+// non-empty value must be the profile's, or it is replaced by it. A client
+// may say less about itself than its profile does. It may not say
+// something else.
+export function honestAnchors(
+  claimed: unknown,
+  profile: unknown,
+): Record<string, unknown> {
+  const src = (claimed && typeof claimed === "object" ? claimed : {}) as Record<string, unknown>;
+  const truth = (profile && typeof profile === "object" ? profile : {}) as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(src)) {
+    // Withheld: kept exactly as written, so the city-blanking above and an
+    // answer written before any profile existed both survive untouched.
+    if (v === "" || v === null || v === undefined) { out[k] = v; continue; }
+    // Claimed: only the profile can say what it is. A key the profile does
+    // not carry is dropped rather than kept — inventing a whole field is
+    // the same act as changing one.
+    if (Object.prototype.hasOwnProperty.call(truth, k)) out[k] = truth[k];
+  }
+  return out;
+}
+
 // Fold one answer's anchors into the running breakdown. Mutates and returns
 // `into` so the trigger can keep this inside its existing transaction.
 //

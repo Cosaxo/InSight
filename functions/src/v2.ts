@@ -40,6 +40,7 @@ import {
   foldRankOrder,
   catalogEntityKey,
   foldAnchors,
+  honestAnchors,
   foldCanonAnchors,
   canonTopN,
   foldEditFlow,
@@ -867,6 +868,7 @@ export const onV2AnswerCreated = onDocumentCreated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    const profRef = db.collection("v2_users").doc(event.params.uid);
     await runAggTransaction(db, qid, async (tx) => {
       // ONE aggregate document, and it is the published one. See "the
       // private mirror is gone" in the header: since D98 the private doc
@@ -893,8 +895,24 @@ export const onV2AnswerCreated = onDocumentCreated(
       //
       // Idempotency: Eventarc is at-least-once and retry is on — the
       // ledger makes redelivery a no-op instead of a double count.
-      const [seen, agg] = await tx.getAll(eventRef, pubRef);
+      // THE PROFILE RIDES THIS READ (D396). The anchors on the answer are
+      // the client's claim about its own cohort, and firestore.rules can
+      // only check they are plausible, never that they are the author's —
+      // see honestAnchors() in pure.ts for why the rule that would check it
+      // cannot exist. So the author's profile joins the batch: one more
+      // billed read, no extra round trip, and the lock window on
+      // v2_question_aggs/{qid} is unchanged, which is the thing this
+      // comment block above is about.
+      const [seen, agg, prof] = await tx.getAll(eventRef, pubRef, profRef);
       if (seen.exists) return;
+      // What the answer SHOULD have said. A withheld anchor stays withheld;
+      // a claimed one must be the profile's. Computed before the fold so
+      // the breakdown and the document agree — D8's snapshot is what the
+      // edit path re-reads, so a fold that used one set and a document that
+      // held another would make the -old/+new delta subtract from cells it
+      // never added to.
+      const claimed = snap.get("anchors");
+      const honest = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
       const counts: Record<string, number> =
         (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
       counts[String(optionIdx)] = (counts[String(optionIdx)] || 0) + 1;
@@ -914,7 +932,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       const by = breakdownFor(
         qid,
         agg.exists ? (agg.get("by") as BreakdownCounts) : null,
-        snap.get("anchors"),
+        honest,
         optionIdx,
       );
       // The edit-flow matrix (D226) rides these same docs, and this write
@@ -922,6 +940,25 @@ export const onV2AnswerCreated = onDocumentCreated(
       // create after an edit erases the flows. Emit-when-set: the common,
       // never-edited question's doc gains no key.
       const edits = agg.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
+      // AND THE DOCUMENT IS CORRECTED, not only the fold. The People lens
+      // reads other users' anchors off their answer rows to say who someone
+      // is (live.ts, the voter fold), so a fold that quietly ignored an
+      // invented cohort would leave the invention on the screen. Correcting
+      // it here also keeps D8's snapshot true, which the edit path depends
+      // on: onV2AnswerUpdated re-reads these anchors to retarget the
+      // -old/+new delta, and it must find the cells this create folded.
+      //
+      // WRITTEN ONLY WHEN IT DIFFERS. An honest client — every client this
+      // repo ships — pays one extra read and no write at all; the write is
+      // the liar's cost. `merge: true` on the one field, because everything
+      // else on an answer is frozen by D5/D86 and this trigger has no
+      // business touching it.
+      if (JSON.stringify(honest) !== JSON.stringify(claimed ?? {})) {
+        logger.warn(
+          `[v2] answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+        );
+        tx.set(snap.ref, { anchors: honest }, { merge: true });
+      }
       tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx));
       // The public mirror, written on EVERY answer with exact counts.
       //
