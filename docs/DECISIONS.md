@@ -40837,3 +40837,135 @@ the merged tree — D382 had just taken the question content out of first
 paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
+
+## D387 · Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read
+
+**2026-09-06.** **Status:** binding as a RECORD OF A CHECK and of one
+change to the console. Nothing on a night branch was merged here, because
+there was nothing left to merge: the check is the finding. The change is
+that `docs/MERGE-LIST.md` and the pinned Console issue stop offering a tick
+on a night whose review has already landed.
+
+### The question, and the answer
+
+The owner asked whether all night shifts had been reviewed, and to review
+and merge any that had not. **All of them have.** Every branch either of
+the two night shifts has produced — `night-20260825` through
+`night-20260906`, `nightb-20260902` through `nightb-20260906` — carries
+nothing that is not on `main` today.
+
+| Nights | How they reached `main` | How that is verifiable |
+| --- | --- | --- |
+| `night-20260825` … `night-20260902`, `nightb-20260902` (+ its integration branch) | merged by a MERGE COMMIT, so the branch tip is an ancestor of `main` | `git merge-base --is-ancestor origin/<branch> origin/main` answers yes for all eleven |
+| `night-20260903` … `night-20260906`, `nightb-20260903` … `nightb-20260906` | reviewed and SQUASH-merged as the composed tree — D360 (#384), D363 (#392), D365 (#398), D380 (#402) | each record's own arrival table states the branch and its commit count, and the four counts equal what GitHub reports the branch as being ahead by: 35/25, 32/13, 32/18, 33/35 |
+
+The records go back further than the branches that still show: D323 (the
+27th), D335 (the 28th and 29th together), D336 (the 30th), D338 (the
+31st), D349 (the 1st and 2nd). Only the two oldest nights, 08-25 and
+08-26, are named in no record at all — and both are ancestors of `main`,
+so nothing of theirs is outstanding either.
+
+### Why the list said otherwise, and it was not a stale render
+
+The merge list drew eight night branches as approvable `- [ ]` rows on the
+morning of 2026-09-06, four hours after the last of them merged, and
+`docs/OWNER-LIST.md` § Approvals carried the same count as a sentence:
+*"18 PR row(s) and 8 branch row(s) waiting for a tick"*. Both were
+regenerated from GitHub minutes earlier. The rows were current; the
+question they were answering was the wrong one.
+
+**A night shift's branch is never merged as itself.** The review composes
+both shifts with `main` on a branch of its own and that PR is
+squash-merged, so every commit's CONTENT lands while none of its commits
+becomes an ancestor of `night-YYYYMMDD`. GitHub's compare therefore reports
+the branch as ahead by exactly what it was ahead by the night it closed,
+forever, and `console.mjs` drew a row for every `night-*`/`nightb-*` branch
+with `ahead_by > 0`. The nine older nights are absent from the list for the
+same reason inverted: they were merged with merge commits, which made their
+tips ancestors, which zeroed `ahead_by`. **The cut-off is exactly where the
+merge method changed**, which is why the list has carried precisely four
+days of rows since 09-03 and will carry two more every morning.
+
+### What a tick on one of those rows would have done — measured
+
+Not noise. A tick makes the console open a PR from that branch and label it
+`approved`, and the branch is a snapshot of a tree that has since moved.
+Merged into `origin/main` @ `c5cc3414` in a scratch worktree:
+
+| Branch | Result |
+| --- | --- |
+| `night-20260906` | **conflicts in four files**, and among what merges cleanly it restores `functions/src/paid.ts`'s `checkoutLineItem(isAd, …)` arm and 307 lines of `paid.test.ts` — `adPriceQuote`, `adStartDay` and their cases — which is the ad path D375 deliberately removed in #401, seven hours before the row was drawn |
+| `nightb-20260906` | conflicts in two files |
+| `night-20260905` | conflicts in eleven |
+| `nightb-20260905` | conflicts in six |
+
+So the row invited the owner to hand the merge shift a PR that reverts a
+merged decision and cannot merge — and the shift, doing its job, would have
+spent a battery run finding that out.
+
+### The one commit no review has ever taken
+
+`nightb-20260905` carries nineteen commits and D365's table accounts for
+eighteen: `deb14013`, *"Raise the eager ceiling to 642 KB, with the note the
+gate asks for"*, was pushed at 09:56 UTC on 2026-09-05, five hours after
+that review composed at 04:13. It is the only such commit across all
+thirteen nights, found by comparing each record's stated count with the
+branch's own.
+
+**Nothing is missing because of it.** The same review made the same change
+itself: `scripts/check-bundle.mjs` on `main` reads `MAX_EAGER_KB = 642`
+with the ledger entry *"630 → 642 (2026-09-05, D365's night review)"*, and
+`docs/OWNER-LIST.md`'s row is the ruled version. The night shift declined
+the raise twice on the grounds that spending the owner's last kilobyte
+unattended was not the *"deliberate note"* the gate invites, then made it
+when the owner said *"raise the ceiling and note why"* — and the review had
+already done it. Two paths to one decision, which is what two shifts and a
+reviewer on one tree produce. The commit is accounted for here rather than
+merged: merging it would re-apply a ceiling that is already 642.
+
+### What changed
+
+`scripts/console-lib.mjs` gains `parseNightReviews`, which reads
+`docs/DECISIONS.md` on `main` for the table shape every night review since
+D360 has used — `` | `night-YYYYMMDD` | <commits> | `` — and returns the
+record and count per branch. `branchRow` marks a branch **merged** when the
+count accounts for every commit it carries; a merged branch draws no box on
+either surface, appears in one line naming the record that took it, and
+`decideActions` refuses to open a PR for it even if a tick is left over
+from an older render. A branch with commits BEYOND its record keeps its box
+and says so — *"19 commits, 18 of them merged as D365"* — and the PR the
+console opens for it says which are already in. The two counts that told
+the owner what was waiting (the trail's `noPrYet`, the owner list's
+Approvals line) now count only what is.
+
+On today's tree that is eight approvable rows down to one, and that one
+names the commit above. With the row below accounting for it, none.
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `nightb-20260905` | 19 | reviewed | eighteen merged as D365, the nineteenth superseded by that same review's own ceiling raise |
+
+**The receipt is a document, and it fails toward the row.** A record that
+names no branch, a table written in another shape, an unreadable
+DECISIONS.md — each leaves every night exactly as tickable as before,
+which is the direction that cannot lose work. What it cannot do is notice a
+night whose review merged something OTHER than what its table claims; the
+record is trusted for its own arithmetic, and the arithmetic is one number
+a reviewer writes by hand. The live table is pinned by a test against this
+tree's own `DECISIONS.md`, so the next record that changes the shape fails
+`test:scripts` before the page goes wrong.
+
+### What this does not decide
+
+The night branches are never deleted, so they accumulate on the remote at
+two a night whether or not the console draws them; the one-line note names
+the six newest and counts the rest. Whether the reviews should merge the
+composed tree with a merge commit instead — which would make every night an
+ancestor of `main` and delete this whole class of row at the source — is
+the owner's, not this record's. It got cheaper to choose while this branch
+was open: **D385 retired the PR shepherd an hour before this merged**, so
+the squash is no longer something an Action does on a label but a choice
+made at the button, and "Create a merge commit" is the same click. This
+record does not ask for it, because the receipt above closes the symptom
+either way and a merge commit on a night branch has costs nobody here has
+priced.
