@@ -20,6 +20,18 @@
 # scenes, which is why it is the image and why a run expects to boot more
 # than once.
 #
+# THE CRASH, NAMED. Run 20 of that night read the kernel's log with root:
+# "RenderThread[4711]: segfault at 558a1411ded0 ip 00005589da51156f" —
+# the emulator's own render thread, twice, at the moment the WebView
+# draws. So it is the emulator build's host renderer (37.1.11, the one
+# sdkmanager installs today), not the app and not the guest. The next
+# thing to try, for whoever picks this up: pin an OLDER emulator build —
+# the repository at dl.google.com/android/repository/ carries
+# emulator-linux_x64-<build>.zip for earlier releases — and see whether
+# its RenderThread survives; the runner's `emulator` directory can be
+# replaced wholesale after sdkmanager runs. Until then a boot lives about
+# two minutes, and the drive reboots.
+#
 # Inputs (environment): ANDROID_HOME, APP_ID, AVD_NAME (default screens),
 # RESULTS (default results/android), APK (default the debug build's
 # path), RENDERERS — a newline-separated list of emulator renderer

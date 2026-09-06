@@ -193,9 +193,14 @@ jobs:
         id: drive
         continue-on-error: true
         env:
-          # What the driver runs when the emulator dies under it, up to
-          # twice a run — the same boot the step above did.
+          # What the driver runs when the emulator dies under it — the same
+          # boot the step above did — and how many times a run. Each boot
+          # lives about two minutes and costs about two to come back, so
+          # four reboots is roughly fifteen minutes for the whole set of
+          # screens (run 20 of the first night: three boots, six screens,
+          # eight minutes).
           DEVICE_SCREENS_REBOOT: bash .github/device-screens/android-boot.sh
+          DEVICE_SCREENS_REBOOTS: "4"
         run: |
           set -o pipefail
           node scripts/device-screens.mjs --android --pkg "$APP_ID" --out results/android 2>&1 | tee results/android/drive.log

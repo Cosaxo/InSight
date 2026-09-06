@@ -462,18 +462,19 @@ if (!android) {
   // crashes one to three minutes after the WebView starts drawing
   // (.github/device-screens/android-boot.sh has the measurements) — the
   // command in DEVICE_SCREENS_REBOOT boots a new one with the app launched
-  // on it, at most twice a run, and the drive carries on from the scene it
-  // was about to do. Without the hook a dead emulator ends the run with
+  // on it, DEVICE_SCREENS_REBOOTS times a run (default 2), and the drive
+  // carries on from the scene it was about to do. Without the hook a dead emulator ends the run with
   // what it had, which the report says.
   const REBOOT = process.env.DEVICE_SCREENS_REBOOT || "";
+  const REBOOTS_MAX = Math.max(0, parseInt(process.env.DEVICE_SCREENS_REBOOTS || "2", 10) || 0);
   let reboots = 0;
   const deviceGone = () => { try { adb("get-state"); return false; } catch { return true; } };
   async function rebootAndAttach(why) {
     if (!REBOOT) throw new Error(`the emulator is gone (${why}) and DEVICE_SCREENS_REBOOT is not set`);
-    if (reboots >= 2) throw new Error(`the emulator is gone (${why}) and both reboots this run allows are spent`);
+    if (reboots >= REBOOTS_MAX) throw new Error(`the emulator is gone (${why}) and the ${REBOOTS_MAX} reboot(s) this run allows are spent`);
     reboots += 1;
     report.reboots = reboots;
-    console.log(`    the emulator is gone (${why.slice(0, 80)}) — rebooting it (${reboots}/2)`);
+    console.log(`    the emulator is gone (${why.slice(0, 80)}) — rebooting it (${reboots}/${REBOOTS_MAX})`);
     execFileSync("bash", ["-c", REBOOT], { stdio: "inherit", timeout: 15 * 60_000 });
     const again = await withTimeout(pw._android.devices(), 30_000, "adb devices after the reboot");
     if (!again.length) throw new Error("no Android device on adb after the reboot");

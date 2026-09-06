@@ -43023,6 +43023,25 @@ against a current WebView before it is believed. The first is exactly
 the class of defect the owner's ask named, and nothing else in the
 tree could have seen it.
 
+**The crash, named, and the lane as it merges.** Run 18 died on the
+boot script's fourth line (`grep -c` prints "0" and exits 1, so a
+`|| echo 0` made "0 0" and the arithmetic aborted — proved on three
+cases before the fix went out). Run 20 is the lane as it merges: three
+boots of Android 15, each alive about two minutes, the drive rebooting
+the emulator twice and carrying on, six driven screens landed and every
+later scene one honest line — and the kernel's log, read with root at
+last, naming the crash: **`RenderThread[4711]: segfault at 558a1411ded0
+ip 00005589da51156f`**, twice, the emulator's own render thread at the
+moment the WebView draws. So it is the emulator build's host renderer
+(37.1.11, what `sdkmanager` installs today), not the app and not the
+guest. The drive now allows four reboots a run — about fifteen minutes
+for the whole set — and the boot script's header names the next thing
+to try: an older emulator build pinned from Google's repository, in
+place of the one the runner image installs.
+
 **Costs, measured:** the Chromium pass 3m12s for 66 screens in the
-shift's container; an Android job 12–25 minutes depending on reboots;
-an iOS job 20–30; a results ref 5–12 MB; the runner minutes free.
+shift's container; an Android job 8–25 minutes depending on reboots; an
+iOS job 20–30; a results ref 5–12 MB; the runner minutes free. A
+session's git channel cannot delete a ref (every deletion push was cut
+off), so the first night's results refs are the lane's cleanup job's to
+sweep, seven days on.
