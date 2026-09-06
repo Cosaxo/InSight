@@ -399,8 +399,17 @@ jobs:
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           export PATH="$PATH:$HOME/.maestro/bin"
           maestro --version 2>&1 | tee results/ios/maestro-version.txt
+          # Its own output directory inside the results, where the CLI has
+          # the option: run 34060292996's flow passed and wrote its eighteen
+          # takeScreenshot files somewhere neither the working directory,
+          # the flow's directory nor ~/.maestro held afterwards.
+          OUTOPT=""
+          if maestro test --help 2>&1 | grep -q -- "--test-output-dir"; then
+            OUTOPT="--test-output-dir $GITHUB_WORKSPACE/results/ios/maestro"
+          fi
           cd results/ios
-          maestro --device "$UDID" test "$GITHUB_WORKSPACE/.github/device-screens/ios-flow.yaml" \
+          # shellcheck disable=SC2086
+          maestro --device "$UDID" test $OUTOPT "$GITHUB_WORKSPACE/.github/device-screens/ios-flow.yaml" \
             --format junit --output maestro-junit.xml 2>&1 | tee maestro.log
 
       - name: Collect the simulator's logs
@@ -419,6 +428,11 @@ jobs:
           done < <(find "$GITHUB_WORKSPACE/.github/device-screens" "$HOME/.maestro" "$GITHUB_WORKSPACE" -maxdepth 4 -name '*.png' \
                      -newer results/ios/00-launch-3s.png -not -path '*/results/*' -not -path '*/node_modules/*' -not -path '*/build/*' 2>/dev/null)
           echo "maestro screenshots collected: $n" >> results/ios/environment.txt
+          # Until the location is known for sure: every PNG the runner
+          # gained since the launch capture, wherever it is, by path.
+          find "$HOME" /tmp /var/folders "$GITHUB_WORKSPACE" -name '*.png' -newer results/ios/00-launch-3s.png \
+            -not -path '*/results/*' -not -path '*/node_modules/*' -not -path '*/build/*' -not -path '*/DerivedData/*' 2>/dev/null \
+            | head -80 > results/ios/fresh-pngs.txt || true
           xcrun simctl spawn "$UDID" log show --last 20m --style compact \
             --predicate 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"' 2>/dev/null \
             | tail -400 > results/ios/syslog.txt || true
