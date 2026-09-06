@@ -1148,6 +1148,21 @@ That is a tester-count problem, not a workflow problem.
       upload ticked. Six scenes × both store sizes (1320×2868 and
       1080×1920), asserted against the store specs at generation.
 
+      **CAPTURED LIVE 2026-09-06; UPLOAD HELD by the owner until the new
+      visuals land.** Screenshots run 8 (#414's head) captured `mode =
+      LIVE`, 12/12, after two harness regressions were fixed on the same
+      branch — the reveal's `sd-opt` marker and D356's paint-before-attach
+      (the commit on `scripts/gen-screenshots.mjs` has both). The set is
+      correct and is not the shipping set: the owner's word the same day
+      — *"wait a bit more for the screenshot until the new visuals are
+      uploaded, they are being made now"* — holds the upload until the
+      next Claude Design standalone is extracted into `design/`, made the
+      vision (D361's sentence: a new visual is the vision until the owner
+      updates it) and built into the tree. Then this row runs again from
+      the top: capture, look, upload — not upload what run 8 holds, which
+      would put a look in the store that the app no longer has by the
+      time a reviewer opens it.
+
       **The committed captures are a demo preview, not the shipping set.**
       The harness names the one that must not ship: the reveal shows
       Comments and "Who voted", both `!S.live`-gated by D1, so no real user
