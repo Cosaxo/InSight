@@ -9,13 +9,15 @@
 // and the kill switch hold, and the two surfaces never mix.
 
 import { describe, expect, it } from "vitest";
-import type { V2SeedQuestion } from "./v2content";
+import { V2_QUESTIONS, type V2SeedQuestion } from "./v2content";
 import {
   RANK_DEAD_MIN,
   RANK_DEAD_SHARE,
   computeRank,
+  dailyShape,
   isLandslide,
   runBankRank,
+  type DailyShapeDoc,
   type RankAgg,
   type RankDoc,
   type RankSurface,
@@ -214,6 +216,7 @@ describe("runBankRank", () => {
     ];
     const asked: string[][] = [];
     const put: Array<{ surface: RankSurface; doc: RankDoc }> = [];
+    const shapes: DailyShapeDoc[] = [];
     const summary = await runBankRank(
       {
         aggsFor: (qids) => {
@@ -222,6 +225,10 @@ describe("runBankRank", () => {
         },
         putOrder: (surface, doc) => {
           put.push({ surface, doc });
+          return Promise.resolve();
+        },
+        putDailyShape: (doc) => {
+          shapes.push(doc);
           return Promise.resolve();
         },
       },
@@ -234,6 +241,93 @@ describe("runBankRank", () => {
     const feed = put.find((p) => p.surface === "feed")!.doc;
     expect(feed.day).toBe("2026-08-26");
     expect(feed.topics.food).toEqual({ qids: ["feed-a"], total: 7, carry: 1 });
-    expect(summary).toEqual({ surfaces: 2, topics: 2, ranked: 2 });
+    expect(summary).toEqual({ surfaces: 2, topics: 2, ranked: 2, dailyN: 1 });
+    // The daily's SHAPE does ride the same run (D383) — a length, never an
+    // order, and still without asking for its aggregate above.
+    expect(shapes).toEqual([{ n: 1, maxSeq: 0, rates: {} }]);
+  });
+
+  describe("dailyShape (D383)", () => {
+    const dq = (over: Partial<V2SeedQuestion>): V2SeedQuestion => ({
+      id: "x", surface: "daily", seq: 0, type: "binary", domain: null,
+      prompt: "p", options: ["a", "b"], topic: null, axis: null, test: null,
+      ...over,
+    });
+
+    it("counts the daily bank the way splitBanks does, and reports the max seq", () => {
+      expect(dailyShape([
+        dq({ id: "daily-000", seq: 0 }),
+        dq({ id: "daily-001", seq: 1 }),
+        dq({ id: "feed-000", surface: "feed", seq: 0 }),
+      ])).toEqual({ n: 2, maxSeq: 1, rates: {} });
+    });
+
+    it("KEEPS retired dailies, because the positions around them must not move", () => {
+      // The tombstone rule (live.ts): a daily that drops out of the count
+      // shifts every visible day for every device. `active: false` is a
+      // display decision, never a bank one.
+      expect(dailyShape([
+        dq({ id: "daily-000", seq: 0 }),
+        dq({ id: "daily-001", seq: 1, active: false }),
+        dq({ id: "daily-002", seq: 2 }),
+      ])).toEqual({ n: 3, maxSeq: 2, rates: {} });
+    });
+
+    it("drops unplayable docs, which is what makes n disagree with maxSeq", () => {
+      // A console-edited doc with no options is dropped by splitBanks, so
+      // the client's n is 2 while the seq space still reaches 2. The
+      // mismatch is exactly the signal the device checks before trusting
+      // seq as a position — it must be reported, not smoothed over.
+      const shape = dailyShape([
+        dq({ id: "daily-000", seq: 0 }),
+        dq({ id: "daily-001", seq: 1, options: [] }),
+        dq({ id: "daily-002", seq: 2 }),
+      ]);
+      expect(shape).toEqual({ n: 2, maxSeq: 2, rates: {} });
+      expect(shape.maxSeq).not.toBe(shape.n - 1);
+    });
+
+    it("collects the Scores pool per scope, in seq order, active only (D384)", () => {
+      const shape = dailyShape([
+        dq({ id: "daily-000", seq: 0, type: "rating", rates: "city" }),
+        dq({ id: "daily-001", seq: 1, type: "rating", rates: "world" }),
+        // Retired: the lens must not offer it, and the fold is where that
+        // is cheapest to decide.
+        dq({ id: "daily-002", seq: 2, type: "rating", rates: "city", active: false }),
+        // A rating that names no place — 5 of them in the shipped bank —
+        // rates nothing and belongs to no scope.
+        dq({ id: "daily-003", seq: 3, type: "rating" }),
+        // Not a rating at all.
+        dq({ id: "daily-004", seq: 4, type: "binary", rates: "city" }),
+        dq({ id: "daily-005", seq: 5, type: "rating", rates: "city" }),
+      ]);
+      expect(shape.rates).toEqual({
+        city: ["daily-000", "daily-005"],
+        world: ["daily-001"],
+      });
+    });
+
+    it("the shipped bank's pool matches the lens's own predicate", () => {
+      // The count the device would draw from, against the bank as shipped
+      // — the number D383 left as the linear term this record removes.
+      const { rates } = dailyShape(V2_QUESTIONS);
+      const total = Object.values(rates).reduce((n, ids) => n + ids.length, 0);
+      expect(total).toBeGreaterThan(0);
+      for (const ids of Object.values(rates)) {
+        expect(new Set(ids).size, "a question is in a scope twice").toBe(ids.length);
+      }
+      // Every id is a real daily in the same bank — a pool naming a
+      // question that does not exist would spend a read per boot forever.
+      const ids = new Set(V2_QUESTIONS.map((q) => q.id));
+      for (const list of Object.values(rates)) {
+        for (const id of list) expect(ids.has(id), `${id} is not in the bank`).toBe(true);
+      }
+    });
+
+    it("is dense on the shipped bank, which is the fast path's precondition", () => {
+      const shape = dailyShape(V2_QUESTIONS);
+      expect(shape.n).toBeGreaterThan(0);
+      expect(shape.maxSeq).toBe(shape.n - 1);
+    });
   });
 });

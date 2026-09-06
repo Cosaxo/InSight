@@ -7,7 +7,27 @@ import React from 'react';
 import { VOTECUTS } from './vote-cuts.js';
 import { navCoasting, OWNS_X } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
-import { DAILYQ } from './daily-questions.js';
+// daily-questions.js is NOT imported here, and the reason is measured.
+// This file is in the entry chunk, so a static import puts that module's
+// 36 KB demo archive — the file the question farm appends to every day —
+// into the bytes a phone fetches before it can paint anything. Both uses
+// below are gated on DAILYSPLIT_DQ_SYNC, which carries exactly one demo
+// id, so on a live build the archive is fetched for nothing at all.
+//
+// It is loaded on that id's first use instead. `dq()` returns the store
+// once it has landed and null before then; both call sites already have
+// a correct path for null (syncToMap does its write in the callback,
+// mapBranch falls through to the live arm and re-renders when the module
+// arrives), so the demo behaves as before one frame later and the live
+// build never pays.
+let DQ = null;
+let dqPending = false;
+function dq(onReady) {
+  if (DQ || dqPending) return DQ;
+  dqPending = true;
+  import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; if (onReady) onReady(); });
+  return null;
+}
 import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
 // The store, through the module rather than through `window` — D39's
@@ -374,8 +394,13 @@ export class DailySplit extends React.Component {
   syncToMap(S, optId) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (!s) return;
-    const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-    if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
+    const write = () => {
+      const q = DQ.questions.find(x => x.prompt === s.prompt);
+      if (q && s.map[optId] != null) DQ.answer(q.id, s.map[optId]);
+    };
+    // A vote is a tap, so the one-frame wait for the module costs nothing
+    // visible; the write lands either way.
+    if (dq(write)) write();
   }
   // A refused edit (D86's one-change-a-minute cooldown) says why on the
   // meta line for a moment instead of silently snapping back.
@@ -413,8 +438,15 @@ export class DailySplit extends React.Component {
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (s) {
-      const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-      if (q) return DAILYQ.categoryPath(q)[0];
+      // Null until the archive lands (see the note at the top of this
+      // file). Falling through then is not a wrong answer for the demo id
+      // either — the arms below resolve it too; the forceUpdate is what
+      // replaces that with the branch the user may have re-voted onto.
+      const D = dq(() => this.forceUpdate());
+      if (D) {
+        const q = D.questions.find(x => x.prompt === s.prompt);
+        if (q) return D.categoryPath(q)[0];
+      }
     }
     // THE LIVE ARM, and it has to come before the two demo maps below.
     // A live daily carries its subject in `branch` (D100) — one of the

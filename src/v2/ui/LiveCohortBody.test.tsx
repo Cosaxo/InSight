@@ -68,6 +68,7 @@ const LIVE = vi.hoisted(() => ({
   // The Scores lens's ask rows (D307) — empty here so the stop cases stay
   // about the stop; the ask arm has its own cases in the lens suite.
   placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
+  placeAskTotal: () => 0,
   vote: vi.fn(),
   loadKindred: async () => {},
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,

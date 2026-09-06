@@ -460,7 +460,13 @@ function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
 export function loadCorpus() {
   const specSrc = readFileSync(join(root, "src", "v2", "spec", "daily-questions.js"), "utf8");
   const specQ = extractLiteral(specSrc, "const Q = [", "daily-questions.js");
-  const catMeta = extractLiteral(specSrc, "const CAT_META = {", "daily-questions.js", "{", "}");
+  // CAT_META moved to daily-cats.js when map-branches.js needed the
+  // taxonomy without the archive (the eager-content sweep). Read from
+  // there, not from `specSrc` — this is the ONLY site that parses it,
+  // checked rather than assumed, so D197's three-copies trap does not
+  // apply here.
+  const catSrc = readFileSync(join(root, "src", "v2", "spec", "daily-cats.js"), "utf8");
+  const catMeta = extractLiteral(catSrc, "export const CAT_META = {", "daily-cats.js", "{", "}");
   const baseM = specSrc.match(/const DQ_BASE = (\d+)/);
   if (!baseM) throw new Error("daily-questions.js: DQ_BASE not found");
   const dqBase = Number(baseM[1]);
