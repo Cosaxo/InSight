@@ -40928,3 +40928,77 @@ rule): v18 stays what the tree is measured against until a full sync.
 cited path resolving), `check:figures`, `test:scripts` — this PR is
 documents and provenance only, so the client suites are untouched by
 construction.
+
+## D388 · The 2026-09-06 design, steps 1 and 2: the 12px floor, and the Patterns instrument on paper
+
+**2026-09-06.** **Status:** binding, built. The owner's *"build the
+first two steps"* on `VISION-2026-09-06.md` §8, the day after the
+vision arrived (D387). Two commits on `claude/zen-pascal-ugc4p4`; the
+same renumber caveat as its siblings (D289's collision pattern).
+
+### Step 1 — the floor
+
+Every piece of microtype to 12px, app-wide: the shared tier in
+`styles.css` (`.kicker`/`.klabel`/`.legend` with tracking eased to
+0.07em, `.h-meta`, `.stamp`, `.search-group`, `.pp-kick`), the Map
+families site for site with the upload's own patch (22 `.mmt-`/`.mpc-`
+rules), sixteen rules in `ui/patterns.css`, and the touched spec
+modules' inline sizes — the Mirror ruler at on 13 / off 12 (the
+design's four tiers folded onto the tree's two), the 1v1 and Circle
+chrome, the person-card chips, the daily's comment chrome,
+`TestArcsCard`'s sublabels. Eager graph measured 602 → 601 KB against
+the 607 ceiling. Three things stay under the floor with their reasons
+at the site: the Mirror lens row's measured seven-tab ladder (D135 —
+the upload leaves its own twin alone), two glyph marks, and the daily's
+context ⓘ that §5 replaces with words.
+
+### Step 2 — the instrument on paper
+
+`lens-paper` is the app root's default (`app-shell.jsx`); the lens card
+loses its box, title and standing legend; one ⓘ per lens
+(`PatternsTab`'s `guide` flag — ephemeral, no device key, so
+`check:purge`'s subject set does not grow) carries every explainer
+under one rule, **a basis sentence may move one tap away but never be
+deleted** (D146). The Map seats short topic names inside the rim
+(candidates × four radii, refused at the hub, the dots, the wedge or a
+placed neighbour), speaks its hub in the serif, quiets idle chords to
+0.05 ink, draws its arcs and dots in (`inkDraw`, one family — the
+tapped-chord `qmDraw` folded in), deletes the callout pill and the
+beacon's words, and compacts the strongest link to the serif arrow
+sentence. The Oracle's options render inside the halves in the serif
+(`orLines` breaks at the most even space), every field caption is gone,
+the kicker counts the pool, a 1·2·3 strip teaches the game under the
+guide. The People lens names on tap only, frames the disc with two
+faint rings, lands the paper agreement palette, and rows the three most
+agreeing named people with the answer each shares.
+
+### What the build settled
+
+- **The repo's floors beat the design three more times**: the ⓘ at
+  44px against the drawn 32, the sub-row's 44 against 34, the *YOU*
+  tag at 12 against 10.5 — the same calls D362 made.
+- **A control that loses its words may not lose its name**: the beacon
+  and the Oracle's field both carry their retired text as accessible
+  names, pinned; `check:a11y`'s baseline unmoved.
+- **`peopleMap.ts` lost its label solver whole** — `near`, `lab`,
+  `PEOPLE_LABELS` and ~60 lines of spot-scoring (D362 §1.6's
+  precedent: a layout engine whose surface is gone is residue).
+  `PEOPLE_ALIKE = 3` caps the rows; likeness-not-layout ranking and
+  D167's named-only rule carried unchanged; the guide legend prints
+  `basis`/`minShared`, never the viewer's own count.
+- **The strongest-link basis line stays against the design's
+  deletion** — D310's bounded-sample wording, and §2.4's rule cuts
+  both ways. The compact sentence carries full prompts; the live bank
+  has no `short` names, which is the design's own fallback.
+- The axis SKIP list drops `svg`: the lenses are tap-only, so the
+  Oracle's `.or-lens` exception generalised to all three.
+
+### Gates
+
+`test:unit` (2 705 — +5 pins: the in-rim label geometry, the map
+legend's gating, the option words in the halves, the guide's
+persistence across a lens swap, the People rows' shared-answer line),
+`data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
+`check:tap-targets`, `check:a11y` (no new findings), `check:globals`
+(rule 4 at 30, unmoved), `check:bundle` (601 KB eager / 607),
+`check:docs`, `check:figures`.

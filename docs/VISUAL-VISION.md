@@ -41,9 +41,14 @@ it is moving toward.
   side, `paid-data.js` **draws the subscription seat split** 08-26
   §2.2 has waited on (evenly across subscribers, a €24 seat floor) —
   still the owner's tick, now with the owner's own drawing behind it.
-- **Built from it:** nothing yet. The design also draws the anonymous
-  answers words on the daily — the third design in a row to draw that
-  toggle, still the open D98-amendment decision on `OWNER-LIST.md`.
+- **Built from it:** steps 1–2 of its plan's §8 (D388, 2026-09-06) —
+  the 12px floor app-wide, and the Patterns instrument on paper: the
+  boxless lens card, the guide ⓘ with the moved legends, the ring's
+  in-rim labels and serif hub, the Oracle's serif halves, the People
+  rows. The dial, the feed's ground, the ballot row and the polish
+  pass remain open, and the design also draws the anonymous answers
+  words on the daily — the third design in a row to draw that toggle,
+  still the open D98-amendment decision on `OWNER-LIST.md`.
 - **Requests it closed:** none. It **quiets the field request 1 draws
   in** (in-rim topic labels now use part of the inner area the "inner
   arc" grammar priced; the request's three grammars stand, with a note).
