@@ -101,12 +101,11 @@ Read in this order. Each file opens with its own status line.
 | 7 | `research/axiom-theory/paper-07-verified-personhood.md` | One living person, and whose genome it is: "verification" split into five claims with different instruments — uniqueness across accounts, which is a one-against-many problem needing tens of bits and therefore the sequence rather than a handful of physiological scalars; liveness, whose challenge has a latency that bounds what it can gate; continuity, the one-against-one check the worn stream is right for, provided the identifying features are chosen apart from the phenotypic ones and the discontinuity detector has a false-positive budget against the ruler movers; attribution, re-anchored at the recurring calibration draw the body paper already funds; and session binding, without which the other four verify a body and not an observation. Attenuation from misattribution recovered by randomized rollout order, a validation subsample and known-rate corruption, so no population is left unverified to calibrate the rest; the subsidy's exclusion restriction fails for money and holds for offer logistics, randomized within stratum, returning a complier-restricted answer |
 | 8 | `research/axiom-theory/paper-08-arranged-competition.md` | What a person does when it counts: competitions the system arranges, where difficulty, opponent and payoff are all set per encounter — and the cancellation that decides what such a design can measure, since a paired-comparison likelihood sees only the difference between two sides, so the common part of a stakes effect vanishes exactly and the level of "how much better people do when it matters" is invisible in principle rather than imprecise. What survives is the between-person contrast; the level returns only through asymmetric stakes, a graded score, or fixed-difficulty anchors outside the network, which are also the only thing that makes a learning rate absolute. Priced in encounters, since a binary result's information about a latent difference is at most a quarter; two arms that cannot be one, because assigned stakes forbid the after-loss behaviours that chosen stakes exist to show; the reported-against-enacted reading rebuilt as a discrepancy factor rather than the difference score papers 1 and 2 refuse; dropout caused by the outcome published as a non-ignorability band |
 
-Planned, in the order the ranked crossings suggest: physical
-appearance, the fourth unbuilt axis and the only one with no paper yet;
-the logic test against the bank (reasoning items in the clothes of
-opinions); the learned representation with its auditable distilled
-layer; custody-preserving computation for the genome crossings; causal
-patterns from within-unit events.
+Planned, in the order the ranked crossings suggest: the logic test
+against the bank (reasoning items in the clothes of opinions); the
+learned representation with its auditable distilled layer; custody-
+preserving computation for the genome crossings; causal patterns from
+within-unit events. Every one of the four unbuilt axes now has a paper.
 
 ## The general track
 
