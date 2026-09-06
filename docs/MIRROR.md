@@ -308,7 +308,7 @@ Since D100 they draw the **archive** rather than the week:
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
 reason Scores can find a question that rates a place at all — the bank
-holds twenty-four in a hundred and thirty, spread over three radii, so
+holds twenty-four in a hundred and thirty-four, spread over three radii, so
 a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships

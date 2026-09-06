@@ -2769,6 +2769,83 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-130",
+  "surface": "daily",
+  "seq": 130,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The book or the film first?",
+  "options": [
+   "Book first",
+   "Film first"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Adaptations",
+  "tag": "Which first",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-131",
+  "surface": "daily",
+  "seq": 131,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What makes a villain great?",
+  "options": [
+   "Menace",
+   "Charm",
+   "Being half right",
+   "Mystery"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Villains",
+  "tag": "Villains",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-132",
+  "surface": "daily",
+  "seq": 132,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Practise in private, or learn in public?",
+  "options": [
+   "In private",
+   "In public"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "How you learn",
+  "tag": "Learning out loud",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-133",
+  "surface": "daily",
+  "seq": 133,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Talent is mostly patience.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "Mastery",
+  "tag": "Talent",
+  "axis": "patience",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
