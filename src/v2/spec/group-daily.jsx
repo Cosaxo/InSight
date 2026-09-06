@@ -178,8 +178,12 @@ const EXPORTS = {};
     const d = days[day];
     const nInvited = g.members.filter((m) => m.pending).length;
     const addable = DUELS.members().filter((f) => !g.members.some((m) => m.id === f.id));
+    // serif since 2026-09-06 (§6.3), same move as duo-daily's prompt. The +2
+    // keeps the callers' relative sizing (the design's own recipe): serif at
+    // 500 carries less weight per pixel than sans at 800, so equal-numbered
+    // sizes would read as a demotion.
     const prompt = (s, fs) => (
-      <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: fs, lineHeight: 1.12, letterSpacing: -0.6, textWrap: 'pretty' }}>{s}</div>
+      <div style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: fs + 2, lineHeight: 1.14, letterSpacing: '-0.01em', textWrap: 'balance' }}>{s}</div>
     );
     const header = (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

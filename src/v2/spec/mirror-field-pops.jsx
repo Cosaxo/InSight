@@ -173,7 +173,12 @@ function MFSoWhat({ pop, cfg }) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
   useEffectMFP(() => DAILYQ.subscribe(bump), []);
   const parts = mfpSoWhat(pop, cfg);
-  if (!parts.length) return null; // too thin to say anything — say nothing
+  // circle refuses even when it has something (2026-09-06, §6.3): "X mirrors
+  // you closest; Y least" ranks the nine people the reader knows BY NAME
+  // under the figure that already draws the same ranking — the one so-what
+  // that repeats its own field, and the one where least reads as a verdict
+  // on a friend. The other populations keep theirs.
+  if (pop === 'circle' || !parts.length) return null; // too thin to say anything — say nothing
   return (
     <div style={{ padding: '7px 26px 0', textAlign: 'center' }}>
       <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'balance' }}>

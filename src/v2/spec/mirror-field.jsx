@@ -182,7 +182,12 @@ export function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7,
     const contentH = bot - top, cc = (top + bot) / 2;
     const aspectH = box ? MF_W * (box.h / box.w) : (tall ? 470 : MF_H);
     const h = Math.max(contentH, aspectH);
-    return { y: cc - h / 2, h };
+    // the figure sits a little high in its measured frame (2026-09-06, §6.3)
+    // — read with the header, not the lens row. Only when a box measured the
+    // frame (the slack is real then); capped so a tall frame over a small
+    // figure does not push it into the header's lap.
+    const lift = box ? Math.min(40, Math.max(0, (h - contentH) / 2 - 12)) : 0;
+    return { y: cc - h / 2 + lift, h };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [key, box, tall]);
   // how far the crowd reaches vertically — derived from the frame, not a magic number
@@ -428,7 +433,10 @@ export function MirrorLenses({ lenses }) {
     return () => clearTimeout(t);
   }, [open]);
   return (
-    <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+    // paddingTop 16 → 12 (2026-09-06, §6.3): the lens row gained a top
+    // hairline in the paper pass, and a rule carries the separation the
+    // extra 4px was doing
+    <div style={{ marginTop: 'auto', paddingTop: 12 }}>
       <div ref={rowRef} className="mm-lensrow" role="tablist" aria-label="Lenses" style={{ '--n': lenses.length }}>
         <span className={'mm-lensthumb' + (idx < 0 ? ' is-off' : '')} style={{ transform: `translateX(${Math.max(0, idx) * 100}%)` }} aria-hidden="true"></span>
         {lenses.map((l) => (

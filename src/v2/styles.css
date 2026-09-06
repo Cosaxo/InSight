@@ -629,6 +629,35 @@ button.card:active,
   box-shadow: var(--shadow-card);
 }
 
+/* The profile on paper (2026-09-06 §6.3): inside the profile overlay —
+   the account sheet behind its gear included, one door, one language —
+   every card flattens to a hairline SECTION: no box, a bottom rule. The
+   prototype said this with seven !importants; scoping outranks the .card
+   family without them, which also means a card's own inline padding or
+   margin still wins — deliberately, because the repo's profile has cards
+   the prototype never drew (TestProgress's full-bleed padding:0, the
+   General tab's own rhythm), and those exceptions are theirs to keep. */
+.profile-ov .card {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 18px 2px;
+  margin-bottom: 0;
+}
+/* compact tightens .card at three classes deep, which would out-rank the
+   section padding above and hand these boxless sections the BOX's inset */
+.app.compact .profile-ov .card { padding: 18px 2px; }
+/* a section is not a raised thing: no lift, no lift shadow, and the hover
+   accent stays off the one border it has left */
+.profile-ov button.card:hover, .profile-ov .card[role="button"]:hover,
+.profile-ov button.card:active, .profile-ov .card[role="button"]:active {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--rule);
+}
+
 /* Unified sub-tab segmented nav (tabs / profile / genome) */
 .subnav {
   display: flex;
@@ -846,6 +875,12 @@ button.card:active,
 .mm-lensthumb { position: absolute; z-index: 0; transition: transform 0.32s var(--ease-spring), opacity 0.18s ease; }
 .mm-lensthumb.is-off { opacity: 0; }
 [data-lens-style="underline"] .mm-lensrow { border-top: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
+/* …and on paper (2026-09-06 §6.3) a full top+bottom hairline: the row is a
+   ruled band in the page, not a floating trio. :not() is the design's own
+   guard for the prototype's promoted-to-top variant (see MirrorLensTabs.tsx
+   for why no live caller renders it) — kept verbatim so the rule above still
+   describes that variant, and because it is also what outranks it here. */
+[data-lens-style="underline"] .mm-lensrow:not(.mm-lensrow-top) { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 /* no resting tick under closed lenses — three short grey dashes read as broken
    underlines, not as inactive tabs. Weight + the sliding accent bar carry state. */
 [data-lens-style="underline"] .mm-lensbtn { min-height: 44px; font-size: 14.5px; }
@@ -1280,6 +1315,10 @@ button.card:active,
    frame; now the edge dissolves — but only on a side that actually has more
    to show (edge-fade.js sets data-ef). A rail that fits stays crisp. */
 .h-scroll[data-ef], .rm-axisrow[data-ef], .mmt-swipe[data-ef], .cb-rail[data-ef], .subnav--scroll[data-ef], .mmt-chips[data-ef], .mmt-fchips[data-ef] { --ef: 28px; }
+/* the map's branch rail dissolves over a longer run (2026-09-06 §6.3) —
+   its chips are wider than the other rails', and at 28px the last one
+   still read as cut rather than as continuing */
+.mmt-chips[data-ef] { --ef: 48px; }
 .h-scroll[data-ef="r"], .rm-axisrow[data-ef="r"], .mmt-swipe[data-ef="r"], .cb-rail[data-ef="r"], .subnav--scroll[data-ef="r"], .mmt-chips[data-ef="r"], .mmt-fchips[data-ef="r"] {
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
   mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
@@ -1354,6 +1393,25 @@ button.card:active,
 .mmt-edges path { transition: opacity 0.3s ease; }
 .mmt-limb { stroke: oklch(0.68 0.09 var(--hue)); }
 .app.dark .mmt-limb { stroke: oklch(0.5 0.08 var(--hue)); }
+/* ink-in (2026-09-06 §6.3): the constellation draws onto the page instead
+   of appearing whole — limbs and spokes as strokes (map-tab sets
+   pathLength=1 and a small per-limb delay inline), answer dots as a fade
+   delayed by distance from the hub. Same keyframe family, by NAME, as
+   ui/patterns.css's — the bodies are identical on purpose: patterns.css
+   rides the lazy Patterns chunk, so whichever sheet loads second redefines
+   the names with the same frames and neither can shift the other's motion.
+   inkIn declares only `from`, so the resting frame is the cascade's own —
+   which is what lets is-off (the time scrub) and is-dim keep their
+   opacities, and mmtFreshHalo stays clear anyway (it animates .mmt-ddot,
+   the child). */
+@keyframes inkDraw { from { stroke-dashoffset: 1; opacity: 0; } to { stroke-dashoffset: 0; } }
+@keyframes inkIn { from { opacity: 0; } }
+@keyframes inkDot { from { opacity: 0; transform: scale(0.2); } }
+.mmt-edges path.mmt-ink { stroke-dasharray: 1; animation: inkDraw 0.5s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+.mmt-dotnode { animation: inkIn 0.4s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .mmt-edges path.mmt-ink, .mmt-dotnode { animation: none; }
+}
 
 /* territory fields — one soft hue landmass per branch */
 .mmt-field { display: none; }

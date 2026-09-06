@@ -115,8 +115,12 @@ let DuoDomainsImpl;
     const romantic = mode === 'romantic';
     const tint = romantic ? ROMANCE : ACC;
 
+    // serif since 2026-09-06 (§6.3): the question is the app's voice, and the
+    // 09-02 voice reaches the duel prompts last. Balance, not pretty: a duel
+    // prompt is 1-3 lines and centred in its beat, where a ragged last word
+    // reads as a typo.
     const prompt = (s) => (
-      <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 25, lineHeight: 1.12, letterSpacing: -0.5, textWrap: 'pretty' }}>{s}</div>
+      <div style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 27, lineHeight: 1.14, letterSpacing: '-0.01em', textWrap: 'balance' }}>{s}</div>
     );
     const optBtn = (label, onClick, lead) => (
       <button key={label} className="press" onClick={onClick} style={{
