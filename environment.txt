@@ -1,0 +1,5 @@
+google-services.json: PLACEHOLDER (secret empty) — Firebase initialised against a project that does not exist; nothing reaches a backend
+avd: pixel_7 on system-images;android-34;google_apis;x86_64
+android: 14 · sdk_gphone64_x86_64
+process: alive 10s after launch
+drive: failure
