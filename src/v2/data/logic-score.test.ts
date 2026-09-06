@@ -11,7 +11,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   FIELD_MED,
   LKEY,
+  LOGIC_SEM_ITEMS,
   loadResult,
+  logicBandFor,
   logicPctile,
   logicPctileFor,
   logicSecs,
@@ -56,13 +58,29 @@ describe("persistence", () => {
       diffs: [1, 2, 3], pctile: 30, when: 5,
     };
     saveResult(r);
-    expect(loadResult()).toEqual(r);
+    // …plus the likely range a practice result is back-filled with (D394)
+    expect(loadResult()).toEqual({ ...r, band: logicBandFor(2, 3) });
   });
 
   it("back-fills the percentile on a v1 payload (marks + when, nothing else)", () => {
     localStorage.setItem(LKEY, JSON.stringify({ marks: [true, true, false, false], when: 1 }));
     const r = loadResult();
     expect(r?.pctile).toBe(logicPctile(0.5));
+  });
+
+  it("back-fills the likely range on a practice result, never on a verified one (D394)", () => {
+    // a practice result saved before the range existed reads as a fresh
+    // one would…
+    localStorage.setItem(LKEY, JSON.stringify({ v: 2, marks: Array.from({ length: 25 }, (_, i) => i < 13), pctile: 46, when: 1 }));
+    expect(loadResult()?.band).toEqual(logicBandFor(13, 25));
+    // …while a verified result's range is the server's to compute: an old
+    // one has none, and a client-computed one would rest on the curve
+    // where the number may rest on the count
+    localStorage.setItem(LKEY, JSON.stringify({ v: 2, verified: true, marks: [true, false], pctile: 46, when: 1 }));
+    expect(loadResult()?.band).toBeUndefined();
+    // …and a stored range is kept as stored
+    localStorage.setItem(LKEY, JSON.stringify({ v: 2, verified: true, marks: [true], pctile: 50, band: [40, 60], when: 1 }));
+    expect(loadResult()?.band).toEqual([40, 60]);
   });
 
   it("treats corrupt or empty storage as no result", () => {
@@ -102,5 +120,22 @@ describe("logicPctileFor (the 25-item curve — D61)", () => {
   it("legacy lengths keep the 12-item curve — a v1 back-fill must not re-rank", () => {
     expect(logicPctileFor(0.5, 12)).toBe(logicPctile(0.5));
     expect(logicPctileFor(0.5, 4)).toBe(logicPctile(0.5)); // truncated legacy payloads
+  });
+});
+
+describe("logicBandFor (the likely range — D394)", () => {
+  it("reads the curve at the score ± one standard error, clamped to the form", () => {
+    expect(LOGIC_SEM_ITEMS, "the range's width moved — functions/src/logic.ts pins the same constant").toBe(2);
+    expect(logicBandFor(13, 25)).toEqual([logicPctileFor(11 / 25, 25), logicPctileFor(15 / 25, 25)]);
+    // the range straddles the number it qualifies
+    const [lo, hi] = logicBandFor(13, 25);
+    expect(lo).toBeLessThan(logicPctileFor(13 / 25, 25));
+    expect(hi).toBeGreaterThan(logicPctileFor(13 / 25, 25));
+    // at the ceiling the top of the range IS the ceiling: 25 + 2 clamps to 25
+    expect(logicBandFor(25, 25)).toEqual([logicPctileFor(23 / 25, 25), 98]);
+    // at the floor the bottom clamps to 0 of 25
+    expect(logicBandFor(0, 25)).toEqual([1, logicPctileFor(2 / 25, 25)]);
+    // a legacy 12-item result reads through its own curve
+    expect(logicBandFor(6, 12)).toEqual([logicPctile(4 / 12), logicPctile(8 / 12)]);
   });
 });

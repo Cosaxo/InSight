@@ -36,6 +36,13 @@ export interface VerifiedScore {
   marks: boolean[];
   score: number;
   pctile: number;
+  /** the likely range round pctile — the score ± one standard error,
+   *  ranked the same way the score was (D394) */
+  band?: [number, number];
+  /** what the percentile IS: the modelled curve, or a measured rank among
+   *  `n` verified first attempts once the histogram clears the D60 floor */
+  source?: "model" | "measured";
+  n?: number;
   durationMs: number;
   /** disclosed only after scoring — no longer an answer key (D57) */
   seed: number;

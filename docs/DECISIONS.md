@@ -41638,3 +41638,218 @@ under a centred block — fixed with a floor under the words.
 - **A tally for it.** D270's vocabulary is a fixed list on the server,
   and a `walkthrough` key would be a functions change for a number nobody
   has asked for. Not taken.
+
+## D394 · The logic test learns two spatial attributes: orientation and position, ten families for the tail, and a percentile that says how sure it is
+
+**2026-09-06.** **Status:** binding, built · Owner request, made
+directly to a session — *"check if you want to change anything or
+improve anything on the logic test. it should be almost as good as IQ
+test."* Generator v4, a server-side era stamp and effort floor, and one
+clause on the result screen. No rule, no promise and no store form
+moves; the privacy page has nothing to move for.
+
+### What was measured against the ask
+
+A matrices test earns "almost an IQ test" on four things: what its
+items can express, how it separates people at the top, what it claims
+about the number it prints, and whether the population it ranks against
+is a population. Held against those, the v3 instrument (D31 → D61) had
+one structural gap and three cheap ones.
+
+**The gap: the vocabulary had no space in it.** Every v3 cell is a
+shape at the centre with a size, a fill, a ring count or a dot count —
+twenty-eight families over five attributes, and every hard family a
+Latin square over one or two of them. The two attributes matrix tests
+turn on — *where* an element is and *which way* it points — did not
+exist, so neither did the rule kinds only they carry: a rotation, a
+movement, a distribution over places, and figure subtraction over LINE
+elements, which overlap into new gestalts instead of sitting side by
+side (Carpenter's hardest single motif, in the form APM gives it). A
+solver who had learned "each row holds each value once" by item twelve
+met nothing after it that was not that, which is a ceiling, and a
+learnable one.
+
+**The three cheap ones.** A percentile printed alone claims a precision
+a 25-item form does not have. The norms histogram keyed its era on form
+length only, so a generator change of equal length would have poured
+scores earned on one vocabulary into a population earned on another —
+the D61 mixing argument one axis over. And the "first attempt counts"
+rule (D32) counted a click-through: twenty-five taps in twenty seconds
+folded in as a phantom low scorer, lifting every later percentile.
+
+### What ships
+
+**Generator v4** (`src/v2/data/logic-gen.ts`, byte-identical in
+`functions/`, `check:logic-sync`). Two new layers in the glyph
+vocabulary: a **bar** (`s: "b"`, `r` ∈ 0..3, a short line through the
+centre at 0°, 45°, 90° or 135°) and a **mark** (`s: "m"`, `p` ∈ 0..7, a
+small solid dot in the cell's margin at one of eight places clockwise
+from the top). Both wrap, which is what makes "turn 45° a column" and
+"move two places clockwise" rules rather than lists, and what lets every
+progression complete from two visible cells (2·b − a) the way a size
+ramp does. **Ten families** over them, joining the bands from 2.5 up:
+
+| Weight | Family | The rule |
+| --- | --- | --- |
+| 2.5 | `barRotate` | a bar inside a fixed base turns 45° per column; rows start at three distinct orientations |
+| 3 | `markOrbit` | a mark moves one, two or three places round the cell per column, either way; rows start at distinct places |
+| 3 | `latinPos` | distribution of three over PLACE — three places, each once per row and column |
+| 3.5 | `barLatin` | distribution of three over ORIENTATION, a fixed base per row — ringLatin's low-salience twin |
+| 4 | `barXor3` | three bar orientations as elements; column 2 holds each bar in exactly one of columns 0 and 1 — line subtraction, the operands fusing into crosses and stars |
+| 4 | `orbitShapeLatin` | a mark orbits while the base shape cycles a Latin square |
+| 4 | `markOrbitGrow` | two progressions at once: the base grows across while its mark moves round |
+| 4.5 | `posLatinBarLatin` | place and orientation each form a Latin square on opposite diagonals — a Graeco-Latin pair, so neither reads off the other |
+| 4.5 | `orbitXor` | two elements under two laws: the mark orbits while the dots follow row-wise XOR (dist2Xor's shape) |
+| 4.5 | `barXorLatin` | three-element line subtraction over a Latin base |
+
+Thirty-eight families; the ramp, the weights and the slot counts are
+D61's untouched, so `logicPctileFor`'s calibration stands. Band draws
+now yield 2·2·24·24·360·120·1680·210 ≈ **3.5 × 10¹³** family sequences
+(v3: 9.6 × 10⁸). Bars sit only inside the circle, square and diamond (a
+triangle's lower half is too narrow for one), and every start is drawn
+distinct per row, so no two rows read alike and the rotation reading is
+the only consistent one — the direction ambiguity a rotation could
+carry is arithmetic: two turns of ±45° land on one orientation, and an
+orbit's way round is read off the first two columns.
+
+**The sweep held, and it was widened first.** Each family got a
+completion predicate in the D53 shape — the rule plus the grid's exact
+vocabulary, so a bar where no visible cell put one, or a base of another
+fill, is a glyph the grid never taught — and a semantic validator that
+re-derives the rule from the cells. Run at the D53 size on demand
+(`LOGIC_SWEEP_SEEDS=5000`): **125,000 items, 625,000 options, zero
+ambiguous, zero answer failures**, ~0.5 ms per form. Two things the old
+suite could not see were added because v4 made them possible: options
+are now held pairwise distinct as **pictures**, not just as canons (two
+bars at one orientation draw as one, bar order never shows), and
+`perturb` keeps both invariants when it corrupts a v4 cell. The
+5,000-seed run also found a v3 defect the 200-seed CI sweep had never
+reached: **a form can repeat a grid**, because two families construct
+the same nine cells when their streams happen to draw the same base,
+element and holes. Measured at v3 over 5,000 seeds: three such forms —
+dist2 with dist2Xor twice, overlayXor with dist2Xor once (a dist2Xor
+whose XOR rows all hold two dot cells IS a dist2 pattern, and the two
+draw their parameters from the same first calls on the stream). From
+v4 a colliding item re-draws from a salted stream until its grid is
+new to the form (one v4 form in 5,000 needed it; zero repeats after);
+v3's constructions stay frozen, collisions included, because a saved
+seed must rebuild what it was earned on (D31).
+
+**Reconstruction, every era.** `generateForm(seed, 1|2|3)` reproduce
+their frozen generators unchanged — the v3 goldens and the v3 pool pins
+now sit beside v4's, so a v3 seed keeps drawing from v3's pools forever
+— and a v4 golden block pins seed 17 down to every visible cell and the
+full option order, with seeds 1 and 50 reaching the families 17 does
+not; between the three every v4 family is pinned. An unknown gv still
+throws.
+
+**The server** (`functions/src/logic.ts`). The norms era is now
+`{items, gv}`: a histogram or a difficulty ledger from another generator
+version ranks nothing and folds nothing, and the first v4 submit starts
+both fresh — the D61 argument, applied to the axis D61 could not see. An
+attempt opened under v3 and submitted after this deploys is scored
+against its own form and its own curve and folds nowhere; before this
+record it would have been folded into the live histogram AND marked the
+account counted, and a 12-item attempt straddling D61's deploy was
+marked counted without ever folding — that unconditional `normsCounted:
+true` is fixed in the same transaction. **The effort floor**:
+`LOGIC_MIN_MS_PER_ITEM = 2000`. An attempt finished faster than two
+seconds an item (50 s for the form) is scored, written and cooled down
+like any other, and never counted; its account's flag stays unset, so
+its next verified attempt is still its first counted one. Twenty-five
+matrices cannot be read in that time, let alone solved, so nothing a
+person did is lost — only the phantom.
+
+**The likely range.** The result reads *Sharper than 90% of players
+(likely 82–94)* for 20 of 25: the score ± `LOGIC_SEM_ITEMS` (2) read through
+whatever ranked the number — the curve while the reading is the
+model's, the count once it is measured — so the range and the number
+always rest on the same thing. Spearman–Brown puts a 25-item form's
+reliability near 0.87 (D61's projection), which with the modelled
+raw-score spread is ≈ 1.8 items, rounded up; the constant is pinned
+equal in both suites. The server computes it for verified results and
+writes it beside the percentile (`testResults.logic.band`); the client
+computes it for practice results and back-fills old ones, and never
+invents one for a verified result the server did not send. The clause
+is omitted where the range collapses to a point (the clamps), where it
+would say nothing the number did not. This is the qualifier that names
+a limit (`docs/COPY.md` §3), not a word count: a percentile without it
+is a claim to precision the instrument does not have, which is the
+fabrication D1 forbids wearing fewer words.
+
+### What deliberately did not change, with the arithmetic
+
+- **The curve, the ramp, twenty-five items, the 90 s cap.** D56's
+  condition still holds: raising the honest ceiling needs harder items
+  AND measured norms, and this record supplies the first half only. The
+  modelled 98 stays; the measured flip (D60) supersedes it at n = 100
+  regardless.
+- **Six options, not eight.** APM uses eight; the gain here is small.
+  A solver who cannot solve an item guesses at 1/6 against 1/8: on the
+  twelve items a median solver misses, the guessing noise has SD 1.3
+  raw points against 1.15 — the score's standard error moves from ≈ 2.0
+  to ≈ 1.9 items — for a fourth answer column that takes every tile
+  from 80 px to 58 px on the 258 px board. Recorded as not worth the
+  tiles.
+- **No IQ-scale number.** A deviation IQ is a transform of the
+  percentile (100 + 15·Φ⁻¹), so it would be exactly as honest as the
+  percentile — and read as a claim to a norm study, which is the claim
+  D53 refused for the ceiling and D57 refused for "verified". The
+  percentile carries the same information with its basis stated; an IQ
+  number is one more sentence the owner can ask for once the histogram
+  is a measurement, and it is a display decision, not an instrument one.
+- **A worked example before item 1** — the one administration step
+  matrix tests take that this overlay does not. It is a new screen, so
+  under D352 it is a design request, not a build: `VISUAL-REQUESTS.md`
+  §8. The w1 items double as the instruction meanwhile, which is why
+  they are there.
+- **Reading D62's difficulty ledger.** Nothing reads
+  `v2_logic_norms/families` yet; recalibrating the band weights and
+  drawing the Answers lens from real solve rates stay data-gated
+  decisions of their own, now with ten more rows to fill.
+- **A per-band time cap** stays not done (D61's reason).
+
+### Verification
+
+`logic-gen.test.ts` — 67 cases: the pooled template pinned for v3 and
+v4 separately, renderability for the two layers, ten validators, ten
+predicates, the picture-level distinctness, the v4 goldens, and the
+D53 sweep at 200 seeds in CI (5,000 on demand, as above).
+`logic-score.test.ts` pins the range's arithmetic, its clamps and the
+back-fill rule; `logic-overlay.test.jsx` drives the clause onto the
+screen for a practice result, prints the server's range for a measured
+one, and proves the client invents none when a server sends none.
+Functions: `rankAndFold` is pinned for a same-length histogram of
+another gv, for a v3 attempt straddling the deploy, for the effort floor
+at, above and below the line, and for the band on both the curve and
+the count; `logic-submit.test.ts` drives a click-through and a real
+sitting through the callable and reads the histogram, the flag and the
+stamps back. `check:logic-sync`, `check:globals` (coupling unchanged at
+its baseline), `check:figures`, `check:bundle`, `check:eager-content`,
+`check:data-inventory`, `check:policy-claims`, lint, `tsc -b`, the full
+client suite (2,770), the functions suite (716) and `test:scripts`
+(954) green. The overlay's lazy chunk grows from 29.6 KB to 35.5 KB
+(10.9 KB gzipped) and the eager graph does not move — the generator is
+reached past first paint, which is the D25 shape. Rendering checked by eye at 1.5× on a Chromium
+screenshot of one item per family: bars read inside every base, marks
+read in the margin, and the fused bars read as crosses and stars.
+
+### Accepted limits, recorded
+
+- The band weights of the ten families are Carpenter priors like every
+  weight before them; D62's ledger is where they get corrected, and
+  this record resets that ledger's era along with the histogram's.
+  The histogram was young enough that the reset costs nothing today;
+  the next version bump will not be, and should carry the same
+  sentence with its own n.
+- The effort floor reads the server-observed duration, so a sitting
+  paused by the app being killed and restarted within the deadline is
+  still one duration; the floor is set where no honest sitting can be,
+  not where a fast one might.
+- The range is ±1 SEM (≈ 68%), stated as *likely*; WAIS prints 95%.
+  Wider would be more conservative and less legible on a phone line;
+  the word is chosen to match the width.
+- `barXor3`'s third element is a diagonal bar, which with the
+  horizontal and the vertical makes a six-armed figure that is not
+  symmetric; it is legible and it is deliberate — the fourth
+  orientation is held back so a stray one can never alias an element.

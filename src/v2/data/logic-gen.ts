@@ -5,7 +5,8 @@
 // the same order with the same option positions on every attempt, so one
 // memorized (or shared) key beat it permanently. This module replaces the
 // bank with a generator: each attempt draws a fresh form from a seed —
-// 25 items since v3 (D61); 12 in the frozen v1/v2 paths — with fresh
+// 25 items since v3 (D61), over a wider vocabulary since v4 (D394); 12 in
+// the frozen v1/v2 paths — with fresh
 // shapes, directions, rule parameters and shuffled option positions. What
 // ships is the rule machinery, not an answer key. (Any client-side test is
 // inspectable by a determined user; what this closes is memorization and
@@ -34,10 +35,15 @@
 // knows that item 3 is a shape cycle, only that it carries weight 1.5.
 // v3 (D61) lengthens the ramp to 25 slots and extends it upward with two
 // new bands: weight-4 two-rule compositions and a weight-4.5 tail of
-// triple-rule and dual-law items, Carpenter's hardest classes. Every
-// retired plan stays generable: generateForm(seed, 1|2) reproduces those
-// eras' forms exactly, because a saved result's seed+gv must reconstruct
-// its form forever (D31).
+// triple-rule and dual-law items, Carpenter's hardest classes. v4 (D394)
+// keeps that ramp and widens what a cell can say: a bar with an
+// orientation and a mark with a place — the two spatial attributes matrix
+// tests turn on and this vocabulary never had — and ten families over
+// them join the bands from 2.5 up, so a solver who has learned "each
+// row holds each value once" still meets rules that are not that. Every
+// retired plan stays generable: generateForm(seed, 1|2|3) reproduces
+// those eras' forms exactly, because a saved result's seed+gv must
+// reconstruct its form forever (D31).
 //
 // Everything here is pure and deterministic per seed — vitest covers
 // determinism, option-key integrity, distractor uniqueness, renderability,
@@ -57,10 +63,17 @@
 export type Shape = "c" | "q" | "d" | "t";
 export type Fill = "n" | "s";
 export interface Layer {
-  s: Shape | ".";
+  /** a shape; "." a dot cluster; "b" a bar and "m" a mark (v4, D394) */
+  s: Shape | "." | "b" | "m";
   z?: number;
   f?: Fill;
   n?: number;
+  /** bar orientation in 45° steps — 0 —, 1 /, 2 |, 3 \. A bar is
+   *  undirected, so orientation is arithmetic mod 4 (v4) */
+  r?: number;
+  /** mark position: one of eight places in the cell's margin, clockwise
+   *  from the top — 0 top · 2 right · 4 bottom · 6 left (v4) */
+  p?: number;
 }
 export type Cell = Layer[];
 export interface Item {
@@ -82,6 +95,44 @@ const RING_INNER = 1.4; // the ring motif's solid core, verbatim from ring()
 
 const L = (s: Shape, z: number, f: Fill): Layer => ({ s, z, f });
 const D = (n: number): Layer => ({ s: ".", n });
+// v4's two spatial layers (D394). A bar is a short line through the
+// centre of the cell at one of four orientations; a mark is a small solid
+// dot in the cell's margin at one of eight places. Both wrap, which is
+// what lets "turn 45° each column" and "move two places clockwise" be
+// rules rather than lists.
+const ORIENTATIONS = 4;
+const POSITIONS = 8;
+const B = (r: number): Layer => ({ s: "b", r: ((r % ORIENTATIONS) + ORIENTATIONS) % ORIENTATIONS });
+const M = (p: number): Layer => ({ s: "m", p: ((p % POSITIONS) + POSITIONS) % POSITIONS });
+// The bases a bar can sit inside: a bar of half-length 15 fits the z3
+// circle, square and diamond; a triangle's lower half is too narrow.
+const BAR_BASES: Shape[] = ["c", "q", "d"];
+// The three line elements of the bar-subtraction families, as bits:
+// 1 = — (orientation 0), 2 = | (orientation 2), 4 = / (orientation 1).
+// Emitted in ascending orientation so a picture has ONE canon — perturb()
+// keeps that order too, because two options that draw alike would be an
+// ambiguity the sweep cannot see.
+const barsOf = (m: number): Layer[] => {
+  const out: Layer[] = [];
+  if (m & 1) out.push(B(0));
+  if (m & 4) out.push(B(1));
+  if (m & 2) out.push(B(2));
+  return out;
+};
+const sortBars = (cell: Cell): void => {
+  const idx = cell.map((l, i) => (l.s === "b" ? i : -1)).filter((i) => i >= 0);
+  const sorted = idx.map((i) => cell[i]).sort((a, b) => (a.r as number) - (b.r as number));
+  idx.forEach((i, k) => { cell[i] = sorted[k]; });
+};
+// Operand pairs whose XOR the grid can pin: the two masks overlap AND each
+// holds an element the other lacks, so on that row XOR differs from union,
+// intersection and both one-sided differences at once. Over three
+// elements that is every ordered pair of distinct members of {3, 5, 6}.
+const XOR3_PINS: [number, number][] = [[3, 6], [6, 3], [3, 5], [5, 3], [5, 6], [6, 5]];
+// …and every ordered pair of distinct masks, for the row the pin does not
+// constrain (the XOR is nonempty by construction).
+const XOR3_PAIRS: [number, number][] = [];
+for (let s0 = 0; s0 < 8; s0++) for (let s1 = 0; s1 < 8; s1++) if (s0 !== s1) XOR3_PAIRS.push([s0, s1]);
 
 // ── seeded PRNG ──
 // mulberry32, same construction the spec layer already uses for its demo
@@ -121,7 +172,11 @@ const rotate = <T,>(arr: T[], by: number): T[] =>
 // on top, so reordering can change the picture) and only the fields Prim
 // reads participate.
 export const canon = (cell: Cell): string =>
-  JSON.stringify(cell.map((l) => (l.s === "." ? [".", l.n] : [l.s, l.z, l.f])));
+  JSON.stringify(
+    cell.map((l) =>
+      l.s === "." ? [".", l.n] : l.s === "b" ? ["b", l.r] : l.s === "m" ? ["m", l.p] : [l.s, l.z, l.f],
+    ),
+  );
 
 // ── rule families ──
 // Each returns the full 9-cell construction (row-major; index 8 is the
@@ -808,6 +863,281 @@ const FAMILIES: Record<string, Family> = {
       ],
     };
   },
+
+  // ── families added with v4 (D394): orientation and position ──
+  // Two attributes the vocabulary never had — where a bar points, where a
+  // mark sits — and the rule kinds only they can carry: a rotation, an
+  // orbit, a distribution over places, and figure subtraction over LINE
+  // elements, which overlap into crosses and stars instead of sitting
+  // side by side. Both attributes are arithmetic (mod 4, mod 8), so a
+  // progression completes from two visible cells (2·b − a) the way a size
+  // ramp does, and no direction ambiguity can arise: two turns of ±45°
+  // land on one orientation, and an orbit's way round is read off the
+  // first two columns. Every start is drawn distinct per row, so no two
+  // rows read alike and the only consistent reading is the rule.
+
+  // a bar inside a fixed base turns 45° per column; each row starts at
+  // its own orientation
+  barRotate(rng) {
+    const rows = shuffled(rng, BAR_BASES);
+    const step = rng() < 0.5 ? 1 : -1;
+    const start = shuffled(rng, [0, 1, 2, 3]).slice(0, 3);
+    const cells9 = grid((r, c) => [L(rows[r], 3, "n"), B(start[r] + c * step)]);
+    const base = L(rows[2], 3, "n");
+    const ans = B(start[2] + 2 * step);
+    return {
+      cells9,
+      mutants: [
+        [base, B(start[2] + step)], // one turn short
+        [base, B(start[2] + 3 * step)], // one turn over
+        [base, B(start[2])], // no turn at all
+        [L(rows[0], 3, "n"), ans], // right bar, wrong row's base
+        [L(rows[1], 3, "n"), ans],
+      ],
+    };
+  },
+
+  // a mark in the margin of a fixed base moves a fixed number of places
+  // round the cell per column — one, two or three, either way — and each
+  // row starts at its own place
+  markOrbit(rng) {
+    const rows = pick3(rng);
+    const step = (1 + pickIdx(rng, 3)) * (rng() < 0.5 ? 1 : -1);
+    const start = shuffled(rng, [0, 1, 2, 3, 4, 5, 6, 7]).slice(0, 3);
+    const cells9 = grid((r, c) => [L(rows[r], 3, "n"), M(start[r] + c * step)]);
+    const base = L(rows[2], 3, "n");
+    const ans = M(start[2] + 2 * step);
+    return {
+      cells9,
+      mutants: [
+        [base, M(start[2] + step)], // one move short
+        [base, M(start[2] + 3 * step)], // one move over
+        [base, M(start[2] - 2 * step)], // the other way round (dedups when ±2 steps coincide)
+        [base, M(start[2])], // no move
+        [L(rows[0], 3, "n"), ans], // right place, wrong row's base
+        [base], // the mark forgotten
+      ],
+    };
+  },
+
+  // distribution of three over PLACE: a mark sits at one of three places
+  // round a fixed base, each place once per row and once per column
+  latinPos(rng) {
+    const base = SHAPES[pickIdx(rng, 4)];
+    const trio = shuffled(rng, [0, 1, 2, 3, 4, 5, 6, 7]).slice(0, 3);
+    const dir = rng() < 0.5 ? 1 : 2;
+    const at = (p: number): Cell => [L(base, 3, "n"), M(p)];
+    const cells9 = grid((r, c) => at(trio[(r + dir * c) % 3]));
+    const pRight = trio[(2 + dir * 2) % 3];
+    const wrong = trio.filter((p) => p !== pRight);
+    // the nearest place the grid never used — three of eight are taken,
+    // so one of these is always free
+    const near = [1, -1, 2, -2, 3, -3, 4].map((d) => M(pRight + d).p as number).find((p) => !trio.includes(p)) as number;
+    return {
+      cells9,
+      mutants: [
+        at(wrong[0]), // a place this row or column already holds
+        at(wrong[1]),
+        at(near), // a place the grid never taught
+        [L(base, 3, "n")], // the mark forgotten
+        [L(base, 3, "s"), M(pRight)], // right place, base filled in
+      ],
+    };
+  },
+
+  // distribution of three over ORIENTATION: a bar inside a fixed-per-row
+  // base takes three of the four orientations, each once per row and once
+  // per column — ringLatin's low-salience twin
+  barLatin(rng) {
+    const rows = shuffled(rng, BAR_BASES);
+    const trio = shuffled(rng, [0, 1, 2, 3]).slice(0, 3);
+    const dir = rng() < 0.5 ? 1 : 2;
+    const cells9 = grid((r, c) => [L(rows[r], 3, "n"), B(trio[(r + dir * c) % 3])]);
+    const base = L(rows[2], 3, "n");
+    const rRight = trio[(2 + dir * 2) % 3];
+    const wrong = trio.filter((r) => r !== rRight);
+    const unseen = [0, 1, 2, 3].find((r) => !trio.includes(r)) as number;
+    return {
+      cells9,
+      mutants: [
+        [base, B(wrong[0])], // an orientation this row or column already holds
+        [base, B(wrong[1])],
+        [base, B(unseen)], // the fourth orientation, never in the grid
+        [L(rows[0], 3, "n"), B(rRight)], // right bar, wrong row's base
+        [base], // the bar forgotten
+      ],
+    };
+  },
+
+  // figure subtraction over LINES: three bar orientations are the
+  // elements, and column 2 holds each bar present in exactly one of
+  // columns 0 and 1. Overlapping bars fuse into crosses and stars, so the
+  // operands are gestalts rather than a checklist — Carpenter's hardest
+  // single motif in the form it usually takes.
+  barXor3(rng) {
+    const base = BAR_BASES[pickIdx(rng, 3)];
+    const cellOf = (m: number): Cell => [L(base, 3, "n"), ...barsOf(m)];
+    // Pin pairs: operands that overlap AND each hold a bar the other
+    // lacks. On such a row XOR differs from union, intersection and both
+    // one-sided differences at once, so the grid refutes every rival
+    // reading by itself. Rows 0 and 2 both draw pins (distinct), so the
+    // corruptions below are always wrong answers, never ambiguous ones.
+    const rowPin = XOR3_PINS[pickIdx(rng, XOR3_PINS.length)];
+    const ansPool = XOR3_PINS.filter((p) => p !== rowPin);
+    const rowAns = ansPool[pickIdx(rng, ansPool.length)];
+    const mid = shuffled(rng, XOR3_PAIRS).find(
+      (p) => (p[0] !== rowPin[0] || p[1] !== rowPin[1]) && (p[0] !== rowAns[0] || p[1] !== rowAns[1]),
+    ) as [number, number];
+    const S = [rowPin, mid, rowAns];
+    const cells9 = grid((r, c) => cellOf(c === 0 ? S[r][0] : c === 1 ? S[r][1] : S[r][0] ^ S[r][1]));
+    const [a, b] = rowAns;
+    return {
+      cells9,
+      mutants: [
+        cellOf(a | b), // union — the shared bar kept
+        cellOf(a & b), // intersection — only the shared bar
+        cellOf(a & ~b), // one-sided difference
+        cellOf(b & ~a),
+        cellOf(0), // the base alone
+      ],
+    };
+  },
+
+  // a mark orbits while the base shape cycles a Latin square — a
+  // progression on one layer over a distribution on the other
+  orbitShapeLatin(rng) {
+    const shapes = pick3(rng);
+    const dir = rng() < 0.5 ? 1 : 2;
+    const step = (1 + pickIdx(rng, 3)) * (rng() < 0.5 ? 1 : -1);
+    const start = shuffled(rng, [0, 1, 2, 3, 4, 5, 6, 7]).slice(0, 3);
+    const cells9 = grid((r, c) => [L(shapes[(r + dir * c) % 3], 3, "n"), M(start[r] + c * step)]);
+    const sRight = shapes[(2 + dir * 2) % 3];
+    const sWrong = shapes.filter((s) => s !== sRight);
+    const ans = M(start[2] + 2 * step);
+    return {
+      cells9,
+      mutants: [
+        [L(sRight, 3, "n"), M(start[2] + step)], // right shape, one move short
+        [L(sRight, 3, "n"), M(start[2] + 3 * step)], // one move over
+        [L(sWrong[0], 3, "n"), ans], // right place, wrong shape
+        [L(sWrong[1], 3, "n"), ans],
+        [L(sRight, 3, "n")], // the mark forgotten
+      ],
+    };
+  },
+
+  // two progressions at once: the base grows across the columns while its
+  // mark moves round the cell — a fixed shape per row
+  markOrbitGrow(rng) {
+    const rows = pick3(rng);
+    const asc = rng() < 0.5;
+    const step = (1 + pickIdx(rng, 3)) * (rng() < 0.5 ? 1 : -1);
+    const start = shuffled(rng, [0, 1, 2, 3, 4, 5, 6, 7]).slice(0, 3);
+    const zAt = (c: number) => SIZE[asc ? c : 2 - c];
+    const cells9 = grid((r, c) => [L(rows[r], zAt(c), "n"), M(start[r] + c * step)]);
+    const s = rows[2];
+    const zEnd = zAt(2);
+    const ans = M(start[2] + 2 * step);
+    return {
+      cells9,
+      mutants: [
+        [L(s, zEnd, "n"), M(start[2] + step)], // right size, one move short
+        [L(s, zEnd, "n"), M(start[2] + 3 * step)],
+        [L(s, zAt(1), "n"), ans], // right place, size one step short
+        [L(rows[0], zEnd, "n"), ans], // wrong row's shape
+        [L(s, zEnd, "n")], // the mark forgotten
+      ],
+    };
+  },
+
+  // double distribution over the two new attributes: the mark's place and
+  // the bar's orientation each form a Latin square, on opposite diagonals,
+  // round one fixed base
+  posLatinBarLatin(rng) {
+    const base = BAR_BASES[pickIdx(rng, 3)];
+    const pTrio = shuffled(rng, [0, 1, 2, 3, 4, 5, 6, 7]).slice(0, 3);
+    const rTrio = shuffled(rng, [0, 1, 2, 3]).slice(0, 3);
+    const dirP = rng() < 0.5 ? 1 : 2;
+    const dirR = 3 - dirP;
+    const at = (p: number, r: number): Cell => [L(base, 3, "n"), B(r), M(p)];
+    const cells9 = grid((r, c) => at(pTrio[(r + dirP * c) % 3], rTrio[(r + dirR * c) % 3]));
+    const pRight = pTrio[(2 + dirP * 2) % 3];
+    const rRight = rTrio[(2 + dirR * 2) % 3];
+    const pWrong = pTrio.filter((p) => p !== pRight);
+    const rWrong = rTrio.filter((r) => r !== rRight);
+    return {
+      cells9,
+      mutants: [
+        at(pWrong[0], rRight), // right bar, a place already used
+        at(pWrong[1], rRight),
+        at(pRight, rWrong[0]), // right place, an orientation already used
+        at(pRight, rWrong[1]),
+        [L(base, 3, "n"), B(rRight)], // the mark forgotten
+      ],
+    };
+  },
+
+  // two elements under two laws: the mark orbits (a progression) while
+  // the dots follow row-wise XOR — dist2Xor's shape over the new
+  // attribute, so neither law can be read off the other
+  orbitXor(rng) {
+    const base = SHAPES[pickIdx(rng, 4)];
+    const step = (1 + pickIdx(rng, 3)) * (rng() < 0.5 ? 1 : -1);
+    const start = shuffled(rng, [0, 1, 2, 3, 4, 5, 6, 7]).slice(0, 3);
+    // row 0 is (1,1): both operands hold dots and the result does not —
+    // the pin against a union reading, as in dist2Xor
+    const pairs: [number, number][] = [[1, 0], [0, 1], [1, 1], [0, 0]];
+    const S: [number, number][] = [[1, 1], pairs[pickIdx(rng, 4)], pairs[pickIdx(rng, 4)]];
+    const bAt = (r: number, c: number) => (c === 0 ? S[r][0] : c === 1 ? S[r][1] : S[r][0] ^ S[r][1]);
+    const build = (p: number, b: boolean): Cell => {
+      const out: Cell = [L(base, 3, "n"), M(p)];
+      if (b) out.push(D(2));
+      return out;
+    };
+    const cells9 = grid((r, c) => build(start[r] + c * step, bAt(r, c) === 1));
+    const pAns = start[2] + 2 * step;
+    const hasB = bAt(2, 2) === 1;
+    return {
+      cells9,
+      mutants: [
+        build(start[2] + step, hasB), // one move short
+        build(start[2] + 3 * step, hasB), // one move over
+        build(pAns, !hasB), // the dots' parity flipped
+        build(start[2] - 2 * step, hasB), // the other way round
+        build(start[2] + step, !hasB), // both wrong
+      ],
+    };
+  },
+
+  // three-element line subtraction over a Latin base — barXor3 plus a
+  // third rule, xorLatin's shape
+  barXorLatin(rng) {
+    const bases = shuffled(rng, BAR_BASES);
+    const dirB = rng() < 0.5 ? 1 : 2;
+    const rowPin = XOR3_PINS[pickIdx(rng, XOR3_PINS.length)];
+    const ansPool = XOR3_PINS.filter((p) => p !== rowPin);
+    const rowAns = ansPool[pickIdx(rng, ansPool.length)];
+    const mid = shuffled(rng, XOR3_PAIRS).find(
+      (p) => (p[0] !== rowPin[0] || p[1] !== rowPin[1]) && (p[0] !== rowAns[0] || p[1] !== rowAns[1]),
+    ) as [number, number];
+    const S = [rowPin, mid, rowAns];
+    const maskAt = (r: number, c: number) => (c === 0 ? S[r][0] : c === 1 ? S[r][1] : S[r][0] ^ S[r][1]);
+    const cells9 = grid((r, c) => [L(bases[(r + dirB * c) % 3], 3, "n"), ...barsOf(maskAt(r, c))]);
+    const bRight = bases[(2 + dirB * 2) % 3];
+    const bWrong = bases.filter((s) => s !== bRight);
+    const [a, b] = rowAns;
+    const withBase = (base: Shape, m: number): Cell => [L(base, 3, "n"), ...barsOf(m)];
+    return {
+      cells9,
+      mutants: [
+        withBase(bRight, a | b), // union, not difference
+        withBase(bRight, a & b), // intersection
+        withBase(bWrong[0], a ^ b), // right bars, wrong base
+        withBase(bWrong[1], a ^ b),
+        withBase(bRight, a & ~b), // one-sided difference
+      ],
+    };
+  },
 };
 
 // ── the ramp template ──
@@ -906,26 +1236,102 @@ function planV3(seed: number): { family: string; diff: number }[] {
   return out;
 }
 
+// v4 (D394): the same 25-slot ramp and the same weights — the calibration
+// D61's curve rests on — with the two attributes the vocabulary never had
+// (orientation, position) and the rule kinds only they carry joining every
+// band from 2.5 up: a turn, an orbit, distributions over place and
+// orientation, and figure subtraction over line elements. Band salts are
+// v4-distinct (0xd400+), so a v3 seed's draws can never move.
+const BANDS_V4: { diff: number; slots: number; pool: string[] }[] = [
+  { diff: 1, slots: 2, pool: ["sizeRamp", "dotCount"] },
+  { diff: 1.5, slots: 2, pool: ["shapeCycle", "sizeCycle"] },
+  { diff: 2, slots: 3, pool: ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"] },
+  { diff: 2.5, slots: 3, pool: ["overlay", "outerRowInnerCycle", "innerGrow", "barRotate"] },
+  { diff: 3, slots: 4, pool: ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots", "markOrbit", "latinPos"] },
+  { diff: 3.5, slots: 4, pool: ["decompose", "dist2", "overlayXor", "ringLatin", "barLatin"] },
+  {
+    diff: 4,
+    slots: 4,
+    pool: [
+      "latinShapeSizeFill", "outerLatinInnerLatin", "ringGrowFill", "innerGrowCycle", "fillRampShapeCycle",
+      "barXor3", "orbitShapeLatin", "markOrbitGrow",
+    ],
+  },
+  {
+    diff: 4.5,
+    slots: 3,
+    pool: ["dist2Latin", "xorLatin", "ringLatinShape", "dist2Xor", "posLatinBarLatin", "orbitXor", "barXorLatin"],
+  },
+];
+
+function planV4(seed: number): { family: string; diff: number }[] {
+  const out: { family: string; diff: number }[] = [];
+  BANDS_V4.forEach((band, b) => {
+    const rng = mulberry32(mixSeed(seed, 0xd400 + b));
+    for (const family of shuffled(rng, band.pool).slice(0, band.slots)) {
+      out.push({ family, diff: band.diff });
+    }
+  });
+  return out;
+}
+
 const planAt = (seed: number, gv: number): { family: string; diff: number }[] => {
   if (gv === 1) return TEMPLATE_V1.map((slot, i) => ({ family: familyAtV1(seed, i), diff: slot.diff }));
   if (gv === 2) return planV2(seed);
   if (gv === 3) return planV3(seed);
+  if (gv === 4) return planV4(seed);
   // An unknown version must fail loudly: silently reinterpreting a seed is
   // the exact failure mode the gv field exists to prevent (D31).
   throw new Error(`logic-gen: unknown generator version ${gv}`);
 };
 
+// ── construction, per form ──
+// Every item's cells come from its own family stream (salt i + 1), so an
+// option-side change can never move a puzzle. Since v4 (D394) a form also
+// never repeats a grid: two families can construct the same nine cells
+// when their streams happen to draw the same base, element and holes —
+// dist2 and dist2Xor, dist2 and overlayXor, dist2Latin and xorLatin all
+// can, and a 5,000-seed sweep found one such form at v3 — and a repeat
+// hands the solver a puzzle they have just seen. A colliding item
+// re-draws from a salted stream until its grid is new to the form; v1–v3
+// keep their frozen constructions, collisions included.
+type Built = { family: string; cells9: Cell[]; mutants: Cell[] };
+const gridKey = (cells9: Cell[]) => cells9.map(canon).join("|");
+function buildAll(seed: number, gv: number): Built[] {
+  const seen = new Set<string>();
+  return planAt(seed, gv).map((slot, i) => {
+    const family = slot.family;
+    let built = FAMILIES[family](mulberry32(mixSeed(seed, i + 1)));
+    if (gv >= 4) {
+      for (let attempt = 1; seen.has(gridKey(built.cells9)); attempt++) {
+        // 0x4000 + (i << 6) + attempt stays clear of every other salt
+        if (attempt > 32) throw new Error("logic-gen: construction space exhausted");
+        built = FAMILIES[family](mulberry32(mixSeed(seed, 0x4000 + (i << 6) + attempt)));
+      }
+      seen.add(gridKey(built.cells9));
+    }
+    return { family, ...built };
+  });
+}
+// One-entry memo: generateForm asks for a form's items in order, and so
+// does the test suite — a repeated (seed, gv) costs nothing, a new one
+// rebuilds the form's constructions once.
+let memoKey = "";
+let memo: Built[] = [];
+const builtFor = (seed: number, gv: number): Built[] => {
+  const k = `${seed}:${gv}`;
+  if (k !== memoKey) {
+    memo = buildAll(seed, gv);
+    memoKey = k;
+  }
+  return memo;
+};
+
 // Construction cells for one item, family stream only — the test suite's
 // entrance for verifying the answer and the family semantics without
 // replaying option draws.
-export function buildCells9(
-  seed: number,
-  i: number,
-  gv: number = version,
-): { family: string; cells9: Cell[]; mutants: Cell[] } {
-  const family = planAt(seed, gv)[i].family;
-  const rng = mulberry32(mixSeed(seed, i + 1));
-  return { family, ...FAMILIES[family](rng) };
+export function buildCells9(seed: number, i: number, gv: number = version): Built {
+  return builtFor(seed >>> 0, gv)[i];
 }
 
 // A generic corruption of the answer: one legal attribute flipped on one
@@ -941,9 +1347,31 @@ function perturb(answer: Cell, rng: Rng): Cell {
     l.n = others[pickIdx(rng, others.length)];
     return cell;
   }
+  // v4 layers. A bar or mark moves to a place this cell does not already
+  // show: two bars at one orientation draw as one, and an option that
+  // LOOKS like another is the ambiguity the sweep cannot see. Neither
+  // branch runs for a v1–v3 cell, so those eras' draws are untouched.
+  if (l.s === "b") {
+    const used = new Set(cell.filter((x) => x.s === "b").map((x) => x.r));
+    const free = [0, 1, 2, 3].filter((v) => !used.has(v)); // never empty: three bars at most
+    l.r = free[pickIdx(rng, free.length)];
+    sortBars(cell);
+    return cell;
+  }
+  if (l.s === "m") {
+    const used = new Set(cell.filter((x) => x.s === "m").map((x) => x.p));
+    const free = [0, 1, 2, 3, 4, 5, 6, 7].filter((v) => !used.has(v));
+    l.p = free[pickIdx(rng, free.length)];
+    return cell;
+  }
   const which = rng();
-  if (which < 0.45) {
-    l.s = SHAPES.filter((s) => s !== l.s)[pickIdx(rng, 3)];
+  const barred = cell.some((x) => x.s === "b");
+  if (which < 0.45 || barred) {
+    // A bar's base only ever changes shape, and only to another bar base:
+    // solid ink would hide the bars, a smaller base cannot hold one, and a
+    // triangle's lower half is too narrow.
+    const pool = barred ? BAR_BASES : SHAPES;
+    l.s = pool.filter((s) => s !== l.s)[pickIdx(rng, pool.length - 1)];
   } else if (which < 0.7 && SIZE.includes(l.z as number)) {
     l.z = SIZE.filter((z) => z !== l.z)[pickIdx(rng, 2)];
   } else {
@@ -982,7 +1410,7 @@ function buildOptions(
   return { opts, a: opts.indexOf(answer) };
 }
 
-export const version = 3;
+export const version = 4;
 
 // gv defaults to the current version; pass a stored result's gv to rebuild
 // the exact form its score was earned on (D31 — reconstructable forever).

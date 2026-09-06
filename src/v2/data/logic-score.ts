@@ -32,6 +32,10 @@ export interface LogicResult {
   /** the measured comparison's population size — the verified first
    *  attempts this score was ranked against (present iff measured) */
   n?: number;
+  /** the likely range round `pctile`: the score ± LOGIC_SEM_ITEMS read
+   *  through the same curve or count (D394). The server's for verified
+   *  results; logicBandFor's for practice ones */
+  band?: [number, number];
   /** server-observed attempt duration (verified results only) */
   durationMs?: number;
   marks: boolean[];
@@ -85,6 +89,20 @@ export const logicPctileFor = (frac: number, items: number): number => {
 // below depends on it meaning exactly what it meant.
 export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 
+// The likely range (D394): one standard error of measurement, in items,
+// read through the same curve as the number it qualifies. Spearman–Brown
+// puts a 25-item form's reliability near 0.87, which with the modelled
+// raw-score spread is ≈ 1.8 items, rounded up. A test that prints a
+// percentile without its range claims a precision a 25-item form does not
+// have; this is the qualifier that names the limit (docs/COPY.md §3).
+// functions/src/logic.ts carries the same constant for verified results,
+// where the range is read off the histogram once the reading is measured.
+export const LOGIC_SEM_ITEMS = 2;
+export const logicBandFor = (k: number, items: number): [number, number] => [
+  logicPctileFor(Math.max(0, k - LOGIC_SEM_ITEMS) / items, items),
+  logicPctileFor(Math.min(items, k + LOGIC_SEM_ITEMS) / items, items),
+];
+
 export function loadResult(): LogicResult | null {
   try {
     const r = JSON.parse(localStorage.getItem(LKEY) || "null") as LogicResult | null;
@@ -94,6 +112,12 @@ export function loadResult(): LogicResult | null {
       // result's own length
       if (r.pctile == null) {
         r.pctile = logicPctileFor(r.marks.filter(Boolean).length / r.marks.length, r.marks.length);
+      }
+      // a practice result saved before the range existed gets the same
+      // range a fresh one would; a verified result's range is the
+      // server's to compute, so an old one simply has none
+      if (r.band == null && !r.verified) {
+        r.band = logicBandFor(r.marks.filter(Boolean).length, r.marks.length);
       }
       return r;
     }

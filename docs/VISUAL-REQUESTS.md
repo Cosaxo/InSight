@@ -405,6 +405,55 @@ it is planned here.
   for. Every input is public (D98) and already on screen with names.
 - **status** — `requested` (waits on the plan's owner call).
 
+### 8 · The logic test's worked example — one solved matrix before item 1
+
+- **title · asked by** — *How a matrix works* · a session, 2026-09-06
+  (D394), the one administration step matrix tests take that the Logic
+  overlay does not.
+- **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), between
+  opening it and the first puzzle. Today the overlay opens straight into
+  item 1; the two weight-1 items double as the instruction, which means
+  a first-time taker spends real items learning the format and the
+  floor of the scale carries that cost. A verified attempt (D57) opens
+  the same way, on the clock.
+- **data and basis** — nothing live. One fixed, hand-picked matrix in
+  the generator's vocabulary (a shape cycle is the natural one: three
+  shapes, each once per row and column), drawn with its answer ALREADY
+  in the goal cell and the five distractors shown struck or dimmed, so
+  the reader sees a solved one before they are asked to solve one. No
+  answer key ships: the example is not a generated item and is never a
+  scored one. D1's empty state does not arise.
+- **states** — **first open** (no saved result on the device): the
+  example, then *Begin*. **Return** (a saved result exists): the result
+  screen as today, with the example reachable from a small row —
+  *see how a matrix works* — never in the way of Retake or Verified.
+  **Verified attempt**: the example is shown BEFORE `logicStartV2` is
+  called, so no clock is running while it is read. **Demo**: identical;
+  the example depends on nothing live.
+- **interaction** — one tap on *Begin* starts the attempt. Optionally,
+  tapping the struck options could say in one line why each is wrong
+  (*already in this row*, *wrong size*) — the same five words the
+  generator's mutant comments use — but the request is for the picture
+  first; D182's order.
+- **vocabulary** — the overlay's own tiles (`tileBase`, `Matrix`, the
+  raised option buttons), the test's accent (`LOGIC_COL`, the Likeness
+  colour), the kickers *The pattern* / *Pick what fills the ?* it already
+  uses. The standalone family in `design/standalone-2026-08-20/` for the
+  card and button shapes. Copy under D182: the picture carries the
+  instruction; one sentence at most.
+- **constraints** — the overlay is a lazy chunk (`loadOverlays()`), so
+  the cost is bytes in that chunk only; `check:bundle`'s ceiling is
+  the whole app's, not the chunk's. No reads. Tap targets per
+  `check:tap-targets`. The example's matrix must be renderable by
+  `Prim` as it stands — no new glyphs for the example alone.
+- **why** — the tests axiom (`AXIOMS.md`, operational): tst-3's ability
+  link function says guessing and ceilings matter for logic, and a
+  format-learning cost on the first items is floor noise that a
+  worked example removes. D394 recorded this as the one administration
+  step deferred, and as a screen rather than a control, so it is a
+  request under D352 rather than a build.
+- **status** — `requested`.
+
 ## Planned
 
 ## Drafted

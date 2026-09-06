@@ -6,7 +6,7 @@
 import React from 'react';
 import { useDialog } from './primitives.jsx';
 import { generateForm } from '../data/logic-gen';
-import { FIELD_MED, loadResult, logicPctileFor, logicSecs, saveResult } from '../data/logic-score';
+import { FIELD_MED, loadResult, logicBandFor, logicPctileFor, logicSecs, saveResult } from '../data/logic-score';
 import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic-verify';
 
 // ─────────────────────────────────────────────────────────────
@@ -46,9 +46,16 @@ export let LOGIC;
   // ── glyph model ──
   // A cell is an array of layers. Layer: {s: shape, z: size, f: 'n'|'s'}
   // Shapes: 'c' circle · 'q' square · 'd' diamond · 't' triangle · '.' dots{n}
+  // · 'b' bar{r: orientation in 45° steps} · 'm' mark{p: place, eight
+  // round the margin clockwise from the top} — the two v4 layers (D394).
   // Cells come from the generator; the renderers below draw whatever its
   // vocabulary produces (logic-gen's renderability test pins the match).
   const rad = (z) => 2.5 + 6.5 * z;
+  // A bar is a diameter-ish line through the centre: half-length 15 sits
+  // inside every z3 base the generator puts it in. A mark is a small solid
+  // dot at radius 29, outside a z3 base and inside the 72-unit cell.
+  const BAR_HALF = 15;
+  const MARK_R = 29;
 
   const DOTS = {
     1: [[36, 36]],
@@ -59,12 +66,21 @@ export let LOGIC;
     6: [[26, 22], [26, 36], [26, 50], [46, 22], [46, 36], [46, 50]],
   };
 
-  function Prim({ s, z, f, n }) {
+  function Prim({ s, z, f, n, r, p }) {
     const ink = 'var(--ink-2)';
     const fill = f === 's' ? ink : 'none';
     const R = rad(z || 3);
     if (s === '.') {
       return <g>{(DOTS[n] || []).map(([x, y], i) => <circle key={i} cx={x} cy={y} r="4.5" fill={ink} />)}</g>;
+    }
+    if (s === 'b') {
+      // r · 45°: 0 —, 1 /, 2 |, 3 \ (y grows downward, hence the signs)
+      const a = (r || 0) * Math.PI / 4, dx = BAR_HALF * Math.cos(a), dy = BAR_HALF * Math.sin(a);
+      return <line x1={36 - dx} y1={36 + dy} x2={36 + dx} y2={36 - dy} stroke={ink} strokeWidth="3.5" strokeLinecap="round" />;
+    }
+    if (s === 'm') {
+      const a = (p || 0) * Math.PI / 4;
+      return <circle cx={36 + MARK_R * Math.sin(a)} cy={36 - MARK_R * Math.cos(a)} r="4" fill={ink} />;
     }
     if (s === 'c') return <circle cx="36" cy="36" r={R} fill={fill} stroke={ink} strokeWidth="2" />;
     if (s === 'q') { const h = R * 0.85; return <rect x={36 - h} y={36 - h} width={2 * h} height={2 * h} fill={fill} stroke={ink} strokeWidth="2" />; }
@@ -427,6 +443,9 @@ export let LOGIC;
             pctile: res.pctile, durationMs: res.durationMs,
             source: res.source || 'model',
             ...(res.n ? { n: res.n } : {}),
+            // the likely range is the server's too — read off the same
+            // count or curve as the number (D394)
+            ...(Array.isArray(res.band) ? { band: res.band } : {}),
             when: Date.now(),
           };
           saveResult(r); setResult(r); setVerify(null);
@@ -465,7 +484,9 @@ export let LOGIC;
           const r = {
             v: 2, seed: form.seed, gv: form.version,
             marks: next, times: nt, diffs: form.items.map((it) => it.diff),
-            pctile: logicPctileFor(k / next.length, next.length), when: Date.now(),
+            pctile: logicPctileFor(k / next.length, next.length),
+            band: logicBandFor(k, next.length),
+            when: Date.now(),
           };
           saveResult(r); setResult(r); setMarks([]); setTimes([]); setPicks([]); setQi(-1);
         }
@@ -480,6 +501,14 @@ export let LOGIC;
     const inTest = qi >= 0;
     const p = inTest ? form.items[qi] : null;
     const k = result ? result.marks.filter(Boolean).length : 0;
+    // The likely range, as a clause on the claim it qualifies (D394): a
+    // 25-item form places a score to within about two items, and a
+    // percentile printed without that is a precision the test does not
+    // have. Omitted when the range collapses to a point — at the clamps
+    // it says nothing the number did not.
+    const likely = result && Array.isArray(result.band) && result.band[0] < result.band[1]
+      ? ' (likely ' + result.band[0] + '\u2013' + result.band[1] + ')'
+      : '';
 
     return (
       <div className="overlay surface-tint" {...dlg}>
@@ -551,7 +580,7 @@ export let LOGIC;
                 </svg>
               ); })()}
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 240, lineHeight: 1.45 }}>
-                Sharper than {result.pctile}% of {result.source === 'measured' && result.n ? result.n + ' verified players' : 'players'}.
+                Sharper than {result.pctile}% of {result.source === 'measured' && result.n ? result.n + ' verified players' : 'players'}{likely}.
                 {result.verified && (
                   <span style={{ display: 'inline-block', marginLeft: 7, padding: '1.5px 8px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', color: 'var(--surface)', background: LOGIC_COL, verticalAlign: '1px' }}>verified</span>
                 )}
