@@ -6144,9 +6144,11 @@ const LIVE = {
     return state.deckIds
       .map((qid, back) => {
         const q = dailyById(qid);
-        // `active` is checked HERE, not when the bank is split — see the
-        // tombstone note in hydrate(). A retired question drops out of the
-        // pager without moving the days around it.
+        // `active` is checked HERE, not when the daily lane is split — see
+        // the tombstone note in publishBank(). A retired question drops out
+        // of the pager without moving the days around it. Both halves are
+        // pinned together in warm-boot.test.ts: dropping either one is the
+        // cheapest way to satisfy the other.
         return q && q.active !== false ? buildS(q, back) : null;
       })
       .filter((s): s is LiveQuestion => !!s);

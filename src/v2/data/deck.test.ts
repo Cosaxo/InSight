@@ -568,14 +568,15 @@ describe("retiring a served question must not re-map the pager", () => {
   // filters them at display instead.
   const bank = (n: number) => Array.from({ length: n }, (_, i) => `daily-${String(i).padStart(3, "0")}`);
 
-  it("keeps every visible day when a retired question is kept as a tombstone", () => {
-    const ids = bank(90);
-    const today = DECK_EPOCH + 30;
-    const before = computeDeckIds(ids, today);
-    // Retired in place: the array keeps its length, the element stays.
-    const after = computeDeckIds(ids, today);
-    expect(after).toEqual(before);
-  });
+  // The tombstone half of this rule USED TO SIT HERE, and could not: it
+  // compared `computeDeckIds(ids, today)` with `computeDeckIds(ids, today)`
+  // — the same call twice, green for every implementation, and describing
+  // an array this layer never builds. Retiring in place is invisible to
+  // `computeDeckIds` by construction, so there is nothing here to assert;
+  // what has to hold is that live.ts BUILDS the array in place, and that
+  // pin now lives beside the code that does it (warm-boot.test.ts,
+  // "retiring a served daily"). What is left below is the half this layer
+  // really owns.
 
   it("…and REMOVING it instead moves every one of them", () => {
     // The behaviour this replaced, pinned so the reason the tombstone exists
