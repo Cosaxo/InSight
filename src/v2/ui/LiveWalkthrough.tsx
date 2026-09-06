@@ -40,6 +40,7 @@ import React from "react";
 // aria-modal, Escape, a Tab trap, focus restored to the opener on close.
 // @ts-expect-error TS7016 — untyped spec module (the LiveMirrorLenses pattern)
 import { useDialog } from "../spec/primitives.jsx";
+import { pushBackLayer } from "../data/backLayers";
 
 interface Page {
   id: string;
@@ -250,6 +251,36 @@ function LiveWalkthrough({ onDone, again = false }: { onDone: () => void; again?
   const cur = PAGES[page];
   const last = page === PAGES.length - 1;
   const dlg = useDialog(onDone, "How InSight works");
+
+  // ANDROID'S BACK BUTTON, which `useDialog` above does not cover. D24 gave
+  // this overlay Escape and a focus trap — the keyboard path — and
+  // `backLayers.ts` is the Android one, deliberately a separate mechanism
+  // because Escape is a DOM event a focused dialog receives and the back
+  // button is not.
+  //
+  // Without this, Back on the FIRST screen every live-build user meets falls through the shell's handler
+  // (app-shell.jsx peels person → city → overlay → tab, and this screen is
+  // none of them — it lives on its own root outside `<App/>`), the handler
+  // returns false, and `back.ts` calls `App.exitApp()`. That is verbatim
+  // the failure backLayers.ts was written to stop, one screen earlier:
+  // the walkthrough is still on screen and the app quits under it.
+  // Worse than a sheet, because `markWalkthroughSeen()` is written by
+  // `onDone` alone — so the quit recorded nothing and the next launch
+  // serves the same five pages, and (main.jsx sequences D151's account
+  // questions behind this promise) never asks those either.
+  //
+  // Back DISMISSES rather than stepping a page, because that is what the
+  // Escape this pairs with does, and `closeTopBackLayer` pops the layer as
+  // it calls it — a stepping closer would have to re-register itself on
+  // every press, which is exactly the stack churn `pushBackLayer`'s own
+  // docstring rules out.
+  //
+  // The ref is Sheet's, for Sheet's reason (primitives.jsx): registered
+  // once per mount so the LIFO order means something, reading the current
+  // handler through a ref rather than re-registering on it.
+  const doneRef = React.useRef(onDone);
+  React.useEffect(() => { doneRef.current = onDone; });
+  React.useEffect(() => pushBackLayer(() => doneRef.current()), []);
 
   const next = () => { if (last) onDone(); else setPage(page + 1); };
   const back = () => setPage(Math.max(0, page - 1));
