@@ -28,9 +28,15 @@ describe("booleanAtoms — what counts as an atom", () => {
     // `a && b` evaluates to a boolean too. Counting it counts the same
     // conjunct twice: this walker read 681 atoms before the rule was
     // narrowed, against 353 once it was — the whole &&/|| chain doubled.
+    // The chain spans BOTH children, so its own range differs from either.
+    // Written with the same range as child `a` first, which made the two
+    // merge in the output map and the assertion pass with the rule
+    // deleted — verified by mutation. A case standing for the 681-vs-353
+    // double count has to be able to see the double count.
     const a = node(10, 100, [B(true, 5), B(false, 1)]);
     const b = node(10, 120, [B(true, 5)]);
-    const chain = node(10, 100, [B(true, 5), B(false, 1)], [a, b]);
+    const chain = { ...node(10, 100, [B(true, 5), B(false, 1)], [a, b]) };
+    chain.sourcePosition = { line: 10, column: 1, currentOffset: 100, endOffset: 130 };
     const atoms = booleanAtoms({ report: [chain] });
     expect([...atoms.keys()].sort()).toEqual(["100:110", "120:130"]);
   });
