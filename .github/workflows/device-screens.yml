@@ -154,14 +154,26 @@ jobs:
         run: |
           emulator -avd screens -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim \
             -camera-back none -camera-front none -memory 3072 > results/android/emulator.log 2>&1 &
-          adb wait-for-device
+          EMU=$!
+          # No `adb wait-for-device`: it blocks forever when the emulator
+          # process has already died (a bad AVD, a missing engine, no
+          # acceleration), and the lane's first run sat in exactly that
+          # state until the job's own timeout. Poll the boot property
+          # instead, and fail the moment the emulator is gone — its log is
+          # then the whole diagnosis.
           for i in $(seq 1 120); do
+            if ! kill -0 "$EMU" 2>/dev/null; then
+              echo "::error::the emulator process exited before the device booted"
+              tail -80 results/android/emulator.log
+              exit 1
+            fi
             [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
             sleep 5
           done
           if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; then
             echo "::error::the emulator did not finish booting in ten minutes"
-            tail -60 results/android/emulator.log
+            adb devices || true
+            tail -80 results/android/emulator.log
             exit 1
           fi
           # No animation scales: a capture taken mid-transition is a capture
@@ -205,6 +217,9 @@ jobs:
         run: |
           adb logcat -d -v time '*:E' > results/android/logcat-errors.txt 2>/dev/null || true
           adb logcat -d -v time 2>/dev/null | grep -i 'chromium\|console\|capacitor' | tail -300 > results/android/logcat-console.txt || true
+          # The one line a reader needs first, if there is one.
+          CRASH=$(grep -m1 -A2 'FATAL EXCEPTION' results/android/logcat-errors.txt | tr '\n' ' ' || true)
+          [ -n "$CRASH" ] && echo "crash: ${CRASH:0:300}" >> results/android/environment.txt
           echo "drive: ${{ steps.drive.outcome }}" >> results/android/environment.txt
 
       - name: Keep the captures as an artifact
@@ -261,6 +276,23 @@ jobs:
             echo "GoogleService-Info.plist: present" >> results/ios/environment.txt
           fi
 
+      # Written is not bundled: the plist is not referenced by the pbxproj
+      # (scripts/ios-link-firebase-plist.rb's header has why it never can
+      # be), so without this step the file sits beside the project and the
+      # auth plugin's FirebaseApp.configure() aborts the process on bridge
+      # load. Run 34056990061, the lane's first, produced exactly that: a
+      # SIGABRT eleven seconds after launch with the plist "present" in the
+      # checkout and absent from App.app. The release workflow's step,
+      # verbatim, guarded on the file being there.
+      - name: Link the plist into the App target
+        run: |
+          if [ -f ios/App/App/GoogleService-Info.plist ]; then
+            gem install xcodeproj --no-document --quiet
+            ruby scripts/ios-link-firebase-plist.rb ios/App/App.xcodeproj
+          else
+            echo "no plist to link"
+          fi
+
       - run: npx cap sync ios
 
       - name: Resolve Swift packages
@@ -310,6 +342,11 @@ jobs:
         run: |
           APP=$(find ios/App/build/Build/Products -maxdepth 2 -name "App.app" -type d | head -1)
           [ -n "$APP" ] || { echo "::error::no App.app was produced"; exit 1; }
+          if [ -f "$APP/GoogleService-Info.plist" ]; then
+            echo "plist in the bundle: yes" >> results/ios/environment.txt
+          else
+            echo "plist in the bundle: NO — expect the auth plugin to abort the launch" >> results/ios/environment.txt
+          fi
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" "$APP_ID"
           sleep 3;  xcrun simctl io "$UDID" screenshot results/ios/00-launch-3s.png
@@ -344,6 +381,9 @@ jobs:
           xcrun simctl spawn "$UDID" log show --last 20m --style compact \
             --predicate 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"' 2>/dev/null \
             | tail -400 > results/ios/syslog.txt || true
+          # The one line a reader needs first, if there is one.
+          CRASH=$(grep -m1 -o 'Terminating app due to uncaught exception.*' results/ios/syslog.txt || true)
+          [ -n "$CRASH" ] && echo "crash: ${CRASH:0:300}" >> results/ios/environment.txt
           echo "drive: ${{ steps.drive.outcome }}" >> results/ios/environment.txt
 
       - name: Keep the captures as an artifact
