@@ -20,7 +20,9 @@ artists' ratio rule (≥⅓ of occupations athletic, checked against the
 P279* closure under Q2066131) with `content/athlete-review.json` as its
 reviewed-exceptions file — the D267 machinery, one domain over — plus
 its own live card (`pick-pk28`) and the browse-tiles row the pick ask
-now carries for the sitelink-ranked domains. **Videogames** was
+carries — for the sitelink-ranked domains at D308, and for every domain
+in its file's own order, paged eight tiles at a time, since **D389**
+(2026-09-06). **Videogames** was
 committed 2026-09-06 by the Sunday domain slot: 1,000 sitelink-ranked
 games under the films shape exactly (direct `P31 Q7889`, QID keys, year
 disambiguation, no curation rule needed — a game's class membership

@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { TYPE_SMALL } from "../data/typeMix";
@@ -2048,6 +2048,161 @@ describe("the feed dial keeps the value you slid (D218)", () => {
     } finally {
       refuse.mockRestore();
     }
+  });
+});
+
+// The field's door — the other half of D86 ON A CONTINUUM (2026-09-06).
+// PR #413 opened "Change" for the dial and the field in one change and
+// pinned the dial above; the owner's next report was the field ("Your
+// phone — place it", answered, Takes beside it and no Change), from a
+// build older than that merge. The field half had no case of its own, so
+// this is it, in the dial's two halves: the plane takes a tap again with
+// the dot you hold still drawn, and placing moves the cell through
+// editVote; a refused move snaps the dot back to the standing cell's
+// midpoint and says why. Keyboard placement, because it is deterministic
+// in jsdom — a pointer tap divides by a zero-width rect.
+describe("the feed field can be changed (D86 on a continuum)", () => {
+  const FIELD_ID = "feed-fixture-field";
+  const FIELD_PROMPT = "Fixture phone — place it";
+  const fieldCard = () => ({
+    id: FIELD_ID,
+    cat: "culture",
+    type: "field",
+    prompt: FIELD_PROMPT,
+    ax: ["a tool", "a limb"],
+    ay: ["serves you", "runs you"],
+    // live shape, as buildFeedGlobals emits it: 12 cells (4 across, 3
+    // down) whose counts ARE the crowd — empty here, so the plane draws
+    // no crowd dots and the only dots on it are the ones these cases place
+    options: Array.from({ length: 12 }, (_, i) => ({ label: `c${i}`, count: 0 })),
+    n: 0,
+    live: true,
+  });
+  const addField = (prep) => (handle) => {
+    window.WORLD_FEED_QS.push(fieldCard());
+    if (prep) prep(handle);
+  };
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.removeItem("insight.feedVotes.v1"); });
+
+  // the plane's accessible name carries its state: "— answered" while it
+  // stands, the aim-and-place instruction while it takes a tap
+  const plane = (card) => within(card).getByRole("button", { name: new RegExp("^" + FIELD_PROMPT) });
+  // a dot is a span positioned in the plane's own percent units
+  const dotAt = (card, x, y) => [...card.querySelectorAll("span")].find((s) => s.style.left === x + "%" && s.style.top === y + "%");
+
+  it("Change re-opens the plane with your dot still drawn, and placing moves the cell", async () => {
+    // cell 5 of 12 — second row, second column — stands at its midpoint
+    // (37.5, 50): what a device with no raw point claims (fieldVal)
+    const expectNoBoundary = mountLive({}, addField((h) => { h.votes[FIELD_ID] = "5"; }));
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(FIELD_PROMPT).parentElement;
+    expect(plane(card).getAttribute("aria-label")).toMatch(/answered$/);
+    expect(dotAt(card, 37.5, 50), "the standing dot is not at its cell's midpoint").toBeTruthy();
+    fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+    const p = plane(card);
+    expect(p.getAttribute("aria-label")).toMatch(/Arrow keys to aim/);
+    // what you are moving stays on screen while you move it
+    expect(dotAt(card, 37.5, 50)).toBeTruthy();
+    // aim one step right of centre and place: (54, 50) is cell 6
+    fireEvent.keyDown(p, { key: "ArrowRight" });
+    fireEvent.keyDown(p, { key: "Enter" });
+    // the cell moved in the store — through editVote, since vote() is
+    // create-only and would have left "5" standing
+    expect(window.LIVE.myVotes()[FIELD_ID]).toBe("6");
+    expect(dotAt(card, 54, 50), "the dot did not move to where it was placed").toBeTruthy();
+    expect(dotAt(card, 37.5, 50)).toBeUndefined();
+    // …and the card stands again: plane answered, door back, no complaint
+    expect(plane(card).getAttribute("aria-label")).toMatch(/answered$/);
+    expect(within(card).getByRole("button", { name: "Change" })).toBeTruthy();
+    expect(within(card).queryByText("One change a minute — try again shortly.")).toBeNull();
+    expectNoBoundary("feed field changed");
+  });
+
+  it("a refused change snaps the dot back to the cell that stands, and says why", async () => {
+    const expectNoBoundary = mountLive({}, addField((h) => { h.votes[FIELD_ID] = "5"; }));
+    await growFeed();
+    // the cooldown, as the store reports it: false, nothing sent
+    const refuse = vi.spyOn(window.LIVE, "editVote").mockReturnValue(false);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+      const card = screen.getByText(FIELD_PROMPT).parentElement;
+      fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+      const p = plane(card);
+      fireEvent.keyDown(p, { key: "ArrowRight" });
+      fireEvent.keyDown(p, { key: "Enter" });
+      expect(refuse).toHaveBeenCalledTimes(1);
+      expect(window.LIVE.myVotes()[FIELD_ID]).toBe("5");
+      // the standing cell's midpoint, not the point the server never heard
+      expect(dotAt(card, 37.5, 50), "the refused point stood instead of the standing cell").toBeTruthy();
+      expect(dotAt(card, 54, 50)).toBeUndefined();
+      expect(plane(card).getAttribute("aria-label")).toMatch(/answered$/);
+      expect(within(card).getByText("One change a minute — try again shortly.")).toBeTruthy();
+      expectNoBoundary("feed field refused");
+    } finally {
+      refuse.mockRestore();
+    }
+  });
+});
+
+// The learn reveal's crowd share is a BAR under the label, never a lit
+// row (2026-09-06). Each wrong option carried the crowd's share as a wash
+// filling the row's height to the share's width — which at a share near
+// 100% is a filled row with no edge showing. The owner's device drew
+// "Zanzibar City" filled edge to edge beside the Dodoma they had answered
+// correctly, and read it as having answered wrong: a filled row beside a
+// solid correct one is a verdict, not a bar. The share is a strip along
+// the row's bottom edge now, so a share of 100% is a full-width bar and
+// the row keeps its surface.
+describe("the learn reveal draws the crowd's share as a strip, not a lit row", () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it("a wrong option holding the whole crowd is a bar under its label, with no mark", async () => {
+    const expectNoBoundary = mountLive({ learnCard: true, feedCards: 24 }, (h) => {
+      // Every fixture card's crowd: one first try, on the option AFTER the
+      // correct one (the fixture authors c = i % 4) — the owner's shape,
+      // one card at a time. Defined onto the fixture's store the way the
+      // fixture defines its own members, so restore() puts the real
+      // descriptor back.
+      Object.defineProperty(h.LIVE, "learnAgg", {
+        value: (id) => {
+          const m = /^fixlearn(\d+)$/.exec(id);
+          if (!m) return null;
+          const c = (Number(m[1]) - 1) % LEARN_CARD_OPTIONS.length;
+          return { tooSmall: false, total: 1, counts: { [String((c + 1) % LEARN_CARD_OPTIONS.length)]: 1 } };
+        },
+        writable: true, configurable: true, enumerable: true,
+      });
+    });
+    await growFeed();
+    await awaitText(/Fixture learn card/);
+    // whichever fixture card the scheduler served first: its number says
+    // which option is authored correct and how its labels are suffixed
+    const prompt = screen.getAllByText(/^Fixture learn card/)[0];
+    const n = Number((/\((\d+)\)$/.exec(prompt.textContent || "") || [0, "1"])[1]);
+    const c = (n - 1) % LEARN_CARD_OPTIONS.length;
+    const label = (i) => LEARN_CARD_OPTIONS[i] + (n > 1 ? ` ${n}` : "");
+    const card = prompt.parentElement;
+    fireEvent.click(within(card).getByRole("button", { name: label(c) }));
+    // answered right: the tick is on the row you tapped, and that row
+    // carries no share bar — its number says it
+    const right = within(card).getByRole("button", { name: new RegExp("^" + label(c)) });
+    expect(right.textContent).toContain("\u2713");
+    expect(right.querySelector("[data-know-share]")).toBeNull();
+    // the crowd's option carries its share as a strip along the bottom
+    // edge — full width, a few pixels tall, the row's own height untouched
+    const wrong = within(card).getByRole("button", { name: label((c + 1) % LEARN_CARD_OPTIONS.length) });
+    const share = wrong.querySelector("[data-know-share]");
+    expect(share, "the crowd's share is not drawn on the option they picked").toBeTruthy();
+    expect(share.style.width).toBe("100%");
+    expect(share.style.bottom).toBe("0px");
+    expect(share.style.top, "the share fills the row — a lit row beside a correct one reads as a wrong pick").toBe("");
+    expect(parseFloat(share.style.height)).toBeGreaterThan(0);
+    expect(parseFloat(share.style.height)).toBeLessThanOrEqual(6);
+    // …and no verdict mark on it: the cross is yours alone
+    expect(wrong.textContent).not.toContain("\u2715");
+    expectNoBoundary("live learn reveal, the crowd on a wrong option");
   });
 });
 
