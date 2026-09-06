@@ -148,17 +148,18 @@ export let feedInsight;
     // short by one against a baseline that counts you, in the window
     // immediately after you vote, which is the window this line renders in.
     //
-    // What it costs is bounded but real: one vote inside a cell of
+    // What it cost was bounded but real: one vote inside a cell of
     // MIN_CELL..n shifts that cell's share by up to 1/n, which can create
     // or erase a `flip` against `roomWin` — and `FEEDREAD.log`'s majority
     // bit is written to a permanent per-device record that feeds the
-    // Mirror's sparse gate and its with-the-crowd rate. Not fixed here: the
-    // join needs a per-question "is my vote folded yet" reader that the
-    // store does not export (`state.unaggregated` is internal;
-    // `pulsePending` is the pulse's own), and adding one moves the surface
-    // `data/vote.test.ts` pins. Written down rather than half-done —
-    // the fourth site of the D365 +1 mismatch, after `bins`/`todayN`,
-    // `scope()`'s day series, and the two above.
+    // Mirror's sparse gate and its with-the-crowd rate.
+    //
+    // FIXED BELOW, three nights after it was written down. The reader it
+    // needed is `LIVE.votePending`, the general form of `pulsePending`;
+    // adding it moves the surface `data/vote.test.ts` pins, which is why
+    // it waited for a night when no other branch was rewriting that file.
+    // Fourth site of the D365 +1 mismatch and the last of them, after
+    // `bins`/`todayN`, `scope()`'s day series, and the two above.
     //
     // What that produced: whenever your own vote made or changed the
     // leader — routine at the counts a question has in its first hours —
@@ -172,14 +173,56 @@ export let feedInsight;
     const roomPct = counts.map((c) => (c / roomTotal) * 100);
     const roomWin = roomPct.indexOf(Math.max(...roomPct));
 
+    // YOUR OWN UNFOLDED VOTE, joined into the cell you are in — the other
+    // half of the `+ 1` above, and what makes the two populations one.
+    // `votePending` answers only while the write is unfolded, which is
+    // exactly when `o.count` has not had you subtracted back out and the
+    // published cells do not have you either. THE INDEX, though, comes
+    // from `mine`, and that is deliberate twice over.
+    //
+    // It keeps the two populations moving together: the room baseline a
+    // few lines up decided the viewer's option with `mine === i`, and a
+    // join that decided it differently would re-create the mismatch this
+    // exists to close.
+    //
+    // And it is the only safe reading. `state.unaggregated` is keyed by
+    // question for every kind of answer, but its VALUE is an option index
+    // only for the ones written through `vote()` and its edit arm.
+    // `voteRank` stores a placeholder `0` its own comment calls unread —
+    // and a rank question HAS `q.options`, so it passes the guard at the
+    // top of this function and arrives here. Trusting the stored value
+    // would have put a phantom vote in option 0's cell of a rank card's
+    // cohort, which is inventing a cohort: the thing the header above
+    // promises this never does. `mine` is null for a rank (world-feed's
+    // call site takes it only `typeof … === 'number'`, and a rank's vote
+    // is a joined order string), so both populations correctly get
+    // nothing. `votePick` stores a catalogue key for the same map; a pick
+    // has no `q.options` and never reaches here at all.
+    //
+    // Membership is the ANCHOR's call, the shape `pendingIdx` uses in
+    // data/pulse.ts: a viewer with no anchor for a dim is in no cell of
+    // it, and counting them would state a cohort of one about a bucket
+    // the app cannot name. Current anchors rather than the answer's
+    // snapshot (D8) — for a vote cast seconds ago they are the same, and
+    // the snapshot is not readable from here.
+    const unfolded = LIVE.votePending(q.id) != null;
+    const pendingIdx = unfolded && typeof mine === 'number' ? mine : null;
+    const mineAnchors = pendingIdx == null ? {} : (LIVE.anchors() || {});
+
     let best = null;
     for (const dim of Object.keys(by)) {
       const buckets = by[dim] || {};
+      const myBucket = mineAnchors[dim];
       for (const bucket of Object.keys(buckets)) {
         const cell = buckets[bucket];
-        const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
+        // Counted into the floor too, not just the shares: being the third
+        // in your own cohort is what makes the cell describable, and the
+        // room baseline already counts you.
+        const mineHere = pendingIdx != null && myBucket === bucket;
+        const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0) + (mineHere ? 1 : 0);
         if (n < MIN_CELL) continue;
-        const cellCounts = q.options.map((_, i) => cell[String(i)] || 0);
+        const cellCounts = q.options.map((_, i) =>
+          (cell[String(i)] || 0) + (mineHere && i === pendingIdx ? 1 : 0));
         const pct = cellCounts.map((c) => (c / n) * 100);
         const win = pct.indexOf(Math.max(...pct));
         // a flip — this cohort's winner is not the room's — outranks a lean,

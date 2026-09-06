@@ -669,6 +669,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fold has counted them. The real store returns the option index only
     // while `unaggregated` still holds it.
     pulsePending: () => null,
+    // Same reason, one question wider: the fixture's votes are seeded as
+    // folded, so nothing here is unaggregated and every question answers
+    // null. A case that wants the other side of the fold overrides this
+    // member on the store it was handed, the way feed-insight-round does.
+    votePending: () => null,
     pulseVotes: (baseQid: string) => {
       const out: Record<string, number> = {};
       for (const [aid, v] of Object.entries(votes)) {

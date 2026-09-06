@@ -34,7 +34,17 @@ const q = (counts, cellCounts) => {
     counts: Object.fromEntries(counts.map((c, i) => [String(i), c])),
     by: { ageBand: { "25-34": Object.fromEntries(cellCounts.map((c, i) => [String(i), c])) } },
   });
+  // Unfolded by default is NULL — the settled state every case above
+  // assumes. `pending()` below is what puts a case in the other one.
+  LIVE.votePending = () => null;
+  LIVE.anchors = () => ({ ageBand: "25-34" });
   return question;
+};
+
+/** Put the viewer's vote in the window before the fold counts it. */
+const pending = (idx, anchors = { ageBand: "25-34" }) => {
+  LIVE.votePending = () => idx;
+  LIVE.anchors = () => anchors;
 };
 
 describe("the room the surprise line talks about is the room the card drew", () => {
@@ -134,5 +144,93 @@ describe("the surprise line does not describe a cell too small to describe", () 
     expect(ins.kind).toBe("flip");
     expect(ins.group).toBe("25-34");
     expect(ins.sideIdx).toBe(1);
+  });
+});
+
+// ── the cell the line compares against is the room's own cell ──
+//
+// The room baseline adds the viewer's vote back (`+ (mine === i ? 1 : 0)`)
+// because `countsFor` subtracts it from `o.count`. It subtracts it only
+// once the trigger has FOLDED the vote, so in the window between the write
+// and the fold the baseline counts the viewer and the published `agg.by`
+// cells do not. Your own cohort was short by one against a room that
+// counted you — the fourth site of the D365 +1 mismatch, and the window it
+// lives in is exactly the one this line renders in.
+describe("your own unfolded vote joins the cohort, not just the room", () => {
+  it("counts you into your own cell while the write is unfolded", () => {
+    // Cell [2, 0] is BELOW the floor of three, so nothing is drawn — until
+    // the viewer, who is 25-34 and voted option 1, is counted into it.
+    const question = q([1000, 20], [2, 0]);
+    expect(feedInsight(question, null, 1), "fixture: below the floor without you").toBeNull();
+    pending(1);
+    const ins = feedInsight(question, null, 1);
+    expect(ins, "your own cohort stayed one short of describable").toBeTruthy();
+    expect(ins.group).toBe("25-34");
+    // The SHARE is what pins both halves of the join, because `n` is not a
+    // field this returns — the cell is [2, 0] + your 1 → [2, 1] of 3, so
+    // the winning side reads 67. A join that counted you into the floor
+    // and not into the counts would draw [2, 0] of 3 and print 100.
+    expect(ins.sideIdx).toBe(0);
+    expect(ins.pct).toBe(67);
+  });
+
+  it("moves the share, not just the size", () => {
+    // [1, 2] is already describable and already flips the room; the join
+    // changes what it SAYS. Not [3, 0] against this room: 100% against
+    // 97.9% is a two-point lean, under MIN_GAP, so it earns no line at
+    // all and there would be nothing to move.
+    const question = q([1000, 20], [1, 2]);
+    const before = feedInsight(question, null, 1);
+    pending(1);
+    const after = feedInsight(question, null, 1);
+    expect(before.kind, "fixture: the cell has to be describable BEFORE the join").toBe("flip");
+    // [1, 2] of 3 → 67, [1, 3] of 4 → 75.
+    expect(before.pct).toBe(67);
+    expect(after.pct).toBe(75);
+  });
+
+  it("does not count you into a cohort you have no anchor for", () => {
+    // Membership is the anchor's call, the shape data/pulse.ts uses. A
+    // viewer with no ageBand is in no ageBand cell, and counting them
+    // would state a cohort about a bucket the app cannot name.
+    const question = q([1000, 20], [2, 0]);
+    pending(1, {});
+    expect(feedInsight(question, null, 1), "counted into a cell with no anchor").toBeNull();
+  });
+
+  it("does not count you into somebody else's bucket", () => {
+    const question = q([1000, 20], [2, 0]);
+    pending(1, { ageBand: "35-44" });
+    expect(feedInsight(question, null, 1), "counted into the wrong bucket").toBeNull();
+  });
+
+  it("does not invent a vote when the pending value is not an option index", () => {
+    // `voteRank` stores a placeholder 0 in this same map, documented as
+    // unread — and a rank question has `q.options`, so it passes the
+    // guard at the top of feedInsight and arrives here. world-feed's call
+    // site passes `mine` as null for one, because a rank's vote is a
+    // joined order string rather than a number.
+    //
+    // The room leans hard to option 1, so a cell of [2, 0] reading 100%
+    // for option 0 is a FLIP: if the join trusted the stored value there
+    // would be a line here to see.
+    const question = q([20, 1000], [2, 0]);
+    LIVE.votePending = () => 0;
+    LIVE.anchors = () => ({ ageBand: "25-34" });
+    expect(feedInsight(question, null, null), "a phantom vote reached the cell").toBeNull();
+    // The control, in the same fixture: a REAL vote on option 0 does draw
+    // that line, so the assertion above is about the guard and not about
+    // a cell that could never have been described.
+    expect(feedInsight(question, null, 0), "fixture: a real vote here has to draw").toBeTruthy();
+  });
+
+  it("changes nothing once the vote is folded", () => {
+    // THE CONTROL, and the reason the reader returns null rather than -1:
+    // after the fold the published cell already has you, and a second join
+    // would count you twice. `votePending` answers null there.
+    const question = q([1000, 20], [0, 3]);
+    const settled = feedInsight(question, null, 1);
+    pending(null);
+    expect(feedInsight(question, null, 1)).toEqual(settled);
   });
 });
