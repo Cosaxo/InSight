@@ -575,9 +575,10 @@ describe("the warm paint", () => {
     await releaseAll(LIVE);
     expect(LIVE.dailyBank().map((x) => x.id)).toEqual(["q_1", "q_2"]);
     expect(LIVE.stats.bankSource).toBe("network");
-    // A full fetch, not a delta: three boot queries, none by cursor.
+    // A full fetch, not a delta: FOUR boot queries since D383 — the three
+    // surface queries plus the daily's own, none by cursor.
     const bankQs = h.calls.filter((c) => c.path === "v2_questions");
-    expect(bankQs).toHaveLength(3);
+    expect(bankQs).toHaveLength(4);
     expect(bankQs.some((c) => c.cons.some((k) => k.kind === "where" && k.field === "updatedAt"))).toBe(false);
     // …and the cache now carries the new rev, so the next boot is warm
     // AND current.
@@ -712,7 +713,7 @@ describe("the warm paint", () => {
     await mod.initLive(30_000);
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
-    await expectParked(["v2_questions"]);
+    await expectParked(["v2_questions", "v2_rank/daily"]);
     await release();
     await vi.waitFor(() => { expect(h.pending.length).toBe(3); });
     h.hidden = true;
@@ -847,7 +848,7 @@ describe("the provisional account", () => {
     // fail that one.
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
-    await expectParked(["v2_questions"]);
+    await expectParked(["v2_questions", "v2_rank/daily"]);
     await release();
     await vi.waitFor(() => { expect(h.pending.length).toBe(3); });
     // The poll arms only once the deck's read has returned, so it is not
@@ -1288,7 +1289,7 @@ describe("answers the server has not acknowledged (D357)", () => {
     await mod.initLive(30_000);
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
-    await expectParked(["v2_questions"]);
+    await expectParked(["v2_questions", "v2_rank/daily"]);
     await release();
     await vi.waitFor(() => { expect(h.pending.length).toBe(3); });
     await vi.waitFor(() => {
@@ -1382,8 +1383,13 @@ describe("the network phase's round trips", () => {
     // Step 1: the meta read and the early profile read, nothing else.
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
-    // Step 2: the bank delta alone — it needs the rev.
-    expect(pendingPaths()).toEqual(["v2_questions"]);
+    // Step 2: the bank delta AND the daily's shape, in one trip. The
+    // shape is one small document that depends on nothing (D383), so it
+    // rides out with the delta rather than opening a trip of its own —
+    // the same argument D356 made for the cold boot's three queries.
+    // Sorted, because they are issued together and the order between two
+    // reads in one trip is not a property worth pinning.
+    expect(pendingPaths().sort()).toEqual(["v2_questions", "v2_rank/daily"]);
     await release();
     // Step 3: the two answer deltas AND the deck aggregates, in one trip.
     // Before D356 this was three trips — answered, then edited, then the
@@ -1394,16 +1400,66 @@ describe("the network phase's round trips", () => {
     await releaseAll(LIVE);
   });
 
-  it("a cold boot: the three bank queries in one trip", async () => {
+  it("a cold boot: the three bank queries and the daily's shape in one trip", async () => {
     h.gated = true;
     const mod = await import("./live");
     const LIVE = mod.default;
     await mod.initLive(30);
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
-    // The boot surfaces, the core feed, the bought reach — at once.
-    await expectParked(["v2_questions", "v2_questions", "v2_questions"]);
+    // The boot surfaces, the core feed, the bought reach — and, since
+    // D383, the daily's shape — at once. The daily's ROWS are a dependent
+    // trip after this one (they need the length to know which positions
+    // to ask for), which is the one round trip the paging costs; what it
+    // buys is the whole daily surface not being fetched at all.
+    await expectParked([
+      "v2_questions", "v2_questions", "v2_questions", "v2_rank/daily",
+    ]);
     await releaseAll(LIVE);
     expect(LIVE.dailyBank().map((x) => x.id)).toEqual(["q_1"]);
+  });
+});
+
+// ── a retired daily stays in the array as a tombstone ───────────────────
+//
+// publishBank splits the daily lane from the UNFILTERED bank and every
+// other lane from the active one, because the daily deck is POSITIONAL:
+// computeDeckIds indexes `ids[(today - epoch - back) % n]`, so dropping
+// any element renumbers every visible day — today's card swaps and six
+// answered history cards render as unanswered.
+//
+// deck.test.ts names this rule and cannot see it: its case compares
+// `computeDeckIds(ids, today)` with `computeDeckIds(ids, today)` — the
+// same call twice, green for any implementation, and it never touches
+// live.ts, where the invariant actually lives. Measured: rebuilding the
+// daily lane from the ACTIVE bank instead leaves the whole unit run green.
+//
+// Two assertions, because the tombstone is only half the rule. The array
+// keeps the retired question; the DISPLAY is what must never offer it.
+// Pin one alone and the cheapest way to satisfy it is to break the other.
+describe("retiring a served daily", () => {
+  const bank = () =>
+    Array.from({ length: 10 }, (_, i) => q(`q_${i}`, i, i === 3 ? { active: false } : {}));
+
+  it("keeps it in the daily array, and never offers it", async () => {
+    h.bankDocs = bank();
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await releaseAll(LIVE);
+
+    // Every id, in seq order, the retired one INCLUDED and in place.
+    expect(
+      LIVE.dailyBank().map((x) => x.id),
+      "the retired daily was dropped from the array, which renumbers every visible day",
+    ).toEqual(["q_0", "q_1", "q_2", "q_3", "q_4", "q_5", "q_6", "q_7", "q_8", "q_9"]);
+
+    // …and the kill switch still kills, one layer up. The deck is a
+    // rolling seven-day window, so WHICH ids it holds depends on the date;
+    // that it excludes this one does not.
+    const offered = LIVE.deck().map((x) => x.id);
+    expect(offered, "the deck offered a retired question").not.toContain("q_3");
+    expect(offered.length, "the deck came up empty, so the line above proves nothing")
+      .toBeGreaterThan(0);
   });
 });

@@ -44,9 +44,15 @@ vi.mock("../data/live", () => ({
         ? Promise.reject(new Error("permission-denied"))
         : Promise.resolve()),
       revealHistoryLoading: (gid: string) => LOADING.has(gid),
+      // The bank the fold asks about a day's option count and kind (D386).
+      bankQ: (qid: string) => BANK[qid] || null,
     },
   },
 }));
+
+/** The fixtures' bank — empty unless a case seeds it, so every day reads
+ * as an ordinary one with the option count its own votes reach. */
+let BANK: Record<string, { options?: string[]; kind?: string }> = {};
 
 import LiveRolesPanel from "./LiveRolesPanel";
 
@@ -71,7 +77,7 @@ const gdayr = (d: string, opts: Record<string, number>) => ({
 const duoRoom = (id: string) => ({ id, mode: "duo", memberUids: ["me", "them"], memberNames: { them: "Ada Lovelace" } });
 
 beforeEach(() => {
-  ROOMS = []; HIST = {};
+  ROOMS = []; HIST = {}; BANK = {};
   REFUSE.clear(); LOADING.clear();
 });
 afterEach(cleanup);
@@ -83,6 +89,40 @@ describe("with no settings at all", () => {
     // scored days, and a pair can reveal five days and guess on two.
     expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).toBeTruthy();
     expect(screen.getByText(/No group has 2 revealed days you played yet/)).toBeTruthy();
+  });
+});
+
+describe("the day's kind (D386)", () => {
+  it("does not count a mirror day toward the floor, and says how far the count got", () => {
+    // Two ordinary days both guessed and one day about each other: the
+    // old fold called this pair ready, on a day that measures how you are
+    // seen rather than how you read.
+    ROOMS = [duoRoom("d1")];
+    BANK.q1 = { options: ["a", "b"], kind: "day" };
+    BANK.qm = { options: ["Warm", "Sharp", "Steady", "Restless"], kind: "mirror" };
+    HIST.d1 = [
+      dday("2026-08-01", [0, 1], [1, 1]),
+      dday("2026-08-02", [0, 1], [1, 1]),
+      { ...dday("2026-08-03", [0, 0], [0, 0]), qid: "qm" },
+    ];
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("2 of 3 days both guessed")).toBeTruthy();
+    expect(screen.queryByText("The Mind Reader")).toBeNull();
+  });
+
+  it("draws the asides as receipts beside the dims", () => {
+    // Two pairs so the rows draw (one reading alone would only repeat the
+    // card above it); open Ada's row and the projection receipt is there.
+    ROOMS = [duoRoom("d1"), { id: "d2", mode: "duo", memberUids: ["me", "b"], memberNames: { b: "Bo Nilsen" } }];
+    HIST.d1 = [
+      dday("2026-08-01", [0, 0], [0, 1]),
+      dday("2026-08-02", [0, 1], [1, 1]),
+      dday("2026-08-03", [0, 1], [1, 1]),
+    ];
+    render(<LiveRolesPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /Ada/ }));
+    expect(screen.getByText("guessed your own answer 1 of 3 times")).toBeTruthy();
+    expect(screen.getByText("right on 3 of your 3 guesses")).toBeTruthy();
   });
 });
 
@@ -174,7 +214,41 @@ describe("with one setting over the floor", () => {
     render(<LiveRolesPanel />);
     expect(screen.getByText("The Mind Reader")).toBeTruthy();
     expect(screen.getByText("Calls their answer before they do.")).toBeTruthy();
-    expect(screen.getByText("4 revealed days")).toBeTruthy();
+    // "days you both guessed", not "revealed days" — the unit the number
+    // is actually in. This fixture reveals four days and both guess on all
+    // four, so the two coincide here and the wording is what is under test;
+    // the case below separates them.
+    expect(screen.getByText("4 days you both guessed")).toBeTruthy();
+  });
+
+  it("does not call them revealed days when the pair revealed more", () => {
+    // THE CASE THE OLD WORDING SURVIVED. Eight revealed days, guesses on
+    // both sides on three of them: the number is 3, and calling it "3
+    // revealed days" is false about a pair that revealed eight. The
+    // fixtures above all had scored == revealed, which is why the wording
+    // could stay wrong under them.
+    const noGuess = (d: string) => ({
+      day: d, qid: "q1",
+      votes: { me: { optionIdx: 0 }, them: { optionIdx: 1 } },
+      names: { them: "Ada Lovelace" },
+    });
+    HIST.d1 = [
+      dday("2026-08-01", [0, 1], [1, 1]),
+      dday("2026-08-02", [0, 1], [1, 1]),
+      dday("2026-08-03", [0, 1], [1, 1]),
+      noGuess("2026-08-04"), noGuess("2026-08-05"), noGuess("2026-08-06"),
+      noGuess("2026-08-07"), noGuess("2026-08-08"),
+    ];
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("3 days you both guessed")).toBeTruthy();
+    // The aggregate line's own shape, not any mention of the phrase: the
+    // GROUP empty state says "No group has 2 revealed days you played yet",
+    // which is true — its unit is days you played, and those are revealed
+    // days. What must not exist is a bare count called revealed days.
+    expect(
+      screen.queryByText(/^\d+ revealed days?$/),
+      "the panel still calls scored days revealed days",
+    ).toBeNull();
   });
 
   it("draws no per-setting row — there is nothing to compare it to yet", () => {
@@ -201,7 +275,7 @@ describe("with two settings", () => {
 
   it("says how many settings the average is across, and how many days", () => {
     render(<LiveRolesPanel />);
-    expect(screen.getByText("across 2 · 7 revealed days")).toBeTruthy();
+    expect(screen.getByText("across 2 · 7 days you both guessed")).toBeTruthy();
   });
 
   // Setting rows are the buttons that expand (aria-expanded); the two ⓘ
@@ -250,7 +324,8 @@ describe("groups", () => {
       gdayr("2026-08-03", { me: 0, a: 0, b: 0 }),
     ];
     render(<LiveRolesPanel />);
-    expect(screen.getByText("3 revealed days")).toBeTruthy();
+    // The GROUP unit is days you played, and its wording says so.
+    expect(screen.getByText("3 days you played")).toBeTruthy();
     // …and the 1v1 half still refuses, independently.
     expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).toBeTruthy();
   });

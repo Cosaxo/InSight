@@ -7,7 +7,7 @@
 // — "delivered by the contract channel" is the only fulfilment that
 // exists (D251 builds reports by hand).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Purchase } from "../data/purchases";
 import { sharePcts } from "../data/pct";
 
@@ -168,5 +168,19 @@ describe("the room", () => {
     STORE.rows = [];
     render(<AskedByYouOverlay onClose={() => {}} />);
     expect(screen.getByText(/this room has no other source/)).toBeTruthy();
+  });
+});
+
+describe("the results page's address, in the buyer's room (D379)", () => {
+  it("offers to copy the public page's link on a question row", () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    STORE.rows = [PURCHASE];
+    STORE.failed = false;
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    const b = screen.getByRole("button", { name: /results page/i });
+    fireEvent.click(b);
+    expect(writeText).toHaveBeenCalledWith("https://prvfire33.web.app/q/pd01");
+    expect(screen.getByText(/A public page of these results/)).toBeTruthy();
   });
 });

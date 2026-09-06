@@ -194,9 +194,14 @@ one ever converts.)*
 
 `src/v2/spec-index.js` imports every module for side effects, and **the
 order is semantic** — later modules read globals set by earlier ones.
-Never sort it, never drop an entry. Four of them are deferred past first
-paint via `loadWorldFeed()` (D25) — still listed, still in order, just
-awaited in sequence instead of imported at the top. The Map's seven defer
+Never sort it, never drop an entry. The feed's thirteen are deferred past
+first paint via `loadWorldFeed()` (D25) — still listed, still in order,
+just awaited in sequence instead of imported at the top. (This said
+"four" from the day it was written, which was exact then; the learn
+stack, `pick-data.js`, `world-catalogs.js` and `world-subtopics.js`
+joined the loader afterwards. `spec-index.js`'s own comment corrects
+itself in place and this sentence never got the same edit, which is why
+`check:figures` holds it now.) The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
 comment where the eager list used to hold them. The Mirror's thirteen
@@ -262,7 +267,7 @@ real slipped through:
   check:globals — then blanks the Map on a device.
 - `src/v2/test/mount-app.jsx` is the harness, and **ten** suites mount
   the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
-  walk both tabs and every overlay, and four that go PAST first paint into
+  walk both tabs and every overlay, and five that go PAST first paint into
   screens no smoke case reaches — the Map's measured body, the daily's
   Circle and 1v1 modes, the demo Mirror's stops past World, the daily's
   split ballot before and after a vote, and the Mirror's preview tag on
@@ -356,12 +361,20 @@ pre-D98 privacy vocabulary, in copy a user reads — D116),
 `docs/data-inventory.md`, which the store privacy label derives from —
 D130, plus D257's reader column held to the two read rules a script may
 read literally), `check:versions`,
-`check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
+`check:bundle`, **`check:eager-content`** (question content may not be in
+the static first-paint graph — the gate that exists because
+`daily-questions.js`, the file the farm lane appends to every day, was
+fetched before the app could paint, which made the bank's size the app's
+start-up cost and put two content lanes behind the eager budget; the
+worst edge was invisible to `check:bundle`, since a module inlined into
+the entry chunk has no chunk of its own to name, and the answer twice was
+to raise the ceiling instead. Its allowlist is a shrink-only ratchet in
+`check:globals` rule 4's shape), `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
-catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —
-the last two also run on the deploy path, because the aggregate trigger
-validates answer keys against the committed catalogues (D14–D17;
-docs/CATALOG-QUESTIONS.md).
+catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
+and `check:catalogs` — the last three also run on the deploy path,
+because the aggregate trigger validates answer keys against the committed
+catalogues (D14–D17; docs/CATALOG-QUESTIONS.md).
 
 `check:appcheck` is on the deploy path too: every callable must demand App
 Check attestation or be named in the script's exemption list with the
@@ -508,19 +521,16 @@ an emergency rules fix.
   [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
   [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
   every program lane defers to.
-- **A pull request is merged by the PR shepherd, not by hand.** The
-  owner's merge instruction is the `merge-when-green` label; the shepherd
-  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
-  brings the branch current with `main`, moves colliding decision numbers,
-  waits for green and squash-merges. What a session owes it before the
-  label goes on: a green head with `main` already merged in and its
-  decision numbers already moved (D299) — and then no push, because a
-  commit by anyone but the shepherd after the label spends the grant.
-  `no-shepherd` is the opt-out. Neither label is a session's to apply on
-  its own judgement: the owner's word puts `merge-when-green` there —
-  applied directly, or as a tick on the PR's row in
-  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
-  into the label once the PR is green on its current head (D352).
+- **A pull request is merged BY HAND, by the owner (D385).** There is no
+  merge automation in this repository and no label that merges anything.
+  What a session owes before a PR is mergeable is unchanged and is now
+  the whole of it: a green head with `main` already merged in and its
+  decision numbers already moved (D299). Then say so and stop — a
+  session does not merge its own work, and the owner's click is the
+  merge. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where the
+  owner tracks what is waiting, and a tick there is still how approval
+  is recorded (D352); what changed is that nothing downstream acts on
+  the tick, so the merge itself is a click on GitHub.
 - **A Routine you create, re-pace, rebind or retire is registered in
   [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
   subscriptions run scheduled lanes against this one repository and no

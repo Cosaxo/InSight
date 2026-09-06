@@ -133,8 +133,21 @@ export const IS_TEST_AVG = {
   // Not 50s: reading a partner is easier than being unreadable, and most
   // people sit with their group more often than against it, so a neutral
   // baseline would call an ordinary run remarkable.
-  duo:        { read: 62, seen: 62, like: 54, steady: 58 },
-  group:      { own: 34, pull: 58, settle: 58 },
+  //
+  // ON THE CHANCE SCALE since D386 (data/roles.ts, ROLES-PLAN §3.2): every
+  // rate is scored against luck per day, so 50 is guessing at random and
+  // the ordinary run sits ABOVE it. Re-authored from the raw figures that
+  // stood here (read/seen 62, like 54; group with-the-majority 66, agree
+  // 58) against the banks' mean chance — about 0.36 on a 1v1 day (13
+  // binary, 8 three-way, 11 four-way in the friends pool) and about 0.3
+  // on a group day (14 four-way, 4 binary, 8 picks): (0.62 − 0.36)/0.64
+  // ≈ 0.41 → 70; (0.54 − 0.36)/0.64 ≈ 0.28 → 64; with-the-majority
+  // (0.66 − 0.3)/0.7 ≈ 0.51 → 76, so away from it 24; agree
+  // (0.58 − 0.3)/0.7 ≈ 0.4 → 70. Steadiness is not a rate and did not
+  // move. Still authored, for the reason above; re-authoring from the
+  // first live fold is a one-line change and its own note.
+  duo:        { read: 70, seen: 70, like: 64, steady: 58 },
+  group:      { own: 24, pull: 70, settle: 58 },
 };
 
 // ── Persist completed results so a retake (or reload) keeps what you scored ──

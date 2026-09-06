@@ -199,8 +199,23 @@ function PlKicker({ children }: { children: React.ReactNode }) {
  * than qualifying every number: someone who answered ten questions is in
  * these bars ten times, and calling that a headcount would be the small
  * lie this app is built not to tell.
+ *
+ * AND IT IS EVERYONE'S SHAPE, on every stop. `by` is one dimension deep —
+ * `dim → bucket → counts`, BREAKDOWN_DIMS in functions/src/pure.ts — so
+ * there is no age×city cross to fold and an age histogram for Oslo is not
+ * in the published data at all. Summing `mixFor(by, "ageBand")` sums every
+ * bucket, which is the world. The card drew those numbers under "in Oslo"
+ * on the City and Country stops: not a rounding error, a different
+ * population, presented as the one the reader is standing in.
+ *
+ * So the subtitle names what the numbers are rather than what the stop is.
+ * That sentence is a claim and not furniture — COPY.md §3, the clause the
+ * word-count rule does not reach. The alternative was drawing the card at
+ * World only, which would spend two stops to avoid one line.
  */
-function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+function WhosHere({ qs, shortName, scope }: {
+  qs: LensQuestion[]; shortName: string; scope: "city" | "country" | "world";
+}) {
   const tallyOf = (dim: string): Record<string, number> => {
     const t: Record<string, number> = {};
     for (const q of qs) {
@@ -249,7 +264,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
   const genderPcts = sharePcts(genderRows.map((r) => r.n));
 
   if (!ageTotal && !genderTotal) {
-    return <LlEmpty>No ages or genders here yet.</LlEmpty>;
+    return <LlEmpty>Nobody has filled in an age or gender yet.</LlEmpty>;
   }
 
   return (
@@ -259,7 +274,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           Who&rsquo;s here
         </div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
-          in {shortName}
+          {scope === "world" ? <>in {shortName}</> : <>everyone, not just {shortName}</>}
         </div>
       </div>
 
@@ -495,7 +510,7 @@ function PeopleLens({ qs, scope, shortName }: {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-      <WhosHere qs={qs} shortName={shortName} />
+      <WhosHere qs={qs} shortName={shortName} scope={scope} />
 
       <div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", color: "var(--ink)" }}>
@@ -763,8 +778,13 @@ const awayCounts = (all: number[], counts: number[]): number[] =>
 // this lens whether or not they answer — so an ask beside them leaks
 // nothing the card did not already say. The scale is D305's ramp row,
 // one tap, same stored optionIdx as everywhere else.
-function PlaceAsks({ asks }: {
+function PlaceAsks({ asks, total }: {
   asks: Array<{ id: string; text: string; optionCount: number }>;
+  /** How many asks the scope still holds for this account — the pool,
+   *  not the page. Since D384 the device fetches a bounded page of ask
+   *  DOCUMENTS but knows every ask ID, so the line below counts the pool
+   *  and stays true on a stop whose pool is larger than the page. */
+  total: number;
 }) {
   // A cap, not a queue: three at a time keeps the card a card, and the
   // list recomputes as votes land, so the tail arrives by itself.
@@ -797,9 +817,9 @@ function PlaceAsks({ asks }: {
           </div>
         </div>
       ))}
-      {asks.length > show.length && (
+      {total > show.length && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          {asks.length - show.length} more after these.
+          {total - show.length} more after these.
         </span>
       )}
     </div>
@@ -822,6 +842,10 @@ function ScoresLens({ qs, shortName, scope }: {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
   const asks = LIVE.enabled ? LIVE.placeAsks(scope) : [];
+  // The pool's size, which is not `asks.length` once the pool is paged
+  // (D384) — the asks are the page this device holds, the total is what
+  // the scope still has for this account.
+  const askTotal = LIVE.enabled ? LIVE.placeAskTotal(scope) : 0;
   // Which crowd the numbers and the sort describe (D288 §2): a viewing
   // lens, not a claim about the viewer — the viewer's own crowd is their
   // anchor's fact, and their tick draws the same either way. Transient on
@@ -849,9 +873,19 @@ function ScoresLens({ qs, shortName, scope }: {
   // then the card is exactly the single-crowd card it has always been
   const anyAway = scored.some((r) => r.away);
 
+  // Whether YOU are one of the people the empty sentence is about to say
+  // do not exist. Mirrors `scored`'s own filter — a question that rates
+  // this stop, ordinal, and answered by you — because the sentence below
+  // is about exactly the rows that filter dropped.
+  const mineOnly = rates.some((q) => ORDINAL_TYPES.has(q.type || "") && q.mine >= 0);
+
   if (!scored.length) {
-    // Two different emptinesses, and collapsing them would hide which one
-    // this is. Neither is "withheld" — that category is gone (D98).
+    // THREE different emptinesses. `scored` drops a row when neither crowd
+    // has a mean, and your own score is not a crowd — so rating a place
+    // nobody else has rated yet, or rating one in the seconds before the
+    // fold lands, emptied this card and printed "Nobody here has scored
+    // Oslo yet." over a score you had just given it. Neither is
+    // "withheld" — that category is gone (D98).
     //
     // The first is now also the shape a pre-D187 bank takes: the questions
     // exist in `content/` and the seeded docs carry no `rates` until an
@@ -864,10 +898,12 @@ function ScoresLens({ qs, shortName, scope }: {
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
         <LlEmpty>
           {rates.length
-            ? <>Nobody here has scored {shortName} yet.</>
+            ? (mineOnly
+              ? <>Just your score so far.</>
+              : <>Nobody here has scored {shortName} yet.</>)
             : <>Nothing scored yet — questions that rate {shortName} land here.</>}
         </LlEmpty>
-        {!!asks.length && <PlaceAsks asks={asks} />}
+        {!!asks.length && <PlaceAsks asks={asks} total={askTotal} />}
       </div>
     );
   }
@@ -1039,7 +1075,7 @@ function ScoresLens({ qs, shortName, scope }: {
           (docs/COPY.md). */}
       {!!asks.length && (
         <div style={{ borderTop: "0.5px solid var(--rule)", paddingTop: 13 }}>
-          <PlaceAsks asks={asks} />
+          <PlaceAsks asks={asks} total={askTotal} />
         </div>
       )}
     </div>

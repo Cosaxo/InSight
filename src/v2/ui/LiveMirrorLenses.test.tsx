@@ -68,9 +68,18 @@ const LIVE = vi.hoisted(() => ({
   // The Scores lens's ask rows (D307) and the vote they cast through the
   // ordinary path. Empty/spy by default; the ask cases supply both.
   placeAsks: (scope: string) => { void scope; return [] as Array<{ id: string; text: string; optionCount: number }>; },
+  placeAskTotal: (scope: string): number => { void scope; return 0; },
   vote: vi.fn((qid: string, optionId: string) => { void qid; void optionId; }),
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
+  // The cells basis asks whether the test aggregates have been READ before
+  // it states that a place has answered nothing. Stubbed "ready" here —
+  // these cases are about what the fold says once the data is in; the
+  // loading and failed arms have their own cases.
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
+  // Its people twin — every surface that mounts a similarity field
+  // reads it now, so the stub belongs beside its sibling.
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
   loadNames: vi.fn(async () => {}),
   scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
   loadSimilarity: vi.fn(async () => {}),
@@ -128,6 +137,9 @@ const kin = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.budgetPaused = false;
+  // Reset with the rest — two cases below drive it, and a leak turns the
+  // next case's empty state into a failure message.
+  LIVE.testAggsState = () => "ready" as "loading" | "ready" | "failed";
   LIVE.loadKindred = vi.fn(async () => {});
   LIVE.kindredPeople = () => [];
   LIVE.kindredLoading = () => false;
@@ -140,6 +152,7 @@ beforeEach(() => {
   LIVE.myTestResults = () => ({});
   LIVE.aggFor = () => null;
   LIVE.placeAsks = () => [];
+  LIVE.placeAskTotal = () => 0;
   LIVE.vote = vi.fn();
 });
 afterEach(cleanup);
@@ -179,6 +192,48 @@ describe("People", () => {
   // the population's size, its age SHAPE, its gender split — over Kindred
   // drawn as cards rather than listed as names. The claims below are the
   // ones that survived the redraw plus the ones it added.
+
+  it("does not put the world's portrait under the name of a city", () => {
+    // `by` is one dimension deep — `dim → bucket → counts`, so there is no
+    // age×city cross and an age histogram for Oslo is not in the published
+    // data. `mixFor(by, "ageBand")` sums every bucket, which is everyone.
+    // The card printed that under "in Oslo" on the City and Country stops:
+    // a different population, presented as the one you are standing in.
+    mount("people", [Q], "Oslo", "city");
+    expect(screen.queryByText("in Oslo")).toBe(null);
+    expect(screen.getByText("everyone, not just Oslo")).toBeTruthy();
+    cleanup();
+
+    mount("people", [Q], "Norway", "country");
+    expect(screen.getByText("everyone, not just Norway")).toBeTruthy();
+  });
+
+  it("still says `in` at World, where the numbers are the stop", () => {
+    // The other direction, and the reason this is a label fix and not a
+    // deletion: at World the fold and the stop are the same population,
+    // so the qualifier would be the restating clause D182 deletes.
+    mount("people", [Q], "the world", "world");
+    // getAll, not get: the mix footer says "in the world" too, and a
+    // getByText that started passing because a second element appeared
+    // would be a test about the wrong node.
+    expect(screen.getAllByText("in the world").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/everyone, not just/)).toBe(null);
+  });
+
+  it("draws the SAME numbers on every stop, which is what the label is for", () => {
+    // If the figures moved with the stop the label would be the wrong
+    // fix. They do not — the card cannot cut them — so this pins the
+    // premise the sentence above rests on. 20 answers carry an age in the
+    // fixture, on all three.
+    const totals = (["city", "country", "world"] as const).map((sc) => {
+      cleanup();
+      mount("people", [Q], "Oslo", sc);
+      return screen.getByText("answers with an age").parentElement?.textContent;
+    });
+    expect(totals[0]).toBe(totals[2]);
+    expect(totals[1]).toBe(totals[2]);
+    expect(totals[2]).toMatch(/20/);
+  });
 
   it("draws a gender split that adds up to a hundred", () => {
     // The bar is 100%-STACKED: the same number is each segment's width
@@ -314,8 +369,12 @@ describe("People", () => {
   });
 
   it("says the card is empty rather than drawing an empty shape", () => {
-    mount("people", [{ ...Q, by: {} }]);
-    expect(screen.getByText(/no ages or genders here yet/i)).toBeTruthy();
+    // "…here yet" read as the stop on a stop this card is not cut to —
+    // "nobody in Oslo" where the fact is "nobody anywhere". Same defect
+    // as the subtitle above, one arm over.
+    mount("people", [{ ...Q, by: {} }], "Oslo", "city");
+    expect(screen.getByText(/nobody has filled in an age or gender yet/i)).toBeTruthy();
+    expect(screen.queryByText(/here yet/i)).toBe(null);
   });
 });
 
@@ -400,6 +459,34 @@ describe("Compare", () => {
     expect(screen.getByText(/Nobody in Oslo has answered a test card yet/i)).toBeTruthy();
   });
 
+  it("says it is still reading rather than that a city has answered nothing", () => {
+    // The stop folds published CELLS, and the reading flag beside it is
+    // wired to the people basis only — its key is "" here — so the first
+    // frame after opening City → Compare stated an absence about a whole
+    // city from aggregates the device had not read. `loadSimilarity` is
+    // what fills them, and it runs after first paint.
+    LIVE.aggFor = () => null;
+    LIVE.testAggsState = () => "loading";
+    mount("compare");
+    expect(screen.queryByText(/Nobody in Oslo has answered a test card yet/i),
+      "an unread aggregate was drawn as a city that has answered nothing").toBeNull();
+    expect(screen.getByText(/Reading…/i)).toBeTruthy();
+  });
+
+  it("says the read failed rather than saying it is still running", () => {
+    // `loadSimilarity` sets `testAggsLoaded` INSIDE its try, so a throw
+    // leaves it false for the life of the mount. Without the third state
+    // that is indistinguishable from "not asked yet", and the lens would
+    // say "Reading…" forever — the trap LiveCompareLens's own effect
+    // comment describes for the other basis.
+    LIVE.aggFor = () => null;
+    LIVE.testAggsState = () => "failed";
+    mount("compare");
+    expect(screen.queryByText(/Nobody in Oslo has answered a test card yet/i)).toBeNull();
+    expect(screen.queryByText(/Reading…/i), "a failed read kept saying it was still reading").toBeNull();
+    expect(screen.getByText(/Couldn’t read the scores here/i)).toBeTruthy();
+  });
+
   it("refuses an axis the population has too few answers on", () => {
     // Five answers per item is twenty-five per axis, under the floor the
     // result cards' "most people" ring uses (NORM_MIN_ANSWERS).
@@ -453,6 +540,23 @@ describe("Scores", () => {
   it("says so when you have not rated one, rather than implying a zero", () => {
     mount("scores", [{ ...RATED, mine: -1 }]);
     expect(screen.getByText(/you have not rated it/i)).toBeTruthy();
+  });
+
+  it("does not say nobody scored it to the person who scored it", () => {
+    // `scored` drops a row when neither crowd has a mean, and your own
+    // score is not a crowd — so rating a place nobody else has rated yet,
+    // or rating one in the seconds before the fold lands, empties this
+    // card. It then printed "Nobody here has scored Oslo yet." over a
+    // score you had just given it.
+    const onlyMine: LensQuestion = {
+      ...RATED,
+      counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      all: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      mine: 8,
+    };
+    mount("scores", [onlyMine]);
+    expect(screen.getByText(/just your score so far/i)).toBeTruthy();
+    expect(screen.queryByText(/nobody here has scored/i)).toBeNull();
   });
 
   // ── D187: the card is about the PLACE ──
@@ -509,8 +613,15 @@ describe("Scores", () => {
     // the habit the withheld-cell era left behind (D98). "Nobody" means
     // nobody ANYWHERE since D288 §2 — a city cell at zero with answers
     // from elsewhere is the ring-only case below, not this one.
-    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0] }]);
+    //
+    // `mine: -1`, which this case needed all along and did not say: it
+    // spread RATED's `mine: 8`, so it was asserting "nobody here has
+    // scored Oslo" for a viewer who HAD scored it — the defect the case
+    // above now holds, sitting inside the case that names the distinction.
+    // "Nobody anywhere" has never included the reader.
+    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0], mine: -1 }]);
     expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
+    expect(screen.queryByText(/just your score so far/i)).toBeNull();
   });
 
   // ── D288 §2: the second crowd ──
@@ -715,11 +826,37 @@ describe("Scores · the asks (D307)", () => {
     LIVE.placeAsks = () => Array.from({ length: 5 }, (_, i) => ({
       id: `d${i}`, text: `Place question ${i} long enough to read.`, optionCount: 10,
     }));
+    LIVE.placeAskTotal = () => 5;
     mount("scores", []);
     expect(screen.getByText("Place question 0 long enough to read.")).toBeTruthy();
     expect(screen.getByText("Place question 2 long enough to read.")).toBeTruthy();
     expect(screen.queryByText("Place question 3 long enough to read.")).toBeNull();
     expect(screen.getByText("2 more after these.")).toBeTruthy();
+  });
+
+  it("counts the POOL, not the page it was handed (D384)", () => {
+    // The regression this exists to stop. Since D384 the device fetches a
+    // bounded page of ask documents and knows every ask ID, so the two
+    // numbers part company on exactly the stops with the most to offer:
+    // counting the array would say "1 more after these" on a scope
+    // holding forty, which is the same class of quietly-wrong sentence
+    // D1 is about. The line reads the pool.
+    LIVE.placeAsks = () => Array.from({ length: 4 }, (_, i) => ({
+      id: `d${i}`, text: `Place question ${i} long enough to read.`, optionCount: 10,
+    }));
+    LIVE.placeAskTotal = () => 40;
+    mount("scores", []);
+    expect(screen.getByText("37 more after these.")).toBeTruthy();
+    expect(screen.queryByText("1 more after these.")).toBeNull();
+  });
+
+  it("says nothing about a tail when the pool is what is on screen", () => {
+    LIVE.placeAsks = () => Array.from({ length: 3 }, (_, i) => ({
+      id: `d${i}`, text: `Place question ${i} long enough to read.`, optionCount: 10,
+    }));
+    LIVE.placeAskTotal = () => 3;
+    mount("scores", []);
+    expect(screen.queryByText(/more after these/)).toBeNull();
   });
 
   it("offers nothing when every place question is answered", () => {

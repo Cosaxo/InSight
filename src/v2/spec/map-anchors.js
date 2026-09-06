@@ -72,7 +72,18 @@ let listExport, relateExport;
     const a = LIVE.anchors() || {};
     return [
       { id: 'age', label: 'Age',   hue: 265, value: a.ageBand ? 'age ' + a.ageBand : '', sub: 'from your profile' },
-      { id: 'job', label: 'Work',  hue: 85,  value: a.profession || '',                  sub: 'from your profile' },
+      // `self` is the COHORT's value where it differs from the profile's,
+      // which for Work it does: the pick is a profession and the dim is
+      // the derived `jobField` (D328), so "6 people in your line of work
+      // chose the same · you: Carpenter" named a cohort of carpenters when
+      // the six are the whole trades-and-construction field. Age solved
+      // the same problem by publishing the BAND as its value; Work keeps
+      // the profession as its headline — that is who you are, and it
+      // claims no cohort — and carries the field for the sentence that
+      // does. Absent falls back to the profession, which is the shape a
+      // profile written before D328 has.
+      { id: 'job', label: 'Work',  hue: 85,  value: a.profession || '',
+        self: a.jobField || a.profession || '',                          sub: 'from your profile' },
       { id: 'edu', label: 'Study', hue: 190, value: a.education || '',                   sub: 'from your profile' },
       ...testRows(),
     ];

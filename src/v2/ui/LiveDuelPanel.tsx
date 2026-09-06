@@ -20,7 +20,11 @@
 //     list of people and a list of names is not;
 //   · the reveal as BARS with faces on them, not "name — option" rows;
 //   · answering that MORPHS into guessing, instead of asking for both at
-//     once and gating a button on the pair.
+//     once and gating a button on the pair. Since D386 a GROUP card
+//     morphs too: the second tap is a call on where the room will land,
+//     which is the one reading that makes the group instrument spread
+//     (ROLES-PLAN §3.5). The write shape did not change — rules admitted
+//     `guessIdx` on the group surface all along, and the reveal carries it.
 //
 // The port is faithful where live data allows and honestly short where it
 // does not — each gap is commented at its site rather than filled with a
@@ -767,6 +771,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
       <div className="kicker" style={{ marginBottom: 0 }}>{day || "Yesterday"} · revealed</div>
       {bankQ && <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{bankQ.prompt}</div>}
       {duo ? duoRows() : <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint} />}
+      {!duo && roomRow()}
       {offQuestion.map((u) => {
         // One block per member who was asked something else: their prompt,
         // then their answer read against THEIR options. Their vote is not in
@@ -851,6 +856,23 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
       );
     }
     return <div style={col(0)}>{rows}</div>;
+  }
+
+  // Your call on where the room would land (D386), read against the bars
+  // above it: a hit when it named an option that tied for the top. A room
+  // of one is you, so a day only you answered draws no row — calling your
+  // own vote is not a read. Split days are excluded the way duoRows
+  // excludes them: a guess about one prompt read against another's bars.
+  function roomRow() {
+    if (!mine || typeof mine.guessIdx !== "number" || qidOf(mine) !== rowQid) return null;
+    const tally = revealTally(reveal, opts.length);
+    const counted = tally.reduce((a, r) => a + r.uids.length, 0);
+    if (counted < 2) return null;
+    const top = Math.max(...tally.map((r) => r.uids.length));
+    const winners = tally.filter((r) => r.uids.length === top).map((r) => r.optionIdx);
+    return revealRow("you read the room", winners.includes(mine.guessIdx),
+      winners.map((i) => labelIn(opts, i)).join(" · "), labelIn(opts, mine.guessIdx),
+      <GroupMark key="room" gid={g.id} name={g.name} size={20} />);
   }
 
   function revealRow(label: string, right: boolean, ansLabel: string, guessLabel: string, av: React.ReactNode) {
@@ -1251,16 +1273,19 @@ function LdCard({ g, vh, nextName, newest }: {
         {reveal && <LdReveal g={g} reveal={reveal} />}
       </div>
     );
-  } else if (q && duo && members.length === 2 && pick != null) {
-    // the morph: you have answered, now read them
+  } else if (q && pick != null) {
+    // the morph: you have answered, now read them — or, in a circle, read
+    // the room (D386): the same second tap, asking where most will land
     body = (
       <div style={{ ...col(12), animation: "popIn .3s cubic-bezier(0.2,0.8,0.2,1)" }} key="guess">
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
           You picked <b>{q.options[pick]}</b>.
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <DuelAv uid={themUid} name={names[themUid]} size={38} />
-          <LdPrompt>{"And " + themName + " picked…?"}</LdPrompt>
+          {duo
+            ? <DuelAv uid={themUid} name={names[themUid]} size={38} />
+            : <GroupMark gid={g.id} name={g.name} size={38} />}
+          <LdPrompt>{duo ? "And " + themName + " picked…?" : "And the room picked…?"}</LdPrompt>
         </div>
         <div style={col(9)}>
           {q.options.map((o: string, i: number) => (
@@ -1283,7 +1308,7 @@ function LdCard({ g, vh, nextName, newest }: {
         <div style={col(9)}>
           {q.options.map((o: string, i: number) => (
             <LdOption key={i} label={o} tint={tint} disabled={busy}
-              onClick={() => (duo && members.length === 2 ? setPick(i) : void seal(i))} />
+              onClick={() => setPick(i)} />
           ))}
         </div>
         {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
@@ -1470,9 +1495,21 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   const items = groups.map((g) => {
     const members = g.memberUids || [];
     const themUid = duo ? (members.find((m) => m !== uid) || "") : "";
+    // A ROOM THAT CANNOT BE PLAYED OWES YOU NOTHING. `todayQ` hands back a
+    // question for any room whatever its membership, so a 1v1 you created
+    // and whose partner has not joined counted toward "N to play" and got
+    // a "still to play" dot on the rail — for ever — while the card
+    // directly beneath it renders "Waiting for someone" with no options at
+    // all. Same condition the card uses (`duo && members.length < 2`), so
+    // the two cannot disagree.
+    //
+    // The prototype this was ported from had it: `duo-daily.jsx` computes
+    // `pending = !invited && isPending(p)` and filters the count the same
+    // way. The port kept the second half and dropped the first.
+    const unplayable = duo && members.length < 2;
     return {
       g,
-      pending: S.myDuelVote(g.id) == null && !!S.todayQ(g.id),
+      pending: !unplayable && S.myDuelVote(g.id) == null && !!S.todayQ(g.id),
       themUid,
       label: (duo ? (firstName((g.memberNames || {})[themUid]) || g.name || "1v1") : (g.name || "Circle")) as string,
     };

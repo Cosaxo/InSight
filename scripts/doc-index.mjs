@@ -325,11 +325,37 @@ if (!orientation) fail(`${ORIENTATION} is missing — it is the map every other 
  * cross-reference, not that gate's row.
  */
 const mapRows = new Map();
+/** First cells seen more than once — see the duplicate rule below. */
+const mapDupes = [];
 for (const line of (orientation ?? "").split("\n")) {
   if (!line.startsWith("|")) continue;
   const cells = line.split("|").slice(1, -1).map((c) => c.trim());
   if (cells.length < 2 || /^-+$/.test(cells[0])) continue;
   if (!mapRows.has(cells[0])) mapRows.set(cells[0], cells);
+  else mapDupes.push(cells[0]);
+}
+
+// ONE ROW PER KEY. The map's contract is that a document has a row; the
+// parser keeps the FIRST and drops the rest, which is right for reading it
+// and silently wrong for holding it — a second row can then describe
+// something that does not exist and no rule can see it.
+//
+// That happened. `USAGE-REDUCTION.md` was created independently on two
+// branches; the add/add conflict on the DOCUMENT was resolved to one of
+// them, but each branch's ORIENTATION row sat on a different line, so git
+// merged both rows with no conflict. The survivor described the discarded
+// version — a `get_session` price model and ten ranked levers that are in
+// no file — and `check:docs` reported "64 docs" and exited 0 for as long
+// as it stood.
+//
+// Note the direction: a duplicate placed BEFORE the real row shadows it and
+// the existing rules judge the impostor, which is loud. A duplicate placed
+// AFTER is the silent one, and it is the one that survived.
+for (const key of [...new Set(mapDupes)]) {
+  fail(
+    `${ORIENTATION} has more than one row for ${key} — the parser keeps the first, so`
+    + " the others are unread prose no rule can check. Delete the stale one.",
+  );
 }
 
 /** Every README in the tree, minus the vendored and frozen-reference ones. */

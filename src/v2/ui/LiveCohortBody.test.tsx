@@ -38,6 +38,10 @@ import { resolve } from "node:path";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
+  // Its people twin — every surface that mounts a similarity field
+  // reads it now, so the stub belongs beside its sibling.
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
   // ATTACHED BY DEFAULT, so every case below is about a store that has
   // finished looking. It was absent from this mock entirely, which meant
   // `LIVE.attached` read `undefined` — and the whole suite stayed green
@@ -64,6 +68,7 @@ const LIVE = vi.hoisted(() => ({
   // The Scores lens's ask rows (D307) — empty here so the stop cases stay
   // about the stop; the ask arm has its own cases in the lens suite.
   placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
+  placeAskTotal: () => 0,
   vote: vi.fn(),
   loadKindred: async () => {},
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,

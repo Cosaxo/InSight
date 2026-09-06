@@ -48,6 +48,7 @@ import {
   seedDocMatches,
   SEEDED_FIELDS,
   seedOptionConflict,
+  seedMapClears,
   describeSeedOptionConflicts,
   type BreakdownCounts,
   type EditFlow,
@@ -55,7 +56,7 @@ import {
   type CatalogSpec,
   type SeedOptionConflict,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, VIDEOGAME_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -291,6 +292,7 @@ export const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   films: { keys: FILM_KEYS },
   artists: { keys: ARTIST_KEYS },
   athletes: { keys: ATHLETE_KEYS },
+  videogames: { keys: VIDEOGAME_KEYS },
   // Unicode codepoints — sparse like QIDs, stable by Unicode policy.
   emoji: { keys: EMOJI_KEYS },
   elements: { max: CATALOG_MAX_ELEMENT },
@@ -519,6 +521,26 @@ export async function runSeedV2(
         }
       }
     }
+    // …and the same thing one level down, for a MAP that lost a key.
+    // `merge: true` merges maps key by key instead of replacing them
+    // (arrays it does replace), so a Crossroads story that drops a node
+    // keeps it forever while `seedDocMatches` keeps seeing the difference —
+    // the doc is rewritten on every run, churning `updatedAt`, which is the
+    // cursor every returning device reads the bank with. Verified against
+    // the emulator.
+    //
+    // Two writes to one document in one batch, applied in order: clear the
+    // field, then merge the payload. Counted as two ops against the 450
+    // ceiling below, because it is two.
+    const clears = seedMapClears(prior, payload);
+    if (clears.length) {
+      batch.set(
+        refs[i],
+        Object.fromEntries(clears.map((f) => [f, FieldValue.delete()])),
+        { merge: true },
+      );
+      inBatch++;
+    }
     payload.updatedAt = FieldValue.serverTimestamp();
     // Honor a source-carried `active: false` on FIRST create (it used to be
     // hardcoded true, which silently discarded the flag the content layer's
@@ -529,7 +551,27 @@ export async function runSeedV2(
     batch.set(refs[i], payload, { merge: true });
     written++;
     // Firestore batches cap at 500 ops.
-    if (++inBatch === 450) {
+    //
+    // `>=`, not `===`. The map-clear pass above can add a SECOND op in one
+    // iteration, so a clear arriving while the counter already stands at
+    // 449 steps it 449 → 450 (unchecked, inside that branch) → 451 here.
+    // An equality never matches again — the batch grows to the end of the
+    // bank and the final commit throws at Firestore's 500-op cap, losing
+    // every write since the last flush.
+    //
+    // THE PRECONDITION IS THAT EXACT COINCIDENCE, and this comment claimed
+    // "any run that rewrites 450+ documents with at least one map clear"
+    // until the 2026-09-06 night review measured it. A clear anywhere else
+    // only shifts which document lands on the boundary; `===` and `>=`
+    // behave identically. Today's bank cannot reach it at all: exactly
+    // three documents carry an object-valued seeded field (feed-pt1,
+    // feed-pt2, feed-pt3, at indices 210, 211 and 307), the counter stands
+    // at 210, 212 and 309 when they arrive, and the one tripping index on
+    // an 847-document run is 449. So this is a guard against the bank
+    // gaining a fourth story in the wrong place, not a live bug — kept
+    // because `>=` is free and the failure it prevents is silent data
+    // loss, and pinned in seed.test.ts because nothing else can reach it.
+    if (++inBatch >= 450) {
       await batch.commit();
       batch = db.batch();
       inBatch = 0;

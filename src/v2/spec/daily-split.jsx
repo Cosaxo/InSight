@@ -7,7 +7,27 @@ import React from 'react';
 import { VOTECUTS } from './vote-cuts.js';
 import { navCoasting, OWNS_X } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
-import { DAILYQ } from './daily-questions.js';
+// daily-questions.js is NOT imported here, and the reason is measured.
+// This file is in the entry chunk, so a static import puts that module's
+// 36 KB demo archive — the file the question farm appends to every day —
+// into the bytes a phone fetches before it can paint anything. Both uses
+// below are gated on DAILYSPLIT_DQ_SYNC, which carries exactly one demo
+// id, so on a live build the archive is fetched for nothing at all.
+//
+// It is loaded on that id's first use instead. `dq()` returns the store
+// once it has landed and null before then; both call sites already have
+// a correct path for null (syncToMap does its write in the callback,
+// mapBranch falls through to the live arm and re-renders when the module
+// arrives), so the demo behaves as before one frame later and the live
+// build never pays.
+let DQ = null;
+let dqPending = false;
+function dq(onReady) {
+  if (DQ || dqPending) return DQ;
+  dqPending = true;
+  import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; if (onReady) onReady(); });
+  return null;
+}
 import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
 // The store, through the module rather than through `window` — D39's
@@ -374,8 +394,13 @@ export class DailySplit extends React.Component {
   syncToMap(S, optId) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (!s) return;
-    const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-    if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
+    const write = () => {
+      const q = DQ.questions.find(x => x.prompt === s.prompt);
+      if (q && s.map[optId] != null) DQ.answer(q.id, s.map[optId]);
+    };
+    // A vote is a tap, so the one-frame wait for the module costs nothing
+    // visible; the write lands either way.
+    if (dq(write)) write();
   }
   // A refused edit (D86's one-change-a-minute cooldown) says why on the
   // meta line for a moment instead of silently snapping back.
@@ -413,8 +438,15 @@ export class DailySplit extends React.Component {
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (s) {
-      const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-      if (q) return DAILYQ.categoryPath(q)[0];
+      // Null until the archive lands (see the note at the top of this
+      // file). Falling through then is not a wrong answer for the demo id
+      // either — the arms below resolve it too; the forceUpdate is what
+      // replaces that with the branch the user may have re-voted onto.
+      const D = dq(() => this.forceUpdate());
+      if (D) {
+        const q = D.questions.find(x => x.prompt === s.prompt);
+        if (q) return D.categoryPath(q)[0];
+      }
     }
     // THE LIVE ARM, and it has to come before the two demo maps below.
     // A live daily carries its subject in `branch` (D100) — one of the
@@ -1020,8 +1052,14 @@ export class DailySplit extends React.Component {
           ? h('div', { style: { display: 'flex', gap: 5 } },
               S.options.map((o, i) => {
                 const t = Math.round((i * 100) / Math.max(1, S.options.length - 1));
-                return h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
+                return h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
               }))
+          // `sd-opt` on every ballot button (both shapes) is the store
+          // screenshot harness's hook — scripts/gen-screenshots.mjs votes
+          // by clicking the first one, whatever its label. The 2026-09-02
+          // rewrite dropped it and the reveal scene went dark for four days
+          // before Screenshots run 7 found the gap; it is a marker, not a
+          // style, and it stays on whichever element casts the vote.
           // asking: ONE split ballot (2026-09-02). Two sides sit side by
           // side, divided by a hairline seam — and the seam is what moves
           // to the crowd's split once you vote, so the question and its
@@ -1030,7 +1068,7 @@ export class DailySplit extends React.Component {
           // the ground is neutral, so the filled result reads as the
           // payoff rather than as a second version of the same tiles.
           : h('div', { style: { display: 'grid', gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr', gap: 2, height: S.options.length === 2 ? 88 : undefined, borderRadius: 20, overflow: 'hidden', background: 'var(--rule)', border: LINE } },
-            S.options.map((o) => h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { minHeight: 56, background: 'var(--surface-2)', border: 'none', borderRadius: 0, padding: '0 18px', display: 'flex', flexDirection: S.options.length === 2 ? 'column' : 'row', alignItems: S.options.length === 2 ? 'flex-start' : 'center', justifyContent: 'center', gap: S.options.length === 2 ? 8 : 12, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease' } },
+            S.options.map((o) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { minHeight: 56, background: 'var(--surface-2)', border: 'none', borderRadius: 0, padding: '0 18px', display: 'flex', flexDirection: S.options.length === 2 ? 'column' : 'row', alignItems: S.options.length === 2 ? 'flex-start' : 'center', justifyContent: 'center', gap: S.options.length === 2 ? 8 : 12, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease' } },
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
               h('span', { style: { fontWeight: 700, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.015em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
@@ -1246,9 +1284,9 @@ export class DailySplit extends React.Component {
       // docking into the header once scrolled past
       screen: h(F, null, this.dailyRuler(mode, accents, badges),
         // the sliding surface — swipes translate this, not the whole page
-        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
-        // quiet footer — the ask-a-question door (the paid path, D288 §1)
-        h('button', { onClick: () => NAV.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Ask it \u2192'))),
+        // The quiet footer's ask-a-question link stood here until D368 moved
+        // buying to the web; the daily now ends on the deck it draws.
+        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body)),
     };
   }
 

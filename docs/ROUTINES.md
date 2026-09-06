@@ -74,23 +74,35 @@ exactly what three subscriptions produce.
 
 **Account** `014fdf19-504c-4a97-bdfb-e305156fcd9d` ·
 **environment** `env_01Ri3fw8gD9Py3LmTQ9hTYCL` ·
-**verified** 2026-09-03 12:57 UTC against `list_triggers`, **eleven**
-Routines, all enabled — the nine below plus the two program lanes this
-account gained at phase 5.1.
+**verified** 2026-09-05 00:22 UTC against `list_triggers`, **eleven**
+Routines, **nine enabled and two disabled** — the nine below plus the two
+program lanes this account gained at phase 5.1.
+
+The two disabled are `InSight DB scalability` and `Nightly algorithm
+improvement`, both paused by the owner 2026-09-03 14:25/14:30 UTC with no
+`ended_reason` — the L1/L2 usage levers `USAGE-REDUCTION.md` §6 records and
+`docs/PERMISSIONS.md` already reflects. They keep their rows below, marked,
+because a disabled lane that vanishes from the register reads as a lane
+nobody ever built.
+
+That same sitting re-paced night shift B and this file did not move with it
+for two days, which is what rule 3 and CLAUDE.md's "in the same PR" exist to
+prevent. Re-verified here from `list_triggers` rather than from the last
+row, per this file's own instruction.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
-| Nightly algorithm improvement | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |
+| Nightly algorithm improvement **(DISABLED 2026-09-03)** | `trig_014pyAWbLMVoXLY7pg6meo5i` | `4 0 * * *` — daily 00:04, hard stop 03:00 (02:00–05:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/daily-algorithm-improvement-bnogf6` — generation and personalization algorithms | no PR — the owner opens it |
 | InSight question farm (daily) | `trig_015gV8je1wJ8yRsk2zAKp6oe` | `0 7 * * *` — daily 07:00 | dev session `session_01AvNkZgRvvMCu8zqhZtuMH5` | `claude/question-farm-<date>` — `content/daily-questions.json` | self-merge (D212) |
 | Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, a new domain catalogue Sunday | same dev session | `claude/catalog-question-<date>`, domains `claude/catalog-domain-<name>` — `src/v2/spec/pick-data.js`, `public/` | self-merge (D212) |
-| InSight DB scalability | `trig_01WSJVxHtUqioRRvSs6pc31E` | `0 8 * * 1-5` — weekdays, hard stop 12:00 (10:00–14:00 Oslo) | fresh session | `claude/daily-database-optimization-j03rdh` — Firestore schema, the aggregation pipeline, client read paths | no PR — the owner opens it |
+| InSight DB scalability **(DISABLED 2026-09-03)** | `trig_01WSJVxHtUqioRRvSs6pc31E` | `0 8 * * 1-5` — weekdays, hard stop 12:00 (10:00–14:00 Oslo) | fresh session | `claude/daily-database-optimization-j03rdh` — Firestore schema, the aggregation pipeline, client read paths | no PR — the owner opens it |
 | InSight learn lane | `trig_01Qguc3PyigsW7RvQLvC6X5G` | `0 9 * * 1,4` — Mon + Thu 09:00 | same dev session | `claude/learn-cards-<date>` — `content/learn-questions.json` | self-merge (D212) |
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — Wed 10:00 | same dev session | `claude/duel-questions-<date>` — `content/duel-questions.json` | self-merge (D212) |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
 | InSight roll call (Claude 1) | `trig_01JQiMDMk2m4SfPjCKgbCF2o` | `35 15 * * *` — daily 15:35 (17:35 Oslo) | fresh session, model `claude-sonnet-5` | nothing — read-only; one comment per day on the **Ops run log** issue | never merges; never pushes; never labels |
 | InSight list worker (Claude 1) | `trig_01JRBox3KomrnVEfeMZnrHmC` | `0 16 * * *` — daily 16:00 (18:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/worklist-<slug>` — `docs/WORKLIST.md` and whatever the item it takes names | never merges; never labels |
-| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,22,0,2,4 * * *` — five flows; 20/22/00/02 audit at 95 min, 04:00 closing at 110 min | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
+| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,0,4 * * *` — **three** flows; 20:00 and 00:00 audit at 95 min, 04:00 closing at 110 min (cut from five 2026-09-03, `updated_at` 14:28:12Z — the L1 lever) | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
 
 **Contracts.** The five content lanes defer to `QUESTION-FARM.md` and
 re-read it every run — the prompt is a summary and the manual outranks
@@ -255,14 +267,17 @@ touch `main`.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
-| InSight doc sweep — **disabled 2026-09-03** | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always · **held until `docs/DOC-SWEEP.md` is on `main`**: every firing since 2026-08-30 refused correctly and to no effect, which is a guaranteed no-op waking a dispatcher under `ultracode` (D359, `WORKLIST.md`) |
+| InSight doc sweep — **disabled 2026-09-03** | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always · **the condition is MET — `docs/DOC-SWEEP.md` landed on `main` 2026-09-03 (#335), so re-enabling is an owner click.** Every firing from 2026-08-30 to 2026-09-03 refused correctly and to no effect, which was a guaranteed no-op waking a dispatcher under `ultracode` (D359, `WORKLIST.md`); that reason has expired |
 | InSight night shift | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `0 21,23,1,3,5 * * *` — four audit flows at 95 min, the 05:00 firing is the closing flow at 50 | persistent worker `session_013UfS4opexyJsoD3K9NxqFF`, which is where the owner's push authorization lives | `night-YYYYMMDD` — anywhere a verified defect is | never merges, never opens a PR, never pushes `main`; the owner merges or cherry-picks in the morning |
 
 **Contracts.** The axes lanes read `docs/AXES-RUNBOOK.md` on
 `origin/main` every run and it outranks the prompt; the theory lanes
 read `CHARTER.md` on `axiom-theory` (§10 is their inventory, §12 the
-review lane); the doc sweep reads `docs/DOC-SWEEP.md`, which is not on
-`main` — see the observation below. The night shift has no product
+review lane); the doc sweep reads `docs/DOC-SWEEP.md`, which **landed on `main`
+2026-09-03 in #335** — so the condition that held this lane is gone and
+re-enabling `trig_01E2bBC1QmYbkkHj3V96k6L1` is now an owner click. This
+sentence said the file was missing for a day after it was committed,
+which is the drift the lane itself exists to catch. The night shift has no product
 document at all: its brief is the Routine, and the only thing on `main`
 about it is D326 §2, which records the closing flow's shape and not the
 audit flows'. Its push authorization is a message the owner sent in the
@@ -290,12 +305,12 @@ authorization can live in that session's history at all.
 
 Created 2026-09-02 19:55–20:05 UTC, so the seventeen above do not include
 them, and re-created 2026-09-03 against a dispatcher that starts empty
-(D359). Their contracts are `OPS-RUNBOOK.md` §§ The PR shepherd, The list
+(D359). Their contracts are `OPS-RUNBOOK.md` §§ The list
 worker, The roll call, The production reader.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | State |
 | --- | --- | --- | --- | --- |
-| InSight PR shepherd (B) | `trig_01MuYGKG82KdEXnqNuXkdviz` | `55 */3 * * *` — eight a day, from twenty-four | ops dispatcher B `session_01XhD4kBN7fXgeBdFPZEyPY6` (`claude-haiku-4-5`) → fresh session | enabled |
+| ~~InSight PR shepherd (B)~~ | `trig_01MuYGKG82KdEXnqNuXkdviz` | — | — | **retired 2026-09-06 (D385)** — the merge lane is gone: its Action is deleted and no Routine replaces it. The trigger lives on the ops subscription, which no session here can disable, so the row stays until the owner does (`OWNER-LIST.md` § Clicks) |
 | InSight list worker (B) | `trig_01VH8PvZCaqKciAwzpxmfMYW` | `0 17 * * *` | same dispatcher | enabled |
 | InSight roll call (B) | `trig_017cQ4WECG5mHeFGFnmkVrYQ` | `30 15 * * *` | same dispatcher | **disabled** — § The roll call forbids a dispatcher binding and that is the only one a session can give it; the owner creates it in the web UI |
 | InSight production reader (B) | `trig_01FD7t9MySRfZd19BD9YyEDQ` | `40 6 * * *` | same dispatcher | **retired** — the lane is `.github/workflows/production-reader.yml`, which needs no account bucket |
@@ -431,15 +446,16 @@ owner's word that the ops Routines existed. D353 and PR #364 say what
 that word actually covered: **four** ops lanes were created on Claude 2
 — the roll call, the production reader, the release recorder and the
 list worker — bound to an ops dispatcher session
-(`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The PR shepherd is not among
-them.** So this section previously told a reader the shepherd was live
+(`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The merge lane was not among
+them.** So this section previously told a reader that lane was live
 and gave its next fire time; that was wrong, and the label on PR #365
 has had nothing to act on it from the first minute. PR #364 has since
 filled four rows of `OPS-RUNBOOK.md`'s inventory with real ids and
 written the reason into the rest: **three lanes could not be created
-from a session at all** — the shepherd, the pulse responder and the
-dependency shepherd were refused by the permission classifier, and are
-the owner's to create in Claude 2's web UI.
+from a session at all** — the merge lane, the pulse responder and the
+dependency shepherd were refused by the permission classifier. The
+merge lane was retired outright at D385; the other two are the owner's
+to create in Claude 2's web UI.
 
 The lesson is rule 2's, one rung up: **the owner's word establishes that
 a Routine exists, not which one.** Only `list_triggers` from the owning
@@ -456,7 +472,6 @@ transcribed id is a belief about the tree rather than about the account.
 
 | Lane | Trigger id | Fires (UTC) | Merge authority |
 | --- | --- | --- | --- |
-| **PR shepherd** | **none — refused from a session; the owner's to create in the web UI** | `20 6,16 * * *`, plus GitHub `pull_request` events — opened, ready_for_review, reopened, **labeled**, closed-and-merged, base `main` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner approved, only while the grant is intact |
 | Roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `30 15 * * *` | none — read-only |
 | Production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `40 6 * * *` | none — read-only |
 | List worker | `trig_01USe4xEhJ57MRjgThykdRzM` | `0 17 * * *` | never |
@@ -476,7 +491,7 @@ Six more were chartered on the same account the same day, by D352's
 | Lane | Fires (UTC) | Model | Merge authority |
 | --- | --- | --- | --- |
 | **The merge shift** | `15 5,7,9,11,13,15,17,19 * * *` and `15 23 * * *` | `claude-opus-5`, high effort, ultracode | applies `merge-when-green` to a PR the owner approved; never merges |
-| The axiom builder | `30 6,12,18 * * *` | `claude-fable-5-1` orchestrating | never |
+| The axiom builder | `30 6 * * *` | `claude-fable-5-1` orchestrating | never |
 | The console keeper | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | n/a |
 | The console improver | `0 14 * * 0` | `claude-fable-5-1` | never |
 | The to-do doer (Claude 3) | `0 18 * * *` | the list worker's | never |
@@ -490,10 +505,10 @@ lane in this register any session can read the state of directly.
 read their trigger state. The ops program's run log is one issue titled
 **Ops run log**, created by the first lane that needs it — the doc
 sweep's precedent, issue #336. At **17:45 UTC on 2026-09-02** it still
-does not exist, and neither does `no-shepherd`, the label
-`OPS-RUNBOOK.md` §2.7 pairs with `merge-when-green`; the PR shepherd's
-06:20 and 16:20 slots have both passed with no comment on either
-labelled PR. On traces alone, no ops lane has completed a run.
+does not exist; the merge lane's 06:20 and 16:20 slots have both passed
+with no comment on either labelled PR. On traces alone, no ops lane has
+completed a run. (That lane was retired at D385 — it never merged
+anything in the four days it ran as an Action either.)
 
 **And the reason is written down rather than invisible**, which is the
 whole point of the exercise. **Both dispatchers refused their charters
@@ -509,9 +524,8 @@ therefore a Routine that exists and has never run:
 - **The program dispatcher** (Claude 3) refused the same shape the same
   day, so the **merge shift** and four siblings relay nothing either.
 - **The GitHub merge tool** has never been approved in the ops
-  dispatcher's own history, so even once it relays, the shepherd could
-  not merge (`OPS-RUNBOOK.md` §2.3) — and the shepherd has not been
-  created at all.
+  dispatcher's own history — moot since D385, which retired the merge
+  lane: no Routine in this register may merge, and none needs the tool.
 
 D353's fix is structural rather than another instruction: the charter
 moves into `OPS-RUNBOOK.md` § The ops dispatcher, where a session can
@@ -547,15 +561,15 @@ all.
 ### The clock (UTC)
 
 ```
-00 ·  night B audit 00:00–01:35 · nightly algorithm improvement 00:04 → 03:00
+00 ·  night B audit 00:00–01:35
 01 ·  night shift A audit 01:00–02:35
-02 ·  night B audit 02:00–03:35 · theory review 02:02 (odd)
+02 ·  theory review 02:02 (odd)
 03 ·  night shift A audit 03:00–04:35
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
-06 ·  PR shepherd 06:20 · axiom builder 06:30 · production reader 06:40
+06 ·  axiom builder 06:30 · production reader 06:40
 07 ·  question farm 07:00 · merge shift 07:15
-08 ·  catalog question · DB scalability 08:00 → 12:00 · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
+08 ·  catalog question · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
 09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · merge shift 09:15 · feed lane 09:30
 10 ·  duel lane (Wed) 10:00 · theory 10:02
 11 ·  now lane 11:00 · axes build (Tue) / skeptic (Wed) 11:00 · theory 11:02 · merge shift 11:15
@@ -563,19 +577,22 @@ all.
 13 ·  theory ties 13:02 (odd) · merge shift 13:15
 14 ·  console improver 14:00 (Sun) · theory interests 14:02 (odd)
 15 ·  merge shift 15:15 · roll call 15:30
-16 ·  PR shepherd 16:20
 17 ·  list worker 17:00 · merge shift 17:15 · console keeper 17:45
-18 ·  to-do doer (Claude 3) 18:00 · axiom builder 18:30
+18 ·  to-do doer (Claude 3) 18:00
 19 ·  merge shift 19:15
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
-22 ·  night B audit 22:00–23:35
+22 ·  (free — night B no longer fires here)
 23 ·  night shift A audit 23:00–00:35 · merge shift 23:15
 ```
 
 The two night shifts interleave on the hour by design — A on odd hours,
 B on even — so neither is ever mid-flow alone with a stale view of the
-other's work. Everything else is stacked rather than scheduled against
+other's work. **B now fires at only three of its four even hours** (20, 00,
+04), so 22:00 and 02:00 carry an A flow with no B flow beside it. The
+interleave still holds where B fires; what is gone is the guarantee that
+every A flow has a B flow within the hour, which is worth knowing before
+reading a gap here as a free slot. Everything else is stacked rather than scheduled against
 anything: the 08:00–09:30 window can carry eight firings across three
 accounts, and the only ones that can see each other are the ones sharing
 session 1's bound dev session. Since D352 the merge shift adds a firing
@@ -589,8 +606,8 @@ seven-day window this session read on 2026-09-02 is the same window to
 the second — same `resetsAt`, same `allowed_warning` — that the Axiom
 dispatcher reports. One bucket behind seventeen Routines, a night worker
 running at xhigh with ultracode on, and every interactive session on the
-account. Session 1's nine draw on a different bucket, and neither account
-can spend the other's.
+account. Session 1's eleven — nine live, two paused — draw on a different bucket,
+and neither account can spend the other's.
 
 The two consequences point opposite ways. **Inside** an account an
 expensive lane throttles its siblings — the night worker's session record
@@ -645,21 +662,23 @@ than either file's older half:
 3. **The merge shift** (Claude 3) applies **`merge-when-green`** once the
    PR is green on its current head and it has reviewed the diff as one
    unit.
-4. **The PR shepherd** squash-merges under its five steps, unchanged:
-   armed at a named sha, every commit it makes on the branch prefixed
-   `shepherd:`, and the grant spent the moment anyone else pushes after
-   arming.
+4. **The owner merges**, by hand on GitHub (D385). Nothing in this
+   register merges, and the label is a marker that a named head is
+   ready rather than an instruction any lane executes.
 
 **The rule that a lane may never apply the label is retired**, in the
-owner's words — *"this is wrong, the shepherd can"* — which is why step
-3 exists at all. What did not move is that no lane decides: the tick is
+owner's words of 2026-09-02 — *"this is wrong, the shepherd can"* —
+which is why step 3 exists at all. (The lane that quote licensed was
+itself retired at D385, for never merging anything; a lane may still
+apply the label, and the owner still merges.) What did not move is
+that no lane decides: the tick is
 upstream of every label, and a label applied without one is a lane
 acting outside its contract.
 
 `merge-when-green` on a PR predating D352 was the owner's own act under
-the older rule and still means what it meant. Whoever creates the PR
-shepherd inherits every PR already carrying one — a label is a standing
-instruction, not an event.
+the older rule and still means what it meant. A label already on a PR
+stays on it and still says the same thing to whoever next looks — a
+label is a standing statement, not an event.
 
 ### The three collision rules
 
@@ -690,9 +709,14 @@ declaration. Nothing gates the rows themselves: a Routine is account-side
 state, so no command in this tree can recompute one, which is exactly why
 rule 2 says verify and rule 4 says leave another account's rows alone.
 
+**Nothing gates the section numbers either.** §8 was appended as a second
+`## 7` on 2026-09-03 and stood that way for two days: `check:docs` reads
+this file's map entry and its status line, not its headings. Number a new
+section from the last one in the file, not from the one you were reading.
+
 ---
 
-## 7 · The overview — one sentence per routine
+## 8 · The overview — one sentence per routine
 
 What each routine does and for whom, beside the rows above that say when
 it fires and what it writes. `PROGRAM-RUNBOOK.md` phase 5.3 asks for this

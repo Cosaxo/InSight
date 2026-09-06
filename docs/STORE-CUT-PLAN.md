@@ -1,6 +1,9 @@
 # Where the paid door lives — keeping the store cut
 
-**Status: plan only** — nothing here is built, and nothing here binds.
+**Status: ADOPTED 2026-09-05 (D368) — shape A.** The owner chose it on
+the three-shape table below; what was plan is now the build order. The
+two questions §8 puts to the owner are still open and stay on
+`OWNER-LIST.md`.
 Adoption is a record in [`DECISIONS.md`](DECISIONS.md), per
 [`MONETIZATION.md`](MONETIZATION.md)'s own rule. Opened by the owner
 2026-08-31: *"How should we avoid having to pay the cut to Apple and
@@ -31,8 +34,7 @@ The arithmetic, off `content/pricing.json`:
 
 | | figure |
 | --- | --- |
-| Question sale | €320 up front (`capEur`), 2222 answers at €0.144 |
-| Ad sale | €288 flat (`adBase` €320 × idx 0.9) |
+| Question sale | the buyer's budget up front — €5 to €50 (`budgets`, D372/D373) — at €0.02 an answer with nobody else in rotation (`base`), so the €50 budget buys up to 2,500 |
 | Store cut at 30% | €96 |
 | Store cut at 15% (small-business / first $1M) | €48 |
 | Stripe on the same €320, EU card | ≈ €5 |

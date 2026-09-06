@@ -252,7 +252,10 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
   });
 
-  it("seals on the first tap in a group, where there is nothing to guess", async () => {
+  it("a group answers, then reads the room — and still writes once (D386)", async () => {
+    // Until D386 a group sealed on the first tap: there was nothing to
+    // guess. Now the second tap is a call on where the room will land,
+    // and the pick waits for it exactly as a duo's does — one create.
     const calls: Array<[string, number, number | undefined]> = [];
     LIVE.social.voteDuel = async (gid: string, idx: number, guess?: number) => {
       calls.push([gid, idx, guess]);
@@ -260,8 +263,11 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
     render(<LiveDuelPanel mode="group" />);
     fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
+    expect(calls, "the pick wrote before the call on the room existed").toEqual([]);
+    expect(screen.getByText(/And the room picked…\?/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tea" }));
     await vi.waitFor(() => expect(calls.length).toBe(1));
-    expect(calls[0]).toEqual(["g1", 0, undefined]);
+    expect(calls[0]).toEqual(["g1", 0, 1]);
   });
 });
 
@@ -278,6 +284,27 @@ describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
     // placeholder is the only thing that says so.
     expect(screen.getByPlaceholderText(/Name or @handle/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /copy invite link/i })).toBeTruthy();
+  });
+
+  it("does not count it as one to play, or dot the rail for it", () => {
+    // `todayQ` returns a question for any room whatever its membership, so
+    // a 1v1 whose partner has not joined was owed an answer for ever: the
+    // header said "1 to play" and the rail marked it "still to play",
+    // directly above a card reading "Waiting for someone" with no options
+    // on it. The prototype excluded an unaccepted partner from both.
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/Waiting for someone/i), "the fixture is not the solo state").toBeTruthy();
+    expect(screen.queryByText(/to play/), "a room that cannot be played was counted").toBeNull();
+    expect(screen.queryByLabelText(/still to play/), "the rail dotted a room with nobody in it").toBeNull();
+  });
+
+  it("still counts a real 1v1 you have not answered — the control", () => {
+    // Without this, excluding everything passes the case above and the
+    // header stops counting the days you actually owe.
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me", "u_them"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/1 to play/)).toBeTruthy();
   });
 
   it("renders nothing when LIVE is off", () => {

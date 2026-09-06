@@ -219,6 +219,14 @@ for (const file of files) {
     /(?:const|let|var)\s+([A-Z][\w$]*)\s*[=:]/g,
     /import\s+(?:\*\s+as\s+)?([A-Z][\w$]*)/g,
     /import\s*\{([^}]*)\}/g,
+    // The MIXED form — `import Mark, { Link } from` — which the two lines
+    // above split between them and neither finished: the first sees the
+    // default and stops at the comma, the second wants the brace right
+    // after `import`. Nothing in the spec layer had imported a default and
+    // a named binding on one line until world-feed.jsx took SponsorLink
+    // beside SponsorMark (D378), and the named half read as a dangling
+    // global. Seen by rule 3, fixed here rather than by an exception.
+    /import\s+[A-Za-z_$][\w$]*\s*,\s*\{([^}]*)\}/g,
     /(?:const|let|var)\s*\{([^}]*)\}\s*=/g,
     // The whole declarator list, because the third pattern above only sees
     // the FIRST one: `const st = this.state, h = React.createElement, F =

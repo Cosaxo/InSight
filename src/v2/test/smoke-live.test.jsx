@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, DAILY_BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { TYPE_SMALL } from "../data/typeMix";
@@ -54,6 +54,12 @@ import { resetNormCache } from "../data/testNorms";
 import { FRIENDS } from "../spec/follows.js";
 import { IS_DATA } from "../spec/sample-data.js";
 
+// The fixture daily's published option counts — IMPORTED, not copied. A
+// case below asserts an absolute total built from them, and the guard on
+// that total was `12 + 8 + 5 === 25` while this was a hand-copied literal:
+// a constant compared with itself, which stays green for any fixture and
+// leaves the real assertion to fail with the wrong diagnosis.
+const FIXTURE_DAILY_COUNTS = DAILY_COUNTS;
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
 
@@ -437,13 +443,14 @@ describe("spec layer mounts in live mode", () => {
     // build's six. What is being pinned here is where the list opened,
     // not what the fixture happens to put in it.
     expect(screen.getByText("Add a topic"), "the topic list never opened").toBeTruthy();
-    // "Ask a question" since D288 §1 — and matched on the visible label,
-    // because the header's compose icon answers to the same accessible name.
+    // INVERTED at D368: shape A took the purchase funnel out of the binary,
+    // so the app must carry NO ask-a-question call to action. This asserted
+    // the door was present until the decision; it now pins its absence,
+    // which is the property App Review reads the app for.
     expect(
-      screen.getAllByRole("button", { name: /Ask a question/i })
-        .some((b) => /ask a question/i.test(b.textContent || "")),
-      "the sheet's ask-a-question door is missing",
-    ).toBe(true);
+      screen.queryAllByRole("button", { name: /ask a question/i }),
+      "an ask-a-question door is still in the binary (D368 removed all five)",
+    ).toHaveLength(0);
     expect(
       screen.queryByText(/Scenes you follow/i),
       "the door still threw the reader out of the profile to show them a list",
@@ -804,6 +811,34 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, pick card answered");
   });
 
+  it("says a pick outside the board is not on it, never that it is below a floor", async () => {
+    // The board is ten rows over catalogues of a thousand entries, so a
+    // pick outside it is the ORDINARY case, and the tile said "below the
+    // floor" — while the ghost row on the same card said "counted with
+    // everyone else — not on the board yet". Post-D98 the live board has
+    // no floor; the pick is counted exactly, it is simply outside the top
+    // ten. One card, two contradictory statements about the same pick.
+    const expectNoBoundary = mountLive({ pickCard: true }, (l) => {
+      l.votes["pick-fixture"] = "9731"; // not on the fixture's board
+    });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture pick card/);
+    fireEvent.click(screen.getByText(PICK_PROMPT));
+    await awaitText(/of 10 spots on the board claimed/);
+    expect(
+      screen.queryByText(/below the floor/i),
+      "a live pick said it was below a floor the live board does not have",
+    ).toBeNull();
+    // Anchored: the ghost row's longer sentence also contains the phrase,
+    // and this is about the TILE.
+    expect(screen.getByText(/^not on the board$/)).toBeTruthy();
+    // …and the card still says the true thing it always said, so this is
+    // not one absence traded for another.
+    expect(screen.getByText(/counted with everyone else — not on the board yet/)).toBeTruthy();
+    expectNoBoundary("live feed, pick outside the board");
+  });
+
   // Rank on a LIVE feed (D233): the whole loop through the real card —
   // tap the four items into an order, watch the completed ranking reach
   // the store, and read the reveal against the DERIVED crowd. The demo's
@@ -820,6 +855,19 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await awaitText(/You matched the crowd on/);
     // fixture crowd [1,3,2,4] against 0,2,1,3 — every position agrees
     expect(screen.getByText(/You matched the crowd on 4 of 4/)).toBeTruthy();
+    // …AND WHICH CROWD. This was the only answered live card with no count
+    // anywhere on it, so "the crowd" could have been one stranger. The
+    // fixture aggregate holds 9 rankings and the viewer's own has just
+    // been folded into it, so the crowd the order rests on is 8 — the
+    // number `rankCrowd` computes and used to discard, not `agg.total`.
+    expect(
+      screen.getByText(/from 8 other rankings/),
+      "the live rank card stated a match against a crowd it never sized",
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/from 9 other rankings/),
+      "the basis counted the viewer's own ranking as part of the crowd",
+    ).toBeNull();
     expect(
       screen.queryByRole("button", { name: /You matched the crowd/ }),
       "a live rank card offered the demo's stats sheet — its cohorts are fabricated",
@@ -1498,11 +1546,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // paid door, and the button wears the door's own name. The header's
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
-    const doors = screen.getAllByRole("button", { name: /ask a question/i });
+    // INVERTED at D368, same reason as the profile case above.
     expect(
-      doors.some((b) => /ask a question/i.test(b.textContent || "")),
-      "the add sheet lost its own door — only the header icon matched",
-    ).toBe(true);
+      screen.queryAllByRole("button", { name: /ask a question/i }),
+      "the sheet still offers a purchase door",
+    ).toHaveLength(0);
     expectNoBoundary("live add sheet");
   });
 
@@ -1933,6 +1981,68 @@ describe("the feed dial keeps the value you slid (D218)", () => {
     expect(within(card).queryByText("0 cups")).toBeNull();
     expectNoBoundary("feed dial healed");
   });
+
+  // D86 ON A CONTINUUM (2026-09-06). The store has taken a moved bucket
+  // since D218 (setDial routes a repeat through editVote), but the
+  // answered card drew only the curve and the "Change" door excluded dials
+  // by name — so the owner, on a real device, could not change an answer
+  // the rules already allowed them to. The door is the whole fix, and
+  // these two cases are its two halves: the slider comes back at the
+  // value you hold and letting go moves the bucket; a refused move snaps
+  // back to the standing answer and says why.
+  it("Change re-opens the slider at the answer you hold, and letting go moves it", async () => {
+    // bucket 6 of a 1–10 dial shows as "6 cups" (dial-bucket.test.jsx
+    // pins that the shown value re-buckets to 6)
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "6"; }));
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    // answered: the curve stands, the slider does not, and the door is there
+    expect(within(card).queryByRole("slider")).toBeNull();
+    fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+    const slider = within(card).getByRole("slider");
+    // seeded at the standing answer, not at the middle of the range
+    expect(slider.getAttribute("aria-valuenow")).toBe("6");
+    expect(within(card).getByText("slide · let go to change")).toBeTruthy();
+    // one step right of 6 on 1–10 is 7 (the step floors at one whole unit)
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyDown(slider, { key: "Enter" });
+    // the bucket moved in the store — through editVote, since vote() is
+    // create-only and would have left "6" standing
+    const bucketOf7 = String(globalThis.WorldFeed.prototype.dialBucket(dialCard(), 7));
+    expect(bucketOf7).not.toBe("6");
+    expect(window.LIVE.myVotes()[DIAL_ID]).toBe(bucketOf7);
+    // …and the card shows the new value as yours, slider gone, door back
+    expect(within(card).queryByRole("slider")).toBeNull();
+    expect(within(card).getByText("you").previousSibling.textContent).toBe("7 cups");
+    expect(within(card).getByRole("button", { name: "Change" })).toBeTruthy();
+    expectNoBoundary("feed dial changed");
+  });
+
+  it("a refused change snaps back to the answer that stands, and says why", async () => {
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "6"; }));
+    await growFeed();
+    // the cooldown, as the store reports it: false, nothing sent
+    const refuse = vi.spyOn(window.LIVE, "editVote").mockReturnValue(false);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+      const card = screen.getByText(DIAL_PROMPT).parentElement;
+      fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+      const slider = within(card).getByRole("slider");
+      fireEvent.keyDown(slider, { key: "ArrowRight" });
+      fireEvent.keyDown(slider, { key: "Enter" });
+      expect(refuse).toHaveBeenCalledTimes(1);
+      expect(window.LIVE.myVotes()[DIAL_ID]).toBe("6");
+      // the standing answer, not the one the server never heard — and the
+      // reason, in the slot the slider's instruction used
+      expect(within(card).getByText("you").previousSibling.textContent).toBe("6 cups");
+      expect(within(card).queryByText("7 cups")).toBeNull();
+      expect(within(card).getByText("One change a minute — try again shortly.")).toBeTruthy();
+      expectNoBoundary("feed dial refused");
+    } finally {
+      refuse.mockRestore();
+    }
+  });
 });
 
 // The demo persona must not become a live user's profile — on ANY mount.
@@ -2147,6 +2257,28 @@ describe("live mode never inherits the sample persona (D55)", () => {
     ).toEqual([]);
   });
 
+  it("gives Work the cohort's own value beside the profile's, and falls back where there is none", () => {
+    // D328 made the Work dim the derived `jobField`, so the sentence that
+    // carries a number about "people in your line of work" must name the
+    // FIELD — naming the profession reads as a cohort of carpenters. The
+    // row keeps the profession as the value it headlines, which claims no
+    // cohort, and carries the field as `self` for the sentence that does.
+    live = installLive({ anchors: { profession: "Carpenter", jobField: "Trades, construction & manufacturing" } });
+    hydrateTestResults({});
+    const job = anchorList().find((r) => r.id === "job");
+    expect(job, "the Work anchor vanished").toBeTruthy();
+    expect(job.value).toBe("Carpenter");
+    expect(job.self).toBe("Trades, construction & manufacturing");
+
+    // …and a profile written before D328 has no derived field at all, so
+    // the row falls back to the profession rather than to an empty "you:".
+    live.restore();
+    live = installLive({ anchors: { profession: "Carpenter" } });
+    hydrateTestResults({});
+    const old = anchorList().find((r) => r.id === "job");
+    expect(old.self, "a pre-D328 profile lost its side of the sentence").toBe("Carpenter");
+  });
+
   it("anchors the viewer's own values, and only those", () => {
     live = installLive({
       anchors: { ageBand: "25-34", profession: "Nurse", education: "Bachelor" },
@@ -2262,6 +2394,32 @@ describe("live mode never inherits the sample persona (D55)", () => {
   // `indexOf(max)` then breaks the real tie by INDEX. That decided the Map
   // card's "most chose N" and its "you're with the majority" / "a minority
   // take" verdict — the same defect the feed's own line had.
+  it("the daily's vote count includes YOUR vote — the one add-back nothing held", async () => {
+    // countsFor (data/deck) subtracts the viewer's own vote out of the
+    // published aggregate and delegates the add-back to a single line in
+    // daily-split.jsx, saying so: "the UI layer adds its own +1 for you".
+    // Nothing pinned that line. Neutering it — `count + 0 * (…)` — leaves
+    // the whole unit suite green while the card, its split and its
+    // Answers row each drop a vote, which is the reader's own.
+    //
+    // Absolute, not self-consistent: the sibling case that opens the info
+    // sheet asserts the card and the sheet AGREE, and they agree just as
+    // well when both are one low.
+    mountLive();
+    act(() => { live.LIVE.vote("daily-000", "1"); });
+    await awaitText(/ votes/);
+    const shown = /(\d+) votes/.exec(document.body.textContent);
+    expect(shown, "the daily is not printing a vote count — fixture changed").toBeTruthy();
+    // The fixture's daily publishes 12 + 8 + 5 = 25, none of them yours,
+    // so the card must read 26. Checked against the fixture's own numbers
+    // rather than a literal 26 alone, so a fixture change moves the
+    // expectation with it instead of silently making the case vacuous.
+    const published = FIXTURE_DAILY_COUNTS.reduce((a, b) => a + b, 0);
+    expect(published, "the fixture's daily counts changed").toBe(25);
+    expect(Number(shown[1]), "the viewer's own vote is missing from the count")
+      .toBe(published + 1);
+  });
+
   it("the group's mode follows the votes, not the rounding", () => {
     live = installLive({
       aggCounts: { 0: 449, 1: 451, 2: 100 },
@@ -2491,6 +2649,61 @@ describe("live mode never inherits the sample persona (D55)", () => {
     render(<window.ResultProfileCard testKey="big5" />);
     await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
     expect(asked, "the demo build paid for a crowd it does not count over").not.toHaveBeenCalled();
+  });
+
+  // ── the same effect, under the shell that re-renders on its notify (D364) ──
+  //
+  // The fetch the case above pins is also a hazard. The real loadKindred
+  // notifies in its `finally`, app-shell re-renders on every notify
+  // (`liveTick`), and the profile overlay re-renders with it — so the card
+  // has to ride that re-render as an UPDATE. Until 2026-09-05 the overlay
+  // defined its four result panels inside its own render body (`const
+  // Big5Panel = () => <ResultProfileCard …/>`), which is a new component
+  // type on every render, which React treats as an unmount and a fresh
+  // mount. The mount effect re-ran, notified, and re-ran. Every reveal
+  // animation on the card restarted on each pass — a restarted petal sits
+  // at its `from` frame, scale 0.12 and opacity 0, so the rose drew EMPTY
+  // while it shook — paced by the network while the voter lists landed,
+  // then as fast as React could commit once they were cached and the
+  // loader ran synchronously, until the WebView died. Reported from a
+  // device on the Big 5 and Politics tabs as "the bars and charts vibrate
+  // faster and faster, then the app crashes".
+  //
+  // Mounted through the WHOLE app, because the loop needs the shell's
+  // subscriber: the card rendered alone (the cases above) has no parent to
+  // re-render it, so it cannot see this.
+  describe("survives the notify its own loader sends (D364)", () => {
+    afterEach(() => { delete window.__profileSub; });
+
+    it("mounts the card once under a shell that re-renders on every notify", async () => {
+      // The loader as the real one behaves: it notifies when it lands.
+      // Through the fixture's `vote`, which is its notify path (each call
+      // fans out to every subscriber, liveTick included), on a fresh qid
+      // each time because vote() is one answer per question. CAPPED, so
+      // the failure mode is a count and not a hung suite — measured on the
+      // pre-fix overlay: nine calls, one per cap-bounded remount.
+      let n = 0;
+      const asked = vi.fn(async () => { if (n < 8) live.LIVE.vote(`d364-${n++}`, "1"); });
+      const expectNoBoundary = mountLive({}, (l) => {
+        hydrateTestResults(BIG5_RESULT);
+        l.LIVE.loadKindred = asked;
+        // The subtab is remembered on `window`, and reading it is how the
+        // overlay opens anywhere but General.
+        window.__profileSub = "big5";
+      });
+      await openHeaderOverlay("profile");
+      await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); });
+      const rose = screen.getByRole("img", { name: /Trait scores as petals/ });
+      expect(asked, "the card re-mounted on its own loader's notify").toHaveBeenCalledTimes(1);
+      // And a notify from anywhere else — an aggregate landing, a vote —
+      // must leave the card's DOM in place: a remount is a new <svg>, and
+      // a new <svg> is every petal animation starting over.
+      act(() => { live.LIVE.vote("d364-elsewhere", "1"); });
+      expect(screen.getByRole("img", { name: /Trait scores as petals/ }), "a store notify rebuilt the rose")
+        .toBe(rose);
+      expect(asked, "a store notify re-ran the card's mount effect").toHaveBeenCalledTimes(1);
+      expectNoBoundary("profile/big5 under a store notify");
+    });
   });
 
   it("keeps the persona's same-type friends in demo mode", () => {

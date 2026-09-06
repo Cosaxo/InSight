@@ -308,7 +308,7 @@ Since D100 they draw the **archive** rather than the week:
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
 reason Scores can find a question that rates a place at all — the bank
-holds twenty-four in a hundred and thirty, spread over three radii, so
+holds twenty-four in a hundred and thirty-four, spread over three radii, so
 a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships
@@ -504,16 +504,21 @@ Two gaps are worth stating in prose because no badge covers them:
   MapStats through a null guard already, and its fallbacks put every dot
   at one radius with none marked a rare take.
 
-  **D99 took the two that had a counterpart.** `age` and `edu` are
-  breakdown dims, so `dist`/`mode` now compute from the published cells
-  (`data/cohort.ts` `typicality`), and `cohortN` says how many answers
-  the reading rests on so a 50% drawn from two people is not presented as
-  a finding.
+  **D99 took the two that had a counterpart, D328 took the third.** `age`,
+  `edu` and `job` are breakdown dims, so `dist`/`mode` now compute from
+  the published cells (`data/cohort.ts` `typicality`), and `cohortN` says
+  how many answers the reading rests on so a 50% drawn from two people is
+  not presented as a finding. `job` reaches them through the derived
+  `jobField`, the way `age` reaches them through `ageBand`: the
+  profession pick is a 31-option list and growing, which is longer than
+  `BREAKDOWN_MAX_BUCKETS`, so the dim is a closed field of 20 derived from
+  it. Its stated reason for refusing had been "profession is free text"
+  long after the profile became a `<select>`.
 
-  The other five still refuse, structurally: `job` is profession,
-  deliberately never a breakdown dim (D8), and the four test anchors are
-  RESULTS with no cohort aggregate anywhere. (Six and five until D103
-  retired the Thinking test — one fewer refusal, not one more answer.) `dimVal` refuses at every
+  The other four still refuse, structurally: the four test anchors are
+  RESULTS with no cohort aggregate anywhere. (Six, then five when D103
+  retired the Thinking test — one fewer refusal, not one more answer —
+  then four at D328, which IS one more answer.) `dimVal` refuses at every
   anchor for that same reason. The refusal keeps D72's mechanism — null
   at the source, not a gate at each call site — which is precisely what
   made this fix findable: the null marked which readings were invented
@@ -582,8 +587,8 @@ reason anything is ever hidden) · D3 (anonymous-first, groups by invite
 code) · D5 (create-only answers, owner-written; the option is editable
 since D86, the cohort snapshot is not) · D8 (per-anchor breakdowns and
 the snapshot they read) · D9 (the city as the unit — its Near-fold undone
-by D111) · D32 (Learn's first attempt only) · D38 (why relmap stays
-eager) · D57 (server-scored logic) · D72 (the Map's mock typicality,
+by D111) · D32 (Learn's first attempt only) · D38 (why relmap was eager,
+until D200 took it off that graph — see §5) · D57 (server-scored logic) · D72 (the Map's mock typicality,
 refused for being invented rather than private) · D111 (Near is
 presence, City is its own stop) · D112 (the similarity surfaces: place
 score profiles and kindred by scores, default-on).

@@ -37,6 +37,14 @@ const block = deckSrc.slice(
   deckSrc.indexOf("]", deckSrc.indexOf("FEED_ID_LANES = [")),
 );
 const lanes = [...block.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
+// The daily's lanes, read the same way (D383 — the daily pages now, so it
+// has the same "which ids are mine?" question the feed does).
+const dailyBlock = deckSrc.slice(
+  deckSrc.indexOf("DAILY_ID_LANES = ["),
+  deckSrc.indexOf("]", deckSrc.indexOf("DAILY_ID_LANES = [")),
+);
+const dailyLanes = [...dailyBlock.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
+if (!dailyLanes.length) throw new Error("DAILY_ID_LANES did not parse out of deck.ts");
 
 describe("the feed surface's id lanes", () => {
   it("deck.ts's FEED_ID_LANES parses to a non-empty list", () => {
@@ -67,6 +75,31 @@ describe("the feed surface's id lanes", () => {
         + `emitting it and something else is broken`,
       ).toBe(true);
     }
+  });
+
+  it("every DAILY-surface id matches a declared daily lane (D383)", () => {
+    // The daily pages since D383, so live.ts asks "which of my answers
+    // are dailies?" on every boot to heal the ones outside the deck
+    // window. A daily id the filter does not recognise is an answer that
+    // resolves to no question — the same silent class as the feed's pick
+    // lane, one surface over, and worth catching the same way.
+    const entries = buildEntries();
+    const daily = entries.filter((e) => e.surface === "daily");
+    expect(daily.length).toBeGreaterThan(0);
+    const orphans = daily
+      .filter((e) => !dailyLanes.some((p) => e.id.startsWith(p)))
+      .map((e) => e.id);
+    expect(
+      orphans,
+      `these daily-surface ids match no lane in deck.ts's DAILY_ID_LANES `
+      + `(${dailyLanes.join(", ")}).`,
+    ).toEqual([]);
+    const bleed = entries
+      .filter((e) => e.surface !== "daily")
+      .filter((e) => dailyLanes.some((p) => e.id.startsWith(p)))
+      .map((e) => `${e.id} (${e.surface})`);
+    expect(bleed, "a non-daily question's id matches a daily lane — the "
+      + "heal would pull it into the daily bank").toEqual([]);
   });
 
   it("a non-feed surface's ids do NOT match a feed lane", () => {

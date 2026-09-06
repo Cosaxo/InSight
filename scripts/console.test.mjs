@@ -22,6 +22,7 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   laneOfBranch, isNoPrBranch, whatHow, checksSummary, prRow, branchRow, parseTicks, ticksMarker,
+  parseNightReviews, nightsMerged,
   decideActions, isTicked, renderMergeList, parseWorklist, parseOwnerList, parseAxioms,
   parseVisualRequests, parsePermissions, parseRegister, ownerSteps, uncheckedSteps,
   theorySummary, rollCalls, lastSeen, foldOwnerList, notAlreadyListed, trailRow, mergeTrail,
@@ -99,6 +100,113 @@ describe("rows and stages", () => {
   });
   it("draws a branch as a no-PR-yet row", () => {
     expect(branchRow({ name: "night-20260903", aheadBy: 12, lastCommitAt: "2026-09-03T05:20:00Z" })).toMatchObject({ kind: "branch", key: "night-20260903", stage: "no PR yet", from: "Claude 2's night shift" });
+  });
+});
+
+describe("a night whose review has already merged", () => {
+  // THE DEFECT THIS PINS. A night shift's branch is never merged as
+  // itself — the review composes both shifts and squash-merges that — so
+  // `night-YYYYMMDD` is ahead of `main` forever with every commit already
+  // in it. The console drew all eight of them as approvable rows and told
+  // the owner list "8 branch row(s) waiting for a tick" on a morning when
+  // the last of them had merged two hours earlier (D387). A tick on one
+  // opens a PR proposing that night's tree back over `main`.
+  const REVIEWS = `## D365 · The 2026-09-05 night review
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| \`night-20260905\` | 32 | 6 behind | shift A |
+| \`nightb-20260905\` | 18 | 7 behind | shift B |
+
+## D380 · The 2026-09-06 night review
+
+| \`night-20260906\` | 33 | 4 behind | shift A |
+`;
+  const reviews = parseNightReviews(REVIEWS);
+
+  it("reads each branch's record and commit count off the review's own table", () => {
+    expect(reviews.get("night-20260905")).toEqual({ record: "D365", commits: 32 });
+    expect(reviews.get("nightb-20260905")).toEqual({ record: "D365", commits: 18 });
+    expect(reviews.get("night-20260906")).toEqual({ record: "D380", commits: 33 });
+    expect(reviews.has("nightb-20260906")).toBe(false);
+  });
+
+  it("lets a later record account for a tail an earlier one missed, and never for less", () => {
+    const later = parseNightReviews(`${REVIEWS}
+## D387 · The tail
+
+| \`nightb-20260905\` | 19 | one commit later |
+
+## D388 · An amendment that re-states an old table
+
+| \`nightb-20260905\` | 18 | as D365 took it |
+`);
+    expect(later.get("nightb-20260905")).toEqual({ record: "D387", commits: 19 });
+  });
+
+  it("finds the real records in this tree's own DECISIONS.md", () => {
+    // The receipt is a document nothing generates, so a record written in
+    // a different table shape would silently stop being read and every
+    // night would go back to being approvable. That fails here first.
+    const live = parseNightReviews(read("docs/DECISIONS.md"));
+    expect(live.get("night-20260906")).toEqual({ record: "D380", commits: 33 });
+    expect(live.get("nightb-20260906")).toEqual({ record: "D380", commits: 35 });
+    // The tail case on the real file: D365 took 18 of this branch's 19 and
+    // D387 accounts for the nineteenth, so the later record is the one
+    // that answers here.
+    expect(live.get("nightb-20260905")).toEqual({ record: "D387", commits: 19 });
+  });
+
+  it("marks a branch merged when the record accounts for every commit, and not when it does not", () => {
+    const done = branchRow({ name: "night-20260906", aheadBy: 33, lastCommitAt: "2026-09-06T05:34:00Z" }, reviews);
+    expect(done.stage).toBe("merged");
+    // nightb-20260905's real shape: 18 commits reviewed, one pushed five
+    // hours later. The outstanding one is why the row keeps its box.
+    const tail = branchRow({ name: "nightb-20260905", aheadBy: 19, lastCommitAt: "2026-09-05T09:56:00Z" }, reviews);
+    expect(tail.stage).toBe("no PR yet");
+    // No record, or none readable: the row stays exactly as it was.
+    expect(branchRow({ name: "night-20260907", aheadBy: 12 }, reviews).stage).toBe("no PR yet");
+    expect(branchRow({ name: "night-20260906", aheadBy: 33 }, null).stage).toBe("no PR yet");
+  });
+
+  it("draws no box for it, says which record took it, and keeps the box on the night with commits outstanding", () => {
+    const rows = [
+      branchRow({ name: "night-20260906", aheadBy: 33, lastCommitAt: "2026-09-06T05:34:00Z" }, reviews),
+      branchRow({ name: "night-20260905", aheadBy: 32, lastCommitAt: "2026-09-05T05:24:00Z" }, reviews),
+      branchRow({ name: "nightb-20260905", aheadBy: 19, lastCommitAt: "2026-09-05T09:56:00Z" }, reviews),
+    ];
+    const text = renderMergeList({ rows, merged: [], generatedAt: "2026-09-06T10:00:00Z" });
+    expect(text).not.toContain("- [ ] **night-20260906**");
+    expect(text).not.toContain("- [ ] **night-20260905**");
+    expect(text).toContain("night-20260906 (D380) · night-20260905 (D365)");
+    expect(text).toContain("- [ ] **nightb-20260905** (no PR yet) · Claude 1's night shift B · 19 commits, 18 of them merged as D365");
+    // Newest first, and the tail says how many it did not name.
+    const many = [...Array(8)].map((_, i) => branchRow({ name: `night-2026090${i}`, aheadBy: 1, lastCommitAt: `2026-09-0${i}T05:00:00Z` },
+      new Map([...Array(8)].map((_, j) => [`night-2026090${j}`, { record: "D1", commits: 1 }]))));
+    expect(nightsMerged(many)).toContain("night-20260907 (D1)");
+    expect(nightsMerged(many)).toContain("and 2 more");
+    expect(nightsMerged([])).toBeNull();
+  });
+
+  it("opens no pull request for it, however the boxes read", () => {
+    // The box is gone from both surfaces, so a tick can only be a line
+    // left over from a render made before the review landed — and acting
+    // on it is the whole defect, not a stale cosmetic row.
+    const rows = [branchRow({ name: "night-20260906", aheadBy: 33 }, reviews), branchRow({ name: "nightb-20260905", aheadBy: 19 }, reviews)];
+    const stale = parseTicks(`${ticksMarker([])}\n- [x] **night-20260906** (no PR yet) · …\n- [x] **nightb-20260905** (no PR yet) · …\n`);
+    expect(decideActions(rows, stale, parseTicks(""))).toEqual([
+      { type: "open-pr", key: "nightb-20260905", branch: "nightb-20260905", from: "Claude 1's night shift B" },
+    ]);
+  });
+
+  it("keeps it out of the counts that say what is waiting", () => {
+    const rows = [branchRow({ name: "night-20260906", aheadBy: 33 }, reviews), branchRow({ name: "nightb-20260905", aheadBy: 19 }, reviews)];
+    expect(trailRow({ today: "2026-09-06", github: { ok: true }, rowsComplete: true, rows, merged: [], worklist: null, owner: null, axioms: null, visuals: null, permissions: null, theory: null, pulse: null, mainCi: null }).noPrYet).toBe(1);
+    // The owner list's Approvals line asks the same question at its own
+    // call site, and it is the sentence that read "8 branch row(s)
+    // waiting" with all eight merged.
+    expect(read("scripts/console.mjs"), "the owner list's approvals line counts merged nights as waiting again")
+      .toMatch(/kind === "branch" && r\.stage !== "merged"\)\.length\} branch row\(s\) waiting/);
   });
 });
 
@@ -202,8 +310,16 @@ describe("the lists on this tree", () => {
   });
   it("reads visual requests by status and permissions by state", () => {
     const v = parseVisualRequests(read("docs/VISUAL-REQUESTS.md"));
-    expect(v.requested.length).toBe(3);
-    expect(v.built).toEqual([]);
+    // 4 since D368 added the interest-profile panel (0b), 5 since D371
+    // filed the buying door's price shape (item 4) the same day, 7 since
+    // ROLES-PLAN.md filed the 1v1/group profile (item 5) and the group's
+    // cast (item 6) on 2026-09-06. The web ask door D368 also added moved
+    // Designed → Built at D369 — the SECTION is the status, not the
+    // `status` line inside the entry, so an entry that is built and left
+    // under Designed reads as still waiting.
+    expect(v.requested.length).toBe(7);
+    expect(v.designed).toEqual([]);
+    expect(v.built.length).toBe(1);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });
@@ -257,6 +373,50 @@ describe("the register", () => {
   });
   it("is null, not empty, when the file is not on main", () => {
     expect(parseRegister(null)).toBeNull();
+  });
+
+  it("does not carry an account past its own section", () => {
+    // The shape of the real file, and the bug it produced: §4 is the last
+    // Session heading, it holds no table, and §5's table is NOT anybody's
+    // verified block — it is the chartered ops lanes, ids transcribed from
+    // a runbook. Before this, all of §5 was drawn as Claude 3's, so the
+    // console reported eight routines for an account whose true count is
+    // zero, one of them already listed under Claude 2
+    // and none of them read from `list_triggers`.
+    const withOps = `# The register
+
+## 2 · Session 1 — the content lanes
+
+| Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
+| --- | --- | --- | --- | --- | --- |
+| InSight feed lane | \`trig_1\` | \`30 9 * * *\` — daily 09:30 | dev | x | self |
+
+## 4 · Session 3 — the block nobody has claimed
+
+Nobody has written this block.
+
+## 5 · The ops and program lanes — chartered, relaying nothing
+
+| Lane | Trigger id | Fires (UTC) | Merge authority |
+| --- | --- | --- | --- |
+| Pulse responder | \`trig_9\` | \`20 6,16 * * *\` | never |
+`;
+    expect(parseRegister(withOps)).toEqual([
+      { account: "Claude 1", name: "feed lane", trigger: "trig_1", schedule: "30 9 * * *" },
+    ]);
+  });
+
+  it("reads the register on main without inventing an account", () => {
+    // Against the committed file rather than a fixture, because the bug
+    // was invisible in every fixture written for it: §2 declares its own
+    // count in prose ("eleven Routines"), and that is the one number here
+    // a parser cannot fake.
+    const rows = parseRegister(read("docs/ROUTINES.md"));
+    const byAccount = {};
+    for (const r of rows) byAccount[r.account] = (byAccount[r.account] || 0) + 1;
+    expect(byAccount["Claude 1"]).toBe(11);
+    expect(byAccount["Claude 3"]).toBeUndefined();
+    expect(rows.every((r) => /^trig_/.test(r.trigger))).toBe(true);
   });
 });
 

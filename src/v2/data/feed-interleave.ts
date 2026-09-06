@@ -91,18 +91,19 @@ export interface InterleaveStreams<T> {
   testEvery?: number;
   lensEvery?: number;
   /**
-   * The ONE sponsored card, or null (D195).
+   * The day's paid cards, in order (D377; until then ONE card, D195).
    *
-   * A single card rather than a stream, and that is the design rather than
-   * a simplification: the cap on paid inventory is what makes a slot
-   * sellable at all (docs/SCALE-PLAN.md §5 — naming a cohort's attention
-   * as finite makes the cap the unit of sale, so inventory cannot be
-   * quietly inflated without visibly devaluing what was already sold).
-   * `data/sponsored.ts` picks it; this only places it.
+   * A stream with its own places rather than a single card: one lands
+   * after every `paidEvery`th world card, each at most once, as far as
+   * the list reaches. The density is what makes a place sellable
+   * (docs/SCALE-PLAN.md §5 — inventory computable from the content
+   * schedule, one named number rather than something demand can
+   * quietly inflate). `data/sponsored.ts` orders them; this only places
+   * them.
    */
-  sponsored?: T | null;
-  /** Which world card it lands after. */
-  sponsorAt?: number;
+  paid?: readonly T[];
+  /** A paid card after every this-many world cards; 0 disables. */
+  paidEvery?: number;
   /**
    * How many cadence positions to walk when `world` is shorter than that
    * (D348): the side streams keep firing past the end of the world list,
@@ -127,14 +128,14 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   const {
     tests, lenses, know = [], knowEvery = 0,
     testEvery = TEST_EVERY, lensEvery = LENS_EVERY,
-    sponsored = null, sponsorAt = 0,
+    paid = [], paidEvery = 0,
     depth = 0,
   } = streams;
   const out: T[] = [];
   let ti = 0;
   let li = 0;
   let ki = 0;
-  let paidPlaced = false;
+  let pi = 0;
   // Cadence positions, not world cards: past the end of `world` the loop
   // keeps counting so the side streams keep their slots (the header says
   // why). Nothing else changes past that point — a position with no world
@@ -142,10 +143,12 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   const positions = Math.max(world.length, depth);
   for (let i = 0; i < positions; i++) {
     if (i < world.length) out.push(world[i]);
-    // The paid slot fires ONCE, at a fixed depth, before the side streams'
-    // cadences — a card that could land twice is inventory the seller did
-    // not sell and the reader did not agree to.
-    if (sponsored && !paidPlaced && i + 1 >= sponsorAt) { out.push(sponsored); paidPlaced = true; }
+    // The paid places fire at their own cadence, before the side streams',
+    // each card once — a card that could land twice is inventory the
+    // seller did not sell and the reader did not agree to. Never first:
+    // the cadence's first position is `paidEvery`, and the tail below
+    // keeps the rule when the list is shorter than that.
+    if (paidEvery && (i + 1) % paidEvery === 0 && pi < paid.length) out.push(paid[pi++]);
     if (knowEvery && (i + 1) % knowEvery === 0 && ki < know.length) out.push(know[ki++]);
     if ((i + 1) % testEvery === 0 && ti < tests.length) out.push(tests[ti++]);
     if ((i + 1) % lensEvery === 0 && li < lenses.length) out.push(lenses[li++]);
@@ -155,12 +158,12 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   // positions walked, not the world list: a depth long enough to fire the
   // cadence has already served it.
   if (knowEvery && positions < knowEvery) while (ki < know.length) out.push(know[ki++]);
-  // A world list shorter than the slot depth still owes the buyer their
+  // A list shorter than the paid cadence still owes each buyer their
   // card — the alternative is a window that silently delivers nothing to
   // anyone with a heavily muted feed, which is the measurement asymmetry
-  // billing-on-answers exists to avoid. It lands at the end, not at the
+  // billing-on-answers exists to avoid. They land at the end, not at the
   // top: a paid card must never be the first thing in the stream.
-  if (sponsored && !paidPlaced) out.push(sponsored);
+  while (pi < paid.length) out.push(paid[pi++]);
   return out;
 }
 

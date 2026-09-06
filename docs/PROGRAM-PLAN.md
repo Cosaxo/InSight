@@ -34,8 +34,8 @@ permission list**, **the user has-to-do list**, **the axiom list** and
 **the visual request list** — plus a **visual vision file**; a
 **to-do doer on every subscription** (today only Claude 2 has one),
 divided so no one doer does everything; a routine like the night shift
-that works only on **approved** pull requests and hands them to the
-shepherd; the same **axiom-theory routines as Claude 2** on this
+that works only on **approved** pull requests and hands them back to
+the owner to merge; the same **axiom-theory routines as Claude 2** on this
 subscription, plus an **axiom maker** (better name wanted) that opens
 pull requests moving the project toward what the theory envisions,
 two or three times a day, Fable planning, Opus 5 with ultracode
@@ -74,14 +74,14 @@ Four more facts the design leans on:
 
 - **The merge door exists on paper and not in the world.** A PR
   labelled `merge-when-green` is one the owner has decided to merge,
-  and the PR shepherd squash-merges it on green under five steps
-  (`OPS-RUNBOOK.md` § The PR shepherd). The label exists in the
+  and since D385 the owner then merges it by hand — no lane and no
+  Action merges anything. The label exists in the
   repository and five open PRs carry it as this is written; the
-  shepherd Routine does not — the session's permission classifier
+  merge lane that was to act on it does not — the session's permission classifier
   refused to create it, along with the pulse responder, the dependency
   shepherd and the probe, and their rows say *create from the web UI*
-  (PR #364). Until a person does that, every approved PR waits exactly
-  as an unapproved one.
+  (PR #364). Since D385 an approved PR waits on the owner's own merge,
+  which is a click rather than a lane.
 - **The to-do doer's contract already exists** — `OPS-RUNBOOK.md`
   § The list worker, working `WORKLIST.md`: topmost open item, one
   item per PR, Fable orchestrating `sonnet`/`opus`/`fable` subagents,
@@ -150,8 +150,8 @@ runs (both typechecks and lints, every runner the diff's scope names,
 every gate that runs without production secrets), re-review the whole
 diff adversarially as one unit, fix only what that proves broken, with
 every commit it makes prefixed `shift:` — then, when the head is green
-and the review is clean, **apply `merge-when-green`**, and the PR
-shepherd merges under its five steps. A PR the shift cannot get green
+and the review is clean, **apply `merge-when-green`** — which since
+D385 marks it for the owner's own merge. A PR the shift cannot get green
 stays in the shift's column with exactly what is red and why, and the
 owner decides.
 
@@ -161,9 +161,8 @@ owner's own description of the flow — approve → the shift fixes →
 *"they are set to be merged by the shepherd"* — delegates that one
 application to the shift, for PRs the owner has already approved. The
 decision stays the owner's (the `approved` tap); the shift executes
-it; the shepherd's step 4 still holds, because the shift labels
-*after* its last push, so every commit after arming is the
-shepherd's own. The owner said it in words on 2026-09-02 (§10, answer 2), and the
+it. The shift labels *after* its last push, so a labelled head is the
+head the owner merges. The owner said it in words on 2026-09-02 (§10, answer 2), and the
 record that adopts this plan amends §0 with the date.
 
 **Who writes the list.** The shift rewrites it each run; between
@@ -174,7 +173,7 @@ A seeded row, as it would read today:
 
 | PR | From | What | How | State | Stage |
 | --- | --- | --- | --- | --- | --- |
-| #367 | an interactive session (which account, the row would say) | a returning device paints its real deck from disk before the network; an offline answer survives relaunch | the PR body's mechanism, one line, D352/D354 | as GitHub reports it at render time | `ready` — the owner labelled it `merge-when-green` at 11:23 UTC, and it waits on a shepherd that does not exist yet |
+| #367 | an interactive session (which account, the row would say) | a returning device paints its real deck from disk before the network; an offline answer survives relaunch | the PR body's mechanism, one line, D352/D354 | as GitHub reports it at render time | `ready` — the owner labelled it `merge-when-green` at 11:23 UTC, and since D385 it waits on the owner's own merge |
 
 ### 2.2 The to-do list — `docs/WORKLIST.md`, extended
 
@@ -231,11 +230,11 @@ Seeded from what the tree and today's PRs already record:
 
 | Need | Hit by | Blocks | Fix | Status |
 | --- | --- | --- | --- | --- |
-| Create the PR shepherd, the pulse responder, the dependency shepherd and the probe | the ops session, 2026-09-02 — the permission classifier refused creation from a session | the whole merge door: five labelled PRs wait | create each in the web UI (claude.ai/code/routines), repository attached, prompt from `OPS-RUNBOOK.md` §4; the shepherd's GitHub `pull_request` triggers added there | open |
-| The GitHub merge tool approved once in the ops dispatcher's own history | the PR shepherd's label merge (`OPS-RUNBOOK.md` §2.3) | any merge by the shepherd under the dispatcher binding | one human turn in that session approving the tool; `.claude/settings.json` deliberately omits it | open |
+| Create the pulse responder, the dependency shepherd and the probe | the ops session, 2026-09-02 — the permission classifier refused creation from a session | three lanes that do not run | create each in the web UI (claude.ai/code/routines), repository attached, prompt from `OPS-RUNBOOK.md` §4 | open |
+| ~~The GitHub merge tool approved once in the ops dispatcher's own history~~ | — | — | **not needed since D385** — no lane merges, so no lane needs the tool | closed |
 | `FIREBASE_API_KEY` in the environment's configuration | the farm (asked twice), the pulse responder | `npm run scorecard -- --fetch` in a routine; the scorecard stays stale | the environment's settings, not a shell file | open |
 | `ROUTINE_PULSE_FIRE_URL` / `_TOKEN`, `ROUTINE_RELEASE_FIRE_URL` / `_TOKEN` | `pulse.yml`, `ios-release.yml` — the steps are committed and inert | the pulse responder and the release recorder firing from a workflow | one repository variable and one secret each, from the web UI's API trigger | open |
-| The Claude GitHub App on the repository | the shepherd's event triggers | acting on a label within the hour rather than at the next slot | install from the web UI's prompt | open |
+| The Claude GitHub App on the repository | a lane's event triggers | acting on a label within the hour rather than at the next slot | install from the web UI's prompt | open |
 | Egress to news domains from the routine environment | the now lane (D351) | opening a story rather than only finding it | the environment's network policy; the bar tightens to "opened, and quoted" when granted | open — not needed for the lane to run |
 | A prompt edit on a Routine bound to another session | every rebind so far (D148, D326, D350) | editing a live prompt in place | none — platform; the fix is delete-and-recreate, create first | will not grant (platform) |
 
@@ -404,7 +403,7 @@ for this account in the PR that creates it.
 
 | Lane | Triggers (UTC) | Model | Reads | Writes | Merge authority |
 | --- | --- | --- | --- | --- | --- |
-| **The axiom maker** (§4.1 — name in §9 Q7) | `30 6,12,18 * * *` — three a day, two if the owner halves it | `claude-fable-5-1` orchestrating; the build fanned to Opus 5 subagents under ultracode; a Fable reviewer | `axiom-theory` (every `THEORY.md`, `bridge/VERDICTS.md`, `DIGEST.md`, `SCORES.md`), `AXIOMS.md`, `AXES-PLAN.md`/`AXES-RUNBOOK.md`, the tree | one PR per run on `claude/axiom-<slug>`; to-do rows tagged by account; `AXIOMS.md` proposed rows; visual-request rows | never |
+| **The axiom maker** (§4.1 — name in §9 Q7) | `30 6,12,18 * * *` — three a day, two if the owner halves it; **superseded: the owner's 2026-09-03 call is one a day, `30 6 * * *`** (`OWNER-LIST.md`) | `claude-fable-5-1` orchestrating; the build fanned to Opus 5 subagents under ultracode; a Fable reviewer | `axiom-theory` (every `THEORY.md`, `bridge/VERDICTS.md`, `DIGEST.md`, `SCORES.md`), `AXIOMS.md`, `AXES-PLAN.md`/`AXES-RUNBOOK.md`, the tree | one PR per run on `claude/axiom-<slug>`; to-do rows tagged by account; `AXIOMS.md` proposed rows; visual-request rows | never |
 | **The merge shift** (§4.2) | `15 5,7,9,11,13,15,17,19 * * *` daytime, plus one long pass `15 23 * * *`; a GitHub `pull_request` *labeled* trigger when the web UI creation allows it | `claude-opus-5` at high effort with ultracode — the night worker's shape | PRs labelled `approved` | `shift:` commits on those branches; `MERGE-LIST.md`; the label `merge-when-green` on a green, reviewed head | **applies the label only** — never merges |
 | **The to-do doer, Claude 3** | `0 18 * * *` — an hour after Claude 2's | the list worker's | `WORKLIST.md` items tagged `[claude-3]` | one PR per item on `claude/worklist-<slug>` | never |
 | **The to-do doer, Claude 1** — *the owner creates it on that account* | `0 16 * * *` | the list worker's | items tagged `[claude-1]` | same | never |
@@ -478,7 +477,7 @@ the maker's prompt opts in by name so a run never has to infer it.
 
 **The job in one sentence:** every pull request the owner approved is
 brought to green and read as one diff by a session that did not write
-it, and then handed to the shepherd.
+it, and then handed back to the owner to merge.
 
 Per labelled PR, oldest approval first: read the other open PRs'
 diffs for the same files first (the collision rule the register
@@ -626,16 +625,16 @@ share a minute with a content lane's self-merge.
    issue, the trail; then the keeper's artifact; then the improver.
    — *Gate:* `test:scripts` on the renderer; the issue body refreshes.
 5. **The other accounts' halves** — the Claude 1 doer, the four
-   uncreated ops lanes in whichever web UI the owner chooses (the PR
-   shepherd first: it is the door), the theory lanes' second set if Q1
+   uncreated ops lanes in whichever web UI the owner chooses, the
+   theory lanes' second set if Q1
    says so. — *Gate:* the register's rows, verified from
    `list_triggers` on the owning account.
 
 ## 8 · What this plan deliberately does not do
 
-- **No lane merges on its own judgement.** The owner's `approved` tap
-  is the decision; the shift executes and the shepherd merges under
-  the five steps that keep it the owner's. D289's tier stands.
+- **No lane merges at all (D385).** The owner's `approved` tap is the
+  decision; the shift brings the PR to green and the owner merges it by
+  hand. D289's tier stands, with nothing above it.
 - **No lane edits its own contract.** The improver and the maker
   open docs PRs; the owner merges every one (`AXES-PLAN.md` §10).
 - **No fake anything on the console** (D1). A panel whose source did
@@ -689,9 +688,8 @@ the record of what was asked.*
    bridge's open worth-building verdicts first, ahead of gaps it infers
    (recommended)?
 10. **The ops lanes' account** — are the list worker and the ops
-    dispatcher on Claude 2 (inferred)? And should the four uncreated
-    ops lanes — the PR shepherd above all, since the whole merge flow
-    ends at it — be created in *this* account's web UI, the unspent
+    dispatcher on Claude 2 (inferred)? And should the uncreated
+    ops lanes be created in *this* account's web UI, the unspent
     bucket, rather than Claude 2's?
 11. **The forgotten list** — a findings list, a routine-health panel, a
     decisions list (§2.7), or something else the owner had in mind?
@@ -715,7 +713,9 @@ what the runbook builds from. Every one is binding on adoption
    ticking a box in the list file."* — The owner's act is the tick in
    `MERGE-LIST.md`; the console workflow mirrors it to the label
    `approved`; the merge shift applies `merge-when-green` when the PR
-   is green and reviewed; the shepherd merges. `OPS-RUNBOOK.md` §0's
+   is green and reviewed; **the owner merges** (D385 — the answer above
+   is the owner's word of 2026-09-02, and the lane it licensed was
+   retired on 2026-09-06 for never merging anything). `OPS-RUNBOOK.md` §0's
    "no lane ever applies it" is amended to *the owner's act, executed
    by the owner or by the merge shift on a PR the owner approved*.
 3. **The doers:** *"i will add a to-do doer to claude 1 and 3 (or you
@@ -751,8 +751,7 @@ what the runbook builds from. Every one is binding on adoption
     ones that were not created are about to be."* — `ROUTINES.md` is
     that file, and it gains a plain one-line description per routine
     (runbook phase 5.3). The ops dispatcher and its four lanes are on
-    Claude 2, confirmed; the PR shepherd and the other three are being
-    created there.
+    Claude 2, confirmed; the other three are being created there.
 11. **The forgotten list:** *"a routine health panel and routine
     overview list."* — The console's routine-health panel (§5) and the
     register's overview section.

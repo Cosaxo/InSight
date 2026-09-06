@@ -32,6 +32,7 @@ import {
   refusedAt,
   type DayCounts,
   type LedgerRow,
+  foldAuthPage,
 } from "./velocity";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKeyOf } from "./pure";
@@ -553,5 +554,57 @@ describe("scanLedgerWindow, run", () => {
       .toEqual(["at", "fromIdx", "qid", "uid"]);
     expect(asked.limit,
       "a page this small makes thousands of round trips over one window").toBeGreaterThanOrEqual(500);
+  });
+});
+
+describe("foldAuthPage — what the coverage number is allowed to count", () => {
+  const rec = (uid: string, db: unknown, creationTime = "2026-09-01T00:00:00Z") =>
+    ({ uid, metadata: { creationTime }, customClaims: db === undefined ? null : { db } });
+
+  it("counts a real integer level and nothing that merely looks like one", () => {
+    // The comment this loop carries names the cost exactly: `Number(true)`
+    // is 1, so a coerced claim would count as a qualifying account on the
+    // day the coverage number is trusted — and that number is D37's flip
+    // decision, what share of real votes enforcement would refuse.
+    // firestore.rules is the other half: `get("db", 0) >= n` errors on a
+    // string or a boolean and denies, so a coerced claim here would count
+    // an account the rules refuse.
+    const created: { uid: string; createdMs: number }[] = [];
+    const levels = new Map<string, number>();
+    foldAuthPage([
+      rec("real", 1),
+      rec("bool", true),
+      rec("str", "1"),
+      rec("frac", 1.5),
+      rec("zero", 0),
+      rec("neg", -1),
+      rec("none", undefined),
+    ], created, levels);
+    expect([...levels.keys()]).toEqual(["real"]);
+    expect(levels.get("real")).toBe(1);
+  });
+
+  it("keeps a level above the ladder — that is a newer deploy, not a bad claim", () => {
+    const levels = new Map<string, number>();
+    foldAuthPage([rec("ahead", 99)], [], levels);
+    expect(levels.get("ahead")).toBe(99);
+  });
+
+  it("drops an unparseable creation time instead of seeding NaN into the clusters", () => {
+    // A NaN in `created` makes every span involving it NaN, so the birth
+    // clusters this feeds go silently unreportable rather than wrong.
+    const created: { uid: string; createdMs: number }[] = [];
+    foldAuthPage([rec("ok", 1), rec("bad", 1, "not a date")], created, new Map());
+    expect(created.map((c) => c.uid)).toEqual(["ok"]);
+    expect(created.every((c) => Number.isFinite(c.createdMs))).toBe(true);
+  });
+
+  it("appends across pages rather than replacing — the loop calls it per 100", () => {
+    const created: { uid: string; createdMs: number }[] = [];
+    const levels = new Map<string, number>();
+    foldAuthPage([rec("a", 1)], created, levels);
+    foldAuthPage([rec("b", 2)], created, levels);
+    expect(created.map((c) => c.uid)).toEqual(["a", "b"]);
+    expect([...levels.keys()]).toEqual(["a", "b"]);
   });
 });

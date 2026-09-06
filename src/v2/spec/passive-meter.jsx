@@ -115,6 +115,30 @@ function passiveSignature(k) {
   return sig;
 }
 
+// HOW MUCH OF A TEST IS ANSWERED, from the same place the colour beside it
+// comes from.
+//
+// `PASSIVE.done/needed/pct` count `st.seen`, a localStorage tally written
+// at the moment of the tap, against the LOCAL definition's length. On a
+// second device — or after a reinstall — that reads ZERO for a profile the
+// person's own profile tab draws as complete, and it counts nothing the
+// bank served that the definition no longer defines. result-card.jsx
+// already named this and switched itself to the fold; the ring, the sheet
+// row and the per-card tag draw the same fact and were not switched, so
+// inside this file the colour came from the fold and the number came from
+// the device.
+//
+// The fold where there is one, the tally otherwise — which is the demo
+// build (`ownProgress` returns null with LIVE off, by design: the seeded
+// stagger IS the content there) and any instrument the live bank serves
+// no items for.
+export function passiveCount(k) {
+  const p = ownProgress(k);
+  if (!p) return { done: PASSIVE.done(k), needed: PASSIVE.needed(k), pct: PASSIVE.pct(k), full: PASSIVE.complete(k) };
+  const pct = p.total ? Math.round((p.answered / p.total) * 100) : 100;
+  return { done: p.answered, needed: p.total, pct, full: p.total > 0 && p.answered >= p.total };
+}
+
 // The colour a test currently READS AS: where you stand right now, with its
 // two-tone split — the same value the open sheet and the type mark use.
 //
@@ -151,7 +175,7 @@ export function passiveStanding(k) {
 }
 
 function PassiveRing({ k, size = 15, thick = 3, hole = 'var(--surface-2)' }) {
-  const p = PASSIVE.pct(k), { col, sp } = passiveStanding(k);
+  const p = passiveCount(k).pct, { col, sp } = passiveStanding(k);
   const deg = p * 3.6;
   // filled arc carries the split as two solid parts, exactly like the sheet's dots
   const fill = sp ? `${sp.deep} 0 ${(deg * sp.ratio).toFixed(2)}deg, ${sp.lift} 0 ${deg.toFixed(2)}deg` : `${col} 0 ${deg.toFixed(2)}deg`;
@@ -190,7 +214,7 @@ export function PassiveMeter() {
                   that was removed. */}
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in.</div>
               {P.KEYS.map((k) => {
-                const m = P.META[k], full = P.complete(k), n = P.needed(k), done = P.done(k);
+                const m = P.META[k], { done, needed: n, full } = passiveCount(k);
                 // the row takes the colour of the type you currently ARE, so the mark,
                 // its name and the dots read as one thing — the same value the chip's
                 // ring outside is already showing
@@ -231,7 +255,7 @@ export function PassiveMeter() {
 export function PassiveTag({ q, answered, style }) {
   const P = usePassive(); if (!P) return null;
   const k = P.testFor(q); const m = k && P.META[k]; if (!m) return null;
-  const done = P.done(k), n = P.needed(k), { col } = passiveStanding(k);
+  const { done, needed: n } = passiveCount(k), { col } = passiveStanding(k);
   return (
     <span title={'One of the ' + m.label + " test's own questions — " + done + ' of ' + n + ' answered'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', color: answered ? `color-mix(in oklch, ${col} 75%, var(--ink-2))` : 'var(--ink-3)', flexShrink: 0, whiteSpace: 'nowrap', transition: 'color .25s ease', ...style }}>
       <PassiveRing k={k} size={13} thick={3.2}></PassiveRing>

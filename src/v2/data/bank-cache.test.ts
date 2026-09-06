@@ -23,6 +23,10 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 // factory is a suite variable so a mid-test resetModules simulates "next
 // boot, same device": the module state resets, the disk does not.
 import { IDBFactory } from "fake-indexeddb";
+// The deck rule the paged cases check themselves against — asserting the
+// paged device agrees with a device holding the bank, rather than against
+// an id written down here that would go stale with the epoch.
+import { DECK_DAYS, computeDeckIds, dayIndex } from "./deck";
 
 interface FakeDoc {
   id: string;
@@ -52,7 +56,12 @@ const h = vi.hoisted(() => ({
   // The published serving orders (D319) the pagers read, keyed by
   // surface. Empty = no fold has run, which is every pre-D319 test's
   // world.
-  rankOrders: {} as Record<string, { topics: Record<string, { qids: string[]; total: number }> }>,
+  rankOrders: {} as Record<string, (
+    | { topics: Record<string, { qids: string[]; total: number; carry?: number }> }
+    // D383's daily SHAPE doc — a length, not an order — plus D384's
+    // Scores pool, which is ids per scope rather than documents.
+    | { n: number; maxSeq: number; rates?: Record<string, string[]> }
+  )>,
   // The owner's interest profile (D322), served at their own taste path.
   tasteProfile: null as null | { t: Record<string, number>; n: number },
 }));
@@ -174,12 +183,21 @@ vi.mock("firebase/firestore", () => {
         // constraint hands the query the whole bank, and the test then
         // passes on a query that in production returns nothing.
         const paidEq = cons.find((c) => c.kind === "where" && c.field === "paid" && c.op === "==");
+        // …and D383's two: the deck's `seq in [positions]` and the Scores
+        // pool's `type == "rating"`. Applied for the same reason as every
+        // filter above — a fake that shrugs at `seq in` hands the deck
+        // query the whole daily surface, and the test then proves nothing
+        // about a query that on a device returns seven documents.
+        const seqIn = cons.find((c) => c.kind === "where" && c.field === "seq" && c.op === "in");
+        const typeEq = cons.find((c) => c.kind === "where" && c.field === "type" && c.op === "==");
         const untilGte = cons.find((c) => c.kind === "where" && c.field === "until" && c.op === ">=");
         let docs = [...h.bankDocs].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         if (surfaceIn) docs = docs.filter((d) => (surfaceIn.value as string[]).includes(d.data.surface as string));
         if (surfaceEq) docs = docs.filter((d) => d.data.surface === surfaceEq.value);
         if (coreEq) docs = docs.filter((d) => d.data.core === coreEq.value);
         if (paidEq) docs = docs.filter((d) => d.data.paid === paidEq.value);
+        if (seqIn) docs = docs.filter((d) => (seqIn.value as number[]).includes(d.data.seq as number));
+        if (typeEq) docs = docs.filter((d) => d.data.type === typeEq.value);
         // Firestore drops a document that does not carry the field an
         // inequality names — which is what keeps the seeded bank out of
         // this query, so the fake has to do it too.
@@ -338,9 +356,12 @@ afterEach(() => {
 describe("question-bank cache", () => {
   it("fetches the whole bank on a cold boot and records the cursor", async () => {
     await bootLive();
-    // Three: the boot surfaces, the feed's core (D321), and the bought
-    // questions no published order can carry (D313).
-    expect(bankFetches()).toBe(3);
+    // FOUR since D383: the boot surfaces, the feed's core (D321), the
+    // bought questions no published order can carry (D313), and the
+    // daily. With no v2_rank/daily in this fixture the daily takes its
+    // fallback — the whole surface, exactly the pre-D383 fetch — so the
+    // count moves but the rows do not.
+    expect(bankFetches()).toBe(4);
     expect(isDelta(0)).toBe(false);
     const cached = await readCache();
     expect(cached.questions).toHaveLength(2);
@@ -418,8 +439,8 @@ describe("question-bank cache", () => {
     await seedCache({ ...first, rev: first.rev + 1 });
 
     await bootLive();
-    // All three boot queries re-run — the cursor is not trusted either.
-    expect(bankFetches()).toBe(3);
+    // All four boot queries re-run — the cursor is not trusted either.
+    expect(bankFetches()).toBe(4);
     expect(isDelta(0)).toBe(false);
   });
 
@@ -457,8 +478,8 @@ describe("question-bank cache", () => {
     await bootLive();
     // 1000 + 1000 + 500: the third page is short, which is what ends it.
     // Plus one empty page each for the core-feed and bought-question
-    // queries.
-    expect(bankFetches()).toBe(5);
+    // queries, and one for the daily's fallback (D383).
+    expect(bankFetches()).toBe(6);
     expect((await readCache()).questions).toHaveLength(2500);
   });
 
@@ -522,11 +543,19 @@ describe("question-bank cache", () => {
     // boot's second page is issued AFTER the core and paid queries' first
     // pages, and its position in the log depends on that interleaving.
     // What the off-by-one would change is the NUMBER of cursor-carrying
-    // pages, and that is what is pinned.
-    expect(bankFetches()).toBe(5);
+    // pages, and that is what is pinned. Six since D383's daily fallback.
+    expect(bankFetches()).toBe(6);
     const paged = h.bankQueries.filter((q) => q.cons.some((c) => c.kind === "startAfter"));
     expect(paged).toHaveLength(2);
-    expect(paged.every((q) => q.cons.some((c) => c.kind === "where" && c.field === "surface" && c.op === "in"))).toBe(true);
+    // Every cursor-carrying page names a surface. Since D383 the loop this
+    // fixture exercises is the DAILY's fallback pager — the bank here is
+    // all dailies, so the boot `in` returns nothing and pages once — and
+    // it is a separate loop with the same off-by-one to get wrong, which
+    // is why this takes either form rather than only the one that used to
+    // page.
+    expect(paged.every((q) => q.cons.some(
+      (c) => c.kind === "where" && c.field === "surface" && (c.op === "in" || c.op === "=="),
+    ))).toBe(true);
     expect((await readCache()).questions).toHaveLength(2000);
   });
 
@@ -548,8 +577,9 @@ describe("question-bank cache", () => {
       JSON.stringify({ rev: 0, questions: [q("q_9", 0).data] }),
     );
     await bootLive();
-    // The three boot queries (D321's core split, D313's bought reach).
-    expect(bankFetches()).toBe(3);
+    // The four boot queries (D321's core split, D313's bought reach,
+    // D383's daily).
+    expect(bankFetches()).toBe(4);
     expect(isDelta(0)).toBe(false);
     expect((await readCache()).questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
   });
@@ -573,6 +603,13 @@ describe("question-bank cache", () => {
     storage.setItem(BANK_LS, JSON.stringify(first));
 
     await bootLive();
+    // STILL ONE. The daily's resolution runs on this path too (D383), and
+    // it fetches nothing: the migrated cache already holds the surface, so
+    // with no published shape the fallback returns empty rather than
+    // re-reading it. That is the property keeping a project whose nightly
+    // fold has not run from paying for the whole daily surface on every
+    // launch — and it is asserted here because the first version of the
+    // predicate read the idb-only flag and re-fetched exactly here.
     expect(bankFetches()).toBe(1);
     expect(isDelta(0), "a legacy cache must warm-boot, not refetch").toBe(true);
     expect((await readCache()).questions).toHaveLength(2);
@@ -600,6 +637,149 @@ describe("question-bank cache", () => {
   // delta cases are: a surface dropped by the server-side `in` and a
   // surface dropped by the client-side filter look identical from the
   // bank, and only one of them costs a read.
+  describe("the paged daily (D383)", () => {
+    // A bank big enough that the deck is a small slice of it — the whole
+    // point being that this number can grow without the boot growing.
+    const dailies = (n: number) =>
+      Array.from({ length: n }, (_, i) => q(`q_${String(i).padStart(6, "0")}`, 1000));
+
+    it("fetches eight positions instead of the surface, and asks by seq", async () => {
+      h.bankDocs = dailies(40);
+      h.rankOrders.daily = { n: 40, maxSeq: 39 };
+      await bootLive();
+      const deckQ = h.bankQueries.find((qq) => qq.cons.some(
+        (c) => c.kind === "where" && c.field === "seq" && c.op === "in",
+      ));
+      expect(deckQ, "the deck was not asked for by seq").toBeTruthy();
+      const seqs = deckQ!.cons.find((c) => c.field === "seq")!.value as number[];
+      // Seven days plus tomorrow, so a session open across midnight has
+      // the next card already.
+      expect(seqs).toHaveLength(8);
+      expect(new Set(seqs).size, "a position was asked for twice").toBe(8);
+      for (const seq of seqs) {
+        expect(seq).toBeGreaterThanOrEqual(0);
+        expect(seq).toBeLessThan(40);
+      }
+      // EIGHT OF FORTY CACHED. This is the whole change in one assertion:
+      // the boot holds what the pager can show, not the bank.
+      expect((await readCache()).questions).toHaveLength(8);
+      // …and no query asked for the surface WHOLE. The Scores lens's pool
+      // (`type == "rating"`) is a daily query too and is meant to be
+      // here — it is the bounded top-up that replaced the fold which used
+      // to read the whole bank — so it is excluded by name rather than by
+      // loosening the check into something that would pass on a
+      // regression.
+      const wholeQ = h.bankQueries.filter((qq) =>
+        qq.cons.some((c) => c.kind === "where" && c.field === "surface"
+          && c.op === "==" && c.value === "daily")
+        && !qq.cons.some((c) => c.field === "seq")
+        && !qq.cons.some((c) => c.field === "type"));
+      expect(wholeQ, "the daily surface was fetched whole anyway").toEqual([]);
+    });
+
+    it("serves a deck of seven, and the same one a device holding the bank would", async () => {
+      h.bankDocs = dailies(40);
+      h.rankOrders.daily = { n: 40, maxSeq: 39 };
+      const LIVE = await bootLive();
+      const ids = LIVE.deck().map((d: { id: string }) => d.id);
+      expect(ids).toHaveLength(DECK_DAYS);
+      // The pin that matters is agreement, not a hand-written id: the
+      // positions come from the published length, and a device holding
+      // all forty computes the same ones off the array.
+      const all = dailies(40).map((d) => d.id);
+      expect(ids).toEqual(computeDeckIds(all, dayIndex(new Date())));
+    });
+
+    it("REFUSES the fast path when the seq space is not dense, and takes the surface", async () => {
+      // n and maxSeq disagree — a console-edited doc dropped by the
+      // client's own playability filter, say. Positions are not seqs any
+      // more, and a device that guessed would sit on a different question
+      // from everyone else with nothing to show for it.
+      h.bankDocs = dailies(40);
+      h.rankOrders.daily = { n: 39, maxSeq: 39 };
+      await bootLive();
+      expect(h.bankQueries.some((qq) => qq.cons.some((c) => c.field === "seq")),
+        "asked by seq against a bank that is not dense").toBe(false);
+      expect((await readCache()).questions).toHaveLength(40);
+    });
+
+    it("REFUSES the fast path when the bank is short of the published shape", async () => {
+      // The shape says forty, the bank has ten: a deleted document rather
+      // than a retired one. Serving a deck with a hole in it is the
+      // failure with no symptom, so it takes the surface instead.
+      h.bankDocs = dailies(10);
+      h.rankOrders.daily = { n: 40, maxSeq: 39 };
+      await bootLive();
+      expect((await readCache()).questions).toHaveLength(10);
+    });
+
+    it("pages the Scores pool by id instead of querying the surface (D384)", async () => {
+      // 200 dailies, 60 of them place questions. Before D384 the top-up
+      // asked `surface == daily AND type == rating` and got all 60 — a
+      // term that grows with the bank. Now the fold publishes the ids and
+      // the device fetches a page of the ones it has not met.
+      const bank = Array.from({ length: 200 }, (_, i) => q(
+        `q_${String(i).padStart(6, "0")}`, 1000,
+        i % 3 === 0 ? { type: "rating", rates: "city" } : {},
+      ));
+      h.bankDocs = bank;
+      h.rankOrders.daily = {
+        n: 200,
+        maxSeq: 199,
+        rates: { city: bank.filter((d) => d.data.type === "rating").map((d) => d.id) },
+      };
+      await bootLive();
+      // No query asked the surface for its ratings.
+      const byType = h.bankQueries.filter((qq) => qq.cons.some(
+        (c) => c.kind === "where" && c.field === "type",
+      ));
+      expect(byType, "the Scores pool was queried off the surface").toEqual([]);
+      // The asks arrived by id, in chunks of the `in` limit, and stopped
+      // at one page rather than taking all 67.
+      const askIds = h.bankQueries.flatMap((qq) => {
+        const byId = qq.cons.find((c) => typeof c.field === "object");
+        return byId ? (byId.value as string[]) : [];
+      });
+      const ratingIds = new Set(bank.filter((d) => d.data.type === "rating").map((d) => d.id));
+      const fetchedAsks = askIds.filter((id) => ratingIds.has(id));
+      expect(fetchedAsks.length).toBeGreaterThan(0);
+      expect(fetchedAsks.length, "the page is not bounded").toBeLessThanOrEqual(24);
+    });
+
+    it("counts the whole pool even though it fetched a page of it", async () => {
+      const bank = Array.from({ length: 200 }, (_, i) => q(
+        `q_${String(i).padStart(6, "0")}`, 1000,
+        i % 3 === 0 ? { type: "rating", rates: "city" } : {},
+      ));
+      const ratingIds = bank.filter((d) => d.data.type === "rating").map((d) => d.id);
+      h.bankDocs = bank;
+      h.rankOrders.daily = { n: 200, maxSeq: 199, rates: { city: ratingIds } };
+      const LIVE = await bootLive();
+      // The lens prints this number. It has to be the pool minus this
+      // account's votes — not the page — or a stop with the most to offer
+      // is the one that understates it worst.
+      await vi.waitFor(() => {
+        expect(LIVE.placeAskTotal("city")).toBe(ratingIds.length);
+      });
+      expect(LIVE.placeAsks("city").length).toBeLessThan(ratingIds.length);
+      expect(LIVE.placeAskTotal("country"), "a scope with no pool counts nothing").toBe(0);
+    });
+
+    it("fetches only what the day moved on the next boot", async () => {
+      h.bankDocs = dailies(40);
+      h.rankOrders.daily = { n: 40, maxSeq: 39 };
+      await bootLive();
+      vi.resetModules();
+      h.bankQueries.length = 0;
+      await bootLive();
+      // Same day, so every position is already held: the shape is read
+      // (one small document, not counted here) and no question is
+      // fetched at all beyond the delta.
+      const bySeq = h.bankQueries.filter((qq) => qq.cons.some((c) => c.field === "seq"));
+      expect(bySeq, "a same-day relaunch re-fetched the deck").toEqual([]);
+    });
+  });
+
   it("fetches every boot surface, pulse and call included — and the paged two deliberately not", async () => {
     h.bankDocs = [
       q("q_1", 1000),
@@ -611,9 +791,21 @@ describe("question-bank cache", () => {
     ];
     const LIVE = await bootLive();
     const asked = (h.bankQueries[0].cons.find((c) => c.field === "surface")?.value || []) as string[];
-    for (const s of ["daily", "test", "group", "duo", "pulse", "call"]) {
+    for (const s of ["test", "group", "duo", "pulse", "call"]) {
       expect(asked, `the bank query does not ask for ${s}`).toContain(s);
     }
+    // THE DAILY LEFT THIS LIST AT D383 and did not become a paged surface
+    // in the learn/tail sense: it takes its own query, against the length
+    // the server publishes. Both halves are asserted, because "gone from
+    // the boot `in`" and "still fetched" have to be true together — the
+    // pulse/call lesson is that a surface missing by accident is a surface
+    // whose questions reach nobody, and the daily is the one surface the
+    // app cannot open without.
+    expect(asked, "the daily is back in the boot `in` — it has its own query").not.toContain("daily");
+    const dailyQueries = h.bankQueries.filter((qq) => qq.cons.some(
+      (c) => c.kind === "where" && c.field === "surface" && c.op === "==" && c.value === "daily",
+    ));
+    expect(dailyQueries.length, "nothing asked for the daily at all").toBeGreaterThan(0);
     // Learn and the feed PAGE against the published order since
     // D320/D321 — the boot `in` carrying either again would silently
     // re-inflate the install fetch the paging exists to remove. Learn's
@@ -900,5 +1092,44 @@ describe("question-bank cache", () => {
     const cold = cachedIds.filter((id) => id.startsWith("feed-cold")).length;
     expect(cold).toBeGreaterThan(0);
     expect(cold).toBeLessThan(12);
+  });
+
+  it("tells the topic sheet what the BANK holds, on a boot that fetches nothing", async () => {
+    // The learn twin above proves the totals reach a sheet on a boot that
+    // pages. This proves the harder half: a device whose cache already
+    // holds this boot's page fetches no rows at all — and that is exactly
+    // the boot on which the sheet must not fall back to counting a pool,
+    // because a warm cache is where pool and bank drift furthest. Publish
+    // inside the `rows.length` gate and this goes red while every other
+    // case stays green.
+    const tailDoc = (id: string, topic: string) =>
+      q(id, 1000, { surface: "feed", topic });
+    h.bankDocs = [q("q_1", 1000), tailDoc("feed-d0", "dilemma")];
+    h.rankOrders.feed = {
+      // `carry` above `qids.length`, and both above what the device holds:
+      // the order lists one dilemma, the shelf carries nine (eight of them
+      // straddlers homed elsewhere), and the pool will hold one. Three
+      // distinguishable numbers, so the assertion names which one the
+      // sheet is being handed.
+      topics: { dilemma: { qids: ["feed-d0"], total: 4, carry: 9 } },
+    };
+    await bootLive();
+    const { feedTopicTotal } = await import("./bankPager");
+    await vi.waitFor(() => {
+      expect(feedTopicTotal("dilemma")).toBe(9);
+    });
+
+    // Second boot, same store: the page is cached, so the pager fetches
+    // nothing — and still has to say what the shelf carries.
+    const { resetFeedTotals } = await import("./bankPager");
+    resetFeedTotals();
+    expect(feedTopicTotal("dilemma")).toBeNull();
+    await bootLive();
+    await vi.waitFor(() => {
+      expect(
+        feedTopicTotal("dilemma"),
+        "a warm boot left the sheet counting its pool",
+      ).toBe(9);
+    });
   });
 });

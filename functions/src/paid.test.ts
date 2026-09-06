@@ -10,20 +10,11 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SUGGEST_PER_DAY } from "./suggestions";
 import {
-  AD_ADVERTISER_MAX,
   BOOKINGS_PER_DAY,
-  AD_AUDIENCE_MAX,
-  AD_BODY_MAX,
-  AD_HEADLINE_MAX,
-  AD_URL_RE,
   AUDIENCE_DIMS_MAX,
   LIKERT,
-  adPriceQuote,
-  adStartDay,
-  adAudiencesOverlap,
+  checkoutLineItem,
   dayPlus,
-  paidAdDoc,
-  paidAdPurchaseDoc,
   PAID_OPTIONS_MAX,
   PAID_PROMPT_MAX,
   MAX_REVIEW_ATTEMPTS,
@@ -39,13 +30,18 @@ import {
   parseVerdict,
   priceQuote,
   refundEurFor,
+  reviewBooking,
+  goLive,
   reviewGates,
   reviewSubject,
   validatePaidBooking,
   type PaidBookingPayload,
+  validatePaidLink,
+  PAID_LINK_MAX,
 } from "./paid";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKey } from "./pure";
+import { PRICING_CARD } from "./pricing";
 
 const BOOKING: PaidBookingPayload = {
   kind: "question",
@@ -53,26 +49,11 @@ const BOOKING: PaidBookingPayload = {
   type: "binary",
   options: ["All night", "The hours are fine"],
   topic: "culture",
-  advertiser: null,
-  headline: null,
-  body: null,
   scope: "city",
   dims: { city: "Oslo, NO" },
   wearName: true,
-};
-
-const AD: PaidBookingPayload = {
-  kind: "ad",
-  prompt: "",
-  type: "ad",
-  options: [],
-  topic: null,
-  advertiser: "Harbour Sauna",
-  headline: "The water is warmer than you think",
-  body: "Open every morning from six, all winter.",
-  scope: "city",
-  dims: { city: "Oslo, NO" },
-  wearName: true,
+  budgetEur: null,
+  link: null,
 };
 
 describe("the buyer name is read off a field the profile can actually hold", () => {
@@ -147,11 +128,6 @@ describe("a validated booking survives being validated again", () => {
       expect(again).toEqual(ok);
     });
   }
-
-  it("holds for an ad", () => {
-    const { ok, again } = round(AD);
-    expect(again).toEqual(ok);
-  });
 
   it("and the gates agree with the validator on the stored payload", () => {
     // The path that actually declined people: reviewGates runs the
@@ -236,13 +212,36 @@ describe("validatePaidBooking", () => {
     if ("error" in r) throw new Error(r.error);
     expect(r.ok.topic).toBeNull();
   });
+
+  it("holds the budget to the card's range in whole euros, and reads a missing one as the cap (D372)", () => {
+    const { minEur, capEur } = PRICING_CARD;
+    const ok = validatePaidBooking({ ...BOOKING, budgetEur: 20 });
+    if ("error" in ok) throw new Error(ok.error);
+    expect(ok.ok.budgetEur).toBe(20);
+    // Outside the range, either way, and not a whole euro: refused with
+    // the range in the sentence, which is what the buyer needs to change.
+    for (const bad of [minEur - 1, capEur + 1, 99.5, "100", NaN]) {
+      const r = validatePaidBooking({ ...BOOKING, budgetEur: bad });
+      expect("error" in r, `budget ${String(bad)} should be refused`).toBe(true);
+      if ("error" in r) expect(r.error).toMatch(new RegExp(`€${minEur}.*€${capEur}`));
+    }
+    // A client from before budgets existed sends none. It showed the cap
+    // as the price, so the cap is what it is quoted — never a smaller
+    // figure it never displayed.
+    const { budgetEur: _b, ...legacy } = BOOKING;
+    void _b;
+    const r = validatePaidBooking(legacy);
+    if ("error" in r) throw new Error(r.error);
+    expect(r.ok.budgetEur).toBeNull();
+    expect(priceQuote("city", PRICING_CARD, r.ok.budgetEur).capEur).toBe(capEur);
+  });
 });
 
 describe("priceQuote", () => {
   it("prices off the committed card and locks the arithmetic", () => {
     const q = priceQuote("city", {
-      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, floorWeek: 500,
-      generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 0.9, booked: [], nextOpen: null },
         country: { idx: 0.9, booked: [], nextOpen: null },
@@ -256,10 +255,35 @@ describe("priceQuote", () => {
     expect(q.windowDays).toBe(WINDOW_DAYS);
   });
 
-  it("clamps a card idx that escaped its own bounds", () => {
+  it("makes the buyer's budget the cap, and holds it to the card's range (D372)", () => {
     const card = {
-      base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, floorWeek: 500,
-      generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
+      base: 0.1, floorX: 1, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
+      generated: "2026-09-05", currency: "EUR", fx: {}, adBase: 320,
+      cohorts: {
+        city: { idx: 1, booked: [], nextOpen: null },
+        country: { idx: 1.5, booked: [], nextOpen: null },
+        world: { idx: 1, booked: [], nextOpen: null },
+      },
+      estimates: {},
+    };
+    const q = priceQuote("city", card, 100);
+    expect(q.ratePerAnswer).toBe(0.1);
+    expect(q.capEur).toBe(100);
+    expect(q.cap).toBe(1000);
+    // The lifted line buys fewer answers for the same money — the budget
+    // is the constant, the count is what the demand index moves.
+    expect(priceQuote("country", card, 100).cap).toBe(Math.floor(100 / 0.15));
+    // Null is the pre-D372 booking: the card's cap.
+    expect(priceQuote("city", card, null).capEur).toBe(320);
+    // The clamps hold here too, whatever a stored figure says.
+    expect(priceQuote("city", card, 5).capEur).toBe(20);
+    expect(priceQuote("city", card, 5000).capEur).toBe(320);
+  });
+
+  it("holds a card idx to the floor, and to nothing above it (D373)", () => {
+    const card = {
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+      generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 9, booked: [], nextOpen: null },
         country: { idx: 0.1, booked: [], nextOpen: null },
@@ -267,7 +291,7 @@ describe("priceQuote", () => {
       },
       estimates: {},
     };
-    expect(priceQuote("city", card).ratePerAnswer).toBe(0.4); // 0.16 × 2.5 ceiling
+    expect(priceQuote("city", card).ratePerAnswer).toBe(1.44); // 0.16 × 9 — crowding has no ceiling
     expect(priceQuote("country", card).ratePerAnswer).toBe(0.144); // 0.16 × 0.9 floor
   });
 });
@@ -284,6 +308,39 @@ describe("reviewGates", () => {
   });
 });
 
+describe("validatePaidLink — the buyer's one link, by shape (D378)", () => {
+  it("takes a whole https address and nothing else", () => {
+    expect(validatePaidLink("https://harboursauna.no/winter")).toEqual({ ok: "https://harboursauna.no/winter" });
+    expect(validatePaidLink("  https://Example.NO/a?b=1  ")).toEqual({ ok: "https://example.no/a?b=1" });
+    // none is none — the field is optional, and blank is not an error
+    expect(validatePaidLink(undefined)).toEqual({ ok: null });
+    expect(validatePaidLink("   ")).toEqual({ ok: null });
+    expect(validatePaidLink("harboursauna.no")).toHaveProperty("error");
+    expect(validatePaidLink("http://harboursauna.no")).toEqual({ error: expect.stringMatching(/https/) });
+    expect(validatePaidLink("javascript:alert(1)")).toHaveProperty("error");
+    expect(validatePaidLink("https://user:pw@harboursauna.no")).toHaveProperty("error");
+    expect(validatePaidLink("https://localhost/x")).toHaveProperty("error");
+    expect(validatePaidLink(`https://harboursauna.no/${"x".repeat(PAID_LINK_MAX)}`)).toHaveProperty("error");
+  });
+
+  it("rides the booking through the validator, the stored reader and the round trip", () => {
+    const withLink = validatePaidBooking({ ...BOOKING, link: "https://harboursauna.no/winter" });
+    if ("error" in withLink) throw new Error(withLink.error);
+    expect(withLink.ok.link).toBe("https://harboursauna.no/winter");
+    const again = validatePaidBooking(withLink.ok);
+    if ("error" in again) throw new Error(again.error);
+    expect(again.ok).toEqual(withLink.ok);
+    expect(validatePaidBooking({ ...BOOKING, link: "ftp://harboursauna.no" })).toHaveProperty("error");
+    // and it is on the question doc, as the audience is — or absent
+    const doc = paidQuestionDoc(withLink.ok, "Olaf", "2026-08-27", "2026-09-24", 1) as { sponsor: Record<string, unknown> };
+    expect(doc.sponsor.link).toBe("https://harboursauna.no/winter");
+    const none = paidQuestionDoc(BOOKING, "Olaf", "2026-08-27", "2026-09-24", 1) as { sponsor: Record<string, unknown> };
+    expect(none.sponsor).not.toHaveProperty("link");
+    // the reviewer reads it
+    expect(JSON.parse(reviewSubject(withLink.ok, "Olaf")).link).toBe("https://harboursauna.no/winter");
+  });
+});
+
 describe("REVIEW_GUIDELINES", () => {
   // The instruction is a constant so these pins can hold the load-bearing
   // rules IN the prompt — a guideline that silently falls out of an
@@ -294,6 +351,10 @@ describe("REVIEW_GUIDELINES", () => {
     expect(REVIEW_GUIDELINES).toMatch(/push-polling/i);
     expect(REVIEW_GUIDELINES).toMatch(/buyer name or an audience value/i);
     expect(REVIEW_GUIDELINES).toMatch(/shown to the buyer verbatim/i);
+    // The link clause (D378): the reviewer sees the address, not the
+    // page, and the prompt still carries none.
+    expect(REVIEW_GUIDELINES).toMatch(/one https link[\s\S]{0,200}?after a person has answered/i);
+    expect(REVIEW_GUIDELINES).toMatch(/shortener or redirect/i);
   });
   it("serializes the subject with the name only when worn (D228)", () => {
     expect(JSON.parse(reviewSubject(BOOKING, "Olaf")).buyerName).toBe("Olaf");
@@ -422,6 +483,98 @@ describe("utcDayKey", () => {
   });
 });
 
+// The window a buyer paid for, and the one clock read that decides it.
+//
+// RECOVERED IN THE 2026-09-06 NIGHT REVIEW. These three cases were
+// written on the night shift to pin goLive's one-clock-read fix, and they
+// sat inside the file's ad section — so `main`'s D375, deleting the ad
+// lane for reasons that have nothing to do with them, took the tests and
+// left the fix. Nothing went red: the fix is still in paid.ts and every
+// runner was green with it running under nothing again. That is the shape
+// this review exists to catch, and it is why they are here, under
+// utcDayKey, rather than anywhere near a product that no longer exists.
+describe("a paid question's window is one clock read", () => {
+  it("dayPlus speaks the same grain", () => {
+    expect(dayPlus("2026-08-27", WINDOW_DAYS - 1)).toBe("2026-09-24");
+    expect(dayPlus("not-a-day", 3)).toBe("not-a-day");
+  });
+
+  it("…the arithmetic", () => {
+    // goLive used to compute both ends from the clock independently —
+    // `utcDayKey(1)` and `utcDayKey(WINDOW_DAYS)`, each reading Date.now()
+    // for itself. Equal on any single day, and NOT equal across a retry
+    // that lands either side of UTC midnight: the buyer paid for
+    // WINDOW_DAYS and got one more or one less.
+    const beforeMidnight = Date.parse("2026-08-26T23:59:59.900Z");
+    const afterMidnight = Date.parse("2026-08-27T00:00:00.100Z");
+
+    // What it does now: the end is derived from the start, so both come
+    // from one reading whichever side of midnight it falls on.
+    for (const t of [beforeMidnight, afterMidnight]) {
+      const start = utcDayKey(1, t);
+      expect(dayPlus(start, WINDOW_DAYS - 1)).toBe(utcDayKey(WINDOW_DAYS, t));
+    }
+
+    // …and the shape it replaced, shown resizing. This is the assertion
+    // that makes the change worth having rather than a tidy-up.
+    const split = dayPlus(utcDayKey(1, beforeMidnight), 0);
+    expect(utcDayKey(WINDOW_DAYS, afterMidnight)).not.toBe(
+      dayPlus(split, WINDOW_DAYS - 1),
+    );
+  });
+
+  it("…and goLive really writes that window, on both documents", () => {
+    // The arithmetic above is the shape; this is the CALL SITE. Between
+    // them they cover different things, and it is worth being exact about
+    // which: this case fails if the window is ever the wrong LENGTH, and
+    // the one above states the divergence the two-clock version produces.
+    // Neither can catch the two-clock shape here directly — it differs
+    // only across a real midnight tick, and fake timers freeze the clock
+    // rather than advancing it between two reads, so there is no way to
+    // force the two calls apart inside one test.
+    //
+    // Both the served question and the purchase row carry the window, so
+    // both are read: a buyer's receipt and the thing they bought must not
+    // disagree about when it ends.
+    const store = new Map<string, Record<string, unknown>>();
+    const ref = (path: string) => ({ path, id: path.split("/").pop() as string });
+    const db = {
+      collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+      async runTransaction(cb: (tx: unknown) => Promise<unknown>) {
+        return cb({
+          get: async (r: { path: string }) => ({
+            exists: store.has(r.path),
+            data: () => store.get(r.path),
+            get: (f: string) => store.get(r.path)?.[f],
+          }),
+          set: (r: { path: string }, data: Record<string, unknown>) => { store.set(r.path, data); },
+          update: (r: { path: string }, data: Record<string, unknown>) => {
+            store.set(r.path, { ...(store.get(r.path) || {}), ...data });
+          },
+        });
+      },
+    };
+    store.set("v2_paid_bookings/b1", {
+      ...BOOKING, uid: "u1", status: "approved", buyerName: null,
+      quote: priceQuote(BOOKING.scope),
+    });
+
+    return goLive(db as unknown as Parameters<typeof goLive>[0], "b1", "pi_1").then((live) => {
+      expect(live, "the webhook did not take the booking live").toBe(true);
+      const q = store.get("v2_questions/paidq-b1") as { from: string; until: string };
+      expect(q, "no question document was written").toBeTruthy();
+      // Tomorrow, and exactly WINDOW_DAYS of serving counting it.
+      expect(q.from).toBe(utcDayKey(1));
+      expect(dayPlus(q.from, WINDOW_DAYS - 1), "the window is not the length that was sold")
+        .toBe(q.until);
+      const purchase = store.get("v2_purchases/u1_b1") as { window: { start: string; until: string } };
+      expect(purchase.window.start).toBe(q.from);
+      expect(purchase.window.until, "the receipt and the question disagree about the end")
+        .toBe(q.until);
+    });
+  });
+});
+
 // ── the ad lane (D315) ──────────────────────────────────────────────────
 
 // ── the two ceilings on this file that cost money when they move ────
@@ -464,264 +617,22 @@ describe("the review budget, held to the arithmetic it states", () => {
   });
 });
 
-describe("validatePaidBooking — kind ad", () => {
-  it("accepts an honest ad and normalizes it", () => {
-    const r = validatePaidBooking({
-      kind: "ad",
-      advertiser: "  Harbour Sauna ",
-      headline: "The water is warmer than you think",
-      body: "Open every morning from six, all winter.",
-      scope: "city",
-      dims: { city: "Oslo, NO" },
-    });
-    if ("error" in r) throw new Error(r.error);
-    expect(r.ok).toEqual(AD);
+// The ad lane's describes — kind ad, adPriceQuote, paidAdDoc,
+// paidAdPurchaseDoc, the guidelines' ad clause — stood here from D315 to
+// D375, which retired the self-serve ad: the sponsored question is the
+// one paid product. What is pinned now is the refusal.
+describe("the ad lane is retired (D375)", () => {
+  it("refuses an ad booking by name, in the register the door shows", () => {
+    const r = validatePaidBooking({ kind: "ad", advertiser: "Harbour Sauna", headline: "Warm", body: "Open.", scope: "city", dims: { city: "Oslo, NO" } });
+    expect("error" in r).toBe(true);
+    if ("error" in r) expect(r.error).toMatch(/ask a question instead/);
   });
 
-  it("demands all three text fields — the card IS the ad", () => {
-    expect(validatePaidBooking({ ...AD, advertiser: "" })).toHaveProperty("error");
-    expect(validatePaidBooking({ ...AD, headline: " " })).toHaveProperty("error");
-    expect(validatePaidBooking({ ...AD, body: "" })).toHaveProperty("error");
-  });
-
-  // THREE BOUNDS ON BOUGHT COPY, AND NOTHING EXERCISED THEM.
-  //
-  // `validateAdBooking` is the only server-side length gate on an ad
-  // somebody paid for, and the booking is written straight into the ads
-  // pool every client downloads whole. Measured: disabling all three at
-  // once — advertiser, headline and body — left all 593 functions tests
-  // green, as did raising the three constants to 100000.
-  //
-  // The URL nose directly below and the question path's identical length
-  // bound are both pinned, so this was a specific hole between two
-  // covered arms rather than a blanket absence.
-  it("bounds the three fields a bought ad card is made of", () => {
-    expect(validatePaidBooking({ ...AD, advertiser: "a".repeat(AD_ADVERTISER_MAX + 1) }),
-      "the advertiser name has no ceiling").toHaveProperty("error");
-    expect(validatePaidBooking({ ...AD, headline: "h".repeat(AD_HEADLINE_MAX + 1) }),
-      "the headline has no ceiling").toHaveProperty("error");
-    expect(validatePaidBooking({ ...AD, body: "b".repeat(AD_BODY_MAX + 1) }),
-      "the ad's text has no ceiling").toHaveProperty("error");
-    // …and the bound is a bound, not a refusal of everything: exactly at
-    // the limit is accepted, or "always errors" would pass the three above.
-    expect(validatePaidBooking({
-      ...AD,
-      advertiser: "a".repeat(AD_ADVERTISER_MAX),
-      headline: "h".repeat(AD_HEADLINE_MAX),
-      body: "b".repeat(AD_BODY_MAX),
-    }), "a card exactly at the limit was refused").not.toHaveProperty("error");
-  });
-
-  it("carries the same three caps the content gate holds hand-written ads to", () => {
-    // `paid.ts` says these are "mirrored by value from
-    // scripts/check-content.mjs's ad rules (advertiser 40 · headline 70 ·
-    // body 140)" — the runtime-import constraint every mirrored figure in
-    // that file carries. Nothing held them equal, and a bought ad never
-    // passes through that script: it is created at runtime.
-    //
-    // So the two could drift and the pool would carry cards longer than
-    // any hand-written one is allowed to be, with both gates green.
-    const gate = readFileSync(
-      resolve(dirname(fileURLToPath(import.meta.url)), "../../scripts/check-content.mjs"), "utf8");
-    const m = /\[\s*\["advertiser",\s*(\d+)\],\s*\["headline",\s*(\d+)\],\s*\["body",\s*(\d+)\]\s*\]/.exec(gate);
-    expect(m, "the content gate's ad caps could not be found — this case lost its target").toBeTruthy();
-    expect([Number(m![1]), Number(m![2]), Number(m![3])],
-      "the runtime bounds and the content gate's have drifted apart")
-      .toEqual([AD_ADVERTISER_MAX, AD_HEADLINE_MAX, AD_BODY_MAX]);
-  });
-
-  it("refuses a web address in any field — no tap-through means no typed-out link either", () => {
-    expect(validatePaidBooking({ ...AD, body: "Visit https://sauna.example today" })).toHaveProperty("error");
-    expect(validatePaidBooking({ ...AD, headline: "www.sauna street's finest" })).toHaveProperty("error");
-    expect(validatePaidBooking({ ...AD, advertiser: "sauna.no" })).toHaveProperty("error");
-    // the regex is check-content's own — hold the mirror to the mirror
-    expect(AD_URL_RE.test("plain words about mornings")).toBe(false);
-  });
-
-  it("wears at most ONE audience tag (D197 rule 4), the place counting as it", () => {
-    expect(validatePaidBooking({ ...AD, dims: { city: "Oslo, NO", ageBand: "25-34" } }))
-      .toHaveProperty("error");
-    const world = validatePaidBooking({ ...AD, scope: "world", dims: { ageBand: "25-34" } });
-    expect("error" in world).toBe(false);
-    expect(AD_AUDIENCE_MAX).toBe(1);
-  });
-
-  it("welds the scope to its place dim like the question path", () => {
-    expect(validatePaidBooking({ ...AD, dims: {} })).toHaveProperty("error");
-    expect(validatePaidBooking({ ...AD, scope: "world", dims: { city: "Oslo, NO" } }))
-      .toHaveProperty("error");
+  it("no longer instructs the reviewer about ads", () => {
+    expect(REVIEW_GUIDELINES).not.toMatch(/FEED AD|"kind":"ad"/);
   });
 });
 
-describe("adPriceQuote", () => {
-  const card = {
-    base: 0.16, floorX: 0.9, ceilX: 2.5, capEur: 320, adBase: 320, floorWeek: 500,
-    generated: "2026-08-24", currency: "EUR", fx: {}, trailingDays: 28,
-    cohorts: {
-      city: { idx: 0.9, booked: [], nextOpen: null },
-      country: { idx: 3, booked: [], nextOpen: null },
-      world: { idx: 1.5, booked: [], nextOpen: null },
-    },
-    estimates: {},
-  };
-  it("is one flat figure — adBase × the clamped idx — and the window", () => {
-    expect(adPriceQuote("city", card)).toEqual({ flatEur: 288, windowDays: WINDOW_DAYS });
-    expect(adPriceQuote("world", card).flatEur).toBe(480);
-    expect(adPriceQuote("country", card).flatEur).toBe(800); // idx 3 clamps to 2.5
-  });
-});
-
-describe("adStartDay — ads queue, never overlap (D315)", () => {
-  const NOW = Date.UTC(2026, 7, 26, 12);
-  it("starts tomorrow in an empty scope", () => {
-    expect(adStartDay([], NOW)).toBe("2026-08-27");
-  });
-  it("queues the day after the running ad's window", () => {
-    expect(adStartDay([{ until: "2026-09-10" }], NOW)).toBe("2026-09-11");
-  });
-  it("takes the LATEST running window when several queue", () => {
-    expect(adStartDay([{ until: "2026-09-10" }, { until: "2026-10-01" }], NOW)).toBe("2026-10-02");
-  });
-  it("ignores windows already over — an ended campaign holds no day", () => {
-    expect(adStartDay([{ until: "2026-08-01" }], NOW)).toBe("2026-08-27");
-  });
-  it("dayPlus speaks the same grain", () => {
-    expect(dayPlus("2026-08-27", WINDOW_DAYS - 1)).toBe("2026-09-24");
-    expect(dayPlus("not-a-day", 3)).toBe("not-a-day");
-  });
-});
-
-// The half `adStartDay` cannot see: WHICH running ads it should be handed.
-//
-// The queue exists so a flat-priced ad is not "silently diluted by another
-// ad… getting less for the same money". goLive selected the ads to queue
-// behind with `scope == b.scope`, and scopes are NESTED audiences, not
-// disjoint ones: a world ad matches everybody, and pickPaid gives exactly
-// ONE paid slot a day out of a single pool. So a world ad was invisible to
-// a city booking's queue and then halved it — 29 days bought, about 14
-// served, flat price paid in full.
-describe("adAudiencesOverlap — which ads actually compete for the one daily slot", () => {
-  const world = { scope: "world", place: null };
-  const oslo = { scope: "city", place: "Oslo, NO" };
-  const bergen = { scope: "city", place: "Bergen, NO" };
-  const norway = { scope: "country", place: "NO" };
-  const sweden = { scope: "country", place: "SE" };
-  const stockholm = { scope: "city", place: "Stockholm, SE" };
-
-  it("a world ad meets everyone — the case that was invisible", () => {
-    expect(adAudiencesOverlap(world, oslo)).toBe(true);
-    expect(adAudiencesOverlap(oslo, world)).toBe(true);
-    expect(adAudiencesOverlap(world, norway)).toBe(true);
-    expect(adAudiencesOverlap(world, world)).toBe(true);
-  });
-
-  it("a country ad meets the cities inside it and no others", () => {
-    // Derivable exactly: a city place is "<name>, <CC>" and a country
-    // place is that same ISO code (pure.ts pins both shapes).
-    expect(adAudiencesOverlap(norway, oslo)).toBe(true);
-    expect(adAudiencesOverlap(oslo, norway)).toBe(true);
-    expect(adAudiencesOverlap(norway, stockholm)).toBe(false);
-    expect(adAudiencesOverlap(sweden, stockholm)).toBe(true);
-  });
-
-  it("two different cities do not meet, and neither do two different countries", () => {
-    // The half that must NOT over-queue: making everything overlap would
-    // park a Bergen campaign behind an Oslo one for a month for nothing.
-    expect(adAudiencesOverlap(oslo, bergen)).toBe(false);
-    expect(adAudiencesOverlap(norway, sweden)).toBe(false);
-    expect(adAudiencesOverlap(oslo, oslo)).toBe(true);
-    expect(adAudiencesOverlap(norway, norway)).toBe(true);
-  });
-
-  it("an unrecognised shape counts as overlapping", () => {
-    // The two errors are not equal. Queueing two ads that never meet costs
-    // the second buyer TIME; failing to queue two that do costs them half
-    // of what they paid for, silently. So a missing place, a malformed
-    // city, or a scope this function does not know queues rather than
-    // shares.
-    expect(adAudiencesOverlap({ scope: "city", place: null }, oslo)).toBe(true);
-    expect(adAudiencesOverlap({ scope: "city", place: "Oslo" }, norway)).toBe(true);
-    expect(adAudiencesOverlap({ scope: "", place: null }, oslo)).toBe(true);
-    expect(adAudiencesOverlap({}, {})).toBe(true);
-  });
-
-  it("composed with adStartDay: the world ad now pushes the city booking", () => {
-    const NOW = Date.UTC(2026, 7, 26, 12);
-    const running = [
-      { scope: "world", place: null, window: { until: "2026-09-24" } },
-      { scope: "city", place: "Bergen, NO", window: { until: "2026-10-30" } },
-    ];
-    const mine = oslo;
-    const queued = running
-      .filter((r) => adAudiencesOverlap(mine, r))
-      .map((r) => r.window);
-    // The world ad is queued behind; Bergen's later window is NOT, because
-    // it never meets an Oslo reader.
-    expect(queued).toEqual([{ until: "2026-09-24" }]);
-    expect(adStartDay(queued, NOW)).toBe("2026-09-25");
-  });
-});
-
-describe("paidAdDoc — the webhook writes the ads seed's own shape", () => {
-  const doc = paidAdDoc(AD, "2026-08-27", "2026-09-24", 120000);
-  it("carries what pickPaid and the band read, and the delta key", () => {
-    expect(doc.advertiser).toBe("Harbour Sauna");
-    expect(doc.headline).toBe("The water is warmer than you think");
-    expect(doc.from).toBe("2026-08-27"); // a queued ad must not serve early
-    expect(doc.until).toBe("2026-09-24");
-    expect(doc.audience).toEqual({ city: "Oslo, NO" });
-    expect(doc.updatedAt).toBeDefined();
-  });
-  it("omits the audience for an untargeted world ad — emit-when-set", () => {
-    const world = paidAdDoc({ ...AD, scope: "world", dims: {} }, "2026-08-27", "2026-09-24", 1);
-    expect("audience" in world).toBe(false);
-  });
-});
-
-describe("paidAdPurchaseDoc — the room reads exactly this", () => {
-  const doc = paidAdPurchaseDoc("u1", "paidad-b1", AD, { flatEur: 288, windowDays: 29 }, "2026-08-27", "2026-09-24", "pi_9");
-  it("is kind ad with a flat price and no meter fields", () => {
-    expect(doc.kind).toBe("ad");
-    expect(doc.adId).toBe("paidad-b1");
-    expect(doc.priceEur).toBe(288);
-    expect(doc.place).toBe("Oslo, NO");
-    expect(doc.window).toEqual({ start: "2026-08-27", until: "2026-09-24" });
-    expect(doc.state).toBe("running");
-    expect("budget" in doc).toBe(false); // nothing to bill against
-    expect("reports" in doc).toBe(false); // nothing to report on
-    expect(doc.stripePaymentIntent).toBe("pi_9");
-  });
-});
-
-describe("REVIEW_GUIDELINES — the ad clause", () => {
-  it("keeps the ad rules in the prompt", () => {
-    expect(REVIEW_GUIDELINES).toMatch(/"kind":"ad" is a FEED AD/i);
-    expect(REVIEW_GUIDELINES).toMatch(/miracle claim/i);
-    expect(REVIEW_GUIDELINES).toMatch(/political campaign ad/i);
-  });
-  it("serializes the ad subject with its always-printed advertiser", () => {
-    const subj = JSON.parse(reviewSubject(AD, null));
-    expect(subj.kind).toBe("ad");
-    expect(subj.advertiser).toBe("Harbour Sauna");
-    expect(subj.headline).toBeDefined();
-  });
-  it("gates an ad with no words in it", () => {
-    expect(reviewGates({ ...AD, headline: "!!", body: "…" })).toMatch(/write it out/);
-    expect(reviewGates(AD)).toBeNull();
-  });
-});
-
-// The retry queue, and what happens to a booking no automatic reviewer
-// will ever settle.
-//
-// A verdict that does not parse throws — deliberately, so a truncated
-// answer never decides a booking — and the sweep retried the hold every
-// thirty minutes. Forever: `reviewAttempts` was incremented and read by
-// nothing. Each attempt is a billed model call, and because the sweep's
-// `createdAt <` inequality forces oldest-first order, an unsettleable
-// booking held one of fifty slots for good. Fifty of them — ten free
-// accounts at the 5/day budget — starved the queue outright, so a booking
-// held behind a REAL outage would never be retried at all.
 describe("runReviewSweep", () => {
   const store = (rows) => {
     const state = { reviewed: [], pages: [] };
@@ -834,5 +745,162 @@ describe("heldPageFrom — the paging the sweep's own tests cannot see", () => {
     const rows = await heldPageFrom(q, fakeDb(false), "gone", 50);
     expect(rows, "a vanished cursor rewound to page one").toEqual([]);
     expect(calls).toEqual([]);
+  });
+});
+
+// ── the two status guards nothing could see ─────────────────────────────
+//
+// `reviewBooking` reads the booking, calls the reviewer, then writes the
+// verdict inside a transaction that re-reads it. Both reads refuse
+// anything that is not still `review`, and BOTH GUARDS WERE DELETABLE WITH
+// EVERY RUNNER GREEN: the e2e drives exactly one trigger-fired review per
+// booking and never runs the 30-minute sweep, and `runReviewSweep`'s own
+// tests inject a store whose `review` is a stub.
+//
+// What the guards are worth: without them the sweep re-reviews `declined`
+// and `live` bookings, so a decline the buyer has already read is
+// overwritten by an approve, and a PAID, LIVE booking is written back to
+// approved or declined — stranding a campaign whose purchase row and
+// question doc already exist.
+//
+// No mocking is needed to drive it. `runReviewVerdict` returns
+// approve-on-gates-only when no model key is configured, which is what a
+// test process is, so the verdict is deterministic and no network is
+// touched.
+describe("reviewBooking only ever moves a booking OUT of review", () => {
+  /** The smallest Firestore this function actually uses: one document,
+   *  a transaction that re-reads it, and a record of what was written.
+   *  `reads` lets a case change the status BETWEEN the outer read and the
+   *  transaction's, which is the race the second guard exists for. */
+  function fakeDb(statuses: string[]) {
+    const writes: Record<string, unknown>[] = [];
+    // Reads are counted because the OUTER guard's whole job is to spend
+    // nothing on a booking that is not in review: without it the function
+    // runs on to the reviewer and the transaction, and the transaction's
+    // own guard — the backstop — refuses the write. So the write count
+    // cannot see the outer guard at all; the read count can.
+    const reads: string[] = [];
+    let n = 0;
+    const snapFor = () => {
+      const status = statuses[Math.min(n++, statuses.length - 1)];
+      reads.push(status);
+      return {
+        exists: true,
+        get: (k: string) => (k === "status" ? status : (BOOKING as Record<string, unknown>)[k]),
+      };
+    };
+    const ref = { get: async () => snapFor(), update: async (u: Record<string, unknown>) => { writes.push(u); } };
+    return {
+      writes,
+      reads,
+      db: {
+        collection: () => ({ doc: () => ref }),
+        runTransaction: async (fn: (tx: unknown) => Promise<void>) => fn({
+          get: async () => snapFor(),
+          update: (_r: unknown, u: Record<string, unknown>) => { writes.push(u); },
+        }),
+      } as unknown as Parameters<typeof reviewBooking>[0],
+    };
+  }
+
+  it("writes a verdict for a booking that is still in review — the control", async () => {
+    const f = fakeDb(["review", "review"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the ordinary path stopped writing a verdict").toHaveLength(1);
+    expect(f.writes[0].status).toBe("approved");
+  });
+
+  it("writes nothing for a booking that is already LIVE — it has been paid for", async () => {
+    const f = fakeDb(["live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "a paid, live booking was re-reviewed").toEqual([]);
+    // …and it stops at the FIRST read, which is the outer guard's whole
+    // point: past it the function calls the reviewer, and in production
+    // that is a billed model call for a booking already settled.
+    expect(f.reads, "the outer guard let it run on to the reviewer").toHaveLength(1);
+  });
+
+  it("writes nothing for a booking already DECLINED — the buyer has read it", async () => {
+    const f = fakeDb(["declined"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes).toEqual([]);
+  });
+
+  it("writes nothing when the booking leaves review DURING the reviewer call", async () => {
+    // The second guard, and the only one the first cannot stand in for:
+    // in review at the outer read, live by the time the transaction reads
+    // it. That window is exactly as long as the model call.
+    const f = fakeDb(["review", "live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the transaction wrote over a booking that went live mid-review").toEqual([]);
+  });
+});
+
+// ── what the buyer is actually charged ──────────────────────────────────
+//
+// Everything from the amount to the sentence describing it is unreachable
+// in the emulator: `createPaidCheckoutV2` throws `unavailable` at the
+// missing Stripe key one line above, and the e2e asserts exactly that
+// refusal. So the whole block ran under nothing — swapping the cap for the
+// per-answer rate, or the cents multiplier from 100 to 10, left the
+// functions suite and every e2e leg green.
+describe("checkoutLineItem — the amount and what the charge says it is for", () => {
+  // ONE PRODUCT. This block was written on the 2026-09-06 night shift with
+  // an ad half, while D375 was taking the ad off the paid path on main;
+  // the ad cases went with it in the night review rather than being kept
+  // against a branch the caller now refuses outright.
+  const q = priceQuote("city");
+
+  it("charges the cap, in cents", () => {
+    // The cap, not the per-answer rate: the cap is what is taken, so the
+    // unserved part can be refunded at close. Charging the rate would bill
+    // €0.02 against a €50 booking.
+    //
+    // AGAINST THE QUOTE, NOT AGAINST A LITERAL. This case asserted a bare
+    // `capEur === 320` when it was written on the night shift, and D370's
+    // pricing moved the cap to €50 the same day — so it failed in the
+    // night review for having pinned a number the card is allowed to
+    // change rather than the relationship it must hold. The guard below is
+    // what keeps that from making it vacuous.
+    const li = checkoutLineItem(q);
+    expect(li.unit_amount).toBe(Math.round(q.capEur * 100));
+    expect(li.currency).toBe("eur");
+    expect(
+      Math.round(q.capEur * 100),
+      "the cap and the per-answer rate round to the same cents, so this "
+      + "case can no longer tell which one is being charged",
+    ).not.toBe(Math.round(q.ratePerAnswer * 100));
+  });
+
+  it("does not lose or gain a factor of ten on the cents", () => {
+    // `* 10` (€3.20) and `* 1000` both leave every other assertion here
+    // intact if the amount is only ever compared to itself, so this
+    // compares against the euro figure the buyer was quoted.
+    expect(checkoutLineItem(q).unit_amount / 100).toBeCloseTo(q.capEur, 2);
+  });
+
+  it("tells the buyer the window, the rate and the refund", () => {
+    // This sentence is the contract the buyer reads at the moment of
+    // paying. Every number in it comes off the locked quote.
+    const d = checkoutLineItem(q).product_data;
+    expect(d.name).toBe("InSight paid question");
+    expect(d.description).toContain(`${q.windowDays}-day window`);
+    expect(d.description).toContain(`€${q.ratePerAnswer}`);
+    expect(d.description).toContain(`up to ${q.cap} answers`);
+    expect(d.description).toContain("refunds automatically at close");
+  });
+
+  it("says nothing about an ad, on the one surface a buyer reads", () => {
+    // The products landed on one page once and that is the failure the
+    // split existed for; with the ad gone, the residue would be the same
+    // failure spelled the other way.
+    const d = checkoutLineItem(q).product_data;
+    expect(d.name).not.toMatch(/ad/i);
+    expect(d.description).not.toMatch(/flat price/i);
+  });
+
+  it("prints the rate without trailing zeros — it is money, not a float dump", () => {
+    const d = checkoutLineItem(q).product_data;
+    expect(d.description).not.toMatch(/€\d+\.\d*0(\D|$)/);
   });
 });

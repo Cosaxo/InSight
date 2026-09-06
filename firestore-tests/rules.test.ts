@@ -383,6 +383,24 @@ describe("v2 profile", () => {
   // `mergeFields` replaces the named field and leaves the rest alone. The
   // case asserts both halves, because a fix that dropped the other profile
   // fields would be the failure the original comment was guarding against.
+  it("a profile cannot be DELETED — the only deny in the file that no test held", async () => {
+    // Of the denies in firestore.rules, this was the one that could be
+    // relaxed to `if request.auth != null` with the whole suite green at
+    // 178; `v2_people`'s identical `allow delete: if false` reds, as does
+    // every other.
+    //
+    // It is not only coverage. The handle guard reads back
+    // `resource.data.get("handle", null)`, so a deleted profile is one
+    // whose re-creation carries no handle — which is the claim-once check
+    // claimHandleV2 rests on, and the registry-hoarding hole D190 closed.
+    // The absence path was closed against OMISSION and never against
+    // deletion. Subcollections outlive the parent doc too, so the answers
+    // would stay world-readable with no name and no anchors behind them.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER), { displayName: "Mira" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER)));
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_users", OWNER)));
+  });
+
   it("saveAnchors' write shape can REMOVE an anchor and keeps the rest of the profile", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, {
@@ -641,6 +659,25 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, off: true } } }));
     await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, why: "x" } } }));
     await assertFails(setDoc(mine, { consent: { politics: { v: 1, at: 1 } } }));
+    // THE CLAUSES THE CASES ABOVE NEVER REACH. Each of them is refused one
+    // clause earlier than the one it names — `{ politics: … }` dies on
+    // `hasOnly(["political"])` before `"political" in …` is asked, and
+    // `{ v: 1 }` with no `at` is a rules EVALUATION error rather than a
+    // false. Measured with the coverage report: five predicates in this
+    // one guard evaluated true and never once false across the whole
+    // suite, so any of them could be deleted and this test would still
+    // pass. It is the record D330/D331 built to satisfy a consent
+    // requirement in law, so "the shape is held" is the whole of what a
+    // rule can contribute to it.
+    await assertFails(setDoc(mine, { consent: "yes" }));
+    await assertFails(setDoc(mine, { consent: { political: "yes" } }));
+    await assertFails(setDoc(mine, { consent: { political: { v: 1, at: "1730000000000" } } }));
+    await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, off: "later" } } }));
+    // …and an EMPTY consent map is legal: the key is optional, and a
+    // profile that has never been asked carries one. Asserted so the four
+    // refusals above are about their shapes and not about the guard being
+    // all-or-nothing.
+    await assertSucceeds(setDoc(mine, { consent: {} }));
     // `anon` sat on this allowlist since the v2 profile was written, with
     // no writer and no reader — the D258/D280 shape, and it read like an
     // anonymity toggle that has never existed. D331 took it off, and a
@@ -822,6 +859,16 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 1 })));
   });
 
+  it("refuses a guess filed under another call's id", async () => {
+    // The third `qid == aid`, and the same reason as rank's and catalog's:
+    // the document id IS the question the grader folds by, so a body
+    // naming a different one is graded against a call it never answered.
+    // Never once evaluated false before this.
+    await seedCall();
+    await assertFails(setDoc(mine(), callAnswer({ qid: "call-other" })));
+    await assertSucceeds(setDoc(mine(), callAnswer()));
+  });
+
   it("ONCE A GRADE IS PUBLISHED, THE CALL CLOSES", async () => {
     // The clause isCallAnswer() exists for. Outcomes are world-readable
     // the moment the resolver writes them, so without this a player reads
@@ -977,7 +1024,18 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     // not someone else's subtree, not a bare-map id, not a day outside the
     // window
-    await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
+    //
+    // A DAY NOBODY HAS WRITTEN, for the reason spelled out forty lines
+    // down and not applied here: the assertSucceeds directly above already
+    // created `rollupDay()`, so a second write to it is an UPDATE and dies
+    // on `allow update, delete: if false` without ever reaching the
+    // ownership clause. Measured: replacing `request.auth.uid == uid` with
+    // `request.auth != null` left the suite green at 178 while a stranger
+    // could write rollups into this account's subtree — the input to the
+    // world-readable nightly digest and to their streak.
+    const otherDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_users", OWNER, "engagement", otherDay), rollup({ day: otherDay })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
     // The forward half of the same window, untested here for the same
@@ -1181,11 +1239,20 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
 
 describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
+  // A SECOND real question, and it is what makes the authorship case
+  // below a test of authorship. An answer's doc id must equal its qid
+  // (`request.resource.data.qid == aid`, firestore.rules), so a forged
+  // write needs a seeded question NOBODY has answered yet: the same qid
+  // as the owner's is an update, and an unseeded one dies on the options
+  // lookup. Both of those are how this case passed for the wrong reason.
+  const QID2 = "daily-001";
   const seedQuestion = () => seed(async (db) => {
-    await setDoc(doc(db, "v2_questions", QID), {
-      surface: "daily", seq: 0, type: "binary",
-      prompt: "Pineapple?", options: ["Yes", "No"], active: true,
-    });
+    for (const [id, seq] of [[QID, 0], [QID2, 1]] as [string, number][]) {
+      await setDoc(doc(db, "v2_questions", id), {
+        surface: "daily", seq, type: "binary",
+        prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+      });
+    }
   });
   const answer = (over: Record<string, unknown> = {}) => ({
     qid: QID, surface: "daily", optionIdx: 1,
@@ -1635,6 +1702,10 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // "feed", "test"]` from birth, and "test" here passed BOTH halves of
     // it against this feed question. Now the claimed surface must be
     // exactly the one catalog questions exist on.
+    // The document id IS the question the trigger folds by, so an entity
+    // answer whose body names a different catalogue question poisons that
+    // one's board. `qid == aid` had never evaluated false here either.
+    await assertFails(setDoc(ref(CQ), cat({ qid: "feed-cat9" })));
     await assertFails(setDoc(ref(CQ), cat({ surface: "test" })));
     await assertFails(setDoc(ref(CQ), cat({ surface: "daily" })));
     await assertFails(setDoc(ref("feed-cat-off"),
@@ -1651,9 +1722,39 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     });
     await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat", surface: "test" })));
     await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat" })));
-    // a vote question never accepts an entity answer
+    // A VOTE QUESTION NEVER ACCEPTS AN ENTITY ANSWER — and until now this
+    // pair proved nothing about that. Both writes claim `surface: "daily"`
+    // against `daily-000`, so `isCatalogAnswer`'s own
+    // `request.resource.data.surface == "feed"` refuses them several
+    // clauses before the `type == "catalog"` check is ever reached. The
+    // emulator's rule-coverage report is what says so out loud: across all
+    // 179 tests that expression evaluated true 5 times and false ZERO
+    // times, and deleting it outright left the whole suite green.
+    //
+    // Which matters, because the clause is the only thing standing between
+    // an entity-keyed answer and every active feed question — the
+    // aggregate poisoning this case's own comment names. So the surface
+    // and the question now agree, and the TYPE is the single thing left to
+    // refuse it.
     await seedQuestion();
     await assertFails(setDoc(ref(QID), { qid: QID, surface: "daily", entity: 1,
+      answeredAt: serverTimestamp(), anchors: {} }));
+    const VQ = "feed-vote0";
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", VQ), {
+        surface: "feed", seq: 2, type: "vote",
+        prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+      });
+    });
+    // Every earlier clause satisfied: the key set, `surface == "feed"`,
+    // qid agreement, an int entity inside the bound, the question active
+    // and itself on the feed. Only `type` refuses.
+    await assertFails(setDoc(ref(VQ), { qid: VQ, surface: "feed", entity: 777,
+      answeredAt: serverTimestamp(), anchors: {} }));
+    // The positive control on the same question, so the assertion above is
+    // about the entity shape and not about `feed-vote0` being unwritable:
+    // an ordinary optionIdx answer to it succeeds.
+    await assertSucceeds(setDoc(ref(VQ), { qid: VQ, surface: "feed", optionIdx: 0,
       answeredAt: serverTimestamp(), anchors: {} }));
   });
 
@@ -1668,9 +1769,25 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       where("surface", "in", ["daily", "feed", "test", "learn"]))));
     // …and write is not. Authoring under someone else's uid is the thing
     // this rule is actually for now.
+    //
+    // A REAL QID, AND A DOC ID NOBODY HAS WRITTEN. This used `feed-x`,
+    // which `seedQuestion` does not seed — so the write died on
+    // `get(/v2_questions/feed-x).data.options.size()` and never reached
+    // the authorship clause. Measured: dropping `request.auth.uid == uid`
+    // from firestore.rules left the whole suite green at 178, while a
+    // stranger could then write a vote under this account's uid that the
+    // aggregate trigger folds as theirs, with their frozen anchors, into
+    // world-readable counts. The case's own comment has always said this
+    // is what the rule is for; the payload is now the one that tests it.
     await assertFails(setDoc(
-      doc(asUser(STRANGER), "v2_users", OWNER, "answers", "feed-x"),
-      answer({ qid: "feed-x" })));
+      doc(asUser(STRANGER), "v2_users", OWNER, "answers", QID2),
+      answer({ qid: QID2 })));
+    // …and the same payload from the owner IS accepted, so the refusal
+    // above is authorship and nothing else. Without this the case could
+    // go back to passing for a reason it does not name.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", QID2),
+      answer({ qid: QID2 })));
   });
 
   // THE query the whole reversal exists to make possible: "everyone who
@@ -2144,6 +2261,40 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     // can name the id of.
     await assertFails(updateDoc(doc(asUser(STRANGER), "v2_groups", GID),
       { memberUids: [OWNER, FRIEND, STRANGER] }));
+  });
+
+  it("refuses a duel answer whose own fields are out of shape", async () => {
+    // Six predicates in `isDuelAnswer()` had never evaluated false — the
+    // gid and day type checks, the day's format, the question-exists read
+    // and both guessIdx bounds — so each could be deleted with the suite
+    // green. The id is checked against `g_{gid}_{day}` elsewhere, which is
+    // why these looked covered: that check reads the ID, and these read
+    // the BODY, and a body can disagree with an id that is itself correct.
+    await seedGroup();
+    // gid and day, wrong type. The id still says g_{gid}_{day}, so every
+    // clause about the id is satisfied and only these can refuse.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ gid: 7 })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ day: 20260726 })));
+    // A day that is a string but not a date. Format-checking is what stops
+    // a member pre-sealing days, per the rule's own note.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_notaday`),
+      duelAnswer({ day: "notaday" })));
+    // A question that does not exist. The read is what stops an answer
+    // being filed against nothing and folding into nothing.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ qid: "group-nope" })));
+    // guessIdx out of shape, both directions.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ guessIdx: "2" })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ guessIdx: -1 })));
+    // The control: the well-formed write is admitted, so each refusal
+    // above is its own field and not the fixture.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer()));
   });
 
   it("members write sealed duel answers under the composite id; outsiders can't", async () => {
@@ -2709,6 +2860,27 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       }
     });
 
+    it("refuses a client-chosen timestamp — the stamp is the server's", async () => {
+      // `at == request.time` had never once evaluated FALSE across the whole
+      // suite (the emulator's coverage report says so, and
+      // scripts/rules-coverage.mjs is what keeps saying it), so the clause
+      // could be deleted with all 179 tests green. It is not decoration: the
+      // queue and the one-per-person id both read `at`, and a back-dated
+      // stamp is how a face lands outside the window a moderator is looking
+      // at.
+      await assertFails(setDoc(
+        doc(asUser(OWNER), "v2_avatars", OWNER),
+        av({ at: new Date("2020-01-01T00:00:00Z") }),
+      ));
+      await assertFails(setDoc(
+        doc(asUser(OWNER), "v2_avatars", OWNER),
+        av({ at: new Date(Date.now() + 86400000) }),
+      ));
+      // …and the server's own stamp still goes through, so this is about
+      // the value and not about the field.
+      await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av()));
+    });
+
     it("lets no client claim `hidden`, in either direction", async () => {
       // `true` is the server's word: a client that could write it could
       // hide its own face to dodge a report mid-queue…
@@ -2786,6 +2958,20 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       await assertSucceeds(setDoc(
         doc(asUser(OWNER), "v2_flags", `av_${STRANGER}_${OWNER}`),
         { takeId: `av_${STRANGER}`, gid: "avatar", uid: OWNER, target: STRANGER, at: serverTimestamp() }));
+      // THE FIELD ALLOWLIST, which nothing made refuse. The arm's own
+      // `hasOnly(["takeId","gid","uid","at","target"])` evaluated true 14
+      // times and false ZERO across the whole suite, so it could be deleted
+      // outright with everything green — leaving `v2_flags` writable with
+      // arbitrary fields by any signed-in user. Nothing surfaces them
+      // (`allow read: if false`), and the collection has no size ceiling
+      // either, which is what functions/src/moderation.ts records.
+      //
+      // FRIEND, whose otherwise-identical write is admitted two lines
+      // below, so the extra field is the only thing left to refuse it.
+      await assertFails(setDoc(
+        doc(asUser(FRIEND), "v2_flags", `av_${STRANGER}_${FRIEND}`),
+        { takeId: `av_${STRANGER}`, gid: "avatar", uid: FRIEND, target: STRANGER,
+          at: serverTimestamp(), note: "x".repeat(400) }));
       // THE SENTINEL ITSELF. `gid == "avatar"` is what separates a face
       // report from a take report, and every fixture here sets it, so it
       // was never the clause that refused — relaxing it to `gid is string`
@@ -3779,6 +3965,30 @@ describe("rank answers (D233): an order, never an index", () => {
     await assertFails(updateDoc(mine(), { optionIdx: 1, editedAt: serverTimestamp() }));
   });
 
+  it("refuses an answer filed under a document id that names another question", async () => {
+    // `qid == aid` appears in three of the answer-shape functions — rank,
+    // catalog and call — and NONE of them had ever evaluated it false: the
+    // coverage report says true 7, 10 and 6 times respectively, and zero
+    // falses, so all three could be deleted with the suite green.
+    //
+    // What the clause is for: an answer's document id IS its question, and
+    // the aggregate trigger folds by that id. An answer whose body names a
+    // different question would be counted into the wrong question's
+    // aggregate — the D30 re-key class, arriving one document at a time.
+    await seedRank();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "feed-f04"), {
+        surface: "feed", seq: 3, type: "rank", prompt: "Rank these too",
+        options: ["A", "B", "C", "D"], active: true,
+      });
+    });
+    // Filed under feed-f03, claiming to be feed-f04.
+    await assertFails(setDoc(mine(), rankAnswer({ qid: "feed-f04" })));
+    // The control: the same write with the two agreeing is admitted, so
+    // the refusal is the disagreement and nothing else.
+    await assertSucceeds(setDoc(mine(), rankAnswer()));
+  });
+
   it("bounds the list where rules can, and refuses the index the fold would misread", async () => {
     await seedRank();
     // The branch's OWN `surface == "feed"`, which every case here satisfied
@@ -3885,6 +4095,153 @@ describe("rank answers (D233): an order, never an index", () => {
 // also asserts that a signed-in principal CAN read it. A new
 // `allow read: if request.auth != null` arm belongs in this list on the
 // commit that adds it.
+describe("the engagement rollup's field validation, which nothing exercised", () => {
+  // Twenty-two atomic predicates in this one rule — every `is int`, every
+  // bound — evaluated TRUE and never once false across the whole suite, so
+  // any of them could be deleted and everything would stay green. The
+  // rollup is written by every account every day and is the only document
+  // in the app a client writes with eleven numeric fields, so "the type
+  // checks are real" is worth more here than almost anywhere.
+  //
+  // A loop INSIDE one `it()`, unlike the sign-in block above: `check:figures`
+  // counts test DECLARATIONS, so this contributes one, which is what it is.
+  // The avatar token case two blocks down has the same shape for the same
+  // reason.
+  // RELATIVE, per this file's own rule at the top: the rollup's create arm
+  // demands the day be inside `request.time - 8d … + 2d`, so a literal
+  // passes until it ages out and then the CONTROL below starts failing —
+  // leaving the thirty-one refusals passing with nothing proving they are
+  // about their fields. Written as a literal here first; five days of
+  // life.
+  const DAY = dayOffset(-1);
+  const ok = (over: Record<string, unknown> = {}) => ({
+    day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
+    answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
+    folded: false, build: 1, platform: "web",
+    expireAt: new Date(Date.now() + 86400000), ...over,
+  });
+  const ref = () => doc(asUser(OWNER), "v2_users", OWNER, "engagement", DAY);
+
+  it("takes a well-formed rollup and refuses every field out of shape", async () => {
+    // The control first. Without it every assertion below could be passing
+    // because the write is refused for some reason that has nothing to do
+    // with the field under test — the trap that cost two attempts on the
+    // avatar flag case earlier tonight.
+    await assertSucceeds(setDoc(ref(), ok()));
+    await seed(async (db) => {
+      await deleteDoc(doc(db, "v2_users", OWNER, "engagement", DAY));
+    });
+
+    for (const bad of [
+      { sessions: "1" }, { sessions: -1 }, { sessions: 301 },
+      { fgMin: "1" }, { fgMin: -1 }, { fgMin: 5 },
+      { quiet: "0" }, { quiet: -1 }, { quiet: 301 },
+      { dayparts: "1,0,0,0" }, { dayparts: [1, 0, 0] }, { dayparts: ["1", 0, 0, 0] },
+      { dayparts: [1, "0", 0, 0] }, { dayparts: [1, 0, "0", 0] }, { dayparts: [1, 0, 0, "0"] },
+      { answers: "1" }, { answers: -1 }, { answers: 2001 },
+      { feedB: "0" }, { feedB: -1 }, { feedB: 5 },
+      { depthEnd: "0" }, { depthEnd: -1 }, { depthEnd: 2 },
+      { stops: "0" }, { stops: -1 }, { stops: 2001 },
+      { lenses: "0" }, { lenses: -1 }, { lenses: 2001 },
+      { expireAt: 1735689600 },
+    ]) {
+      await assertFails(setDoc(ref(), ok(bad)));
+    }
+  });
+});
+
+describe("every write gated on sign-in refuses a signed-out client", () => {
+  // THE OTHER HALF. The read block below counts sign-in-gated READ arms and
+  // holds the number; its own note says the write side is unwritten. The
+  // rules-coverage ratchet is what made the size of the gap countable:
+  // `request.auth != null` never evaluated FALSE on twenty arms, thirteen
+  // of them writes, which means each of those thirteen could be deleted
+  // outright and all 180 tests would still pass.
+  //
+  // Only the WRITE arms are here. The read arms that are not spelled bare
+  // are claimed on the other night shift's list, and two branches writing
+  // one fixture set is the thing the overlap check exists to prevent.
+  //
+  // One `it()` per arm rather than a loop, for the reason the read block
+  // records: `check:figures` counts test declarations statically, so a loop
+  // would contribute one declaration for thirteen tests and make four
+  // documented figures wrong.
+  //
+  // WHAT THESE HOLD, and what they do not — corrected by a review of this
+  // same night, which found the paragraph that stood here overclaiming.
+  //
+  // `request.auth != null` is the FIRST conjunct of every arm below, so it
+  // short-circuits and each of these does record that clause evaluating
+  // false — which is what the coverage report measures and why the count
+  // moved by exactly thirteen. That much is real.
+  //
+  // What is NOT true is that every payload is otherwise well-formed. Nine
+  // of the thirteen would be refused by a later clause as well if the
+  // sign-in gate were removed: `foresight` and `v2_takes` fail their key
+  // allowlists, `v2_groups` allows only `duoMode` in an update,
+  // `v2_people` needs a `name`, `following` needs `to`, and four target
+  // documents that `clearFirestore()` guarantees do not exist. So deleting
+  // a sign-in clause would not make these pass — they would go on refusing
+  // for the wrong reason, silently.
+  //
+  // Making all thirteen minimal-and-legal is real work against nine rules
+  // and it is on the open list rather than done in a hurry. The claim is
+  // corrected here so the next reader is not misled by it.
+  const DAY = dayOffset(-1);
+  const refusesWrite = async (fn: () => Promise<unknown>): Promise<void> => {
+    await assertFails(fn());
+  };
+
+  it("v2_users refuses a signed-out write", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER), { displayName: "Owner" })));
+  it("answers refuse a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "daily-000"), {
+      qid: "daily-000", surface: "daily", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: {},
+    })));
+  it("answers refuse a signed-out update", () => refusesWrite(() =>
+    updateDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "daily-000"), {
+      optionIdx: 0, editedAt: serverTimestamp(),
+    })));
+  it("engagement refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "engagement", DAY), {
+      day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
+      answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
+      // `build` is an INT in the rule, and `expireAt` must be in the
+      // future — this payload said "1" and `new Date()` until the rollup
+      // block below was written and its control caught both. It changes
+      // nothing here (the sign-in clause short-circuits first, and the
+      // coverage report confirms this arm records a false either way), but
+      // this case's own note promises a well-formed payload, and a fixture
+      // that is refused twice over stops proving what it names the moment
+      // somebody deletes the clause it is here to hold.
+      folded: false, build: 1, platform: "web",
+      expireAt: new Date(Date.now() + 86400000),
+    })));
+  it("following refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER), { at: serverTimestamp() })));
+  it("following refuses a signed-out delete", () => refusesWrite(() =>
+    deleteDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER))));
+  it("foresight refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "foresight", "q1__ageBand__25-34"), { pick: 0 })));
+  it("v2_groups refuses a signed-out update", () => refusesWrite(() =>
+    updateDoc(doc(asSignedOut(), "v2_groups", "grp1"), { name: "x" })));
+  it("v2_people refuses a signed-out write", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_people", OWNER), { handle: "owner" })));
+  it("v2_takes refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_takes", "t9"), {
+      gid: "world", uid: OWNER, text: "hello", at: serverTimestamp(), hidden: false,
+    })));
+  it("v2_takes refuses a signed-out delete", () => refusesWrite(() =>
+    deleteDoc(doc(asSignedOut(), "v2_takes", "t9"))));
+  it("v2_avatars refuses a signed-out write", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_avatars", OWNER), {
+      token: "abc123DEF456-_xyz", at: serverTimestamp(), hidden: false,
+    })));
+  it("v2_avatars refuses a signed-out delete", () => refusesWrite(() =>
+    deleteDoc(doc(asSignedOut(), "v2_avatars", OWNER))));
+});
+
 describe("every read gated on sign-in refuses a signed-out client", () => {
   const GROUP = "grp1";
   const DAY = "2026-09-03";
