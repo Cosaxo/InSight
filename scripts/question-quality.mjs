@@ -1833,9 +1833,15 @@ if (invokedDirectly) {
   }
   for (const w of head.warn) console.log(`  • ${w}`);
 
+  // EVERY WALK ABOVE, and the line is only worth printing if it is all of
+  // them. `pickSeed` and `pulse` were validated and uncounted, so the run
+  // under-reported itself — which matters here more than it looks: this
+  // number is the one thing a reader has to tell "the gate checked
+  // everything" from "the gate checked what it happened to reach", and
+  // that distinction is the whole subject of the walk added above it.
   const n = corpus.specQ.length + corpus.seed.length + corpus.feed.questions.length
-    + corpus.duel.length + corpus.pick.length + corpus.continuum.length
-    + corpus.learn.cards.length;
+    + corpus.duel.length + corpus.pick.length + corpus.pickSeed.length
+    + corpus.continuum.length + corpus.learn.cards.length + corpus.pulse.length;
   console.log(`quality: ${n} questions checked${failed ? "" : " · all bounds hold"}`);
   process.exit(failed ? 1 : 0);
 }
