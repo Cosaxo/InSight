@@ -567,7 +567,33 @@ identical for every viewer who opens them within a day. Publish them.
 the nightly run from the ledger day it already reads: the newest 200
 `{uid, optionIdx}` pairs, appended and trimmed each night, newest first —
 the sheet's own semantics ("the latest 200"), refreshed nightly instead
-of on open. ~200 × 32 bytes ≈ 6.5 KB a doc, 113 docs (≈ 380 under §3),
+of on open.
+
+**AS BUILT IT IS NOT THE LATEST 200, AND THIS PARAGRAPH IS WHERE THAT
+WENT WRONG.** "From the ledger day it already reads" is the whole input:
+`mergeSample` merges that day's answerers into whatever the document
+already holds, and nothing anywhere seeds it from the answers written
+before the samples existed. Since a person answers a given question once,
+those earlier voters never arrive. So a question answered two hundred
+times before D397 publishes a sample of however many people have answered
+it *since* — real rows, and indistinguishable at the reader from a
+complete sample.
+
+That lands on the floors two paragraphs down: `say()` needs 12 in both
+samples and `tell()` needs 12, so the pair card and the Oracle's working
+panel go quiet and report `thin` — a statement about the crowd whose real
+subject is the deploy date. "Of the N in both samples" is then a caption
+naming a population it does not count.
+
+The fix is a seeding pass — one bounded collection-group query per
+question, the first time the nightly touches it — and it is not free to
+write: the query needs the answer-surface list in a second copy inside
+`functions/`, and seeding every question the first night is ~200 reads ×
+every question that day inside one invocation, so it needs a per-run bound
+nobody has chosen. Both are the owner's to price. Until then the reader
+does what it can, which is only to stop treating an EMPTY sample as a
+crowd of nobody (`fetchVoterSample`, `voter-sample.test.ts`); a SHORT one
+it cannot detect. ~200 × 32 bytes ≈ 6.5 KB a doc, 113 docs (≈ 380 under §3),
 one write each a night: nothing. On the device, `sayRows`, `loadKindred`,
 `loadCityKindred` and the People lens read one doc per question instead
 of 200 rows: a Kindred first view goes from ~2,400 answer reads (plus up
@@ -583,9 +609,10 @@ positions), so `deleteAccount` grows an arm that removes the uid from the
 samples it is in — the person's own `a` map (4.1) names exactly which
 questions, ≤ 113 targeted updates — and `e2e-delete-account.mjs` asserts
 "gone means gone" for it. **Basis**: the People lens and `say()`/`tell()`
-state "of the N in both samples" today and keep doing so; the samples
-are a day old at most and the caption can say "as of last night" where
-it matters. `KINDRED_QUESTIONS`, `PEOPLE_QUESTIONS` and the 12-person
+state "of the N in both samples" today and keep doing so; the samples'
+CONTENT is a day old at most — but their coverage is not, per the
+correction above, so "as of last night" would be the wrong caption for
+the wrong reason until a seeding pass exists. `KINDRED_QUESTIONS`, `PEOPLE_QUESTIONS` and the 12-person
 floor do not change. A rules row and a `data-inventory.md` row come with
 it (`check:data-inventory`).
 
