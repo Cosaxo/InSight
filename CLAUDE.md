@@ -527,7 +527,7 @@ an emergency rules fix.
   before a PR is mergeable is unchanged and is still the whole of the
   contract: a green head with `main` already merged in and its decision
   numbers already moved (D299) — off a **collision** only, because since
-  D394 the hole a move leaves behind is a printed note rather than a
+  D400 the hole a move leaves behind is a printed note rather than a
   failure, so no pull request waits on another's merge to go green. Then
   say so and stop — **unless the
   owner tells you to merge, in that session and about that head, which

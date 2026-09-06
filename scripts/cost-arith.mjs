@@ -317,7 +317,7 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 //
 // The duel branch of the same trigger does ZERO — it is one blind
 // arrayUnion onto the group, deliberately ("one blind write, no read").
-// THREE on the world path since D396, not two. The fold reads the AUTHOR'S
+// THREE on the world path since D402, not two. The fold reads the AUTHOR'S
 // PROFILE alongside the ledger event and the published aggregate, because
 // the anchors on an answer are the client's claim about its own cohort and
 // firestore.rules can only check they are plausible, never that they are

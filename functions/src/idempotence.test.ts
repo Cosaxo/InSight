@@ -68,7 +68,7 @@ async function deliver(id: string, data: Doc) {
     id,
     params: { uid: "u1", qid: QID },
     // `ref` because a real DocumentSnapshot carries one and the honest-anchor
-    // correction (D396) writes through it. The fake had no ref at all, which
+    // correction (D402) writes through it. The fake had no ref at all, which
     // is the harness being thinner than the thing it stands in for — the
     // trigger is not guarded against a missing ref on purpose, so a snapshot
     // without one is a test-fixture bug and should read as one.
@@ -99,7 +99,7 @@ const pick = { surface: "daily", entity: 25, anchors: {} };
 
 beforeEach(() => {
   store.clear();
-  // The author's profile, which the create fold now reads (D396) to check
+  // The author's profile, which the create fold now reads (D402) to check
   // the answer's cohort is the author's own. Every real answer follows a
   // profile write — `saveAnchors` writes the profile, and Firestore keeps a
   // client's writes in order — so a fixture without one was describing a
@@ -305,7 +305,7 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
   });
 });
 
-describe("an invented cohort is corrected, not folded (D396)", () => {
+describe("an invented cohort is corrected, not folded (D402)", () => {
   // firestore.rules can only check an answer's anchors are PLAUSIBLE — ten
   // strings of sane length — never that they are the author's. A rule that
   // compared them to the profile was built and measured, and it refuses two

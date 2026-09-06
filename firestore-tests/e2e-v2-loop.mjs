@@ -191,8 +191,8 @@ const uid = cred.user.uid;
 // The city split is 5/5 across Oslo and Bergen by the end, so the
 // dimension D9 added is exercised through the whole pipeline rather than
 // only in the pure unit tests.
-// THE PROFILE IS WRITTEN FIRST, as the app writes it (D396). Anchors on an
-// answer are a SNAPSHOT of the author's profile, and since D396 the fold
+// THE PROFILE IS WRITTEN FIRST, as the app writes it (D402). Anchors on an
+// answer are a SNAPSHOT of the author's profile, and since D402 the fold
 // checks that: a claimed anchor the profile does not carry is corrected
 // away, because firestore.rules can only check the anchors are plausible,
 // never that they are the author's. This suite used to write answers with
@@ -273,7 +273,7 @@ for (let n = 0; n < 4; n++) {
     country: "NO",
     city: n < 2 ? "Oslo, NO" : "Bergen, NO",
   } },
-    { mergeFields: ["anchors"] });   // the profile first (D396)
+    { mergeFields: ["anchors"] });   // the profile first (D402)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
     answeredAt: serverTimestamp(),
@@ -345,7 +345,7 @@ for (let m = 0; m < 5; m++) {
     country: "NO",
     city: m < 2 ? "Oslo, NO" : "Bergen, NO",
   } },
-    { mergeFields: ["anchors"] });   // the profile first (D396)
+    { mergeFields: ["anchors"] });   // the profile first (D402)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(),
@@ -394,7 +394,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: { ageBand: "25-34", country: "Norway" } },
-    { mergeFields: ["anchors"] });   // the profile first (D396)
+    { mergeFields: ["anchors"] });   // the profile first (D402)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
@@ -490,7 +490,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid),
     { anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" } },
-    { mergeFields: ["anchors"] });   // the profile first (D396)
+    { mergeFields: ["anchors"] });   // the profile first (D402)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 1,
     answeredAt: serverTimestamp(),

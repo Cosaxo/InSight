@@ -41639,7 +41639,7 @@ under a centred block — fixed with a floor under the words.
   and a `walkthrough` key would be a functions change for a number nobody
   has asked for. Not taken.
 
-## D394 · A decision-number hole is reported, not refused — merge order stops being a gate
+## D400 · A decision-number hole is reported, not refused — merge order stops being a gate
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
 — *"fix the gate so merge order doesn't matter"* — after it cost a
@@ -41689,7 +41689,7 @@ because a tree-wide scan would read every `D385` in a code comment as a
 claim about this file.
 
 **It failed on this record.** The first run refused the tree three
-times: D394 cites D387, D388 and D389 — the three pull requests holding
+times: D400 cites D387, D388 and D389 — the three pull requests holding
 them, named in the paragraph above explaining why the gate had to
 change.
 
@@ -41698,11 +41698,11 @@ was. **A hole and a citation into that hole are one fact seen twice** —
 this head does not have that number, because another head does. Failing
 on the second while excusing the first only puts merge order back under
 a different name. So both are reported together, and the note names the
-citers when there are any, because *"D387 is unclaimed and D394 points
+citers when there are any, because *"D387 is unclaimed and D400 points
 at it"* is the sentence a reader actually wants:
 
 ```
-note: D387 (cited by D394), D388 (cited by D394), D389 (cited by D394)
+note: D387 (cited by D400), D388 (cited by D400), D389 (cited by D400)
       unclaimed — an open branch is holding them, or a record was lost.
 ```
 
@@ -41726,7 +41726,7 @@ green at a time, and it was always the **lowest-numbered** one — not
 because its work was ready first, but because nothing was sitting under
 it. #415 had to wait for two merges it has no relationship to.
 
-This branch is the fourth case: written as D387, moved to **D394**, the
+This branch is the fourth case: written as D387, moved to **D400**, the
 first number no open branch claims, leaving holes at D387, D388 and
 D389, one per pull request waiting. Under the rule being removed, the
 change fixing the problem could not pass its own gate until three
@@ -41738,7 +41738,7 @@ the number #411 was holding. So #411 now carries a genuine
 **duplicate** (renumbered to D391, before merging main and not after —
 doing it the other way round is what corrupted D370–D372 across four
 source files and eight documents earlier the same day), and with it
-fixed its head has holes at D389 and D394 and is refused by the rule
+fixed its head has holes at D389 and D400 and is refused by the rule
 this record removes. The two halves land exactly where they should: the
 duplicate is caught, and the hole is the gate holding #411 hostage to
 #416 — itself. Numbers move on their own while pull requests are open;
@@ -41750,7 +41750,7 @@ Nothing about `main`'s history changed — records are still amended,
 never deleted, and a hole there still gets printed every run until its
 pull request lands. Duplicates still fail.
 
-## D395 · The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success
+## D401 · The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success
 
 **Decided:** 2026-09-06 · **Status:** binding. **This record replaces its
 own first version**, which said the opposite and was wrong.
@@ -41847,10 +41847,10 @@ where a profile edit and an answer race (measured: the answer is refused
 until the profile write lands). `OWNER-LIST.md` carries it as that
 question instead.
 
-## D396 · You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist
+## D402 · You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
-after D395 surfaced it — *"fix the invented cohort thing too"*.
+after D401 surfaced it — *"fix the invented cohort thing too"*.
 
 ### The hole
 
