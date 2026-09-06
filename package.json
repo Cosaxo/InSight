@@ -103,6 +103,7 @@
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
     "check:monitoring": "node scripts/check-monitoring.mjs",
+    "check:routines": "node scripts/routines.mjs --check",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "testuser": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/test-users.mjs",
     "test:unit": "LC_ALL=en_US.UTF-8 vitest run --dir src",

@@ -420,8 +420,31 @@ Nobody has written this block.
     const byAccount = {};
     for (const r of rows) byAccount[r.account] = (byAccount[r.account] || 0) + 1;
     expect(byAccount["Claude 1"]).toBe(11);
-    expect(byAccount["Claude 3"]).toBeUndefined();
+    // §4 was a placeholder and Claude 3's count was zero; the block is
+    // written now, and its own prose declares the number the same way §2
+    // does — "four Routines enabled" — which is again the number a parser
+    // cannot fake. Its table also carries two lanes that have no Routine
+    // (the merge shift, deleted; the console keeper, never created), and
+    // those are deliberately NOT rows: see parseRegister.
+    expect(byAccount["Claude 3"]).toBe(4);
     expect(rows.every((r) => /^trig_/.test(r.trigger))).toBe(true);
+  });
+
+  it("skips a register row that names no Routine", () => {
+    // The console draws this table as the program's live health, so a lane
+    // documented as gone or not-yet-created must not arrive as a Routine
+    // whose trigger id is the sentence explaining its absence.
+    const withGaps = `## 4 · Session 3 — the program lanes
+
+| Routine | Trigger id | Schedule (UTC) | Binding |
+| --- | --- | --- | --- |
+| InSight axiom builder | \`trig_a\` | \`30 6 * * *\` | relay |
+| InSight merge shift | — deleted 2026-09-04 (was \`trig_b\`) | \`15 23 * * *\` when it existed | none |
+| InSight console keeper | — | \`45 5 * * *\` | not created |
+`;
+    expect(parseRegister(withGaps)).toEqual([
+      { account: "Claude 3", name: "axiom builder", trigger: "trig_a", schedule: "30 6 * * *" },
+    ]);
   });
 });
 

@@ -326,6 +326,15 @@ const gatedJobs = readdirSync(join(root, ".github/workflows"))
   .filter((f) => f.endsWith(".yml"))
   .reduce((n, f) => n + (read(`.github/workflows/${f}`).match(/^ {4}environment: production$/gm) || []).length, 0);
 
+// Workflow files, for CONSOLIDATION.md's floor — the count that says how
+// much of the program already runs on no subscription. It was written as
+// eighteen and was nineteen the next day (appcheck.yml, D367), which is the
+// hand-maintained-figure error CLAUDE.md names, committed inside the very
+// section arguing that mechanical work keeps moving into Actions. Gated so
+// the next arrival updates the sentence instead of dating it.
+const workflowFiles = readdirSync(join(root, ".github/workflows"))
+  .filter((f) => f.endsWith(".yml")).length;
+
 // The alerting surface, counted from apply-monitoring.mjs's own lists
 // rather than restated. check:monitoring already holds those lists equal to
 // what is on disk, so deriving from them here means this gate and that one
@@ -876,6 +885,14 @@ const FIGURES = [
     re: /Apply the (\w+) monitoring alerts/,
     actual: word(monitoringPolicies),
     fix: (n) => `"Apply the ${n} monitoring alerts"`,
+  },
+  {
+    file: "docs/CONSOLIDATION.md",
+    what: "GitHub Actions workflow files",
+    // Capitalised: the figure opens the sentence and is bolded with it.
+    re: /\*\*(\w+) GitHub Actions workflows already run/,
+    actual: cap(word(workflowFiles)),
+    fix: (n) => `"**${n} GitHub Actions workflows already run"`,
   },
   {
     file: "docs/DEPLOYMENT.md",

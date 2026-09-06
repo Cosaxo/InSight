@@ -11,10 +11,15 @@
 > reason.
 
 **Status: mixed — phases 1 and 2 are done (D352, 2026-09-02), and
-phase 3 is done but for one Routine: six of the seven on this account
-exist, bound to the program dispatcher; the console keeper was refused
-by the session's permission classifier and is the owner's to create in
-the web UI. Phases 4–6 are open.** Written 2026-09-02 from the
+phase 3 is done but for one Routine: four of the six program Routines
+on this account exist and fire into the planning session, which relays
+each into a fresh session (rebound 2026-09-03 — 3.2 has why); the merge
+shift was deleted from the account on 2026-09-04 and the builder
+re-paced to once a day, from the Routines page rather than a session;
+the console keeper was refused by the session's permission classifier
+and is the owner's to create in the web UI. `RECREATE.md` is the page any
+session, on any subscription, recreates a missing Routine from. Phases
+4–6 are open.** Written 2026-09-02 from the
 owner's answers of that day (`PROGRAM-PLAN.md` §10). When a step is done its box is ticked
 with the PR that did it; when a Routine is created its row in
 § The account-side inventory gets the trigger id and this line flips
@@ -69,8 +74,8 @@ asked for — and the console draws its health from it.
 
 | Lane | Account | Triggers (UTC) | Model | Contract | Merge authority |
 | --- | --- | --- | --- | --- | --- |
-| **The axiom builder** | Claude 3 | `30 6 * * *` — the owner's call of 2026-09-03, one run a day | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
-| **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19,23 * * *` — the 23:15 firing is the long pass | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
+| **The axiom builder** | Claude 3 | `30 6 * * *` — the owner's call of 2026-09-03, one run a day, on the account since 2026-09-04 06:41 UTC; **disabled 2026-09-04 08:45 UTC** with the account's three others as the reduction began | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
+| **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19,23 * * *` — the 23:15 firing is the long pass; **no Routine since 2026-09-04**, both deleted from the account after two days without an `approved` PR | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
 | **The console workflow** | GitHub Actions — no account | every two hours, on push to `main`, on PR label events, on the Console issue's edit | none — `scripts/console.mjs`, stdlib only | § The console | mirrors the owner's tick to the label `approved`; opens the PR for a ticked branch; never merges |
 | **The console keeper** | Claude 3 | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | § The console keeper | n/a |
 | **The console improver** | Claude 3 | `0 14 * * 0` | `claude-fable-5-1` | § The console improver | never |
@@ -166,7 +171,7 @@ log** like the list worker they are.
       first fire finds its section — the doc sweep and the now lane
       both fired ahead of theirs and no-opped for days. · **Gate:**
       `git show origin/main:docs/PROGRAM-RUNBOOK.md` succeeds.
-- [x] **3.2 The program dispatcher.** *Created 2026-09-02 — `session_01THJsyLkHr1aJskpnhahwuf`, tag `program-dispatcher`, `claude-sonnet-5` — and it refused its charter as an injected prompt twice (§ Platform measurements). It relays nothing until the owner opens the session and approves the charter in a human turn of their own: one sentence, on `OWNER-LIST.md` § Clicks. Until then every firing bound to it is refused at the door.* One persistent session on this
+- [x] **3.2 The program dispatcher.** *Created 2026-09-02 as `session_01THJsyLkHr1aJskpnhahwuf` (tag `program-dispatcher`, `claude-sonnet-5`); it refused its charter as an injected prompt twice and every firing after, and by the morning of 2026-09-03 was asking for a human "yes" nothing bound to it could give (§ Platform measurements). **Rebound 2026-09-03:** the five Routines now fire into the planning session `session_013V91NnDHMjjLSGYxzTEsnw` — the session in which the owner asked for this program, which therefore holds the request in its own history and needs no charter delivered by automation. Its relay rule: a user turn opening `You are InSight's <LANE>` is a firing; the session passes the text verbatim into a fresh session with `create_session` — `source_url` the repository, so the container starts cloned and the prompt's provisioning step finds nothing to do; title `<Lane> — <UTC date>`; tags `program-lane` and the lane's slug; the lane's model from § The lanes; the provisioning and reporting tools pre-approved; one appended system line saying the message is a scheduled Routine's stored prompt relayed on the owner's account with its contract on `main` — answers with the new session's id, and never does a lane's work. A firing whose lane still has a `program-lane` session running from an earlier slot is skipped with one line saying so: one run per lane at a time. **Measured on the first day (2026-09-03, § Platform measurements) and amended:** the relay applies `OPS-RUNBOOK.md` §0's cheap gate before spawning the merge shift — one query for open PRs carrying `approved` without `merge-when-green`; none means no session and one line here — and it may append one paragraph of run-specific context after the prompt (a stranded branch from the lane's last run, a slot that was skipped), never a word inside it. And the binding itself is the wrong shape by the same §0 rule D359 wrote the same afternoon: a lane bound to a persistent session pays that session's whole context on every fire, and this session's is the largest on the account. The web-UI path — six Routines created in this account's Routines page from `node scripts/routines.mjs --plan claude-3`, fresh session per fire, repository attached — pays only the lane's own work; the relay is the bridge until the owner takes it (`OWNER-LIST.md` § Decisions), and the relay-bound five are deleted the day the web-UI six exist. The old dispatcher session has nothing bound to it. Two of the five old Routines could not be deleted from a session — the classifier refused `delete_trigger` for the shift and the list worker and allowed it for the other three — so those two are disabled instead, still bound to it; deleting them is a click on `OWNER-LIST.md`. The original design follows.* One persistent session on this
       account (`claude-sonnet-5`, tag `program-dispatcher`, charter in
       its first turn: relay each firing verbatim into a fresh session
       titled `<Lane> — <UTC date>`, tagged `program-lane`, on the lane's
@@ -178,7 +183,7 @@ log** like the list worker they are.
       their tools approved once in this session by a human turn.
       · **Gate:** `get_session` shows it; the register row names it.
       · **Size:** S.
-- [x] **3.3 Create six Routines** — *five of six DONE 2026-09-02 from this session; the console keeper's creation was refused by the permission classifier and is the owner's, in this account's web UI, with § Canonical prompts' keeper block* —, prompts from § Canonical prompts
+- [x] **3.3 Create six Routines** — *five of six DONE 2026-09-02 from this session and re-created 2026-09-03 bound to the planning session (3.2); the console keeper's creation was refused by the permission classifier and is the owner's, in this account's web UI, with § Canonical prompts' keeper block, or the `web_ui` fields `node scripts/routines.mjs --plan claude-3 --missing` prints* —, prompts from § Canonical prompts
       and § The other subscriptions pasted verbatim, bound to the
       dispatcher: the axiom builder, the merge shift, the console
       keeper, the console improver, the to-do doer, the roll call twin. From this session if the platform allows it; **[owner]** in
@@ -187,7 +192,7 @@ log** like the list worker they are.
       lanes). Notifications off — the run log and the console are the
       legibility channel. · **Gate:** `list_triggers` returns each; the
       first fire of each lands a run-log line. · **Size:** S.
-- [ ] **3.4 Register them.** *The inventory below is filled 2026-09-02; the register's block waits for `ROUTINES.md` to reach `main` (PRs #362 / #365).* This account's block in `ROUTINES.md` —
+- [x] **3.4 Register them.** *DONE 2026-09-03 — `ROUTINES.md` reached `main` in #362, and this account's block is its §4, ids quoted from `list_triggers`, with the five slots on the shared clock, the branch namespaces and the merge-authority tier. The same rows are machine-readable in `routines/manifest.json`, rendered as `RECREATE.md` and held to the register's and the inventories' tables by `check:routines`, so any session on any subscription can recreate what its account is missing — the owner's ask of that day.* This account's block in `ROUTINES.md` —
       ids quoted from `list_triggers`, the binding, the branch
       namespaces `claude/axiom-*`, `claude/worklist-*`,
       `claude/console-*`, `claude/program-diag-*` — and the one-line
@@ -750,20 +755,23 @@ mirrored in `ROUTINES.md`'s block for this account in the same PR.
 
 | Routine | Trigger id | Model | Binding | Created |
 | --- | --- | --- | --- | --- |
-| InSight axiom builder | `trig_01GfndFyG5MFsWcpZDNPntd5` | `claude-fable-5-1`, set by the dispatcher | program dispatcher `session_01THJsyLkHr1aJskpnhahwuf` → fresh session | 2026-09-02 |
-| InSight merge shift | `trig_01R5twbh48wfb9UfvVTANcdR` | `claude-opus-5`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
-| InSight console keeper | — | `claude-sonnet-5` | — | not yet: creation from this session refused by the permission classifier on 2026-09-02; the owner creates it in this account's web UI with the keeper block, bound to the dispatcher or fresh per run |
-| InSight console improver | `trig_015RFs7Mw2dC4u73nxBzhaaV` | `claude-fable-5-1`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
-| InSight list worker (Claude 3) | `trig_017g4jkRVknNNccrVKfXWWS4` | `claude-fable-5-1`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
+| InSight axiom builder | `trig_01TsTBR1xv8KBVJG9b38vPgn` | `claude-fable-5-1`, set by the relay | planning session `session_013V91NnDHMjjLSGYxzTEsnw` → fresh session | 2026-09-03 (was `trig_01GfndFyG5MFsWcpZDNPntd5`, 2026-09-02, deleted); re-paced to `30 6 * * *` on the account 2026-09-04 |
+| InSight merge shift | — | `claude-opus-5` | none | deleted from the account 2026-09-04 (was `trig_01KSwCf4WcnQE6Uh6udeNAxn`, 2026-09-03, and `trig_01R5twbh48wfb9UfvVTANcdR`, 2026-09-02); `RECREATE.md` re-creates it |
+| InSight console keeper | — | `claude-sonnet-5` | — | not yet: creation from this session refused by the permission classifier on 2026-09-02; the owner creates it in this account's web UI with the keeper block, fresh per run |
+| InSight console improver | `trig_01GPHx2NJRUjTLG5WfkXdgC5` | `claude-fable-5-1`, set by the relay | planning session → fresh session | 2026-09-03 (was `trig_015RFs7Mw2dC4u73nxBzhaaV`, 2026-09-02, deleted) |
+| InSight list worker (Claude 3) | `trig_018gAP4NYzGNvSqojjNapH8g` | `claude-fable-5-1`, set by the relay | planning session → fresh session | 2026-09-03 (was `trig_017g4jkRVknNNccrVKfXWWS4`, 2026-09-02 — deletion refused, disabled) |
 | InSight list worker (Claude 1) | — | `claude-fable-5-1` | Claude 1's — the owner's row | not yet |
-| InSight roll call (Claude 3) | `trig_01Pda2PGuVxADFLmqbgVGgt3` | `claude-sonnet-5`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
+| InSight roll call (Claude 3) | `trig_01CZcopHxBJ5qSkrzCLM1Un2` | `claude-sonnet-5`, set by the relay | planning session → fresh session | 2026-09-03 (was `trig_01Pda2PGuVxADFLmqbgVGgt3`, 2026-09-02, deleted) |
 | InSight roll call (Claude 1) | — | `claude-sonnet-5` | Claude 1's — the owner's row | not yet |
 | The twelve theory lanes (Claude 3) | — | the charter's | theory dispatcher → fresh session | not yet |
 
-Every dispatcher-bound row was created with the creation tool's own
+Every relay-bound row was created with the creation tool's own
 warning: the trigger stores no connectors, so the lane's tools are
-whatever the dispatcher's `create_session` call carries — the same
-shape as Claude 2's ops lanes, and the first fire measures it (3.5).
+whatever the relay's `create_session` call carries — the same shape as
+Claude 2's ops lanes, and the first fire measures it (3.5).
+`routines/manifest.json` carries these rows machine-readably, with the
+retired ids, and `check:routines` fails when this table names an id the
+manifest does not know.
 
 ### Platform measurements
 
@@ -772,7 +780,20 @@ shape as Claude 2's ops lanes, and the first fire measures it (3.5).
 | 2026-09-02 | this account, `list_triggers` | zero Routines; one prior session; a five-hour rate-limit window of its own | `PROGRAM-PLAN.md` §1, the register §4 |
 | 2026-09-02 | `create_trigger` from an interactive session on this account, `persistent_session_id` bound | five of six created (roll call, list worker, axiom builder, merge shift, console improver); the console keeper refused by the auto-mode permission classifier with no stated reason — the Claude 2 refusal (PR #364), met here on a read-mostly lane | this table; `PERMISSIONS.md` |
 | 2026-09-02 | a dispatcher session created by `create_session` with its charter as the seed prompt, then confirmed by a one-shot Routine fired into it | the session refused both as injected prompts — its own words: *"no standing dispatcher setup without direct approval"* — and relayed nothing. A charter that arrives only through automation is not adopted; what it asks for is a human turn in its own history, the shape the night worker's push authorization already has (D326 §2) | this table; `OWNER-LIST.md` § Clicks |
-| *(phase 3.5 fills these)* | first fire of each lane | — | — |
+| 2026-09-03 | the same dispatcher, left for a day: eight firings (the shift six times, the builder, the list worker) | every one refused; its final state was `need_input` — *"5 Routines detected; awaiting confirmation to execute"* — a question nothing bound to it can answer. Rebound: the five Routines re-created self-bound to the planning session, which holds the owner's request in its own history and relays without a charter (3.2) | 3.2; the inventory above |
+| 2026-09-03 | `create_trigger` self-bound (fires into the calling session) from the planning session | five of five created, no refusal; the connectors warning repeats for each | the inventory above |
+| 2026-09-03 | `delete_trigger` from the planning session, on this account's own Routines | three of five allowed (the builder, the roll call, the improver); the merge shift's and the list worker's refused by the auto-mode classifier with no stated reason. `update_trigger` with `enabled: false` was allowed for both, so they are disabled rather than gone | `PERMISSIONS.md`; `OWNER-LIST.md` § Clicks |
+| 2026-09-03 | the axiom builder's first fire, relayed: 12:32 firing → `create_session` at 12:42 with the repository as source, the lane's prompt verbatim, one appended system line | accepted the prompt at once (no injection refusal — the seed is one job, not a standing charter), started cloned, read the theory branch and planned; **stopped at 15:53 by the account's five-hour limit** after 3h11m and $7.64 — past its own 150-minute budget — with one commit on `claude/axiom-fit-scorecard` (nine worklist rows, three owner asks; lists only), no PR and no run-log line, and the issue titled *Program run log* never created. The next fire is told about the branch by the relay's appended paragraph | this table; `WORKLIST.md` when that branch lands |
+| 2026-09-03 | the relay session itself, 13:00–17:15 UTC | disconnected for four hours; three merge-shift firings (13:19, 15:17, 17:15) and the roll call's (15:40) queued and were relayed at 17:17 — one shift session, not three; the roll call 97 minutes late. A relay that is not awake is a queue, and the roll call's *late/missing* is how it is seen | this table; the Ops run log |
+| 2026-09-03 | the cost of the relay binding, read off D359's arithmetic (#385, #386) | a firing into this session replays its context — 750k tokens on the day — before one `create_session` call; the ops dispatcher's no-op fire measured $6.96 at 581k, the fresh-session shepherd's real fire $1.91 at 100k. The relay is the shape §0's context ceiling forbids; the web-UI six are the fix, and the choice is on the owner list | 3.2; `OWNER-LIST.md` § Decisions |
+| 2026-09-03 | the merge shift's first relayed fire (the 17:15 slot, relayed 17:17 after the queue) | provisioned by the relay's `source_url`, read its contract, found no PR carrying `approved` without `merge-when-green`, created the issue titled *Program run log* (#387) and posted its line; 2 minutes, $2.31, 117k tokens of context — a no-op at the price D359's arithmetic predicts for a fresh session, against $6.96 on the dispatcher | this table; Program run log #387 |
+| 2026-09-03 | the roll call's first relayed fire (the 15:40 slot, relayed 17:17) | provisioned, listed this account's Routines and sessions, posted *Claude 3 roll call 2026-09-03* on the Ops run log (#375) naming the 19h43m blackout between the dispatcher's last refusal and the first relay; 6 minutes, $1.49, 202k tokens of context | this table; Ops run log #375 |
+| 2026-09-03 | the list worker's first relayed fire (the 18:07 slot, relayed 18:10) | provisioned, took the topmost `[claude-3]` item — a provider module off the spec-layer bridge (`MAP_OPEN_GROUP`, the rule-4 count 32 → 30) — opened #388 green and posted its line; 27 minutes, $15.60, 226k tokens of context | this table; #388 |
+| 2026-09-03 | the axiom builder's second relayed fire (the 18:36 slot, relayed 18:38 with the stranded-branch paragraph) | started cloned on `claude/axiom-fit-scorecard`; **stopped again by the account's five-hour limit** at 19:05, 27 minutes and $15.74 in, 242k tokens of context — the window had been spent by the list worker's run and this session's relays; no PR, no run-log line. Two fires, two limit stops: the builder cannot finish inside a window it shares with the other lanes and the relay, which is the cadence row on `OWNER-LIST.md` § Decisions | this table |
+| 2026-09-03 | two merge-shift firings gated at the relay (19:15, 23:15) | no open PR carried `approved`; no session spawned, only the relay's wake paid — the cheap gate 3.2 now names | 3.2 |
+| 2026-09-04 | the axiom builder's third relayed fire (06:36 slot, relayed 06:37 with the paragraph telling it to ship what its two stopped runs had left) | **shipped**: merged `main` into `claude/axiom-fit-scorecard`, opened #390 — the fit scorecard readable from `main` under a Status: Proposed D363, plus its first list rows — green on CI, posted its run-log line; 8 minutes, $4.67, 152k tokens of context, inside the window. The lane works when the window has room and the relay names the branch; the two stopped runs cost $23.38 for the rows this one shipped | this table; #390 |
+| 2026-09-04 | two merge-shift firings gated at the relay (2026-09-03 19:15 and 23:15; 2026-09-04 05:16) | no open PR carried `approved`; no session spawned, the wake alone paid each time | 3.2 |
+| *(phase 3.5 continues: the improver's first fire, Sunday)* | — | — | — |
 
 ## What would make me stop and re-plan
 

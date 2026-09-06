@@ -127,6 +127,13 @@ jobs:
       # It cannot reach Cloud Monitoring and does not pretend to — policies
       # are applied by hand (D47), so this checks the half in the repo.
       - run: npm run check:monitoring
+      # The recreation kit: routines/manifest.json — every Routine on every
+      # subscription as the thing to recreate it from — and docs/RECREATE.md,
+      # the page a session recreates them from, held to the runbook
+      # inventories and to each other. Same placement rule as
+      # check:monitoring: tooling and docs, nothing it says bears on
+      # whether a rules fix is safe to deploy.
+      - run: npm run check:routines
       # The privacy nutrition label exists twice on purpose: as JSON the
       # metadata workflow prints as a form to copy across (Apple exposes no
       # endpoint for it — D73), and as prose a human reads before approving
