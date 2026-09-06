@@ -65,7 +65,14 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     `submitModVerdict`
   - `deleteAccount` — the one v1-era function that carries forward, and
     it still wipes the v1 collections (D13)
-  - Hosting (`web/` — the legal pages), as the **last** step and
+  - `resultsPageV2` (D379) — an HTTPS function, not a callable: the
+    shareable results page of a sponsored question, which the hosting
+    rewrite `/q/**` in `firebase.json` points at. No App Check and no
+    sign-in by design (it serves the open web); the page sets its own
+    security headers and a five-minute cache. Deployed with the
+    functions, so the rewrite has a target before hosting goes out.
+  - Hosting (`web/` — the legal pages, and the `/q/**` rewrite above),
+    as the **last** step and
     `continue-on-error` for the same reason as storage
   - The apply is **two steps, and the split is load-bearing.** Rules and
     indexes go first with no `--force`; functions follow with it.

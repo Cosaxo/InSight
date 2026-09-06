@@ -219,7 +219,7 @@ import {
 } from "./deck";
 import type { AggDoc, CallOutcome, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import type { FeedAd } from "./sponsored";
-import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
+import { nearOptedIn, setNearOn } from "./near";
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
 import { patternsEligible, type PatternsSignal } from "./patternsReady";
@@ -3897,24 +3897,23 @@ async function runBeat(cell?: string): Promise<void> {
     const db = await getDb();
     // `until` is when this position stops counting (D174). The linger is
     // what makes the feature work at all — a phone in a pocket has to keep
-    // standing in the room — and the session's deadline is what keeps the
-    // timed option honest: clamped here, so closing the app just before it
-    // cannot leave the position up for a further linger. firestore.rules
-    // caps how far out this may be pushed, so the promise does not rest on
-    // the client being ours.
-    const deadline = nearUntil();
+    // standing in the room. Since D370 the switch has no timed state, so
+    // there is no session deadline to clamp to: every beat writes the
+    // linger, and firestore.rules caps how far out this may be pushed, so
+    // the promise does not rest on the client being ours.
+    //
     // A MINUTE SHORT OF THE LINGER, AND THE MINUTE IS THE WHOLE POINT.
     //
     // firestore.rules caps `until` at `request.time + 180m` — the SERVER's
-    // clock — and this wrote `Date.now() + 180m` from the DEVICE's. In
-    // `always` mode there is no session deadline to clamp against, so the
-    // two 180s cancelled and the rule reduced to `deviceNow <= serverNow`:
-    // the only slack was network latency, and any phone running more than a
-    // few hundred milliseconds fast had EVERY presence beat refused with
-    // permission-denied. `runBeat`'s catch reports "unavailable", the count
-    // stays null, and the card offers a retry that cannot succeed — for the
-    // life of the install, on a four-minute loop. `always` is also what
-    // every pre-D174 opt-in upgrades into (near.ts).
+    // clock — and this wrote `Date.now() + 180m` from the DEVICE's. With
+    // no deadline to clamp against, the two 180s cancelled and the rule
+    // reduced to `deviceNow <= serverNow`: the only slack was network
+    // latency, and any phone running more than a few hundred milliseconds
+    // fast had EVERY presence beat refused with permission-denied.
+    // `runBeat`'s catch reports "unavailable", the count stays null, and
+    // the card offers a retry that cannot succeed — for the life of the
+    // install, on a four-minute loop. That was D174's `always`; since D370
+    // it is the only on state there is, so this is every opted-in phone.
     //
     // Recorded at D181 and parked there because the obvious fix — widening
     // the rules ceiling — moves the only bound that enforces "your position
@@ -3935,7 +3934,7 @@ async function runBeat(cell?: string): Promise<void> {
     await setDoc(doc(db, "v2_presence", uid), {
       cell: fix.cell,
       at: serverTimestamp(),
-      until: new Date(deadline ? Math.min(lingerTo, deadline) : lingerTo),
+      until: new Date(lingerTo),
       ...(myArchetype ? { type: myArchetype } : {}),
     });
     const res = await callable<{
@@ -3979,12 +3978,6 @@ async function runBeat(cell?: string): Promise<void> {
 // card's "Try again" stop when there is an answer instead of one tick after
 // the tap.
 function presenceBeat(cell?: string): Promise<void> {
-  // An expired session is OFF, and finding that out here is the point:
-  // `nearMode` re-reads the deadline at the moment of use, so an app that
-  // was shut for three hours comes back already expired rather than
-  // beating once more before a timer notices. Tear the loop down and
-  // delete the doc — "stop being visible" must not wait for the server's
-  // own expiry to catch up.
   // deleteAccount sets `torndown` as its first statement, and the server
   // deletes v2_presence/{uid} as part of the sweep. Without this guard a
   // beat already scheduled — the interval, or a visibilitychange — can
@@ -3992,7 +3985,10 @@ function presenceBeat(cell?: string): Promise<void> {
   // longer exists. Every other queued writer in this file already checks
   // it; presence was the one that did not.
   if (torndown) return Promise.resolve();
-  if (nearMode() === "off" && nearState.timer) { void LIVE.near.disable(); return Promise.resolve(); }
+  // The switch is the whole state since D370 (the expired-session teardown
+  // D174 needed here is gone with the timed option). A loop still running
+  // with the switch off can only be a beat queued across disable(); it
+  // writes nothing.
   if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
   if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
   if (nearState.inFlight) return nearState.inFlight;
@@ -4044,16 +4040,10 @@ const NEAR = {
   supported(): boolean {
     return locateSupported();
   },
+  // Off or on, and nothing between (D370): `mode()` and `until()` stood
+  // here for D174's timed state and left with it.
   on(): boolean {
     return nearOptedIn();
-  },
-  /** Which of the three states is set (D174) — `off` once a session ends. */
-  mode(): NearMode {
-    return nearMode();
-  },
-  /** Epoch ms the session ends, 0 when there is no deadline. */
-  until(): number {
-    return nearUntil();
   },
   // The count of OTHER fresh phones in the neighborhood: null when never
   // fetched, a number otherwise. `tooFew` used to distinguish
@@ -4158,10 +4148,10 @@ const NEAR = {
   // Opt in: one explicit tap. The first fix runs immediately, so the tap
   // also carries the OS permission prompt (D9's rule — location is never
   // requested until asked for).
-  async enable(mode: Exclude<NearMode, "off"> = "session"): Promise<{ ok: boolean; reason?: string }> {
+  async enable(): Promise<{ ok: boolean; reason?: string }> {
     const fix = await locateCell();
     if (!fix.ok) return { ok: false, reason: fix.reason };
-    setNearMode(mode);
+    setNearOn(true);
     // The fix just resolved goes straight into the first beat — see
     // presenceBeat's `cell` — and the tap WAITS for it. The button is
     // already spinning through the location fix; carrying it through the
@@ -4178,7 +4168,7 @@ const NEAR = {
   // Opt out: stop the loop AND delete the doc — "stop sharing" must not
   // wait for a freshness window to expire.
   async disable(): Promise<void> {
-    setNearMode("off");
+    setNearOn(false);
     stopPresence();
     notify();
     try {

@@ -426,7 +426,14 @@ The idea is sound and its best property is structural: naming a cohort's
 attention as finite makes the cap **the unit of sale**, so inventory
 cannot be quietly inflated without visibly devaluing what was already
 sold. That is the `check:globals` rule-4 ratchet shape, pointed at
-revenue.
+revenue. Since D377 the unit is a PLACE in a density rather than one
+slot — a paid card after every sixth world card (`SPONSOR_EVERY`,
+`data/sponsored.ts`), so inventory grows with how far people scroll
+rather than staying at one card per phone per day — and the argument
+holds as written: the density is one named number, the schedule is
+still computable from the content, and the first three campaigns in a
+scope each hold a place before the crowding price counts anyone
+(`crowdFree`, `content/pricing.json`).
 
 It is buildable here only because of one fact: the feed is served in a
 deterministic order, so **the inventory is computable without telemetry**

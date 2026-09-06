@@ -1,21 +1,49 @@
 {
- "generated": "2026-08-24",
+ "generated": "2026-09-05",
  "currency": "EUR",
- "base": 0.16,
- "floorX": 0.9,
- "ceilX": 2.5,
+ "base": 0.02,
+ "floorX": 1,
+ "crowdStep": 0.5,
+ "crowdFree": 3,
  "floorWeek": 500,
- "capEur": 320,
- "adBase": 320,
+ "capEur": 50,
+ "minEur": 5,
+ "windowDays": 29,
+ "budgets": [
+  5,
+  10,
+  25,
+  50
+ ],
+ "menu": {
+  "city": 10,
+  "country": 25,
+  "world": 50
+ },
  "fx": {
   "NOK": 11.6,
   "USD": 1.08
  },
- "trailingDays": 28,
  "cohorts": {
   "city": {
-   "idx": 0.9,
+   "idx": 1,
    "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "crowd": [
     0,
     0,
     0,
@@ -34,8 +62,24 @@
    "nextOpen": null
   },
   "country": {
-   "idx": 0.9,
+   "idx": 1,
    "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "crowd": [
     0,
     0,
     0,
@@ -54,8 +98,24 @@
    "nextOpen": null
   },
   "world": {
-   "idx": 0.9,
+   "idx": 1,
    "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "crowd": [
     0,
     0,
     0,

@@ -95,6 +95,10 @@ export interface LiveFixtureOptions {
    * asserting against a feed nobody serves.
    */
   sponsored?: boolean;
+  /** The sponsored card's link (D378), when `sponsored` — an https
+   * address the answered face prints as its domain. Off by default for
+   * the same reason: no shipped question carries one. */
+  sponsorLink?: string;
   /**
    * Put one ad in the pool (D197). Off by default and opt-in for the same
    * reason `sponsored` is: `content/ads.json` ships empty, so a fixture
@@ -420,10 +424,6 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const near: Dict = {
     supported: () => true,
     on: () => false,
-    // D174's three states. `session` is what enable() lands on, so a
-    // fixture that flips `on` gets the shape a real opt-in produces.
-    mode: () => "session",
-    until: () => Date.now() + 90 * 60_000,
     count: () => null,
     // D176's room mix — null by default, which is the quiet-street case.
     mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
@@ -879,7 +879,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       // D195: the disclosure travels ON the card, so world-feed's dispatch
       // reads the same field buildFeedGlobals emits.
       ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
-        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }
+        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" }, ...(opts.sponsorLink ? { link: opts.sponsorLink } : {}) }, until: "2099-01-01" }
         : {}),
       // D231: the ask window travels ON the card too, for the same reason
       // — world-feed reads the fields buildFeedGlobals emits.

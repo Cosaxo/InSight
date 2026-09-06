@@ -30,7 +30,7 @@
 // question ALSO belongs to beside its `topic` home. Reach, never
 // placement — the client's filter/stock/search read topic ∪ also, the
 // Map and grouping stay on `topic`. Emit-when-set; never on sponsored.
-// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question
+// `sponsor` is feed-only (D195): `{ buyer, audience?, link? }` on a question
 // somebody paid to ask. The WINDOW is `until`, not a field here, so the
 // label the card prints and the filter that stops serving it are one
 // value. A sponsored question is never `core` — paid questions inside
@@ -39,7 +39,7 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -2766,6 +2766,83 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "sub": "Going out",
   "tag": "Where you stand",
   "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-130",
+  "surface": "daily",
+  "seq": 130,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The book or the film first?",
+  "options": [
+   "Book first",
+   "Film first"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Adaptations",
+  "tag": "Which first",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-131",
+  "surface": "daily",
+  "seq": 131,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What makes a villain great?",
+  "options": [
+   "Menace",
+   "Charm",
+   "Being half right",
+   "Mystery"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Villains",
+  "tag": "Villains",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-132",
+  "surface": "daily",
+  "seq": 132,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Practise in private, or learn in public?",
+  "options": [
+   "In private",
+   "In public"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "How you learn",
+  "tag": "Learning out loud",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-133",
+  "surface": "daily",
+  "seq": 133,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Talent is mostly patience.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "Mastery",
+  "tag": "Talent",
+  "axis": "patience",
   "test": null
  },
  {

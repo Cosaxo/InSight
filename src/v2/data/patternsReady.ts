@@ -68,7 +68,7 @@ export const PATTERNS_MIN_BASIS = 8;
  * lowering it makes the first map a shape somebody could reasonably
  * disbelieve.
  *
- * For scale: the eligible corpus is 111 questions today (two-option
+ * For scale: the eligible corpus is 113 questions today (two-option
  * daily plus core feed, `PATTERNS_QIDS`), so this is roughly a fifth of
  * everything the fit can ever fold.
  */

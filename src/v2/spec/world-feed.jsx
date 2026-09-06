@@ -53,10 +53,11 @@ import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
-import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
+import { SPONSOR_EVERY, partitionSponsored } from '../data/sponsored.ts';
 import { askWindow } from '../data/askWindow.ts';
 import { utcDayIndex } from '../data/deck.ts';
-import SponsorMark from '../ui/SponsorMark.tsx';
+import SponsorMark, { SponsorLink } from '../ui/SponsorMark.tsx';
+import { SponsorShare } from '../ui/SponsorShare.tsx';
 import AdCard from '../ui/AdCard.tsx';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
@@ -4128,6 +4129,16 @@ class WorldFeed extends React.Component {
             style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{mk ? 'later' : 'skip'}</button>
         )}
         {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
+        {/* The buyer's link (D378), after the answer and only then — the
+            card's one way off-app, as its bare domain, nothing counted —
+            and beside it the results page's address (D379), the same
+            numbers as one page anyone can open. */}
+        {answered && q.sponsor ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {q.sponsor.link ? <SponsorLink link={q.sponsor.link}></SponsorLink> : null}
+            <SponsorShare qid={q.id}></SponsorShare>
+          </div>
+        ) : null}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
       </div>
     );
@@ -4288,17 +4299,17 @@ class WorldFeed extends React.Component {
     // carries the full length: the same side cards land, at the designed
     // rhythm among the fresh topics, with the surplus after them — which
     // at the fully caught-up end is exactly what the full walk produced.
-    // The paid slot (D195). Every sponsored card leaves the ordinary
-    // stream and at most ONE comes back, at a fixed depth — the cap is the
-    // unit of sale, so it has to be a property of the code rather than of
-    // how many the bank happens to hold. The match runs HERE, on the
-    // device, against anchors the device already has: the server is never
-    // asked who should see what.
-    // ONE paid slot, and both kinds compete for it (D197): a sponsored
-    // QUESTION (path 2 — answered like any other, folds into the public
-    // aggregate) and an AD (path 3 — text, no answer, no data). They
-    // rotate together by day, so a week with one of each splits the days
-    // rather than giving the question every one of them.
+    // The paid places (D195, D377). Every sponsored card leaves the
+    // ordinary stream and comes back in the day's order, one after every
+    // SPONSOR_EVERY-th world card — the density is the unit of sale, so
+    // it has to be a property of the code rather than of how many the
+    // bank happens to hold; until D377 at most ONE came back, at a fixed
+    // depth. The match runs HERE, on the device, against anchors the
+    // device already has: the server is never asked who should see what.
+    // Both kinds take the same places (D197): a sponsored QUESTION (path
+    // 2 — answered like any other, folds into the public aggregate) and
+    // an AD (path 3 — text, no answer, no data). They rotate together by
+    // day, so a week with one of each alternates which comes first.
     const paidSplit = partitionSponsored(
       sorted,
       (LIVE.enabled && LIVE.anchors()) || {},
@@ -4314,25 +4325,24 @@ class WorldFeed extends React.Component {
     const kqs = kEvery ? this.knowQs(Math.ceil(ordered.length / kEvery) + 1, cats) : [];
     // The cadences, their coprimality and the empty-feed drain all live in
     // data/feed-interleave.ts, which is where the test now reaches them.
-    // The slot carries whichever kind won the day. An ad is not a question,
-    // so it rides as `{ id, ad }` and the render loop dispatches on it —
-    // renderCard's apparatus (options, who-voted, takes, the insight line)
-    // has nothing to say about a card that asks nothing.
-    const paidCard = paidSplit.ad
-      ? { id: paidSplit.ad.id, ad: paidSplit.ad }
-      : paidSplit.sponsored;
+    // Each place carries whichever kind the day's order put there. An ad
+    // is not a question, so it rides as `{ id, ad }` and the render loop
+    // dispatches on it — renderCard's apparatus (options, who-voted,
+    // takes, the insight line) has nothing to say about a card that asks
+    // nothing.
+    const paidCards = paidSplit.paid.map((p) => (p.kind === 'ad' ? { id: p.ad.id, ad: p.ad } : p.question));
     const dropWorld = new Set(worldSplit.done.map((q) => q.id));
     const woven = interleaveFeed(ordered.filter((q) => !dropWorld.has(q.id)), {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
-      sponsored: paidCard, sponsorAt: SPONSOR_AT,
+      paid: paidCards, paidEvery: SPONSOR_EVERY,
       depth: ordered.length,
     });
-    // The one answered world card that can still be in the weave is the
-    // paid one: partitionSponsored picks it off the full list, so a
+    // The only answered world cards that can still be in the weave are
+    // paid ones: partitionSponsored orders them off the full list, so a
     // sponsored question the viewer has already answered parks behind the
     // Answered expander like every other answered card instead of
-    // spending the day's slot on a result. Stream cards never match a
-    // world id, so this touches nothing else.
+    // spending a place on a result. Stream cards never match a world id,
+    // so this touches nothing else.
     const feedList = woven.filter((q) => !dropWorld.has(q.id));
     // Read by the two growth checks above, which run outside render and so
     // cannot see this local. Assigned rather than derived there because the
