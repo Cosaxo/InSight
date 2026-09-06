@@ -1,0 +1,17 @@
+
+sdk_gphone64_x86_64 (emulator-5554) — com.cosaxo.insight
+  WebView 412×891 @2.625
+  ✓ android-sdk-gphone64-x86-64/01-daily.png
+  ✗ android-sdk-gphone64-x86-64/daily-reveal  (no app: the app did not open for this scene — locator.waitFor: Target page, context or browser has been clos)
+  ✗ android-sdk-gphone64-x86-64/daily-feed  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/daily-circle  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/daily-1v1  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/mirror  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/mirror-stops  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/mirror-lenses  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/profile  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/search  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+  ✗ android-sdk-gphone64-x86-64/patterns  (no app: the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.c)
+
+device-screens: mode = DEMO · 11 screens · 10 hard / 0 soft finding(s)
+  → /home/runner/work/InSight/InSight/results/android/report.md
