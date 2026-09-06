@@ -405,6 +405,159 @@ it is planned here.
   for. Every input is public (D98) and already on screen with names.
 - **status** — `requested` (waits on the plan's owner call).
 
+### 7 · The Circle and 1v1 first screen — an empty state that shows the game
+
+**Asked 2026-09-06** — the owner, from two screenshots of a release
+device on the daily's Circle and 1v1 modes: *"I also dont like how
+these looks when empty and thats the first thing a person see as it
+starts empty. Lay a plan for claude design for a better empty state."*
+Every account starts here, so this is the first screen the two modes
+ever show — and today it is a bare form (a title, one sentence, a
+name field, a *Create* pill and an optional *Who's coming?* field)
+with two-thirds of the tab blank under it. The plan below is written
+in full, in the shape the drafting step needs.
+
+- **asked by** — the owner, 2026-09-06 (the quote above).
+- **surface** — the **daily** tab, ruler at *Circle* or *1v1*
+  (`spec/daily-split.jsx` mounts `ui/LiveDuelPanel.tsx` for both,
+  behind `React.lazy`). With no circles the panel IS the screen:
+  `LdJoinPending` (only after a tapped invite link), `LdInvites` (only
+  when an invitation is waiting), then `LdOnboard` — the card in the
+  screenshots — and **nothing under it**: the feed runs under *World*
+  only, so the tab ends after one card. The same `LdOnboard` also
+  renders at the END of the rail once circles exist (*start another*),
+  so whatever replaces it needs a full first-run shape and a compact
+  end-of-stack shape, or the two split. Naming to keep straight: the
+  daily's *Circle* is a **group** (`mode: "group"`, the `--c-likeness`
+  accent); the Mirror's *Circle* stop is the follow graph (D101).
+  The copy here says "circle" and means the group.
+- **what it should show — the plan.** Lead with the GAME, not the
+  form. Three beats of one day, drawn in the vocabulary the filled
+  screen already uses (`ui/duelMarks.tsx`, `spec/read-run.jsx`,
+  `spec/reveal-clock.js`, the D392 hairline ballot):
+  1. **Today, sealed.** A serif prompt (the 09-06 voice — Circle and
+     1v1 prompts are already serif) over a hairline ballot whose
+     halves are blank — the seal drawn, not described. The prompt
+     should be REAL content, never invented: the recommended source is
+     **today's World question**, which is already on the phone and is
+     the question the person just met one ruler stop to the left,
+     with a one-word note that a circle draws its own each day (the
+     rotation is seeded per circle, so the app cannot show a circle's
+     question before the circle exists). The shape without words is
+     the fallback.
+  2. **Tonight.** The reveal clock (`RevealClock`), counting to the
+     UTC turn, as it does on a live card.
+  3. **Tomorrow, revealed with names.** The reveal as bars with marks
+     — but with NOBODY FABRICATED (D1, the live bodies' rule): your own
+     mark (`DuelAv` over your uid, real) at the first seat, and the
+     other seats drawn as **open seats** — dashed rings in the mode's
+     accent, one for a 1v1, four or five for a circle — the way
+     `ui/EmptyField.tsx` draws rings with nobody placed: the scale a
+     reveal will be read on once someone arrives, not people. For a
+     1v1 the third beat also previews the second tap — *answer, then
+     guess theirs* — as an empty run of dots (`RUN_DOTS`, the
+     right/wrong run the filled card grows); since D386 a circle day
+     carries a guess too (where the room will land), so the circle's
+     beat may show the same empty run.
+  Then the two doors, both visible and both honest:
+  4. **Start one** — the form collapses into one primary action in
+     the mode's accent that opens IN PLACE into the name field and
+     the people row; the boxed inputs go to hairline underlines (the
+     09-06 direction: chrome collapses into words, boxes leave). The
+     name placeholder stays real: *Group name* / *Name it (e.g. Mira &
+     Leo)* — a placeholder is a placeholder, not data.
+  5. **Who's coming** becomes a row of faces before it is a search
+     field: the people you already follow, from the list in memory
+     (`peopleSearch.circleMatches("")` — zero reads; it must never call
+     `loadCircle`, that module's own rule), each a tappable `DuelAv`
+     that becomes a picked chip; the search field (*name or @handle*)
+     under the row, as today, and alone when no follows are in
+     memory. Cap 1 for a 1v1, 31 for a circle, the field disappearing
+     at the cap (as today).
+  6. **The second door said in one line, with no field**: an
+     invitation reaches you here, and a link someone sends lands here
+     too — D238 retired the code field on purpose (a code was a bearer
+     token nobody consented to), so the design must not draw one. When
+     an invitation IS waiting, it is the hero beat above everything
+     (the `LdInvites` card already leads; the design places it).
+  What must not appear: sample people or example names as people,
+  invented counts or a filled reveal, a *Preview · sample people* tag
+  (the live bodies carry nothing that would need one), a second
+  explanation of the seal in prose beside the drawing of it (D182:
+  *visual > word > sentence*), and a paragraph — D172's finding was
+  that the wordiest empty screens were the ones a new account met
+  first.
+- **data and basis** — nothing folded and nothing new read: your own
+  uid and name (the mark), today's World question from the deck the
+  daily already holds, the follow list only if the Mirror's Circle stop
+  has paid for it this session (`LIVE.circle()`; otherwise the row is
+  absent, not fetched), invitations from the inbox `LdInvites` already
+  loads on mount, the reveal clock's UTC turn. D1's empty state IS this
+  screen; it draws no number.
+- **states** — **empty, first run** (the subject); **empty with an
+  invitation waiting** (the invitation leads, the rest under it);
+  **empty with a tapped link** (`LdJoinPending`'s *Ask to join* card
+  leads — D240: the link asks, it does not admit); **empty, no display
+  name on the account** (the backup name field appears — D190: the
+  name is the account's, the field exists only when there is none to
+  read); **empty with follows in memory / without** (the faces row
+  present or absent); **attaching** (before the live boot lands the
+  tab shows the demo body under D1's preview tag, not this panel — the
+  design need not draw it, but should know the first frame is not
+  its own); **with circles** (unchanged: kicker, sticky rail, the
+  snap stack — plus the compact *start another* shape at the end);
+  **demo**: the demo bodies (`spec/group-daily.jsx`, `spec/duo-daily.jsx`)
+  start with sample circles and never reach this state.
+- **interaction** — tap *Start* → the name field and the people row
+  open in place, the field focused; tap a face → a picked chip (as
+  today, removable); type → the finder's rows (`PersonRow`, one hook
+  for three surfaces, D239); *Create* → the circle, then the
+  invitations, one act (as today — a failed invitation must not read
+  as a failed creation); tap the example prompt → the World stop
+  (`NAV.goNav('track:world')`, the ruler's licensed exit); a ⓘ, if
+  one is drawn, opens the explain sheet's entry for circles in the
+  D392 pattern (one ⓘ, the legend behind it); long press nothing;
+  swipe along the ruler as today.
+- **vocabulary** — the 2026-09-06 family (`design/standalone-2026-09-06/`:
+  ink on paper, hairline rows, the serif prompt, `duo-daily.jsx.patch`
+  and `group-daily.jsx.patch` for the two modes' voice), `src/v2/styles.css`
+  and `tokens.css` (the 12px floor), D302's two palettes, the two
+  accents kept apart (`--c-likeness` for a circle, `--c-people` for a
+  1v1 — a circle is a likeness question, a 1v1 a people question),
+  `ui/duelMarks.tsx` (round mark = person, square mark = circle,
+  the black *you* pill), `ui/EmptyField.tsx` (rings with nobody
+  placed — the honest-empty grammar this extends from the Mirror to
+  the daily), `COPY.md` §3 — the one sentence that is a CLAIM and
+  must survive whole in the drawing or beside it: *revealed with
+  names to the people in it* (it is what joining consents to, D122).
+- **constraints** — the panel is lazy (`React.lazy` from
+  `daily-split.jsx`) so first paint is untouched; `check:bundle`'s band
+  for its chunk; **zero new reads** (the follows row reads memory only;
+  the world question is already held; no `loadCircle`, no directory
+  query before the person types); 44 px targets on every face, chip
+  and door (`check:tap-targets`); the pins in `ui/LiveDuelPanel.test.tsx`
+  that a redesign keeps — no rail before there is anything to put on
+  it, no name field when the account has one (D190), no code field
+  (D238), the picker's caps and its *Nobody found* / *Couldn't search*
+  wording rules, the *Start a 1v1* / *Create a group* door reachable
+  from the rail once circles exist; `check:public-copy` (no retired
+  privacy vocabulary in the new words); the `[data-ld-new]` hook the
+  rail's *start another* jump lands on.
+- **why** — D1 names the fix in as many words: *"If world rooms feel
+  dead, the fix is design (good empty states, the split itself), not
+  fabricated activity."* `CLAUDE.md`'s first paragraph — a circle is
+  the join between people's answers, and a surface that collects
+  without drawing the join is unfinished; today the first screen
+  draws neither the join nor the game. `ENGAGEMENT-PLAN.md`'s social
+  loop (invite → join conversion) starts on this card, and the ties
+  axiom (D347, tie-1: the pair and the group are objects of the app)
+  is what the two modes exist to feed. D172 is the precedent one tab
+  over: the Mirror's empty stops stopped explaining themselves and
+  drew the field; this is the daily's turn.
+- **status** — `requested` — the plan above is written in full, so
+  the row is ready to be marked `planned` and drafted with the design
+  skill on the owner's word (the drafting rule, 2026-09-02).
+
 ## Planned
 
 ## Drafted
