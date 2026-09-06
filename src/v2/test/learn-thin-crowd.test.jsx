@@ -32,6 +32,7 @@ vi.mock("../data/live", async (importOriginal) => {
 });
 
 let LEARN_CARDS;
+let LEARN_TYP;
 let MTLearnCard;
 let realLive;
 
@@ -39,7 +40,9 @@ beforeAll(async () => {
   const specIndex = await import("../spec-index.js");
   await specIndex.loadWorldFeed();
   await specIndex.loadMapTab();
-  LEARN_CARDS = (await import("../spec/learn-data.js")).LEARN_CARDS;
+  const learnData = await import("../spec/learn-data.js");
+  LEARN_CARDS = learnData.LEARN_CARDS;
+  LEARN_TYP = learnData.LEARN_TYP;
   MTLearnCard = (await import("../spec/map-learn-card.jsx")).MTLearnCard;
   realLive = window.LIVE;
 });
@@ -119,5 +122,58 @@ describe("the Map's learn card states what its crowd rate rests on", () => {
     const text = container.textContent || "";
     expect(text, "the authored hint was stated as a measurement").toMatch(/about \d+% get this right — our estimate/);
     expect(text).not.toMatch(/\d+% of people get this right/);
+  });
+});
+
+// ── WHERE THE DOT SITS IS ALSO A CLAIM ──────────────────────────────────
+//
+// The card's words are only half of it. `map-tab.jsx` feeds a mastered
+// fact's `typ` into `map-layout`, which turns it into a ±80px radial
+// push — so the dot's distance from You states how much of the crowd gets
+// the fact right, in exactly the way the sentences above are careful not
+// to. It passed `card.p / 100`, the bank's AUTHORING HINT, on live builds
+// as well as the demo: the dot sat where the question's writer guessed it
+// should while the card beside it said nobody had answered.
+//
+// The daily branch two dozen lines up already refuses this and takes the
+// neutral radius; `LEARN_TYP` is that rule for the learn branch, and
+// changing it back to `card.p / 100` fails the first case here.
+describe("the Map places a mastered fact by a measurement, not by the hint", () => {
+  it("takes the neutral radius on a live build with nothing measured", () => {
+    const card = cardOf();
+    expect(card, "no learn card to place").toBeTruthy();
+    // A live store with no learn aggregate at all: LEARN_RATE answers
+    // "none", which is the ordinary state of a fresh account.
+    installLearn("no-such-card", 0);
+    expect(LEARN_TYP(card), "the dot was placed by the authoring hint").toBe(0.5);
+    // …and the hint really is a different number, or the line above is
+    // satisfied by a coincidence rather than by the rule.
+    expect(card.p / 100, "this card's hint happens to be the neutral radius, so pick another")
+      .not.toBe(0.5);
+  });
+
+  it("places by the MEASURED rate once there is one", () => {
+    // The control: "never place" would satisfy the case above and cost the
+    // map the reading it exists for. Two first tries, both correct — the
+    // same fixture the crowd-rate control uses.
+    const card = cardOf();
+    installLearn(card.id, 2);
+    expect(LEARN_TYP(card), "a measured rate did not reach the dot's position").toBe(1);
+  });
+
+  it("still places the DEMO by its own hint", () => {
+    // In the demo every number on the map is the demo's own, and an
+    // estimate cannot occur on a live build — so flattening these would
+    // trade one honest map for a duller one.
+    const card = cardOf();
+    STUB.live = {
+      enabled: false, ready: false,
+      learnAgg: () => null, learnMine: () => null, learnAggLoading: () => false,
+      confirmedVotes: () => ({}), myVotes: () => ({}), dailyBank: () => [],
+      aggFor: () => null, anchors: () => ({}),
+    };
+    window.LIVE = STUB.live;
+    window.dispatchEvent(new Event("insight-live-update"));
+    expect(LEARN_TYP(card)).toBe(card.p / 100);
   });
 });
