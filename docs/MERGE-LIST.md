@@ -16,8 +16,8 @@ console workflow runs on that push, mirrors the tick to the label
 `approved` on the pull request, and the **merge shift** takes it from
 there: brings the branch current with `main`, runs the full battery,
 reviews the whole diff as one unit, fixes what that proves broken,
-and applies `merge-when-green` — after which the **PR shepherd**
-merges (`OPS-RUNBOOK.md` § The PR shepherd). The same rows stand in
+and applies `merge-when-green`. **Nothing merges it after that: you
+do, by hand on GitHub** (D385 retired the PR shepherd). The same rows stand in
 the pinned **Console** issue with clickable boxes; a tick there is the
 same act, mirrored back into this file. Untick here to withdraw an
 approval the shift has not yet acted on. Ticking a *no PR yet* row
@@ -28,9 +28,9 @@ it.
 | --- | --- | --- |
 | **Open** | a PR is open and not yet approved (stage `new`), or a branch has commits and no PR (stage `no PR yet`) | the workflow |
 | **In the shift** | the tick landed and the merge shift is bringing it to green | the workflow, on the label |
-| **Ready** | `merge-when-green` is applied; the shepherd merges on green | the workflow, on the label |
+| **Ready** | `merge-when-green` is applied; green and waiting for your merge | the workflow, on the label |
 | **Could not be made green** | the shift stopped, with what is red and why in its comment | the shift's comment, the workflow's row |
-| **Merged this week** | the shepherd or the owner merged it | the workflow |
+| **Merged this week** | the owner merged it | the workflow |
 
 The content lanes (farm, catalog, learn, feed, duel, now) merge their
 own PRs on green (D212) and are listed without a box. Dependabot's
