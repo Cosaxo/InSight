@@ -1,0 +1,9 @@
+maestro/2026-09-06_223333/xctest_runner_2026-09-06_223348.log
+maestro/2026-09-06_223333/InSight device screens/commands.json
+maestro/2026-09-06_223333/InSight device screens/takeScreenshot/01-daily.png
+maestro/2026-09-06_223333/InSight device screens/takeScreenshot/03-daily-1v1.png
+maestro/2026-09-06_223333/InSight device screens/takeScreenshot/02-daily-circle.png
+maestro/2026-09-06_223333/InSight device screens/takeScreenshot/04-mirror.png
+maestro/2026-09-06_223333/InSight device screens/takeScreenshot/05-mirror-you.png
+maestro/2026-09-06_223333/InSight device screens/takeScreenshot/06-mirror-circle.png
+maestro/2026-09-06_223333/InSight device screens/manifest.json

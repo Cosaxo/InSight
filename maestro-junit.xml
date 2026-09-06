@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.5 - 0130C0CE-9E1A-4769-A6A0-FA820D0295E6" tests="1" failures="1" time="498.975" timestamp="2026-09-06T22:34:28">
+    <testcase id="InSight device screens" name="InSight device screens" classname="InSight device screens" file="/Users/runner/work/InSight/InSight/.github/device-screens/ios-flow.yaml" time="498.763" timestamp="2026-09-06T22:34:28" status="ERROR">
+      <failure>maestro.DeviceUnreachableException: Device became unreachable during deviceInfo
+	at maestro.drivers.IOSDriver.runDeviceCall(IOSDriver.kt:643)
+	at maestro.drivers.IOSDriver.deviceInfo$lambda$6(IOSDriver.kt:113)
+	at maestro.utils.Metrics.measured(Metrics.kt:48)
+	at maestro.drivers.IOSDriver.deviceInfo(IOSDriver.kt:112)
+	at maestro.ViewHierarchy$Companion.from-8JJjmZI(ViewHierarchy.kt:28)
+	at maestro.utils.ScreenshotUtils$Companion.viewHierarchy-c1iYVAs(ScreenshotUtils.kt:99)
+	at maestro.utils.ScreenshotUtils$Companion.waitForAppToSettle-OpTFbEc(ScreenshotUtils.kt:58)
+	at maestro.drivers.IOSDriver$waitForAppToSettle$1.invoke-F9mIFpk(IOSDriver.kt:505)
+	at maestro.drivers.IOSDriver$waitForAppToSettle$1.invoke(IOSDriver.kt:501)
+	at maestro.utils.Metrics.measured(Metrics.kt:48)
+	at maestro.drivers.IOSDriver.waitForAppToSettle-5RpGHs4(IOSDriver.kt:501)
+	at maestro.Maestro$waitForAppToSettle$2.invoke-F9mIFpk(Maestro.kt:578)
+	at maestro.Maestro$waitForAppToSettle$2.invoke(Maestro.kt:577)
+	at kotlinx.coroutines.InterruptibleKt.runInterruptibleInExpectedContext(Interruptible.kt:48)
+	at kotlinx.coroutines.InterruptibleKt.access$runInterruptibleInExpectedContext(Interruptible.kt:1)
+	at kotlinx.coroutines.InterruptibleKt$runInterruptible$2.invokeSuspend(Interruptible.kt:40)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+Caused by: ios.IOSDeviceErrors$Unreachable: Device became unreachable while processing deviceInfo
+	at ios.xctest.XCTestIOSDevice.execute(XCTestIOSDevice.kt:249)
+	at ios.xctest.XCTestIOSDevice.deviceInfo(XCTestIOSDevice.kt:30)
+	at ios.LocalIOSDevice.deviceInfo(LocalIOSDevice.kt:31)
+	at maestro.drivers.IOSDriver.deviceInfo$lambda$6$lambda$5(IOSDriver.kt:113)
+	at maestro.drivers.IOSDriver.runDeviceCall(IOSDriver.kt:640)
+	... 23 more
+Caused by: maestro.utils.network.XCUITestServerError$Unreachable: Transport unreachable while processing deviceInfo
+	at xcuitest.XCTestDriverClient.transportCall(XCTestDriverClient.kt:73)
+	at xcuitest.XCTestDriverClient.executeJsonRequest(XCTestDriverClient.kt:232)
+	at xcuitest.XCTestDriverClient.deviceInfo(XCTestDriverClient.kt:215)
+	at xcuitest.XCTestDriverClient.deviceInfo$default(XCTestDriverClient.kt:214)
+	at ios.xctest.XCTestIOSDevice.deviceInfo$lambda$0(XCTestIOSDevice.kt:31)
+	at ios.xctest.XCTestIOSDevice.execute(XCTestIOSDevice.kt:240)
+	... 27 more
+Caused by: java.io.InterruptedIOException: timeout
+	at okhttp3.internal.connection.RealCall.timeoutExit(RealCall.kt:398)
+	at okhttp3.internal.connection.RealCall.callDone(RealCall.kt:360)
+	at okhttp3.internal.connection.RealCall.noMoreExchanges$okhttp(RealCall.kt:325)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:209)
+	at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+	at xcuitest.XCTestDriverClient.executeJsonRequest$lambda$2(XCTestDriverClient.kt:243)
+	at xcuitest.XCTestDriverClient.transportCall(XCTestDriverClient.kt:67)
+	... 32 more
+Caused by: java.io.IOException: Canceled
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:204)
+	... 35 more
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
