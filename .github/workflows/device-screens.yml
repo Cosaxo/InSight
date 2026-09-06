@@ -201,6 +201,10 @@ jobs:
             "$ANDROID_HOME/emulator/emulator" -avd screens -no-window $1 -no-snapshot -noaudio -no-boot-anim \
               -camera-back none -camera-front none -memory 3072 >> results/android/emulator.log 2>&1 &
             EMU=$!
+            # When it dies, say when: the emulator has left its log without a
+            # last line on every crash so far, and the moment is the one
+            # fact that places the crash against what the app was doing.
+            ( while kill -0 "$EMU" 2>/dev/null; do sleep 1; done; echo "emulator process gone at $(date -u +%H:%M:%S) UTC" >> results/android/environment.txt ) &
             sleep 8
             echo "--- emulator, first seconds:"; head -40 results/android/emulator.log || true
             # No `adb wait-for-device`: it blocks forever when the emulator
@@ -298,7 +302,9 @@ jobs:
             find /tmp/android-runner -maxdepth 3 -type f -printf '%s %p\n' 2>/dev/null | sort -rn | head -30 > results/android/crash-reporter-files.txt || true
           fi
           free -m > results/android/host-memory.txt 2>&1 || true
-          dmesg 2>/dev/null | tail -60 > results/android/host-dmesg.txt || true
+          echo "logs collected at $(date -u +%H:%M:%S) UTC" >> results/android/environment.txt
+          # The kernel's log needs root on the runner; unprivileged it is empty.
+          sudo dmesg 2>/dev/null | grep -i "segfault\|oom\|killed process\|emulator\|qemu\|trap" | tail -40 > results/android/host-dmesg.txt || true
           # The one line a reader needs first, if there is one.
           CRASH=$(grep -m1 -A2 'FATAL EXCEPTION' results/android/logcat-errors.txt | tr '\n' ' ' || true)
           [ -n "$CRASH" ] && echo "crash: ${CRASH:0:300}" >> results/android/environment.txt
