@@ -40837,3 +40837,102 @@ the merged tree — D382 had just taken the question content out of first
 paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
+
+## D390 · A decision-number hole is reported, not refused — merge order stops being a gate
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
+— *"fix the gate so merge order doesn't matter"* — after it cost a
+morning three times over.
+
+### What was true
+
+`doc-index.mjs` rule 10 refused any hole in the decision sequence, with
+a reason that reads well: *"a hole is a renumber that shifted some
+records and not others, or a record that was written and lost. Records
+are amended here, never deleted, so there is no legitimate gap."*
+
+That is sound about `main` and wrong about a branch, and nothing in the
+predicate could tell the two apart. Measured today: three pull requests
+open at once claimed D387, D388 and D389. **Each one's own head has
+holes where the other two sit**, so each was red — in `check:docs` and
+in `test:scripts` — until the others merged. Decision numbers had come
+to imply a **merge order**, which nobody chose and which is invisible
+until you are in it.
+
+**It arrived by omission.** D385 retired the PR shepherd, and moving
+colliding decision numbers at merge time was part of what the shepherd
+did. With merges by hand, that work fell to whoever noticed — and the
+gate turned it into a queue.
+
+### What replaced it
+
+A hole was only ever a **proxy** for a partial renumber, and the half of
+that fault with teeth is still refused: **a record left behind at its
+old number** collides with whatever took it — a **duplicate**, which
+this module has failed on since 2026-08-26 and which is the case that
+actually happened (two records at D297). Two rows claiming one id makes
+every citation of that number ambiguous, and the next author reads the
+highest number and orphans a record.
+
+Holes are **reported** instead — `unclaimedNumbers()`, printed as a
+note — because "D387 is unclaimed" is worth reading. They are simply not
+a reason to refuse a tree.
+
+### The other half was written as a failure and lasted one run
+
+A partial renumber's second half is **a citation left behind**, pointing
+at a number no record claims. That was added here as a failure, using
+the citation map `citations()` already builds for the index — one map
+feeding the render and the gate, scoped to `DECISIONS.md`'s own bodies
+because a tree-wide scan would read every `D385` in a code comment as a
+claim about this file.
+
+**It failed on this record.** The first run refused the tree three
+times: D390 cites D387, D388 and D389 — the three pull requests holding
+them, named in the paragraph above explaining why the gate had to
+change.
+
+That is not a partial renumber, and the lesson is sharper than the rule
+was. **A hole and a citation into that hole are one fact seen twice** —
+this head does not have that number, because another head does. Failing
+on the second while excusing the first only puts merge order back under
+a different name. So both are reported together, and the note names the
+citers when there are any, because *"D387 is unclaimed and D390 points
+at it"* is the sentence a reader actually wants:
+
+```
+note: D387 (cited by D390), D388 (cited by D390), D389 (cited by D390)
+      unclaimed — an open branch is holding them, or a record was lost.
+```
+
+What that gives up is a citation typo landing on a free number: it
+prints every run instead of failing. The alternative was a gate that
+made three open branches take turns, which is the thing being removed.
+
+### Verified against the case that motivated it
+
+Not reasoned about. Each of the three open heads was checked out and the
+gate run on it, old code and new:
+
+| PR | claims | its own holes | old gate | new gate |
+| --- | --- | --- | --- | --- |
+| #408 | D387 | none | **OK** | OK |
+| #411 | D388 | D387 | **FAILED** | OK |
+| #415 | D389 | D387, D388 | **FAILED** | OK |
+
+That column is the merge order, drawn. Exactly one of the three could be
+green at a time, and it was always the **lowest-numbered** one — not
+because its work was ready first, but because nothing was sitting under
+it. #415 had to wait for two merges it has no relationship to.
+
+This branch is the fourth case: written as D387, moved to **D390**, the
+first number no open branch claims, leaving holes at D387, D388 and
+D389, one per pull request waiting. Under the rule being removed, the
+change fixing the problem could not pass its own gate until three
+unrelated merges landed first. The unit cases pin both directions.
+
+### What this does not loosen
+
+Nothing about `main`'s history changed — records are still amended,
+never deleted, and a hole there still gets printed every run until its
+pull request lands. Duplicates still fail.

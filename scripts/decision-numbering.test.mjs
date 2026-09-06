@@ -9,9 +9,13 @@
 // working.
 
 import { describe, it, expect } from "vitest";
-import { numberingProblems } from "./decision-numbering.mjs";
+import { numberingProblems, unclaimedNumbers } from "./decision-numbering.mjs";
 
 const rec = (num, line, kind = "record") => ({ num, line, kind });
+const cited = (pairs) => new Map(pairs.map(([t, from]) => [t, new Set(from)]));
+// unclaimedNumbers reports {num, citers}; most cases only care about which
+// numbers came back.
+const nums = (out) => out.map((u) => u.num);
 
 describe("a sound sequence is silent", () => {
   it("says nothing about D1..D5 in order", () => {
@@ -64,22 +68,76 @@ describe("a duplicate is caught, which is what a missed renumber leaves", () => 
   });
 });
 
-describe("a hole is caught, which is a renumber that shifted some and not others", () => {
-  it("names the missing number", () => {
-    const out = numberingProblems([rec(295, 1), rec(297, 2), rec(298, 3)]);
-    expect(out).toHaveLength(1);
-    expect(out[0]).toContain("no record claims D296");
-    expect(out[0]).toContain("D295-D298");
+describe("a hole is REPORTED, never refused — merge order is not a gate", () => {
+  // This block used to assert the opposite, and the reversal is the point.
+  // Three pull requests open at once claimed D387, D388 and D389; each
+  // one's own head has holes where the other two sit, so every one of them
+  // was red until the others merged. That made decision numbers imply a
+  // merge ORDER — a coupling nobody chose, which arrived when D385 retired
+  // the shepherd that used to move colliding numbers at merge time.
+  it("says nothing about a gap another branch is holding", () => {
+    expect(numberingProblems([rec(386, 1), rec(389, 2)])).toEqual([]);
   });
 
-  it("names EVERY missing number, not just the first", () => {
-    expect(numberingProblems([rec(1, 1), rec(5, 2)])[0]).toContain("D2, D3, D4");
+  it("still NAMES the gap, so a genuinely lost record stays visible", () => {
+    expect(nums(unclaimedNumbers([rec(295, 1), rec(297, 2), rec(298, 3)]))).toEqual([296]);
+    expect(nums(unclaimedNumbers([rec(1, 1), rec(5, 2)]))).toEqual([2, 3, 4]);
   });
 
-  it("explains that no gap is legitimate here", () => {
-    // Records are amended, never deleted — so unlike most sequence checks
-    // this one has no "deliberately retired" case to excuse.
-    expect(numberingProblems([rec(1, 1), rec(3, 2)])[0]).toMatch(/never deleted/);
+  it("reports nothing when the sequence is whole", () => {
+    expect(unclaimedNumbers([rec(1, 1), rec(2, 2), rec(3, 3)])).toEqual([]);
+    expect(unclaimedNumbers([])).toEqual([]);
+    expect(unclaimedNumbers(undefined)).toEqual([]);
+  });
+
+  it("counts only records, so an amendment neither fills nor makes a gap", () => {
+    const out = unclaimedNumbers([rec(295, 1), rec(296, 2, "amendment"), rec(297, 3)]);
+    expect(nums(out)).toEqual([296]);
+  });
+});
+
+describe("a citation into a hole is the SAME fact, so it is reported too", () => {
+  // This block was written as a failure and lasted one run. A partial
+  // renumber's other half is a reference left behind, pointing at a number
+  // no record claims — which reads like a fault. Then the first run refused
+  // the record introducing it: D390 cites D387, D388 and D389, the three
+  // pull requests holding them. A hole and a citation into that hole are
+  // one fact seen twice — this head does not have that number, because
+  // another head does — so failing on the second while excusing the first
+  // just puts merge order back under a different name.
+  it("does not fail, however the citations fall", () => {
+    expect(numberingProblems([rec(300, 1), rec(301, 2)])).toEqual([]);
+  });
+
+  it("names the citers on the hole they point into", () => {
+    const out = unclaimedNumbers([rec(300, 1), rec(302, 2)], cited([[301, [302]]]));
+    expect(out).toEqual([{ num: 301, citers: [302] }]);
+  });
+
+  it("lists every citer of the same number, sorted", () => {
+    const out = unclaimedNumbers([rec(300, 1), rec(302, 2)], cited([[301, [302, 300]]]));
+    expect(out[0].citers).toEqual([300, 302]);
+  });
+
+  it("leaves citers empty for a hole nothing points at", () => {
+    const out = unclaimedNumbers([rec(1, 1), rec(3, 2)], cited([[1, [3]]]));
+    expect(out).toEqual([{ num: 2, citers: [] }]);
+  });
+
+  it("reports a citation ABOVE the last record, which no gap would reach", () => {
+    // The one case the hole scan alone cannot see: a typo'd D400 in a tree
+    // ending at D390 is past the end of the sequence, so without the
+    // citation map it falls off and nothing ever mentions it.
+    const out = unclaimedNumbers([rec(389, 1), rec(390, 2)], cited([[400, [390]]]));
+    expect(out).toEqual([{ num: 400, citers: [390] }]);
+  });
+
+  it("says nothing when every citation lands on a record", () => {
+    expect(unclaimedNumbers([rec(1, 1), rec(2, 2)], cited([[1, [2]]]))).toEqual([]);
+  });
+
+  it("works with no citation map, because the unit cases call it that way", () => {
+    expect(nums(unclaimedNumbers([rec(1, 1), rec(3, 2)]))).toEqual([2]);
   });
 });
 
@@ -96,12 +154,11 @@ describe("amendments claim no number, which is the whole reason for `kind`", () 
     expect(numberingProblems([rec(7, 10), rec(7, 20, "adoption")])).toEqual([]);
   });
 
-  it("does not let an amendment FILL a hole either", () => {
-    // The mirror of the case above, and the one that would hide a real
-    // fault: if amendments counted toward the sequence, a stray
-    // `## D296 amendment` would silence a genuinely missing D296.
-    const out = numberingProblems([rec(295, 1), rec(296, 2, "amendment"), rec(297, 3)]);
-    expect(out).toHaveLength(1);
-    expect(out[0]).toContain("no record claims D296");
+  it("does not let an amendment CLAIM a number a record still needs", () => {
+    // The mirror of the case above. An amendment sharing D296 must not make
+    // the tree look as though D296 is claimed — the reporting case in the
+    // hole block asserts the same thing from the other side.
+    const out = unclaimedNumbers([rec(295, 1), rec(296, 2, "amendment"), rec(297, 3)]);
+    expect(nums(out)).toEqual([296]);
   });
 });
