@@ -1,0 +1,5 @@
+google-services.json: PLACEHOLDER (secret empty) — Firebase initialised against a project that does not exist; nothing reaches a backend
+avd: pixel_7 on system-images;android-35;google_apis;x86_64
+emulator process at the end: GONE (a host-side crash, if adb lost it)
+logs collected at 22:33:49 UTC
+drive: skipped
