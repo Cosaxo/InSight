@@ -41002,3 +41002,80 @@ persistence across a lens swap, the People rows' shared-answer line),
 `check:tap-targets`, `check:a11y` (no new findings), `check:globals`
 (rule 4 at 30, unmoved), `check:bundle` (601 KB eager / 607),
 `check:docs`, `check:figures`.
+
+## D389 · The 2026-09-06 design, steps 3–6: the dial, the feed's ground, the ballot row, the polish pass
+
+**2026-09-06.** **Status:** binding, built. The owner's *"build the
+rest of the steps"* on `VISION-2026-09-06.md` §8, same day as D388.
+Four commits on `claude/zen-pascal-ugc4p4`, one per step; the same
+renumber caveat as its siblings (D289's collision pattern). With this
+the vision's build queue is empty — what remains of the plan is §7's
+two owner rows.
+
+### Step 3 — the dial in the header
+
+The Patterns lens state lifts into the shell as `ptLens` and crosses
+as props (`lens`/`onLens`/`onDock` — no window global, rule 4 unmoved);
+the dock slot serves track AND patterns (`DAILY_DOTS` + `PT_DIAL`,
+haptic ticks, `data-docked` on either tab, docking reset on tab
+change); the Patterns ruler folds on scroll or use and the daily hides
+its in-page switcher once docked. Three tree contracts beat the
+design's lines, recorded in §3.1: the docked twins keep their in-flow
+rulers' accessible names (the *Which daily*/*Which lens* renames stay
+unported — `smoke-nav` pins the shared label), the dock slot may not
+go `aria-hidden` while undocked (tried; broke the crossfade contract's
+two suites), and the fold effect reads its scroll host optionally so
+bare mounts stand.
+
+### Step 4 — the feed on paper
+
+Boxed card skins onto the rule ground (the paid card keeps its box —
+D375's one-product line), the topic rail behind an *all topics / N of
+M topics* disclosure with neutral check chips, the `headHold` guard
+plus `topicsOpen` so the sticky head never hides mid-use. Six suites
+re-walked through the disclosure; `smoke-daily`'s feed witness became
+the chip itself. The feed's ~60 untouched sub-12 inline sizes are the
+design's own leftover and stay (§4.1's scope call).
+
+### Step 5 — the ballot as a hairline row
+
+`.ds-ballot`/`.ds-half`: top and bottom rules, transparent halves, the
+hue held in `--oc` and drawn only on press (9% tint, 3px underline);
+the height is a literal 56 with §5.1's trap comment at the site — the
+repo's `--field-size` is a 16px font token, not the prototype's 56px
+height. The ⓘ became the underlined words *why this question* (the
+sponsored card still says *what you need to know*), and the anonymous
+words' slot ships EMPTY with the §7.1 comment — the D98-amendment row
+is still the owner's. The split-ballot suite now pins the design's own
+split: daily as hairline row, feed votes keeping the 09-02 seam block.
+D86's long-press edit pinned a third time.
+
+### Step 6 — the paper polish pass
+
+The result card boxless (`rpv2-page`, serif identity 31/500, the near
+chips folded into one prose sentence, the `false &&`-ed rule line
+deleted, Born-or-built closed as never-ported); the constellation
+draws in as ink (`mmt-ink` on `pathLength: 1`, dots delayed by hub
+distance — keyframes twinned BY NAME with `ui/patterns.css`, identical
+bodies, reduced-motion guarded); the profile flattens to `.profile-ov`
+hairline sections WITHOUT `!important` (inline paddings win on
+purpose — the repo's own cards keep their exceptions; the account
+sheet flattens with it); the Mirror's lens row becomes a ruled band
+and its figure lifts; the circle population's so-what stands down (it
+ranked nine named friends under the figure already drawing that
+ranking — *least* reads as a verdict on a friend); the duel prompts go
+serif (group's at `fs + 2`, the design's own weight-per-pixel recipe).
+`IS_typeRuleParts` stays defined for `scripts/report-lib.mjs`; the
+banner keeps `overflow: hidden` for its bleeding emblem. §6.4 has each
+call with its reason.
+
+### Gates
+
+`test:unit` (2 710 — the fold, the dial/ruler agreement, the two
+ballot shapes and the re-pinned D86 edit among the new and reshaped
+pins), `data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
+`check:tap-targets`, `check:a11y` (6, baseline), `check:globals`
+(rule 4 at 30, unmoved), `check:answer-shape`, `check:labels`,
+`check:public-copy`, `check:purge`, live `check:bundle` (598 KB eager
+/ 607; 70 KB blocking css / 74), `check:eager-content`, `check:docs`,
+`check:figures`.
