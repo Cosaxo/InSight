@@ -8,143 +8,20 @@
 // moment it dominates a domain the catalogue is stale, and nobody gets to
 // type.
 //
-// One component, three catalogues (pokemon / films / artists — D15). The
-// per-domain differences are the store and the copy: the Pokédex is a
-// closed set ("every species is in here"), the QID catalogues are curated
-// tops where "not listed" is the expected answer for the long tail.
+// One component, every shipped catalogue — the table is `pickDomains.ts`
+// (pokemon, films and artists first, D15; the rest as each domain was
+// committed), shared with the browse row so the two doors on a card can
+// never disagree about which catalogue a domain names.
 //
-// Born in this repo, so typed TSX like CityPicker; the globalThis
-// assignment at the bottom keeps the spec layer's render-time lookup
-// working from world-feed.jsx.
+// Born in this repo, so typed TSX like CityPicker; world-feed.jsx imports
+// it (the globalThis publication it once carried went with D354's sweep).
 import React from "react";
-import POKEDEX, { type Species } from "../data/pokedex";
-import ELEMENTS_CATALOG, { type Element } from "../data/elements";
-import { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES, type CatalogEntry } from "../data/catalogs";
+import { DOMAINS, type Row } from "./pickDomains";
 
 const PS_LINE = "1px solid var(--rule)";
 
-type Row = { id: number; name: string; tag?: string };
-
-type DomainSpec = {
-  load: () => Promise<Row[]>;
-  peek: () => Row[] | null;
-  search: (q: string, max: number) => Row[];
-  placeholder: string;
-  hint: string;
-  noMatch: string;
-};
-
-const speciesRow = (s: Species): Row => ({ id: s.dex, name: s.name, tag: `#${s.dex}` });
-// The tag is the atomic number — the same "the key is a fact worth showing"
-// call as the dex tag, and for elements the fact doubles as chemistry.
-const elementRow = (e: Element): Row => ({ id: e.z, name: e.name, tag: `#${e.z}` });
-const entryRow = (e: CatalogEntry): Row => ({ id: e.key, name: e.name });
-
-function catalogSpec(
-  store: typeof FILMS,
-  placeholder: string,
-  hint: string,
-): DomainSpec {
-  return {
-    load: () => store.load().then((es) => es.map(entryRow)),
-    peek: () => {
-      const es = store.peek();
-      return es ? es.map(entryRow) : null;
-    },
-    search: (q, max) => {
-      const es = store.peek();
-      return es ? store.search(es, q, max).map(entryRow) : [];
-    },
-    placeholder,
-    hint,
-    // Curated top, not a census — the honest miss is "not listed".
-    noMatch:
-      "No match — this is a curated top list. “Not listed” is a real answer.",
-  };
-}
-
-const DOMAINS: Record<string, DomainSpec> = {
-  pokemon: {
-    load: () => POKEDEX.load().then((ss) => ss.map(speciesRow)),
-    peek: () => {
-      const ss = POKEDEX.peek();
-      return ss ? ss.map(speciesRow) : null;
-    },
-    search: (q, max) => {
-      const ss = POKEDEX.peek();
-      return ss ? POKEDEX.search(ss, q, max).map(speciesRow) : [];
-    },
-    placeholder: "Search the Pokédex…",
-    hint: "one pick from 1,025 — the crowd's canon reveals after",
-    noMatch:
-      "No match — every species is in here, so check the spelling.",
-  },
-  films: catalogSpec(FILMS, "Search films…", "one favourite — the crowd's canon reveals after"),
-  artists: catalogSpec(ARTISTS, "Search artists…", "one favourite — the crowd's canon reveals after"),
-  athletes: catalogSpec(ATHLETES, "Search 640 athletes…", "one pick — the crowd's canon reveals after"),
-  videogames: catalogSpec(VIDEOGAMES, "Search 1,000 video games…", "one pick — the crowd's canon reveals after"),
-  elements: {
-    load: () => ELEMENTS_CATALOG.load().then((es) => es.map(elementRow)),
-    peek: () => {
-      const es = ELEMENTS_CATALOG.peek();
-      return es ? es.map(elementRow) : null;
-    },
-    search: (q, max) => {
-      const es = ELEMENTS_CATALOG.peek();
-      return es ? ELEMENTS_CATALOG.search(es, q, max).map(elementRow) : [];
-    },
-    placeholder: "Search the periodic table…",
-    hint: "one pick from 118 — the crowd's canon reveals after",
-    // A closed set, and a small one: name or symbol both search
-    // ("gold" and "au" find the same row).
-    noMatch:
-      "No match — all 118 are in here, by name or symbol (“gold”, “Au”).",
-  },
-  emoji: {
-    ...catalogSpec(EMOJI, "Search emoji…", "one pick from 1,391 — the crowd's canon reveals after"),
-    // A closed set, unlike the curated tops: every base emoji is here.
-    // Sequences are not — tones and combos count as their base, and a
-    // ZWJ-combo devotee's honest answer is Not listed.
-    noMatch:
-      "No match — try the word for it (“fire”, “skull”). Tones and combos count as their base.",
-  },
-  dogs: {
-    ...catalogSpec(DOGS, "Search dog breeds…", "one pick from 554 — the crowd's canon reveals after"),
-    // A wide net rather than a curated top: most of the world's named
-    // breeds are here, so a miss is usually spelling — but crosses and
-    // mutts are real dogs with no row, and theirs is the honest miss.
-    noMatch:
-      "No match — try the common name. Crosses and mixes count as “Not listed”.",
-  },
-  colors: {
-    ...catalogSpec(COLORS, "Search colours…", "one pick from 139 — the crowd's canon reveals after"),
-    // The CSS spec's named colours, alias-deduped (aqua stands for cyan,
-    // gray for grey) — so a miss is often the alias spelling, and every
-    // colour outside the spec's 139 names is honestly "Not listed".
-    noMatch:
-      "No match — these are the CSS names (try “aqua”, “gray”). Anything unnamed counts as “Not listed”.",
-  },
-  languages: {
-    ...catalogSpec(LANGUAGES, "Search languages…", "one pick from 183 — the crowd's canon reveals after"),
-    // The ISO 639-1 set, so each entry is a language family's headline
-    // name; rows carry the native name too ("French (français)"), and a
-    // search in either script resolves. Dialects and languages outside
-    // the 183 are honestly "Not listed".
-    noMatch:
-      "No match — try the English or native name. Anything beyond the ISO 183 counts as “Not listed”.",
-  },
-  countries: {
-    ...catalogSpec(COUNTRIES, "Search countries…", "one pick from 250 — the crowd's canon reveals after"),
-    // A closed set: the full ISO 3166-1 list, territories included, so
-    // the honest miss is a spelling rather than an absence. English
-    // names ("Germany", not "Deutschland"); accents fold in search.
-    noMatch:
-      "No match — every ISO country and territory is here, under its English name.",
-  },
-};
-
 export type PickSearchProps = {
-  /** Catalogue domain — pokemon | films | artists. */
+  /** Catalogue domain — a key of pickDomains' DOMAINS table. */
   domain: string;
   /** Topic hue — the card's T.color, so the field sits in its card. */
   accent: string;

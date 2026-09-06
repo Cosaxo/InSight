@@ -41072,3 +41072,135 @@ were attesting: a nonzero share, whatever the browsers did. The D39
 shape one instrument over: a reading a known cause fully explains is
 still a reading of everything, and the check is *what would be
 different if the thing I assume works actually worked*.
+
+## D389 · The pick card browses every catalogue, paged — D308 §3's ranked-only rule is lifted — and the learn reveal draws the crowd's share as a strip
+
+**Date:** 2026-09-06 · **Status:** Adopted (built: `ui/PickTiles.tsx`,
+`ui/PickSearch.tsx`, `spec/world-feed.jsx`; pinned in `PickTiles.test.tsx`,
+`test/feed-pick-browse.test.jsx` and three `smoke-live` cases)
+
+Three owner reports from a device, sent as three screenshots on
+2026-09-06 — *"3 things to change"* — each a screen where the code was
+right one layer down and wrong on the surface, the #413 shape again:
+
+1. **"Your phone — place it", answered: Takes beside it, no Change.**
+   #413 had opened the door for the dial and the field together that
+   afternoon; the build on the phone predated the merge. Nothing to
+   build. But #413 pinned only the dial, so the field half had no case
+   of its own, and a door with no test is the door that closes silently
+   next time — it has two now, the dial's two halves: the plane takes a
+   tap again with your standing dot still drawn and placing moves the
+   cell through `editVote`; a refused move snaps the dot back to the
+   standing cell's midpoint and says why.
+2. **"The country you'd move to?": a search field alone over "one pick
+   from 250".** The owner: *"the search questions should also show some
+   options in a lazy loading style to have some more visuals. Of course
+   not all by default as that would get expensive."* §1–2.
+3. **"The capital of Tanzania is…": Zanzibar City lit up beside the
+   Dodoma they had answered correctly**, read as having answered wrong.
+   §3.
+
+### 1 · Why D308 held the row back, and why that was the wrong cut
+
+D308 §3 drew the catalogue's head as tiles over the search and offered
+the row ONLY for the sitelink-ranked domains, on this reasoning: *"the
+alphabetical catalogues' head is not a fame ranking, and offering it as
+one would be the D1 shape of misleading."* True of the premise and
+wrong about the cure. The honesty problem was a row that CLAIMED a
+ranking; the cut removed the row instead, so the seven domains without
+a fame order — countries, dogs, colours, languages, emoji, elements,
+the Pokédex — kept the search-only ask D308 was built to replace: the
+domain invisible until you already knew what to type. That is the
+screenshot.
+
+The row invents no ranking because it claims none. The tiles carry no
+rank number and the copy under the search still says what the ask is
+("one pick from 250 — the crowd's canon reveals after"); what the row
+shows is the file in the file's own order, which every reader can see
+for themselves — the famous domains lead with their famous few, the
+alphabetical ones with A, and the keyed catalogues with #1 **and the key
+on the tile**: "Bulbasaur #1", "Hydrogen (H) #1". A dex-ordered row
+without the number would read as arbitrary, which is the one way this
+row could mislead, so `PickTiles` prints the tag `PickSearch` already
+carried for those two domains. What the row does NOT show is the
+crowd's board — that reveals after, as before, and the same tap that
+was the search's pick is the tile's (`setPick`, the key, never the
+name).
+
+### 2 · Paged, which is what makes every domain affordable
+
+The catalogues run to a thousand rows (films 1,000, emoji 1,391, the
+Pokédex 1,025), and D308's head was eight tiles because a row of a
+thousand is a thousand DOM nodes on every unanswered pick card in the
+feed — the "expensive" the owner named. The row is paged:
+
+- **One page draws at once** — `PICK_TILE_PAGE`, eight, D308's head
+  kept as the step. The rest of the file is in memory (the store parsed
+  it) and not in the DOM.
+- **The next page arrives on the row's own scroll**: an
+  `IntersectionObserver` on the last tile, rooted in the ROW rather
+  than the viewport. A viewport-rooted observer would fire for every
+  pick card that scrolled past on the page whether or not its row had
+  been touched — the whole catalogue, one page per frame, for a reader
+  who never looked. Rooted in the row it fires only when the reader
+  has dragged the row to its end.
+- **The same tile is a door**: it says how many the page left behind
+  ("+242 · more") and a tap appends the next page. That is the
+  keyboard's path, the reduced-motion reader's, and the test
+  environment's, where no observer ever fires (`setup-dom.ts`). It
+  leaves once the file is out.
+- **The fetch is the one the search already pays.** `pickLoad` is the
+  same catalogue load the picker kicks on open; `pickHead` reads the
+  store's parsed array through a per-domain memo (`memoRows`), so the
+  feed's every render of every unanswered pick card maps nothing.
+  Before the memo, `PickSearch`'s `peek` mapped the whole list on each
+  call — harmless while its one caller was that component's first
+  render, 1,391 objects per render per card once the feed read it. One
+  request per domain per session, 2–35 KB from the app's own bundle
+  root, and a demo card kicks the same load it would on open.
+
+What a page costs at the sizes that matter: eight tiles is eight
+buttons and sixteen spans; a reader who pages a 1,025-row Pokédex to
+the end holds 129 pages of it, which is the same DOM the un-paged row
+would have drawn on arrival — reached only by 128 deliberate acts.
+
+### 3 · The learn reveal's crowd share
+
+`renderKnow` drew each wrong option's share of the crowd as a wash
+filling the row's HEIGHT to the share's width — at 18% of the hue, on
+the reasoning that a large area wants a pale tint. At a share near 100%
+that is a filled row with no edge showing, and a filled row beside the
+solid correct one is a verdict, not a bar: the screenshot's crowd was
+one first try, on Zanzibar City, and the owner's own correct answer
+carried "0 people · 0%" (a repeat, D157's footer said so) — so the
+wrong row was the only one that looked chosen. Every gate was green;
+`learn-thin-crowd` pins the Map card's rate on a crowd of one and says
+nothing about the feed's bars.
+
+The share is a strip along the row's bottom edge now (`data-know-share`,
+4–5px, 55% of the hue — a strip has no area to carry a pale tint on),
+the pick board's shape one card over. The row keeps its surface; a
+share of 100% is a full-width bar under the label; the correct option's
+solid fill, your wrong pick's ink border and the ✓/✕ marks are the only
+things that read as verdicts, which is what they are. The smoke-live
+case mounts the owner's shape — a crowd of one on the option after the
+correct one — and fails against the wash (mutation-checked: it fails on
+the pre-change file).
+
+What this does not change: which options carry a number. The count
+still prints on the correct option and on your wrong pick only (D149,
+as built); the other rows say their share with the bar alone. Printing
+the count on every row is one line here if the bar proves too quiet,
+and was not taken because the report was about the fill, not the
+figures.
+
+### What it does NOT settle
+
+- Whether the alphabetical domains want a different FIRST page than A —
+  a daily-seeded sample, say, so the row varies. Not taken: a row you
+  cannot predict is a row you cannot browse, and the search is the way
+  to a name. The order is the file's, and the file's order is a
+  builder's decision recorded per catalogue in `content/` and
+  `scripts/build-*.mjs`.
+- The demo build (`renderPickCatalog`, the prototype's `WF_CATALOGS`
+  cards) keeps its own ranked tile row, untouched.
