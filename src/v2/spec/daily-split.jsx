@@ -1052,8 +1052,14 @@ export class DailySplit extends React.Component {
           ? h('div', { style: { display: 'flex', gap: 5 } },
               S.options.map((o, i) => {
                 const t = Math.round((i * 100) / Math.max(1, S.options.length - 1));
-                return h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
+                return h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
               }))
+          // `sd-opt` on every ballot button (both shapes) is the store
+          // screenshot harness's hook — scripts/gen-screenshots.mjs votes
+          // by clicking the first one, whatever its label. The 2026-09-02
+          // rewrite dropped it and the reveal scene went dark for four days
+          // before Screenshots run 7 found the gap; it is a marker, not a
+          // style, and it stays on whichever element casts the vote.
           // asking: ONE split ballot (2026-09-02). Two sides sit side by
           // side, divided by a hairline seam — and the seam is what moves
           // to the crowd's split once you vote, so the question and its
@@ -1062,7 +1068,7 @@ export class DailySplit extends React.Component {
           // the ground is neutral, so the filled result reads as the
           // payoff rather than as a second version of the same tiles.
           : h('div', { style: { display: 'grid', gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr', gap: 2, height: S.options.length === 2 ? 88 : undefined, borderRadius: 20, overflow: 'hidden', background: 'var(--rule)', border: LINE } },
-            S.options.map((o) => h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { minHeight: 56, background: 'var(--surface-2)', border: 'none', borderRadius: 0, padding: '0 18px', display: 'flex', flexDirection: S.options.length === 2 ? 'column' : 'row', alignItems: S.options.length === 2 ? 'flex-start' : 'center', justifyContent: 'center', gap: S.options.length === 2 ? 8 : 12, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease' } },
+            S.options.map((o) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { minHeight: 56, background: 'var(--surface-2)', border: 'none', borderRadius: 0, padding: '0 18px', display: 'flex', flexDirection: S.options.length === 2 ? 'column' : 'row', alignItems: S.options.length === 2 ? 'flex-start' : 'center', justifyContent: 'center', gap: S.options.length === 2 ? 8 : 12, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease' } },
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
               h('span', { style: { fontWeight: 700, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.015em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
