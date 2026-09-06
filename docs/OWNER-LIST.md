@@ -106,7 +106,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 23 PR row(s) and 8 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-06).
+- [ ] 22 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-06).
 <!-- console:end -->
 
 ## Store and legal
@@ -128,8 +128,6 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **3.4 Only after 24–48h of App Check metrics showing verified
       requests near 100%,** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **5.5 Apply the nine monitoring alerts — EIGHT VERIFIED ARMED AND
-      WIRED 2026-08-27 (D333); the NINTH is committed and not applied** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.7 Add a second operator uid** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.8 Put back the two access controls that were loosened on
       2026-08-12 to unblock the build-11 release (D117)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.

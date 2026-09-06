@@ -114,10 +114,11 @@ const SCENES = [
       // The first option of today's card, whatever its text. This used
       // to click "Absolutely" by name — the DEMO deck's first option —
       // which live mode can only satisfy on days the real question
-      // happens to share that label. `sd-opt` is the daily option
-      // buttons' own class (daily-split.jsx), so `.first()` still fails
-      // loudly when the card is missing, which is the property the
-      // by-name selector bought.
+      // happens to share that label. `sd-opt` is the ballot buttons'
+      // marker class (daily-split.jsx says so beside the ballot), so
+      // `.first()` still fails loudly when the card is missing, which is
+      // the property the by-name selector bought. The 2026-09-02 ballot
+      // rewrite dropped the class and this scene went dark until run 7.
       await p.locator("button.sd-opt").first().click();
       await p.waitForTimeout(1400); // the split animates in
     },
@@ -213,11 +214,33 @@ for (const [profileId, cfg] of profiles) {
     // anonymous sign-in on a busy runner.
     await page.goto(url, { waitUntil: "load" });
     await page.getByRole("button", { name: /mirror/i }).first().waitFor({ timeout: 60_000 });
+    // Since D356 the dock rendering no longer means the live boot has
+    // ATTACHED: a live build paints first and hears from the server
+    // later, and `LIVE.enabled` flips on the attach. Run 7 read the mode
+    // 1.2s after the dock and captured a live build as DEMO. So wait for
+    // the boot to settle — enabled, or a recorded bootError — and when a
+    // live build still reads demo, write WHY into the manifest: the boot
+    // reason is a value (LIVE.bootError / bootStage) precisely so nobody
+    // has to guess from a PNG.
+    try {
+      await page.waitForFunction(
+        () => !window.LIVE || !window.LIVE.demoInProd || !!window.LIVE.bootError,
+        null, { timeout: 60_000 });
+    } catch { /* timed out still demoInProd — recorded below */ }
     await page.waitForTimeout(1200); // spec layer settles after first paint
 
     if (manifest.mode === null) {
-      manifest.mode = await page.evaluate(() =>
-        (window.LIVE && window.LIVE.enabled) ? "live" : "demo");
+      const boot = await page.evaluate(() => ({
+        live: !!(window.LIVE && window.LIVE.enabled),
+        liveBuild: !!(window.LIVE && window.LIVE.demoInProd !== undefined && (window.LIVE.enabled || window.LIVE.demoInProd)),
+        bootError: (window.LIVE && window.LIVE.bootError) || "",
+        bootStage: (window.LIVE && window.LIVE.bootStage) || "",
+      }));
+      manifest.mode = boot.live ? "live" : "demo";
+      if (!boot.live && boot.liveBuild) {
+        manifest.bootError = boot.bootError || `boot did not attach within 60s (stage: ${boot.bootStage || "?"})`;
+        problems.push(`live build captured in DEMO mode — ${manifest.bootError}`);
+      }
     }
 
     // A scene whose drive fails records a problem and moves on rather
