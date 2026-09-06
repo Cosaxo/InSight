@@ -284,6 +284,21 @@ jobs:
           timeout 60 adb logcat -d -v time '*:E' > results/android/logcat-errors.txt 2>/dev/null || true
           timeout 60 adb logcat -d -v time 2>/dev/null | grep -i 'chromium\|console\|capacitor' | tail -300 > results/android/logcat-console.txt || true
           timeout 30 adb devices > results/android/adb-devices.txt 2>&1 || true
+          # Host crash or guest hang — the one fact that decides what the
+          # next fix is. The emulator process still running while adb calls
+          # the device gone is a guest that stopped answering; a process
+          # that is not there any more crashed on the host, and its crash
+          # reporter's directory says how.
+          if pgrep -f "emulator/qemu" > /dev/null 2>&1; then
+            echo "emulator process at the end: RUNNING (a guest that stopped answering, if adb lost it)" >> results/android/environment.txt
+          else
+            echo "emulator process at the end: GONE (a host-side crash, if adb lost it)" >> results/android/environment.txt
+          fi
+          if [ -d /tmp/android-runner ]; then
+            find /tmp/android-runner -maxdepth 3 -type f -printf '%s %p\n' 2>/dev/null | sort -rn | head -30 > results/android/crash-reporter-files.txt || true
+          fi
+          free -m > results/android/host-memory.txt 2>&1 || true
+          dmesg 2>/dev/null | tail -60 > results/android/host-dmesg.txt || true
           # The one line a reader needs first, if there is one.
           CRASH=$(grep -m1 -A2 'FATAL EXCEPTION' results/android/logcat-errors.txt | tr '\n' ' ' || true)
           [ -n "$CRASH" ] && echo "crash: ${CRASH:0:300}" >> results/android/environment.txt
