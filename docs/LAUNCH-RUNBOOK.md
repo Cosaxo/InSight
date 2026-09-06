@@ -1524,17 +1524,32 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [ ] **5.5 Apply the nine monitoring alerts — EIGHT VERIFIED ARMED AND
-      WIRED 2026-08-27 (D333); the NINTH is committed and not applied.**
+- [x] **5.5 Apply the nine monitoring alerts — ALL NINE VERIFIED ARMED
+      2026-09-06; eight of them armed and wired 2026-08-27 (D333).**
+      **CLOSED 2026-09-06.** The ninth, `monitoring/paid-refund-stuck.json`,
+      went up in two dispatches of **Arm monitoring**, and the gap between
+      them is the thing to know before the next new policy: run 9 created
+      the two log-based metrics it selects on and then failed creating
+      the policy — `404 … Cannot find metric … up to 10 minutes` — because
+      a freshly created log-based metric is not selectable by a policy
+      until it has propagated. Run 10, dispatched after that window,
+      reported `✓ policy "A campaign refund is stuck and needs an
+      operator" — created` (`done, 1 created`) under the `InSight oncall`
+      channel the applier names in its first line. Then the instrument:
+      **Observe production** run 16 reads `alertPolicies 9 live, 9
+      enabled; ALL committed policies are armed`, which is the sentence
+      this box is done on. What nobody has yet read is a page that has
+      ARRIVED — the applier's own closing line asks for a test page from
+      the console, and that is the owner's hand, not a workflow's.
       **REOPENED 2026-09-02 (D349).** `monitoring/paid-refund-stuck.json`
       landed with the paid pipeline's first alert of any kind, and with
       the two log-based metrics it selects on. Nothing in this tree arms
-      a policy — `monitoring:apply` does, and it has not been run since —
-      so the money alert is committed, gated by `check:monitoring`, and
-      silent. Dispatch **Arm monitoring** once more; the 2026-08-27
-      verification below stands for the eight it names and says nothing
-      about the ninth, which is why moving this heading's count from
-      eight to nine was not an edit that could be made on its own.
+      a policy — `monitoring:apply` does, and it had not been run since —
+      so the money alert was committed, gated by `check:monitoring`, and
+      silent. The 2026-08-27 verification below stands for the eight it
+      names and said nothing about the ninth, which is why moving this
+      heading's count from eight to nine was not an edit that could be
+      made on its own — and why it moved only with run 16's line.
       Found already applied on 2026-08-27 (the D303 path had run):
       the dry run reports every object `already exists`, `observe` reads
       `armed: true`, and — the half a green count cannot see — a direct
@@ -2146,9 +2161,11 @@ That is a tester-count problem, not a workflow problem.
          rather than assume.
 
       **Rehearse on test keys before live ones.** The path has never run
-      against real Stripe, and the one alert that watches it
-      (`monitoring/paid-refund-stuck.json`, 5.5) is committed and not yet
-      armed — so today a stuck refund is silent twice over.
+      against real Stripe. The one alert that watches it
+      (`monitoring/paid-refund-stuck.json`, 5.5) has been armed since
+      2026-09-06, so a stuck refund would now page — which says nothing
+      about whether the path works, only that its one known failure is
+      no longer silent. (Until that day it was silent twice over.)
 
       **This step does not decide WHETHER the door ships** — that is 6.0,
       and it comes first. If 6.0 takes shape A the door leaves the binary
