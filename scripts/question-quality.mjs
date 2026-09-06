@@ -1732,9 +1732,31 @@ if (invokedDirectly) {
     for (const w of warn) console.log(`  • ${label} ${id}: ${w}`);
   };
 
+  // The ARCHIVE (src/v2/spec/daily-questions.js) — the frozen prototype the
+  // live bank was promoted from. Its own header says the twins must not
+  // drift, and only prompts are pinned.
   corpus.specQ.forEach((q, i) => {
     const { errs, warn } = checkQuestion(q, "daily", corpus);
     report("daily", corpus.dailyIdOf(i), errs, warn);
+  });
+  // …AND THE BANK THAT ACTUALLY SHIPS, which this walk did not read.
+  //
+  // `content/daily-questions.json` is what the seed callable writes to
+  // Firestore and what 130 daily questions come off. It was loaded as
+  // `corpus.seed` and used only for provenance ids and the id headroom, so
+  // every tone and tag rule in this file ran over the archive and none of
+  // them over the live bank. Measured: the identical violation (a tone
+  // outside light/blend/deep, a tag over four words) fails in the archive
+  // and passes in the bank. `check:content` owns the structural half and
+  // has no tone or tag rule, so nothing else covered it either.
+  //
+  // The pick seed already gets this treatment one block down, with its
+  // reason written out — "a retyped prompt or a swapped domain here is the
+  // drift the script exists to make impossible". Daily is the same seed,
+  // one surface over.
+  corpus.seed.forEach((q) => {
+    const { errs, warn } = checkQuestion(q, "daily", corpus);
+    report("daily seed", q.id, errs, warn);
   });
   corpus.feed.questions.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus);
@@ -1811,8 +1833,9 @@ if (invokedDirectly) {
   }
   for (const w of head.warn) console.log(`  • ${w}`);
 
-  const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length
-    + corpus.pick.length + corpus.continuum.length + corpus.learn.cards.length;
+  const n = corpus.specQ.length + corpus.seed.length + corpus.feed.questions.length
+    + corpus.duel.length + corpus.pick.length + corpus.continuum.length
+    + corpus.learn.cards.length;
   console.log(`quality: ${n} questions checked${failed ? "" : " · all bounds hold"}`);
   process.exit(failed ? 1 : 0);
 }
