@@ -41,6 +41,7 @@ import {
   priceQuote,
   refundEurFor,
   reviewBooking,
+  goLive,
   reviewGates,
   reviewSubject,
   validatePaidBooking,
@@ -590,6 +591,81 @@ describe("adStartDay — ads queue, never overlap (D315)", () => {
   it("dayPlus speaks the same grain", () => {
     expect(dayPlus("2026-08-27", WINDOW_DAYS - 1)).toBe("2026-09-24");
     expect(dayPlus("not-a-day", 3)).toBe("not-a-day");
+  });
+
+  it("a paid question's window is one clock read — the arithmetic", () => {
+    // goLive used to compute both ends from the clock independently —
+    // `utcDayKey(1)` and `utcDayKey(WINDOW_DAYS)`, each reading Date.now()
+    // for itself. Equal on any single day, and NOT equal across a retry
+    // that lands either side of UTC midnight: the buyer paid for
+    // WINDOW_DAYS and got one more or one less.
+    const beforeMidnight = Date.parse("2026-08-26T23:59:59.900Z");
+    const afterMidnight = Date.parse("2026-08-27T00:00:00.100Z");
+
+    // What it does now: the end is derived from the start, so both come
+    // from one reading whichever side of midnight it falls on.
+    for (const t of [beforeMidnight, afterMidnight]) {
+      const start = utcDayKey(1, t);
+      expect(dayPlus(start, WINDOW_DAYS - 1)).toBe(utcDayKey(WINDOW_DAYS, t));
+    }
+
+    // …and the shape it replaced, shown resizing. This is the assertion
+    // that makes the change worth having rather than a tidy-up.
+    const split = dayPlus(utcDayKey(1, beforeMidnight), 0);
+    expect(utcDayKey(WINDOW_DAYS, afterMidnight)).not.toBe(
+      dayPlus(split, WINDOW_DAYS - 1),
+    );
+  });
+
+  it("…and goLive really writes that window, on both documents", () => {
+    // The arithmetic above is the shape; this is the CALL SITE. Between
+    // them they cover different things, and it is worth being exact about
+    // which: this case fails if the window is ever the wrong LENGTH, and
+    // the one above states the divergence the two-clock version produces.
+    // Neither can catch the two-clock shape here directly — it differs
+    // only across a real midnight tick, and fake timers freeze the clock
+    // rather than advancing it between two reads, so there is no way to
+    // force the two calls apart inside one test.
+    //
+    // Both the served question and the purchase row carry the window, so
+    // both are read: a buyer's receipt and the thing they bought must not
+    // disagree about when it ends.
+    const store = new Map<string, Record<string, unknown>>();
+    const ref = (path: string) => ({ path, id: path.split("/").pop() as string });
+    const db = {
+      collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+      async runTransaction(cb: (tx: unknown) => Promise<unknown>) {
+        return cb({
+          get: async (r: { path: string }) => ({
+            exists: store.has(r.path),
+            data: () => store.get(r.path),
+            get: (f: string) => store.get(r.path)?.[f],
+          }),
+          set: (r: { path: string }, data: Record<string, unknown>) => { store.set(r.path, data); },
+          update: (r: { path: string }, data: Record<string, unknown>) => {
+            store.set(r.path, { ...(store.get(r.path) || {}), ...data });
+          },
+        });
+      },
+    };
+    store.set("v2_paid_bookings/b1", {
+      ...BOOKING, uid: "u1", status: "approved", buyerName: null,
+      quote: priceQuote(BOOKING.scope),
+    });
+
+    return goLive(db as unknown as Parameters<typeof goLive>[0], "b1", "pi_1").then((live) => {
+      expect(live, "the webhook did not take the booking live").toBe(true);
+      const q = store.get("v2_questions/paidq-b1") as { from: string; until: string };
+      expect(q, "no question document was written").toBeTruthy();
+      // Tomorrow, and exactly WINDOW_DAYS of serving counting it.
+      expect(q.from).toBe(utcDayKey(1));
+      expect(dayPlus(q.from, WINDOW_DAYS - 1), "the window is not the length that was sold")
+        .toBe(q.until);
+      const purchase = store.get("v2_purchases/u1_b1") as { window: { start: string; until: string } };
+      expect(purchase.window.start).toBe(q.from);
+      expect(purchase.window.until, "the receipt and the question disagree about the end")
+        .toBe(q.until);
+    });
   });
 });
 

@@ -1302,8 +1302,17 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
     // The window starts TOMORROW (UTC): today's decks are already dealt
     // on devices that booted this morning, and a window that starts on
     // its first fully-served day is the honest version of "29 days".
-    const start = utcDayKey(1);
-    const until = utcDayKey(WINDOW_DAYS); // start + 28 more days, inclusive
+    const now = Date.now();
+    // ONE CLOCK READ, and `until` derived from `start`. These were two
+    // independent `utcDayKey(n)` calls, and each reads `Date.now()` for
+    // itself — so a transaction retry (or plain scheduling) that lands the
+    // two either side of UTC midnight writes a window one day short or one
+    // day long, for a buyer who paid for exactly WINDOW_DAYS. The ad path
+    // one branch up already derives its end from its start for this
+    // reason; this is the same shape, and the arithmetic is unchanged:
+    // start is tomorrow, until is start plus WINDOW_DAYS - 1, inclusive.
+    const start = utcDayKey(1, now);
+    const until = dayPlus(start, WINDOW_DAYS - 1); // 29 days inclusive
     const qid = `paidq-${bid}`;
     tx.set(db.collection("v2_questions").doc(qid), paidQuestionDoc(b, buyerName, start, until, seq));
     tx.set(
