@@ -837,8 +837,84 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // junk. It has nothing to do with who may see what.
 export const BUCKET_EVICT_BELOW = 5;
 
+/**
+ * What the cap did to a bucket, reported to whoever folds (D398). Both
+ * outcomes ran silently until this callback: an EVICTION drops a
+ * sub-floor bucket from the hot map to admit `bucket`; a REFUSAL keeps
+ * the newcomer out because every slot is published. `total` is the
+ * victim's count, or 0 for a newcomer. Since D400 neither DISCARDS on the
+ * vote path — the cell moves to the tail below — so the `agg_evict` line
+ * the trigger emits per call now reads "this dimension is past the hot
+ * document's cap and its tail is live", which a reader's City stop pays
+ * one shard read per question for; the catalog fold, which takes no
+ * tail, still loses what it reports. Pure code stays pure — this file has
+ * no logger, and the fold's tests read the calls directly.
+ */
+export type OnBucketCap = (
+  kind: "evicted" | "refused",
+  dim: string,
+  bucket: string,
+  total: number,
+) => void;
+
+// ── the tail (D400, ALGORITHM-REFLECTION §4.4 step 2) ─────────────────
+//
+// The cap used to DISCARD: an evicted bucket's partial count was gone and a
+// refused newcomer's answer counted in `total` and in no cohort cell. Now
+// both go to the tail — `v2_agg_overflow/{qid}-{shard}`, every city and
+// country cell the hot document cannot hold — so hot ∪ tail is exact and
+// the fold is commutative everywhere (replay.ts's header wanted exactly
+// this). The hot document stays the size it is: 24 buckets a dimension,
+// the cells almost every reader wants; the long tail lives beside it and
+// a reader opens its OWN shard only when its city is not in the hot 24.
+//
+// WHY SHARDS. A city dimension can hold the whole catalogue — ~11k places
+// — and a single tail document for a question answered from everywhere
+// would be ~550 KB, near Firestore's 1 MiB and far too heavy for a phone
+// to read per question at its City stop. Eight shards by bucket hash keep
+// each under ~70 KB at the catalogue's worst and let the device read the
+// one shard its own city hashes to. The hash is FNV-1a over UTF-16 code
+// units, and the CLIENT computes the same one (src/v2/data/overflow.ts,
+// with the vectors pinned on both sides) — the doc id is derived, never
+// listed.
+//
+// A BUCKET LIVES IN EXACTLY ONE OF THE TWO. Evicted → its whole cell moves
+// to the tail; refused → the newcomer starts in the tail; and a bucket the
+// tail already holds STAYS there — it is counted where it is rather than
+// re-admitted to a hot slot it would then share its count with. What that
+// costs is the "recurrence wins" property the eviction rule had: a value
+// that reaches the tail never climbs back. What it buys is that the client
+// never has to sum two documents for one cell, and the trigger never has
+// to read a shard it did not already need: the tail is consulted only for
+// a bucket the hot map lacks on a dimension AT the cap (`capBoundShards`),
+// which before the cap is never, and the adds are blind merge-increments
+// (v2.ts), so an eviction's victim moves without its shard being read.
+export const OVERFLOW_SHARDS = 8;
+
+/** FNV-1a, 32-bit, over UTF-16 code units — the same function
+ * src/v2/data/overflow.ts computes, mod the shard count. */
+export function overflowShard(bucket: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bucket.length; i++) {
+    h ^= bucket.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h % OVERFLOW_SHARDS;
+}
+
+export const overflowDocId = (qid: string, shard: number): string => `${qid}-${shard}`;
+
+/** Where the fold puts what the hot document cannot hold. `has` answers
+ * for the buckets whose shard the caller read; `add` receives a whole
+ * cell — a refused newcomer's `{ [opt]: 1 }`, or an evicted victim's. */
+export interface BucketTail {
+  has(dim: string, bucket: string): boolean;
+  add(dim: string, bucket: string, cell: Record<string, number>): void;
+}
+
 function evictForNewBucket(
   byDim: Record<string, Record<string, number>>,
+  onEvict?: (victim: string, cell: Record<string, number>) => void,
 ): boolean {
   const keys = Object.keys(byDim);
   if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
@@ -852,8 +928,116 @@ function evictForNewBucket(
     }
   }
   if (victim === null) return false;
+  onEvict?.(victim, byDim[victim]);
   delete byDim[victim];
   return true;
+}
+
+/** Where a bucket's count goes: the hot map, the tail, or — with no tail
+ * offered, the catalog fold's case — nowhere. The cap's two outcomes are
+ * reported through one callback either way, shared by both folds so a
+ * third fold cannot forget the refusal half. */
+function admitBucket(
+  byDim: Record<string, Record<string, number>>,
+  dim: string,
+  bucket: string,
+  onCap?: OnBucketCap,
+  tail?: BucketTail,
+): "hot" | "tail" | "dropped" {
+  if (byDim[bucket]) return "hot";
+  // In the tail it stays — see the header: one home per bucket.
+  if (tail?.has(dim, bucket)) return "tail";
+  const admitted = evictForNewBucket(byDim, (victim, cell) => {
+    onCap?.("evicted", dim, victim, bucketTotal(cell));
+    tail?.add(dim, victim, cell);
+  });
+  if (admitted) return "hot";
+  onCap?.("refused", dim, bucket, 0);
+  return tail ? "tail" : "dropped";
+}
+
+/**
+ * The shards a fold of this answer may need: for each dimension whose hot
+ * map is AT the cap and lacks this answer's bucket, the shard that bucket
+ * hashes to. Empty before any dimension reaches the cap, which is why the
+ * hot path pays nothing until the tail exists — and exact after it, since
+ * a bucket leaves the hot map only by eviction, which admits another, so
+ * a map at the cap stays at the cap and a map under it has never evicted.
+ */
+export function capBoundShards(by: BreakdownCounts | null | undefined, anchors: unknown): number[] {
+  if (!by || !anchors || typeof anchors !== "object") return [];
+  const src = anchors as Record<string, unknown>;
+  const out = new Set<number>();
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim], dim);
+    if (bucket === null) continue;
+    const byDim = by[dim];
+    if (!byDim || byDim[bucket]) continue;
+    if (Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) out.add(overflowShard(bucket));
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/** shard → dim → bucket → cell, as read (or as accumulated). */
+export type OverflowShards = Map<number, BreakdownCounts>;
+
+/**
+ * A tail over the shards a caller read: `has` looks them up, `add`
+ * accumulates INCREMENTS per shard in `pending` — what the trigger turns
+ * into a blind merge write (v2.ts), what the replay keeps as counts. A
+ * victim's shard need not have been read: its increments are blind too.
+ */
+export function overflowTail(shards: OverflowShards): { tail: BucketTail; pending: OverflowShards } {
+  const pending: OverflowShards = new Map();
+  return {
+    pending,
+    tail: {
+      has(dim, bucket) {
+        return !!shards.get(overflowShard(bucket))?.[dim]?.[bucket];
+      },
+      add(dim, bucket, cell) {
+        const s = overflowShard(bucket);
+        const inc = pending.get(s) ?? {};
+        const byDim = inc[dim] || (inc[dim] = {});
+        const target = byDim[bucket] || (byDim[bucket] = {});
+        for (const [k, n] of Object.entries(cell)) target[k] = (target[k] || 0) + n;
+        pending.set(s, inc);
+      },
+    },
+  };
+}
+
+/**
+ * The edit's -old/+new inside the tail (D86 meets D400): for each
+ * dimension where the answer's bucket lives in the tail rather than the
+ * hot map, the shard's increments — `from: -1, to: +1` — under exactly
+ * retargetAnchors' skip rule: a cell that does not hold the old option is
+ * left alone, increment included, because a count that is not there
+ * cannot be moved and a blind increment would mint a negative one.
+ */
+export function retargetTail(
+  shards: OverflowShards,
+  anchors: unknown,
+  fromIdx: number,
+  toIdx: number,
+): OverflowShards {
+  const out: OverflowShards = new Map();
+  if (!anchors || typeof anchors !== "object") return out;
+  const src = anchors as Record<string, unknown>;
+  const from = String(fromIdx);
+  const to = String(toIdx);
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim], dim);
+    if (bucket === null) continue;
+    const s = overflowShard(bucket);
+    const cell = shards.get(s)?.[dim]?.[bucket];
+    if (!cell || !((cell[from] || 0) >= 1)) continue;
+    const inc = out.get(s) ?? {};
+    const byDim = inc[dim] || (inc[dim] = {});
+    byDim[bucket] = { [from]: -1, [to]: 1 };
+    out.set(s, inc);
+  }
+  return out;
 }
 
 // YOU MAY WITHHOLD AN ANCHOR; YOU MAY NOT INVENT ONE (D406).
@@ -861,9 +1045,9 @@ function evictForNewBucket(
 // The rules check that an answer's anchors are PLAUSIBLE — ten strings of
 // sane length — never that they are the author's. A hand-written client can
 // file its own answer under any cohort it likes, and every cut the Mirror
-// draws is folded from these. Two consumers read them: this fold, and the
-// People lens, which describes a person from the anchors on their answer
-// rows.
+// draws is folded from these. Three consumers read them: this fold, the
+// ledger entry the nightly passes re-read, and the People lens, which
+// describes a person from the anchors on their answer rows.
 //
 // WHY THIS IS NOT IN firestore.rules, which is where it belongs and where it
 // cannot go. A rule comparing the snapshot to the profile document was built
@@ -879,9 +1063,10 @@ function evictForNewBucket(
 //      answer it writes would be refused for the duration.
 //
 // (2) is what settles it: the window is a session, not a moment, and the
-// failure is a refused answer. So the check moves to the one place that
-// always sees the truth — the trigger, which reads the author's profile in
-// the batched read it already makes.
+// failure is a refused answer. No "or blank" allowance reaches it either,
+// because a stale value is not empty. So the check moves to the one place
+// that always sees the truth — the trigger, which reads the author's
+// profile in the batched read it already makes.
 //
 // The shape is not "overwrite with the profile", because that would undo
 // (1). An empty or absent value is a WITHHELD anchor and stays withheld; a
@@ -917,16 +1102,23 @@ export function foldAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   optionIdx: number,
+  onCap?: OnBucketCap,
+  tail?: BucketTail,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
+  const k = String(optionIdx);
   for (const dim of BREAKDOWN_DIMS) {
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
+    const where = admitBucket(byDim, dim, bucket, onCap, tail);
+    if (where === "dropped") continue;
+    if (where === "tail") {
+      tail!.add(dim, bucket, { [k]: 1 });
+      continue;
+    }
     const cell = byDim[bucket] || (byDim[bucket] = {});
-    const k = String(optionIdx);
     cell[k] = (cell[k] || 0) + 1;
   }
   return into;
@@ -1238,6 +1430,7 @@ export function foldCanonAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   entityKey: string,
+  onCap?: OnBucketCap,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -1246,8 +1439,11 @@ export function foldCanonAnchors(
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
     // Same bucket cap and the same eviction rule as foldAnchors — the
-    // slots are just as attackable here, and for the same reason.
-    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
+    // slots are just as attackable here, and for the same reason. No tail:
+    // the published catalog `by` is a lossy projection of the board by
+    // design (D17), so a complete tail of it would complete nothing a
+    // reader can see; the discard here is the one D398's alert still means.
+    if (admitBucket(byDim, dim, bucket, onCap) !== "hot") continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
     cell[entityKey] = (cell[entityKey] || 0) + 1;

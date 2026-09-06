@@ -673,7 +673,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (nine policies, seven log-based metrics)
+## Alerting (ten policies, eight log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -840,6 +840,25 @@ self-heals on the next run, so they can wait until someone is actually
 reading the alerts. That "self-heals" is doing real work in this paragraph:
 it is exactly what is NOT true of the reveal scan, which is why that one
 did not wait.
+
+### The cap alert: cohort counts discarded at the breakdown cap (D398)
+
+`monitoring/onV2AnswerCreated-evictions.json` is the contention alert's
+shape pointed at the other thing the vote path does without an error:
+`BREAKDOWN_MAX_BUCKETS` bounds the breakdown document, and past 24 values
+of one anchor the fold either evicts a sub-floor bucket or refuses the
+newcomer — the answer folds, the transaction commits, and the cell goes to
+the question's tail (`v2_agg_overflow/{qid}-{shard}`, D400) rather than
+to the hot document. `evictForNewBucket` ran silently from the day it was
+written; the fold reports through a callback (D398) and the trigger logs
+`metric: "agg_evict"` once per act of the cap, after the commit (so a
+contended answer counts once, not once per attempt). The metric is
+`agg_evict`, `severity>=WARNING`, and the policy thresholds more than five
+in an hour. Since D400 nothing is lost when it fires; what the line means
+is that the tail is live for that question — a reader whose city is in it
+pays a shard read per such question at the City stop — and the runbook's
+first response is to move `B.tailShare` in the cost model from its honest
+zero, not to raise the threshold.
 
 ## Running a deploy manually
 

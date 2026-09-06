@@ -1581,8 +1581,9 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [x] **5.5 Apply the nine monitoring alerts — ALL NINE VERIFIED ARMED
-      2026-09-06; eight of them armed and wired 2026-08-27 (D333).**
+- [x] **5.5 The first nine monitoring alerts, applied — ALL NINE VERIFIED
+      ARMED 2026-09-06; eight of them armed and wired 2026-08-27 (D333).
+      The tenth is 5.5b.**
       **CLOSED 2026-09-06.** The ninth, `monitoring/paid-refund-stuck.json`,
       went up in two dispatches of **Arm monitoring**, and the gap between
       them is the thing to know before the next new policy: run 9 created
@@ -1670,6 +1671,18 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
+- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+      TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
+      committed and not applied.** The breakdown cap's `agg_evict`
+      metric and its policy landed after run 16 verified the nine, so
+      **Arm monitoring** owes one more dispatch, and 5.5's own lesson
+      applies to it: a freshly created log-based metric is not selectable
+      by a policy for up to ten minutes (run 9's `404 … Cannot find
+      metric`), so expect two dispatches, or one after the window. Since
+      D400 the line the alert counts means the cap's tail is live for a
+      question, not that a count was lost — its runbook says what to do,
+      which is to move one number in the cost model. *Source:* D398, D400;
+      `docs/DEPLOYMENT.md` § The cap alert.
 - [x] **5.6 Version lockstep — holds at 2.0.0 build 32.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree

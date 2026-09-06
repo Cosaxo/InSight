@@ -20,7 +20,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { generateForm, version as genVersion } from "../data/logic-gen";
-import { LKEY, logicPctile, logicPctileFor } from "../data/logic-score";
+import { LKEY, logicBandFor, logicPctile, logicPctileFor } from "../data/logic-score";
 // The verified transport is mocked wholesale: these tests own the overlay's
 // state machine, not the wire — the callables' real behaviour is pinned in
 // functions/src/logic.test.ts and the rules suite.
@@ -79,13 +79,16 @@ describe("a full attempt", () => {
 
     // the result screen, immediately after the last reveal delay
     screen.getByText(/25 of 25/);
-    screen.getByText(new RegExp(`Sharper than ${logicPctileFor(1, 25)}% of players`));
+    // …with the likely range as a clause on the claim (D402): the curve at
+    // 23 and 25 of 25, so the top of the range is the ceiling itself
+    const [lo, hi] = logicBandFor(25, 25);
+    screen.getByText(new RegExp(`Sharper than ${logicPctileFor(1, 25)}% of players \\(likely ${lo}\u2013${hi}\\)\\.`));
     // …and the disclosure that every field here is a model, without
     // touching a single lens tab
     screen.getByText(/modelled yardstick/i);
 
     const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ v: 2, seed: SEED, gv: genVersion, pctile: logicPctileFor(1, 25) });
+    expect(saved).toMatchObject({ v: 2, seed: SEED, gv: genVersion, pctile: logicPctileFor(1, 25), band: logicBandFor(25, 25) });
     expect(saved.marks).toHaveLength(25);
     expect(saved.marks.every(Boolean)).toBe(true);
     expect(saved.diffs).toEqual(expected.items.map((it) => it.diff));
@@ -182,8 +185,12 @@ describe("a verified attempt (D57)", () => {
     expect(vi.mocked(submitVerified)).toHaveBeenCalledWith(expected.items.map((it) => it.a));
     screen.getByText("verified"); // the badge
     screen.getByText(/scored on the server, counted once/i);
+    // a response without a range (a server from before D402) prints none
+    // and saves none — the client does not invent a verified range
+    expect(screen.queryByText(/likely/)).toBeNull();
     const saved = JSON.parse(localStorage.getItem(LKEY));
     expect(saved).toMatchObject({ verified: true, seed: SEED, gv: genVersion, pctile: logicPctileFor(1, 25), source: "model" });
+    expect(saved.band).toBeUndefined();
     expect(saved.marks.every(Boolean)).toBe(true);
     expect(saved.times).toHaveLength(25); // local timings ride along for Pace
   });
@@ -196,7 +203,7 @@ describe("a verified attempt (D57)", () => {
     // a measured percentile with its population size, no model involved.
     vi.mocked(submitVerified).mockResolvedValue({
       marks: expected.items.map(() => true), score: 25, pctile: 91,
-      durationMs: 60000, seed: SEED, gv: genVersion, source: "measured", n: 250,
+      durationMs: 60000, seed: SEED, gv: genVersion, source: "measured", n: 250, band: [84, 96],
     });
     localStorage.setItem(LKEY, JSON.stringify(priorResult()));
     render(<LogicOverlay onClose={() => {}} />);
@@ -210,10 +217,12 @@ describe("a verified attempt (D57)", () => {
 
     // the claim names its population, and the note says what is (and is
     // not) measured — the charts stay declared sketches
-    screen.getByText(/Sharper than 91% of 250 verified players/);
+    // the server's range prints beside the server's number — it was read
+    // off the same count, which is why the client never computes it here
+    screen.getByText(/Sharper than 91% of 250 verified players \(likely 84\u201396\)\./);
     screen.getByText(/still modelled sketches/i);
     const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ verified: true, source: "measured", n: 250, pctile: 91 });
+    expect(saved).toMatchObject({ verified: true, source: "measured", n: 250, pctile: 91, band: [84, 96] });
   });
 
   it("a refused start reports the server's reason and leaves the result screen intact", async () => {

@@ -24,7 +24,7 @@ import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
 // The breakdown dims and their closed vocabularies, from the same
 // compiled output — the report builder takes them as input so it never
 // grows the second copy check:anchors exists to prevent.
-import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
+import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB, BREAKDOWN_MAX_BUCKETS, OVERFLOW_SHARDS } from "../functions/lib/pure.js";
 // The report builder (PAID-PLAN §9.2): §7g drives it through THIS
 // harness's signed-in client, so the deployed rules referee every read.
 import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
@@ -669,6 +669,82 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 
   await adminDb.doc(`v2_questions/${EMPTY}`).delete();
   await adminDb.doc(`v2_question_aggs/${EMPTY}`).delete();
+}
+
+// 7j · the cap's tail (D400), through the real trigger. Twenty-five more
+// voters from twenty-five cities nobody else is in — no age band, so the
+// band totals 7b–7f asserted stand. Oslo and Bergen sit at the floor, so
+// with 22 free slots the hot map fills to BREAKDOWN_MAX_BUCKETS and each
+// of the last three newcomers evicts the OLDEST one-answer city into
+// v2_agg_overflow/{qid}-{shard}. What this proves that the unit tests
+// cannot: the transaction's conditional shard read and its blind
+// merge-increments land in the emulator, and hot ∪ tail is exact.
+{
+  const cityKeys = (by) => Object.keys((by && by.city) || {});
+  const cellSumOf = (cell) => Object.values(cell || {}).reduce((a, c) => a + c, 0);
+  const before = (await getDoc(doc(db, "v2_question_aggs", q0.id))).data();
+  const beforeCitySum = cityKeys(before.by).reduce((a, c) => a + cellSumOf(before.by.city[c]), 0);
+  if (cityKeys(before.by).length >= BREAKDOWN_MAX_BUCKETS)
+    fail("7j assumes the hot map is under the cap before it runs: " + cityKeys(before.by).length);
+  const TAIL_N = 25;
+  for (let t = 0; t < TAIL_N; t++) {
+    const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "tail" + t);
+    const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+    const u = await signInAnonymously(vAuth);
+    await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
+      qid: q0.id, surface: "daily", optionIdx: t % 2,
+      answeredAt: serverTimestamp(),
+      anchors: { country: "NO", city: `Tail${String(t).padStart(2, "0")}, NO` },
+    });
+  }
+  let tailed = null;
+  for (let i = 0; i < 80; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    if (snap.exists() && snap.get("total") === before.total + TAIL_N) { tailed = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!tailed) fail("the tail voters never all folded (total " + (before.total + TAIL_N) + " not reached)");
+  const hot = tailed.by.city;
+  if (Object.keys(hot).length !== BREAKDOWN_MAX_BUCKETS)
+    fail("hot city map is not at the cap: " + Object.keys(hot).length);
+  if (!hot["Oslo, NO"] || !hot["Bergen, NO"])
+    fail("a bucket at the floor was evicted: " + JSON.stringify(Object.keys(hot)));
+  // Every shard, through the admin handle (the docs are public; the point
+  // of the handle is that a missing shard reads as missing, not as denied).
+  const tailCells = {};
+  let tailShardsSeen = 0;
+  for (let s = 0; s < OVERFLOW_SHARDS; s++) {
+    const snap = await adminDb.doc(`v2_agg_overflow/${q0.id}-${s}`).get();
+    if (!snap.exists) continue;
+    tailShardsSeen += 1;
+    for (const [c, cell] of Object.entries(snap.get("city") || {})) {
+      if (hot[c]) fail("a bucket is in both the hot map and the tail: " + c);
+      if (tailCells[c]) fail("a bucket is in two shards: " + c);
+      tailCells[c] = cell;
+    }
+  }
+  const expectedTail = cityKeys(before.by).length + TAIL_N - BREAKDOWN_MAX_BUCKETS;
+  if (Object.keys(tailCells).length !== expectedTail)
+    fail(`tail holds ${Object.keys(tailCells).length} cities, expected ${expectedTail}: ` + JSON.stringify(Object.keys(tailCells)));
+  for (const [c, cell] of Object.entries(tailCells)) {
+    if (cellSumOf(cell) !== 1) fail(`tail cell ${c} should hold one answer: ` + JSON.stringify(cell));
+    if (!c.startsWith("Tail0")) fail("the evicted buckets should be the OLDEST one-answer cities: " + c);
+  }
+  const unionSum = Object.keys(hot).reduce((a, c) => a + cellSumOf(hot[c]), 0)
+    + Object.values(tailCells).reduce((a, cell) => a + cellSumOf(cell), 0);
+  if (unionSum !== beforeCitySum + TAIL_N)
+    fail(`hot ∪ tail is not exact: ${unionSum} against ${beforeCitySum + TAIL_N}`);
+  ok(`the cap's tail: hot at ${BREAKDOWN_MAX_BUCKETS}, ${expectedTail} evicted cities in ${tailShardsSeen} shard(s), hot ∪ tail exact`);
+
+  // …and the rebuild sees the same shape from the answers alone (D290
+  // meets D400): the dry run reports the capped dimension and the shards
+  // the fold would write, at the same total.
+  const dryTail = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
+  if (dryTail.total !== before.total + TAIL_N) fail("rebuild total after the tail: " + JSON.stringify(dryTail));
+  if (!dryTail.cappedDims.includes("city")) fail("rebuild did not report the capped city dim: " + JSON.stringify(dryTail.cappedDims));
+  if (dryTail.tailShards !== tailShardsSeen) fail(`rebuild would write ${dryTail.tailShards} shards; the trigger wrote ${tailShardsSeen}`);
+  ok("D290 × D400: the rebuild reproduces the tail's shard count from the answers");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak

@@ -63,6 +63,7 @@
     "duel:budget": "node scripts/duel-budget.mjs",
     "now:budget": "node scripts/now-budget.mjs",
     "costs": "node scripts/cost-model.mjs",
+    "probe:fit": "node --experimental-strip-types --no-warnings scripts/fit-probe.mjs",
     "costs:compare": "node scripts/cost-compare.mjs",
     "costs:levers": "node scripts/cost-levers.mjs",
     "costs:scale": "node scripts/cost-scale.mjs",

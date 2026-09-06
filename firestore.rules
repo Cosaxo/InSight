@@ -133,6 +133,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The breakdown cap's tail (D400): every city and country cell the
+    // aggregate above evicted or refused at BREAKDOWN_MAX_BUCKETS, in
+    // eight shards per question by bucket hash (`{qid}-{shard}`). The same
+    // exact counts the aggregate publishes, the same posture: any
+    // signed-in reader, written only by the answer trigger and the rebuild
+    // tool through the Admin SDK. No uid, no timing — a count, not a log.
+    match /v2_agg_overflow/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
     // sponsored questions. An ad is a CARD: text, an advertiser, a window.
     // It takes no answer, so there is no answer arm anywhere in this file

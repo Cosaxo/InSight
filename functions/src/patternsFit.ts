@@ -81,6 +81,22 @@ export interface PatternsUserState {
    * and an absent stamp means "fold it" — the old behaviour, once.
    */
   d?: string;
+  /**
+   * The person's CURRENT answers to every eligible item, qid → option
+   * index (D395). The candidate engine's substrate: a batch solve needs
+   * every observation every night, and the ledger keeps ninety days of
+   * aggregate EVENTS while the fit wants a person's current answer — so
+   * the nightly run compacts each day's entries into this map (an edit
+   * overwrites its key) and the fit reads people, not days. Derived from
+   * `v2_users/{uid}/answers/*`, which is the truth; ~1/50th its bytes;
+   * erased with the account by the same recursive delete.
+   *
+   * Optional because every state written before it existed has none —
+   * such a person contributes nothing to the candidate until they answer
+   * again, and their public answers can be re-compacted from the answers
+   * collection if that ever matters.
+   */
+  a?: Record<string, number>;
 }
 
 export interface PatternsObservation {
@@ -150,14 +166,23 @@ export function emptyUser(k: number = PATTERNS_K): PatternsUserState {
 // one number as the other.
 
 /** One day's tally: pooled and per-question totals (divide by n for the
- * mean). Accumulated by foldUserDay when the caller passes one in. */
+ * mean). Accumulated by foldUserDay when the caller passes one in.
+ *
+ * `baseBits` is the SAME score for the marginal alone — the guess the
+ * fit would make with θ·L = 0, i.e. from the question's popularity and
+ * nothing else. It is the number the fit's own bits have to beat to be
+ * carrying information: a fit at its hash seeds scores exactly the
+ * baseline, and until 2026-09-06 nothing published put the two side by
+ * side, so 0.93 bits read as a result rather than as a verdict
+ * (docs/ALGORITHM-REFLECTION.md §1.4). */
 export interface PatternsDayScore {
   n: number;
   bits: number;
-  perQ: Record<string, { n: number; bits: number }>;
+  baseBits: number;
+  perQ: Record<string, { n: number; bits: number; baseBits: number }>;
 }
 
-export const emptyDayScore = (): PatternsDayScore => ({ n: 0, bits: 0, perQ: {} });
+export const emptyDayScore = (): PatternsDayScore => ({ n: 0, bits: 0, baseBits: 0, perQ: {} });
 
 /** The Oracle's own link and clamps (patternsMap.ts oracleGuess /
  * surprisalBits), mirrored on purpose: expected encoded answer x̂ read
@@ -227,11 +252,16 @@ export function foldUserDay(
     if (score && !revision) {
       const mPrev = L.n > 0 ? L.sum / L.n : 0;
       const bits = prequentialBits(mPrev + dot, o.x);
+      // the marginal-only guess, through the same link and clamps — what
+      // the fit scores when its vectors carry nothing
+      const base = prequentialBits(mPrev, o.x);
       score.n += 1;
       score.bits += bits;
-      const t = (score.perQ[o.qid] ??= { n: 0, bits: 0 });
+      score.baseBits += base;
+      const t = (score.perQ[o.qid] ??= { n: 0, bits: 0, baseBits: 0 });
       t.n += 1;
       t.bits += bits;
+      t.baseBits += base;
     }
     // marginal first, then centre — the mean INCLUDES this answer, so a
     // question's very first answer carries no signal beyond existing
@@ -366,7 +396,9 @@ export const PATTERNS_QUALITY_DAYS = 90;
 export const PATTERNS_QUALITY_NOTE =
   "prequential-online log-loss of the nightly fit itself, scored one step" +
   " ahead as each day folds; the device Oracle's ridge solve is a separate" +
-  " model with its own meter";
+  " model with its own meter. baselineBits is the same score for the" +
+  " question's marginal alone, and skill = 1 - bits/baselineBits: zero" +
+  " means the vectors carry nothing the popularity of the question did not";
 
 export interface PatternsQualityDay {
   day: string;
@@ -376,6 +408,11 @@ export interface PatternsQualityDay {
   /** Mean surprisal bits per observation (0 when n is 0 — refuse on n,
    * the app's own idiom). */
   bits: number;
+  /** The marginal-only mean for the same observations. Optional because
+   * every row published before 2026-09-06 has none; a row without it is
+   * a row nobody can read a skill off, and it stays that way rather than
+   * being back-filled from a number the run never computed. */
+  baselineBits?: number;
 }
 
 export interface PatternsQuality {
@@ -383,13 +420,25 @@ export interface PatternsQuality {
   day: string;
   n: number;
   bits: number;
+  /** The marginal-only score for the same observations (D394). */
+  baselineBits: number;
+  /** 1 − bits/baselineBits: the share of the marginal's surprisal the
+   * vectors remove. 0 is a fit that has learned nothing; negative is a
+   * fit that hurts; 0 when the day scored nothing (refuse on n). */
+  skill: number;
   /** Daily per-question means, floored (PATTERNS_QUALITY_FLOOR) — the
    * floor rides along so the reader knows what absence means. */
-  perQ: Record<string, { n: number; bits: number }>;
+  perQ: Record<string, { n: number; bits: number; baselineBits: number }>;
   floor: number;
   /** Pooled rows, oldest first, bounded to PATTERNS_QUALITY_DAYS. */
   series: PatternsQualityDay[];
   note: string;
+}
+
+/** Skill as the scorecard defines it: the share of the baseline's
+ * surprisal the model removes. Refuses on an empty day. */
+export function skillOf(bits: number, baselineBits: number): number {
+  return baselineBits > 0 ? round4(1 - bits / baselineBits) : 0;
 }
 
 /**
@@ -403,19 +452,77 @@ export function publishableQuality(
   priorSeries: readonly PatternsQualityDay[],
   floor: number = PATTERNS_QUALITY_FLOOR,
 ): PatternsQuality {
-  const rows = scored.map(({ day, score }) => ({
+  const rows: PatternsQualityDay[] = scored.map(({ day, score }) => ({
     day,
     n: score.n,
     bits: score.n > 0 ? round4(score.bits / score.n) : 0,
+    baselineBits: score.n > 0 ? round4(score.baseBits / score.n) : 0,
   }));
   const series = [...priorSeries, ...rows].slice(-PATTERNS_QUALITY_DAYS);
   const head = rows[rows.length - 1];
   const headScore = scored[scored.length - 1].score;
   const perQ: PatternsQuality["perQ"] = {};
   for (const [qid, t] of Object.entries(headScore.perQ)) {
-    if (t.n >= floor) perQ[qid] = { n: t.n, bits: round4(t.bits / t.n) };
+    if (t.n >= floor) perQ[qid] = { n: t.n, bits: round4(t.bits / t.n), baselineBits: round4(t.baseBits / t.n) };
   }
-  return { day: head.day, n: head.n, bits: head.bits, perQ, floor, series, note: PATTERNS_QUALITY_NOTE };
+  const baselineBits = head.baselineBits ?? 0;
+  return {
+    day: head.day,
+    n: head.n,
+    bits: head.bits,
+    baselineBits,
+    skill: skillOf(head.bits, baselineBits),
+    perQ,
+    floor,
+    series,
+    note: PATTERNS_QUALITY_NOTE,
+  };
+}
+
+// ── where the vectors are, relative to where they were born ──────────
+//
+// Every loading starts as a hash of its qid (seedLoading). A fit that has
+// learned publishes vectors that have ROTATED away from those seeds; a fit
+// that has not publishes the seeds with four decimal places. The
+// displacement summary cannot tell the two apart — it measures movement
+// between publishes, and a vector that never moves reads as stable rather
+// than as stuck. This measures distance from birth instead, and it is the
+// number `npm run probe:fit -- --loadings` prints for the live document
+// (docs/ALGORITHM-REFLECTION.md §1.2: 113 of 113 within cosine 0.9 of
+// their seed in every app-shaped scenario).
+
+export interface PatternsSeeds {
+  /** Loadings summarised — every published question. */
+  n: number;
+  /** Mean |cosine| between each loading and its own seed. */
+  meanCos: number;
+  /** Share of loadings still within |cosine| 0.9 of their seed. */
+  share90: number;
+  /** Mean loading norm, against the seeds' own (`seedNorm`). */
+  meanNorm: number;
+  seedNorm: number;
+}
+
+export function seedsSummary(model: PatternsModel): PatternsSeeds {
+  const rows = Object.entries(model.q);
+  const k = model.k;
+  // the seed's expected norm: k components uniform in ±0.05
+  const seedNorm = round4(0.05 * Math.sqrt(k / 3));
+  if (!rows.length) return { n: 0, meanCos: 0, share90: 0, meanNorm: 0, seedNorm };
+  let cosSum = 0, near = 0, normSum = 0;
+  for (const [qid, L] of rows) {
+    const c = Math.abs(loadingCosine(seedLoading(qid, k), L.v));
+    cosSum += c;
+    if (c > 0.9) near += 1;
+    normSum += Math.sqrt(L.v.reduce((a, x) => a + x * x, 0));
+  }
+  return {
+    n: rows.length,
+    meanCos: round4(cosSum / rows.length),
+    share90: round4(near / rows.length),
+    meanNorm: round4(normSum / rows.length),
+    seedNorm,
+  };
 }
 
 /**

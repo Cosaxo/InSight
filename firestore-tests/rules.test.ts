@@ -317,9 +317,18 @@ describe("v2 questions + aggregates", () => {
       await setDoc(doc(db, "v2_question_aggs", "daily-000"), {
         counts: { "0": 3 }, total: 3,
       });
+      // The cap's tail (D400): one shard of one question's overflow.
+      await setDoc(doc(db, "v2_agg_overflow", "daily-000-5"), {
+        city: { "Tail01, NO": { "0": 1 } },
+      });
     });
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_questions", "daily-000")));
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000")));
+    // The tail reads like the aggregate it completes, and writes like it:
+    // never from a client.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_agg_overflow", "daily-000-5")));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_agg_overflow", "daily-000-5")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_agg_overflow", "daily-000-5"), { city: {} }));
     await assertFails(getDoc(doc(asSignedOut(), "v2_questions", "daily-000")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_questions", "daily-000"), { prompt: "x" }));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000"), { total: 999 }));
@@ -945,6 +954,9 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
       await setDoc(doc(db, "v2_patterns", "loadings"), { k: 8, q: { "daily-000": { v: [0.1], n: 3 } } });
     });
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "loadings")));
+    // …and the nightly voter samples beside it (D397) read under the same
+    // rule — they are the who-voted list, which D98 made anyone's to read
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "sample-daily-000")));
     // A client-writable model would make the whole map forgeable in one request.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 8, q: {} }));
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 9 }));
@@ -4286,6 +4298,7 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
       await setDoc(doc(db, "v2_ads", "ad1"), { active: true });
       await setDoc(doc(db, "v2_call_outcomes", "daily-000"), { n: 1 });
       await setDoc(doc(db, "v2_patterns", "loadings"), { qids: [] });
+      await setDoc(doc(db, "v2_agg_overflow", "daily-000-5"), { city: { "Tail01, NO": { "0": 1 } } });
       await setDoc(doc(db, "v2_rank", "daily-000"), { order: [] });
       await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
       await setDoc(doc(db, "v2_handles", "owner"), { uid: OWNER });
@@ -4311,6 +4324,8 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   };
 
   it("v2_question_aggs refuses a signed-out read", () => refuses(["v2_question_aggs", "daily-000"]));
+  // The cap's tail (D400): the aggregate's own posture, one shard at a time.
+  it("v2_agg_overflow refuses a signed-out read", () => refuses(["v2_agg_overflow", "daily-000-5"]));
   it("v2_ads refuses a signed-out read", () => refuses(["v2_ads", "ad1"]));
   it("v2_call_outcomes refuses a signed-out read", () => refuses(["v2_call_outcomes", "daily-000"]));
   it("v2_patterns refuses a signed-out read", () => refuses(["v2_patterns", "loadings"]));
@@ -4333,9 +4348,9 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // The list above is hand-written, so this is what stops it going
     // stale: count the arms in the ruleset and hold the total. Four are
     // covered by their own cases elsewhere in this file — v2_questions,
-    // v2_engagement_daily, v2_meta and v2_logic_norms — so 11 here + 4
-    // there = 15. A new arm reds this until it is accounted for, in
-    // either place.
+    // v2_engagement_daily, v2_meta and v2_logic_norms — so 12 here + 4
+    // there = 16 (the twelfth bare arm is D400's `v2_agg_overflow`). A new
+    // arm reds this until it is accounted for, in either place.
     //
     // WHAT THIS DOES NOT CATCH, said plainly rather than implied: it
     // counts the standalone `allow read` arm only. A collection opened to
@@ -4343,10 +4358,10 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // a helper predicate is invisible to it, and would need its own case.
     const rules = ruleSource();
     const total = (rules.match(/allow\s+read:\s*if\s+request\.auth\s*!=\s*null\s*;/g) || []).length;
-    // Still 11 + 4 with twelve cases above: the twelfth covers
+    // 12 + 4 with thirteen cases above: the thirteenth covers
     // `v2_handles`, whose arm says `get` and so was never in this count.
     // It is held by the second one below.
-    expect(total, "the count of sign-in-gated read arms moved: add a case above and raise this number, or drop one whose own case now covers it").toBe(11 + 4);
+    expect(total, "the count of sign-in-gated read arms moved: add a case above and raise this number, or drop one whose own case now covers it").toBe(12 + 4);
   });
 
   it("…and the count sees the arms that are not spelled bare", () => {
@@ -4355,7 +4370,7 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // The bare pattern requires the condition to END at `request.auth !=
     // null;`, so an arm that says `get`, or that ANDs a second clause on,
     // is invisible — and thirteen were. Measured on this ruleset: 15 bare
-    // against 28 of this shape.
+    // against 28 of this shape; 16 against 29 since D400's tail arm.
     //
     // The four that matter most, none of which had a signed-out case:
     //   firestore.rules — every user's answers by id (`read: if
@@ -4368,8 +4383,8 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // number cannot move without somebody noticing, which is the thing
     // that was not true: all four could be opened outright with the suite
     // and every gate green.
-    // COMMENTS BLANKED FIRST, and the count is 27 rather than 28 because
-    // of it. `firestore.rules` explains the `v2_handles` rule's history in
+    // COMMENTS BLANKED FIRST, and the count was 27 rather than 28 because
+    // of it (28 rather than 29 since D400). `firestore.rules` explains the `v2_handles` rule's history in
     // prose that quotes the old arm — "`allow read: if request.auth !=
     // null` granted exactly the query this paragraph said did not exist" —
     // and the wide pattern, unlike the bare one, does not require a
@@ -4381,6 +4396,6 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // uncased.
     const rules = ruleSource().split("\n").map((l) => l.replace(/^\s*\/\/.*$/, "")).join("\n");
     const wide = (rules.match(/allow\s+(?:read|get|list)\s*:\s*if\s+request\.auth\s*!=\s*null/g) || []).length;
-    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(27);
+    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(28);
   });
 });

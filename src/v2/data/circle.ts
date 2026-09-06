@@ -67,25 +67,25 @@ import { WORLD_ANSWER_SURFACES } from "./voters";
 export const FOLLOW_CAP = 50;
 
 /**
- * Answers to read per followed account.
+ * Answers to read per followed account — the NEWEST ones, since D398.
  *
- * WHICH answers, when it binds: the query below carries no `orderBy`, and
- * an unordered `limit` in Firestore takes documents by NAME — here the
- * question id. So past this cap a member's likeness would be computed
- * from the alphabetically-first 300 questions they have answered, and the
- * bias would be invisible: the reading still draws, it is just about a
- * slice nobody chose. That is the same shape as the follow cap's own bug,
- * fixed four nights ago after it silently kept the alphabetically-first
- * fifty people in a circle.
+ * WHICH answers, when it binds, is the whole question. Until D398 the
+ * query below carried no `orderBy`, and an unordered `limit` in Firestore
+ * takes documents by NAME — here the question id — so past this cap a
+ * member's likeness was computed from the alphabetically-first 300
+ * questions they had answered, and the bias was invisible: the reading
+ * still drew, about a slice nobody chose. The same shape as the follow
+ * cap's own bug, which silently kept the alphabetically-first fifty
+ * people in a circle until it was fixed.
  *
- * IT BINDS TODAY. This said "it cannot bind today — the core bank is
- * ~130 questions" until the closing review of 2026-08-31 measured it
- * against the wrong bank. `core` is the Mirror's corpus; the query below
- * asks for WORLD_ANSWER_SURFACES, which is six of them — daily 130, feed
- * 166, test 110, learn 156, pulse 5, call 3 = 570 answerable questions
- * against a cap of 300, with no bank growth required. Somebody who has
- * worked through more than half of what they can answer is read from the
- * alphabetically-first slice of it, and the reading still draws.
+ * AND IT BOUND. This said "it cannot bind today — the core bank is ~130
+ * questions" until the closing review of 2026-08-31 measured it against
+ * the wrong bank. `core` is the Mirror's corpus; the query asks for
+ * WORLD_ANSWER_SURFACES, six surfaces — daily 130, feed 166, test 110,
+ * learn 156, pulse 5, call 3 = 570 answerable questions against a cap of
+ * 300, no bank growth required. Somebody who had worked through more
+ * than half of what they could answer was read from the alphabetically-
+ * first slice of it.
  *
  * (That line first landed saying "feed 190, test 160 = 644". Counted off
  * the committed banks instead: `content/feed-questions.json` holds 166
@@ -95,14 +95,16 @@ export const FOLLOW_CAP = 50;
  * argument it supports is this repo's most-repeated documentation error,
  * and it does not get an exemption for being in a comment that is right.)
  *
- * The fix is NOT free, which is why this is still recorded rather than
- * built (D7): ordering by `answeredAt` needs a composite index on
- * (surface ASC, answeredAt DESC) scoped to the `answers` COLLECTION, and
- * this repo pays index entries on every answer ever written. The night
- * that removed a reader-less index said so in its own message. What
- * changed is the urgency, not the price — this is a live bias to bring to
- * the owner with the index cost, not a note to file behind the pagination
- * work.
+ * The fix was not free, which is why it waited on the owner rather than
+ * on a night's judgement (D7): ordering by `answeredAt` needs a composite
+ * index on (surface ASC, answeredAt DESC) scoped to the `answers`
+ * COLLECTION — `firestore.indexes.json`, pinned by indexes.test.ts — and
+ * this repo pays an index entry on every answer ever written. The owner
+ * took the cost with ALGORITHM-REFLECTION §4.6 (2026-09-06), so the cap
+ * now keeps a member's 300 most RECENT answers: the same "latest N" the
+ * who-voted sheet and the nightly samples mean, and a slice somebody did
+ * choose. What the cap still does is bound the read; what it no longer
+ * does is pick the questions.
  */
 export const CIRCLE_ANSWER_CAP = 300;
 
@@ -299,6 +301,12 @@ export async function fetchAnswersOf(
   const snap = await getDocs(query(
     collection(db, "v2_users", uid, "answers"),
     where("surface", "in", [...WORLD_ANSWER_SURFACES]),
+    // Newest first, so the cap below keeps the answers somebody most
+    // recently gave rather than the alphabetically-first question ids —
+    // see CIRCLE_ANSWER_CAP. Needs the (surface, answeredAt DESC)
+    // collection-scope composite; every answer carries `answeredAt` by
+    // rule, so the orderBy excludes nothing.
+    orderBy("answeredAt", "desc"),
     fsLimit(CIRCLE_ANSWER_CAP),
   ));
   const out: Record<string, number> = {};
