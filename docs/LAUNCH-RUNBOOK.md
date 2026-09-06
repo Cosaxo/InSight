@@ -1170,26 +1170,27 @@ empty bank puts *"You're first"* where every crowd figure should be
 (there is no floor since D98 — the first answer publishes exactly).
 That is a tester-count problem, not a workflow problem.
 
-- [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
-      *Screenshots* → Run workflow.** Capture with upload unticked, download
-      the `store-screenshots` artifact, **look at them**, then re-run with
+- [x] **4.1 Recapture the screenshots in LIVE mode — UPLOADED 2026-09-06
+      (run 10, six to App Store Connect).** Actions → *Screenshots* → Run
+      workflow. Capture with upload unticked, download the
+      `store-screenshots` artifact, **look at them**, then re-run with
       upload ticked. Six scenes × both store sizes (1320×2868 and
       1080×1920), asserted against the store specs at generation.
 
-      **CAPTURED LIVE 2026-09-06; UPLOAD HELD by the owner until the new
-      visuals land.** Screenshots run 8 (#414's head) captured `mode =
-      LIVE`, 12/12, after two harness regressions were fixed on the same
-      branch — the reveal's `sd-opt` marker and D356's paint-before-attach
-      (the commit on `scripts/gen-screenshots.mjs` has both). The set is
-      correct and is not the shipping set: the owner's word the same day
-      — *"wait a bit more for the screenshot until the new visuals are
-      uploaded, they are being made now"* — holds the upload until the
-      next Claude Design standalone is extracted into `design/`, made the
-      vision (D361's sentence: a new visual is the vision until the owner
-      updates it) and built into the tree. Then this row runs again from
-      the top: capture, look, upload — not upload what run 8 holds, which
-      would put a look in the store that the app no longer has by the
-      time a reviewer opens it.
+      **How it closed.** Run 8 (#414's head) captured `mode = LIVE`,
+      12/12, after two harness regressions were fixed on the same branch
+      — the reveal's `sd-opt` marker and D356's paint-before-attach (the
+      commit on `scripts/gen-screenshots.mjs` has both). The owner held
+      the upload that morning for the new visuals being made in Claude
+      Design, then chose the release over the wait — *"current look,
+      upload the screenshots"* — so the visuals ship with a later version
+      and this row runs again from capture when they do. Run 9 with
+      upload on lost the Play-size profiles scene to a click that never
+      found the chip still (the drive is bounded now; its commit says
+      why); run 10 captured 12/12 and `asc-push` uploaded the six 6.9"
+      captures into a new en-US `APP_IPHONE_67` set — Apple files the
+      1320×2868 size under that display type, which is why the workflow
+      defaults to it. The Play set stays local until 3.1.
 
       **The committed captures are a demo preview, not the shipping set.**
       The harness names the one that must not ship: the reveal shows
