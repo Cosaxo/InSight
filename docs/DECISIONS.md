@@ -41750,108 +41750,99 @@ Nothing about `main`'s history changed — records are still amended,
 never deleted, and a hole there still gets printed every run until its
 pull request lands. Duplicates still fail.
 
-## D395 · The answer rules sit at Firestore's 1,000-expression ceiling, and rules functions are macros
+## D395 · The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success
 
-**Decided:** 2026-09-06 · **Status:** binding for what it changes; the
-half it cannot reach is an ASK on `OWNER-LIST.md`. **Found** by an e2e
-failure on #340 — a pull request that changes one documentation file.
+**Decided:** 2026-09-06 · **Status:** binding. **This record replaces its
+own first version**, which said the opposite and was wrong.
 
-### What the emulator was saying
+### What the first version claimed
 
-```
-PERMISSION_DENIED: Unable to evaluate the expression as the maximum of
-1000 expressions to evaluate has been reached. for 'create' @ L1047
-```
+That the answer create rule sat at Firestore's hard ceiling of 1,000
+evaluated expressions per request; that the margin was gone; that "the
+next clause added to that rule breaks a real write, silently, and the
+failure will read as a permissions bug." It put an ASK on
+`OWNER-LIST.md` inviting the owner to trade away a guarantee — the
+per-anchor length validation — to buy headroom.
 
-Firestore evaluates at most **1,000 expressions per request** and reports
-running out as `PERMISSION_DENIED` — identical, from the client, to a rule
-that evaluated false. A rule that exhausts its budget therefore denies
-exactly like a rule that refuses, which is the cheapest kind of latent
-bug: correct today, silently wrong the moment a path grows.
+**None of that was true.** Measured on the emulator by injecting copies
+of one anchor-length check into the create rule and asking whether a
+legitimate answer still lands:
 
-### What was measured, and what was NOT true
-
-A probe against the rules emulator, one document, one awaited write, no
-batching:
-
-| write | outcome |
+| extra checks injected | legitimate create |
 | --- | --- |
-| create, no anchors | allowed |
-| create, all ten anchors | allowed |
-| D86 edit (`optionIdx` + `editedAt`) | allowed |
-| `set` over an existing answer | **ceiling hit** (denied — as intended) |
+| +0 | lands |
+| +80 | lands |
+| +200 | lands |
+| **+400** | **lands** |
 
-**Nothing legitimate is broken.** Every write the app actually makes
-lands, with all ten anchors. Only a `set` over an existing answer hits
-the ceiling, and that write is refused by design either way (D5/D86:
-answers are create-only but for the one edit shape, which is an
-`update`). What is gone is the margin.
+Four hundred more of the very check called too expensive, and the real
+path is still nowhere near the edge.
 
-**And it is not what failed #340.** That was stated too strongly when the
-CI log was first read: locally the suite passes *with* the ceiling being
-hit ten times, so the learn-aggregate timeout on #340 is a separate,
-still-intermittent failure. The two were adjacent in one log, not cause
-and effect.
+### Where the ceiling IS reached, and why it does not matter
 
-### Why the rule is so expensive: functions are macros
+Only on a `set` over an answer that already exists. That write evaluates
+the create rule and the update rule against one budget, and together they
+exceed it — so it is refused for running out rather than for being false.
 
-**A rules function substitutes its argument expression at every use of
-the parameter.** It is not a call, and there is no way to bind a value —
-no `let`, no local. So
+It is refused **either way**. Answers are create-only but for D86's one
+edit shape, and the client's edit path is `updateDoc`
+(`src/v2/data/live.ts`, the `editedAt` write) — checked, not assumed.
+Every `setDoc` on an answer in the client is a FIRST write. Nothing the
+app does reaches the failing path; the e2e reaches it three times a run
+on purpose, to prove the refusal, which is why it shows up in a log at
+all.
 
-```
-isOptionalShortString(anchors.get("city", null), 80)
-  → value == null || (value is string && value.size() <= max)
-```
+### The mistake, which is the reusable part
 
-evaluates `anchors.get("city", null)` **three times**, and `anchors` is
-itself a parameter holding `request.resource.data.get("anchors", {})`, so
-the map lookup under it expands three times too. Ten anchors: thirty-two
-expansions of one defaulted map get, to prove nobody sent a 400 KB city.
+**The failing case was bisected; the passing case was never measured.**
+Stub a clause, re-run, see the denial clear — that identifies which
+clause tips a red path over. It says nothing about how far the green path
+is from the edge, and I read the first as the second. Every conclusion
+after that inherited the error, including a decision record and an ask
+put to the owner.
 
-Bisected with the emulator rather than reasoned about: stub the anchors
-call and the ceiling clears; stub the arm disjunction and it clears;
-keep both and it does not. Neither half is the culprit — the rule is at
-100% of the budget and everything is the last straw.
+The tell was available and ignored: a fresh create with all ten anchors
+passed in the very first probe, in the same table as the failures. A
+passing row in a table of failures is a measurement, not a footnote.
 
-### What changed
+**The rule this leaves:** when a limit is reached, measure the distance
+from the limit on the path that must keep working — not on the path that
+is already failing. A red path tells you what tipped it; only the green
+path tells you what the margin is.
 
-Three reductions, each a strict cut in evaluated expressions, none a
-change in what the rules admit — verified by 199 rules tests and all
-three e2e suites:
+### What survives
 
-- **The surface discriminator moved ahead of `keys().hasOnly()`** in all
-  six answer predicates. `&&` short-circuits, so a non-matching arm now
-  costs one field read and one comparison instead of building a five-to
-  nine-element list literal and running a set operation first.
-- **`duelIndexSpace()` went from three calls to one.** Both indexes share
-  one bound, so testing the larger of the two once is the same test —
-  neither can be negative there. Repeated `get()`s on one path are deduped
-  within an evaluation; repeated *expressions* are not.
-- **`isValidV2Anchors` uses a two-use form** (`isShortAnchor`, defaulting
-  to `""` rather than `null`), cutting thirty-two argument expansions to
-  twenty-two and deciding the same cases: an absent key is a zero-length
-  string, a present non-string still fails `is string`.
+The three reductions the first version shipped, because each is free and
+none changes what the rules admit:
 
-`rules-coverage` caught what the first of those cost: two `hasOnly`
-clauses stopped being exercised, because a wrongly-shaped answer on
-another surface used to reach them and fail there **by accident**, which
-counted as coverage while proving nothing. Two negative cases were added
-rather than the baseline raised — a pulse and a call answer each carrying
-a key its shape does not name.
+- the surface discriminator ahead of `keys().hasOnly()` in all six answer
+  predicates;
+- `duelIndexSpace()` from three calls to one;
+- `isValidV2Anchors` in its two-use form.
 
-### What this does not fix, and the ask
+And the two negative rules cases `rules-coverage` demanded when the first
+of those stopped a `hasOnly` being exercised by accident. All of it is
+worth keeping; none of it was urgent, and the record should not have said
+it was.
 
-The `set`-over-existing path still hits the ceiling. Firestore evaluates
-the create rule with `resource == null` even when the document exists, so
-guarding on that does not short-circuit it, and no local reduction
-reached far enough. Clearing it needs one of:
+**What does NOT survive** is the ask. It invited the owner to weaken a
+guarantee to fix a problem that does not exist, which is the D352 process
+pointed at nothing. Withdrawn from `OWNER-LIST.md`.
 
-- **drop or move the per-anchor length validation** — the answer is
-  written by the client, so the profile rule is not a substitute; this
-  reduces what the rule guarantees;
-- **shrink what an answer create verifies** about its question document
-  (four reads of `v2_questions/{aid}`, each a separate path expression).
+### One real finding, separated out
 
-Both change a guarantee to fit a platform limit, which is the shape
-D352 reserves for the owner. On `OWNER-LIST.md` with this arithmetic.
+Building the replacement surfaced something the ceiling story had
+buried. The rule checks that an answer's anchors are *plausible* — ten
+strings of sane length — never that they are **yours**. A client can
+attach any well-formed cohort it likes to its own answer: city Tokyo,
+profession Surgeon, and every Mirror cut that reads that snapshot reads
+the invention. Verified: with the rule comparing the snapshot to the
+profile document, that write is refused; as the tree stands, it lands.
+
+That is an integrity question about the app's central claim — the cuts
+the Mirror draws are only as honest as the anchors answers carry — and
+it is worth its own decision rather than a footnote to a wrong one. It
+costs one document read per answer, and it needs an answer for the case
+where a profile edit and an answer race (measured: the answer is refused
+until the profile write lands). `OWNER-LIST.md` carries it as that
+question instead.
