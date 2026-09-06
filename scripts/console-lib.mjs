@@ -27,7 +27,7 @@
 // label `approved`, or open the PR for a branch row). A box unticked now
 // that the marker listed is a WITHDRAWAL (remove `approved`, unless
 // `merge-when-green` is already on — the shift has handed it over and the
-// shepherd's five steps own it from there). A row whose label moved on
+// owner's merge owns it from there). A row whose label moved on
 // GitHub itself (the owner labelled directly, the shift applied
 // merge-when-green) simply re-renders — labels are the truth the boxes
 // mirror, and the marker is what keeps the mirror from echoing itself.
@@ -378,8 +378,8 @@ console workflow runs on that push, mirrors the tick to the label
 \`approved\` on the pull request, and the **merge shift** takes it from
 there: brings the branch current with \`main\`, runs the full battery,
 reviews the whole diff as one unit, fixes what that proves broken,
-and applies \`merge-when-green\` — after which the **PR shepherd**
-merges (\`OPS-RUNBOOK.md\` § The PR shepherd). The same rows stand in
+and applies \`merge-when-green\`. **Nothing merges it after that: you
+do, by hand on GitHub** (D385 retired the PR shepherd). The same rows stand in
 the pinned **Console** issue with clickable boxes; a tick there is the
 same act, mirrored back into this file. Untick here to withdraw an
 approval the shift has not yet acted on. Ticking a *no PR yet* row
@@ -392,9 +392,9 @@ ahead of \`main\` forever, carrying nothing that is not already in.
 | --- | --- | --- |
 | **Open** | a PR is open and not yet approved (stage \`new\`), or a branch has commits, no PR, and no review record that accounts for them (stage \`no PR yet\`) | the workflow |
 | **In the shift** | the tick landed and the merge shift is bringing it to green | the workflow, on the label |
-| **Ready** | \`merge-when-green\` is applied; the shepherd merges on green | the workflow, on the label |
+| **Ready** | \`merge-when-green\` is applied; green and waiting for your merge | the workflow, on the label |
 | **Could not be made green** | the shift stopped, with what is red and why in its comment | the shift's comment, the workflow's row |
-| **Merged this week** | the shepherd or the owner merged it | the workflow |
+| **Merged this week** | the owner merged it | the workflow |
 
 The content lanes (farm, catalog, learn, feed, duel, now) merge their
 own PRs on green (D212) and are listed without a box. Dependabot's
@@ -872,7 +872,7 @@ export function renderConsole(state, priorBody = "") {
   for (const r of open) L.push(rowLine(r));
   const nights = nightsMerged(rows);
   if (nights) L.push(nights);
-  for (const [title, stage] of [["In the shift", "shift"], ["Ready — merge-when-green, the shepherd merges on green", "ready"], ["Could not be made green — your call", "blocked"]]) {
+  for (const [title, stage] of [["In the shift", "shift"], ["Ready — merge-when-green, green and waiting for your merge", "ready"], ["Could not be made green — your call", "blocked"]]) {
     const list = prs.filter((r) => r.stage === stage);
     L.push(`### ${title}`);
     if (!list.length) L.push("*(none)*");

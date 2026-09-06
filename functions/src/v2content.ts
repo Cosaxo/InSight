@@ -8255,6 +8255,1130 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "bg": "The NFL's 2026 season opens on Wednesday 9 September in Seattle — a Super Bowl rematch against New England, and the league's first Wednesday opener in well over a decade. Season openers traditionally hold Thursday night."
  },
  {
+  "id": "feed-f182",
+  "surface": "feed",
+  "seq": 267,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A one-club career: nobler, or just rarer?",
+  "options": [
+   "Nobler",
+   "Just rarer"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f183",
+  "surface": "feed",
+  "seq": 268,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sports films: better than the real thing, or never close?",
+  "options": [
+   "Sometimes better",
+   "Never close"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f184",
+  "surface": "feed",
+  "seq": 269,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Commentary: essential company, or mute and watch?",
+  "options": [
+   "Essential company",
+   "Mute and watch"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f185",
+  "surface": "feed",
+  "seq": 270,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Warming up: sacred, or skipped?",
+  "options": [
+   "Sacred",
+   "Skipped"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f186",
+  "surface": "feed",
+  "seq": 271,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A watch tracking your sleep: insight, or anxiety?",
+  "options": [
+   "Insight",
+   "Anxiety"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f187",
+  "surface": "feed",
+  "seq": 272,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Old phones in the drawer: an archive, or a hoard?",
+  "options": [
+   "An archive",
+   "A hoard"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f188",
+  "surface": "feed",
+  "seq": 273,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Passwords: a manager, or your own good system?",
+  "options": [
+   "A manager",
+   "My own system"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f189",
+  "surface": "feed",
+  "seq": 274,
+  "type": "vote",
+  "domain": null,
+  "prompt": "QR-code menus: fine now, or bring back paper?",
+  "options": [
+   "Fine now",
+   "Bring back paper"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f190",
+  "surface": "feed",
+  "seq": 275,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Is nostalgia a friend, or a liar?",
+  "options": [
+   "A friend",
+   "A liar"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f191",
+  "surface": "feed",
+  "seq": 276,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Would you rather be right, or be kind?",
+  "options": [
+   "Right",
+   "Kind"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f192",
+  "surface": "feed",
+  "seq": 277,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Does everything happen for a reason?",
+  "options": [
+   "It does",
+   "It doesn’t"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f193",
+  "surface": "feed",
+  "seq": 278,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The unexamined life: actually fine?",
+  "options": [
+   "Actually fine",
+   "Socrates was right"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f194",
+  "surface": "feed",
+  "seq": 279,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Big fish in a small pond, or small fish in a big one?",
+  "options": [
+   "Big fish, small pond",
+   "Small fish, big pond"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f195",
+  "surface": "feed",
+  "seq": 280,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Talking to strangers on a train: welcome, or headphones in?",
+  "options": [
+   "Welcome",
+   "Headphones in"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f196",
+  "surface": "feed",
+  "seq": 281,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Gift cards: thoughtful enough, or an apology?",
+  "options": [
+   "Thoughtful enough",
+   "An apology"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f197",
+  "surface": "feed",
+  "seq": 282,
+  "type": "vote",
+  "domain": null,
+  "prompt": "House shoes for guests: offer them, or never?",
+  "options": [
+   "Offer them",
+   "Never"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f198",
+  "surface": "feed",
+  "seq": 283,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The group photo: the organiser, or the edge-lurker?",
+  "options": [
+   "The organiser",
+   "The edge-lurker"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f199",
+  "surface": "feed",
+  "seq": 284,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Speak every language, or play every instrument?",
+  "options": [
+   "Every language",
+   "Every instrument"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f200",
+  "surface": "feed",
+  "seq": 285,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Always know the truth, or always be happy?",
+  "options": [
+   "The truth",
+   "Happy"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f201",
+  "surface": "feed",
+  "seq": 286,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your memories of a trip, or the photos of it — keep only one?",
+  "options": [
+   "The memories",
+   "The photos"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f202",
+  "surface": "feed",
+  "seq": 287,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Free flights forever, or free food forever?",
+  "options": [
+   "Free flights",
+   "Free food"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f203",
+  "surface": "feed",
+  "seq": 288,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Perfect sleep every night, or perfect meals every day?",
+  "options": [
+   "Perfect sleep",
+   "Perfect meals"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f204",
+  "surface": "feed",
+  "seq": 289,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Ticket resale above face value: the market, or scalping?",
+  "options": [
+   "The market",
+   "Scalping"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f205",
+  "surface": "feed",
+  "seq": 290,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Election day as a public holiday: overdue, or unnecessary?",
+  "options": [
+   "Overdue",
+   "Unnecessary"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f206",
+  "surface": "feed",
+  "seq": 291,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Space junk: whoever launched it cleans it, or everyone together?",
+  "options": [
+   "The launchers",
+   "Everyone together"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f207",
+  "surface": "feed",
+  "seq": 292,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Museums lending famous works abroad: generous, or risky?",
+  "options": [
+   "Generous",
+   "Risky"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f208",
+  "surface": "feed",
+  "seq": 293,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A four-day festival, or four one-day concerts?",
+  "options": [
+   "The festival",
+   "Four concerts"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f209",
+  "surface": "feed",
+  "seq": 294,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Salad as a main: a meal, or a side that got ambitious?",
+  "options": [
+   "A meal",
+   "An ambitious side"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f210",
+  "surface": "feed",
+  "seq": 295,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Tea: milk first, or tea first?",
+  "options": [
+   "Milk first",
+   "Tea first"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f211",
+  "surface": "feed",
+  "seq": 296,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The bread basket: restraint, or ruin your appetite happily?",
+  "options": [
+   "Restraint",
+   "Ruin it happily"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f212",
+  "surface": "feed",
+  "seq": 297,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Fruit: on the counter, or in the fridge?",
+  "options": [
+   "On the counter",
+   "In the fridge"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f213",
+  "surface": "feed",
+  "seq": 298,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The cinema alone: a pleasure, or a last resort?",
+  "options": [
+   "A pleasure",
+   "A last resort"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f214",
+  "surface": "feed",
+  "seq": 299,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Film scores: half the film, or background?",
+  "options": [
+   "Half the film",
+   "Background"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f215",
+  "surface": "feed",
+  "seq": 300,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Opening weekend, or wait for the verdict?",
+  "options": [
+   "Opening weekend",
+   "Wait for the verdict"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f216",
+  "surface": "feed",
+  "seq": 301,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Actors doing accents: commit, or don’t bother?",
+  "options": [
+   "Commit",
+   "Don’t bother"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f217",
+  "surface": "feed",
+  "seq": 302,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Live music: outdoors under the sky, or in a room built for it?",
+  "options": [
+   "Under the sky",
+   "A room built for it"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f218",
+  "surface": "feed",
+  "seq": 303,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Lyrics you’ve misheard for years: correct them, or keep yours?",
+  "options": [
+   "Correct them",
+   "Keep mine"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f219",
+  "surface": "feed",
+  "seq": 304,
+  "type": "vote",
+  "domain": null,
+  "prompt": "An album on shuffle: harmless, or heresy?",
+  "options": [
+   "Harmless",
+   "Heresy"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f220",
+  "surface": "feed",
+  "seq": 305,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The perfect concert companion: the superfan, or the first-timer?",
+  "options": [
+   "The superfan",
+   "The first-timer"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f221",
+  "surface": "feed",
+  "seq": 306,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Wedding band, or wedding DJ?",
+  "options": [
+   "Band",
+   "DJ"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f222",
+  "surface": "feed",
+  "seq": 307,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your driving instructor: Lewis Hamilton, or your mum?",
+  "options": [
+   "Lewis Hamilton",
+   "My mum"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f223",
+  "surface": "feed",
+  "seq": 308,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A duet with: Freddie Mercury, Aretha Franklin, or Frank Sinatra?",
+  "options": [
+   "Freddie Mercury",
+   "Aretha Franklin",
+   "Frank Sinatra"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f224",
+  "surface": "feed",
+  "seq": 309,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Whose wardrobe: David Bowie’s, Audrey Hepburn’s, or Pharrell’s?",
+  "options": [
+   "David Bowie’s",
+   "Audrey Hepburn’s",
+   "Pharrell’s"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f225",
+  "surface": "feed",
+  "seq": 310,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The group project partner: Hermione Granger, or Tony Stark?",
+  "options": [
+   "Hermione Granger",
+   "Tony Stark"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f226",
+  "surface": "feed",
+  "seq": 311,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Who’d survive a week in your job: Gordon Ramsay, Oprah, or The Rock?",
+  "options": [
+   "Gordon Ramsay",
+   "Oprah",
+   "The Rock"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl44",
+  "surface": "feed",
+  "seq": 312,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Push-ups you could do right now?",
+  "options": [
+   "0–5 push-ups",
+   "5–10 push-ups",
+   "10–15 push-ups",
+   "15–20 push-ups",
+   "20–25 push-ups",
+   "25–30 push-ups",
+   "30–35 push-ups",
+   "35–40 push-ups",
+   "40–45 push-ups",
+   "45–50 push-ups",
+   "50–55 push-ups",
+   "55–60 push-ups"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "push-ups"
+ },
+ {
+  "id": "feed-dl45",
+  "surface": "feed",
+  "seq": 313,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Unread notifications right now?",
+  "options": [
+   "0–10 notifications",
+   "10–20 notifications",
+   "20–30 notifications",
+   "30–40 notifications",
+   "40–50 notifications",
+   "50–60 notifications",
+   "60–70 notifications",
+   "70–80 notifications",
+   "80–90 notifications",
+   "90–100 notifications",
+   "100–110 notifications",
+   "110–120 notifications"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 120,
+  "unit": "notifications"
+ },
+ {
+  "id": "feed-dl46",
+  "surface": "feed",
+  "seq": 314,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many lives would you want to live, if you could?",
+  "options": [
+   "0–1 lives",
+   "1–2 lives",
+   "2–3 lives",
+   "3–4 lives",
+   "4–5 lives",
+   "5–6 lives",
+   "6–7 lives",
+   "7–8 lives",
+   "8–9 lives",
+   "9–10 lives",
+   "10–11 lives",
+   "11–12 lives"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "lives"
+ },
+ {
+  "id": "feed-dl47",
+  "surface": "feed",
+  "seq": 315,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Decorations up — from which week of the year?",
+  "options": [
+   "0–4 weeks",
+   "4–9 weeks",
+   "9–13 weeks",
+   "13–17 weeks",
+   "17–22 weeks",
+   "22–26 weeks",
+   "26–30 weeks",
+   "30–35 weeks",
+   "35–39 weeks",
+   "39–43 weeks",
+   "43–48 weeks",
+   "48–52 weeks"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 52,
+  "unit": "weeks"
+ },
+ {
+  "id": "feed-dl48",
+  "surface": "feed",
+  "seq": 316,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The most you’d queue for anything, in minutes?",
+  "options": [
+   "0–10 min",
+   "10–20 min",
+   "20–30 min",
+   "30–40 min",
+   "40–50 min",
+   "50–60 min",
+   "60–70 min",
+   "70–80 min",
+   "80–90 min",
+   "90–100 min",
+   "100–110 min",
+   "110–120 min"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 120,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl49",
+  "surface": "feed",
+  "seq": 317,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Fireworks on New Year’s: how many minutes is right?",
+  "options": [
+   "0–2 min",
+   "2–4 min",
+   "4–6 min",
+   "6–8 min",
+   "8–10 min",
+   "10–12 min",
+   "12–14 min",
+   "14–16 min",
+   "16–18 min",
+   "18–20 min",
+   "20–22 min",
+   "22–24 min"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl50",
+  "surface": "feed",
+  "seq": 318,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Spice jars in your kitchen?",
+  "options": [
+   "0–4 jars",
+   "4–8 jars",
+   "8–12 jars",
+   "12–16 jars",
+   "16–20 jars",
+   "20–24 jars",
+   "24–28 jars",
+   "28–32 jars",
+   "32–36 jars",
+   "36–40 jars",
+   "40–44 jars",
+   "44–48 jars"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 48,
+  "unit": "jars"
+ },
+ {
+  "id": "feed-dl51",
+  "surface": "feed",
+  "seq": 319,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Times you’ve seen your most-watched film?",
+  "options": [
+   "0–2 times",
+   "2–4 times",
+   "4–6 times",
+   "6–8 times",
+   "8–10 times",
+   "10–12 times",
+   "12–14 times",
+   "14–16 times",
+   "16–18 times",
+   "18–20 times",
+   "20–22 times",
+   "22–24 times"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "times"
+ },
+ {
+  "id": "feed-dl52",
+  "surface": "feed",
+  "seq": 320,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Songs on your on-repeat playlist right now?",
+  "options": [
+   "0–3 songs",
+   "3–6 songs",
+   "6–9 songs",
+   "9–12 songs",
+   "12–15 songs",
+   "15–18 songs",
+   "18–21 songs",
+   "21–24 songs",
+   "24–27 songs",
+   "27–30 songs",
+   "30–33 songs",
+   "33–36 songs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 36,
+  "unit": "songs"
+ },
+ {
+  "id": "feed-dl53",
+  "surface": "feed",
+  "seq": 321,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Posters on your teenage bedroom wall — how many?",
+  "options": [
+   "0–1 posters",
+   "1–2 posters",
+   "2–3 posters",
+   "3–4 posters",
+   "4–5 posters",
+   "5–6 posters",
+   "6–7 posters",
+   "7–8 posters",
+   "8–9 posters",
+   "9–10 posters",
+   "10–11 posters",
+   "11–12 posters"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "posters"
+ },
+ {
+  "id": "feed-fd10",
+  "surface": "feed",
+  "seq": 322,
+  "type": "field",
+  "domain": null,
+  "prompt": "Team loyalty — place it",
+  "options": [
+   "born into it · transferable",
+   "lean born into it · transferable",
+   "lean chosen · transferable",
+   "chosen · transferable",
+   "born into it · middle",
+   "lean born into it · middle",
+   "lean chosen · middle",
+   "chosen · middle",
+   "born into it · for life",
+   "lean born into it · for life",
+   "lean chosen · for life",
+   "chosen · for life"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "born into it",
+   "chosen"
+  ],
+  "ay": [
+   "for life",
+   "transferable"
+  ]
+ },
+ {
+  "id": "feed-fd11",
+  "surface": "feed",
+  "seq": 323,
+  "type": "field",
+  "domain": null,
+  "prompt": "Social media — place it",
+  "options": [
+   "drains me · here to stay",
+   "lean drains me · here to stay",
+   "lean feeds me · here to stay",
+   "feeds me · here to stay",
+   "drains me · middle",
+   "lean drains me · middle",
+   "lean feeds me · middle",
+   "feeds me · middle",
+   "drains me · quitting soon",
+   "lean drains me · quitting soon",
+   "lean feeds me · quitting soon",
+   "feeds me · quitting soon"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "drains me",
+   "feeds me"
+  ],
+  "ay": [
+   "quitting soon",
+   "here to stay"
+  ]
+ },
+ {
+  "id": "feed-fd12",
+  "surface": "feed",
+  "seq": 324,
+  "type": "field",
+  "domain": null,
+  "prompt": "Traditions — place it",
+  "options": [
+   "keep them all · confining",
+   "lean keep them all · confining",
+   "lean invent new · confining",
+   "invent new · confining",
+   "keep them all · middle",
+   "lean keep them all · middle",
+   "lean invent new · middle",
+   "invent new · middle",
+   "keep them all · comforting",
+   "lean keep them all · comforting",
+   "lean invent new · comforting",
+   "invent new · comforting"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "keep them all",
+   "invent new"
+  ],
+  "ay": [
+   "comforting",
+   "confining"
+  ]
+ },
+ {
+  "id": "feed-fd13",
+  "surface": "feed",
+  "seq": 325,
+  "type": "field",
+  "domain": null,
+  "prompt": "Snacking — place it",
+  "options": [
+   "a grazer · guilty",
+   "lean a grazer · guilty",
+   "lean three meals · guilty",
+   "three meals · guilty",
+   "a grazer · middle",
+   "lean a grazer · middle",
+   "lean three meals · middle",
+   "three meals · middle",
+   "a grazer · proud",
+   "lean a grazer · proud",
+   "lean three meals · proud",
+   "three meals · proud"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "a grazer",
+   "three meals"
+  ],
+  "ay": [
+   "proud",
+   "guilty"
+  ]
+ },
+ {
+  "id": "feed-fd14",
+  "surface": "feed",
+  "seq": 326,
+  "type": "field",
+  "domain": null,
+  "prompt": "Sequels — place it",
+  "options": [
+   "never needed · real stories",
+   "lean never needed · real stories",
+   "lean keep them · real stories",
+   "keep them · real stories",
+   "never needed · middle",
+   "lean never needed · middle",
+   "lean keep them · middle",
+   "keep them · middle",
+   "never needed · cash grabs",
+   "lean never needed · cash grabs",
+   "lean keep them · cash grabs",
+   "keep them · cash grabs"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "never needed",
+   "keep them"
+  ],
+  "ay": [
+   "cash grabs",
+   "real stories"
+  ]
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -8947,7 +10071,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Relief",
    "Annoyed"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -8963,7 +10087,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ignore",
    "Text back later"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -8978,7 +10102,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Love it",
    "Squirm"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -8995,7 +10119,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Steady",
    "Restless"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9011,7 +10135,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The honest ETA",
    "Nothing — just arrives"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9026,7 +10150,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Say something",
    "Eat it anyway"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9043,7 +10167,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Honesty",
    "Nerve"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9059,7 +10183,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Map it out",
    "Just wander"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9074,7 +10198,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bliss",
    "Restless"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9090,7 +10214,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "One duet, then done",
    "Vanishes"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9106,7 +10230,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Talking to one person",
    "Near the door"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9121,7 +10245,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Laugh it off",
    "Say so"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9138,7 +10262,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ask everyone",
    "Sleep on it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9153,7 +10277,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Freely",
    "Fight it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9170,7 +10294,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Advice",
    "A favour"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9186,7 +10310,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "One plan, then drift",
    "Pool. Book. Done."
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9203,7 +10327,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "How funny",
    "How serious"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9220,7 +10344,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Treat someone else",
    "Spend a little now"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9235,7 +10359,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bring it up",
    "Let it go"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9250,7 +10374,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The talk",
    "The sleep"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9266,7 +10390,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Takes a while",
    "No"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9282,7 +10406,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Loud",
    "Busy"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9297,7 +10421,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Hard truth",
    "Silence"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9314,7 +10438,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Generosity",
    "Judgement"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9331,7 +10455,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Movement",
    "Sleep"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9346,7 +10470,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Giving",
    "Taking"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9361,7 +10485,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Gift",
    "Sentence"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9378,7 +10502,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The listener",
    "The truth-teller"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9393,7 +10517,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Surrounded",
    "Independent"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -9410,7 +10534,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Being fun",
    "Being right"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9427,7 +10551,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "People-pleasing",
    "Distraction"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -9442,7 +10566,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Concede on the spot",
    "Quietly change course"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -9458,7 +10582,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sofa, one film",
    "Cooking together"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9476,7 +10600,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Left alone",
    "Talked at immediately"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9494,7 +10618,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A gesture",
    "Time, then normal"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9511,7 +10635,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Fine, orders a drink",
    "Says nothing, remembers it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9530,7 +10654,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Being touched",
    "Being chosen"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9548,7 +10672,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A pause",
    "Space, then dinner"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9565,7 +10689,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A plan they made",
    "A day with nothing in it"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9583,7 +10707,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Mostly shared",
    "Separate, split bills"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9602,7 +10726,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Left in peace",
    "Asked about"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9619,7 +10743,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bliss",
    "Too much"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9637,7 +10761,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Cleans something",
    "Talks about nothing else"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9655,7 +10779,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Somewhere new",
    "Somewhere quiet"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9673,7 +10797,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Want you to choose",
    "Already decided"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9691,7 +10815,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Only if asked",
    "No"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9710,7 +10834,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Silence",
    "It doesn't"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9728,7 +10852,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Open to it",
    "No"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9747,7 +10871,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Their people",
    "Their solitude"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9765,7 +10889,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Wait",
    "Ask you not to go"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9784,7 +10908,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "More calm",
    "More honesty"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9801,7 +10925,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Side by side",
    "Busy, together"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9820,7 +10944,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Talking it out",
    "Acting normal"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9837,7 +10961,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Settled deep",
    "Still moving"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9855,7 +10979,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Hint and hope",
    "Soldier on alone"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -9874,7 +10998,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The quiet steadiness",
    "The double act"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",

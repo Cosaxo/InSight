@@ -24,23 +24,26 @@ const { useState } = React;
 const EX = {
   // the 1v1 and group readings as instruments (2026-08-24) — the Roles
   // panel's roses read these through the same ⓘ as every test
+  // Every rate is scored against luck since D386 (data/roles.ts): 50 is
+  // guessing at random, 100 is right every day, whatever the day's option
+  // count — which is what lets a two-way day and a pick day share a petal.
   duo: {
-    about: 'How a single 1v1 goes: who calls whom, how alike you answer, and whether it holds.',
+    about: 'How a single 1v1 goes: who calls whom, how alike you answer, and whether it holds. Scored against luck — 50 is guessing at random.',
     dims: {
-      read:   'Of your guesses at their answer, the share you call right.',
-      seen:   'Of their guesses at yours, the share they call right.',
-      like:   'How often the two of you give the same answer.',
+      read:   'Your guesses at their answer, against luck.',
+      seen:   'Their guesses at yours, against luck.',
+      like:   'How often you give the same answer, against luck. Days about each other don’t count.',
       steady: 'Whether your right calls come in runs or scattered.',
     },
   },
   group: {
-    about: 'Where you sit in a circle: with it, against it, or the one it names.',
+    about: 'Where you sit in a circle: with it, against it, or calling where it lands. Scored against luck — 50 is random.',
     // no `cast` line: the prototype's fourth dimension is not computed here
     // (D204 — its only source was a demo scenario generator), and copy for a
     // dim that cannot render would only be waiting to describe a fabrication
     dims: {
-      own:    'The share of days you land away from the majority.',
-      pull:   'How often the others land where you land.',
+      own:    'How often you land away from the majority, against luck.',
+      pull:   'How often the others land where you land, against luck.',
       settle: 'Whether which side you’re on holds from day to day.',
     },
   },

@@ -311,11 +311,13 @@ describe("the lists on this tree", () => {
   it("reads visual requests by status and permissions by state", () => {
     const v = parseVisualRequests(read("docs/VISUAL-REQUESTS.md"));
     // 4 since D368 added the interest-profile panel (0b), 5 since D371
-    // filed the buying door's price shape (item 4) the same day. The web
-    // ask door D368 also added moved Designed → Built at D369 — the
-    // SECTION is the status, not the `status` line inside the entry, so an
-    // entry that is built and left under Designed reads as still waiting.
-    expect(v.requested.length).toBe(5);
+    // filed the buying door's price shape (item 4) the same day, 7 since
+    // ROLES-PLAN.md filed the 1v1/group profile (item 5) and the group's
+    // cast (item 6) on 2026-09-06. The web ask door D368 also added moved
+    // Designed → Built at D369 — the SECTION is the status, not the
+    // `status` line inside the entry, so an entry that is built and left
+    // under Designed reads as still waiting.
+    expect(v.requested.length).toBe(7);
     expect(v.designed).toEqual([]);
     expect(v.built.length).toBe(1);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
@@ -379,7 +381,7 @@ describe("the register", () => {
     // verified block — it is the chartered ops lanes, ids transcribed from
     // a runbook. Before this, all of §5 was drawn as Claude 3's, so the
     // console reported eight routines for an account whose true count is
-    // zero, one of them (the PR shepherd) already listed under Claude 2
+    // zero, one of them already listed under Claude 2
     // and none of them read from `list_triggers`.
     const withOps = `# The register
 
@@ -397,7 +399,7 @@ Nobody has written this block.
 
 | Lane | Trigger id | Fires (UTC) | Merge authority |
 | --- | --- | --- | --- |
-| PR shepherd | \`trig_9\` | \`20 6,16 * * *\` | squash |
+| Pulse responder | \`trig_9\` | \`20 6,16 * * *\` | never |
 `;
     expect(parseRegister(withOps)).toEqual([
       { account: "Claude 1", name: "feed lane", trigger: "trig_1", schedule: "30 9 * * *" },

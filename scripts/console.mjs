@@ -326,7 +326,7 @@ export async function act(state, actions, log, api = gh) {
         // itself was drawn to prevent (D387).
         const already = state.rows.find((r) => r.key === a.key)?.reviewed;
         const inAlready = already ? ` ${already.commits} of them are already on \`main\`, merged as ${already.record}.` : "";
-        const body = `Opened by the console workflow from a tick on \`docs/MERGE-LIST.md\` (D352): ${a.from}'s branch \`${a.branch}\`, ${b?.aheadBy ?? "?"} commits ahead of \`main\`.${inAlready} The merge shift brings it current, runs the battery, reviews the diff as one unit and hands it to the shepherd.\n\nwhat: ${a.from}'s work on \`${a.branch}\`\nhow: see the commits below and the branch's own summary\n\n${commits}`;
+        const body = `Opened by the console workflow from a tick on \`docs/MERGE-LIST.md\` (D352): ${a.from}'s branch \`${a.branch}\`, ${b?.aheadBy ?? "?"} commits ahead of \`main\`.${inAlready} The merge shift brings it current, runs the battery, reviews the diff as one unit and hands it back to you to merge.\n\nwhat: ${a.from}'s work on \`${a.branch}\`\nhow: see the commits below and the branch's own summary\n\n${commits}`;
         const pr = await gh(`/repos/${REPO}/pulls`, { method: "POST", body: { title: `${a.branch}: ${a.from}'s branch, approved from the merge list`, head: a.branch, base: "main", body } });
         await gh(`/repos/${REPO}/issues/${pr.number}/labels`, { method: "POST", body: { labels: ["approved"] } });
         const idx = state.rows.findIndex((r) => r.key === a.key);
