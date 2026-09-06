@@ -40837,3 +40837,94 @@ the merged tree — D382 had just taken the question content out of first
 paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
+
+## D387 · The 2026-09-06 vision arrives: ink on paper, a 12px floor, and the dial in the header
+
+**2026-09-06.** **Status:** binding for what the vision points at;
+nothing of it is built. The owner's `InSight_9.html` upload of this
+date, made the current vision by D361's standing rule — an owner
+upload is a vision without a request — extracted, measured and named
+in one PR (`claude/zen-pascal-ugc4p4`). `main` mints numbers while a
+branch is open, so the standing collision pattern (D289) may renumber
+this at merge; the documents cite it by date where they can.
+
+### What arrived, and how it was diffed
+
+The ninth numbered standalone (`InSight_8` was never uploaded, like 5
+and 6), in InSight_7's compiled fast-boot shape: one 2 MB bundle of
+114 modules, 26 assets. Diffed against the latest recorded state of
+every module — v18 + the v28 patches + the seven later extractions +
+the two READMEs' prose hunks, compiled where the record is JSX, per
+the 09-02 README's recipe — **89 of 114 modules byte-identical**,
+eight more differing only by recorded hunks, and the residue exact:
+**seventeen modules, seven stylesheets, one new stylesheet**. The
+patches in `design/standalone-2026-09-06/changes/` reproduce the
+upload byte-for-byte from that baseline; the whole files are the
+upload's bytes. The inventory is that directory's README; the plan,
+with every item measured against the tree, is
+[`VISION-2026-09-06.md`](VISION-2026-09-06.md).
+
+### What the design says
+
+One direction — **ink on paper** — in four moves: `lens-paper` goes
+from an unwired hook to the app's default and the boxes go with it
+(feed cards on a top-rule ground, the result card and the profile as
+hairline sections, the ballot one hairline row, the test picker rows,
+figures drawing themselves in); a **12px floor** under every piece of
+microtype, app-wide (the Patterns tab's 10.5 rule, raised and made
+global); the **serif voice reaching further** (Circle and 1v1 prompts,
+the Oracle's options inside the disc halves, the Map's hub figure, the
+result card's identity line); and **chrome collapsing into words** (the
+lens legends behind one ⓘ with the rule that a basis sentence may move
+behind a tap but never be deleted; the daily's ⓘ icon becoming *why
+this question*; the feed's topic rail behind an *all topics* chip; the
+Patterns lens picker as a header dial that docks like the daily's
+ruler).
+
+### What the mapping found
+
+- **The repo's `--field-size` is not the prototype's.** Same name, two
+  tokens: the tree's is a 16px input font size (the iOS-zoom guard);
+  the prototype's is a 56px tap height, and it is the new ballot's
+  min-height. A blind port draws a 16px-tall ballot; the plan's §5.1
+  names the trap and the port carries its own height token.
+- **Two redraws target retired surfaces.** The test picker
+  (`test-overlay.jsx` as rows) redraws the sit-down flow D121 replaced
+  with passive results — provenance, not a step; and the paid data
+  file extends a pricing law D371–D377 partly moved past (the crowding
+  index supersedes the booked-ratio idx for sponsored questions).
+- **The upload answers an open owner question in the drawing.**
+  `paid-data.js`'s new `SUB` writes the subscription seat split
+  VISION-2026-08-26 §2.2 has waited on — evenly across subscribers,
+  recomputed each period, a €24 seat floor. The OWNER-LIST row now
+  carries the owner's own arithmetic and still waits for the tick,
+  plus one new word the tick needs: where the catalog window lives
+  now that buying is on the web (D368).
+- **The anonymous-answers toggle is drawn a third time** — now as
+  underlined words under the new ballot. The D98-amendment row stands;
+  the plan builds the ballot and holds the words (D334: not built
+  silently, not dropped silently).
+- **Born or built dies before it was ever drawn.** The design deletes
+  `NatureRows` from the result card; the tree never ported it, so the
+  deletion costs nothing and closes the line that has sat on the v20
+  remains list since D113.
+- **One dead block in the new sheet.** `dots.css` carries an `.h-dots`
+  family no module references — the header dial wears the existing
+  `.h-dockruler` classes. Recorded as found, not ported.
+
+### What this changes elsewhere
+
+`VISUAL-VISION.md` names the 2026-09-06 design the current vision and
+the lineage gains its row; request 1 gains a note (the in-rim labels
+share the field its "inner arc" grammar priced; the three grammars
+stand); the two OWNER-LIST rows gain what the design draws; six
+`[claude-3]` build lines join the worklist in the plan's §8 order. The
+committed style-diff reference does not move (`design/README.md`'s
+rule): v18 stays what the tree is measured against until a full sync.
+
+### Gates
+
+`check:docs` (the new plan registered, the vision re-pointed, every
+cited path resolving), `check:figures`, `test:scripts` — this PR is
+documents and provenance only, so the client suites are untouched by
+construction.

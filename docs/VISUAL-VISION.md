@@ -10,7 +10,45 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-09-02 standalone
+## The current vision — the 2026-09-06 standalone
+
+- **Source:** the owner's `InSight_9.html` upload of 2026-09-06
+  (`InSight_8` was never uploaded here), extracted to
+  `design/standalone-2026-09-06/` (its README is the inventory: the
+  seventeen modules and seven stylesheets that moved, the fourteen
+  patches, the one new stylesheet, the unchanged list — compiled JSX
+  again, the 09-02 README's recipe applies). Made the vision by D361's
+  standing rule — the owner's upload moves the vision — and recorded
+  at D387.
+- **The plan built on it:** `VISION-2026-09-06.md` — every item
+  measured against the tree with its backend half named, §8 the build
+  order as worklist lines, §9 the gate per step. Nothing is built yet.
+- **What it changed over the 2026-09-02 design:** one direction — **ink
+  on paper**. `lens-paper` goes from an unwired hook to the app's
+  default (the Patterns field trades dusk for paper) and the boxes go
+  with it: feed cards on a top-rule ground, the result card and the
+  profile flattened to hairline sections, the ballot one hairline row,
+  the test picker rows, and the figures **drawing themselves in** (the
+  Patterns ring and the Map constellation arrive as ink strokes). A
+  **12px floor** goes under every piece of microtype, app-wide. The
+  **serif voice reaches further** — Circle and 1v1 prompts, the
+  Oracle's options inside the disc halves, the Map's hub figure, the
+  result card's identity line. **Chrome collapses into words**: the
+  standing lens legends retire behind one ⓘ per lens, the daily's ⓘ
+  icon becomes *why this question*, the feed's topic rail folds behind
+  an *all topics* chip, and the Patterns lens picker moves into the
+  header as a dial that docks like the daily's ruler. On the model
+  side, `paid-data.js` **draws the subscription seat split** 08-26
+  §2.2 has waited on (evenly across subscribers, a €24 seat floor) —
+  still the owner's tick, now with the owner's own drawing behind it.
+- **Built from it:** nothing yet. The design also draws the anonymous
+  answers words on the daily — the third design in a row to draw that
+  toggle, still the open D98-amendment decision on `OWNER-LIST.md`.
+- **Requests it closed:** none. It **quiets the field request 1 draws
+  in** (in-rim topic labels now use part of the inner area the "inner
+  arc" grammar priced; the request's three grammars stand, with a note).
+
+## The one before — the 2026-09-02 standalone
 
 - **Source:** the owner's `InSight_7.html` upload of 2026-09-02,
   extracted to `design/standalone-2026-09-02/` (its README is the
@@ -61,7 +99,8 @@ it is moving toward.
 | 2026-08-22 | `design/standalone-2026-08-22/` | the paid question report | D251 |
 | 2026-08-24 | `design/standalone-2026-08-24/` | the suggestion board becomes the paid door; the buyer's room; locals and visitors | `VISION-2026-08-24.md`, D287–D288 |
 | 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
-| **2026-09-02** | `design/standalone-2026-09-02/` | **the current vision** — above | `VISION-2026-09-02.md`, D361 |
+| 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
+| **2026-09-06** | `design/standalone-2026-09-06/` | **the current vision** — above | `VISION-2026-09-06.md`, D387 |
 
 ## How the next one arrives
 
