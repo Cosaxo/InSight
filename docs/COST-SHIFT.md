@@ -90,12 +90,13 @@ re-entry; where two panels fetch the same thing; where a list is paged
 past what is drawn; where a re-read after a vote fetches more than the
 one document that changed. `COSTS.md`'s per-user-day decomposition is
 the map — D98 social surfaces 354 of the 440, re-attach 28, boot 21 —
-and that number is what this lens moves. The rules: the same picture
-from fewer documents is a saving; a smaller picture is not (§2). The
-caps that thin a surface (`VOTER_FETCH_CAP`, `KINDRED_QUESTIONS`,
-`CIRCLE_ANSWER_CAP`) are refused levers, and so is any change that
-makes a stop draw later than it does today — first paint comes off the
-device at zero reads (D356) and stays there.
+and that number is what this lens moves. The bar: the same picture
+from fewer documents is the saving this lens is for; showing fewer
+people is not efficiency, and it is the one thing here that goes to
+the owner instead of into the branch (§2 — `VOTER_FETCH_CAP`,
+`KINDRED_QUESTIONS`, `CIRCLE_ANSWER_CAP`). First paint comes off the
+device at zero reads (D356); a change that moves it says so in its
+measurement, and the closer reads that line first.
 
 ### writes — the server's write and compute path
 
@@ -123,8 +124,11 @@ moves `cost-arith.mjs` and its pin in the same commit.
 
 `firestore.rules` (the `get()` count on every write path, and the
 1000-expression ceiling `OWNER-LIST.md` § Decisions records on the
-answers path — the measurement that row says nothing in the repo
-produces is this lens's to build; the restructure is an ask),
+answers path — the per-branch expression measurement that row says
+nothing in the repo produces is this lens's to build first, and the
+restructure follows it, in the same branch or the next night's,
+proved by `test:rules` and the e2e suites: restructured, never
+loosened),
 `firestore.indexes.json`, `docs/SCHEMA-V2.md`, `docs/data-inventory.md`,
 `docs/BANK-DELIVERY.md`'s three ceilings, `storage.rules`,
 `firebase.json`'s hosting rules, and the size of every document a hot
@@ -140,9 +144,11 @@ copy there is (D8, D290) and `check:answer-shape` exists for the
 change that trims it; the aggregates are disposable projections of the
 answers and may be reshaped freely, so long as every client read of
 them still finds the exact published counts (D98); sharding the daily
-aggregate is designed in `ANSWER-SCALE.md` §4 and *shelved on the
-alert* — building it ahead of the alert is an ask (§2), and the probe
-that would show whether the alert is near is a build.
+aggregate is designed in `ANSWER-SCALE.md` §4 and was shelved on the
+contention alert under D7 — for this lane that shelf is lifted (§2,
+D393): it is the named example of the redesign this lens exists to
+build, with the probe that shows how near the wall is landing beside
+it.
 
 ### bill — the bill against the model
 
@@ -172,68 +178,79 @@ figure: it runs `npm run costs`, `npm run costs:levers` and
 
 ---
 
-## 2 · The licence — what may be built, what must be asked, what is never done
+## 2 · The licence — build, and what travels with a build
 
-This is the section the owner's sentence *"it can do decent size
-redesigns"* lands in, and it is worded against two records that would
-otherwise stop every redesign at the door: D7 (*backend scale ceilings
-are recorded, not engineered around — zero users, no build*) and
-`COST-REDUCTION.md` §3 (*not yet: everything else — at launch sizes the
-entire lever list is worth about $2 a month*). The owner's ask is read
-as licensing the middle row, not the top one: a redesign that is no
-dearer today and removes a wall is built; a redesign that costs today
-to pay later is put to the owner with the arithmetic. D393 records
-this reading as proposed, and the owner's word on it flips the record.
+The first draft of this section read the owner's *"decent size
+redesigns"* against D7 (*backend scale ceilings are recorded, not
+engineered around — zero users, no build*) and `COST-REDUCTION.md` §3
+(*not yet: everything else*), and let an auditor build only a redesign
+that was *"no dearer today and removes a wall"*, sending the rest to
+the owner as asks. The owner read it back the same day: *"this sounds
+wrong … doesn't that needlessly limit."* It did — D329's finding a
+fourth time, a preference stated as a rule reading as a rule — and
+D393 records the ruling: **for this lane's subject, data handling and
+Firebase efficiency, D7's no-build-before-users does not apply,
+`COST-REDUCTION.md` §3's "not yet" is lifted, and `ANSWER-SCALE.md`
+§5.3's "build on the alert" shelf is lifted.** The app's data handling
+is engineered to be efficient ahead of demand, by this lane, nightly.
+The question to put to a constraint here is `CLAUDE.md`'s: *how is it
+made to work*, never *how is the change cut to fit it*.
 
-**An auditor may BUILD, on its branch, without asking:**
+**An auditor BUILDS, on its branch, at any size and any horizon:**
 
-- **The same picture for less** — a change that removes reads, writes,
-  bytes, invocations or CPU-seconds at every size and changes nothing
-  a user sees or how soon they see it.
+- **The same picture for less** — fewer reads, writes, bytes,
+  invocations or CPU-seconds with nothing a user sees changed.
 - **A bound on an unbounded path** — a page, a cap on a fetch that had
-  none, a retention, a ceiling on a fan-out — where today's behaviour
-  sits inside the bound and the bound is stated in the code with why.
-- **A redesign that is no dearer today and removes or moves a wall**
-  — the reshaping of a projection, a fold that reads its input once
-  instead of twice, a document split so a hot path reads what it
-  draws. "No dearer" is measured, not asserted: the model re-run at
-  50 and 500 DAU as well as at 50,000.
+  none, a retention, a ceiling on a fan-out — stated in the code with
+  why.
+- **A redesign of any size** — a projection reshaped, a fold reading
+  its input once instead of twice, a document split so a hot path
+  reads what it draws, the daily aggregate sharded (`ANSWER-SCALE.md`
+  §4), the answers create rule restructured against its expression
+  ceiling — whether it pays today, at ten thousand users, or past a
+  wall the app has not reached.
+- **A cadence** — a scheduled function run less often, a poll or a
+  re-check widened — with the user-visible effect stated on the line,
+  so the closer and the owner read what a user would notice.
+- **A schema move that changes what an installed client reads**, with
+  the compatibility or migration path built in the same branch: an
+  old build in someone's pocket is a user too.
 - **Measurement** — a tripwire, a probe, a corrected constant, an alert
   policy, a model input replaced by a trail figure, a count the
-  repository could not produce before. Measurement is always licensed;
-  it is what every other row rests on.
+  repository could not produce before.
 - **The removal of a cost nothing reads** — a document written for a
   consumer that no longer exists, a log line at a volume nobody
   queries, a workflow step that fetches what the next step ignores —
-  once the auditor has shown, by grep and by the data inventory, that
-  nothing reads it.
+  once grep and the data inventory show that nothing reads it.
 
-**An auditor must ASK — one row on `docs/OWNER-LIST.md` § Decisions with
-what would change, what it saves at each size, what it costs today, and
-the smallest shape that keeps the value — and may still build the part
-that does not depend on the answer:**
+**What travels with every build** — not limits; the honesty D1 asks of
+a number: the measurement at five sizes in both directions, so a
+change that costs at 50 DAU and saves at 500,000 shows the owner the
+trade rather than a claim; the `COSTS.md` line regenerated; the pin
+moved with its constant; the test; the why-comment; the
+data-inventory row; the compatibility path; the stated effect.
 
-- Anything that **thins a surface** — the who-voted page, Kindred's
-  twelve questions, the Circle's three hundred answers, a lens drawn
-  from fewer people than today. `COST-REDUCTION.md` §5 refused these
-  and the refusal stands until the owner lifts it (D334 — a refusal
-  already written down is an ask, never a silent stop and never a
-  silent build).
-- A redesign that **costs today to pay later** — more reads or writes
-  at 50 DAU to save them at 50,000 — or that only pays past a wall the
-  app has not reached (D7). Sharding ahead of the contention alert is
-  the named case (`ANSWER-SCALE.md` §5.3).
-- A **schema move that changes what the client reads** in a way an
-  installed app on an old build would not survive without a migration
-  path the auditor has not built.
-- A **privacy-shaped finding** — a field that joins two things, a
-  number that would stop being exact, a lens that would name someone
-  (D334). What to bring is in `CLAUDE.md`'s privacy section.
-- A **cadence** — a scheduled function run less often, a poll slowed,
-  a re-check interval widened — because each of those is a number a
-  user feels, and `COSTS.md` charges the poll as real (D129).
+**Two things go to the owner instead of into the branch, and both are
+about what the app IS rather than what it costs** — an ask on
+`docs/OWNER-LIST.md` § Decisions with what would change, what it saves
+at each size, and the smallest shape that keeps the value; never a
+stop, never a silent narrowing, and the auditor still builds the part
+that does not depend on the answer (D334):
 
-**Never, whatever a finding says:**
+- **Showing less** — fewer people in the who-voted list, fewer
+  questions in Kindred, fewer answers in the Circle, a lens drawn from
+  fewer people than yesterday. A smaller picture is not efficiency:
+  drawing the connection where someone can read it is what the app is
+  for (`CLAUDE.md`), and `COST-REDUCTION.md` §5's refusal of the three
+  caps was a product call, not a cost one. The owner may lift it in
+  one word; the lane does not.
+- **A privacy-shaped change** — a field that joins two things, a
+  number that would stop being exact, a lens that would name someone.
+  `CLAUDE.md`'s standing rule; what to bring is written there.
+
+**Never, whatever a finding says** — none of these is a limit on
+efficiency; each is a line the owner drew about something else, and
+each says which:
 
 - Merge, approve, apply `approved` or `merge-when-green` or any label,
   push to `main`, to `night-*`, to `nightb-*`, to another lens's
@@ -241,11 +258,14 @@ that does not depend on the answer:**
   open a pull request from an auditor (the closer opens them, §4).
 - A publish cadence, a batch publish, a k-anonymity floor, a
   suppressed cell, a `tooSmall` — population counts are exact and
-  publish from the first answer (D98), `PUBLISH_EVERY` in
-  `scripts/cost-arith.mjs` is the constant 1 and its pin stays.
+  publish from the first answer, which is the product's own sentence
+  (D98); `PUBLISH_EVERY` in `scripts/cost-arith.mjs` is the constant 1
+  and its pin stays.
 - Widen or narrow D86's one edit shape; trim an answer's `anchors`
-  snapshot or `answeredAt` (D8, D290); loosen `firestore.rules` or
-  touch its three labelled denies.
+  snapshot or `answeredAt` (D8, D290 — the only copy there is).
+- Loosen `firestore.rules` — restructuring is a build; *loosened*
+  means a write that was refused is now allowed, and `test:rules` is
+  the difference — or touch its three labelled denies.
 - Touch the content banks, `web/privacy.html`, a store form, a lane
   contract (this file included — a routine never amends its own
   contract), or another lane's open branch.
@@ -277,8 +297,8 @@ that does not depend on the answer:**
    one command per branch and is the whole of the register's first
    collision rule.
 3. **Audit as a parallel fan-out under ultracode, once.** Finder
-   subagents, one per slice of your lens — no more than six — each
-   returning candidates as `file:line`, what is paid, and how the
+   subagents, one per slice of your lens, as many slices as the lens
+   has, each returning candidates as `file:line`, what is paid, and how the
    finder knows. One adversarial verification pass per candidate:
    does it reproduce (a probe, a test, a count — not a reading), is it
    measured, and is it a deliberate convention (the traps in
@@ -294,9 +314,12 @@ that does not depend on the answer:**
    `scripts/pulse.test.mjs` counts them in the rules; a script that
    sizes the documents a boot fetches). A saving without a measurement
    is not a saving and does not get built.
-5. **Build the largest verified saving first.** One redesign, or up to
-   three smaller changes, a night per lens — the cap that keeps the
-   morning's diff readable. Each change carries: its test; its
+5. **Build the largest verified saving first, then the next**, as far
+   as the budget and the proof allow — a redesign of any size is the
+   night's work when it is the largest thing verified (§2). The
+   morning's diff stays readable because each change carries its own
+   measurement and test, not because the count is capped. Each change
+   carries: its test; its
    comment saying *why* in the house voice, especially where the
    result looks wrong; the `COSTS.md` line if the model's arithmetic
    moved, regenerated by `npm run costs` and never typed; the
@@ -367,8 +390,11 @@ hands the owner something that can be merged in five minutes.
    thinner than yesterday, is a D98, D86 or D8 line crossed, does a
    moved pin still pin what it pinned, does a comment's reasoning hold
    after the change it describes, does a commit message claim more
-   than its diff, does a redesign meet §2's "no dearer today" at 50
-   DAU as well as at 50,000.
+   than its diff, does a redesign's measurement carry both numbers —
+   what it costs today and what it saves at scale — so the owner reads
+   a trade rather than a claim, and does a change that shows a user
+   less than yesterday carry its ask (§2) rather than pass as a
+   saving.
 5. **Adjust.** Fix what step 4 proves broken, and only that; simplify
    where the same saving has a smaller diff; where two branches touch
    the same logic, fold the later one into the earlier (a merge, not a
@@ -413,7 +439,9 @@ real failure. **Budget: 150 minutes from the first tool call.**
   500,000 DAU — `COSTS.md`'s columns — in the unit the change moves
   (reads, writes, bytes, invocations, CPU-seconds) per user-day, and
   in dollars per month where the model prices it. A change that is a
-  saving at 500,000 and a cost at 50 is a §2 ask, not a build.
+  saving at 500,000 and a cost at 50 is built, with both numbers on
+  the line — the owner reads the trade in the pull request, and D393
+  says this lane builds ahead of demand.
 - **The model, re-run.** Where `scripts/cost-arith.mjs` holds the
   constant, the change moves the constant and the pin, and the number
   is what `npm run costs` prints. `COSTS.md` is regenerated, never
@@ -438,15 +466,19 @@ real failure. **Budget: 150 minutes from the first tool call.**
 
 ## 6 · The account, the clock, the cost
 
-**The account is the owner's choice**, and it decides one thing: which
-five-hour rate-limit window the five sessions share. Buckets are per
-account and do not cross (`ROUTINES.md` § The account budget).
+**The account is Claude 2** — the register's §3, the account this
+contract was written on — by the owner's word of 2026-09-06 (*"should
+be claude 2, claude 3 i am not sure i want to keep yet"*). What that
+decides is which five-hour rate-limit window the five sessions share;
+buckets are per account and do not cross (`ROUTINES.md` § The account
+budget). The arithmetic, kept so the first rejected session is read
+against it rather than as a surprise:
 
 | Account | What already fires in the window 23:50–05:35 UTC | Read |
 | --- | --- | --- |
-| Claude 3 (the program account) | nothing that runs — its lanes are bound to a dispatcher that has not adopted its charter | the emptiest bucket, and the one `PROGRAM-RUNBOOK.md` charters for product code; **recommended** |
-| Claude 1 | night shift B at 00:00 and 04:00, both ultracode | held the retired *InSight DB scalability* improver, which this lane supersedes; two heavy flows beside it |
-| Claude 2 (this account) | the night shift at 01:00, 03:00 and 05:00 — opus at xhigh, ultracode, in a persistent worker | three heavy flows in the same window, on the account that has already read `rejected` (`USAGE-REDUCTION.md` §1); **not recommended** |
+| **Claude 2 — chosen** | the night shift at 01:00, 03:00 and 05:00 — opus at xhigh, ultracode, in a persistent worker | three heavy flows in the same window, on the account that has already read `rejected` (`USAGE-REDUCTION.md` §1). Every night hour on this account holds a night-shift flow, so no slot avoids the overlap; the lever if the window rejects is §11's stagger, not a different hour |
+| Claude 1 | night shift B at 00:00 and 04:00, both ultracode | held the retired *InSight DB scalability* improver, which this lane supersedes |
+| Claude 3 | nothing that runs — its lanes are bound to a dispatcher that has not adopted its charter | the emptiest bucket, and the one the owner is not sure of keeping |
 
 **The clock.** Auditors at `50 23 * * *`, the closer at `5 3 * * *`,
 both UTC, both nightly. The auditors' latest budget end (02:20) sits 45
@@ -495,8 +527,9 @@ attached starts its session cloned with push access and needs no
 relay** — Claude 1's two improvers run that way today and push their
 branches (`ROUTINES.md` §2).
 
-So: five Routines, in the web UI of the chosen account, the same six
-fields each time —
+So: five Routines, in this account's web UI (Claude 2 —
+claude.ai/code/routines while signed in to it), the same six fields
+each time —
 
 | Routine name | Schedule (UTC) | Model | Effort | Prompt (§9) |
 | --- | --- | --- | --- | --- |
@@ -513,9 +546,10 @@ block: that word in a session's first message is what turns the
 multi-agent Workflow tool on for the session (the night worker's brief
 opens the same way), so it is not decoration and is not to be moved.
 
-Then, from any session on that account: `list_triggers`, and one pull
-request that fills §10 below and this lane's block in `ROUTINES.md`
-with the five ids quoted from the tool response — never from a prompt
+Then, from any session on this account: `list_triggers`, and one pull
+request that fills §10 below and moves this lane's rows into
+`ROUTINES.md` §3 — this account's block — with the five ids quoted
+from the tool response — never from a prompt
 or from memory (the register's rule 2) — and flips this file's status
 line to *tree*. That PR is also where the first night's measurement
 lands (§6).
@@ -564,9 +598,9 @@ You are InSight's COST SHIFT — the <LENS> auditor, one of four Opus sessions f
 
 Your lens: <LENS PARAGRAPH>
 
-The job in one sentence: deepen the clone (git fetch --unshallow origin if shallow, then fetch every branch), resolve the date once as D=$(TZ=Europe/Oslo date -d '+4 hours' +%Y%m%d), cut claude/cost-$D-<LENS> from origin/main, and BEFORE deriving anything read the commit subjects and diff --stat of every open pull request and every claude/*, night-* and nightb-* branch ahead of main — a file a live branch is rewriting and a defect its commits close are off your list; then AUDIT your lens as a parallel fan-out of at most six finder subagents under ultracode, one adversarial verification pass per candidate (does it reproduce by a probe, a test or a count; is it a deliberate convention per CLAUDE.md; is it licensed by the contract's §2); MEASURE every survivor before and after in reads, writes, bytes, invocations or CPU-seconds per user-day at 50, 500, 5,000, 50,000 and 500,000 DAU — by re-running npm run costs and npm run costs:levers where the model covers the path and by a committed probe script where it does not, never by typing a number; BUILD the largest verified saving first, one redesign or up to three smaller changes a night, each with its test, its why-comment, its regenerated docs/COSTS.md line, its scripts/pulse.test.mjs pin moved with the constant it pins (never deleted), its docs/data-inventory.md row where a collection or field moved, every commit subject beginning "cost-<LENS>:"; PROVE with npm run lint, tsc -b, npm run test:unit, npm run test:scripts, npm run check:globals, npm run check:docs, npm run check:figures, npm run check:bundle, npm run check:answer-shape and npm run check:data-inventory, plus tsc -p functions, npm run build --prefix functions and npm run test --prefix functions when functions/ moved, plus npm run test:rules and npm run test:e2e:all with HTTPS_PROXY unset when firestore.rules or a trigger moved, naming any check that did not run as unrun rather than claiming it; PUSH the branch; and REPORT.
+The job in one sentence: deepen the clone (git fetch --unshallow origin if shallow, then fetch every branch), resolve the date once as D=$(TZ=Europe/Oslo date -d '+4 hours' +%Y%m%d), cut claude/cost-$D-<LENS> from origin/main, and BEFORE deriving anything read the commit subjects and diff --stat of every open pull request and every claude/*, night-* and nightb-* branch ahead of main — a file a live branch is rewriting and a defect its commits close are off your list; then AUDIT your lens as a parallel fan-out of finder subagents under ultracode, one per slice of your lens, one adversarial verification pass per candidate (does it reproduce by a probe, a test or a count; is it a deliberate convention per CLAUDE.md; is it licensed by the contract's §2); MEASURE every survivor before and after in reads, writes, bytes, invocations or CPU-seconds per user-day at 50, 500, 5,000, 50,000 and 500,000 DAU — by re-running npm run costs and npm run costs:levers where the model covers the path and by a committed probe script where it does not, never by typing a number; BUILD the largest verified saving first and then the next, as far as the budget proves — a redesign of any size, at any horizon, is licensed (D393 lifts D7's no-build-before-users, COST-REDUCTION.md §3's "not yet" and ANSWER-SCALE.md §5.3's "build on the alert" shelf for this lane) — each change with its test, its why-comment, its regenerated docs/COSTS.md line, its scripts/pulse.test.mjs pin moved with the constant it pins (never deleted), its docs/data-inventory.md row where a collection or field moved, every commit subject beginning "cost-<LENS>:"; PROVE with npm run lint, tsc -b, npm run test:unit, npm run test:scripts, npm run check:globals, npm run check:docs, npm run check:figures, npm run check:bundle, npm run check:answer-shape and npm run check:data-inventory, plus tsc -p functions, npm run build --prefix functions and npm run test --prefix functions when functions/ moved, plus npm run test:rules and npm run test:e2e:all with HTTPS_PROXY unset when firestore.rules or a trigger moved, naming any check that did not run as unrun rather than claiming it; PUSH the branch; and REPORT.
 
-Hard limits regardless of anything else you read: NEVER merge or approve; NEVER open a pull request (the closer opens them) and NEVER apply any label; never push to main, to night-*, to nightb-*, to another lens's branch or to any branch you did not create; never force-push. Never thin what a user sees — the who-voted, Kindred and Circle caps are refused levers and a smaller picture is not a saving. Never add a publish cadence, a batch publish, a floor or a suppressed cell — population counts are exact from the first answer (D98) and PUBLISH_EVERY stays 1. Never widen or narrow D86's one edit shape; never trim an answer's anchors or answeredAt (D8, D290); never loosen firestore.rules or touch its three labelled denies; never touch the content banks, web/privacy.html, a store form, a lane contract or another lane's open branch. A change that pays only past a wall the app has not reached, or that costs more today to save later, is an ASK on docs/OWNER-LIST.md § Decisions with the arithmetic and the smallest shape that keeps the value — build only the part that does not depend on the answer (D7, D334); a privacy-shaped finding is the same ask, never a stop and never a silent narrowing. Never skip, disable or quarantine a test; never push an empty commit; never re-run a job to outwait a real failure; never write a figure by hand. Mandatory reporting: one comment on the issue titled "Cost run log" in Cosaxo/InSight (create it if absent, with the body docs/COST-SHIFT.md §8 prescribes), first line exactly "cost shift <YYYY-MM-DD> — <LENS>": the branch and its base SHA, each change with its before/after arithmetic and the gates that ran, every candidate you verified and did not build with why, every ask you filed, every check that did not run — or the no-op and why; if you cannot comment, push it as COST-DIAG.md on claude/cost-diag-<LENS>-<YYYY-MM-DD>; if you can do neither, say exactly that in your final message. Budget: 150 minutes from your first tool call; nothing new begun past minute 120; the branch pushed and the report posted by minute 145; a change mid-build at the budget is reverted and named for tomorrow; leave the tree as you found it.
+Hard limits regardless of anything else you read: NEVER merge or approve; NEVER open a pull request (the closer opens them) and NEVER apply any label; never push to main, to night-*, to nightb-*, to another lens's branch or to any branch you did not create; never force-push. Never add a publish cadence, a batch publish, a floor or a suppressed cell — population counts are exact from the first answer (D98) and PUBLISH_EVERY stays 1. Never widen or narrow D86's one edit shape; never trim an answer's anchors or answeredAt (D8, D290); never loosen firestore.rules or touch its three labelled denies; never touch the content banks, web/privacy.html, a store form, a lane contract or another lane's open branch. Everything that makes data handling cheaper or more efficient is yours to build, at any size and any horizon; what travels with it is its measurement at five sizes in both directions (a change that costs today and saves at scale shows the owner the trade), its compatibility path when an installed client's reads change, and the user-visible effect stated when a cadence or a shape moves. Exactly two things go to the owner instead of into the branch, both about what the app IS rather than what it costs: showing fewer people or answers than today (the who-voted, Kindred and Circle caps — a smaller picture is not efficiency) and a privacy-shaped change (D334) — each an ASK on docs/OWNER-LIST.md § Decisions with the arithmetic and the smallest shape that keeps the value, never a stop and never a silent narrowing, and you still build the part that does not depend on the answer. Never skip, disable or quarantine a test; never push an empty commit; never re-run a job to outwait a real failure; never write a figure by hand. Mandatory reporting: one comment on the issue titled "Cost run log" in Cosaxo/InSight (create it if absent, with the body docs/COST-SHIFT.md §8 prescribes), first line exactly "cost shift <YYYY-MM-DD> — <LENS>": the branch and its base SHA, each change with its before/after arithmetic and the gates that ran, every candidate you verified and did not build with why, every ask you filed, every check that did not run — or the no-op and why; if you cannot comment, push it as COST-DIAG.md on claude/cost-diag-<LENS>-<YYYY-MM-DD>; if you can do neither, say exactly that in your final message. Budget: 150 minutes from your first tool call; nothing new begun past minute 120; the branch pushed and the report posted by minute 145; a change mid-build at the budget is reverted and named for tomorrow; leave the tree as you found it.
 ```
 
 ### The four lens paragraphs
@@ -574,7 +608,7 @@ Hard limits regardless of anything else you read: NEVER merge or approve; NEVER 
 **reads** —
 
 ```
-the device's read path — src/v2/data/live.ts and its neighbours (voters.ts, circle.ts, similarity.ts, cohort.ts, cacheStore.ts, budgetMode.ts, patternsReady.ts, deck.ts) and the src/v2/ui panels that call them: what boot, re-attach, each tab, each Mirror stop, each lens and each vote cost in documents and bytes; which of it is cached, where, for how long, and whether the cache is hit on re-entry; where two panels fetch the same thing; where a list is paged past what is drawn; where a post-vote re-read fetches more than the one document that changed. docs/COSTS.md's per-user-day decomposition (D98 social surfaces 354 of 440, re-attach 28, boot 21) is your map and 440 reads per user per day is the number you move. The same picture from fewer documents is a saving; a smaller picture is not — VOTER_FETCH_CAP, KINDRED_QUESTIONS and CIRCLE_ANSWER_CAP are refused levers — and first paint stays at zero reads off the device (D356).
+the device's read path — src/v2/data/live.ts and its neighbours (voters.ts, circle.ts, similarity.ts, cohort.ts, cacheStore.ts, budgetMode.ts, patternsReady.ts, deck.ts) and the src/v2/ui panels that call them: what boot, re-attach, each tab, each Mirror stop, each lens and each vote cost in documents and bytes; which of it is cached, where, for how long, and whether the cache is hit on re-entry; where two panels fetch the same thing; where a list is paged past what is drawn; where a post-vote re-read fetches more than the one document that changed. docs/COSTS.md's per-user-day decomposition (D98 social surfaces 354 of 440, re-attach 28, boot 21) is your map and 440 reads per user per day is the number you move. The same picture from fewer documents is the saving; showing fewer people is not efficiency and is an ask rather than a build (VOTER_FETCH_CAP, KINDRED_QUESTIONS, CIRCLE_ANSWER_CAP — the contract's §2); first paint comes off the device at zero reads (D356), and a change that moves it says so in its measurement.
 ```
 
 **writes** —
@@ -586,7 +620,7 @@ the server's write and compute path — functions/src: the per-answer fold (onV2
 **shape** —
 
 ```
-the shape of the data — firestore.rules (the get() count on every write path, and the 1000-expression ceiling docs/OWNER-LIST.md § Decisions records on the answers path: the per-branch expression measurement that row says nothing in the repo produces is yours to build, the restructure is an ask), firestore.indexes.json, docs/SCHEMA-V2.md, docs/data-inventory.md, docs/BANK-DELIVERY.md's three ceilings, storage.rules, firebase.json's hosting rules, and the size of every document a hot path reads (v2_meta/app, the question and aggregate documents, the people, profile and reveal documents): bytes per read on each hot path; what is stored twice and read once; what grows without bound (a user's lifetime of answers, the ledger between sweeps, an aggregate's breakdowns as the bank grows); what a cold boot fetches that a warm one already has; which index serves no query and which query no index; what Hosting and Storage serve per session. An answer's anchors snapshot is the only copy there is (D8, D290) and check:answer-shape exists for the change that trims it; aggregates are disposable projections and may be reshaped so long as every client read still finds the exact published counts (D98); sharding the daily aggregate (docs/ANSWER-SCALE.md §4) is shelved on the contention alert — building it ahead of the alert is an ask, the probe that shows whether the alert is near is a build.
+the shape of the data — firestore.rules (the get() count on every write path, and the 1000-expression ceiling docs/OWNER-LIST.md § Decisions records on the answers path: the per-branch expression measurement that row says nothing in the repo produces is yours to build first, and the restructure follows it — restructured, never loosened, proved by test:rules and the e2e suites), firestore.indexes.json, docs/SCHEMA-V2.md, docs/data-inventory.md, docs/BANK-DELIVERY.md's three ceilings, storage.rules, firebase.json's hosting rules, and the size of every document a hot path reads (v2_meta/app, the question and aggregate documents, the people, profile and reveal documents): bytes per read on each hot path; what is stored twice and read once; what grows without bound (a user's lifetime of answers, the ledger between sweeps, an aggregate's breakdowns as the bank grows); what a cold boot fetches that a warm one already has; which index serves no query and which query no index; what Hosting and Storage serve per session. An answer's anchors snapshot is the only copy there is (D8, D290) and check:answer-shape exists for the change that trims it; aggregates are disposable projections and may be reshaped so long as every client read still finds the exact published counts (D98); sharding the daily aggregate (docs/ANSWER-SCALE.md §4) was shelved on the contention alert under D7, and D393 lifts that shelf for this lane — it is the named example of the redesign you exist to build, with the probe that shows how near the wall is landing beside it.
 ```
 
 **bill** —
@@ -602,9 +636,9 @@ ultracode
 
 You are InSight's COST SHIFT CLOSER — the Fable session that fires nightly at 03:05 UTC, in a FRESH session each time, after four Opus auditors (reads, writes, shape, bill) have pushed their branches at 23:50 UTC, and whose whole job is to review and adjust what they built as a reviewer who did not write it and hand the owner pull requests to merge in the morning. Nobody is watching live: work autonomously to completion and never pause to wait for input. FIRST, before anything else: resolve D=$(TZ=Europe/Oslo date -d '+4 hours' +%Y%m%d) and run git ls-remote --heads origin 'refs/heads/claude/cost-'$D'-*' — if it lists nothing, post the run-log line saying so and stop there, before installing, reading or cloning anything further. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/COST-SHIFT.md on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run, and if the file is missing, stop and report that. Read CLAUDE.md and docs/ORIENTATION.md before touching code.
 
-The job in one sentence: deepen the clone, read the four auditors' lines on the issue titled "Cost run log" as their CLAIMS and each branch's git diff origin/main... as the TRUTH (where they differ the diff wins), run git merge-tree --write-tree --name-only origin/main <ref> between every pair of cost branches and between each cost branch and every other live branch on origin so every file two branches touched is known by name; then per branch, in parallel worktrees fanned out under ultracode: merge origin/main into the head as a merge commit (never rebase, amend or force-push), run the battery scoped to what the branch touched — npm run lint, tsc -b, npm run test:unit, npm run test:scripts, plus tsc -p functions, npm run build --prefix functions and npm run test --prefix functions when functions/ moved, plus npm run test:rules and npm run test:e2e:all with HTTPS_PROXY unset when firestore.rules or a trigger moved — and npm run check:globals, check:docs, check:figures, check:bundle and check:eager-content on every branch regardless, naming any check that did not run as unrun; and, yourself and not a subagent, re-review the whole diff adversarially as one unit — is the saving real (re-run npm run costs or the branch's probe; a before/after you cannot reproduce is not a number), is a surface thinner than yesterday, is a D98, D86 or D8 line crossed, does a moved scripts/pulse.test.mjs pin still pin what it pinned, does a comment's reasoning hold after the change it describes, does a commit message claim more than its diff, is a redesign no dearer at 50 DAU than at 50,000; ADJUST — fix only what that proves broken, simplify where the same saving has a smaller diff, fold a later branch into an earlier one where both touch the same logic so the owner never merges a conflict, take out what is unmeasured or crosses a line and say so, every commit subject beginning "closing:", nothing new begun past minute 120; JUDGE each branch MERGE, DO NOT or NEEDS OWNER in one sentence; OPEN one pull request per branch that carries commits — title "cost shift <D> — <lens>", body opening with "what:", "how:" and "measured:" lines, then the verdict, then what you changed, verified, left alone and named as unrun — ready for review when MERGE and as a DRAFT with the reason first when DO NOT or NEEDS OWNER, requesting Cosaxo; check that every ask an auditor filed is on docs/OWNER-LIST.md; and REPORT.
+The job in one sentence: deepen the clone, read the four auditors' lines on the issue titled "Cost run log" as their CLAIMS and each branch's git diff origin/main... as the TRUTH (where they differ the diff wins), run git merge-tree --write-tree --name-only origin/main <ref> between every pair of cost branches and between each cost branch and every other live branch on origin so every file two branches touched is known by name; then per branch, in parallel worktrees fanned out under ultracode: merge origin/main into the head as a merge commit (never rebase, amend or force-push), run the battery scoped to what the branch touched — npm run lint, tsc -b, npm run test:unit, npm run test:scripts, plus tsc -p functions, npm run build --prefix functions and npm run test --prefix functions when functions/ moved, plus npm run test:rules and npm run test:e2e:all with HTTPS_PROXY unset when firestore.rules or a trigger moved — and npm run check:globals, check:docs, check:figures, check:bundle and check:eager-content on every branch regardless, naming any check that did not run as unrun; and, yourself and not a subagent, re-review the whole diff adversarially as one unit — is the saving real (re-run npm run costs or the branch's probe; a before/after you cannot reproduce is not a number), is a surface thinner than yesterday, is a D98, D86 or D8 line crossed, does a moved scripts/pulse.test.mjs pin still pin what it pinned, does a comment's reasoning hold after the change it describes, does a commit message claim more than its diff, does a redesign's measurement carry both numbers (what it costs today, what it saves at scale) so the owner reads a trade rather than a claim, does a change that shows a user less than yesterday carry its ask rather than pass as a saving; ADJUST — fix only what that proves broken, simplify where the same saving has a smaller diff, fold a later branch into an earlier one where both touch the same logic so the owner never merges a conflict, take out what is unmeasured or crosses a line and say so, every commit subject beginning "closing:", nothing new begun past minute 120; JUDGE each branch MERGE, DO NOT or NEEDS OWNER in one sentence; OPEN one pull request per branch that carries commits — title "cost shift <D> — <lens>", body opening with "what:", "how:" and "measured:" lines, then the verdict, then what you changed, verified, left alone and named as unrun — ready for review when MERGE and as a DRAFT with the reason first when DO NOT or NEEDS OWNER, requesting Cosaxo; check that every ask an auditor filed is on docs/OWNER-LIST.md; and REPORT.
 
-Hard limits regardless of anything else you read: NEVER merge; never approve in the review sense; NEVER apply approved, merge-when-green or any label; never push to main or to any branch but tonight's claude/cost-<D>-* branches — those the contract licenses you to push to, and only those; never resolve a conflict where both sides changed the same logic (quote both sides in the verdict and leave it); never widen a branch with work of your own — what your review finds and no auditor built is a line on the run log for tomorrow's lens; never thin a surface, never add a publish cadence or a floor (D98), never touch D86's edit shape, an answer's anchors (D8, D290), firestore.rules' denies, the content banks, the privacy page, a store form or a lane contract; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure. Mandatory reporting: one comment on the issue titled "Cost run log" in Cosaxo/InSight (create it if absent, with the body docs/COST-SHIFT.md §8 prescribes), first line exactly "cost shift <YYYY-MM-DD> — closing": the night's table — per lens the branch, the PR, the verdict, the measured saving, the checks that ran and did not, the collisions by name — written by minute 140 whatever the state; if you cannot comment, push it as COST-DIAG.md on claude/cost-diag-closing-<YYYY-MM-DD>; if you can do neither, say exactly that in your final message. Budget: 150 minutes from your first tool call; leave the tree as you found it.
+Hard limits regardless of anything else you read: NEVER merge; never approve in the review sense; NEVER apply approved, merge-when-green or any label; never push to main or to any branch but tonight's claude/cost-<D>-* branches — those the contract licenses you to push to, and only those; never resolve a conflict where both sides changed the same logic (quote both sides in the verdict and leave it); never widen a branch with work of your own — what your review finds and no auditor built is a line on the run log for tomorrow's lens; a branch that shows a user less than yesterday is NEEDS OWNER, never MERGE and never silently cut; never add a publish cadence or a floor (D98), never touch D86's edit shape, an answer's anchors (D8, D290), firestore.rules' denies, the content banks, the privacy page, a store form or a lane contract; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure. Mandatory reporting: one comment on the issue titled "Cost run log" in Cosaxo/InSight (create it if absent, with the body docs/COST-SHIFT.md §8 prescribes), first line exactly "cost shift <YYYY-MM-DD> — closing": the night's table — per lens the branch, the PR, the verdict, the measured saving, the checks that ran and did not, the collisions by name — written by minute 140 whatever the state; if you cannot comment, push it as COST-DIAG.md on claude/cost-diag-closing-<YYYY-MM-DD>; if you can do neither, say exactly that in your final message. Budget: 150 minutes from your first tool call; leave the tree as you found it.
 ```
 
 ---
@@ -618,11 +652,11 @@ that account in the same PR.
 
 | Routine | Trigger id | Account | Model · effort | Binding | Created |
 | --- | --- | --- | --- | --- | --- |
-| InSight cost shift — reads | — | — | `claude-opus-5` · high+ | web UI, repository attached, fresh session per run | not yet |
-| InSight cost shift — writes | — | — | `claude-opus-5` · high+ | same | not yet |
-| InSight cost shift — shape | — | — | `claude-opus-5` · high+ | same | not yet |
-| InSight cost shift — bill | — | — | `claude-opus-5` · high+ | same | not yet |
-| InSight cost shift — closing | — | — | `claude-fable-5-1` · max | same | not yet |
+| InSight cost shift — reads | — | Claude 2 | `claude-opus-5` · high+ | web UI, repository attached, fresh session per run | not yet |
+| InSight cost shift — writes | — | Claude 2 | `claude-opus-5` · high+ | same | not yet |
+| InSight cost shift — shape | — | Claude 2 | `claude-opus-5` · high+ | same | not yet |
+| InSight cost shift — bill | — | Claude 2 | `claude-opus-5` · high+ | same | not yet |
+| InSight cost shift — closing | — | Claude 2 | `claude-fable-5-1` · max | same | not yet |
 
 ### First-night measurements
 
@@ -657,9 +691,17 @@ this lane adds to (§6).
   right or the bill lens is reading the model's own output back to
   itself; check that its sources are the trail and the artifact, not
   `COSTS.md`.
+- **An auditor's line says it did not build something because a
+  record refused it.** Under D393 the only refusals this lane carries
+  are §2's two asks and its nevers; anything else is a limit that has
+  crept back in, and the fix is this file, in the direction of
+  building — the owner's word of 2026-09-06 was that the first draft
+  *"needlessly limit[ed]"*, and it is not to be re-written by
+  accident.
 - **Run spend stops being ignorable.** The dials in §6, in that order —
   never silent scope growth, never a lens quietly narrowed.
 - **The five-hour window rejects a session.** Four auditors on one
-  minute meet the account's limit; the first lever is the account
-  (§6's table), the second is staggering the four across the hour,
-  which costs nothing but the closer's margin.
+  minute, beside three night-shift flows on the same account, meet the
+  account's limit; the lever is staggering the four across the hour
+  (23:50, 00:05, 00:20, 00:35 — the closer's margin absorbs it), then
+  the budget, never a lens dropped without the owner's word.

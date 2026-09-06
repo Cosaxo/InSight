@@ -768,9 +768,11 @@ session can give — a dispatcher relay — costs a relay's whole context
 per firing and needs a charter adopted by a human turn. A Routine
 created in the web UI with the repository attached starts cloned and
 needs neither (§2's improvers are the working example). So the owner
-creates five, in the account of their choice, and the session that
-next runs `list_triggers` there fills this table and
-`COST-SHIFT.md` §10 with the ids quoted from the tool response.
+creates five in this account's web UI — **Claude 2, §3's account, by
+the owner's word of 2026-09-06** (*"should be claude 2, claude 3 i am
+not sure i want to keep yet"*) — and the session that next runs
+`list_triggers` here moves these rows into §3 with the ids quoted from
+the tool response, and fills `COST-SHIFT.md` §10 the same way.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
@@ -780,13 +782,14 @@ next runs `list_triggers` there fills this table and
 | InSight cost shift — bill | — | same | same | `claude/cost-<YYYYMMDD>-bill` — `scripts/cost-arith.mjs`, `scripts/pulse.test.mjs`, `monitoring/`, the workflows | same |
 | InSight cost shift — closing | — | `5 3 * * *` — nightly 03:05, 150 min | web UI, fresh session, `claude-fable-5-1` at max effort, ultracode for the batteries | `closing:` commits onto the night's four branches; one PR per branch, ready or draft by verdict | **never merges** — opens the PRs, the owner merges (D385) |
 
-**The account is the owner's call**, and `COST-SHIFT.md` §6 has the
-arithmetic: Claude 3's bucket is empty in the window and is the one
-recommended; Claude 1's carries night shift B at 00:00 and 04:00;
-this account's (§3) carries the night shift at 01:00, 03:00 and 05:00
-and has already read `rejected`. Whichever it is, the block above moves
-into that account's section in the PR that registers the ids, and the
-clock in §6 loses its "(once created)".
+**The account is this one**, and `COST-SHIFT.md` §6 has the
+arithmetic the choice was read against: the window 23:50–05:35 UTC
+here carries the night shift at 01:00, 03:00 and 05:00, and this
+account has already read `rejected` once; if the window rejects a
+session, the lever is staggering the four auditors across the hour,
+named in that file's §11. The block above moves into §3 in the PR
+that registers the ids, and the clock in §6 loses its "(once
+created)".
 
 **The overview, one sentence each**, for §8's list once they exist:
 

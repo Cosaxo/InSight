@@ -41519,7 +41519,10 @@ decent size redesigns and then a fable max session at the end that
 reviews and adjust the changes at the end."* Asked in a session on the
 account the register calls Claude 2, with the request that the design
 be explained back before it exists — which is why this is proposed and
-not binding.
+not binding. Two rulings followed the read-back the same day and are
+binding on the contract as written: on the licence, *"this sounds
+wrong … dosnet that needlessly limit"* (§ below); on the account,
+*"should be claude 2, claude 3 i am not sure i want to keep yet."*
 
 ### The shape
 
@@ -41550,26 +41553,46 @@ one pull request per branch — ready or draft by verdict, `what:` /
 (D385). The shape is D326 §2's closing flow generalised: the auditors'
 blind spot about their own work is what the fifth session exists for.
 
-### What the ask licenses that two records would otherwise refuse — the reading put to the owner
+### D7 is amended for this lane's subject — the owner's ruling on the licence
 
-D7 records scale ceilings rather than engineering around them
-(*"zero users, no build"*), and `COST-REDUCTION.md` §3 and §5 refuse
-the lever list at launch sizes and the three surface caps at every
-size. *"It can do decent size redesigns"* is read as licensing the
-middle row of `COST-SHIFT.md` §2 and not the top: an auditor **builds**
-the same picture for less, a bound on an unbounded path, measurement,
-the removal of a cost nothing reads, and a redesign that is **no dearer
-today and removes or moves a wall** — "no dearer" measured at 50 and
-500 DAU as well as at 50,000; it **asks**, on `OWNER-LIST.md` with the
-arithmetic, for anything that thins a surface, costs today to pay
-later, only pays past a wall the app has not reached (sharding ahead
-of the contention alert, `ANSWER-SCALE.md` §5.3, is the named case),
-changes what an installed client reads without a migration path, is
-privacy-shaped (D334), or slows a cadence a user feels. This is D334's
-rule applied to cost rather than privacy: a refusal already written
-down is an ask, never a silent stop and never a silent build. If the
-owner meant the wider reading, one word on the owner row flips §2 and
-this section.
+The first draft of `COST-SHIFT.md` §2 read *"decent size redesigns"*
+against D7 (*backend scale ceilings are recorded, not engineered
+around — zero users, no build*) and `COST-REDUCTION.md` §3 and §5,
+and let an auditor build only a redesign that was *"no dearer today
+and removes a wall"*, sending everything that costs today to pay
+later, or that only pays past a wall, to the owner as an ask. The
+owner read it back: *"this sounds wrong … dosnet that needlessly
+limit."* It did. This is D329's finding for the fourth time on the
+record — a preference stated as a rule reads as a rule — and D352's
+boundary in its plainest form: nothing blocks functionality on its
+own, and the question to put to a constraint is how it is made to
+work, never how the change is cut to fit it.
+
+**So, for this lane's subject — data handling and Firebase
+efficiency — D7's no-build-before-users does not apply,
+`COST-REDUCTION.md` §3's "not yet: everything else" is lifted, and
+`ANSWER-SCALE.md` §5.3's "build on the alert" shelf is lifted.** An
+auditor builds a redesign of any size at any horizon — the daily
+aggregate sharded, the answers create rule restructured against its
+expression ceiling, a fold reading its input once, a cadence widened,
+a schema moved with its compatibility path — and what travels with
+the build is the measurement in both directions (what it costs today,
+what it saves at scale), so the owner reads a trade in the pull
+request rather than a claim. D7 stands everywhere else: a night
+shift or a builder outside this lane still records a ceiling rather
+than engineering around it, until the owner says otherwise there too.
+
+**Two asks remain, and neither is about cost.** Showing a user less
+than yesterday — the who-voted, Kindred and Circle caps
+`COST-REDUCTION.md` §5 refused — is a product call: drawing the
+connection where someone can read it is what the app is for, and a
+smaller picture is not efficiency. A privacy-shaped change is
+`CLAUDE.md`'s standing rule (D334). Both go to the owner with the
+arithmetic and the smallest shape that keeps the value, never as a
+stop, and the auditor builds the part that does not depend on the
+answer. The owner may lift either in one word; the contract's §11
+names a refusal creeping back in as a reason to stop and re-plan, in
+the direction of building.
 
 ### What does not change
 
@@ -41589,20 +41612,25 @@ nights per week, auditors per night, budget minutes — in the order to
 turn them, so the first night's `usage` blocks turn a dial rather than
 retire a lens.
 
-### The account, and why a session did not create it
+### The account is Claude 2, and why a session did not create the Routines
 
-The account is the owner's; the arithmetic is one five-hour window
-shared by five sessions. Claude 3's window is empty in 23:50–05:35 UTC
-and is the recommendation; Claude 1's carries night shift B twice;
-Claude 2's carries the night shift three times and has already read
-`rejected` (`USAGE-REDUCTION.md` §1). A session did not create the
-Routines because it cannot in a working form — a Routine minted over
-MCP starts its sessions with no clone and no tools (measured
-2026-09-03, `OPS-RUNBOOK.md` § Platform measurements) and the only
-other binding, a dispatcher relay, costs a relay's whole context per
-firing and needs a charter adopted by a human turn (D353, D359). The
-web-UI path with the repository attached starts cloned and needs
-neither; the five pastes are the owner's click, and the PR that
+The owner's word: *"should be claude 2, claude 3 i am not sure i want
+to keep yet."* So the five Routines go on the account this record was
+written on — the register's §3 — and its block is where their rows
+land. The arithmetic the choice was read against stays in the
+contract's §6: the window 23:50–05:35 UTC on this account carries the
+night shift at 01:00, 03:00 and 05:00, every night hour here holds a
+flow, and the account has already read `rejected` once
+(`USAGE-REDUCTION.md` §1); if the window rejects a session the lever
+is staggering the four auditors across the hour, then the budget,
+never a lens dropped without the owner's word. A session did not
+create the Routines because it cannot in a working form — a Routine
+minted over MCP starts its sessions with no clone and no tools
+(measured 2026-09-03, `OPS-RUNBOOK.md` § Platform measurements) and
+the only other binding, a dispatcher relay, costs a relay's whole
+context per firing and needs a charter adopted by a human turn (D353,
+D359). The web-UI path with the repository attached starts cloned and
+needs neither; the five pastes are the owner's click, and the PR that
 registers the ids flips the contract's status and this record.
 
 ### Reversal
