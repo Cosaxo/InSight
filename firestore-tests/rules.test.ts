@@ -2263,6 +2263,40 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       { memberUids: [OWNER, FRIEND, STRANGER] }));
   });
 
+  it("refuses a duel answer whose own fields are out of shape", async () => {
+    // Six predicates in `isDuelAnswer()` had never evaluated false — the
+    // gid and day type checks, the day's format, the question-exists read
+    // and both guessIdx bounds — so each could be deleted with the suite
+    // green. The id is checked against `g_{gid}_{day}` elsewhere, which is
+    // why these looked covered: that check reads the ID, and these read
+    // the BODY, and a body can disagree with an id that is itself correct.
+    await seedGroup();
+    // gid and day, wrong type. The id still says g_{gid}_{day}, so every
+    // clause about the id is satisfied and only these can refuse.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ gid: 7 })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ day: 20260726 })));
+    // A day that is a string but not a date. Format-checking is what stops
+    // a member pre-sealing days, per the rule's own note.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_notaday`),
+      duelAnswer({ day: "notaday" })));
+    // A question that does not exist. The read is what stops an answer
+    // being filed against nothing and folding into nothing.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ qid: "group-nope" })));
+    // guessIdx out of shape, both directions.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ guessIdx: "2" })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer({ guessIdx: -1 })));
+    // The control: the well-formed write is admitted, so each refusal
+    // above is its own field and not the fixture.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer()));
+  });
+
   it("members write sealed duel answers under the composite id; outsiders can't", async () => {
     await seedGroup();
     await assertSucceeds(setDoc(
