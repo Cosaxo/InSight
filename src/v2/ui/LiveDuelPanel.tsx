@@ -1470,9 +1470,21 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   const items = groups.map((g) => {
     const members = g.memberUids || [];
     const themUid = duo ? (members.find((m) => m !== uid) || "") : "";
+    // A ROOM THAT CANNOT BE PLAYED OWES YOU NOTHING. `todayQ` hands back a
+    // question for any room whatever its membership, so a 1v1 you created
+    // and whose partner has not joined counted toward "N to play" and got
+    // a "still to play" dot on the rail — for ever — while the card
+    // directly beneath it renders "Waiting for someone" with no options at
+    // all. Same condition the card uses (`duo && members.length < 2`), so
+    // the two cannot disagree.
+    //
+    // The prototype this was ported from had it: `duo-daily.jsx` computes
+    // `pending = !invited && isPending(p)` and filters the count the same
+    // way. The port kept the second half and dropped the first.
+    const unplayable = duo && members.length < 2;
     return {
       g,
-      pending: S.myDuelVote(g.id) == null && !!S.todayQ(g.id),
+      pending: !unplayable && S.myDuelVote(g.id) == null && !!S.todayQ(g.id),
       themUid,
       label: (duo ? (firstName((g.memberNames || {})[themUid]) || g.name || "1v1") : (g.name || "Circle")) as string,
     };

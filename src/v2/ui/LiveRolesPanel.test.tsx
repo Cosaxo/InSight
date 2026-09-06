@@ -174,7 +174,41 @@ describe("with one setting over the floor", () => {
     render(<LiveRolesPanel />);
     expect(screen.getByText("The Mind Reader")).toBeTruthy();
     expect(screen.getByText("Calls their answer before they do.")).toBeTruthy();
-    expect(screen.getByText("4 revealed days")).toBeTruthy();
+    // "days you both guessed", not "revealed days" — the unit the number
+    // is actually in. This fixture reveals four days and both guess on all
+    // four, so the two coincide here and the wording is what is under test;
+    // the case below separates them.
+    expect(screen.getByText("4 days you both guessed")).toBeTruthy();
+  });
+
+  it("does not call them revealed days when the pair revealed more", () => {
+    // THE CASE THE OLD WORDING SURVIVED. Eight revealed days, guesses on
+    // both sides on three of them: the number is 3, and calling it "3
+    // revealed days" is false about a pair that revealed eight. The
+    // fixtures above all had scored == revealed, which is why the wording
+    // could stay wrong under them.
+    const noGuess = (d: string) => ({
+      day: d, qid: "q1",
+      votes: { me: { optionIdx: 0 }, them: { optionIdx: 1 } },
+      names: { them: "Ada Lovelace" },
+    });
+    HIST.d1 = [
+      dday("2026-08-01", [0, 1], [1, 1]),
+      dday("2026-08-02", [0, 1], [1, 1]),
+      dday("2026-08-03", [0, 1], [1, 1]),
+      noGuess("2026-08-04"), noGuess("2026-08-05"), noGuess("2026-08-06"),
+      noGuess("2026-08-07"), noGuess("2026-08-08"),
+    ];
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("3 days you both guessed")).toBeTruthy();
+    // The aggregate line's own shape, not any mention of the phrase: the
+    // GROUP empty state says "No group has 2 revealed days you played yet",
+    // which is true — its unit is days you played, and those are revealed
+    // days. What must not exist is a bare count called revealed days.
+    expect(
+      screen.queryByText(/^\d+ revealed days?$/),
+      "the panel still calls scored days revealed days",
+    ).toBeNull();
   });
 
   it("draws no per-setting row — there is nothing to compare it to yet", () => {
@@ -201,7 +235,7 @@ describe("with two settings", () => {
 
   it("says how many settings the average is across, and how many days", () => {
     render(<LiveRolesPanel />);
-    expect(screen.getByText("across 2 · 7 revealed days")).toBeTruthy();
+    expect(screen.getByText("across 2 · 7 days you both guessed")).toBeTruthy();
   });
 
   // Setting rows are the buttons that expand (aria-expanded); the two ⓘ
@@ -250,7 +284,8 @@ describe("groups", () => {
       gdayr("2026-08-03", { me: 0, a: 0, b: 0 }),
     ];
     render(<LiveRolesPanel />);
-    expect(screen.getByText("3 revealed days")).toBeTruthy();
+    // The GROUP unit is days you played, and its wording says so.
+    expect(screen.getByText("3 days you played")).toBeTruthy();
     // …and the 1v1 half still refuses, independently.
     expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).toBeTruthy();
   });

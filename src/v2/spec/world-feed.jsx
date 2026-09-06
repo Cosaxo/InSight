@@ -3468,8 +3468,14 @@ class WorldFeed extends React.Component {
           {/* D149: the estimate is gone from live builds, so the three
               cases here are a measurement, the demo's authored figure, and
               a live card nobody else has answered \u2014 which says so rather
-              than printing a number nobody measured. */}
-          <span style={{ flex: 1, minWidth: 0 }}>{rate.src === 'loading' ? 'Counting\u2026' : p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
+              than printing a number nobody measured.
+
+              `rate.src === 'estimate'` alone, not `live &&` it: an
+              estimate only EXISTS where the build is not live, so the
+              conjunction could never be true and the demo's authored
+              figure printed unhedged. The Map's learn card carried the
+              same dead condition. */}
+          <span style={{ flex: 1, minWidth: 0 }}>{rate.src === 'loading' ? 'Counting\u2026' : p == null ? 'Nobody else has answered this one yet' : rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
           {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
         </div>
         {/* The cuts' honest absence, in the sheet that was built to hold

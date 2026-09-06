@@ -145,6 +145,79 @@ const CALLABLE =
   /export\s+const\s+(\w+)\s*=\s*onCall\s*(?:<[^>]*>)?\s*\(\s*(?:\/\/[^\n]*\n\s*)*\{([^}]*)\}/g;
 
 
+/**
+ * Every callable declared in ONE source file, with whether it enforces
+ * attestation and the body text its exemption is checked against.
+ *
+ * EXPORTED, and pure, because until check-appcheck.test.mjs there was no
+ * test for this gate at all — and this gate is the only thing standing
+ * between the public callable surface and unlimited free anonymous
+ * accounts. Its own header records the failure it was written for and a
+ * second one it shipped with; neither could be caught by anything but a
+ * probe against the real tree, which is a thing nobody runs twice.
+ *
+ * `onCallSites` is counted separately from the parsed blocks on purpose:
+ * a callable written in a form the pattern cannot read must FAIL the run,
+ * not be skipped (check-a11y.mjs learned this the hard way — a file the
+ * gate could not parse scored zero and reported clean).
+ *
+ * Takes source that has already had its comments blanked; see the caller.
+ */
+export function scanCallables(src, file = "") {
+  const enforcing = [];
+  const missing = [];
+  const bodies = new Map();
+  const onCallSites = (src.match(/\bonCall\s*(?:<[^>]*>)?\s*\(/g) || []).length;
+  for (const m of src.matchAll(CALLABLE)) {
+    const [, name, opts] = m;
+    const where = file ? `${name} (functions/src/${file})` : name;
+    // The callable's own body, for the exemption check: from this match to
+    // the next top-level declaration, or the end of the file. Coarse on
+    // purpose — it only ever answers "does this function call its gate",
+    // and erring long is the safe direction for a question whose wrong
+    // answer is a false ACCUSATION rather than a false clearance.
+    const rest = src.slice(m.index);
+    const next = rest.slice(1).search(/\n(?:export\s+)?const\s+\w+\s*=/);
+    bodies.set(name, next === -1 ? rest : rest.slice(0, next + 1));
+    if (/enforceAppCheck\s*:\s*ENFORCE_APP_CHECK\b/.test(opts)) {
+      // …unless a spread comes AFTER it. Object literals take the last
+      // writer, so `{ enforceAppCheck: ENFORCE_APP_CHECK, ...OPTS }` reads
+      // correct to the regex above and enforces whatever OPTS says. Every
+      // call site today spreads first (`{ ...LIGHT_CALLABLE, region,
+      // enforceAppCheck: ENFORCE_APP_CHECK }`), which is the safe order, so
+      // this refuses a shape that does not exist rather than describing one
+      // that does.
+      //
+      // Re-applied inside `scanCallables` when the two night shifts were
+      // composed: shift A extracted this loop into a pure function and gave
+      // it a test, shift B added this rule to the loop's old home, and the
+      // merge conflicted. Their structure is the better one and it is the
+      // one that survived; this rule belongs inside it.
+      const at = opts.search(/enforceAppCheck\s*:/);
+      if (/\.\.\./.test(opts.slice(at))) {
+        missing.push({
+          name,
+          where,
+          note: "spreads another options object AFTER enforceAppCheck, which wins",
+        });
+      } else {
+        enforcing.push({ name, where });
+      }
+    } else if (/enforceAppCheck/.test(opts)) {
+      // Present but not the shared constant — the one shape that looks
+      // right and is not.
+      missing.push({
+        name,
+        where,
+        note: "sets enforceAppCheck to something other than ENFORCE_APP_CHECK",
+      });
+    } else {
+      missing.push({ name, where, note: "no enforceAppCheck" });
+    }
+  }
+  return { enforcing, missing, bodies, onCallSites };
+}
+
 const enforcing = [];
 const missing = [];
 // name -> source text of the callable, for the exemption gate check.
@@ -183,55 +256,22 @@ for (const file of readdirSync(SRC, { recursive: true })
   // fail because src/v2/spec moved.
   const src = stripComments(readFileSync(join(SRC, file), "utf8"));
 
-  // Counted separately from the matches below so a callable written in a
-  // form this regex cannot read fails the run instead of being skipped.
-  // check-a11y.mjs learned this the hard way: a file the gate cannot parse
-  // scores zero and reports clean.
-  onCallSites += (src.match(/\bonCall\s*(?:<[^>]*>)?\s*\(/g) || []).length;
-
-  for (const m of src.matchAll(CALLABLE)) {
-    const [, name, opts] = m;
-    const where = `${name} (functions/src/${file})`;
-    // The callable's own body, for the exemption check below: from this
-    // match to the next top-level declaration, or the end of the file.
-    // Coarse on purpose — it only ever answers "does this function call its
-    // gate", and erring long is the safe direction for a question whose
-    // wrong answer is a false ACCUSATION rather than a false clearance.
-    const rest = src.slice(m.index);
-    const next = rest.slice(1).search(/\n(?:export\s+)?const\s+\w+\s*=/);
-    bodies.set(name, next === -1 ? rest : rest.slice(0, next + 1));
-    if (/enforceAppCheck\s*:\s*ENFORCE_APP_CHECK\b/.test(opts)) {
-      // …unless a spread comes AFTER it. Object literals take the last
-      // writer, so `{ enforceAppCheck: ENFORCE_APP_CHECK, ...OPTS }` reads
-      // correct to the regex above and enforces whatever OPTS says. Every
-      // call site today spreads first (`{ ...LIGHT_CALLABLE, region,
-      // enforceAppCheck: ENFORCE_APP_CHECK }`), which is the safe order, so
-      // this refuses a shape that does not exist rather than describing one
-      // that does.
-      const at = opts.search(/enforceAppCheck\s*:/);
-      if (/\.\.\./.test(opts.slice(at))) {
-        missing.push({
-          name,
-          where,
-          note: "spreads another options object AFTER enforceAppCheck, which wins",
-        });
-      } else {
-        enforcing.push({ name, where });
-      }
-    } else if (/enforceAppCheck/.test(opts)) {
-      // Present but not the shared constant — the one shape that looks
-      // right and is not.
-      missing.push({
-        name,
-        where,
-        note: "sets enforceAppCheck to something other than ENFORCE_APP_CHECK",
-      });
-    } else {
-      missing.push({ name, where, note: "no enforceAppCheck" });
-    }
-  }
+  const one = scanCallables(src, file);
+  enforcing.push(...one.enforcing);
+  missing.push(...one.missing);
+  for (const [k, v] of one.bodies) bodies.set(k, v);
+  onCallSites += one.onCallSites;
 }
 
+/**
+ * The gate's verdict: every problem it can report, as strings.
+ *
+ * EXPORTED and parameterised on the exemption table so a test can drive
+ * it without the real tree — the four rules below all fail SILENTLY when
+ * they stop working, because each one narrows a list and an empty list is
+ * what "no problems" looks like.
+ */
+export function appCheckProblems({ enforcing, missing, bodies, onCallSites }, exempt) {
 const found = enforcing.length + missing.length;
 const errors = [];
 
@@ -267,7 +307,7 @@ if (found !== onCallSites) {
   );
 }
 
-const unexplained = missing.filter((m) => !(m.name in EXEMPT));
+const unexplained = missing.filter((m) => !(m.name in exempt));
 if (unexplained.length) {
   errors.push(
     "these callables neither enforce App Check nor carry an exemption:\n"
@@ -278,7 +318,7 @@ if (unexplained.length) {
   );
 }
 
-const staleExemptions = enforcing.filter((e) => e.name in EXEMPT);
+const staleExemptions = enforcing.filter((e) => e.name in exempt);
 if (staleExemptions.length) {
   errors.push(
     "these callables now enforce App Check but are still listed as exempt:\n"
@@ -299,9 +339,9 @@ if (staleExemptions.length) {
 // prose. Removing assertOperator from seedContentV2 — the callable that
 // rewrites the question bank — left every gate in the repo green.
 const ungated = missing
-  .filter((c) => c.name in EXEMPT)
+  .filter((c) => c.name in exempt)
   .filter((c) => {
-    const { gate } = EXEMPT[c.name];
+    const { gate } = exempt[c.name];
     const body = bodies.get(c.name) || "";
     return !new RegExp(`\\b${gate}\\s*\\(`).test(body);
   });
@@ -309,7 +349,7 @@ if (ungated.length) {
   errors.push(
     "these callables are exempt from App Check but do not call the gate\n"
     + "  their exemption names:\n"
-    + ungated.map((c) => `    ${c.where} — expected ${EXEMPT[c.name].gate}(…)`).join("\n")
+    + ungated.map((c) => `    ${c.where} — expected ${exempt[c.name].gate}(…)`).join("\n")
     + "\n\n  An exemption is only as good as the allowlist that replaces\n"
     + "  attestation. If the gate moved, update EXEMPT; if it went, this\n"
     + "  callable is now open to any caller on the internet.",
@@ -317,7 +357,7 @@ if (ungated.length) {
 }
 
 const known = new Set([...enforcing, ...missing].map((c) => c.name));
-const ghosts = Object.keys(EXEMPT).filter((n) => !known.has(n));
+const ghosts = Object.keys(exempt).filter((n) => !known.has(n));
 if (ghosts.length) {
   errors.push(
     `EXEMPT names callables that no longer exist: ${ghosts.join(", ")}.\n`
@@ -325,7 +365,18 @@ if (ghosts.length) {
     + "  debt actually is.",
   );
 }
+return errors;
+}
 
+const errors = appCheckProblems({ enforcing, missing, bodies, onCallSites }, EXEMPT);
+const found = enforcing.length + missing.length;
+// Only a direct run prints or exits: importing this module for its
+// exports must not take a test process down with it, and must not
+// interleave a census into the test output.
+const invokedDirectly =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedDirectly) {
 for (const c of [...enforcing].sort((a, b) => a.name.localeCompare(b.name))) {
   console.log(`  enforced  ${c.name}`);
 }
@@ -343,3 +394,4 @@ console.log(
   `\ncheck:appcheck OK — ${found} callables, `
   + `${enforcing.length} enforcing App Check, ${missing.length} exempt with a recorded reason`,
 );
+}

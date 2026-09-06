@@ -1037,8 +1037,10 @@ export type CatalogSpec =
 
 /**
  * The stored form of a catalog answer's entity, or null to never
- * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure
- * like meetsKFloor: the specs live in v2.ts (CATALOG_DOMAINS), the
+ * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure —
+ * it names no catalogue itself (the comparison here used to be to
+ * `meetsKFloor`, deleted with the floors at D98): the specs live in
+ * v2.ts (CATALOG_DOMAINS), the
  * committed catalogues are cross-checked against them by
  * scripts/check-pokedex.mjs and scripts/check-catalogs.mjs.
  */
@@ -1058,25 +1060,21 @@ export function catalogEntityKey(value: unknown, spec: CatalogSpec): string | nu
 export type CanonCounts = Record<string, number>;
 
 /**
- * The publishable leaderboard: entities at or above the floor, capped at
- * topN, everything else folded into `rest`. Null means nothing finer than
- * the total may be published.
+ * The published leaderboard: the `topN` biggest entities, with everything
+ * else summed into `rest`. Never null — an empty board is an empty
+ * catalogue question, not a suppression.
  *
- * Three rules beyond the plain floor, each with a reader in mind:
+ * One rule beyond the plain cut, with a reader in mind: key "0" ("Not
+ * listed") is counted in the total but NEVER enumerated — the moment it
+ * would lead a board, the catalogue is stale, not newsworthy.
  *
- * - Key "0" ("Not listed") is counted but NEVER enumerated — the moment it
- *   would lead a board, the catalogue is stale, not newsworthy.
- * - Ties at the topN boundary fold entirely: publishing 2 of 4 entities
- *   that share the boundary count would rank equals arbitrarily, and the
- *   arbitrary half would look like a standing.
- * - Complementary suppression, tie-group flavoured: exactly one folded
- *   entity is recoverable as `total - published`, so the smallest published
- *   COUNT (the whole tie group at that count, to keep the no-split rule)
- *   folds with it. Conservative on purpose: a nonzero "Not listed" count
- *   inside `rest` would often mask the hole, but "often" is not a floor.
+ * THIS BLOCK USED TO DESCRIBE A DIFFERENT FUNCTION. It promised a
+ * k-floor, boundary tie-group folding, complementary suppression and a
+ * `null` return — every one of them deleted by D98, and three of them
+ * contradicted by the note directly below it while the signature
+ * contradicted the fourth. A JSDoc block is what an editor shows on
+ * hover, so it was the version a caller would code against.
  */
-// The published leaderboard: the `topN` biggest entities, with everything
-// else summed into `rest`.
 //
 // This was `publishableCanon`, and it did three more things, all of which
 // D98 deleted:
@@ -1196,13 +1194,13 @@ export function foldCanonAnchors(
  * document is now its only job (D98 removed the floors that used to
  * follow it).
  *
- * Two deliberate conservatisms, recorded in D17:
- * - the floor then applies to the SHOWN total (top-N answers in the
- *   bucket), not the bucket's true cohort — a bucket can be suppressed
- *   more than strictly necessary, never less;
- * - entities outside the global top-N do not exist here. A segment's own
- *   favourite that never made the global board is not published — the
- *   D14 arithmetic, not an oversight.
+ * One deliberate conservatism, recorded in D17 and outliving the floors
+ * that surrounded it: entities outside the global top-N do not exist
+ * here. A segment's own favourite that never made the global board is not
+ * published — the D14 arithmetic, not an oversight.
+ *
+ * (The bullet that stood beside it described what the FLOOR was applied
+ * to. D98 removed the floor and left the sentence.)
  */
 export function canonBreakdownFor(
   entBy: BreakdownCounts,

@@ -54,6 +54,9 @@ import { resetNormCache } from "../data/testNorms";
 import { FRIENDS } from "../spec/follows.js";
 import { IS_DATA } from "../spec/sample-data.js";
 
+// The fixture daily's published option counts (live-fixture.ts), named
+// here because a case below asserts an absolute total built from them.
+const FIXTURE_DAILY_COUNTS = [12, 8, 5];
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
 
@@ -2189,6 +2192,28 @@ describe("live mode never inherits the sample persona (D55)", () => {
     ).toEqual([]);
   });
 
+  it("gives Work the cohort's own value beside the profile's, and falls back where there is none", () => {
+    // D328 made the Work dim the derived `jobField`, so the sentence that
+    // carries a number about "people in your line of work" must name the
+    // FIELD — naming the profession reads as a cohort of carpenters. The
+    // row keeps the profession as the value it headlines, which claims no
+    // cohort, and carries the field as `self` for the sentence that does.
+    live = installLive({ anchors: { profession: "Carpenter", jobField: "Trades, construction & manufacturing" } });
+    hydrateTestResults({});
+    const job = anchorList().find((r) => r.id === "job");
+    expect(job, "the Work anchor vanished").toBeTruthy();
+    expect(job.value).toBe("Carpenter");
+    expect(job.self).toBe("Trades, construction & manufacturing");
+
+    // …and a profile written before D328 has no derived field at all, so
+    // the row falls back to the profession rather than to an empty "you:".
+    live.restore();
+    live = installLive({ anchors: { profession: "Carpenter" } });
+    hydrateTestResults({});
+    const old = anchorList().find((r) => r.id === "job");
+    expect(old.self, "a pre-D328 profile lost its side of the sentence").toBe("Carpenter");
+  });
+
   it("anchors the viewer's own values, and only those", () => {
     live = installLive({
       anchors: { ageBand: "25-34", profession: "Nurse", education: "Bachelor" },
@@ -2304,6 +2329,32 @@ describe("live mode never inherits the sample persona (D55)", () => {
   // `indexOf(max)` then breaks the real tie by INDEX. That decided the Map
   // card's "most chose N" and its "you're with the majority" / "a minority
   // take" verdict — the same defect the feed's own line had.
+  it("the daily's vote count includes YOUR vote — the one add-back nothing held", async () => {
+    // countsFor (data/deck) subtracts the viewer's own vote out of the
+    // published aggregate and delegates the add-back to a single line in
+    // daily-split.jsx, saying so: "the UI layer adds its own +1 for you".
+    // Nothing pinned that line. Neutering it — `count + 0 * (…)` — leaves
+    // the whole unit suite green while the card, its split and its
+    // Answers row each drop a vote, which is the reader's own.
+    //
+    // Absolute, not self-consistent: the sibling case that opens the info
+    // sheet asserts the card and the sheet AGREE, and they agree just as
+    // well when both are one low.
+    mountLive();
+    act(() => { live.LIVE.vote("daily-000", "1"); });
+    await awaitText(/ votes/);
+    const shown = /(\d+) votes/.exec(document.body.textContent);
+    expect(shown, "the daily is not printing a vote count — fixture changed").toBeTruthy();
+    // The fixture's daily publishes 12 + 8 + 5 = 25, none of them yours,
+    // so the card must read 26. Checked against the fixture's own numbers
+    // rather than a literal 26 alone, so a fixture change moves the
+    // expectation with it instead of silently making the case vacuous.
+    const published = FIXTURE_DAILY_COUNTS.reduce((a, b) => a + b, 0);
+    expect(published, "the fixture's daily counts changed").toBe(25);
+    expect(Number(shown[1]), "the viewer's own vote is missing from the count")
+      .toBe(published + 1);
+  });
+
   it("the group's mode follows the votes, not the rounding", () => {
     live = installLive({
       aggCounts: { 0: 449, 1: 451, 2: 100 },

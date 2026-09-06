@@ -73,7 +73,7 @@ export const LIVE_MEMBERS = [
   // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
   // scores; `testFeedItems` and `myTestResults` are the fold's other two
   // ingredients, exposed so the typed layer never needs a bridge read.
-  "loadSimilarity", "similarityLoading", "testAggsState", "kindredPeople",
+  "loadSimilarity", "similarityLoading", "testAggsState", "kindredState", "kindredPeople",
   "testFeedItems", "myTestResults",
   // D277 — the passive fold, persisted. Listed here rather than beside
   // saveTestResult because it is what makes the D112 score tier able to

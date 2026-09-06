@@ -76,6 +76,9 @@ const LIVE = vi.hoisted(() => ({
   // these cases are about what the fold says once the data is in; the
   // loading and failed arms have their own cases.
   testAggsState: () => "ready" as "loading" | "ready" | "failed",
+  // Its people twin — every surface that mounts a similarity field
+  // reads it now, so the stub belongs beside its sibling.
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
   loadNames: vi.fn(async () => {}),
   scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
   loadSimilarity: vi.fn(async () => {}),

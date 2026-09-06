@@ -19,6 +19,7 @@ import {
   AUDIENCE_DIMS_MAX,
   LIKERT,
   adPriceQuote,
+  checkoutLineItem,
   adStartDay,
   adAudiencesOverlap,
   dayPlus,
@@ -39,6 +40,8 @@ import {
   parseVerdict,
   priceQuote,
   refundEurFor,
+  reviewBooking,
+  goLive,
   reviewGates,
   reviewSubject,
   validatePaidBooking,
@@ -589,6 +592,81 @@ describe("adStartDay — ads queue, never overlap (D315)", () => {
     expect(dayPlus("2026-08-27", WINDOW_DAYS - 1)).toBe("2026-09-24");
     expect(dayPlus("not-a-day", 3)).toBe("not-a-day");
   });
+
+  it("a paid question's window is one clock read — the arithmetic", () => {
+    // goLive used to compute both ends from the clock independently —
+    // `utcDayKey(1)` and `utcDayKey(WINDOW_DAYS)`, each reading Date.now()
+    // for itself. Equal on any single day, and NOT equal across a retry
+    // that lands either side of UTC midnight: the buyer paid for
+    // WINDOW_DAYS and got one more or one less.
+    const beforeMidnight = Date.parse("2026-08-26T23:59:59.900Z");
+    const afterMidnight = Date.parse("2026-08-27T00:00:00.100Z");
+
+    // What it does now: the end is derived from the start, so both come
+    // from one reading whichever side of midnight it falls on.
+    for (const t of [beforeMidnight, afterMidnight]) {
+      const start = utcDayKey(1, t);
+      expect(dayPlus(start, WINDOW_DAYS - 1)).toBe(utcDayKey(WINDOW_DAYS, t));
+    }
+
+    // …and the shape it replaced, shown resizing. This is the assertion
+    // that makes the change worth having rather than a tidy-up.
+    const split = dayPlus(utcDayKey(1, beforeMidnight), 0);
+    expect(utcDayKey(WINDOW_DAYS, afterMidnight)).not.toBe(
+      dayPlus(split, WINDOW_DAYS - 1),
+    );
+  });
+
+  it("…and goLive really writes that window, on both documents", () => {
+    // The arithmetic above is the shape; this is the CALL SITE. Between
+    // them they cover different things, and it is worth being exact about
+    // which: this case fails if the window is ever the wrong LENGTH, and
+    // the one above states the divergence the two-clock version produces.
+    // Neither can catch the two-clock shape here directly — it differs
+    // only across a real midnight tick, and fake timers freeze the clock
+    // rather than advancing it between two reads, so there is no way to
+    // force the two calls apart inside one test.
+    //
+    // Both the served question and the purchase row carry the window, so
+    // both are read: a buyer's receipt and the thing they bought must not
+    // disagree about when it ends.
+    const store = new Map<string, Record<string, unknown>>();
+    const ref = (path: string) => ({ path, id: path.split("/").pop() as string });
+    const db = {
+      collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+      async runTransaction(cb: (tx: unknown) => Promise<unknown>) {
+        return cb({
+          get: async (r: { path: string }) => ({
+            exists: store.has(r.path),
+            data: () => store.get(r.path),
+            get: (f: string) => store.get(r.path)?.[f],
+          }),
+          set: (r: { path: string }, data: Record<string, unknown>) => { store.set(r.path, data); },
+          update: (r: { path: string }, data: Record<string, unknown>) => {
+            store.set(r.path, { ...(store.get(r.path) || {}), ...data });
+          },
+        });
+      },
+    };
+    store.set("v2_paid_bookings/b1", {
+      ...BOOKING, uid: "u1", status: "approved", buyerName: null,
+      quote: priceQuote(BOOKING.scope),
+    });
+
+    return goLive(db as unknown as Parameters<typeof goLive>[0], "b1", "pi_1").then((live) => {
+      expect(live, "the webhook did not take the booking live").toBe(true);
+      const q = store.get("v2_questions/paidq-b1") as { from: string; until: string };
+      expect(q, "no question document was written").toBeTruthy();
+      // Tomorrow, and exactly WINDOW_DAYS of serving counting it.
+      expect(q.from).toBe(utcDayKey(1));
+      expect(dayPlus(q.from, WINDOW_DAYS - 1), "the window is not the length that was sold")
+        .toBe(q.until);
+      const purchase = store.get("v2_purchases/u1_b1") as { window: { start: string; until: string } };
+      expect(purchase.window.start).toBe(q.from);
+      expect(purchase.window.until, "the receipt and the question disagree about the end")
+        .toBe(q.until);
+    });
+  });
 });
 
 // The half `adStartDay` cannot see: WHICH running ads it should be handed.
@@ -834,5 +912,163 @@ describe("heldPageFrom — the paging the sweep's own tests cannot see", () => {
     const rows = await heldPageFrom(q, fakeDb(false), "gone", 50);
     expect(rows, "a vanished cursor rewound to page one").toEqual([]);
     expect(calls).toEqual([]);
+  });
+});
+
+// ── the two status guards nothing could see ─────────────────────────────
+//
+// `reviewBooking` reads the booking, calls the reviewer, then writes the
+// verdict inside a transaction that re-reads it. Both reads refuse
+// anything that is not still `review`, and BOTH GUARDS WERE DELETABLE WITH
+// EVERY RUNNER GREEN: the e2e drives exactly one trigger-fired review per
+// booking and never runs the 30-minute sweep, and `runReviewSweep`'s own
+// tests inject a store whose `review` is a stub.
+//
+// What the guards are worth: without them the sweep re-reviews `declined`
+// and `live` bookings, so a decline the buyer has already read is
+// overwritten by an approve, and a PAID, LIVE booking is written back to
+// approved or declined — stranding a campaign whose purchase row and
+// question doc already exist.
+//
+// No mocking is needed to drive it. `runReviewVerdict` returns
+// approve-on-gates-only when no model key is configured, which is what a
+// test process is, so the verdict is deterministic and no network is
+// touched.
+describe("reviewBooking only ever moves a booking OUT of review", () => {
+  /** The smallest Firestore this function actually uses: one document,
+   *  a transaction that re-reads it, and a record of what was written.
+   *  `reads` lets a case change the status BETWEEN the outer read and the
+   *  transaction's, which is the race the second guard exists for. */
+  function fakeDb(statuses: string[]) {
+    const writes: Record<string, unknown>[] = [];
+    // Reads are counted because the OUTER guard's whole job is to spend
+    // nothing on a booking that is not in review: without it the function
+    // runs on to the reviewer and the transaction, and the transaction's
+    // own guard — the backstop — refuses the write. So the write count
+    // cannot see the outer guard at all; the read count can.
+    const reads: string[] = [];
+    let n = 0;
+    const snapFor = () => {
+      const status = statuses[Math.min(n++, statuses.length - 1)];
+      reads.push(status);
+      return {
+        exists: true,
+        get: (k: string) => (k === "status" ? status : (BOOKING as Record<string, unknown>)[k]),
+      };
+    };
+    const ref = { get: async () => snapFor(), update: async (u: Record<string, unknown>) => { writes.push(u); } };
+    return {
+      writes,
+      reads,
+      db: {
+        collection: () => ({ doc: () => ref }),
+        runTransaction: async (fn: (tx: unknown) => Promise<void>) => fn({
+          get: async () => snapFor(),
+          update: (_r: unknown, u: Record<string, unknown>) => { writes.push(u); },
+        }),
+      } as unknown as Parameters<typeof reviewBooking>[0],
+    };
+  }
+
+  it("writes a verdict for a booking that is still in review — the control", async () => {
+    const f = fakeDb(["review", "review"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the ordinary path stopped writing a verdict").toHaveLength(1);
+    expect(f.writes[0].status).toBe("approved");
+  });
+
+  it("writes nothing for a booking that is already LIVE — it has been paid for", async () => {
+    const f = fakeDb(["live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "a paid, live booking was re-reviewed").toEqual([]);
+    // …and it stops at the FIRST read, which is the outer guard's whole
+    // point: past it the function calls the reviewer, and in production
+    // that is a billed model call for a booking already settled.
+    expect(f.reads, "the outer guard let it run on to the reviewer").toHaveLength(1);
+  });
+
+  it("writes nothing for a booking already DECLINED — the buyer has read it", async () => {
+    const f = fakeDb(["declined"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes).toEqual([]);
+  });
+
+  it("writes nothing when the booking leaves review DURING the reviewer call", async () => {
+    // The second guard, and the only one the first cannot stand in for:
+    // in review at the outer read, live by the time the transaction reads
+    // it. That window is exactly as long as the model call.
+    const f = fakeDb(["review", "live"]);
+    await reviewBooking(f.db, "b1");
+    expect(f.writes, "the transaction wrote over a booking that went live mid-review").toEqual([]);
+  });
+});
+
+// ── what the buyer is actually charged ──────────────────────────────────
+//
+// Everything from the amount to the sentence describing it is unreachable
+// in the emulator: `createPaidCheckoutV2` throws `unavailable` at the
+// missing Stripe key one line above, and the e2e asserts exactly that
+// refusal. So the whole block ran under nothing — swapping the cap for the
+// per-answer rate, or the cents multiplier from 100 to 10, left the
+// functions suite and every e2e leg green.
+describe("checkoutLineItem — the amount and what the charge says it is for", () => {
+  const q = priceQuote("city");
+  const ad = adPriceQuote("city");
+  const both = { ...q, ...ad } as Parameters<typeof checkoutLineItem>[1];
+
+  it("charges the QUESTION its cap, in cents", () => {
+    // The cap, not the per-answer rate: the cap is what is taken, so the
+    // unserved part can be refunded at close. Charging the rate would bill
+    // €0.14 for a €320 campaign.
+    const li = checkoutLineItem(false, both);
+    expect(q.capEur).toBe(320);
+    expect(li.unit_amount).toBe(32000);
+    expect(li.currency).toBe("eur");
+  });
+
+  it("charges the AD its flat price, in cents", () => {
+    const li = checkoutLineItem(true, both);
+    expect(li.unit_amount).toBe(Math.round(ad.flatEur * 100));
+    // …and the two are genuinely different numbers, or this case and the
+    // one above could not tell the branches apart.
+    expect(ad.flatEur).not.toBe(q.capEur);
+  });
+
+  it("does not lose or gain a factor of ten on the cents", () => {
+    // `* 10` (€3.20) and `* 1000` both leave every other assertion here
+    // intact if the amount is only ever compared to itself, so this
+    // compares against the euro figure the buyer was quoted.
+    for (const isAd of [false, true]) {
+      const li = checkoutLineItem(isAd, both);
+      const euros = isAd ? ad.flatEur : q.capEur;
+      expect(li.unit_amount / 100).toBeCloseTo(euros, 2);
+    }
+  });
+
+  it("tells the question's buyer the window, the rate and the refund", () => {
+    // This sentence is the contract the buyer reads at the moment of
+    // paying. Every number in it comes off the locked quote.
+    const d = checkoutLineItem(false, both).product_data;
+    expect(d.name).toBe("InSight paid question");
+    expect(d.description).toContain(`${q.windowDays}-day window`);
+    expect(d.description).toContain(`€${q.ratePerAnswer}`);
+    expect(d.description).toContain(`up to ${q.cap} answers`);
+    expect(d.description).toContain("refunds automatically at close");
+  });
+
+  it("tells the ad's buyer a flat price and promises it no refund", () => {
+    // The ad has no refund path (D315), so its description must not carry
+    // the question's promise — the two products landed on one page once
+    // and that is the failure the split exists for.
+    const d = checkoutLineItem(true, both).product_data;
+    expect(d.name).toBe("InSight feed ad");
+    expect(d.description).toContain(`${ad.windowDays}-day window at a flat price`);
+    expect(d.description).not.toContain("refunds automatically");
+    expect(d.description).not.toContain("per answer");
+  });
+
+  it("prints the rate without trailing zeros — it is money, not a float dump", () => {
+    const d = checkoutLineItem(false, both).product_data;
+    expect(d.description).not.toMatch(/€\d+\.\d*0(\D|$)/);
   });
 });
