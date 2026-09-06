@@ -4004,6 +4004,73 @@ describe("rank answers (D233): an order, never an index", () => {
 // also asserts that a signed-in principal CAN read it. A new
 // `allow read: if request.auth != null` arm belongs in this list on the
 // commit that adds it.
+describe("every write gated on sign-in refuses a signed-out client", () => {
+  // THE OTHER HALF. The read block below counts sign-in-gated READ arms and
+  // holds the number; its own note says the write side is unwritten. The
+  // rules-coverage ratchet is what made the size of the gap countable:
+  // `request.auth != null` never evaluated FALSE on twenty arms, thirteen
+  // of them writes, which means each of those thirteen could be deleted
+  // outright and all 180 tests would still pass.
+  //
+  // Only the WRITE arms are here. The read arms that are not spelled bare
+  // are claimed on the other night shift's list, and two branches writing
+  // one fixture set is the thing the overlap check exists to prevent.
+  //
+  // One `it()` per arm rather than a loop, for the reason the read block
+  // records: `check:figures` counts test declarations statically, so a loop
+  // would contribute one declaration for thirteen tests and make four
+  // documented figures wrong.
+  //
+  // The payloads are deliberately WELL-FORMED. A malformed one would be
+  // refused by a later clause and prove nothing about the sign-in gate —
+  // the same trap as the catalog-answer case fixed earlier tonight, where
+  // the assertion was refused several clauses before the one it named.
+  const DAY = "2026-09-03";
+  const refusesWrite = async (fn: () => Promise<unknown>): Promise<void> => {
+    await assertFails(fn());
+  };
+
+  it("v2_users refuses a signed-out write", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER), { displayName: "Owner" })));
+  it("answers refuse a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "daily-000"), {
+      qid: "daily-000", surface: "daily", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: {},
+    })));
+  it("answers refuse a signed-out update", () => refusesWrite(() =>
+    updateDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "daily-000"), {
+      optionIdx: 0, editedAt: serverTimestamp(),
+    })));
+  it("engagement refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "engagement", DAY), {
+      day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
+      answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
+      folded: false, build: "1", platform: "web", expireAt: new Date(),
+    })));
+  it("following refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER), { at: serverTimestamp() })));
+  it("following refuses a signed-out delete", () => refusesWrite(() =>
+    deleteDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER))));
+  it("foresight refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_users", OWNER, "foresight", "q1__ageBand__25-34"), { pick: 0 })));
+  it("v2_groups refuses a signed-out update", () => refusesWrite(() =>
+    updateDoc(doc(asSignedOut(), "v2_groups", "grp1"), { name: "x" })));
+  it("v2_people refuses a signed-out write", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_people", OWNER), { handle: "owner" })));
+  it("v2_takes refuses a signed-out create", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_takes", "t9"), {
+      gid: "world", uid: OWNER, text: "hello", at: serverTimestamp(), hidden: false,
+    })));
+  it("v2_takes refuses a signed-out delete", () => refusesWrite(() =>
+    deleteDoc(doc(asSignedOut(), "v2_takes", "t9"))));
+  it("v2_avatars refuses a signed-out write", () => refusesWrite(() =>
+    setDoc(doc(asSignedOut(), "v2_avatars", OWNER), {
+      token: "abc123DEF456-_xyz", at: serverTimestamp(), hidden: false,
+    })));
+  it("v2_avatars refuses a signed-out delete", () => refusesWrite(() =>
+    deleteDoc(doc(asSignedOut(), "v2_avatars", OWNER))));
+});
+
 describe("every read gated on sign-in refuses a signed-out client", () => {
   const GROUP = "grp1";
   const DAY = "2026-09-03";
