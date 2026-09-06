@@ -502,7 +502,7 @@ export function loadCorpus() {
   // that: dragging the rest of the demo pool through production bounds
   // would fail scene fillers that are not production copy.
   const wfdSrc = readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8");
-  const wfd = extractLiteral(wfdSrc, "window.WORLD_FEED_QS = [", "world-feed-data.js");
+  const wfd = extractLiteral(wfdSrc, "const WFD_DEMO_POOL = [", "world-feed-data.js");
   // Pick cards file themselves against WORLD_TOPICS, which is a SUPERSET of
   // the feed's own taxonomy: `fav` and `places` are real topic ids that
   // world-feed filters out of the feed's chip row. So a pick card's `cat` is
@@ -511,7 +511,13 @@ export function loadCorpus() {
   // The marker followed the source: WORLD_TOPICS became a named export
   // when the Patterns tab started importing it (the WPAL precedent), with
   // `window.WORLD_TOPICS = WORLD_TOPICS` kept beneath for spec consumers.
-  const worldTopics = extractLiteral(wfdSrc, "export const WORLD_TOPICS = [", "world-feed-data.js");
+  // WORLD_TOPICS moved to world-feed-topics.js when the feed's pool left the
+  // first-paint graph — daily-split.jsx needed the palette and nothing else,
+  // and the import was carrying the bank. Read from there; the marker
+  // follows the source, as the note above records it did last time.
+  const worldTopics = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed-topics.js"), "utf8"),
+    "export const WORLD_TOPICS = [", "world-feed-topics.js");
   // The subtopic tree, for `also` (docs/TAGS-PLAN.md §1): a door may be a
   // leaf, and the leaf→parent map is what the redundancy rule below reads —
   // following a parent already gives you everything under it

@@ -31,7 +31,7 @@ import { edgesOf, mapGeometry, nearOf, type MapNode } from "../data/patternsMap"
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
-import { WORLD_TOPICS } from "../spec/world-feed-data.js";
+import { WORLD_TOPICS } from "../spec/world-feed-topics.js";
 
 // the field: a 352 box, the rim at 131, the topic band just outside it
 const S = 352, C = 176, R = 131, RA = 142, RL = 158;

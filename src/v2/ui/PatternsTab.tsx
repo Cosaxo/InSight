@@ -48,7 +48,7 @@ import PatternsOracle from "./PatternsOracle";
 import PatternsPeople, { type PeoplePop } from "./PatternsPeople";
 import { countryOf } from "../data/peopleMap";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
-import { WORLD_TOPICS } from "../spec/world-feed-data.js";
+import { WORLD_TOPICS } from "../spec/world-feed-topics.js";
 import "./patterns.css";
 
 const SANS = "var(--sans)";

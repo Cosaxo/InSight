@@ -28,7 +28,24 @@ function dq(onReady) {
   import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; if (onReady) onReady(); });
   return null;
 }
-import { DUELS } from './duels-data.js';
+// duels-data.js is loaded on demand, not imported — it pulls
+// content/duel-questions.json, the DUEL LANE's bank, and a static import
+// here put that file in first paint so writing a duel question cost every
+// phone start-up bytes. Same shape as `dq()` above, and the same reason.
+//
+// The three uses below tolerate a null store by construction: the two
+// pending counts are already gated off on a live build (`liveDuels ? 0 :
+// …`, see the note at their call site), so on live this module is never
+// needed at all; on a demo build they read 0 for the frame before it
+// lands, and the subscribe's own forceUpdate is what redraws them.
+let DUELSTORE = null;
+let duelsPending = false;
+function duels(onReady) {
+  if (DUELSTORE || duelsPending) return DUELSTORE;
+  duelsPending = true;
+  import('./duels-data.js').then((m) => { DUELSTORE = m.DUELS; if (onReady) onReady(); });
+  return null;
+}
 import { Sheet } from './primitives.jsx';
 // The store, through the module rather than through `window` — D39's
 // ratchet only moves down, so coupling arrives as an import. Every read in
@@ -46,9 +63,18 @@ import LIVE from '../data/live';
 // fallback, silently"); the import makes the order a graph guarantee and
 // the fallback goes. GroupDailyBody's `|| 'div'` and PassiveTag's guard
 // were load-order guards on eager modules.
-import { GroupDailyBody } from './group-daily.jsx';
+// GroupDailyBody is React.lazy for the reason its live counterpart already
+// is (LiveDuelPanel, below): it is the DEMO Circle body, and the note at its
+// render site says live mode never mounts it. Statically it pulled
+// duels-data.js and with it content/duel-questions.json — the DUEL LANE's
+// bank — into first paint, so a scheduled Routine writing a duel question
+// was adding start-up bytes to every phone, including the live builds that
+// can never render this body at all. The `duo` body beside it was already
+// resolved at render time and cost nothing; this makes the pair consistent.
+const GroupDailyBody = React.lazy(() =>
+  import('./group-daily.jsx').then((m) => ({ default: m.GroupDailyBody })));
 import { PassiveTag } from './passive-meter.jsx';
-import { WORLD_TOPICS } from './world-feed-data.js';
+import { WORLD_TOPICS } from './world-feed-topics.js';
 import { WF_REPORT } from './world-feed-report.js';
 // The one rounding rule (data/pct.ts). This file was the third split
 // surface and the one that kept the rule pct.ts was written to delete —
@@ -193,7 +219,13 @@ export class DailySplit extends React.Component {
     this._toastT = setTimeout(() => { if (this.state.mapToast === id) this.setState({ mapToast: null }); }, 3000);
   }
   componentDidMount() {
-    this._unsubDuels = DUELS.subscribe(() => this.forceUpdate());
+    // Subscribes once the store lands; componentWillUnmount's guard
+    // already tolerates the handle being absent, and a component
+    // unmounted before then simply never subscribes.
+    {
+      const sub = () => { this._unsubDuels = DUELSTORE.subscribe(() => this.forceUpdate()); };
+      if (duels(() => { if (!this._duelsGone) { sub(); this.forceUpdate(); } })) sub();
+    }
     // The purge (data/live.ts, D51): this component persists dreplies,
     // cats and testProg by spreading state back to the keys the purge just
     // removed, and it stays mounted across a uid change — drop them, or
@@ -328,7 +360,7 @@ export class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); this._duelsGone = true; if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
 
   // one axis, three stops. Which axis depends on how the app is navigating:
   // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.
@@ -1250,7 +1282,13 @@ export class DailySplit extends React.Component {
     // stutter.
     const liveDuels = LIVE.enabled;
     const lazyDuel = (key, m) => h(React.Suspense, { key, fallback: null }, h(LiveDuelPanel, { mode: m }));
-    const groupBody = liveDuels ? lazyDuel('live-group', 'group') : h(GroupDailyBody, { key: 'group-daily' });
+    // Both arms are Suspense-wrapped now, with the same null fallback and
+    // for the same reason the note above lazyDuel gives: the chunk lands in
+    // the mode switch's own frame on anything but a cold first tap, and a
+    // flashed spinner reads as a stutter.
+    const groupBody = liveDuels
+      ? lazyDuel('live-group', 'group')
+      : h(React.Suspense, { key: 'group-daily', fallback: null }, h(GroupDailyBody, null));
     const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
     // ===== chrome =====
@@ -1269,8 +1307,13 @@ export class DailySplit extends React.Component {
     // computes "duels you have not answered today" — so live mode draws
     // NOTHING here rather than a number it cannot mean. D1: where a live
     // surface shows nothing, the data is absent.
-    const pendG = liveDuels ? 0 : DUELS.groupsPending();
-    const pendD = liveDuels ? 0 : DUELS.pendingDuos();
+    // `duels()` returns null until the store lands (see the top of this
+    // file). Zero then, which is what a live build draws permanently
+    // anyway — and the demo's own subscribe redraws with the real counts
+    // a frame later.
+    const D = liveDuels ? null : duels(() => this.forceUpdate());
+    const pendG = D ? D.groupsPending() : 0;
+    const pendD = D ? D.pendingDuos() : 0;
     const badges = {
       group: mode !== 'group' && pendG ? String(pendG) : null,
       duo: mode !== 'duo' && pendD ? String(pendD) : null,

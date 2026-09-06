@@ -5,7 +5,14 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
-import { DUELS } from './duels-data.js';
+// duels-data.js is NOT imported here, and the reason is the same one
+// daily-questions.js left first paint for. It pulls
+// content/duel-questions.json — the DUEL LANE's bank, a file a scheduled
+// Routine appends to — so a static import here made writing a duel question
+// a start-up cost for every phone. Its one use below is a DevTweaks
+// callback: a developer resetting today's duel, already behind a Suspense
+// boundary and a build-time guard, and about as far from first paint as a
+// code path gets.
 import { HAPTIC } from './haptics.js';
 import { markNav } from './swipe-back.js';
 import { useTweaks } from '../data/tweaks.jsx';
@@ -837,7 +844,11 @@ export function App() {
       {DevTweaks && (
         <React.Suspense fallback={null}>
           <DevTweaks t={t} setTweak={setTweak}
-            onResetToday={() => { DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
+            onResetToday={async () => {
+              const { DUELS } = await import('./duels-data.js');
+              DUELS.resetToday();
+              setDailyKey((k) => k + 1);
+            }} />
         </React.Suspense>
       )}
     </IOSDevice>
