@@ -859,6 +859,16 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 1 })));
   });
 
+  it("refuses a guess filed under another call's id", async () => {
+    // The third `qid == aid`, and the same reason as rank's and catalog's:
+    // the document id IS the question the grader folds by, so a body
+    // naming a different one is graded against a call it never answered.
+    // Never once evaluated false before this.
+    await seedCall();
+    await assertFails(setDoc(mine(), callAnswer({ qid: "call-other" })));
+    await assertSucceeds(setDoc(mine(), callAnswer()));
+  });
+
   it("ONCE A GRADE IS PUBLISHED, THE CALL CLOSES", async () => {
     // The clause isCallAnswer() exists for. Outcomes are world-readable
     // the moment the resolver writes them, so without this a player reads
@@ -1692,6 +1702,10 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // "feed", "test"]` from birth, and "test" here passed BOTH halves of
     // it against this feed question. Now the claimed surface must be
     // exactly the one catalog questions exist on.
+    // The document id IS the question the trigger folds by, so an entity
+    // answer whose body names a different catalogue question poisons that
+    // one's board. `qid == aid` had never evaluated false here either.
+    await assertFails(setDoc(ref(CQ), cat({ qid: "feed-cat9" })));
     await assertFails(setDoc(ref(CQ), cat({ surface: "test" })));
     await assertFails(setDoc(ref(CQ), cat({ surface: "daily" })));
     await assertFails(setDoc(ref("feed-cat-off"),
@@ -3915,6 +3929,30 @@ describe("rank answers (D233): an order, never an index", () => {
     // The D86 arm keys on the OLD doc carrying optionIdx — an order answer
     // never does, so a ranking cannot be "moved" through the vote edit.
     await assertFails(updateDoc(mine(), { optionIdx: 1, editedAt: serverTimestamp() }));
+  });
+
+  it("refuses an answer filed under a document id that names another question", async () => {
+    // `qid == aid` appears in three of the answer-shape functions — rank,
+    // catalog and call — and NONE of them had ever evaluated it false: the
+    // coverage report says true 7, 10 and 6 times respectively, and zero
+    // falses, so all three could be deleted with the suite green.
+    //
+    // What the clause is for: an answer's document id IS its question, and
+    // the aggregate trigger folds by that id. An answer whose body names a
+    // different question would be counted into the wrong question's
+    // aggregate — the D30 re-key class, arriving one document at a time.
+    await seedRank();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "feed-f04"), {
+        surface: "feed", seq: 3, type: "rank", prompt: "Rank these too",
+        options: ["A", "B", "C", "D"], active: true,
+      });
+    });
+    // Filed under feed-f03, claiming to be feed-f04.
+    await assertFails(setDoc(mine(), rankAnswer({ qid: "feed-f04" })));
+    // The control: the same write with the two agreeing is admitted, so
+    // the refusal is the disagreement and nothing else.
+    await assertSucceeds(setDoc(mine(), rankAnswer()));
   });
 
   it("bounds the list where rules can, and refuses the index the fold would misread", async () => {
