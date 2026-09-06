@@ -290,7 +290,7 @@ describe("rankCrowdFor (D233): the crowd order, minus you", () => {
   });
 });
 
-describe("computeDeckSeqs (the paged deck, D371)", () => {
+describe("computeDeckSeqs (the paged deck, D382)", () => {
   // THE PIN THAT MATTERS. A device holding the bank uses computeDeckIds; a
   // device holding only the published length uses computeDeckSeqs and
   // fetches those positions. If the two ever disagree, two users answer

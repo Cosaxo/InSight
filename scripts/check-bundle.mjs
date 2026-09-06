@@ -835,7 +835,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // three behind a tap, all three in spec-index.js's ORDERED side-effect
 // list, which is why moving one is its own change with its own load-order
 // risk and not something a review does on the way past.
-// 642 → 607 (2026-09-06, D370): the eager-content sweep. 642 was granted
+// 642 → 607 (2026-09-06, D381): the eager-content sweep. 642 was granted
 // four days ago to fit a tree measuring 631, and 35 KB of that was
 // question CONTENT — `daily-questions.js`, the archive the farm lane
 // appends to EVERY DAY, held in first paint by three static edges (the

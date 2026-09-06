@@ -761,8 +761,8 @@ describe("Scores · the asks (D307)", () => {
     expect(screen.getByText("2 more after these.")).toBeTruthy();
   });
 
-  it("counts the POOL, not the page it was handed (D372)", () => {
-    // The regression this exists to stop. Since D372 the device fetches a
+  it("counts the POOL, not the page it was handed (D383)", () => {
+    // The regression this exists to stop. Since D383 the device fetches a
     // bounded page of ask documents and knows every ask ID, so the two
     // numbers part company on exactly the stops with the most to offer:
     // counting the array would say "1 more after these" on a scope

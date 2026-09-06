@@ -51,7 +51,7 @@ export const RANK_SURFACES = ["feed", "learn"] as const;
 export type RankSurface = (typeof RANK_SURFACES)[number];
 
 /**
- * The daily's shape document (D371) — NOT an order, and the distinction
+ * The daily's shape document (D382) — NOT an order, and the distinction
  * is the reason the file header excludes the daily from RANK_SURFACES.
  * The daily stays positional: everyone answers the same question on the
  * same day, which is what makes a cohort comparison mean anything.
@@ -76,7 +76,7 @@ export interface DailyShapeDoc {
   n: number;
   maxSeq: number;
   /**
-   * The Scores lens's pool, per place scope (D372) — question ids, not
+   * The Scores lens's pool, per place scope (D383) — question ids, not
    * documents. The lens asks "every active `rating` daily that names this
    * place and I have NOT answered", which is the one daily fold that
    * history cannot supply: its whole subject is what you have not
@@ -303,7 +303,7 @@ export async function runBankRank(
     ranked += Object.values(docs[surface].topics).reduce((s, t) => s + t.qids.length, 0);
     await store.putOrder(surface, docs[surface]);
   }
-  // The daily's shape rides the same nightly write (D371). It is not an
+  // The daily's shape rides the same nightly write (D382). It is not an
   // order and takes no aggregates — the daily is positional — but it
   // belongs here rather than in its own function: one schedule, one place
   // a device looks for "what does the bank look like tonight", and the

@@ -575,7 +575,7 @@ describe("the warm paint", () => {
     await releaseAll(LIVE);
     expect(LIVE.dailyBank().map((x) => x.id)).toEqual(["q_1", "q_2"]);
     expect(LIVE.stats.bankSource).toBe("network");
-    // A full fetch, not a delta: FOUR boot queries since D371 — the three
+    // A full fetch, not a delta: FOUR boot queries since D382 — the three
     // surface queries plus the daily's own, none by cursor.
     const bankQs = h.calls.filter((c) => c.path === "v2_questions");
     expect(bankQs).toHaveLength(4);
@@ -1384,7 +1384,7 @@ describe("the network phase's round trips", () => {
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
     // Step 2: the bank delta AND the daily's shape, in one trip. The
-    // shape is one small document that depends on nothing (D371), so it
+    // shape is one small document that depends on nothing (D382), so it
     // rides out with the delta rather than opening a trip of its own —
     // the same argument D356 made for the cold boot's three queries.
     // Sorted, because they are issued together and the order between two
@@ -1408,7 +1408,7 @@ describe("the network phase's round trips", () => {
     await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
     // The boot surfaces, the core feed, the bought reach — and, since
-    // D371, the daily's shape — at once. The daily's ROWS are a dependent
+    // D382, the daily's shape — at once. The daily's ROWS are a dependent
     // trip after this one (they need the length to know which positions
     // to ask for), which is the one round trip the paging costs; what it
     // buys is the whole daily surface not being fetched at all.
