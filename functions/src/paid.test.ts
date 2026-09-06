@@ -851,6 +851,21 @@ describe("checkoutLineItem — the amount and what the charge says it is for", (
   // against a branch the caller now refuses outright.
   const q = priceQuote("city");
 
+  it("charges the cap ONCE — the quantity is part of the amount", () => {
+    // The multiplier used to live at the call site, inside the block the
+    // emulator cannot reach (the callable throws `unavailable` at the
+    // missing Stripe key one line above it, and the e2e asserts exactly
+    // that refusal). Measured: `quantity: 1` -> `quantity: 10` charged a
+    // €50 buyer €500 with the whole functions suite and the functions
+    // build green, while the purchase row still said €50 — so the closer's
+    // refund, clamped to the cap, could never hand the difference back.
+    const li = checkoutLineItem(q);
+    expect(li.quantity, "the buyer's contract was multiplied by something nobody quoted").toBe(1);
+    // …and what Stripe would actually take is the cap, not a multiple of
+    // it. Stated as the product, because that is the number on the card.
+    expect(li.quantity * li.price_data.unit_amount).toBe(Math.round(q.capEur * 100));
+  });
+
   it("charges the cap, in cents", () => {
     // The cap, not the per-answer rate: the cap is what is taken, so the
     // unserved part can be refunded at close. Charging the rate would bill
@@ -862,7 +877,7 @@ describe("checkoutLineItem — the amount and what the charge says it is for", (
     // night review for having pinned a number the card is allowed to
     // change rather than the relationship it must hold. The guard below is
     // what keeps that from making it vacuous.
-    const li = checkoutLineItem(q);
+    const li = checkoutLineItem(q).price_data;
     expect(li.unit_amount).toBe(Math.round(q.capEur * 100));
     expect(li.currency).toBe("eur");
     expect(
@@ -876,13 +891,13 @@ describe("checkoutLineItem — the amount and what the charge says it is for", (
     // `* 10` (€3.20) and `* 1000` both leave every other assertion here
     // intact if the amount is only ever compared to itself, so this
     // compares against the euro figure the buyer was quoted.
-    expect(checkoutLineItem(q).unit_amount / 100).toBeCloseTo(q.capEur, 2);
+    expect(checkoutLineItem(q).price_data.unit_amount / 100).toBeCloseTo(q.capEur, 2);
   });
 
   it("tells the buyer the window, the rate and the refund", () => {
     // This sentence is the contract the buyer reads at the moment of
     // paying. Every number in it comes off the locked quote.
-    const d = checkoutLineItem(q).product_data;
+    const d = checkoutLineItem(q).price_data.product_data;
     expect(d.name).toBe("InSight paid question");
     expect(d.description).toContain(`${q.windowDays}-day window`);
     expect(d.description).toContain(`€${q.ratePerAnswer}`);
@@ -894,13 +909,13 @@ describe("checkoutLineItem — the amount and what the charge says it is for", (
     // The products landed on one page once and that is the failure the
     // split existed for; with the ad gone, the residue would be the same
     // failure spelled the other way.
-    const d = checkoutLineItem(q).product_data;
+    const d = checkoutLineItem(q).price_data.product_data;
     expect(d.name).not.toMatch(/ad/i);
     expect(d.description).not.toMatch(/flat price/i);
   });
 
   it("prints the rate without trailing zeros — it is money, not a float dump", () => {
-    const d = checkoutLineItem(q).product_data;
+    const d = checkoutLineItem(q).price_data.product_data;
     expect(d.description).not.toMatch(/€\d+\.\d*0(\D|$)/);
   });
 });

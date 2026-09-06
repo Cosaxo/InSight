@@ -850,20 +850,36 @@ export const sweepPaidReviewsV2 = onSchedule(
  * path on main; the caller now refuses an approved-but-unpaid ad outright,
  * so a second branch here would be a shape nothing can reach — which is
  * the class of thing this whole extraction exists to stop shipping.
+ *
+ * THE WHOLE LINE ITEM, `quantity` included. The extraction stopped one
+ * token short of it: `quantity` stayed at the call site, inside the block
+ * the emulator cannot reach, so `quantity: 1` -> `quantity: 10` charged a
+ * €50 buyer €500 with the entire functions suite and the functions build
+ * green — and the purchase row still says €50, so `refundEurFor` (clamped
+ * to `capEur`) can never hand the difference back. What is charged is one
+ * multiplication, and all of it belongs where the tests can see it.
  */
 export function checkoutLineItem(quote: PaidQuote): {
-  currency: "eur";
-  unit_amount: number;
-  product_data: { name: string; description: string };
+  quantity: number;
+  price_data: {
+    currency: "eur";
+    unit_amount: number;
+    product_data: { name: string; description: string };
+  };
 } {
   return {
-    currency: "eur",
-    unit_amount: Math.round(quote.capEur * 100),
-    product_data: {
-      name: "InSight paid question",
-      description:
-        `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
-        + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
+    // ONE. The unit amount is already the whole cap, so any other value
+    // here multiplies the buyer's contract by a number nobody quoted.
+    quantity: 1,
+    price_data: {
+      currency: "eur",
+      unit_amount: Math.round(quote.capEur * 100),
+      product_data: {
+        name: "InSight paid question",
+        description:
+          `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
+          + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
+      },
     },
   };
 }
@@ -925,7 +941,7 @@ export const createPaidCheckoutV2 = onCall(
       mode: "payment",
       client_reference_id: bid,
       metadata: { bid, uid },
-      line_items: [{ quantity: 1, price_data: checkoutLineItem(quote) }],
+      line_items: [checkoutLineItem(quote)],
       // The web pages exist for exactly this hop (commerce stays on the
       // web side): web/paid-done.html and web/paid-cancel.html on the
       // hosting origin home.html already serves. The app never learns of
