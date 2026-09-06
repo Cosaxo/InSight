@@ -44,7 +44,28 @@ function snapOf(path: string, stamp?: Stamp) {
 
 const AGG = (qid: string) => `v2_question_aggs/${qid}`;
 
+/** Shard deletes the vote arm's batch issues (D400) — recorded apart from
+ *  the sets so the write assertion below stays about the aggregate. */
+const deletes: string[] = [];
+
 const fakeDb = {
+  // The vote arm writes the aggregate and all eight tail shards in one
+  // batch since D400; a set lands like a direct one, a delete is recorded.
+  batch() {
+    const ops: Array<() => void> = [];
+    return {
+      set(ref: { path: string }, data: Doc) {
+        ops.push(() => {
+          writes.push({ path: ref.path, data });
+          docs.set(ref.path, { data, updateTime: { seconds: 999, nanoseconds: 0 } });
+        });
+      },
+      delete(ref: { path: string }) {
+        ops.push(() => { deletes.push(ref.path); docs.delete(ref.path); });
+      },
+      async commit() { for (const op of ops) op(); },
+    };
+  },
   collection(name: string) {
     return {
       doc: (id: string) => ({
@@ -118,11 +139,17 @@ describe("runRebuild's write-side refusals", () => {
     // of the dry-run path wearing the escape hatch's name.
     seed(42, { seconds: 100, nanoseconds: 0 });
     writes.length = 0;
+    deletes.length = 0;
     const report = await runRebuild(QID, { ...OPTS, allowEmpty: true });
     expect(report.applied).toBe(true);
     expect(report.scanned).toBe(0);
     expect(writes.map((w) => w.path)).toEqual([AGG(QID)]);
     expect(writes[0].data.total).toBe(0);
+    // …and the tail goes with it (D400): an empty fold has no shards, so
+    // all eight are deleted in the same batch — a rebuild is a whole
+    // replacement of both documents' worth, never of the hot one alone.
+    expect(report.tailShards).toBe(0);
+    expect(deletes).toEqual(Array.from({ length: 8 }, (_, s) => `v2_agg_overflow/${QID}-${s}`));
   });
 
   it("refuses when the aggregate carries no write stamp", async () => {

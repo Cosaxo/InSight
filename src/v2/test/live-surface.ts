@@ -147,6 +147,22 @@ export const LIVE_MEMBERS = [
   // folds. Read by app-shell.jsx to decide whether the third tab exists —
   // so a rename here does not blank a screen, it silently hides a tab.
   "patternsSignal",
+  // The viewer's answers as option indexes over the fit's whole corpus
+  // (D396): the Oracle's and the People lens's evidence, read off the
+  // banks and the vote mirror so an instrument item counts whether or not
+  // its crowd counts are cached.
+  "answeredIndex",
+  // The nightly voter samples (D397): one document per question in place
+  // of two hundred answer reads, for every fold that only counts —
+  // Kindred, the People lens, the pair card — and the accessor that hands
+  // a fold the live list where one is in hand, else the sample.
+  "loadVoterSample",
+  "votersOrSample",
+  // The breakdown cap's tail (D400): the viewer's own city or country
+  // cell for a question whose hot map is at the cap without it, merged
+  // into the aggregate every Mirror fold already reads. The City and
+  // Country stops kick it on mount.
+  "loadOverflow",
   // The daily pulse (D139): the day-keyed create and the derived
   // day → optionIdx view over the hydrated vote mirror.
   "pulseQs",

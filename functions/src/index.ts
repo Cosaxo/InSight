@@ -185,6 +185,8 @@ export const deleteAccount = onCall(
 
     const counts = {
       ownSubtree: 0,
+      // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
+      patternSamples: 0,
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
@@ -284,6 +286,45 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
       failed.push("aggEvents");
+    }
+
+    // 1a′. THE VOTER SAMPLES (D397) — the one derived, world-readable
+    //     document family that holds uids: `v2_patterns/sample-{qid}`, the
+    //     newest two hundred voters per question, rows keyed by uid so
+    //     this arm is a field delete and never a rewrite of anyone else's
+    //     row. Every sample is checked rather than the ones this
+    //     account's answer map names, because the map and the samples
+    //     are written by the same nightly run and a crash between the two
+    //     writes could leave a row the map does not know about — a few
+    //     hundred reads once per deletion is the price of "gone means
+    //     gone" holding without a caveat. e2e-delete-account.mjs asserts
+    //     it, and that the other voters' rows stay.
+    try {
+      const refs = (await db.collection("v2_patterns").listDocuments())
+        .filter((r) => r.id.startsWith("sample-"));
+      let scrubbed = 0;
+      for (let i = 0; i < refs.length; i += 300) {
+        const snaps = await db.getAll(...refs.slice(i, i + 300));
+        let batch = db.batch();
+        let ops = 0;
+        for (const snap of snaps) {
+          if (!snap.exists) continue;
+          const rows = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+          if (!(uid in rows)) continue;
+          batch.update(snap.ref, { [`rows.${uid}`]: FieldValue.delete(), n: FieldValue.increment(-1) });
+          scrubbed += 1;
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+      }
+      counts.patternSamples = scrubbed;
+    } catch (err) {
+      logger.error("[deleteAccount] voter sample scrub failed:", err);
+      failed.push("patternSamples");
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
@@ -1251,8 +1292,9 @@ export { logicStartV2, logicSubmitV2 } from "./logic";
 export { resolveCallsV2 } from "./calls";
 // v28 §2 (trial per D166 §1): the nightly Patterns fit — per-question
 // loading vectors from the vote log, core corpus only (D161). The fold
-// that has to exist before the Patterns tab may ship (D167).
-export { fitPatternsV2 } from "./patterns";
+// that has to exist before the Patterns tab may ship (D167). Since D399
+// it runs inside the nightly pass below (`digestEngagementV2`), not as a
+// scheduled function of its own — `fitPatternsV2` is retired.
 // D316: the nightly published serving order — per-topic question order
 // (volume, landslides sunk) onto v2_rank/{feed,learn}, the spine the
 // paged read path fetches against. Global signal only; no uid enters
@@ -1261,13 +1303,15 @@ export { rankBankV2 } from "./rank";
 // D317 phase 1 (D322): the per-person interest profile — feed answers
 // counted by topic, nightly, onto v2_users/{uid}/taste/profile. Derived
 // from answers alone (public by D98); the pager sizes topic pages by it
-// and nothing else reads it.
-export { fitTasteV2 } from "./taste";
-// R1/D268: the nightly engagement digest — anonymous population counts
-// (actives, retention returns, answers by surface) folded from the same
-// ledger, one public day doc per UTC day. The rung-0 half of
-// docs/ENGAGEMENT-PLAN.md; nothing per-person leaves it.
-export { digestEngagementV2 } from "./engagement";
+// and nothing else reads it. Inside the nightly pass since D399;
+// `fitTasteV2` is retired.
+// THE NIGHTLY PASS (D399): one read of yesterday's ledger feeding the
+// engagement digest (R1/D268 — anonymous population counts, one public
+// day doc per UTC day; nothing per-person leaves it), the Patterns fit
+// and the taste fold, then the attention and rollup folds. It keeps the
+// digest's deploy name and heartbeat because the armed alert policy is
+// keyed on them — nightly.ts's header has the reasoning.
+export { digestEngagementV2 } from "./nightly";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

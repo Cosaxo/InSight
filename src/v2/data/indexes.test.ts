@@ -57,6 +57,27 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     ).toBe(true);
   });
 
+  it("circle.ts fetchAnswersOf: the (surface, answeredAt DESC) COLLECTION-scope composite exists (D398)", () => {
+    // The query gained `orderBy("answeredAt", "desc")` at D398 so the
+    // 300-cap keeps a member's newest answers instead of their
+    // alphabetically-first question ids. An `in` filter ordered by another
+    // field needs a composite at the query's own scope — COLLECTION, not
+    // COLLECTION_GROUP: the voter sheet's group-scope composites do not
+    // serve a single-collection query, and the failure is the header's
+    // (FAILED_PRECONDITION in production only, swallowed per member into
+    // an emptier stop).
+    const hit = cfg.indexes.find(
+      (ix) =>
+        ix.collectionGroup === "answers"
+        && ix.queryScope === "COLLECTION"
+        && JSON.stringify(ix.fields) === JSON.stringify([
+          { fieldPath: "surface", order: "ASCENDING" },
+          { fieldPath: "answeredAt", order: "DESCENDING" },
+        ]),
+    );
+    expect(hit, "the answers (surface, answeredAt DESC) COLLECTION-scope composite is missing or reshaped — fetchAnswersOf's orderBy has no index").toBeDefined();
+  });
+
   it("voters.ts fetchVoters: the collection-group composite exists, fields in query order", () => {
     // where qid ==, where surface in, orderBy answeredAt desc, at
     // COLLECTION_GROUP scope. Equality fields first, the orderBy field

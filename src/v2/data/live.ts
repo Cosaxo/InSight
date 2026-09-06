@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 39 `await getDb()` sites in this file did not change
+// deliberately: the 41 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -130,7 +130,8 @@ import * as cacheStore from "./cacheStore";
 import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchVoters, fetchVoterSample, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchOverflowCells, overflowWanted, withOverflowCell, type Cell as OverflowCellCounts } from "./overflow";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
 // has below, and for the same measured reason.
@@ -327,6 +328,15 @@ const state = {
   deckDay: -1,
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
+  // The breakdown cap's tail (D400): the viewer's own city/country cell
+  // for each question whose hot map is at the cap without it, as read
+  // from `v2_agg_overflow` — qid → dim → { key, cell }. Kept beside
+  // `aggs` so a refreshed hot document (storeAgg) gets the cell merged
+  // back rather than losing it until the stop is opened again.
+  overflowCells: {} as Record<string, Record<string, { key: string; cell: OverflowCellCounts }>>,
+  // dim → the key the tail was loaded for this session, so a stop opened
+  // twice pays nothing and a changed city loads again.
+  overflowLoaded: {} as Record<string, string>,
   votes: {} as Record<string, string>, // qid -> option id ("0","1",…)
   // Optimistic-vote tracking, split in two because the flags clear at
   // different moments (conflating them let a stranger's vote folding
@@ -451,6 +461,12 @@ const state = {
   // kindredPeople() unions the two; nothing else reads this.
   cityVoters: {} as Record<string, Voter[]>,
   cityVotersAt: "",
+  // The nightly voter SAMPLES (D397): the same rows the live lists hold,
+  // published by the fit one document per question, read by every fold
+  // that only counts — Kindred's world pass, the People lens, the pair
+  // card. The who-voted sheet keeps `voters` above, live. kindredPeople()
+  // unions this in too, live rows winning where both exist for a question.
+  voterSamples: {} as Record<string, Voter[]>,
   cityKindredLoading: false,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
@@ -1186,7 +1202,13 @@ let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 // cannot silently miss a site.
 const aggDirty = new Set<string>();
 function storeAgg(id: string, agg: AggDoc): void {
-  state.aggs[id] = agg;
+  // A hot document arriving over one whose tail cell this session already
+  // read keeps the cell (D400): the refresh replaces the document whole,
+  // and the tail is not in it by construction.
+  let next = agg;
+  const tail = state.overflowCells[id];
+  if (tail) for (const [dim, t] of Object.entries(tail)) next = withOverflowCell(next, dim, t.key, t.cell);
+  state.aggs[id] = next;
   aggDirty.add(id);
 }
 
@@ -3135,12 +3157,19 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
   // Each surface fails alone: a bad learn order must not cost the feed
   // its pages, or the other way around. The next boot retries either.
   try {
+    // What the device holds unanswered (D401): the learn cards in memory
+    // the mastery map has no history with. A field with a page of them
+    // fetches nothing; the page refills as they are mastered.
+    const learnHistory = learnHistoryIds();
+    const mastered = new Set(learnHistory);
+    const heldLearn = new Set(state.learnBank.map((q) => q.id).filter((id) => !mastered.has(id)));
     const { rows, totals } = await topUpPages(
       { order: () => orderOf("learn"), fetchByIds: (qids) => fetchByIds("learn", qids) },
       cachedBankIds(),
       followedFields(),
-      learnHistoryIds(),
+      learnHistory,
       LEARN_PAGE,
+      heldLearn,
     );
     publishLearnTotals(totals);
     if (rows.length) {
@@ -3251,12 +3280,23 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
         return null;
       }
     })();
+    // What the device holds unanswered in the TAIL (D401): core and bought
+    // rows ship whole and are not runway the pager owes, so they do not
+    // count — a fresh install with its core unanswered still gets its
+    // first tail page per topic, and a topic with a page of fresh tail
+    // cards fetches nothing until they are answered.
+    const heldTail = new Set(
+      state.feedBank
+        .filter((q) => q.core !== true && q.paid !== true && !(q.id in state.votes))
+        .map((q) => q.id),
+    );
     const { rows, totals } = await topUpPages(
       { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
       cachedBankIds(),
       null,
       answered,
       pageSizesByInterest(profile, FEED_PAGE),
+      heldTail,
     );
     // Before the `rows.length` gate, not inside it: a device whose cache
     // already holds this boot's page fetches nothing and still has to be
@@ -4599,6 +4639,42 @@ const patternsMine = perRev((): number => {
   return mine;
 });
 
+/**
+ * The viewer's answers to every item the candidate engine's corpus can
+ * name (D395/D396): qid → option index, over the daily bank, the core
+ * feed and the instrument items. The Oracle's and the People lens's
+ * device solves read the viewer through this rather than through the
+ * two-option view models, so an ordinal or a pick answer counts as
+ * evidence about them on day one — the fit's `items` metadata says how
+ * each encodes.
+ *
+ * From the BANKS and the vote mirror, like `patternsMine` above and for
+ * the same reason: a question you answered is evidence about you whether
+ * or not its crowd counts have landed on this device, and the instrument
+ * items' aggregates are usually not cached on the Patterns tab. `vote()`
+ * stores the option index as a string and refuses anything else, so the
+ * parse below cannot invent an index; a stored value that is not one
+ * (a catalogue entity, a rank order) is skipped. Core only, D161's rule:
+ * the tail's answers are interest-selected and never enter either fold.
+ */
+const answeredIndex = perRev((): Record<string, number> => {
+  const out: Record<string, number> = {};
+  const take = (q: QuestionDoc & { id: string }): void => {
+    if (q.active === false) return;
+    const opts = q.options;
+    if (!Array.isArray(opts) || opts.length < 2) return;
+    if (!(q.surface === "daily" || q.surface === "test" || (q.surface === "feed" && isCore(q)))) return;
+    const v = state.votes[q.id];
+    if (v === undefined) return;
+    const idx = Number(v);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= opts.length) return;
+    out[q.id] = idx;
+  };
+  for (const q of state.questions) take(q);
+  for (const q of state.feedBank) take(q);
+  return out;
+});
+
 const LIVE = {
   social: SOCIAL,
   near: NEAR,
@@ -4752,6 +4828,87 @@ const LIVE = {
     } finally {
       state.votersLoading[qid] = false;
       notify();
+    }
+  },
+  /**
+   * The nightly voter sample for a question (D397) — the same rows the live
+   * list holds, one document instead of up to two hundred, for every fold
+   * that only COUNTS: Kindred's world pass, the People lens, the pair
+   * card. Same cache guards and the same absent-vs-empty rule as
+   * `loadVoters`, and the same loading flag, so a panel that asks
+   * `votersLoading(qid)` sees either loader. A question with no sample yet
+   * — the nightly run has not touched it since D397, or it is the tail —
+   * falls through to the live query rather than reading absence as an
+   * empty crowd. A live list already in hand is never re-read as a sample:
+   * the fresher rows win.
+   */
+  async loadVoterSample(qid: string): Promise<void> {
+    if (!qid || state.votersLoading[qid] || state.voters[qid] || state.voterSamples[qid]) return;
+    if (socialReadsPaused(state.meta.budgetMode)) return;
+    state.votersLoading[qid] = true;
+    notify();
+    let fallback = false;
+    try {
+      const db = await getDb();
+      const rows = await fetchVoterSample(db, qid, state.uid);
+      if (!rows) {
+        fallback = true;
+      } else {
+        await resolveNames(db, rows.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+        for (const r of rows) r.name = state.names[r.uid] || "";
+        state.voterSamples[qid] = sortVoters(rows);
+        saveProfileCache();
+      }
+    } catch (err) {
+      reportError(err, { where: "loadVoterSample", qid });
+    } finally {
+      state.votersLoading[qid] = false;
+      notify();
+    }
+    if (fallback) await this.loadVoters(qid);
+  },
+  /** A question's rows for a fold that only counts: the live list where
+   * one is in hand, else the nightly sample, else null (unfetched). */
+  votersOrSample(qid: string): Voter[] | null {
+    return state.voters[qid] || state.voterSamples[qid] || null;
+  },
+  /**
+   * The breakdown cap's tail for the viewer's own place (D400): for every
+   * cached aggregate whose hot map for `scope` is at the cap and lacks the
+   * viewer's key, read the one shard that key hashes to and merge the
+   * cell into the document every Mirror reader already folds. Kicked by
+   * the City and Country stops on mount; once per (scope, key) per
+   * session; nothing at all while no question has reached the cap, which
+   * is every question today — `overflowWanted` is the gate, and it is
+   * pinned in overflow.test.ts.
+   */
+  async loadOverflow(scope: "city" | "country"): Promise<void> {
+    if (!state.uid) return;
+    const key = this.anchors()[scope] || "";
+    if (!key || state.overflowLoaded[scope] === key) return;
+    state.overflowLoaded[scope] = key;
+    const wanted = overflowWanted(state.aggs, Object.keys(state.aggs), scope, key);
+    if (!wanted.length) return;
+    try {
+      const db = await getDb();
+      const { cells, read } = await fetchOverflowCells(db, wanted, scope, key);
+      state.stats.aggsFetched += read;
+      for (const c of cells) {
+        state.overflowCells[c.qid] = { ...(state.overflowCells[c.qid] ?? {}), [scope]: { key, cell: c.cell } };
+        const agg = state.aggs[c.qid];
+        if (agg) {
+          state.aggs[c.qid] = withOverflowCell(agg, scope, key, c.cell);
+          aggDirty.add(c.qid);
+        }
+      }
+      if (cells.length) {
+        saveAggCache();
+        notify();
+      }
+    } catch (err) {
+      // Retry on the next mount rather than remembering a failure as a load.
+      delete state.overflowLoaded[scope];
+      reportError(err, { where: "loadOverflow", scope });
     }
   },
   // uid → display name, from the shared session cache. Synchronous and
@@ -4995,13 +5152,15 @@ const LIVE = {
       // first surface has run, and firing twelve at once at boot-adjacent
       // moments is the shape that gets a client rate-limited.
       for (const qid of qids) {
-        if (!state.voters[qid]) await this.loadVoters(qid);
+        // the nightly sample (D397) — one document — with the live query
+        // as its own fallback for a question no sample exists for yet
+        if (!state.voters[qid] && !state.voterSamples[qid]) await this.loadVoterSample(qid);
       }
       // Counted from what actually LANDED, not from what was asked for:
       // loadVoters swallows its own failure (reportError, then the list
       // stays unset), so the old line reported twelve to the caption after
       // twelve failed queries.
-      state.kindredAt = qids.filter((id) => state.voters[id]).length;
+      state.kindredAt = qids.filter((id) => state.voters[id] || state.voterSamples[id]).length;
       // ASKED FOR LISTS AND GOT NONE IS A FAILED READ, NOT AN EMPTY
       // CROWD. loadVoters swallows its own failure and leaves the key
       // absent — deliberately, so absent and empty stay distinguishable
@@ -5034,9 +5193,15 @@ const LIVE = {
       const n = Number(opt);
       if (Number.isFinite(n)) mine[qid] = n;
     }
-    // uid -> their answers, assembled from the cached voter lists.
+    // uid -> their answers, assembled from the cached voter lists — the
+    // live ones, and the nightly samples (D397) where no live list was
+    // fetched for the question.
     const theirs: Record<string, Record<string, number>> = {};
-    for (const [qid, rows] of Object.entries(state.voters)) {
+    const lists = [
+      ...Object.entries(state.voters),
+      ...Object.entries(state.voterSamples).filter(([qid]) => !state.voters[qid]),
+    ];
+    for (const [qid, rows] of lists) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
@@ -5551,7 +5716,12 @@ const LIVE = {
     // overlap heavily — a city-mate near the top of a question's newest
     // 200 is in both — and the inner loop is idempotent per (uid, qid), so
     // the union needs no dedupe of its own.
-    const pools = [...Object.entries(state.voters), ...Object.entries(state.cityVoters)];
+    const pools = [
+      ...Object.entries(state.voters),
+      // the nightly samples (D397), where no live list was fetched for the question
+      ...Object.entries(state.voterSamples).filter(([qid]) => !state.voters[qid]),
+      ...Object.entries(state.cityVoters),
+    ];
     for (const [qid, rows] of pools) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
@@ -6200,6 +6370,13 @@ const LIVE = {
    * data only (D166 §1), so a build with no fit behind it has no gate to
    * open.
    */
+  /** The viewer's answers as option indexes over the fit's whole corpus —
+   * the Oracle's and the People lens's evidence (D396). Empty in a demo
+   * build, like every other reading the Patterns tab takes. */
+  answeredIndex(): Record<string, number> {
+    if (!this.enabled || torndown) return {};
+    return answeredIndex();
+  },
   patternsSignal(): PatternsSignal {
     if (!this.enabled) return {};
     // …and NOTHING once the account is going away. `torndown` is
@@ -7140,6 +7317,8 @@ function resetForNewUid(uid: string): void {
   state.unaggregated = {};
   state.editedAt = {};
   state.aggs = {};
+  state.overflowCells = {};
+  state.overflowLoaded = {};
   // Before the purge below: a vote ack still in flight must not file the
   // OLD account's answer into a store the new account's hydrate is about
   // to claim. hydrate re-sets it once the new uid's meta row is written.
@@ -7162,6 +7341,7 @@ function resetForNewUid(uid: string): void {
   // held only to save reads, and nothing about it should outlive the
   // session that fetched it.
   state.voters = {};
+  state.voterSamples = {};
   state.votersLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other

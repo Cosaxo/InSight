@@ -212,6 +212,48 @@ export async function fetchVoterPicks(
 }
 
 /**
+ * The nightly voter SAMPLE for `qid` (D397) — the newest VOTER_FETCH_CAP
+ * voters as the fit published them last night at `v2_patterns/sample-{qid}`:
+ * one document read where `fetchVoterPicks` is up to two hundred. Same
+ * rows in the same shape — uid, option index, the answer's frozen chips
+ * (D8) — newest first, so every fold that only COUNTS (Kindred, the People
+ * lens, the pair card) reads it in place of the live query. The who-voted
+ * sheet, a live list of names on screen that must show the viewer's own
+ * answer the moment it lands, keeps the live query.
+ *
+ * Null when no sample exists yet — a question the nightly run has not
+ * touched since D397, or the tail — so the caller falls back to the live
+ * query rather than reading absence as an empty crowd.
+ */
+export async function fetchVoterSample(
+  db: Firestore,
+  qid: string,
+  myUid: string | null = null,
+): Promise<Voter[] | null> {
+  const { doc, getDoc } = await getFirestoreApi();
+  const snap = await getDoc(doc(db, "v2_patterns", `sample-${qid}`));
+  if (!snap.exists()) return null;
+  const rows = (snap.get("rows") as Record<string, { o?: unknown; a?: unknown; d?: unknown }> | undefined) ?? {};
+  const out: { v: Voter; d: string }[] = [];
+  for (const [uid, r] of Object.entries(rows)) {
+    if (!uid || typeof r?.o !== "number") continue;
+    out.push({
+      v: {
+        uid,
+        optionIdx: r.o,
+        anchors: (r.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
+        name: "",
+        isMe: uid === myUid,
+      },
+      d: typeof r.d === "string" ? r.d : "",
+    });
+  }
+  // newest first, then uid — the server's own total order
+  out.sort((a, b) => (a.d !== b.d ? (a.d < b.d ? 1 : -1) : a.v.uid < b.v.uid ? -1 : a.v.uid > b.v.uid ? 1 : 0));
+  return out.map((x) => x.v);
+}
+
+/**
  * Everyone who answered `qid`, with their frozen cohort and their name.
  *
  * `names` is an inout session cache owned by the caller (live.ts), so two
