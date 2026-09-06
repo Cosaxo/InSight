@@ -1,0 +1,5 @@
+25967 /tmp/android-runner/netsimd/netsim_stdout.log
+9184 /tmp/android-runner/netsimd/netsim_stderr.log
+6491 /tmp/android-runner/netsimd/netsim_artifacts_2026-09-06-22-12-19.zip
+1026 /tmp/android-runner/netsimd/netsim_session_stats.json
+40 /tmp/android-runner/emu-crash-37.1.11.db/settings.dat

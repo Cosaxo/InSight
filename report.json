@@ -1,0 +1,160 @@
+{
+  "capturedAt": "2026-09-06T22:11:44Z",
+  "source": "android:emulator-5554",
+  "mode": null,
+  "target": "sdk_gphone64_x86_64 · com.cosaxo.insight",
+  "profiles": {
+    "android-sdk-gphone64-x86-64": {
+      "label": "sdk_gphone64_x86_64",
+      "width": 412,
+      "height": 891,
+      "scale": 2.625
+    }
+  },
+  "screens": [
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily",
+      "n": "01",
+      "id": "daily-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Cannot read properties of undefined (reading 'webView')"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-reveal",
+      "n": "02",
+      "id": "daily-reveal-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-feed",
+      "n": "03",
+      "id": "daily-feed-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-circle",
+      "n": "04",
+      "id": "daily-circle-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-1v1",
+      "n": "05",
+      "id": "daily-1v1-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "mirror",
+      "n": "06",
+      "id": "mirror-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "mirror-stops",
+      "n": "07",
+      "id": "mirror-stops-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "mirror-lenses",
+      "n": "08",
+      "id": "mirror-lenses-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "profile",
+      "n": "09",
+      "id": "profile-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "search",
+      "n": "10",
+      "id": "search-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "patterns",
+      "n": "11",
+      "id": "patterns-NO-APP",
+      "file": "(none)",
+      "checks": {},
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false,
+      "driveError": "the app did not open for this scene — Command failed: adb -s emulator-5554 shell am force-stop com.cosaxo.insight\nadb: device 'emulator-5554' not found\n"
+    }
+  ],
+  "skipped": []
+}
