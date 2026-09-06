@@ -89,13 +89,20 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ### 1 · Trait-axis directions on the patterns Map
 
-**Re-aimed 2026-09-02** at the ring the current vision draws
-(`VISUAL-VISION.md`; `VISION-2026-09-02.md` §1.2, built). What the
+**Re-aimed 2026-09-02** at the ring the vision draws
+(`VISION-2026-09-02.md` §1.2, built). What the
 request wants is unchanged — *the axes exist to be connected*, drawn on
 data that publishes today — and where it can be drawn is not: the plane
 this was written against is retired, and on a ring an axis cannot be a
 direction. The version below is the whole request, re-stated; the plane
-version is in this file's history.
+version is in this file's history. **Noted 2026-09-06**: the current
+vision (`VISION-2026-09-06.md` §2.1) quiets the same field — short
+topic groups now name themselves INSIDE the rim, idle chords drop to a
+whisper, and the standing legend moves behind an ⓘ — so grammar 2
+below (the inner arc) shares its area with the new in-rim labels, and
+whichever grammar the design picks inherits the guide-ⓘ rule: its key
+lives in the legend, not as standing chrome. The three grammars and
+their trades stand.
 
 - **asked by** — the program plan, 2026-09-02, ahead of the axes
   build lane reaching step 1.4; the theory it serves is AXES-PLAN §2.

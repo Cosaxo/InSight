@@ -977,10 +977,15 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               if (hidden && hidden.has(e.to)) op = 0;
               if (e.spoke) op *= 0.7; // gravity lines stay quieter than trunks
               return (
+                // the constellation draws itself in (2026-09-06,
+                // VISION-2026-09-06 §6.3): every limb arrives as an ink
+                // stroke on a small stagger, spokes just behind the
+                // trunks — the delay rides inline so no re-layout runs
                 <path
                   key={i}
-                  className={e.spoke ? 'mmt-limb mmt-spoke' : 'mmt-limb'}
-                  style={{ '--hue': e.hue }}
+                  className={e.spoke ? 'mmt-limb mmt-spoke mmt-ink' : 'mmt-limb mmt-ink'}
+                  pathLength={1}
+                  style={{ '--hue': e.hue, animationDelay: `${(e.spoke ? 0.05 : 0.22) + (i % 7) * 0.04}s` }}
                   d={`M ${pos[e.from].x} ${pos[e.from].y} L ${pos[e.to].x} ${pos[e.to].y}`}
                   fill="none"
                   opacity={op}
@@ -1149,6 +1154,9 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
                   + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.walk && !n.pulse && !n.sealed && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
+                  // ink-in, delayed by distance from the hub — the map
+                  // grows outward (2026-09-06)
+                  animationDelay: `${0.12 + Math.min(0.45, Math.hypot(p.x, p.y) / 1500)}s`,
                   width: sz, height: sz,
                   transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${itemScale})`,
                 }}

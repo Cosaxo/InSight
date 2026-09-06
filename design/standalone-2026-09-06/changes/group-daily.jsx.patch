@@ -1,0 +1,75 @@
+--- recorded/group-daily.jsx
++++ 2026-09-06/group-daily.jsx
+@@ -117,7 +117,7 @@
+         justifyContent: 'center',
+         fontFamily: 'var(--sans)',
+         fontWeight: 800,
+-        fontSize: 10.5,
++        fontSize: 12,
+         color: 'var(--surface)',
+         background: 'var(--ink)',
+         boxShadow: '0 0 0 1.5px var(--surface-2)'
+@@ -268,7 +268,7 @@
+       })), /*#__PURE__*/React.createElement("span", {
+         style: {
+           fontFamily: 'var(--sans)',
+-          fontSize: 10.5,
++          fontSize: 12,
+           fontWeight: sel ? 800 : 600,
+           color: sel ? 'var(--ink)' : 'var(--ink-3)',
+           whiteSpace: 'nowrap',
+@@ -312,7 +312,7 @@
+     }, "+"), /*#__PURE__*/React.createElement("span", {
+       style: {
+         fontFamily: 'var(--sans)',
+-        fontSize: 10.5,
++        fontSize: 12,
+         fontWeight: 600,
+         color: 'var(--ink-3)'
+       }
+@@ -346,12 +346,12 @@
+     const addable = D.members().filter(f => !g.members.some(m => m.id === f.id));
+     const prompt = (s, fs) => /*#__PURE__*/React.createElement("div", {
+       style: {
+-        fontFamily: 'var(--sans)',
+-        fontWeight: 800,
+-        fontSize: fs,
+-        lineHeight: 1.12,
+-        letterSpacing: -0.6,
+-        textWrap: 'pretty'
++        fontFamily: 'var(--serif)',
++        fontWeight: 500,
++        fontSize: fs + 2,
++        lineHeight: 1.14,
++        letterSpacing: '-0.01em',
++        textWrap: 'balance'
+       }
+     }, s);
+     const header = /*#__PURE__*/React.createElement("div", {
+@@ -470,7 +470,7 @@
+       }
+     }, m.name), /*#__PURE__*/React.createElement("span", {
+       style: {
+-        fontSize: 11,
++        fontSize: 12,
+         fontWeight: 600,
+         color: 'var(--ink-3)'
+       }
+@@ -486,7 +486,7 @@
+         height: 24,
+         borderRadius: '50%',
+         cursor: 'pointer',
+-        fontSize: 11,
++        fontSize: 12,
+         fontWeight: 800,
+         WebkitAppearance: 'none'
+       }
+@@ -925,7 +925,7 @@
+       }
+     }, nLeft > 0 && /*#__PURE__*/React.createElement("span", {
+       style: {
+-        fontSize: 11,
++        fontSize: 12,
+         fontWeight: 700,
+         color: 'var(--ink-3)'
+       }
