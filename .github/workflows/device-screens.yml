@@ -444,14 +444,42 @@ jobs:
   # push: a dispatch ran on a real branch.
   cleanup:
     needs: [android, ios]
-    if: ${{ always() && github.event_name == 'push' }}
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Delete the request ref
+        if: ${{ github.event_name == 'push' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git init -q req && cd req
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
             --delete "refs/heads/${GITHUB_REF_NAME}" || echo "request ref already gone"
+
+      # Results refs are read the night they land and deleted with the
+      # night branch they screened; the ones nobody deleted are swept here
+      # after a week, so the namespace never accumulates a month of orphan
+      # commits. A session's own git channel cannot delete a ref (measured
+      # 2026-09-06: every deletion push is cut off), so this is the only
+      # place that can.
+      - name: Sweep results refs older than seven days
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q sweep && cd sweep
+          URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q "$URL" '+refs/heads/screens/*:refs/remotes/screens/*' 2>/dev/null || { echo "no results refs"; exit 0; }
+          cutoff=$(( $(date +%s) - 7 * 24 * 3600 ))
+          old=""
+          while IFS= read -r ref; do
+            name="${ref#refs/remotes/}"
+            when=$(git log -1 --format=%ct "$ref")
+            [ "$when" -lt "$cutoff" ] && old="$old :refs/heads/$name"
+          done < <(git for-each-ref --format='%(refname)' 'refs/remotes/screens/')
+          if [ -n "$old" ]; then
+            # shellcheck disable=SC2086
+            git push "$URL" $old && echo "swept:$old"
+          else
+            echo "nothing older than seven days"
+          fi
