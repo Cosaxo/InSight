@@ -58,8 +58,9 @@ const h = vi.hoisted(() => ({
   // world.
   rankOrders: {} as Record<string, (
     | { topics: Record<string, { qids: string[]; total: number; carry?: number }> }
-    // D371's daily SHAPE doc — a length, not an order.
-    | { n: number; maxSeq: number }
+    // D371's daily SHAPE doc — a length, not an order — plus D372's
+    // Scores pool, which is ids per scope rather than documents.
+    | { n: number; maxSeq: number; rates?: Record<string, string[]> }
   )>,
   // The owner's interest profile (D322), served at their own taste path.
   tasteProfile: null as null | { t: Record<string, number>; n: number },
@@ -710,6 +711,58 @@ describe("question-bank cache", () => {
       h.rankOrders.daily = { n: 40, maxSeq: 39 };
       await bootLive();
       expect((await readCache()).questions).toHaveLength(10);
+    });
+
+    it("pages the Scores pool by id instead of querying the surface (D372)", async () => {
+      // 200 dailies, 60 of them place questions. Before D372 the top-up
+      // asked `surface == daily AND type == rating` and got all 60 — a
+      // term that grows with the bank. Now the fold publishes the ids and
+      // the device fetches a page of the ones it has not met.
+      const bank = Array.from({ length: 200 }, (_, i) => q(
+        `q_${String(i).padStart(6, "0")}`, 1000,
+        i % 3 === 0 ? { type: "rating", rates: "city" } : {},
+      ));
+      h.bankDocs = bank;
+      h.rankOrders.daily = {
+        n: 200,
+        maxSeq: 199,
+        rates: { city: bank.filter((d) => d.data.type === "rating").map((d) => d.id) },
+      };
+      await bootLive();
+      // No query asked the surface for its ratings.
+      const byType = h.bankQueries.filter((qq) => qq.cons.some(
+        (c) => c.kind === "where" && c.field === "type",
+      ));
+      expect(byType, "the Scores pool was queried off the surface").toEqual([]);
+      // The asks arrived by id, in chunks of the `in` limit, and stopped
+      // at one page rather than taking all 67.
+      const askIds = h.bankQueries.flatMap((qq) => {
+        const byId = qq.cons.find((c) => typeof c.field === "object");
+        return byId ? (byId.value as string[]) : [];
+      });
+      const ratingIds = new Set(bank.filter((d) => d.data.type === "rating").map((d) => d.id));
+      const fetchedAsks = askIds.filter((id) => ratingIds.has(id));
+      expect(fetchedAsks.length).toBeGreaterThan(0);
+      expect(fetchedAsks.length, "the page is not bounded").toBeLessThanOrEqual(24);
+    });
+
+    it("counts the whole pool even though it fetched a page of it", async () => {
+      const bank = Array.from({ length: 200 }, (_, i) => q(
+        `q_${String(i).padStart(6, "0")}`, 1000,
+        i % 3 === 0 ? { type: "rating", rates: "city" } : {},
+      ));
+      const ratingIds = bank.filter((d) => d.data.type === "rating").map((d) => d.id);
+      h.bankDocs = bank;
+      h.rankOrders.daily = { n: 200, maxSeq: 199, rates: { city: ratingIds } };
+      const LIVE = await bootLive();
+      // The lens prints this number. It has to be the pool minus this
+      // account's votes — not the page — or a stop with the most to offer
+      // is the one that understates it worst.
+      await vi.waitFor(() => {
+        expect(LIVE.placeAskTotal("city")).toBe(ratingIds.length);
+      });
+      expect(LIVE.placeAsks("city").length).toBeLessThan(ratingIds.length);
+      expect(LIVE.placeAskTotal("country"), "a scope with no pool counts nothing").toBe(0);
     });
 
     it("fetches only what the day moved on the next boot", async () => {

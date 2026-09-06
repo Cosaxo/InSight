@@ -139,6 +139,18 @@ ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slic
     fail("maxSeq !== n - 1 on the seeded daily bank — the client would "
       + "refuse the paged deck and fetch the surface whole");
   ok("daily seq space is dense 0.." + (seqs.length - 1) + " in the database — the paged deck's precondition holds");
+
+  // …and the Scores pool the fold would publish is drawn from documents
+  // that really carry `rates` (D372). The device fetches these BY ID off
+  // the published list, so an id naming a question that is not a place
+  // ask is a wasted read on every boot, and one naming nothing at all is
+  // a read that returns nothing forever.
+  const asks = all.docs.filter((d) =>
+    d.get("active") !== false && d.get("type") === "rating" && typeof d.get("rates") === "string");
+  if (!asks.length)
+    fail("no seeded daily doc is an active place ask — the Scores pool (D372) would be empty");
+  const scopes = [...new Set(asks.map((d) => d.get("rates")))].sort();
+  ok("Scores pool: " + asks.length + " place asks over " + scopes.join(", ") + " — paged by id, not queried off the surface");
 }
 
 // 3b · the doc shape the schema promises actually lands (D234). For two

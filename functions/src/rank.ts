@@ -75,6 +75,27 @@ export type RankSurface = (typeof RANK_SURFACES)[number];
 export interface DailyShapeDoc {
   n: number;
   maxSeq: number;
+  /**
+   * The Scores lens's pool, per place scope (D372) — question ids, not
+   * documents. The lens asks "every active `rating` daily that names this
+   * place and I have NOT answered", which is the one daily fold that
+   * history cannot supply: its whole subject is what you have not
+   * answered yet. Before this it was a query over the surface, so it grew
+   * with the bank — 29 of 130 today, and the same fraction of any bank.
+   *
+   * Ids rather than documents for the same reason the feed's order
+   * carries qids: the device subtracts its own votes locally (nothing
+   * per-person reaches the server, D163's line), gets an exact remaining
+   * count for the lens's "N more after these", and fetches documents only
+   * for the few it is about to draw.
+   *
+   * ACTIVE ONLY, and the device still checks the flag on the document it
+   * fetches. A question retired in the console after a fold is in this
+   * list until the next one; that costs a read and the device drops it.
+   * The other direction — a retired question the device would DRAW — is
+   * the one that matters, and the document is the authority for it.
+   */
+  rates: Record<string, string[]>;
 }
 
 /**
@@ -90,9 +111,20 @@ export function dailyShape(bank: readonly V2SeedQuestion[]): DailyShapeDoc {
   const daily = bank.filter(
     (q) => q.surface === "daily" && Array.isArray(q.options) && q.options.length >= 2,
   );
+  // The Scores pool, keyed by the scope a question names. The predicate is
+  // `placeAsks`'s own (src/v2/data/live.ts) minus the per-person half:
+  // active, `type: "rating"`, carrying `rates`. Ordered by seq so the list
+  // is stable between folds — a device that has answered the head should
+  // meet the same tail tomorrow, not a reshuffle.
+  const rates: Record<string, string[]> = {};
+  for (const q of [...daily].sort((a, b) => a.seq - b.seq)) {
+    if (q.active === false || q.type !== "rating" || !q.rates) continue;
+    (rates[q.rates] ||= []).push(q.id);
+  }
   return {
     n: daily.length,
     maxSeq: daily.reduce((m, q) => Math.max(m, q.seq), -1),
+    rates,
   };
 }
 

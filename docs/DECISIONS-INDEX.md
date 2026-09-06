@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 388 lines instead of
-39,176. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 389 lines instead of
+39,248. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -181,7 +181,7 @@ detect it.
 | **D160** | [An empty field is still a field, the row actually snaps, and Near's switch goes in the corner](DECISIONS.md#d160--an-empty-field-is-still-a-field-the-row-actually-snaps-and-nears-switch-goes-in-the-corner) | D190 (+1) | 15857 |
 | **D161** | [The feed goes unbounded, and the Mirror gets a corpus of its own](DECISIONS.md#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own) | D370 (+22) | 15951 |
 | **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D367 (+5) | 16089 |
-| **D163** | [The app learns what you are into, and the model never leaves the phone](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone) | D367 (+12) | 16142 |
+| **D163** | [The app learns what you are into, and the model never leaves the phone](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone) | D372 (+13) | 16142 |
 | **D164** | [The revenue paths, re-derived against an unbounded feed](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | D368 (+5) | 16198 |
 | **D165** | [The database moves to one EU region, and the old answers are let go](DECISIONS.md#d165--the-database-moves-to-one-eu-region-and-the-old-answers-are-let-go) | D333 (+6) | 16276 |
 | **D166** | [The third tab is adopted ON TRIAL, the Arena is dropped, the pulse roster is approved](DECISIONS.md#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved) | D362 (+14) | 16366 |
@@ -401,4 +401,5 @@ detect it.
 |  | ↳ *amendment 2026-09-05* — [The door is out of the binary, and it had five entry points rather than one](DECISIONS.md#d368-amendment-2026-09-05--the-door-is-out-of-the-binary-and-it-had-five-entry-points-rather-than-one) | — | 38812 |
 | **D369** | [The web ask door is built: an adapter, a page, and the two things that stood between it and a buyer](DECISIONS.md#d369--the-web-ask-door-is-built-an-adapter-a-page-and-the-two-things-that-stood-between-it-and-a-buyer) | — | 38879 |
 | **D370** | [Question content is not first-paint bytes, and a gate says so](DECISIONS.md#d370--question-content-is-not-first-paint-bytes-and-a-gate-says-so) | D371 | 39011 |
-| **D371** | [The daily pages: a published length, seven documents, and the density it rests on](DECISIONS.md#d371--the-daily-pages-a-published-length-seven-documents-and-the-density-it-rests-on) | — | 39090 |
+| **D371** | [The daily pages: a published length, seven documents, and the density it rests on](DECISIONS.md#d371--the-daily-pages-a-published-length-seven-documents-and-the-density-it-rests-on) | D372 | 39090 |
+| **D372** | [The Scores pool pages too: ids in the shape document, documents by the page](DECISIONS.md#d372--the-scores-pool-pages-too-ids-in-the-shape-document-documents-by-the-page) | — | 39176 |

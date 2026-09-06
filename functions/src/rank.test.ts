@@ -244,7 +244,7 @@ describe("runBankRank", () => {
     expect(summary).toEqual({ surfaces: 2, topics: 2, ranked: 2, dailyN: 1 });
     // The daily's SHAPE does ride the same run (D371) — a length, never an
     // order, and still without asking for its aggregate above.
-    expect(shapes).toEqual([{ n: 1, maxSeq: 0 }]);
+    expect(shapes).toEqual([{ n: 1, maxSeq: 0, rates: {} }]);
   });
 
   describe("dailyShape (D371)", () => {
@@ -259,7 +259,7 @@ describe("runBankRank", () => {
         dq({ id: "daily-000", seq: 0 }),
         dq({ id: "daily-001", seq: 1 }),
         dq({ id: "feed-000", surface: "feed", seq: 0 }),
-      ])).toEqual({ n: 2, maxSeq: 1 });
+      ])).toEqual({ n: 2, maxSeq: 1, rates: {} });
     });
 
     it("KEEPS retired dailies, because the positions around them must not move", () => {
@@ -270,7 +270,7 @@ describe("runBankRank", () => {
         dq({ id: "daily-000", seq: 0 }),
         dq({ id: "daily-001", seq: 1, active: false }),
         dq({ id: "daily-002", seq: 2 }),
-      ])).toEqual({ n: 3, maxSeq: 2 });
+      ])).toEqual({ n: 3, maxSeq: 2, rates: {} });
     });
 
     it("drops unplayable docs, which is what makes n disagree with maxSeq", () => {
@@ -283,8 +283,45 @@ describe("runBankRank", () => {
         dq({ id: "daily-001", seq: 1, options: [] }),
         dq({ id: "daily-002", seq: 2 }),
       ]);
-      expect(shape).toEqual({ n: 2, maxSeq: 2 });
+      expect(shape).toEqual({ n: 2, maxSeq: 2, rates: {} });
       expect(shape.maxSeq).not.toBe(shape.n - 1);
+    });
+
+    it("collects the Scores pool per scope, in seq order, active only (D372)", () => {
+      const shape = dailyShape([
+        dq({ id: "daily-000", seq: 0, type: "rating", rates: "city" }),
+        dq({ id: "daily-001", seq: 1, type: "rating", rates: "world" }),
+        // Retired: the lens must not offer it, and the fold is where that
+        // is cheapest to decide.
+        dq({ id: "daily-002", seq: 2, type: "rating", rates: "city", active: false }),
+        // A rating that names no place — 5 of them in the shipped bank —
+        // rates nothing and belongs to no scope.
+        dq({ id: "daily-003", seq: 3, type: "rating" }),
+        // Not a rating at all.
+        dq({ id: "daily-004", seq: 4, type: "binary", rates: "city" }),
+        dq({ id: "daily-005", seq: 5, type: "rating", rates: "city" }),
+      ]);
+      expect(shape.rates).toEqual({
+        city: ["daily-000", "daily-005"],
+        world: ["daily-001"],
+      });
+    });
+
+    it("the shipped bank's pool matches the lens's own predicate", () => {
+      // The count the device would draw from, against the bank as shipped
+      // — the number D371 left as the linear term this record removes.
+      const { rates } = dailyShape(V2_QUESTIONS);
+      const total = Object.values(rates).reduce((n, ids) => n + ids.length, 0);
+      expect(total).toBeGreaterThan(0);
+      for (const ids of Object.values(rates)) {
+        expect(new Set(ids).size, "a question is in a scope twice").toBe(ids.length);
+      }
+      // Every id is a real daily in the same bank — a pool naming a
+      // question that does not exist would spend a read per boot forever.
+      const ids = new Set(V2_QUESTIONS.map((q) => q.id));
+      for (const list of Object.values(rates)) {
+        for (const id of list) expect(ids.has(id), `${id} is not in the bank`).toBe(true);
+      }
     });
 
     it("is dense on the shipped bank, which is the fast path's precondition", () => {
