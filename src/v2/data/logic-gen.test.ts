@@ -25,6 +25,21 @@ import {
 // 200 seeds in CI; LOGIC_SWEEP_SEEDS=5000 reruns the D53-sized sweep on demand
 // (the number D53 and D402 quoted was measured that way, not at 200).
 const N_SEEDS = Number(process.env.LOGIC_SWEEP_SEEDS) || 200;
+
+// AND THAT COMMAND DID NOT WORK AS WRITTEN. Three cases below scale with
+// N_SEEDS, vitest's default timeout is 5 s, and there is no `testTimeout`
+// in the root config — so `LOGIC_SWEEP_SEEDS=5000` reported three
+// timeouts (measured 2026-09-06: 6.3 s, 33.4 s, 9.4 s) instead of a
+// verdict. The sentence above was an instruction for reproducing D402's
+// "125,000 items, zero ambiguous" that could not reproduce it, which is
+// the same failure as a stale figure: a claim whose stated evidence does
+// not run.
+//
+// Scaled off the seed count rather than raised flat, and only ABOVE the
+// CI size, so the 200-seed run keeps vitest's 5 s and a genuine hang
+// still fails fast there. ×30 is roughly five times the slowest observed
+// per-seed cost.
+const SWEEP_MS = N_SEEDS > 200 ? N_SEEDS * 30 : 5_000;
 const SEEDS = Array.from({ length: N_SEEDS }, (_, i) => (i + 1) * 2654435761 % 4294967296);
 const forms: Form[] = SEEDS.map((s) => generateForm(s));
 
@@ -62,7 +77,7 @@ describe("form shape and determinism", () => {
       const diffs = f.items.map((i) => i.diff);
       for (let i = 1; i < diffs.length; i++) expect(diffs[i]).toBeGreaterThanOrEqual(diffs[i - 1]);
     }
-  });
+  }, SWEEP_MS);
 });
 
 describe("answer key integrity (every seed, every item)", () => {
@@ -184,7 +199,7 @@ describe("renderability (stays inside Prim's vocabulary)", () => {
         }
       }
     }
-  });
+  }, SWEEP_MS);
 });
 
 // ── family semantics, re-derived from the cells (not the construction) ──
@@ -1056,7 +1071,7 @@ describe("the ambiguity sweep (every seed, every item, every option)", () => {
       }
     }
     expect(checked).toBe(forms.length * 25 * 5);
-  });
+  }, SWEEP_MS);
 
   it("no form repeats a puzzle", () => {
     for (const [si, f] of forms.entries()) {
