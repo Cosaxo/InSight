@@ -439,23 +439,25 @@ jobs:
         if: always()
         run: |
           xcrun simctl io "$UDID" screenshot results/ios/99-final.png || true
-          # Maestro's takeScreenshot files: where they land depends on the
-          # version — the working directory, the flow file's directory, or
-          # its own ~/.maestro/tests/<run>/ — and run 34058702498 (2.10.0,
-          # cwd results/ios) left none in the cwd. Take every PNG written
-          # since the launch capture from all three, keeping the names the
-          # flow gave them.
+          # Maestro writes everything a run produces — takeScreenshot files
+          # included — under its output directory (results/ios/maestro/<run>/
+          # <flow>/…, run 34061114032), alongside a device log that reached
+          # 205 MB and had the whole results push refused. Lift the PNGs to
+          # the top of the results, keeping the names the flow gave them,
+          # and drop the logs: the simulator's own log is collected below,
+          # bounded, and Maestro's line-by-line one is not what a reader
+          # opens. Older Maestro versions wrote screenshots to the working
+          # directory or the flow's directory, which the last two paths
+          # cover.
           n=0
           while IFS= read -r f; do
             [ -e "results/ios/$(basename "$f")" ] || { cp "$f" "results/ios/$(basename "$f")"; n=$((n + 1)); }
-          done < <(find "$GITHUB_WORKSPACE/.github/device-screens" "$HOME/.maestro" "$GITHUB_WORKSPACE" -maxdepth 4 -name '*.png' \
-                     -newer results/ios/00-launch-3s.png -not -path '*/results/*' -not -path '*/node_modules/*' -not -path '*/build/*' 2>/dev/null)
+          done < <(find results/ios/maestro "$GITHUB_WORKSPACE/.github/device-screens" "$HOME/.maestro" -name '*.png' \
+                     -newer results/ios/00-launch-3s.png 2>/dev/null)
           echo "maestro screenshots collected: $n" >> results/ios/environment.txt
-          # Until the location is known for sure: every PNG the runner
-          # gained since the launch capture, wherever it is, by path.
-          find "$HOME" /tmp /var/folders "$GITHUB_WORKSPACE" -name '*.png' -newer results/ios/00-launch-3s.png \
-            -not -path '*/results/*' -not -path '*/node_modules/*' -not -path '*/build/*' -not -path '*/DerivedData/*' 2>/dev/null \
-            | head -80 > results/ios/fresh-pngs.txt || true
+          find results/ios/maestro -type d -name logs -prune -exec rm -rf {} + 2>/dev/null || true
+          find results/ios/maestro -type f -size +20M -delete 2>/dev/null || true
+          find results/ios/maestro -type f 2>/dev/null | sed 's|^results/ios/||' | head -60 > results/ios/maestro-files.txt || true
           xcrun simctl spawn "$UDID" log show --last 20m --style compact \
             --predicate 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"' 2>/dev/null \
             | tail -400 > results/ios/syslog.txt || true

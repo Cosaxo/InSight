@@ -32,6 +32,17 @@ TMP="$(mktemp -d)"
 cp -R "$SRC"/. "$TMP"/
 cd "$TMP"
 
+# GitHub refuses a file over 100 MB and warns over 50, and one such file
+# refuses the whole push — run 34061114032's iOS results were lost to a
+# 205 MB simulator log Maestro had written. Anything that large is not a
+# capture; drop it and say so, rather than lose the captures beside it.
+DROPPED=""
+while IFS= read -r big; do
+  DROPPED="${DROPPED}- \`${big#./}\` ($(du -h "$big" | cut -f1)) — over the size a results ref may carry, dropped before publishing
+"
+  rm -f "$big"
+done < <(find . -type f -size +45M -not -path './.git/*' 2>/dev/null)
+
 {
   echo "# Device screens — ${PLATFORM}"
   echo
@@ -51,6 +62,12 @@ cd "$TMP"
   echo
   find . -type f ! -name INDEX.md ! -path './.git/*' | sed 's|^\./||' | sort | sed 's/^/- `/; s/$/`/'
   echo
+  if [ -n "$DROPPED" ]; then
+    echo "## Dropped"
+    echo
+    printf '%s' "$DROPPED"
+    echo
+  fi
   echo "## How to read these"
   echo
   echo "- \`00-launch-*.png\` are the shell before anything drove it: the splash, the first paint, whatever a launch crash left. Look at them first."
