@@ -526,7 +526,9 @@ reason and takes the next one.
 the `pulse.mjs` reasons. Reads: the tree at `origin/main`; the GitHub
 API with `GITHUB_TOKEN` (open PRs with labels, checks and mergeability;
 branches matching `night-*`, `nightb-*` and the two improvers' names
-with no PR; the run-log issues' last comment per lane; CI on `main`;
+with no PR — a night whose review is recorded in `DECISIONS.md` is
+drawn without a box, because its branch stays ahead of `main` forever
+while carrying nothing new (D382); the run-log issues' last comment per lane; CI on `main`;
 the last ten merges); `origin/axiom-theory` (`DIGEST.md`'s headline,
 `theory/review/SCORES.md`'s latest table, `graph/health.mjs`'s
 summary, `bridge/VERDICTS.md`'s open verdicts); `monitoring/
@@ -537,7 +539,8 @@ body of the pinned Console issue; one trail row a day. Acts: a ticked
 PR row without `approved` → the label; a ticked branch row → opens the
 PR from the branch (title from the branch's summary file if one exists
 on the branch, else the branch name; body the summary's verdict line
-and the commit list) and labels it `approved`; an unticked row with
+and the commit list, saying which commits a review has already merged)
+and labels it `approved`, never for a night already accounted for; an unticked row with
 `approved` and not yet `merge-when-green` → the label removed (past
 that label the shepherd's five steps own the PR, and a withdrawal is a
 review or a close, the owner's to make on GitHub). Never merges, never

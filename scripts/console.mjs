@@ -29,7 +29,7 @@ import { execFileSync } from "node:child_process";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  prRow, branchRow, isNoPrBranch, decideActions, renderMergeList, parseTicks,
+  prRow, branchRow, isNoPrBranch, parseNightReviews, decideActions, renderMergeList, parseTicks,
   parseWorklist, parseOwnerList, parseAxioms, parseVisualRequests, parsePermissions, listProblem,
   parseRegister, ownerSteps, uncheckedSteps, theorySummary, rollCalls, lastSeen,
   foldOwnerList, notAlreadyListed, trailRow, mergeTrail, renderConsole, isoDay, listIsWritable,
@@ -198,9 +198,16 @@ export async function collect({ now = new Date() } = {}) {
   const today = isoDay(now);
   const github = await readGithub(missing);
   const priorList = read("docs/MERGE-LIST.md") || "";
+  // The night reviews' receipt, read off `main` like every other list:
+  // DECISIONS.md is where a review says which branches it took and how
+  // many commits each carried, and a night branch is never merged as
+  // itself (console-lib.mjs § a night that has already been reviewed).
+  // `read()` answering null leaves every night row tickable, which is the
+  // safe direction.
+  const nightReviews = parseNightReviews(read("docs/DECISIONS.md"));
   const rows = [
     ...github.prs.map(({ pr, extras }) => prRow(pr, extras)),
-    ...github.branches.map((b) => branchRow(b)),
+    ...github.branches.map((b) => branchRow(b, nightReviews)),
   ];
   // The `|| ""` these five lines used to carry turned "the file is not
   // there" into "the file is empty", and an empty file parses to zero of
@@ -313,7 +320,13 @@ export async function act(state, actions, log, api = gh) {
       } else if (a.type === "open-pr") {
         const b = state.branches.find((x) => x.name === a.branch);
         const commits = (b?.commits || []).slice(-40).map((s) => `- ${s}`).join("\n");
-        const body = `Opened by the console workflow from a tick on \`docs/MERGE-LIST.md\` (D352): ${a.from}'s branch \`${a.branch}\`, ${b?.aheadBy ?? "?"} commits ahead of \`main\`. The merge shift brings it current, runs the battery, reviews the diff as one unit and hands it to the shepherd.\n\nwhat: ${a.from}'s work on \`${a.branch}\`\nhow: see the commits below and the branch's own summary\n\n${commits}`;
+        // A partially-reviewed night keeps its box, so say which commits
+        // are already in: the shift composes against main either way, but
+        // reading a 19-commit PR as 19 new fixes is the mistake the row
+        // itself was drawn to prevent (D382).
+        const already = state.rows.find((r) => r.key === a.key)?.reviewed;
+        const inAlready = already ? ` ${already.commits} of them are already on \`main\`, merged as ${already.record}.` : "";
+        const body = `Opened by the console workflow from a tick on \`docs/MERGE-LIST.md\` (D352): ${a.from}'s branch \`${a.branch}\`, ${b?.aheadBy ?? "?"} commits ahead of \`main\`.${inAlready} The merge shift brings it current, runs the battery, reviews the diff as one unit and hands it to the shepherd.\n\nwhat: ${a.from}'s work on \`${a.branch}\`\nhow: see the commits below and the branch's own summary\n\n${commits}`;
         const pr = await gh(`/repos/${REPO}/pulls`, { method: "POST", body: { title: `${a.branch}: ${a.from}'s branch, approved from the merge list`, head: a.branch, base: "main", body } });
         await gh(`/repos/${REPO}/issues/${pr.number}/labels`, { method: "POST", body: { labels: ["approved"] } });
         const idx = state.rows.findIndex((r) => r.key === a.key);
@@ -437,7 +450,11 @@ async function main() {
     // refused to rewrite the merge list because the branch rows were
     // short, it wrote that short count into the OWNER'S list as a fact.
     const approvals = listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete })
-      ? [`${state.rows.filter((r) => r.kind === "pr" && !r.selfMerge && r.stage === "new").length} PR row(s) and ${state.rows.filter((r) => r.kind === "branch").length} branch row(s) waiting for a tick in \`docs/MERGE-LIST.md\` § Open (${state.today}).`]
+      // Branch rows still WAITING, not every branch row: this line said
+      // "8 branch row(s) waiting for a tick" on 2026-09-06 with all eight
+      // nights merged days earlier, and it is the sentence that sent the
+      // owner looking for an unreviewed night (D382).
+      ? [`${state.rows.filter((r) => r.kind === "pr" && !r.selfMerge && r.stage === "new").length} PR row(s) and ${state.rows.filter((r) => r.kind === "branch" && r.stage !== "merged").length} branch row(s) waiting for a tick in \`docs/MERGE-LIST.md\` § Open (${state.today}).`]
       : [];
     writeFileSync(OWNER_LIST, foldOwnerList(ownerText, { Decisions: decisions, "Store and legal": launch, Approvals: approvals }));
     log("folded docs/OWNER-LIST.md");
