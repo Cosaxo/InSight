@@ -516,6 +516,12 @@ export function buildEntries(content = loadContent()) {
         topic: "test",
         axis: q.d,
         test: key,
+        // Emit-when-set, compile-time only (never seeded — check:seed-fields
+        // NOT_TRANSPORTED has the reason): the nightly axes fold scores
+        // instrument answers server-side (AXES-PLAN §2) and a reversed item
+        // scored un-reversed poisons its axis silently, so the flag travels
+        // with the compiled bank the way `political` does for D44.
+        ...(q.invert === true ? { invert: true } : {}),
       });
     });
   }
@@ -693,7 +699,12 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "// `invert` is test-surface-only and COMPILE-TIME ONLY — the seed never\n" +
+  "// transports it (check:seed-fields NOT_TRANSPORTED has the reason). It\n" +
+  "// marks a reverse-scored instrument item so the nightly axes fold\n" +
+  "// (AXES-PLAN §2) can score answers server-side; the client keeps joining\n" +
+  "// scoring metadata from IS_TESTS by prompt and never reads it.\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

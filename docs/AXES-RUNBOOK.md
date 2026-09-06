@@ -296,7 +296,7 @@ Mandatory reporting: the digest IS the report. If you have no GitHub API tools, 
 Public data only; the Map starts drawing the axes. Enters when Phase 0
 is done.
 
-- [ ] **1.1 The server fold.** Per-person trait-axis scores folded from
+- [x] **1.1 The server fold.** Per-person trait-axis scores folded from
       public answers inside the nightly patterns run — a pure module
       with an injected store (`patternsFit.ts` idiom), the answer
       trigger untouched. Includes the no-tautology pin: a test that
