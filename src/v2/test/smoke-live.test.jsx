@@ -757,6 +757,32 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live daily, first voter");
   });
 
+  it("does not print a share when the only vote in the crowd is yours", async () => {
+    // ONE FOLD LATER THAN THE CASE ABOVE, and the state that case cannot
+    // reach. `tooSmall` is the window BEFORE the trigger folds your vote:
+    // counts zero, `noCountsYet` true, floor on. Once the fold lands the
+    // aggregate has published — its total is 1, and that 1 is you — so
+    // `noCountsYet` goes FALSE while `countsFor` subtracts you back out
+    // and every drawn count stays zero. The floor lifted, `wfPcts` added
+    // its own +1 for "you", and the card printed 100% over a crowd of
+    // nobody.
+    //
+    // Not off-screen: `unaggregated` clears on the next aggregate read
+    // and the refresh fires a couple of seconds after the write acks, so
+    // the card flips from floored to "100% · 1 vote" while the reader is
+    // still looking at it. On the daily this is a state EVERY reader
+    // passes through on a question they answer first.
+    const expectNoBoundary = mountLive({ soloVoter: true });
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
+
+    const body = document.body.textContent;
+    expect(body, "the card printed a share over a crowd of one").not.toMatch(/100%/);
+    expect(body, "the card printed a zero share over a crowd of one").not.toMatch(/\b0%/);
+    expect(body, "the consequence beat announced a crowd of nobody").not.toMatch(/you.re with them/i);
+    expectNoBoundary("live daily, solo voter past the fold");
+  });
+
   // The control, and it is the half that keeps the gate from being "never
   // draw a split": the same ballot with a published crowd still states one.
   it("still draws the split once the crowd has published — the control", async () => {

@@ -237,7 +237,30 @@ function WfCount({ to, animate, dur = 650, delay = 180 }) {
 // daily-split.jsx, and the consequence beat was the copy that never got
 // written: it replayed 100% on your own option with "you're with them"
 // under it, on the one card that has nothing to be with.
-function wfNoCrowd(q) { return !!(q.live && q.noCountsYet); }
+// AND "NO CROWD" HAS TO MEAN "NOBODY BUT ME", which `noCountsYet` does
+// not. It is `agg.total > 0` (data/deck.ts), computed over a population
+// that INCLUDES the viewer — while every `o.count` the card draws has the
+// viewer subtracted back out by `countsFor` once the trigger has folded
+// them. So on a question whose only answer is yours, the moment the fold
+// lands `noCountsYet` goes false, the floor lifts, and the card draws
+// `wfPcts`'s own +1 as "100%" over a crowd of nobody.
+//
+// Not a race that resolves off-screen: `unaggregated` clears on the next
+// aggregate read and `scheduleAggRefresh` fires a couple of seconds after
+// the write acks, so the card flips from floored to "100% · 1 vote" while
+// the reader is still looking at it. `renderMeta` one method over already
+// knows the state — `alone = total <= 1`, "a majority needs somebody to be
+// in it besides the reader" — and suppresses its sentence; the
+// percentages above it made the same claim anyway.
+//
+// The counts are the honest test because they are the numbers on screen.
+// Fourth site of the D365 +1 mismatch family, one level up from the other
+// three: those were counts computed over the wrong population, this is a
+// PREDICATE computed over the wrong population and deciding whether the
+// counts are shown at all.
+function wfNoCrowd(q) {
+  return !!(q.live && (q.noCountsYet || (q.options || []).every((o) => !o.count)));
+}
 
 function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
 function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }

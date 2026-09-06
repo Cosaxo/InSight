@@ -32,8 +32,23 @@ const src = readFileSync(resolve(here, "../spec/world-feed.jsx"), "utf8");
 const daily = readFileSync(resolve(here, "../spec/daily-split.jsx"), "utf8");
 
 describe("the feed's no-crowd flag has one reader", () => {
-  it("defines the predicate", () => {
-    expect(src).toContain("function wfNoCrowd(q) { return !!(q.live && q.noCountsYet); }");
+  it("defines the predicate, and it means NOBODY BUT ME", () => {
+    // The `every(o => !o.count)` half is load-bearing and was added after
+    // this file already existed. `noCountsYet` alone is `agg.total > 0`
+    // (data/deck.ts) — a population that INCLUDES the viewer — while
+    // every `o.count` the card draws has the viewer subtracted back out
+    // by `countsFor`. So on a question only you have answered, the fold
+    // landing flipped the floor off and the card printed 100% over a
+    // crowd of nobody, a couple of seconds after the write, on screen.
+    //
+    // Pinned as source text for the same reason the rest of this file is:
+    // the condition is hand-written at four sites and the whole point is
+    // that it stays one definition.
+    expect(src).toContain("q.noCountsYet || (q.options || []).every((o) => !o.count)");
+    expect(src).toContain("function wfNoCrowd(q) {");
+    // The daily writes its own copy (a different local shape, same rule),
+    // and it is the site the original beat forgot — so it is pinned too.
+    expect(daily).toContain("S.noCountsYet || S.options.every((o) => !o.count)");
   });
 
   it("reads `noCountsYet` in that one place and nowhere else", () => {
@@ -64,8 +79,15 @@ describe("the feed's no-crowd flag has one reader", () => {
 
   it("matches the daily, which had the guard all along", () => {
     // The precedent, pinned so the two surfaces cannot drift apart again
-    // in the other direction.
-    expect(daily).toContain("!(S.live && S.noCountsYet)");
+    // in the other direction — and both now carry the WIDER predicate.
+    //
+    // The beat's gate is the one that mattered most and was fixed last:
+    // its entire payload is the crowd claim, so on a question whose only
+    // answer is your own it said "100% chose Yes — you're with them" with
+    // nobody to be with. Fixing the ballot's floor first was not enough,
+    // which is how this site was found — the mount test still printed the
+    // sentence after the numerals were gone.
+    expect(daily).toContain("!(S.live && (S.noCountsYet || S.options.every((o) => !o.count)))");
     expect(daily).toMatch(/beat: \(moved && this\.props\.beats !== false/);
   });
 });
