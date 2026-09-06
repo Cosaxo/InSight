@@ -100,6 +100,7 @@
     "check:data-inventory": "node scripts/check-data-inventory.mjs",
     "check:docs": "node scripts/doc-index.mjs",
     "build:screenshots": "node scripts/gen-screenshots.mjs",
+    "screens": "node scripts/device-screens.mjs",
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
     "check:monitoring": "node scripts/check-monitoring.mjs",

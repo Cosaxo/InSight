@@ -1,0 +1,379 @@
+# Boot the real shells — the debug APK on an Android emulator, the
+# simulator build on an iOS simulator — walk the app screen by screen,
+# capture every one, and hand the captures back over git.
+#
+# WHY THIS EXISTS. scripts/device-screens.mjs renders the app in Chromium at
+# phone geometry, which is where layout bugs are found — but it is Chromium
+# on Linux, and three things it cannot show are exactly what a phone does:
+# the status bar and the home indicator painted OVER the WebView
+# (overlaysWebView: true), a native splash that never hands over, and a
+# WebView that is not Chromium at all (WKWebView on iOS). The night shifts
+# run in a container with no /dev/kvm (measured 2026-09-06), so an Android
+# emulator cannot run there, and an iOS simulator needs macOS. GitHub's
+# runners have both — ubuntu-latest exposes KVM, macos-latest has Xcode and
+# its simulators — and the repository is public, so the minutes are free.
+#
+# HOW A NIGHT SHIFT USES IT, without any API access at all:
+#   request  — push the commit it wants screened to `nightb-<date>-screens`
+#              (or `night-<date>-screens`); that push is the trigger, and the
+#              name is inside the shift's own push authorization.
+#   results  — each platform lands ONE orphan commit on
+#              `screens/nightb-<date>-android` and `screens/nightb-<date>-ios`:
+#              the PNGs, a report, the device's own logs, and an INDEX.md.
+#              The shift fetches the ref and reads the files; the owner sees
+#              the same branches. Force-pushed on re-run, so a results ref
+#              never grows history.
+#   cleanup  — the request ref is deleted when both platforms are done, so
+#              the next request is an ordinary push and not a force.
+# `workflow_dispatch` runs the same on any branch, results on
+# `screens/<branch>-<platform>`.
+#
+# Demo build, on purpose: no VITE_V2_LIVE, so the app that boots is the demo
+# deck — deterministic, no anonymous account created and no vote written to
+# production nightly. The Firebase config files still have to be present,
+# because the native auth plugin asks for a FirebaseApp the moment it loads
+# and the shell crashes at launch without one; they come from the release
+# workflows' secrets and are gitignored. A missing secret is a warning here,
+# not a failure: the launch capture is then the evidence of what a checkout
+# without them does.
+#
+# NOT a gate. Nothing here blocks a PR or a deploy: a screenshot lane that
+# could block an emergency rules fix would be the wrong trade (ci.yml's
+# rule). Every capture step is `continue-on-error` or `if: always()` so one
+# run reports every wall, and the results branch lands even when a driver
+# failed — the PNGs it did get are the ones worth looking at then.
+#
+# No third-party actions beyond the ones ci.yml already pins. The emulator
+# is scripted by hand rather than through a marketplace action, so the
+# supply chain stays what it was.
+
+name: Device screens
+
+on:
+  push:
+    branches:
+      - "nightb-*-screens"
+      - "night-*-screens"
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Which shells to boot"
+        type: choice
+        options: ["both", "android", "ios"]
+        default: "both"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: device-screens-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    if: ${{ inputs.platforms != 'ios' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # google_apis rather than google_apis_playstore: the plugins want
+      # Google Play services (present in both), and the Play Store image
+      # cannot be rooted or resized. API 34 boots fastest of the current
+      # x86_64 images on these runners.
+      AVD_IMAGE: "system-images;android-34;google_apis;x86_64"
+      APP_ID: com.cosaxo.insight
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Gradle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Write google-services.json
+        env:
+          GS_B64: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          mkdir -p results/android
+          if [ -z "$GS_B64" ]; then
+            echo "::warning::GOOGLE_SERVICES_JSON is empty — the auth plugin asks for a FirebaseApp at load, so expect a launch crash; the launch capture is the evidence"
+            echo "google-services.json: ABSENT (secret empty)" >> results/android/environment.txt
+          else
+            printf '%s' "$GS_B64" | base64 --decode > android/app/google-services.json
+            echo "google-services.json: present" >> results/android/environment.txt
+          fi
+
+      - run: npx cap sync android
+
+      - run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      # GitHub's Linux runners ship /dev/kvm owned by root:kvm with no world
+      # access; this is the documented way to open it to the runner user.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Install the emulator and a system image
+        run: |
+          set -o pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          AVDMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install "platform-tools" "emulator" "$AVD_IMAGE" > /dev/null
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+          # A Pixel 7 profile where the tools know one (1080×2400 @420dpi —
+          # the geometry scripts/device-screens.mjs renders as pixel-7), the
+          # generic phone otherwise.
+          DEVICE=pixel_7
+          "$AVDMANAGER" list device -c | grep -qx "$DEVICE" || DEVICE=pixel
+          echo no | "$AVDMANAGER" create avd -n screens -k "$AVD_IMAGE" -d "$DEVICE" --force > /dev/null
+          echo "avd: $DEVICE on $AVD_IMAGE" >> results/android/environment.txt
+
+      - name: Boot
+        run: |
+          emulator -avd screens -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim \
+            -camera-back none -camera-front none -memory 3072 > results/android/emulator.log 2>&1 &
+          adb wait-for-device
+          for i in $(seq 1 120); do
+            [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
+            sleep 5
+          done
+          if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; then
+            echo "::error::the emulator did not finish booting in ten minutes"
+            tail -60 results/android/emulator.log
+            exit 1
+          fi
+          # No animation scales: a capture taken mid-transition is a capture
+          # of nothing, and the script's waits are tuned for the app's own
+          # motion, not the OS's.
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell input keyevent 82
+          echo "android: $(adb shell getprop ro.build.version.release | tr -d '\r') · $(adb shell getprop ro.product.model | tr -d '\r')" >> results/android/environment.txt
+
+      - name: Install, launch, capture the launch
+        run: |
+          adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+          adb logcat -c || true
+          adb shell am start -W -n "$APP_ID/.MainActivity"
+          sleep 2;  adb exec-out screencap -p > results/android/00-launch-2s.png
+          sleep 8;  adb exec-out screencap -p > results/android/00-launch-10s.png
+          if adb shell pidof "$APP_ID" > /dev/null 2>&1; then
+            echo "process: alive 10s after launch" >> results/android/environment.txt
+          else
+            echo "process: GONE 10s after launch — a launch crash; logcat-errors.txt has it" >> results/android/environment.txt
+          fi
+
+      # Ambient, never a dependency (scripts/store-render.mjs). No browser
+      # download: the browser here is the app's own WebView.
+      - name: Install Playwright
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: npm i --no-save playwright
+
+      - name: Drive the WebView, screen by screen
+        id: drive
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          node scripts/device-screens.mjs --android --pkg "$APP_ID" --out results/android 2>&1 | tee results/android/drive.log
+
+      - name: Collect the device's logs
+        if: always()
+        run: |
+          adb logcat -d -v time '*:E' > results/android/logcat-errors.txt 2>/dev/null || true
+          adb logcat -d -v time 2>/dev/null | grep -i 'chromium\|console\|capacitor' | tail -300 > results/android/logcat-console.txt || true
+          echo "drive: ${{ steps.drive.outcome }}" >> results/android/environment.txt
+
+      - name: Keep the captures as an artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: device-screens-android
+          path: results/android/
+          if-no-files-found: warn
+
+      - name: Publish the results branch
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/device-screens/publish.sh android
+
+  ios:
+    if: ${{ inputs.platforms != 'android' }}
+    runs-on: macos-latest
+    timeout-minutes: 50
+    env:
+      APP_ID: com.cosaxo.insight
+      # The XCTest driver Maestro builds on first run is slow to come up on
+      # a cold runner; the default 60s is what its own issue tracker says to
+      # raise here.
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: "240000"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Write GoogleService-Info.plist
+        env:
+          PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        run: |
+          mkdir -p results/ios
+          if [ -z "$PLIST_B64" ]; then
+            echo "::warning::GOOGLE_SERVICE_INFO_PLIST is empty — AppDelegate boots without it, but the auth plugin configures Firebase on bridge load and will crash; the launch capture is the evidence"
+            echo "GoogleService-Info.plist: ABSENT (secret empty)" >> results/ios/environment.txt
+          else
+            printf '%s' "$PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist
+            plutil -lint ios/App/App/GoogleService-Info.plist
+            echo "GoogleService-Info.plist: present" >> results/ios/environment.txt
+          fi
+
+      - run: npx cap sync ios
+
+      - name: Resolve Swift packages
+        working-directory: ios/App
+        run: xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App
+
+      # ios-build.yml's build, verbatim: unsigned, generic simulator
+      # destination, so an Xcode image bump cannot break it on a device name.
+      - name: Build for simulator
+        working-directory: ios/App
+        run: |
+          xcodebuild build \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Boot a simulator
+        run: |
+          set -o pipefail
+          UDID=$(xcrun simctl list devices available -j | node -e '
+            const j = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const all = [];
+            for (const [rt, devs] of Object.entries(j.devices))
+              for (const d of devs) if (d.isAvailable && /iPhone/.test(d.name)) all.push({ rt, ...d });
+            // A current phone with a notch and a home indicator, because the
+            // safe areas are half of what this lane exists to show.
+            const pref = ["iPhone 17 Pro", "iPhone 17", "iPhone 16 Pro", "iPhone 16", "iPhone 15 Pro", "iPhone 15"];
+            const rank = (d) => { const i = pref.indexOf(d.name); return i < 0 ? 99 : i; };
+            all.sort((a, b) => rank(a) - rank(b) || b.rt.localeCompare(a.rt));
+            if (!all.length) { console.error("no available iPhone simulator"); process.exit(1); }
+            console.error(`${all[0].name} · ${all[0].rt.replace(/.*\./, "")}`);
+            process.stdout.write(all[0].udid);
+          ' 2> results/ios/device.txt)
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          echo "simulator: $(cat results/ios/device.txt) ($UDID)" >> results/ios/environment.txt
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          # A steady status bar, so two captures differ only where the app does.
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+
+      - name: Install, launch, capture the launch
+        run: |
+          APP=$(find ios/App/build/Build/Products -maxdepth 2 -name "App.app" -type d | head -1)
+          [ -n "$APP" ] || { echo "::error::no App.app was produced"; exit 1; }
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" "$APP_ID"
+          sleep 3;  xcrun simctl io "$UDID" screenshot results/ios/00-launch-3s.png
+          sleep 8;  xcrun simctl io "$UDID" screenshot results/ios/00-launch-11s.png
+          if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "UIKitApplication:$APP_ID"; then
+            echo "process: alive 11s after launch" >> results/ios/environment.txt
+          else
+            echo "process: GONE 11s after launch — a launch crash; syslog.txt has it" >> results/ios/environment.txt
+          fi
+
+      # Maestro drives the app through the accessibility tree — the only
+      # way in from outside a WKWebView, which has no CDP for Playwright to
+      # attach to (the Android job's route). Unpinned on purpose for the
+      # first runs: the version that works is recorded into the results
+      # (maestro-version.txt) and pinned from there, not guessed here.
+      - name: Drive the app with Maestro
+        id: drive
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          maestro --version 2>&1 | tee results/ios/maestro-version.txt
+          cd results/ios
+          maestro --device "$UDID" test "$GITHUB_WORKSPACE/.github/device-screens/ios-flow.yaml" \
+            --format junit --output maestro-junit.xml 2>&1 | tee maestro.log
+
+      - name: Collect the simulator's logs
+        if: always()
+        run: |
+          xcrun simctl io "$UDID" screenshot results/ios/99-final.png || true
+          xcrun simctl spawn "$UDID" log show --last 20m --style compact \
+            --predicate 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"' 2>/dev/null \
+            | tail -400 > results/ios/syslog.txt || true
+          echo "drive: ${{ steps.drive.outcome }}" >> results/ios/environment.txt
+
+      - name: Keep the captures as an artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: device-screens-ios
+          path: results/ios/
+          if-no-files-found: warn
+
+      - name: Publish the results branch
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/device-screens/publish.sh ios
+
+  # The request ref is a pointer, not a branch anybody works on. Deleting it
+  # once both platforms are done means the next request is a plain push —
+  # the night shifts never force-push, and this keeps it that way. Only on
+  # push: a dispatch ran on a real branch.
+  cleanup:
+    needs: [android, ios]
+    if: ${{ always() && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete the request ref
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q req && cd req
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            --delete "refs/heads/${GITHUB_REF_NAME}" || echo "request ref already gone"

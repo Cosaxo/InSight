@@ -1,0 +1,115 @@
+# The iOS half of the Device screens lane, as a Maestro flow.
+#
+# Maestro because a WKWebView exposes no CDP: Playwright's Android route
+# (device-screens.mjs --android) attaches to the emulator's WebView and
+# reuses the script's own scenes, and there is no such door on the
+# simulator. Maestro drives through the accessibility tree instead —
+# XCTest's view of the web content — so every step here names an element
+# by the text or aria-label the app gives it, the same names the mount
+# suites and the script use.
+#
+# Every tap is `optional: true`: a label that moved must not end the flow,
+# because the captures AFTER it are still worth having, and a screen that
+# did not change is a finding a reader can see by comparing two PNGs. The
+# workflow runs this with results/ios as the working directory, which is
+# where takeScreenshot writes.
+#
+# Text matches are regexes over the whole label. "(?i)" where the DOM text
+# is lowercase and CSS capitalises it (the dock's tab labels) — which of the
+# two the accessibility tree reports is a WebKit detail nobody should have
+# to know.
+appId: com.cosaxo.insight
+name: InSight device screens
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      text: "(?i)mirror"
+    timeout: 60000
+- takeScreenshot: 01-daily
+
+# The daily ruler: World · Circle · 1v1
+- tapOn:
+    text: "Circle"
+    optional: true
+- takeScreenshot: 02-daily-circle
+- tapOn:
+    text: "1v1"
+    optional: true
+- takeScreenshot: 03-daily-1v1
+- tapOn:
+    text: "World"
+    optional: true
+
+# The Mirror and every stop of its rail
+- tapOn:
+    text: "(?i)mirror"
+    optional: true
+- takeScreenshot: 04-mirror
+- tapOn:
+    text: "You"
+    optional: true
+- takeScreenshot: 05-mirror-you
+- tapOn:
+    text: "Circle"
+    optional: true
+- takeScreenshot: 06-mirror-circle
+- tapOn:
+    text: "Groups"
+    optional: true
+- takeScreenshot: 07-mirror-groups
+- tapOn:
+    text: "Near"
+    optional: true
+- takeScreenshot: 08-mirror-near
+- tapOn:
+    text: "City"
+    optional: true
+- takeScreenshot: 09-mirror-city
+- tapOn:
+    text: "Country"
+    optional: true
+- takeScreenshot: 10-mirror-country
+- tapOn:
+    text: "World"
+    optional: true
+- takeScreenshot: 11-mirror-world
+
+# The World stop's lens row
+- tapOn:
+    text: "Answers"
+    optional: true
+- takeScreenshot: 12-mirror-world-answers
+- tapOn:
+    text: "People"
+    optional: true
+- takeScreenshot: 13-mirror-world-people
+- tapOn:
+    text: "Scores"
+    optional: true
+- takeScreenshot: 14-mirror-world-scores
+- tapOn:
+    text: "Explore"
+    optional: true
+- takeScreenshot: 15-mirror-world-explore
+- tapOn:
+    text: "Compare"
+    optional: true
+- takeScreenshot: 16-mirror-world-compare
+
+# The two header overlays. A relaunch between them rather than a close
+# button: the overlays close by tapping outside or by swipe, and a relaunch
+# is the same cold state either way.
+- tapOn:
+    text: "Profile"
+    optional: true
+- takeScreenshot: 17-profile
+- launchApp
+- extendedWaitUntil:
+    visible:
+      text: "(?i)mirror"
+    timeout: 60000
+- tapOn:
+    text: "Search"
+    optional: true
+- takeScreenshot: 18-search
