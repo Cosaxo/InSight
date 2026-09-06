@@ -11,7 +11,24 @@ import './spec/archetype-data.js';
 // compare-pop.js stood here until D355: IS_COMPARE_POP's only readers are
 // the Mirror's Compare lens and Groups portrait, so it rides loadMirrorTab()
 // (the Mirror block further down) rather than first paint.
-import './spec/daily-questions.js';
+// daily-questions.js stood here until the eager-content sweep. THIS LINE
+// WAS ONE OF THREE EDGES holding it in first paint (the others: a static
+// import in daily-split.jsx, which is inlined into the entry chunk, and
+// one in map-branches.js, which wanted only the category taxonomy —
+// daily-cats.js now carries that). All seven of its importers are
+// deferred surfaces and the module publishes no global, so rule 2 is
+// satisfied through the ESM graph and it rides its consumers' chunks.
+// Measured: 36 KB of demo questions preloaded on every cold open, to
+// serve the one demo id DAILYSPLIT_DQ_SYNC carries. It is also the file
+// the question farm appends to daily, so leaving it here made every new
+// question a first-paint cost and put a content lane behind the eager
+// budget — 631 -> 596 KB when the three edges came out, and
+// check:eager-content now refuses the whole class. Its boot side effects
+// follow the suggestions.js precedent below: the purge removes
+// `insight.dailyq.*` itself (live.ts sweeps every `insight.` key), a
+// module that never loaded holds no in-memory state to drop, and
+// liveSync() runs on evaluation, so a late load re-fills from the
+// confirmed votes rather than missing them.
 // suggestions.js moved to the loadOverlays group (still listed, still in
 // order — the D25 move): the door's store carries the decline furniture
 // and the demo room, and check:bundle's eager budget is why a closed door

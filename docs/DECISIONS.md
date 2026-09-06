@@ -39007,3 +39007,83 @@ ruler, switch currency, quote, decline, change form — with no CSP
 violation and no page error, at 360px with no horizontal scroll. Both
 defects in §3 came out of that run. The two gates were mutation-tested
 by breaking the thing each protects.
+
+## D370 · Question content is not first-paint bytes, and a gate says so
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
+in the words that are the rule: *"a iPhone should not download all the
+questions like YouTube does not download all the videos."* Said before —
+D316 records the same sentence about the READ path (*"one does not need
+to answer every question, like one does not need to watch every YouTube
+video"*) and built the paged bank for it. This record is the other half,
+the one nobody had measured: the questions were also in the BUNDLE.
+
+### What was true
+
+`src/v2/spec/daily-questions.js` — 36 KB of demo questions, and the file
+the question farm appends to **every day** — was fetched before the app
+could paint. So the bank's size was the app's start-up cost, and enough
+questions made a content lane unmergeable: on 2026-09-04 the farm's PR
+#391 failed `check:bundle` at 632 KB against 630, and on 2026-09-05 the
+feed lane aborted against the same wall with 60 pre-flighted questions
+parked. **The answer both times was to raise the ceiling** — 630 → 642 at
+D365, 645 → 630 → 642 across the entries above it. Nothing was wrong with
+those raises on their own terms; what was missing is that nobody asked
+why a *question* was in first paint at all.
+
+### The three edges, because two were invisible
+
+`check:bundle` reads `dist/index.html`, so it sees a module only when the
+bundler gives it a chunk of its own. That found one edge and hid two:
+
+1. `spec-index.js`'s side-effect line — the eager list. Removing it moved
+   the graph **2 KB**, which is the measurement that proved it was not
+   the cause.
+2. `daily-split.jsx` — the landing tab, **inlined into the entry chunk**,
+   so it has no chunk to name. Its static `import { DAILYQ }` is used at
+   two sites, both gated on `DAILYSPLIT_DQ_SYNC`, which carries exactly
+   one demo id (`'Pineapple on pizza?'`). On a live build the archive was
+   fetched for nothing at all. Now loaded on that id's first use; both
+   call sites already had a correct path for a missing store.
+3. `map-branches.js` — also in the entry chunk — imported the archive for
+   `EMERGENT_CATS`: fourteen labels and hues derived from `CAT_META`, and
+   not a question. `daily-cats.js` now carries the taxonomy, and
+   `question-quality.mjs` (the only site that parses `CAT_META`, checked
+   rather than assumed against D197's three-copies trap) reads it there.
+
+Measured, shipping-build recipe: **631 → 596 KB eager.** `MAX_EAGER_KB`
+goes 642 → **607**, the file's own ~11 KB band, rather than banking the
+35 KB as slack — the same thing D354's sweep did at 645 → 630.
+
+### The gate, and why it is a source walk
+
+`check:eager-content` walks **static** imports from `src/v2/main.jsx` and
+fails when question content is reachable. A `import()` is not an edge,
+which is the point: that is how a surface should reach content. It reads
+source rather than `dist/`, because edge 2 above is exactly what a
+chunk-name check cannot see, and it prints the import chain rather than
+the file alone — naming the file leaves you to find the edge, which is
+the part that took the measuring.
+
+Its allowlist is a **shrink-only ratchet** (`check:globals` rule 4's
+shape): six demo archives still eager because a first-paint surface still
+imports them statically — `sample-data`, `duels-data` and the
+`content/duel-questions.json` it drags with it, `world-feed-data` (the
+feed lane's continuum twins, so that lane's half of this is NOT fixed
+here), `test-feed-data`, `archetype-data`. Each line names its reason; a
+module that stops being eager fails the gate too, asking for its line
+out. Removing the last one deletes the list. Both refusals were run
+against a deliberately broken tree, and are pinned in
+`scripts/check-eager-content.test.mjs` — including that the fix the
+gate's message asks for actually passes it.
+
+### What this does not do
+
+It does not touch the **read** path: a cold boot still fetches the
+surfaces `BANK_SURFACES` names. D316's paging is built for learn (D320)
+and the feed tail (D321); the daily, the tests, the duels and the feed's
+core still ship whole, the last deliberately (D161, the Mirror's corpus).
+The daily is the one that grows every day, and it is the obvious next
+one. Recorded here rather than done, with the arithmetic where the next
+session will find it.
+

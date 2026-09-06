@@ -10,6 +10,7 @@ import { sharePcts } from '../data/pct';
 // test-definitions.js, and neither of the three reads another's bindings
 // during evaluation, so the order they settle in cannot matter.
 import LIVE from '../data/live';
+import { CAT_META, catMeta, EMERGENT_CATS } from './daily-cats.js';
 
 // daily-questions.js — "Daily Question" feature data + persistent answer store.
 // A new question each day (type varies). Each question carries a plausible,
@@ -64,15 +65,11 @@ export let DAILYQ;
   // A question's path (e.g. ['Sport','Football']) is its tag AND where its
   // answer lands on your map. topWord → placement: a seedId reuses an existing
   // self-branch; the rest are topical branches that emerge as you answer.
-  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
   function pathKey(p) { return (p || []).join(' / '); }
-  const CAT_META = {
-    Body: { seedId: 'health', hue: 150 }, Skills: { seedId: 'craft', hue: 40 }, Interests: { seedId: 'interests', hue: 78 },
-    Home: { seedId: 'home', hue: 110 }, Story: { seedId: 'story', hue: 320 }, Goals: { seedId: 'goals', hue: 240 }, Values: { seedId: 'values', hue: 356 },
-    Sport: { hue: 18 }, Film: { hue: 265 }, Food: { hue: 35 }, Travel: { hue: 200 }, Mind: { hue: 255 }, Morals: { hue: 305 }, Music: { hue: 130 },
-  };
-  function catMeta(top) { const m = CAT_META[top] || { hue: 250 }; return { top, hue: m.hue, seedId: m.seedId || null, catId: m.seedId || ('top-' + slug(top)) }; }
-  const EMERGENT_CATS = Object.keys(CAT_META).filter((k) => !CAT_META[k].seedId).map((k) => ({ id: 'top-' + slug(k), label: k, hue: CAT_META[k].hue }));
+  // slug / CAT_META / catMeta / EMERGENT_CATS now live in daily-cats.js —
+  // map-branches.js needs the taxonomy and nothing else, and importing it
+  // from here dragged this file's archive into first paint. Re-exported
+  // below so every existing DAILYQ consumer is unchanged.
   // candidate branch paths per question: authored default (clearly top-voted) + a couple of alternates
   function buildCandidates(id, def, alts) {
     const r = rng(id + '|cat');
