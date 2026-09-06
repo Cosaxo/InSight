@@ -1,0 +1,400 @@
+2026-09-06 22:52:11.205 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.205 Df SpringBoard[22525:1fac3] [com.apple.KeyboardArbiter:Handle] RX com.cosaxo.insight(46678) setWindowContextID:1655716504 windowState:Enabled level:5.0
+    focusContext:<contextID:35980229 sceneID:com.cosaxo.insight-default>
+2026-09-06 22:52:11.205 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.205 Df App[46678:22007] [com.apple.UIKit:InputWindowController] Moving from placement: <UITrackingElementPlacementInitialPosition> to placement: <UIInputViewSetPlacementOnScreen> (currentPlacement: <UITrackingElementPlacementInitialPosition>)
+2026-09-06 22:52:11.205 Df App[46678:22007] [com.apple.UIKit:InputWindowController] Change from input view set: <<UIInputViewSet: 0x105f76880>; (empty)>
+2026-09-06 22:52:11.205 Df App[46678:22007] [com.apple.UIKit:InputWindowController] Change to input view set: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  >
+2026-09-06 22:52:11.205 Df runningboardd[22528:206a4] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:46678](UIHostedWindow:62b03a98) from originator [osservice<com.apple.SpringBoard>:22525] with description <RBSAssertionDescriptor| "injecting  inherited from 'UIScene:com.apple.frontboard.systemappservices/FBSceneManager:com.apple.UIKit.remote-keyboard'" ID:22528-22525-1530 target:46678<UIHostedWindow:62b03a98> attributes:[
+	<RBSHereditaryGrant| endowmentNamespace:com.apple.boardservices.endpoint-injection UIScene:com.apple.frontboard.systemappservices/FBSceneManager:com.apple.UIKit.remote-keyboard>,
+	<RBSHereditaryGrant| endowmentNamespace:com.apple.frontboard.visibility UIScene:com.apple.frontboard.systemappservices/FBSceneManager:com.apple.UIKit.remote-keyboard>
+	]>
+2026-09-06 22:52:11.205 Df runningboardd[22528:206a4] [com.apple.runningboard:ttl] Assertion 22528-22525-1530 (target:[app<com.cosaxo.insight((null))>:46678](UIHostedWindow:62b03a98)) will be created as active
+2026-09-06 22:52:11.206 Df App[46678:22007] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: -[_UIKBFeedbackGenerator activateWithCompletionBlock:]
+2026-09-06 22:52:11.206 Df SpringBoard[22525:1fac3] [com.apple.KeyboardArbiter:Handle] RX com.cosaxo.insight(46678) signalAutofillUIBringup
+2026-09-06 22:52:11.206 Df App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Releasing engine and players.
+2026-09-06 22:52:11.206 Df App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Recreating engine with reason -[_UIKBFeedbackGenerator activateWithCompletionBlock:]_block_invoke.
+2026-09-06 22:52:11.207 Df App[46678:220df] (libMobileGestalt.dylib) MGIsDeviceOfType is not supported on this platform.
+2026-09-06 22:52:11.207 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x104500d80>; appId (null) bundleId (null) animation fence (null); position {{0, 857}, {0, 17}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 857}, {0, 17}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 857}, {0, 17}}
+2026-09-06 22:52:11.211 Df runningboardd[22528:206a4] [com.apple.runningboard:monitor] Calculated state for app<com.cosaxo.insight((null))>: running-active (role: UserInteractiveFocal) (endowments: {(
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:(null)  0>,
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:UIScene:com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default payload: 1189320566821639049>
+)})
+2026-09-06 22:52:11.212 Df runningboardd[22528:20be6] [com.apple.runningboard:monitor] Calculated state for app<com.cosaxo.insight((null))>: running-active (role: UserInteractiveFocal) (endowments: {(
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:(null)  0>,
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:UIScene:com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default payload: 1189320566821639049>
+)})
+2026-09-06 22:52:11.213 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.213 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.213 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.213 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.214 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.214 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.214 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.214 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.215 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.215 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.215 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.215 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.216 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.216 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.216 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.217 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff1b0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.217 E  App[46678:220df] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.217 E  App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fe760 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.218 Df SpringBoard[22525:1e2a0] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.220 Df App[46678:220df] [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=1
+2026-09-06 22:52:11.220 Df App[46678:220df] [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=2
+2026-09-06 22:52:11.220 Df App[46678:220df] [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=3
+2026-09-06 22:52:11.220 Df App[46678:220df] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Preheating CoreHaptics.
+2026-09-06 22:52:11.220 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x104500d80>; appId (null) bundleId (null) animation fence (null); position {{0, 857}, {0, 17}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 857}, {0, 17}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 857}, {0, 17}}
+2026-09-06 22:52:11.233 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.233 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.234 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.234 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.235 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.235 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.235 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.235 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.244 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x104500d80>; appId (null) bundleId (null) animation fence (null); position {{0, 857}, {0, 17}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 857}, {0, 17}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 857}, {0, 17}}
+2026-09-06 22:52:11.257 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x104500d80>; appId (null) bundleId (null) animation fence (null); position {{0, 857}, {0, 17}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 857}, {0, 17}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 857}, {0, 17}}
+2026-09-06 22:52:11.264 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x104500d80>; appId (null) bundleId (null) animation fence (null); position {{0, 857}, {0, 17}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 857}, {0, 17}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 857}, {0, 17}}
+2026-09-06 22:52:11.269 Df locationd[22549:215a5] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.272 Df testmanagerd[41398:1f478] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.272 Df mediaremoted[22532:22173] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.274 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.282 Df runningboardd[22528:206a4] [com.apple.runningboard:monitor] Calculated state for app<com.cosaxo.insight((null))>: running-active (role: UserInteractiveFocal) (endowments: {(
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:UIHostedWindow:62b03a98 payload: 1189320566821639049>,
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:(null)  0>,
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:UIScene:com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default payload: 1189320566821639049>
+)})
+2026-09-06 22:52:11.282 Df SpringBoard[22525:1fac3] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.283 A  App[46678:220df] (RunningBoardServices) didChangeInheritances
+2026-09-06 22:52:11.283 Df SpringBoard[22525:fe7a] [com.apple.SpringBoard:InputUI] Focused scene identity did change to: <UIKBArbiterClientFocusContext: 0x104255c20; contextID = 22503c5; sceneIdentity = com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default >
+2026-09-06 22:52:11.283 E  SpringBoard[22525:fe7a] [com.apple.SpringBoard:InputUI] Couldn't find a targetScene for the given focusContext[<UIKBArbiterClientFocusContext: 0x104255c20; contextID = 22503c5; sceneIdentity = com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default >]. Fall back to scene[<FBScene: 0x1025d9000; FBSceneManager:sceneID:com.cosaxo.insight-default>] and contextID[22503c5]
+2026-09-06 22:52:11.286 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.288 Df SpringBoard[22525:fe7a] [com.apple.SpringBoard:InputUI] Target scene for focused identity[com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default]: sceneID:com.cosaxo.insight-default
+2026-09-06 22:52:11.364 Df locationd[22549:216ed] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.364 Df mediaremoted[22532:1be75] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.365 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.365 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.365 Df testmanagerd[41398:1f478] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.366 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.366 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.444 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.445 Df App[46678:220e8] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 1, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 1
+2026-09-06 22:52:11.528 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.528 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.529 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.529 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.530 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.531 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.532 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticDataAuto, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.532 Df App[46678:220d3] [com.apple.DataDeliveryServices:Query] assetsForQuery: <query: com.apple.MobileAsset.LinguisticData, locO: 1, iO: 1, latO: 1, cO: 0, <filter: {
+    AssetLocale = "{(\134n    \134"en_US\134",\134n    en\134n)}";
+}>> final result: (
+    "Optional-en::9e5af7e2cffff3cded5db21909fd7d3a58b4ed43.asset"
+) was cached: 1, cachedOnly: 0
+2026-09-06 22:52:11.781 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.781 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.781 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.781 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.782 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.782 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.782 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.782 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.808 Df App[46678:22007] [com.apple.UIKit:InputWindowController] moveFromPlacement, updated placements from: <UITrackingElementPlacementInitialPosition>, to: <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.809 Df App[46678:22007] [com.apple.UIKit:InputWindowController] updatePlacementWithPlacement: <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.809 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.809 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.809 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.810 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.810 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.810 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.810 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x161150000>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; assistant = <TUISystemInputAssistantView: 0x105d1d500; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.810 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.811 Df App[46678:22007] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards prepareToMoveKeyboard:withIAV:isIAVRelevant:showing:notifyRemote:forScene:] position: {{0, 0}, {402, 308}} visible: 1; notifyRemote: 1; isMinimized: NO
+2026-09-06 22:52:11.811 Df App[46678:22007] [com.apple.KeyboardArbiter:Client] prepareToMoveKeyboard: set currentKeyboard:Y
+2026-09-06 22:52:11.811 Df App[46678:22007] [com.apple.KeyboardArbiter:Client] TX signalKeyboardChanged
+2026-09-06 22:52:11.811 Df App[46678:22007] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards signalToProxyKeyboardChanged:onCompletion:]  Signaling keyboard changed <<<_UIKeyboardChangedInformation: 0x16118c000>; appId (null) bundleId (null) animation fence <BKSAnimationFenceHandle:0x161061fc0 -> <CAFenceHandle:0x105ce6680 name=7 fence=58120000000a usable=YES>>; position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence <BKSAnimationFenceHandle:0x161061fc0 -> <CAFenceHandle:0x105ce6680 name=7 fence=58120000000a usable=YES>>; position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES>
+2026-09-06 22:52:11.811 Df SpringBoard[22525:1e269] [com.apple.KeyboardArbiter:Handle] RX com.cosaxo.insight(46678) signalKeyboardChanged
+    keyboardChanges:<<fence:Y pos:{{0, 566}, {402, 308}} anim:Y onScreen:Y tracking:N resizing:N local:N uiPos:Unknown notif:N> src{scene:com.cosaxo.insight-default display:Main bundle:com.cosaxo.insight} hostBundle:(null) posWithIAV:(same) snapshot:Y >
+2026-09-06 22:52:11.811 Df SpringBoard[22525:1e269] [com.apple.KeyboardArbiter:Events] set activeInputDestination:<com.cosaxo.insight focus:<contextID:35980229 sceneID:com.cosaxo.insight-default> run:Y hosting:() level:5 active:Y wantedState:Enabled #suppr:0 iavHeight:0 onScreen:Y>
+2026-09-06 22:52:11.812 Df SpringBoard[22525:1e269] [com.apple.UIKit:KeyboardArbiter] active input destination is now <_UIKeyboardArbiterClientHandle: 0x115d51b20; [app<com.cosaxo.insight((null))>:46678] <<UIKBArbiterClientFocusContext: 0x104255c20; contextID = 22503c5; sceneIdentity = com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default >>; hosting PIDs {(
+)}; level 5.000000; active YES [wants YES]; suppression 0; iav 0.000000; on screen YES; isAcquiringFocus: NO>; information: <<<_UIKeyboardChangedInformation: 0x115f18f00>; appId (null) bundleId (null) animation fence <BKSAnimationFenceHandle:0x11f238b50 -> <CAFenceHandle:0x11f0910a0 name=18 fence=58120000000a usable=NO>>; position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence <BKSAnimationFenceHandle:0x11f238b50 -> <CAFenceHandle:0x11f0910a0 name=18 fence=58120000000a usable=NO>>; position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES>
+2026-09-06 22:52:11.812 Df SpringBoard[22525:fe7a] [com.apple.KeyboardArbiter:Client] RX keyboardChanged (isLocal:N source:com.cosaxo.insight-default)
+2026-09-06 22:52:11.812 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x115f19680>; appId (null) bundleId (null) animation fence (null); position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 566}, {402, 308}}
+2026-09-06 22:52:11.813 Df App[46678:22007] [com.apple.UIKit:InputWindowController] Tracking provider: moveFromPlacement: <UITrackingElementPlacementInitialPosition> toPlacement: <UIInputViewSetPlacementOnScreen> update to: {{0, 566}, {402, 308}}
+2026-09-06 22:52:11.813 Df App[46678:22007] [com.apple.UIKit:KeyboardSceneDelegate] KeyboardTrackingCoordinator: Creating tracking provider for <_UIKeyboardWindowScene: 0x161124c80; role: _UIScreenBasedSceneSession; persistentIdentifier: E7670E43-AFA1-408C-AD7F-74903EDFB5CE; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.813 Df App[46678:22007] [com.apple.UIKit:KeyboardSceneDelegate] KeyboardTrackingCoordinator: Creating tracking coordinator for <UIWindowScene: 0x105c80000; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: D860E107-9E39-41B4-A645-43E9BDDD5E39; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.813 Df App[46678:22007] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Updating tracking clients for start <TUIKeyboardTrackingCoordinator:0x1339ee800 state=<TUIKeyboardState: 0x133a53bc0 State: onscreen with input view; is docked>; frame={{0, 566}, {402, 308}}; animation=<TUIKeyboardAnimationInfo: 0x16126f480, duration: 0.38, from local keyboard, is not rotating, should animate, type: 0, notificationInfo: {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 308}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+}notificationsDebug: >>
+2026-09-06 22:52:11.813 Df App[46678:22007] [com.apple.UIKit:KeyboardLayoutGuide] changeSizingConstants: size is changing [not transitioning] to {402, 308} [previous size: {402, 0}]
+2026-09-06 22:52:11.813 Df App[46678:22007] [com.apple.UIKit:TrackingElementWindowController] Setting tracking element input views: <<UIInputViewSet: 0x1611500c0>; keyboard = [uninitialized]; usesKeyClicks = NO;  >
+2026-09-06 22:52:11.814 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x1611500c0>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; usesKeyClicks = NO;  > windowScene: <UIWindowScene: 0x105c80000; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: D860E107-9E39-41B4-A645-43E9BDDD5E39; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.814 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.814 Df App[46678:22007] [com.apple.UIKit:TrackingElementWindowController] Moving from placement: <UITrackingElementPlacementInitialPosition> to placement: <UIInputViewSetPlacementOnScreen> (currentPlacement: <UITrackingElementPlacementInitialPosition>)
+2026-09-06 22:52:11.814 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x115f19680>; appId (null) bundleId (null) animation fence (null); position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 566}, {402, 308}}
+2026-09-06 22:52:11.814 Df App[46678:22007] [com.apple.UIKit:TrackingElementWindowController] Change from input view set: (null)
+2026-09-06 22:52:11.814 Df App[46678:22007] [com.apple.UIKit:TrackingElementWindowController] Change to input view set: <<UIInputViewSet: 0x1611500c0>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; usesKeyClicks = NO;  >
+2026-09-06 22:52:11.814 Df App[46678:22007] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboardPlaceholderView refreshPlaceholder]  refreshPlaceholder: size={402, 308} [previous size={402, 0}]
+2026-09-06 22:52:11.815 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x1611500c0>; keyboard = <UIKeyboardAutomatic: 0x105dab700; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x13382ca50>>%; usesKeyClicks = NO;  > windowScene: <UIWindowScene: 0x105c80000; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: D860E107-9E39-41B4-A645-43E9BDDD5E39; activationState: UISceneActivationStateForegroundActive>
+2026-09-06 22:52:11.815 Df App[46678:22007] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.818 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x115f19680>; appId (null) bundleId (null) animation fence (null); position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 566}, {402, 308}}
+2026-09-06 22:52:11.820 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x115f19680>; appId (null) bundleId (null) animation fence (null); position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 566}, {402, 308}}
+2026-09-06 22:52:11.821 Df App[46678:22007] [com.apple.UIKit:TrackingElementWindowController] updatePlacementWithPlacement: <UIInputViewSetPlacementOnScreen>
+2026-09-06 22:52:11.821 Df App[46678:22007] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Posted notification willShow with {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 308}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+} (null)
+2026-09-06 22:52:11.822 Df SpringBoard[22525:fe7a] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x115f19680>; appId (null) bundleId (null) animation fence (null); position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 566}, {402, 308}}
+2026-09-06 22:52:11.877 Df App[46678:22007] [com.apple.WebKit:ProcessSuspension] 0x10f058120 - [PID=47704, throttler=0x10f104150] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:52:11.877 Df App[46678:22007] [com.apple.WebKit:ViewGestures] Synthetic click completed. (0x101ebd400, pageProxyID=7)
+2026-09-06 22:52:11.878 Df App[46678:22165] [com.apple.WebKit:Process] WebContent[47704] 0x10723c008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+2026-09-06 22:52:11.878 Df App[46678:22165] [com.apple.WebKit:Process] WebContent[47704] 0x10723c008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+2026-09-06 22:52:11.882 Df App[46678:22007] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient beginRemoteTextInputSessionWithID:options:documentTraits:initialDocumentState:]_block_invoke  Connection to service with mach name com.apple.rti-screencontinuity was invalidated. Attempting to create a new connection.
+2026-09-06 22:52:11.882 Df App[46678:22007] [com.apple.xpc:connection] [0x1338f8500] activating connection: mach=true listener=false peer=false name=com.apple.rti-screencontinuity
+2026-09-06 22:52:11.882 Df App[46678:22007] [com.apple.xpc:connection] [0x1338f8500] failed to do a bootstrap look-up: xpc_error=[3: No such process]
+2026-09-06 22:52:11.882 Df App[46678:22007] [com.apple.xpc:connection] [0x1338f8500] invalidated after a failed init
+2026-09-06 22:52:11.882 Df App[46678:22007] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient _beginSessionWithID:forServices:force:]  Begin text input session. sessionID = E1A1B50A-CC71-42C7-B06D-26768A90FD60, options = <RTISessionOptions: 0x133a50920; shouldResign = NO; animated = YES; offscreenDirection = 0; enhancedWindowingModeEnabled = NO
+2026-09-06 22:52:11.882 Df App[46678:220df] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient _configureConnection:withMachName:]_block_invoke_2  Client connection to service was invalidated: <NSXPCConnection: 0x133afb480> connection to service named com.apple.rti-screencontinuity
+2026-09-06 22:52:11.884 Df runningboardd[22528:206a4] [com.apple.runningboard:ttl] Acquiring assertion targeting osservice<com.apple.InputUI> from originator [app<com.cosaxo.insight((null))>:46678] with description <RBSAssertionDescriptor| "BSNSXPCTransport[C:3-1]" ID:22528-46678-1539 target:osservice<com.apple.InputUI> attributes:[
+	<RBSDomainAttribute| domain:"com.apple.common" name:"BasicAngelIPC" sourceEnvironment:"(null)">,
+	<RBSConstraintsAttribute| constraints:7>
+	]>
+2026-09-06 22:52:11.942 Df SpringBoard[22525:1e2a0] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:11.951 Df App[46678:22007] [com.apple.WebKit:ProcessSuspension] 0x10f058120 - [PID=47704, throttler=0x10f104150] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:52:11.951 Df App[46678:22007] [com.apple.KeyboardArbiter:Client] RX keyboardArbiterClientHandle:Y
+2026-09-06 22:52:11.954 Df InputUI[38896:1c18e] [com.apple.UIKit:KeyboardSceneDelegate] Tracking provider: updateProviderFromRemoteUpdate for info: <<<_UIKeyboardChangedInformation: 0x103e20c00>; appId (null) bundleId (null) animation fence (null); position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default; source display Main; source bundle com.cosaxo.insight; host bundle (null); animation fence (null); position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES> update to {{0, 566}, {402, 308}}
+2026-09-06 22:52:11.955 Df App[46678:22007] [com.apple.KeyboardArbiter:Client] RX keyboardArbiterClientHandle:Y
+2026-09-06 22:52:11.956 Df App[46678:22007] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: -[_UIKBFeedbackGenerator activateWithCompletionBlock:]
+2026-09-06 22:52:11.957 Df App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Releasing engine and players.
+2026-09-06 22:52:11.957 Df App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Recreating engine with reason -[_UIKBFeedbackGenerator activateWithCompletionBlock:]_block_invoke.
+2026-09-06 22:52:11.957 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.957 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.958 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.958 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.959 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.959 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.959 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.959 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.960 Df runningboardd[22528:216ea] [com.apple.runningboard:ttl] Invalidating assertion 22528-46678-1528 (target:[app<com.cosaxo.insight((null))>:46678]) from originator [app<com.cosaxo.insight((null))>:46678]
+2026-09-06 22:52:11.960 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.960 Df runningboardd[22528:216ea] [com.apple.runningboard:ttl] Invalidating assertion 22528-22525-1529 (target:[app<com.cosaxo.insight((null))>:46678]) from originator [osservice<com.apple.SpringBoard>:22525]
+2026-09-06 22:52:11.960 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.961 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.961 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.962 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.962 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.962 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.963 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610fcae0 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.963 E  App[46678:220e9] (CoreHaptics)        CHHapticPattern.mm:487   +[CHHapticPattern patternForKey:error:]: Failed to read pattern library data: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.963 E  App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Error creating CHHapticPattern: Error Domain=NSCocoaErrorDomain Code=260 "The file “hapticpatternlibrary.plist” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSURL=file:///Library/Audio/Tunings/Generic/Haptics/Library/hapticpatternlibrary.plist, NSUnderlyingError=0x1610ff750 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+2026-09-06 22:52:11.963 Df App[46678:220e9] [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=1
+2026-09-06 22:52:11.963 Df App[46678:220e9] [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=2
+2026-09-06 22:52:11.963 Df App[46678:220e9] [com.apple.coremedia:] -AVSystemController- +[AVSystemController sharedInstance]: Failed to allocate AVSystemController, numberOfAttempts=3
+2026-09-06 22:52:11.963 Df App[46678:220e9] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x105f82f40>: Preheating CoreHaptics.
+2026-09-06 22:52:12.069 Df runningboardd[22528:215a0] [com.apple.runningboard:monitor] Calculated state for app<com.cosaxo.insight((null))>: running-active (role: UserInteractiveFocal) (endowments: {(
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:UIHostedWindow:62b03a98 payload: 1189320566821639049>,
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:(null)  0>,
+    <RBSProcessEndowmentInfo| namespace:com.apple.frontboard.visibility env:UIScene:com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default payload: 1189320566821639049>
+)})
+2026-09-06 22:52:12.070 Df SpringBoard[22525:216e2] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:12.106 Df testmanagerd[41398:21611] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:12.121 Df locationd[22549:215a5] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:12.122 Df mediaremoted[22532:216ee] [com.apple.runningboard:monitor] Received state update for 46678 (app<com.cosaxo.insight((null))>, running-active-Visible
+2026-09-06 22:52:12.331 Df App[46678:220d3] [com.apple.xpc:connection] [0x101e98180] invalidated because the client process (pid 41418) either cancelled the connection or exited
+2026-09-06 22:52:12.331 Df App[46678:220d3] [com.apple.dt.xctest:Default] Connection from client with pid 41418 was invalidated.
+2026-09-06 22:52:12.345 Df App[46678:22007] [com.apple.KeyboardArbiter:Client] TX setWindowContextID:1655716504 windowState:Enabled level:5.0
+    focusContext:<contextID:35980229 sceneID:com.cosaxo.insight-default>
+2026-09-06 22:52:12.346 Df SpringBoard[22525:1f968] [com.apple.KeyboardArbiter:Handle] RX com.cosaxo.insight(46678) setWindowContextID:1655716504 windowState:Enabled level:5.0
+    focusContext:<contextID:35980229 sceneID:com.cosaxo.insight-default>
+2026-09-06 22:52:12.346 Df SpringBoard[22525:fe7a] [com.apple.SpringBoard:InputUI] Focused scene identity did change to: <UIKBArbiterClientFocusContext: 0x104254460; contextID = 22503c5; sceneIdentity = com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default >
+2026-09-06 22:52:12.346 E  SpringBoard[22525:fe7a] [com.apple.SpringBoard:InputUI] Couldn't find a targetScene for the given focusContext[<UIKBArbiterClientFocusContext: 0x104254460; contextID = 22503c5; sceneIdentity = com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default >]. Fall back to scene[<FBScene: 0x1025d9000; FBSceneManager:sceneID:com.cosaxo.insight-default>] and contextID[22503c5]
+2026-09-06 22:52:12.347 Df App[46678:22007] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Posted notification didShow with {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 308}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+} (null)
+2026-09-06 22:52:12.347 Df SpringBoard[22525:fe7a] [com.apple.SpringBoard:InputUI] Target scene for focused identity[com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.cosaxo.insight-default]: sceneID:com.cosaxo.insight-default
+2026-09-06 22:52:12.352 Df App[46678:22007] [com.apple.WebKit:ProcessSuspension] 0x10f058180 - [PID=47704, throttler=0x10f104150] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:52:12.357 Df App[46678:22165] [com.apple.WebKit:Process] WebContent[47704] 0x10723c008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+2026-09-06 22:52:12.357 Df App[46678:22165] [com.apple.WebKit:Process] WebContent[47704] 0x10723c008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+2026-09-06 22:52:12.358 Df App[46678:22007] [com.apple.WebKit:ProcessSuspension] 0x10f058180 - [PID=47704, throttler=0x10f104150] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:52:12.361 Df App[46678:220e8] [com.apple.dt.automationmode:Default] Handling posted change notification (com.apple.dt.automationmode.state-changed)
+2026-09-06 22:52:12.361 Df App[46678:220e8] [com.apple.dt.automationmode:Default] XAM shared observer connecting to com.apple.dt.automationmode.reader
+2026-09-06 22:52:12.361 Df App[46678:220e8] [com.apple.xpc:connection] [0x1339eca00] activating connection: mach=true listener=false peer=false name=com.apple.dt.automationmode.reader
+2026-09-06 22:52:12.373 Df SpringBoard[22525:1e269] [com.apple.KeyboardArbiter:Handle] RX com.cosaxo.insight(46678) signalKeyboardChangeComplete
+2026-09-06 22:52:12.385 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Updating web accessibility settings
+2026-09-06 22:52:12.385 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = AccessibilityEnabled, result = 1
+2026-09-06 22:52:12.385 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 1
+2026-09-06 22:52:12.385 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:52:12.386 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:52:12.387 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Smart invert status global: 0
+2026-09-06 22:52:12.397 Df App[46678:220e8] [com.apple.xpc:connection] [0x1339eca00] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-09-06 22:52:12.400 Df App[46678:220e8] [com.apple.dt.automationmode:Default] Comparing previous enabled state (1) to current enabled state (0)
+2026-09-06 22:52:12.400 Df App[46678:220e9] [com.apple.dt.xctest:Default] Automation Mode has been disabled, existing connections will be invalidated.
+2026-09-06 22:52:12.407 Df App[46678:22007] [com.apple.WebKit:ProcessSuspension] 0x10f0580f0 - [PID=47704, throttler=0x10f104150] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:52:12.417 Df App[46678:22165] [com.apple.WebKit:Process] WebContent[47704] 0x10723c008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+2026-09-06 22:52:12.418 Df App[46678:22165] [com.apple.WebKit:Process] WebContent[47704] 0x10723c008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+2026-09-06 22:52:12.418 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Updating web accessibility settings
+2026-09-06 22:52:12.418 Df App[46678:22007] [com.apple.WebKit:ProcessSuspension] 0x10f0580f0 - [PID=47704, throttler=0x10f104150] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:52:12.418 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = AccessibilityEnabled, result = 1
+2026-09-06 22:52:12.418 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 0
+2026-09-06 22:52:12.418 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:52:12.419 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:52:12.419 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Smart invert status global: 0
+2026-09-06 22:52:12.431 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Updating web accessibility settings
+2026-09-06 22:52:12.432 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = AccessibilityEnabled, result = 0
+2026-09-06 22:52:12.432 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 0
+2026-09-06 22:52:12.432 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:52:12.432 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:52:12.432 Df App[46678:22165] [com.apple.Accessibility:AXCommon] WebContent[47704] Smart invert status global: 0
+2026-09-06 22:52:14.123 Df App[46678:22165] [com.apple.WebKit:PerformanceLogging] WebContent[47704]: PerformanceMonitor::measurePostLoadMemoryUsage: Process was using 84974528 bytes of memory after the page load.
+2026-09-06 22:52:14.325 Df App[46678:220e9] [com.apple.launchservices:db] NotifyToken::RegisterDispatch(com.apple.LaunchServices.database) fired for session key LSSessionKey(system: 0 uid: 501)
+2026-09-06 22:52:14.382 Df nanotimekitcompaniond[23367:1c05b] [com.apple.NanoTimeKit:UpNext] Setting data sources for SiriDefaultsPhoneThirdPartyDataSources - {(
+    "com.cosaxo.insight"
+)}
+2026-09-06 22:52:15.733 Df SpringBoard[22525:fe7a] [com.apple.SpringBoard:Library] library category map update received: <SBHLibraryMutableCategoryMap: 0x11da44b80; generatedDate: 2026-09-06 22:52:15 +0000; uniqueIdentifier: 7B77C40C-5D45-4027-909E-F41FEA443A72; loadedFromDisk: NO; _localizedCategoryNameByCategoryIdentifier: (empty)> categoryIdentifiers = {
+    3001;
+    3000;
+}
+sortedApplicationIdentifiersByCategoryIdentifier = {
+    <SBHLibraryCategoryIdentifier: 0x11db0b360; localizedDisplayName: " System"> = {
+        com.apple.Bridge;
+        com.apple.DocumentsApp;
+        com.apple.Fitness;
+        com.apple.Health;
+        com.apple.Maps;
+        com.apple.MobileAddressBook;
+        com.apple.MobileSMS;
+        com.apple.Passbook;
+        com.apple.Passwords;
+        com.apple.Preferences;
+        com.apple.Preview;
+        com.apple.mobilecal;
+        com.apple.mobilesafari;
+        com.apple.mobileslideshow;
+        com.apple.news;
+        com.apple.reminders;
+        com.apple.shortcuts;
+    }
+    <SBHLibraryCategoryIdentifier: 0x11db0a490; localizedDisplayName: Other> = {
+        com.cosaxo.insight;
+2026-09-06 22:52:15.733 Df SpringBoard[22525:fe7a] [com.apple.SpringBoard:Library] Installing category map <SBHLibraryMutableCategoryMap: 0x11da44b80; generatedDate: 2026-09-06 22:52:15 +0000; uniqueIdentifier: 7B77C40C-5D45-4027-909E-F41FEA443A72; loadedFromDisk: NO; _localizedCategoryNameByCategoryIdentifier: (empty)> categoryIdentifiers = {
+    3001;
+    3000;
+}
+sortedApplicationIdentifiersByCategoryIdentifier = {
+    <SBHLibraryCategoryIdentifier: 0x11db0b360; localizedDisplayName: " System"> = {
+        com.apple.Bridge;
+        com.apple.DocumentsApp;
+        com.apple.Fitness;
+        com.apple.Health;
+        com.apple.Maps;
+        com.apple.MobileAddressBook;
+        com.apple.MobileSMS;
+        com.apple.Passbook;
+        com.apple.Passwords;
+        com.apple.Preferences;
+        com.apple.Preview;
+        com.apple.mobilecal;
+        com.apple.mobilesafari;
+        com.apple.mobileslideshow;
+        com.apple.news;
+        com.apple.reminders;
+        com.apple.shortcuts;
+    }
+    <SBHLibraryCategoryIdentifier: 0x11db0a490; localizedDisplayName: Other> = {
+        com.cosaxo.insight;
+     - animated <decode: missing data>
+2026-09-06 22:52:16.841 E  App[46678:2209d] [com.google.firebase:[FirebaseCore]] 12.18.0 - [FirebaseCore][I-COR000003] The default Firebase app has not yet been configured. Add `FirebaseApp.configure()` to your application initialization. This can be done in in the App Delegate's application(_:didFinishLaunchingWithOptions:)` (or the `@main` struct's initializer in SwiftUI). Read more: https://firebase.google.com/docs/ios/setup#initialize_firebase_in_your_app
+2026-09-06 22:52:16.841 Df App[46678:2209d] [com.google.firebase:[FirebaseAppCheck]] 12.18.0 - [FirebaseAppCheck][I-FAA005001] To use this token for app debugging, register it with your project.
+
+Firebase App Check debug token: F8D5D873-0A78-4C9B-94AC-D72A08FD487E
+
+You can do so in the Firebase Console: 
+https://console.firebase.google.com/project/prvfire33/appcheck/apps?selectedAppId=1:437999864865:ios:0dfbab646ca1929cb8a760 
+
+Or using the Firebase CLI: 
+firebase appcheck:debugtokens:create F8D5D873-0A78-4C9B-94AC-D72A08FD487E --project prvfire33 --app 1:437999864865:ios:0dfbab646ca1929cb8a760
+
+Note: To keep your project secure, please revoke and delete this token using the 
+Firebase Console or the CLI (`firebase appcheck:debugtokens:delete`) when you finish debugging.
+
+Warning: This debug token is a secret and should not be shared or uploaded to source code.
+
+Debug Token Guide: https://firebase.google.com/docs/app-check/ios/debug-provider
+Firebase CLI install instructions: https://firebase.google.com/docs/cli
+2026-09-06 22:52:17.939 Df log[48658:0] [com.apple.log:] log run noninteractively, parent: 22493 (launchd_sim), args: 'log' 'show' '--last' '20m' '--style' 'compact' '--predicate' 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"'
