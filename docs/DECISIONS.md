@@ -39087,3 +39087,89 @@ The daily is the one that grows every day, and it is the obvious next
 one. Recorded here rather than done, with the arithmetic where the next
 session will find it.
 
+## D371 · The daily pages: a published length, seven documents, and the density it rests on
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
+who had said it before and been half-answered: *"an iPhone should not
+download all the questions like YouTube does not download all the
+videos."* D316 recorded that sentence for the read path and built the
+paging for learn (D320) and the feed's tail (D321); D370 took the
+questions out of the BUNDLE. The daily was left in both places, and it is
+the one surface a scheduled lane appends to every single day.
+
+### What was true
+
+A cold boot read **847 documents**, and `BANK_SURFACES` carried `daily`
+— all 130 of them, growing by one a day for as long as the farm runs.
+`rank.ts` had excluded the daily from the published order for a good
+reason, written down: the daily is **positional**, everyone answers the
+same question on the same day, and that is what makes a cohort reading
+mean anything. The conclusion drawn from it was that the daily could not
+page. That does not follow.
+
+### What a device actually needs
+
+`computeDeckIds` indexes `(today - epoch - back) mod n`. The bank is the
+*resolution* of that index, not an input to it — the only input is **n**.
+So the server publishes the length and the device computes its own seven
+positions:
+
+- `v2_rank/daily` = `{ n, maxSeq }`, written by the nightly `rankBankV2`
+  beside the two orders. Not an order: a length. `dailyShape` filters the
+  bank exactly as the client's `splitBanks` does, tombstones included —
+  retired dailies stay counted, because dropping one shifts every visible
+  day on every device (the probe in `live.ts`: retiring one question
+  changed 7 of 7 pager cards).
+- The device computes positions **locally**, which is what keeps the
+  midnight rollover working — a published deck would hand out yesterday's
+  question until the 03:07 fold ran. It fetches `back` from -1, so
+  tomorrow's card is in hand before the day turns.
+- `where("surface","==","daily"), where("seq","in",[…])` — equality only,
+  so no composite index. Seven documents, or eight across a rollover, **at
+  any bank size**.
+
+`computeDeckSeqs` and `computeDeckIds` are pinned against each other over
+800 days at six bank sizes, because a disagreement between them is two
+users answering different questions on the same day with nothing to show
+for it.
+
+### The density it rests on, and the refusal that guards it
+
+Position maps to `seq` only while the daily's seq space is dense from
+zero. `live.ts`'s own boot query already stated it ("per-surface and
+contiguous") and **nothing enforced it**. So `maxSeq` is published to be
+CHECKED: `maxSeq === n - 1` or the fast path is off and the device fetches
+the daily surface whole, exactly as every build before this one. Three
+other conditions take the same fallback — no shape document, an
+unreadable one, and a short answer to the deck query (a document deleted
+rather than retired). There is no partial-deck outcome.
+
+`firestore-tests/e2e-v2-loop.mjs` proves the density on the **database**
+rather than on the compiled bank: it reads what the real seed wrote and
+fails on the first hole. That is the copy the device reads, and it is the
+only harness that can see it.
+
+### The two folds that wanted the whole bank
+
+`aggregated()` (the Mirror's Answers and Scores rows) is "every daily you
+have ANSWERED" — so it heals from history, the feed's own pattern one
+surface over, bounded by the person's answers and cached afterwards.
+`placeAsks()` (the Scores lens's pool) is "every active `rating` daily
+naming this place that I have NOT answered", which history cannot supply,
+so it is a bounded query after first paint. Both run in `topUpBankPages`,
+never at boot.
+
+**The rating pool is the remaining linear term, and it is not fixed here.**
+29 of 130 dailies carry `rating` today; at ten times the bank it is ten
+times that. The shape it wants is the same one this record uses — the
+scope's ask ids published in the shape document — and it is written down
+rather than built because the deck was the term that grew every day.
+
+### What it costs
+
+One extra round trip on a boot where the day has moved: the shape rides
+out with the bank's own reads (D356's argument, applied to the fourth
+thing the boot needs), and the deck's rows are a dependent trip. A
+same-day relaunch fetches no question at all. A cold boot: **847 → ~725
+documents**, and the daily's term stops growing.
+

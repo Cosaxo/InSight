@@ -112,6 +112,35 @@ if (qsnap.empty) fail("daily bank empty");
 const q0 = qsnap.docs[0];
 ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slice(0, 40) + "…\"");
 
+// 3a · THE DAILY'S SEQ SPACE IS DENSE IN THE DATABASE (D371), which is the
+// precondition the paged boot rests on and the one thing only this harness
+// can prove. The client computes its seven deck positions from a published
+// LENGTH and then asks for `seq in [...]`; that maps a position to a
+// question only while the daily's seqs run 0..n-1 with no holes. Every
+// other suite checks the COMPILED bank — this checks what the real seed
+// actually wrote, which is the copy the device reads. A hole here is a
+// device on a different question from everyone else, with no symptom
+// anywhere: the deck renders, the counts publish, and the cohort readings
+// quietly stop meaning "we answered the same thing".
+{
+  const all = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "daily"), orderBy("seq")));
+  const seqs = all.docs.map((d) => d.get("seq"));
+  const holes = seqs.filter((v, i) => v !== i);
+  if (holes.length)
+    fail("the seeded daily seq space is not dense 0..n-1 — `seq` is not a "
+      + "position and the paged deck (D371) would disagree across devices; "
+      + "first bad index " + seqs.findIndex((v, i) => v !== i));
+  // …and the shape the nightly fold would publish agrees with it. The
+  // client REFUSES the fast path unless maxSeq === n - 1, so if these ever
+  // part company the daily silently reverts to fetching the whole surface.
+  if (seqs.length && seqs[seqs.length - 1] !== seqs.length - 1)
+    fail("maxSeq !== n - 1 on the seeded daily bank — the client would "
+      + "refuse the paged deck and fetch the surface whole");
+  ok("daily seq space is dense 0.." + (seqs.length - 1) + " in the database — the paged deck's precondition holds");
+}
+
 // 3b · the doc shape the schema promises actually lands (D234). For two
 // releases core/tag/rates (and until/sponsor/also/the call trio) were in
 // SCHEMA-V2.md, in the client's readers — and in no write: the seed's

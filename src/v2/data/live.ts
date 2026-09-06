@@ -206,11 +206,14 @@ import {
 import {
   buildS as buildSPure,
   computeDeckIds,
+  computeDeckSeqs,
+  DECK_DAYS,
   countsFor,
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
   hasPublishedCounts,
   isCore,
+  isDailyQid,
   isFeedQid,
   rankCrowd,
   CANON_BOARD_N,
@@ -364,7 +367,11 @@ const state = {
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0, budgetMode: 0 },
-  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
+  // `dailySource` says which of D371's two paths served the daily: "deck"
+  // (seven documents against the published length) or "whole" (the
+  // pre-D371 surface fetch, taken whenever the shape cannot be trusted).
+  // A build silently falling back would look exactly like a working one.
+  stats: { bankSource: "none", dailySource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
   reveals: {} as Record<string, Record<string, unknown> | null>,
@@ -1537,12 +1544,38 @@ async function startAggPoll(): Promise<void> {
 }
 
 function computeDeck(): void {
+  const today = dayIndex();
+  // PAGED (D371): positions come from the published length and resolve
+  // through the rows this device fetched. `state.questions.length` is the
+  // count of what is HELD once the daily pages, and indexing by it would
+  // put this device on a different question from everyone else — the
+  // failure with no symptom.
+  if (dailyBankN != null && dailyBankN > 0) {
+    const bySeq = new Map(state.questions.map((q) => [q.seq, q.id]));
+    const ids = computeDeckSeqs(dailyBankN, today)
+      .map((seq) => bySeq.get(seq))
+      .filter((id): id is string => !!id);
+    // A miss means the rollover outran the fetch (tomorrow's card is in
+    // hand, the day after is not). Keep the standing deck rather than
+    // publishing a short one; the wake handler's refetch fills it.
+    if (!ids.length) return;
+    state.deckDay = today;
+    state.deckIds = ids;
+    return;
+  }
   const n = state.questions.length;
   if (!n) return;
-  const today = dayIndex();
   state.deckDay = today;
   state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
+
+// The daily bank's LENGTH as the server published it (D371), or null when
+// this device is holding the daily surface whole (an old build's cache, a
+// missing shape document, a bank that is not dense). The deck's positions
+// are computed against this number, never against how many daily rows
+// this device happens to hold — that is the whole difference between a
+// paged daily and a broken one.
+let dailyBankN: number | null = null;
 
 // The cached bank's ids, kept after hydrate returns so the pagers
 // (D320/D321) know what this device already holds. Ids rather than a
@@ -1637,7 +1670,7 @@ interface DiskCaches {
 async function readDiskCaches(uid: string | null): Promise<DiskCaches> {
   const out: DiskCaches = { bank: null, answers: null, aggs: null };
   const [bankMeta, bankRows, ansMeta, ansRows, aggRows] = await Promise.all([
-    cacheStore.readMeta<{ rev: number; cursor: number }>("bank"),
+    cacheStore.readMeta<{ rev: number; cursor: number; dailyN?: number }>("bank"),
     cacheStore.readAll<BankEntry>("bank"),
     uid ? cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers") : null,
     uid ? cacheStore.readAll<string>("answers") : new Map<string, string>(),
@@ -1645,6 +1678,18 @@ async function readDiskCaches(uid: string | null): Promise<DiskCaches> {
   ]);
   try {
     if (bankMeta && bankRows.size) {
+      // THE PAGED DAILY'S LENGTH COMES OFF DISK TOO (D371), and it has to.
+      // The warm paint draws the deck before any network read is
+      // answered, and a cache written by a paged boot holds eight daily
+      // rows — so a device that had forgotten `n` would index eight
+      // positions instead of the bank's and paint a different day's
+      // question than the rest of the world, on its own disk, silently.
+      // Absent means a pre-D371 cache or a whole-surface boot: null, and
+      // computeDeck falls back to counting what it holds, which for those
+      // caches is right.
+      dailyBankN = typeof bankMeta.dailyN === "number" && bankMeta.dailyN > 0
+        ? bankMeta.dailyN
+        : null;
       out.bank = {
         rows: [...bankRows.values()],
         rev: Number(bankMeta.rev),
@@ -2102,7 +2147,33 @@ async function hydrate(): Promise<void> {
   // tail out-but-served.
   //
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
-  const BANK_SURFACES = ["daily", "test", "group", "duo", "pulse", "call"];
+  // The daily left this list at D371 and did NOT become a ranked surface:
+  // it is positional by design, so what a device needs is the bank's
+  // LENGTH, not its order. `v2_rank/daily` publishes {n, maxSeq}; the
+  // device computes its seven positions locally (which keeps the midnight
+  // rollover working) and fetches those seven documents by `seq`. The
+  // whole daily bank was 130 documents of the 847 a cold boot read, and
+  // it is the one surface a scheduled lane appends to EVERY DAY — so it
+  // was the term that grew without bound. It is seven now, at any bank
+  // size.
+  //
+  // The two folds that DID need the whole daily bank — the Mirror's
+  // answered rows and the Scores lens's unanswered `rating` pool — are
+  // topped up after first paint (topUpBankPages), not fetched here.
+  const BANK_SURFACES = ["test", "group", "duo", "pulse", "call"];
+  // ISSUED HERE, awaited later. The shape is one small document and it
+  // depends on nothing, so it rides out with the bank's own reads rather
+  // than opening a round trip of its own — D356's argument for running
+  // the boot's three queries at once, applied to the fourth thing the
+  // boot now needs. Only the DECK's rows are a dependent trip, and only
+  // when the day has actually moved.
+  const dailyShapeRead = getDoc(doc(db, "v2_rank", "daily")).then(
+    (snap) => (snap.exists() ? (snap.data() as { n?: unknown; maxSeq?: unknown }) : null),
+    (err) => {
+      reportError(err, { where: "hydrate.dailyShape" });
+      return "failed" as const;
+    },
+  );
   let all: BankEntry[] | null = null;
   let cursor = 0;
   // Which medium the cache came from. "idb" is the steady state and gets
@@ -2111,6 +2182,13 @@ async function hydrate(): Promise<void> {
   // Anything else (a legacy localStorage payload, a full fetch, an
   // invalidated rev) rewrites the store whole so the next boot is "idb".
   let bankCacheFrom: "idb" | null = null;
+  // Whether the bank came off disk AT ALL — either medium. `bankCacheFrom`
+  // cannot answer that: it names the idb store specifically, because the
+  // write-back below treats a legacy localStorage payload as "rewrite
+  // whole". D371's daily needs the wider question ("does this device
+  // already hold the daily surface?"), and reading it off the narrow flag
+  // made a migrating device re-fetch every daily it already had.
+  let bankFromDisk = false;
   let deltaRows: BankEntry[] = [];
   // The rev check, where the cache read used to be. A cache under another
   // contentRev is what the warm paint may already have drawn from — that
@@ -2121,6 +2199,7 @@ async function hydrate(): Promise<void> {
     all = disk.bank.rows;
     cursor = disk.bank.cursor;
     if (disk.bank.from === "idb") bankCacheFrom = "idb";
+    bankFromDisk = true;
     state.stats.bankSource = "cache";
   }
   // Rows are stored without `updatedAt`: it is a transport field, and a
@@ -2199,6 +2278,13 @@ async function hydrate(): Promise<void> {
         deltaRows = rowsOf(dsnap).filter(
           (row) =>
             BANK_SURFACES.includes(row.surface)
+            // The daily is a BOOT surface while it is not paged (D371):
+            // with no usable shape document the device holds the surface
+            // whole, so a newly promoted daily has to merge here exactly
+            // as it did before. Once paged, `dailyBankN` is set and which
+            // dailies this device holds is the deck's decision, not the
+            // delta's — the same rule learn and the tail follow.
+            || (row.surface === "daily" && dailyBankN == null)
             || (row.surface === "feed" && row.core === true)
             // A bought question arriving mid-session is the same case as a
             // freshly promoted core one: it has to reach the device, and
@@ -2331,6 +2417,33 @@ async function hydrate(): Promise<void> {
     // Whatever the cache held (a delta can overflow into this path from an
     // "idb" load), what stands now is the fetch — rewrite whole below.
     bankCacheFrom = null;
+    bankFromDisk = false;
+  }
+  // THE DAILY, on every path (D371). Outside the `if (!all)` above on
+  // purpose: a delta or warm boot must re-read the published length too,
+  // because it moves whenever the farm appends and the deck's positions
+  // are computed against it. A cold boot fetches eight documents here, a
+  // returning device usually one, a same-day relaunch none.
+  //
+  // Failure is survivable and must not cost the boot: the fallback inside
+  // returns the whole daily surface, and an outright throw leaves the
+  // device on its cached daily rows — which is a stale deck, not a wrong
+  // one, because `dailyBankN` only advances alongside rows that back it.
+  let dailyRows: Array<QuestionDoc & { id: string }> = [];
+  try {
+    const got = await resolveDailyBank(db, all, bankFromDisk, dailyShapeRead);
+    dailyRows = got.rows;
+    cursor = Math.max(cursor, got.cursor);
+  } catch (err) {
+    reportError(err, { where: "hydrate.dailyDeck" });
+  }
+  if (dailyRows.length) {
+    const byId = new Map(all.map((q) => [q.id, q]));
+    for (const row of dailyRows) byId.set(row.id, row);
+    all = [...byId.values()];
+    // Into the delta path's write-back too, or a warm boot's new day is
+    // fetched again on every launch until the next full fetch.
+    deltaRows = [...deltaRows, ...dailyRows];
   }
   // Awaited, and cheap to await: within a chunk the write is one atomic
   // transaction, so a killed process leaves the old cache, never a torn
@@ -2339,12 +2452,12 @@ async function hydrate(): Promise<void> {
   if (bankCacheFrom === "idb") {
     if (deltaRows.length) {
       await cacheStore.write("bank", deltaRows.map((r) => [r.id, r]), {
-        meta: [["bank", { rev: contentRev, cursor }]],
+        meta: [["bank", { rev: contentRev, cursor, dailyN: dailyBankN }]],
       });
     }
   } else {
     await cacheStore.write("bank", all.map((r) => [r.id, r]), {
-      meta: [["bank", { rev: contentRev, cursor }]],
+      meta: [["bank", { rev: contentRev, cursor, dailyN: dailyBankN }]],
       clearFirst: true,
     });
     try {
@@ -2787,6 +2900,144 @@ function servableNow(q: QuestionDoc): boolean {
   return q.active !== false && (!q.until || q.until >= today) && (!q.from || q.from <= today);
 }
 
+// THE DAILY'S DECK (D371), resolved on EVERY boot — cold, delta and warm
+// alike, which is the half a cold-boot-only version would get wrong.
+// `n` moves whenever the farm appends a question, and the deck's
+// positions are computed against it: a device holding a warm cache and a
+// stale `n` would put its user on a different question from everyone
+// else, for as long as the cache lived, with nothing to show for it. The
+// daily is only worth comparing because it is the same question.
+//
+// Returns the rows this device is missing — usually one (yesterday
+// rolled off, tomorrow rolled in), none on a same-day relaunch, eight on
+// a first install.
+//
+// TOMORROW IS FETCHED TOO. `deck()` recomputes on the first render after
+// midnight, and a session open across it would otherwise ask for a
+// position that was never fetched and draw a short deck. `back` runs
+// -1..DECK_DAYS-1, so one extra document covers the rollover.
+//
+// THERE ARE TWO OUTCOMES, never a third: the deck, or the whole daily
+// surface exactly as every build before this one fetched it. A partial
+// deck is the failure with no symptom, so a shape document that is
+// missing, unreadable, or not dense from zero takes the fallback and
+// clears `dailyBankN` with it.
+async function resolveDailyBank(
+  db: Awaited<ReturnType<typeof getDb>>,
+  held: Array<QuestionDoc & { id: string }>,
+  fromCache: boolean,
+  shapeRead: Promise<{ n?: unknown; maxSeq?: unknown } | null | "failed">,
+): Promise<{ rows: Array<QuestionDoc & { id: string }>; cursor: number }> {
+  // THE CURSOR IS RETURNED, and only the FALLBACK's is non-zero. When the
+  // daily is served whole it is a boot surface like any other and its
+  // rows have to advance the delta cursor — without that a bank of
+  // nothing but dailies leaves the cursor at 0 and the delta never starts,
+  // so every boot re-reads the surface. When it is PAGED the opposite
+  // holds, for the reason the pagers' persist() gives: a deck row's
+  // updatedAt can be newer than an unfetched edit on another surface, and
+  // a cursor past that edit would seal it out of every delta.
+  let wholeCursor = 0;
+  // hydrate's BANK_PAGE is scoped to that function; the fallback reads
+  // one surface and pages it the same way.
+  const PAGE = 1000;
+  let seenCursor = 0;
+  const rowsFrom = (docs: Array<{ id: string; data: () => unknown }>) => {
+    const out: Array<QuestionDoc & { id: string }> = [];
+    for (const d of docs) {
+      const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+      const at = row.updatedAt as { toMillis?: () => number } | undefined;
+      const ms = typeof at?.toMillis === "function" ? at.toMillis() : 0;
+      delete row.updatedAt;
+      if (row.surface === "daily") {
+        out.push({ id: d.id, ...row });
+        seenCursor = Math.max(seenCursor, ms);
+      }
+    }
+    return out;
+  };
+  // The fallback's own pager. Deliberately not hydrate's `fetchPaged`,
+  // which closes over that function's cursor bookkeeping — the daily's
+  // fallback must not move the delta cursor, because it reads one surface
+  // and the cursor speaks for the whole bank.
+  const whole = async (): Promise<Array<QuestionDoc & { id: string }>> => {
+    dailyBankN = null;
+    state.stats.dailySource = "whole";
+    // A DEVICE THAT ALREADY HOLDS THE SURFACE RE-FETCHES NOTHING. Without
+    // this, a project whose nightly fold has not run yet — no shape
+    // document — would take the fallback on every warm boot and pay for
+    // the whole daily surface each launch, which is worse than the
+    // pre-D371 tree rather than equal to it. The delta keeps these rows
+    // current instead (see the delta filter's dailyBankN clause).
+    if (fromCache && held.some((q) => q.surface === "daily")) return [];
+    const out: Array<QuestionDoc & { id: string }> = [];
+    let after: unknown = null;
+    // Same bound and the same loudness as hydrate's own pager: an
+    // unbounded while in the boot path is one cursor bug away from
+    // hanging the app, and a truncation that reports nothing is
+    // indistinguishable from a complete read.
+    const MAX_PAGES = 100;
+    for (let page = 0; ; page += 1) {
+      const snap = await getDocs(query(
+        collection(db, "v2_questions"),
+        where("surface", "==", "daily"),
+        orderBy(documentId()),
+        ...(after ? [startAfter(after)] : []),
+        limit(PAGE),
+      ));
+      out.push(...rowsFrom(snap.docs));
+      if (snap.size < PAGE) break;
+      if (page + 1 >= MAX_PAGES) {
+        reportError(new Error(
+          `daily paging hit BANK_MAX_PAGES (${MAX_PAGES} x ${PAGE}) — truncated at ${out.length} questions`,
+        ), { where: "hydrate.dailyPaging" });
+        break;
+      }
+      after = snap.docs[snap.docs.length - 1];
+    }
+    wholeCursor = seenCursor;
+    return out;
+  };
+  const read = await shapeRead;
+  if (read === "failed") return { rows: await whole(), cursor: wholeCursor };
+  const shape = read;
+  const n = typeof shape?.n === "number" ? shape.n : 0;
+  const maxSeq = typeof shape?.maxSeq === "number" ? shape.maxSeq : -1;
+  // Dense from zero, or `seq` is not a position. The publisher states the
+  // max precisely so this can be a CHECK rather than a belief
+  // (functions/src/rank.ts, DailyShapeDoc).
+  if (n <= 0 || maxSeq !== n - 1) return { rows: await whole(), cursor: wholeCursor };
+  const want = computeDeckSeqs(n, dayIndex() + 1, DECK_DAYS + 1);
+  if (!want.length) return { rows: await whole(), cursor: wholeCursor };
+  const haveSeq = new Set(
+    held.filter((q) => q.surface === "daily").map((q) => q.seq),
+  );
+  const missing = want.filter((seq) => !haveSeq.has(seq));
+  if (!missing.length) {
+    dailyBankN = n;
+    state.stats.dailySource = "deck";
+    return { rows: [], cursor: 0 };
+  }
+  // `seq` is safe as a key HERE where hydrate's paged fetch refuses it,
+  // and the difference is the query rather than the field: that one
+  // cursors through a range and needs a total order, this one asks for a
+  // few named positions on one surface. Equality on `surface` with an
+  // `in` over `seq` is equality-only, so it needs no composite index.
+  // `in` takes 30 values and this asks for at most DECK_DAYS + 1.
+  const snap = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "daily"),
+    where("seq", "in", missing),
+  ));
+  const rows = rowsFrom(snap.docs);
+  // Short means the bank disagrees with the published shape — a document
+  // deleted rather than retired, say. Serve the surface rather than a
+  // deck with a hole in it.
+  if (rows.length < missing.length) return { rows: await whole(), cursor: wholeCursor };
+  dailyBankN = n;
+  state.stats.dailySource = "deck";
+  return { rows, cursor: 0 };
+}
+
 // One boot's top-ups (D320/D321): per paged surface, read the published
 // order (D319), fetch the first page per field/topic this device does
 // not already hold, plus any card the device has HISTORY with that fell
@@ -2850,6 +3101,64 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     }
   } catch (err) {
     reportError(err, { where: "hydrate.learnPages" });
+  }
+
+  // THE DAILY'S TWO FOLDS (D371). The deck is seven documents now, and two
+  // readers wanted the whole surface:
+  //
+  //   `aggregated()` — the Mirror's Answers and Scores rows, which are
+  //   "every daily question you have ANSWERED", not "every daily
+  //   question". So the heal is the feed's, one surface over: fetch the
+  //   voted dailies this device does not hold. Bounded by the person's
+  //   own history and cached afterwards, so it converges to nothing.
+  //
+  //   `placeAsks()` — the Scores lens's pool, "every active `rating`
+  //   daily that names this place and I have not answered". That one is
+  //   not derivable from history (its whole point is what you have NOT
+  //   answered), so it is a query: equality on surface and type, no
+  //   composite index, and 29 of the 130 dailies today.
+  //
+  // Both AFTER first paint, like every other page: the daily tab draws
+  // from the deck, and the Mirror is a tab away. Skipped entirely when
+  // the daily did not page — then the device holds the surface already.
+  if (dailyBankN != null) {
+    try {
+      const held = cachedBankIds();
+      const answered = Object.keys(state.votes)
+        .filter(isDailyQid)
+        .filter((qid) => !held.has(qid));
+      const [historyRows, ratingSnap] = await Promise.all([
+        answered.length ? fetchByIds("daily", answered) : Promise.resolve([]),
+        getDocs(query(
+          collection(db, "v2_questions"),
+          where("surface", "==", "daily"),
+          where("type", "==", "rating"),
+        )),
+      ]);
+      // Shaped like fetchByIds above rather than through hydrate's own
+      // rowsOf, which is scoped to that function: same drop of the
+      // server-only `updatedAt`, same surface mirror on the constraint.
+      const ratingRows: Array<QuestionDoc & { id: string }> = [];
+      for (const d of ratingSnap.docs) {
+        const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+        delete row.updatedAt;
+        if (row.surface === "daily" && !held.has(d.id)) ratingRows.push({ id: d.id, ...row });
+      }
+      const rows = [...historyRows, ...ratingRows];
+      if (rows.length) {
+        const byId = new Map(state.questions.map((q) => [q.id, q]));
+        // The daily lane keeps its tombstones (the note in publishBank),
+        // so no servableNow() filter here: `deck()` and the lenses each
+        // apply their own `active` rule, and dropping a retired row would
+        // cost the Mirror an answer the person really gave.
+        for (const row of rows) byId.set(row.id, row);
+        state.questions = [...byId.values()].sort((a, b) => (a.seq || 0) - (b.seq || 0));
+        await persist(rows);
+        notify();
+      }
+    } catch (err) {
+      reportError(err, { where: "hydrate.dailyPages" });
+    }
   }
 
   try {
