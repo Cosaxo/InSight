@@ -27,6 +27,21 @@
 // recorded limit (D320), not an oversight: the alternative is the UI
 // signalling the data layer mid-session, a seam worth adding when a
 // measured session actually outruns a page.
+//
+// …AND A TOP-UP FILLS TO A PAGE, NOT BY A PAGE (D401, ALGORITHM-REFLECTION
+// §4.6's third item, D350's amendment). Until D401 a boot took the first
+// `pageSize` ids of the order the cache did not hold, whatever the device
+// already held unanswered — so a phone that booted daily and answered
+// little was handed a fresh page per topic every day and kept every one:
+// 12 topics × 12 = 144 rows a day, 50 k a year, all read into memory by
+// hydrate. The eviction D350 asked for would have dropped rows the device
+// had paid a read for and would then never show. The bound belongs at the
+// source: `held` is what the device holds UNANSWERED in memory for a
+// topic, and a page is `pageSize − held` — a device with a page of fresh
+// cards in a topic fetches nothing for it, and as it answers, the next
+// boot refills to a page. Memory is then a page per topic plus what was
+// answered (which the Mirror files and the archive lists, so it stays),
+// and the reads a boot pays are what the person consumed since the last.
 
 export interface PageOrderTopic {
   qids: string[];
@@ -72,8 +87,11 @@ export const FEED_PAGE = 12;
  *    all fields/topics.
  * 2. PAGES: for each named field/topic (null = every one the order
  *    carries — learn's D283 follow-everything default, and the feed's
- *    D96 always-on topics), the first `pageSize` of the published order
- *    the cache does not already hold.
+ *    D96 always-on topics), enough of the published order the cache does
+ *    not already hold to bring what the device holds UNANSWERED in that
+ *    topic (`held`, D401) up to `pageSize`. A device holding a page of
+ *    fresh cards fetches nothing; one that answered them all is handed a
+ *    whole page; a caller that passes no `held` gets the pre-D401 page.
  */
 export function pageNeedList(
   order: PageOrderDoc | null,
@@ -81,6 +99,7 @@ export function pageNeedList(
   fields: readonly string[] | null,
   historyIds: readonly string[],
   pageSize: number | ((field: string) => number),
+  held: ReadonlySet<string> = new Set(),
 ): string[] {
   const need: string[] = [];
   const taken = new Set<string>();
@@ -95,7 +114,13 @@ export function pageNeedList(
   for (const f of names) {
     const topic = order.topics[f];
     if (!topic || !Array.isArray(topic.qids)) continue;
-    const size = sizeOf(f);
+    // The runway this topic already has: cards the device holds in memory
+    // and has not answered, counted only where the order still places
+    // them — a card that left the order is not runway the order will
+    // ever serve.
+    let holding = 0;
+    for (const qid of topic.qids) if (held.has(qid)) holding += 1;
+    const size = Math.max(0, sizeOf(f) - holding);
     let fresh = 0;
     for (const qid of topic.qids) {
       if (fresh >= size) break;
@@ -207,9 +232,10 @@ export async function topUpPages<Row>(
   fields: readonly string[] | null,
   historyIds: readonly string[],
   pageSize: number | ((field: string) => number),
+  held: ReadonlySet<string> = new Set(),
 ): Promise<{ rows: Row[]; totals: Record<string, number> }> {
   const order = await io.order();
-  const need = pageNeedList(order, cachedIds, fields, historyIds, pageSize);
+  const need = pageNeedList(order, cachedIds, fields, historyIds, pageSize, held);
   const rows = need.length ? await io.fetchByIds(need) : [];
   return { rows, totals: pageTotals(order) };
 }

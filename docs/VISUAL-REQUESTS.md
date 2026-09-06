@@ -46,8 +46,9 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   the trait web. Not a Mirror stop: this is a thing about the app's
   behaviour toward you, not a reading of a population.
 - **data and basis** — `v2_users/{uid}/taste/profile` `{t, n, at}` —
-  per-topic feed-answer counts, folded nightly by `fitTasteV2`
-  (`functions/src/taste.ts`), owner-readable and client-unwritable. One
+  per-topic feed-answer counts, folded nightly by the taste fold
+  (`functions/src/taste.ts`, inside `digestEngagementV2` since D399),
+  owner-readable and client-unwritable. One
   document GET; the same one `bank-pager.ts` already consults, so a
   session-cached read costs nothing extra. The floors are the copy's
   spine, not a footnote: under `TASTE_MIN_TOTAL` (10 answers) the profile

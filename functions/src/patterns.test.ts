@@ -15,7 +15,11 @@ vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
 }));
 
-import { PATTERNS_CATCHUP_DAYS, PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore } from "./patterns";
+import {
+  PATTERNS_CATCHUP_DAYS, PATTERNS_ITEMS, PATTERNS_ITEM_QIDS, PATTERNS_QIDS, SGD_LAMBDA_U,
+  firestorePatternsStore, runPatternsFit, utcDay,
+  type PatternsLedgerEntry, type PatternsPublication, type PatternsStore,
+} from "./patterns";
 import { V2_QUESTIONS } from "./v2content";
 import type { Firestore } from "firebase-admin/firestore";
 import {
@@ -27,68 +31,95 @@ import {
   type PatternsDisplacement,
   type PatternsModel,
   type PatternsQuality,
+  type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
+import { ALS_LAMBDAS_U, PATTERNS_CROSSOVER_NIGHTS } from "./patternsAls";
+import { PATTERNS_SAMPLE_CAP, type SampleDoc } from "./patternsSamples";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
 
+const EMPTY_DISPLACEMENT: PatternsDisplacement = { space: "loading", n: 0, moved: 0, mean: 0, p50: 0, p90: 0, max: 0, perQ: {} };
+const EMPTY_SEEDS: PatternsSeeds = { n: 0, meanCos: 0, share90: 0, meanNorm: 0, seedNorm: 0 };
+const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+
 function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
-  const state: {
-    model: (PatternsModel & { lastDay?: string }) | null;
-    users: Map<string, PatternsUserState>;
-    putModelCalls: number;
-    breakPutModelOnce: boolean;
-    quality: PatternsQuality | null;
-    displacement: PatternsDisplacement | null;
-  } = {
-    model: null, users: new Map(), putModelCalls: 0,
-    breakPutModelOnce: false, quality: null, displacement: null,
-  };
-  const store: PatternsStore = {
-    async ledgerDay(day) { return ledger[day] ?? []; },
-    // the real store hands the series back off the published doc — the
-    // memory one hands back what the last putModel published
-    async getModel() {
-      return state.model
+  const users = new Map<string, PatternsUserState>();
+  const samples = new Map<string, SampleDoc>();
+  const state = {
+    /** The voter samples as the last putSamples left them (D397). */
+    samples,
+    /** The publication as the last putModel left it — whole, cloned, the
+     * way the Firestore store reads the document back (D395). */
+    pub: null as PatternsPublication | null,
+    users,
+    putModelCalls: 0,
+    breakPutModelOnce: false,
+    // The shapes the older cases read, derived from the publication: the
+    // ONLINE engine's model wherever it lives tonight, and the engine's
+    // own scorecard fields. The setter seeds a pre-D395 document.
+    get model(): (PatternsModel & { lastDay?: string }) | null {
+      const p = this.pub;
+      if (!p) return null;
+      const rows = p.engine === "sgd" ? p.q : (p.candidates.sgd?.q ?? {});
+      const q: PatternsModel["q"] = {};
+      for (const [key, r] of Object.entries(rows)) q[key] = { v: r.v, n: r.n, sum: r.sum };
+      return { k: p.k, q, lastDay: p.lastDay };
+    },
+    set model(m: (PatternsModel & { lastDay?: string }) | null) {
+      this.pub = m
         ? {
-          ...state.model,
-          series: state.quality?.series ?? [],
-          // The whole previous publish, as the real store hands it back —
-          // a run that scores nothing carries it forward rather than
-          // replacing it with a row about nothing.
-          ...(state.quality ? { quality: state.quality } : {}),
+          k: m.k, lastDay: m.lastDay ?? "", folded: 0, engine: "sgd",
+          q: Object.fromEntries(Object.entries(m.q).map(([key, r]) => [key, { v: r.v, n: r.n, sum: r.sum }])),
+          lambdaU: SGD_LAMBDA_U, displacement: EMPTY_DISPLACEMENT, seeds: EMPTY_SEEDS, candidates: {},
         }
         : null;
     },
-    async putModel(model, lastDay, folded, quality, displacement) {
+    get quality(): PatternsQuality | null { return this.pub?.quality ?? null; },
+    get displacement(): PatternsDisplacement | null { return this.pub?.displacement ?? null; },
+    get seeds(): PatternsSeeds | null { return this.pub?.seeds ?? null; },
+  };
+  // PROJECTED, field by field, exactly as firestorePatternsStore does for
+  // the per-person docs — and it used to hand back the same object
+  // REFERENCE, so anything the fold hung on the state survived here for
+  // free while the real store named `v` and `n` and nothing else. That is
+  // how the retry guard shipped dead. A fake that carries more than its
+  // subject proves nothing about it.
+  const project = (s: PatternsUserState): PatternsUserState => ({
+    v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: { ...s.a } } : {}),
+  });
+  const store: PatternsStore = {
+    async ledgerDay(day) { return ledger[day] ?? []; },
+    async getModel() { return state.pub ? clone(state.pub) : null; },
+    async putModel(pub) {
       if (state.breakPutModelOnce) {
         state.breakPutModelOnce = false;
         throw new Error("model write lost");
       }
-      state.model = { ...model, lastDay };
-      state.quality = quality;
-      state.displacement = displacement;
+      state.pub = clone(pub);
       state.putModelCalls++;
-      void folded;
     },
-    // PROJECTED, field by field, exactly as firestorePatternsStore does —
-    // and it used to hand back the same object REFERENCE, so anything the
-    // fold hung on the state survived here for free while the real store
-    // named `v` and `n` and nothing else. That is how the retry guard
-    // shipped dead. A fake that carries more than its subject proves
-    // nothing about it.
     async getUsers(uids) {
       const out = new Map<string, PatternsUserState>();
       for (const uid of uids) {
-        const s = state.users.get(uid);
-        if (s) out.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
+        const s = users.get(uid);
+        if (s) out.set(uid, project(s));
       }
       return out;
     },
     async putUsers(states) {
-      for (const [uid, s] of states) {
-        state.users.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
-      }
+      for (const [uid, s] of states) users.set(uid, project(s));
+    },
+    async scanUsers(each) {
+      for (const [uid, s] of [...users.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) each(uid, project(s));
+    },
+    async getSamples(qids) {
+      const out = new Map<string, SampleDoc>();
+      for (const qid of qids) { const d = samples.get(qid); if (d) out.set(qid, clone(d)); }
+      return out;
+    },
+    async putSamples(next) {
+      for (const [qid, d] of next) samples.set(qid, clone(d));
     },
   };
   return { store, state };
@@ -109,6 +140,24 @@ describe("the eligible set", () => {
     }
     // and the set is non-trivial — a bank change that empties it should fail loudly
     expect(PATTERNS_QIDS.size).toBeGreaterThan(50);
+  });
+
+  it("the candidate's corpus is every option-shaped core item, and its two-option rows are exactly the online engine's", () => {
+    const bin = PATTERNS_ITEMS.filter((s) => s.kind === "bin").map((s) => s.key).sort();
+    expect(bin).toEqual([...PATTERNS_QIDS].sort());
+    // the instrument items join as ordinal rows (the owner's call, 2026-09-06)
+    const test = V2_QUESTIONS.filter((q) => q.surface === "test");
+    expect(test.length).toBeGreaterThan(100);
+    for (const q of test) expect(PATTERNS_ITEMS.find((s) => s.key === q.id)?.kind, q.id).toBe("ord");
+    // a multi-option pick becomes one pseudo-item per option, keyed off the qid
+    const choice = V2_QUESTIONS.find((q) => q.surface === "daily" && q.type === "choice" && q.options.length === 4)!;
+    expect(PATTERNS_ITEMS.filter((s) => s.qid === choice.id).map((s) => s.key)).toEqual([0, 1, 2, 3].map((i) => `${choice.id}~${i}`));
+    // learn, pulse, call, catalog and the tail stay out
+    for (const q of V2_QUESTIONS) {
+      if (q.surface === "learn" || q.surface === "pulse" || q.surface === "call" || q.type === "catalog" || (q.surface === "feed" && q.core !== true)) {
+        expect(PATTERNS_ITEM_QIDS.has(q.id), q.id).toBe(false);
+      }
+    }
   });
 });
 
@@ -456,6 +505,17 @@ describe("the scorecard the run publishes", () => {
     expect(q?.bits).toBeCloseTo(expected, 3);
     expect(r.bits).toBe(q?.bits);
     expect(q?.note).toBe(PATTERNS_QUALITY_NOTE);
+    // Both people are fresh, so θ·L is zero and every guess IS the
+    // marginal's: the baseline equals the fit's bits and skill is 0 — the
+    // reading the probe found in production's own regime (D394).
+    expect(q?.baselineBits).toBe(q?.bits);
+    expect(q?.skill).toBe(0);
+    expect(r.skill).toBe(0);
+    // …and the seeds summary rides the publish: two loadings, both still
+    // pointing where their hash put them
+    expect(state.seeds?.n).toBe(1);
+    expect(state.seeds?.meanCos).toBeCloseTo(1, 3);
+    expect(r.seedCos).toBe(state.seeds?.meanCos);
   });
 
   it("keeps an n:0 row for an empty day rather than skipping the date", async () => {
@@ -467,7 +527,7 @@ describe("the scorecard the run publishes", () => {
     // held nothing and the series says so out loud
     const series = state.quality?.series ?? [];
     expect(series).toHaveLength(7);
-    expect(series[series.length - 1]).toEqual({ day: yesterday, n: 1, bits: 1 });
+    expect(series[series.length - 1]).toEqual({ day: yesterday, n: 1, bits: 1, baselineBits: 1 });
     expect(series.filter((row) => row.n === 0)).toHaveLength(6);
   });
 
@@ -585,20 +645,37 @@ describe("what the fit publishes for the tab's gate", () => {
     day: "2026-08-22",
     n: 12,
     bits: 0.91,
+    baselineBits: 0.91,
+    skill: 0,
     perQ: {},
     floor: PATTERNS_QUALITY_FLOOR,
-    series: [{ day: "2026-08-22", n: 12, bits: 0.91 }],
+    series: [{ day: "2026-08-22", n: 12, bits: 0.91, baselineBits: 0.91 }],
     note: PATTERNS_QUALITY_NOTE,
   };
   const DISPLACEMENT: PatternsDisplacement = {
     space: "loading", n: 0, moved: 0, mean: 0, p50: 0, p90: 0, max: 0, perQ: {},
   };
+  const SEEDS: PatternsSeeds = { n: 3, meanCos: 1, share90: 1, meanNorm: 0.08, seedNorm: 0.0816 };
+
+  const pubWith = (model: PatternsModel, extra: Partial<PatternsPublication> = {}): PatternsPublication => ({
+    k: model.k,
+    lastDay: "2026-08-22",
+    folded: 12,
+    engine: "sgd",
+    q: Object.fromEntries(Object.entries(model.q).map(([key, r]) => [key, { v: r.v, n: r.n, sum: r.sum }])),
+    lambdaU: SGD_LAMBDA_U,
+    quality: QUALITY,
+    displacement: DISPLACEMENT,
+    seeds: SEEDS,
+    candidates: {},
+    ...extra,
+  });
 
   it("writes the drawable count and its floor onto the meta doc, merged", async () => {
     const { db, writes } = fakeDb();
     // three published questions, two of them at the floor or better
     const model = modelWith({ a: PATTERNS_MIN_BASIS, b: PATTERNS_MIN_BASIS + 40, c: 1 });
-    await firestorePatternsStore(asDb(db)).putModel(model, "2026-08-22", 12, QUALITY, DISPLACEMENT);
+    await firestorePatternsStore(asDb(db)).putModel(pubWith(model));
 
     expect(writes.map((w) => w.path)).toEqual(["v2_patterns/loadings", "v2_meta/app"]);
     const loadings = writes[0];
@@ -609,6 +686,15 @@ describe("what the fit publishes for the tab's gate", () => {
     // read for whoever comes to draw it
     expect(loadings.data.quality).toEqual(QUALITY);
     expect(loadings.data.displacement).toEqual(DISPLACEMENT);
+    // …and the seed-distance summary (D394), a property of the model rather
+    // than of a day, so it rides every publish
+    expect(loadings.data.seeds).toEqual(SEEDS);
+    // the whole publication, plus the server clock, and nothing undefined
+    // for Firestore to refuse (D395)
+    expect(loadings.data.engine).toBe("sgd");
+    expect(loadings.data.lambdaU).toBe(SGD_LAMBDA_U);
+    expect(loadings.data).toHaveProperty("at");
+    expect(JSON.stringify(loadings.data)).not.toContain("undefined");
 
     const meta = writes[1];
     expect(meta.data).toEqual({ patternsPool: 2, patternsBasis: PATTERNS_MIN_BASIS });
@@ -619,9 +705,239 @@ describe("what the fit publishes for the tab's gate", () => {
 
   it("publishes a zero rather than nothing when no question is drawable yet", async () => {
     const { db, writes } = fakeDb();
-    await firestorePatternsStore(asDb(db)).putModel(modelWith({ a: 1, b: 2 }), "2026-08-22", 2, QUALITY, DISPLACEMENT);
+    await firestorePatternsStore(asDb(db)).putModel(pubWith(modelWith({ a: 1, b: 2 })));
     // A field that stops being written is a field the client keeps
     // reading at its last value — so early nights say 0 out loud.
     expect(writes[1].data).toEqual({ patternsPool: 0, patternsBasis: PATTERNS_MIN_BASIS });
+  });
+
+  it("counts the pool over two-option rows only when the engine's corpus is wider", async () => {
+    // The candidate engine publishes ordinal and one-hot rows beside the
+    // two-option ones. The Map draws bin rows; the tab's gate counts what
+    // the Map draws, so a corpus of well-fitted scale items does not open
+    // a tab on rows no lens has a design for.
+    const { db, writes } = fakeDb();
+    const model = modelWith({ a: PATTERNS_MIN_BASIS, "s~0": PATTERNS_MIN_BASIS + 5, t: PATTERNS_MIN_BASIS + 9 });
+    await firestorePatternsStore(asDb(db)).putModel(pubWith(model, {
+      engine: "als",
+      lambdaU: 2,
+      items: {
+        a: { kind: "bin", qid: "a", nOptions: 2 },
+        "s~0": { kind: "opt", qid: "s", opt: 0, nOptions: 4 },
+        t: { kind: "ord", qid: "t", nOptions: 5 },
+      },
+    }));
+    expect(writes[1].data).toEqual({ patternsPool: 1, patternsBasis: PATTERNS_MIN_BASIS });
+  });
+});
+
+// ── the candidate engine (D395) ───────────────────────────────────────
+//
+// The sweep compacts each day's answers onto the person's private map,
+// scores the candidate one step ahead on the same two-option observations
+// the online engine scores itself on, re-solves it over every map, and
+// hands it the rows only after a fortnight of better skill. Everything
+// here runs against the memory store; the arithmetic is patternsAls.test.ts's.
+describe("the candidate engine (D395)", () => {
+  const DAY = 24 * 3600 * 1000;
+  const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
+  // a test item and a multi-option daily question from the real bank, so
+  // the compaction case moves with it
+  const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;
+  const CHOICE = V2_QUESTIONS.find((q) => q.surface === "daily" && q.type === "choice")!.id;
+
+  it("compacts each day's answers onto the person's map — every core item, an edit overwriting", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u1", qid: TEST_ITEM, optionIdx: 3 },
+        { uid: "u1", qid: CHOICE, optionIdx: 2 },
+        { uid: "u1", qid: "feed-tail-x", optionIdx: 1 },        // not in either corpus
+        { uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 },  // the edit: last wins
+        { uid: "u2", qid: TEST_ITEM, optionIdx: 0 },
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    expect(state.users.get("u1")?.a).toEqual({ [CORE_A]: 1, [TEST_ITEM]: 3, [CHOICE]: 2 });
+    // a person with only wider-corpus answers still gets a state doc, with
+    // an untouched vector — the online engine never saw them
+    const u2 = state.users.get("u2")!;
+    expect(u2.a).toEqual({ [TEST_ITEM]: 0 });
+    expect(u2.n).toBe(0);
+    expect(u2.d).toBe(yesterday);
+    expect(r.compacted).toBe(4);
+    expect(r.folded, "the online engine still folds its two-option pair, once").toBe(1);
+    expect(r.users).toBe(2);
+  });
+
+  it("a later day merges into the map rather than replacing it", async () => {
+    const d2 = utcDay(NOW, -2);
+    const { store, state } = memoryStore({
+      [d2]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [{ uid: "u1", qid: TEST_ITEM, optionIdx: 2 }],
+    });
+    await runPatternsFit(store, NOW - DAY);
+    expect(state.users.get("u1")?.a).toEqual({ [CORE_A]: 0 });
+    await runPatternsFit(store, NOW);
+    expect(state.users.get("u1")?.a).toEqual({ [CORE_A]: 0, [TEST_ITEM]: 2 });
+  });
+
+  it("publishes the candidate beside the engine's rows, with its own scorecard and the ridge it was scored at", async () => {
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < 12; i++) {
+      rows.push({ uid: pad(i), qid: CORE_A, optionIdx: i % 2 });
+      rows.push({ uid: pad(i), qid: CORE_B, optionIdx: i % 2 });
+    }
+    const { store, state } = memoryStore({ [yesterday]: rows });
+    const r = await runPatternsFit(store, NOW);
+    const pub = state.pub!;
+    expect(pub.engine).toBe("sgd");
+    expect(pub.lambdaU).toBe(SGD_LAMBDA_U);
+    expect(pub.items, "the online engine's rows carry no item metadata").toBeUndefined();
+    expect(pub.candidates.sgd).toBeUndefined();
+    const cand = pub.candidates.als!;
+    expect(cand.q[CORE_A].n).toBe(12);
+    expect(cand.q[CORE_A].v).toHaveLength(8);
+    expect(cand.items?.[CORE_A]).toEqual({ kind: "bin", qid: CORE_A, nOptions: 2 });
+    // scored on the same observations as the engine, against the same baseline
+    expect(cand.quality?.n).toBe(pub.quality?.n);
+    expect(cand.quality?.baselineBits).toBe(pub.quality?.baselineBits);
+    expect(cand.streak).toBe(0);
+    expect(ALS_LAMBDAS_U).toContain(cand.lambdaU);
+    expect(Object.keys(cand.lambdaSweep ?? {})).toHaveLength(ALS_LAMBDAS_U.length);
+    expect(r.engine).toBe("sgd");
+    expect(r.crossed).toBe(false);
+  });
+
+  it("re-running the same ledger reproduces the candidate bit for bit", async () => {
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < 30; i++) {
+      rows.push({ uid: pad(i), qid: CORE_A, optionIdx: i % 2 });
+      rows.push({ uid: pad(i), qid: CORE_B, optionIdx: (i % 3) % 2 });
+      rows.push({ uid: pad(i), qid: TEST_ITEM, optionIdx: i % 5 });
+    }
+    const one = memoryStore({ [yesterday]: rows });
+    const two = memoryStore({ [yesterday]: rows });
+    await runPatternsFit(one.store, NOW);
+    await runPatternsFit(two.store, NOW);
+    expect(JSON.stringify(one.state.pub!.candidates.als!.q)).toBe(JSON.stringify(two.state.pub!.candidates.als!.q));
+  });
+
+  it("hands the rows to the candidate after a fortnight of better skill, and moves the online engine to the bench", async () => {
+    // Forty people answer CORE_A on the first night, half of them CORE_B on
+    // the second — the same side as their CORE_A — and the other half CORE_B
+    // on the third. The candidate fitted after night two has aligned rows
+    // for both; on night three it predicts the second half's CORE_B from
+    // their CORE_A one step ahead, while the online engine's vectors are
+    // still their seeds.
+    const N = 40;
+    const d3 = utcDay(NOW, -3), d2 = utcDay(NOW, -2), d1 = utcDay(NOW, -1);
+    const ledger: Record<string, PatternsLedgerEntry[]> = { [d3]: [], [d2]: [], [d1]: [] };
+    for (let i = 0; i < N; i++) {
+      ledger[d3].push({ uid: pad(i), qid: CORE_A, optionIdx: i % 2 });
+      ledger[i < N / 2 ? d2 : d1].push({ uid: pad(i), qid: CORE_B, optionIdx: i % 2 });
+    }
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW - 2 * DAY);
+    await runPatternsFit(store, NOW - DAY);
+    expect(state.pub!.candidates.als!.q[CORE_B].n).toBe(N / 2);
+    // …and it had already won thirteen nights
+    state.pub!.candidates.als!.streak = PATTERNS_CROSSOVER_NIGHTS - 1;
+    const r = await runPatternsFit(store, NOW);
+    expect(r.crossed).toBe(true);
+    const pub = state.pub!;
+    expect(pub.engine).toBe("als");
+    expect(pub.crossedAt).toBe(d1);
+    expect(pub.quality?.skill, "the night it crossed on, it predicted").toBeGreaterThan(0);
+    expect(pub.items?.[CORE_A]?.kind).toBe("bin");
+    expect(pub.q[CORE_B]?.n).toBe(N);
+    expect(ALS_LAMBDAS_U).toContain(pub.lambdaU);
+    // the online engine keeps running on the bench, streak reset
+    expect(pub.candidates.als).toBeUndefined();
+    expect(pub.candidates.sgd?.q[CORE_A]).toBeDefined();
+    expect(pub.candidates.sgd?.streak).toBe(0);
+    expect(pub.candidates.sgd?.lambdaU).toBe(SGD_LAMBDA_U);
+    // the seeds summary is now about the rows the devices draw
+    expect(pub.seeds.n).toBe(2);
+    expect(pub.seeds.meanCos, "a solved model has left its seeds").toBeLessThan(0.9);
+    // and the next night reads the ALS rows as the engine's and keeps going
+    const again = await runPatternsFit(store, NOW + DAY);
+    expect(again.engine).toBe("als");
+    expect(state.pub!.engine).toBe("als");
+    expect(state.pub!.crossedAt).toBe(d1);
+  });
+
+  it("a night the candidate does not win resets its streak", async () => {
+    const d2 = utcDay(NOW, -2);
+    const ledger: Record<string, PatternsLedgerEntry[]> = { [d2]: [], [yesterday]: [] };
+    for (let i = 0; i < 12; i++) ledger[d2].push({ uid: pad(i), qid: CORE_A, optionIdx: i % 2 });
+    // twelve FRESH people: nothing in anyone's history to predict from, so
+    // both engines guess the marginal and neither wins
+    for (let i = 12; i < 24; i++) ledger[yesterday].push({ uid: pad(i), qid: CORE_A, optionIdx: i % 2 });
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW - DAY);
+    state.pub!.candidates.als!.streak = 5;
+    const r = await runPatternsFit(store, NOW);
+    expect(r.crossed).toBe(false);
+    expect(state.pub!.engine).toBe("sgd");
+    expect(state.pub!.candidates.als!.streak).toBe(0);
+    expect(state.pub!.candidates.als!.quality?.skill).toBe(0);
+  });
+});
+
+
+// ── the voter samples (D397) ──────────────────────────────────────────
+describe("the voter samples the sweep publishes", () => {
+  const DAY = 24 * 3600 * 1000;
+  const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;
+
+  it("writes one sample per question the day touched — uid, option, frozen chips — and the online rows are untouched", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0, anchors: { city: "Oslo, NO", ageBand: "25-34" } },
+        { uid: "u2", qid: CORE_A, optionIdx: 1 },
+        { uid: "u1", qid: TEST_ITEM, optionIdx: 3, anchors: { city: "Oslo, NO" } },
+        { uid: "u1", qid: "feed-tail-x", optionIdx: 0, anchors: { city: "Oslo, NO" } },  // not in the corpus: no sample
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.samples).toBe(2);
+    expect([...state.samples.keys()].sort()).toEqual([CORE_A, TEST_ITEM].sort());
+    const s = state.samples.get(CORE_A)!;
+    expect(s.n).toBe(2);
+    expect(s.rows.u1).toEqual({ o: 0, a: { city: "Oslo, NO", ageBand: "25-34" }, d: yesterday });
+    expect(s.rows.u2).toEqual({ o: 1, a: {}, d: yesterday });
+    expect(state.samples.get(TEST_ITEM)!.rows.u1.o).toBe(3);
+    // the fit's own rows are not a sample: nothing per-person in them
+    expect(JSON.stringify(state.pub!.q)).not.toContain("u1");
+  });
+
+  it("moves a person to their edit and carries the sample across nights; a re-run of a day is a no-op", async () => {
+    const d2 = utcDay(NOW, -2);
+    const { store, state } = memoryStore({
+      [d2]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }, { uid: "u2", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 }, { uid: "u3", qid: CORE_A, optionIdx: 1 }],
+    });
+    await runPatternsFit(store, NOW - DAY);
+    expect(state.samples.get(CORE_A)!.n).toBe(2);
+    await runPatternsFit(store, NOW);
+    const s = state.samples.get(CORE_A)!;
+    expect(s.n).toBe(3);
+    expect(s.rows.u1).toEqual({ o: 1, a: {}, d: yesterday });
+    expect(s.rows.u2.d).toBe(d2);
+    const before = JSON.stringify(s);
+    // the same morning again: nothing owed, nothing rewritten
+    const again = await runPatternsFit(store, NOW);
+    expect(again.samples).toBe(0);
+    expect(JSON.stringify(state.samples.get(CORE_A))).toBe(before);
+  });
+
+  it("caps a sample at the newest two hundred", async () => {
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < PATTERNS_SAMPLE_CAP + 25; i++) rows.push({ uid: `u${String(i).padStart(3, "0")}`, qid: CORE_A, optionIdx: i % 2 });
+    const { store, state } = memoryStore({ [yesterday]: rows });
+    await runPatternsFit(store, NOW);
+    expect(state.samples.get(CORE_A)!.n).toBe(PATTERNS_SAMPLE_CAP);
+    expect(PATTERNS_SAMPLE_CAP).toBe(200);
   });
 });

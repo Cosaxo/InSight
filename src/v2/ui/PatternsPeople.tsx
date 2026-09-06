@@ -43,7 +43,7 @@
 import React from "react";
 import LIVE from "../data/live";
 import { BUDGET_PAUSED_BODY, BUDGET_PAUSED_HEAD } from "../data/budgetMode";
-import type { PoolItem } from "../data/patterns";
+import PATTERNS, { type PoolItem } from "../data/patterns";
 import {
   countryOf,
   foldPeople,
@@ -94,7 +94,9 @@ const slim = (items: readonly PoolItem[]): PeopleItem[] =>
   }));
 
 /** live.ts's rows, narrowed to the fold's shape (they already match). */
-const rowsOf = (qid: string): readonly PeopleRow[] | null => LIVE.voters(qid);
+/** live.ts's rows, narrowed to the fold's shape (they already match): the
+ * live list where one is in hand, else the nightly sample (D397). */
+const rowsOf = (qid: string): readonly PeopleRow[] | null => LIVE.votersOrSample(qid);
 
 function Empty({ head, line, cta }: { head: string; line: string; cta?: React.ReactNode }): React.ReactElement {
   return (
@@ -139,6 +141,10 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   );
   const myCo = countryOf(LIVE.anchors().city);
   const foldOpts = React.useMemo<PeopleFoldOpts>(() => ({
+    // the viewer's own dot from everything they have answered — ordinal
+    // and pick items included (D396) — under the ridge the fit published
+    viewerObs: PATTERNS.evidence(),
+    lambda: PATTERNS.lambdaU(),
     circle: circleSet,
     keep: pop === "circle"
       ? (uid) => circleSet.has(uid)
@@ -157,7 +163,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
     void (async () => {
       for (const qid of fetchSet) {
         if (!on) return;
-        await LIVE.loadVoters(qid);
+        await LIVE.loadVoterSample(qid);
       }
     })();
     return () => { on = false; };

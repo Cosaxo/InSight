@@ -108,26 +108,53 @@ describe("the commutativity the rebuild rests on", () => {
     expect(forward.cappedDims).toEqual([]);
   });
 
-  it("is NOT order-independent once a dimension hits the bucket cap, and says so", () => {
+  it("the HOT map is not order-independent at the cap, and says so — hot ∪ tail is, exactly (D400)", () => {
     // More distinct cities than the cap, each with one answer, so every
     // arrival past the cap evicts a one-answer bucket — and WHICH one
-    // depends on arrival order. This is the limit replay.ts's header
-    // documents; the test exists so nobody discovers it during an incident.
+    // depends on arrival order. That was the limit replay.ts's header
+    // documented; since D400 the evicted cell moves to the tail instead of
+    // vanishing, so the two folds agree on every cell once both documents
+    // are read, and the flag now warns that the hot map alone is partial.
     const answers = Array.from({ length: BREAKDOWN_MAX_BUCKETS + 6 }, (_, i) =>
       answer(`u${i}`, 0, { city: `City${String(i).padStart(2, "0")}, NO` }),
     );
     const forward = replayFold(QID, answers);
     const backward = replayFold(QID, [...answers].reverse());
 
-    // The plain counts never depend on order — only the breakdown does.
+    // The plain counts never depend on order — only the hot breakdown does.
     expect(backward.counts).toEqual(forward.counts);
     expect(backward.total).toBe(forward.total);
     expect(Object.keys(backward.by.city).sort()).not.toEqual(Object.keys(forward.by.city).sort());
 
     // …and the outcome flags the dimension where that is true, so a report
-    // cannot present a saturated rebuild as if it were exact.
+    // cannot present the hot map as if it were the whole dimension.
     expect(forward.cappedDims).toContain("city");
     expect(Object.keys(forward.by.city).length).toBe(BREAKDOWN_MAX_BUCKETS);
+
+    // The union is order-independent and complete: every city, every
+    // answer, each bucket in exactly one of the two.
+    const union = (o: typeof forward) => {
+      const out: Record<string, Record<string, number>> = {};
+      const take = (buckets: Record<string, Record<string, number>> | undefined) => {
+        for (const [b, cell] of Object.entries(buckets ?? {})) {
+          expect(out[b], `${b} is in both the hot map and the tail`).toBeUndefined();
+          out[b] = { ...cell };
+        }
+      };
+      take(o.by.city);
+      for (const shard of Object.values(o.tail)) take(shard.city);
+      return out;
+    };
+    const f = union(forward);
+    expect(union(backward)).toEqual(f);
+    expect(Object.keys(f)).toHaveLength(BREAKDOWN_MAX_BUCKETS + 6);
+    expect(Object.values(f).reduce((a, c) => a + Object.values(c).reduce((x, y) => x + y, 0), 0)).toBe(forward.total);
+    expect(Object.keys(forward.tail).length).toBeGreaterThan(0);
+  });
+
+  it("no dimension under the cap ever writes a tail", () => {
+    const answers = Array.from({ length: 20 }, (_, i) => answer(`u${i}`, i % 2, { city: `City${i % 6}, NO` }));
+    expect(replayFold(QID, answers).tail).toEqual({});
   });
 });
 

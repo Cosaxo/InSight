@@ -1023,87 +1023,24 @@ describe("the cohort day an account never got", () => {
   });
 });
 
-describe("a paged query's projection has to carry the field it orders by", () => {
-  // A cursor is BUILT FROM THE SNAPSHOT: `startAfter(doc)` reads, off that
-  // document, every field the query orders by. `select()` decides which
-  // fields the document actually carries, so a projection that omits the
-  // orderBy field yields a snapshot the cursor cannot be built from and the
-  // Admin SDK throws rather than paging.
-  //
-  // ledgerDay ordered by "at" and projected only uid + qid, so page two of
-  // any day threw — and since putLastDay never runs on a throw, the digest
-  // would come back to the same day every night forever, taking
-  // runAttentionFold and runRollupFold down with it (both are awaited after
-  // it in digestEngagementV2). The two sibling paged readers, patterns.ts
-  // and velocity.ts, both include "at"; this one was the deviation.
-  //
-  // Asserted on the ADAPTER for the same reason as the merge case above:
-  // the injected memoryStore the pure passes use never pages at all.
-  it("ledgerDay pages a second time instead of throwing on the cursor", async () => {
-    const PAGE = 5000;
-    let projection: string[] = [];
-    const orderBys: string[] = [];
-    let pages = 0;
-
-    // A document carries ONLY the projected fields — the whole point of
-    // select(), and what makes the missing cursor field undefined.
-    const docAt = (i: number) => ({
-      get: (f: string) =>
-        projection.includes(f)
-          ? f === "at"
-            ? new Date(Date.UTC(2026, 7, 25, 0, 0, i % 60))
-            : `${f}-${i}`
-          : undefined,
-    });
-
-    const query = {
+describe("the digest's ledger read (D399)", () => {
+  // The pager that lived here — projected uid + qid + at, its own page
+  // loop, and the "at"-in-the-projection lesson its test carried — is
+  // `readLedgerDay` in ledger.ts since D399, where ledger.test.ts pins
+  // the projection against the entry type. What the adapter owes now is
+  // smaller and worth one case: it hands the day to the reader it was
+  // built with, which in production is the night's shared memo.
+  it("ledgerDay is the reader the store was built with (D399: one read a night, three folds)", async () => {
+    const asked: string[] = [];
+    const reader = async (day: string) => { asked.push(day); return [{ uid: "u1", qid: "daily-000" }]; };
+    const db = {
       // firestoreEngagementStore takes a metaRef off its first collection
       // before returning; ledgerDay never touches it.
-      doc: () => ({}),
-      where: () => query,
-      orderBy: (f: string) => {
-        orderBys.push(f);
-        return query;
-      },
-      select: (...f: string[]) => {
-        projection = f;
-        return query;
-      },
-      limit: () => query,
-      startAfter: (d: { get: (f: string) => unknown }) => {
-        for (const f of orderBys) {
-          if (d.get(f) === undefined) {
-            // The Admin SDK's own wording, so a failure here reads like
-            // the one that would happen in production.
-            throw new Error(
-              `Field "${f}" is missing in the provided DocumentSnapshot. Please provide a document that contains values for all specified orderBy() and where() constraints.`,
-            );
-          }
-        }
-        return query;
-      },
-      async get() {
-        pages++;
-        // A full page first, so the loop is forced to ask for a second one;
-        // a short page second, so it terminates.
-        const size = pages === 1 ? PAGE : 3;
-        return { size, docs: Array.from({ length: size }, (_, i) => docAt(i)) };
-      },
-    };
-    const db = {
-      collection: () => query,
-      doc: () => ({}),
+      collection: () => ({ doc: () => ({}) }),
     } as unknown as Parameters<typeof firestoreEngagementStore>[0];
-
-    const store = firestoreEngagementStore(db);
-    const rows = await store.ledgerDay("2026-08-25");
-
-    expect(pages, "the second page was never requested").toBe(2);
-    expect(rows).toHaveLength(PAGE + 3);
-    expect(
-      projection,
-      'ledgerDay orders by "at" but did not project it, so startAfter cannot build a cursor and every day past one page throws',
-    ).toContain("at");
+    const rows = await firestoreEngagementStore(db, reader).ledgerDay("2026-08-25");
+    expect(asked).toEqual(["2026-08-25"]);
+    expect(rows).toEqual([{ uid: "u1", qid: "daily-000" }]);
   });
 });
 

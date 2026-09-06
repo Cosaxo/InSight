@@ -123,6 +123,22 @@ await adb.doc(`v2_ratelimits/join_${uid}`).set({ events: [] });
 await adb.doc(`v2_agg_events/evt_mine`).set({ qid: "daily-000", uid });
 await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
 
+// The voter samples (D397): the one derived public document family that
+// holds uids — the newest voters per question, rows keyed by uid. Erasure
+// must take this account's row and leave the other voter's, and the
+// document itself: it is everyone else's list, not this account's.
+await adb.doc("v2_patterns/sample-daily-000").set({
+  qid: "daily-000",
+  rows: {
+    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY },
+    [OTHER]: { o: 0, a: { city: "Bergen, NO" }, d: DAY },
+  },
+  n: 2,
+});
+// …and the fit's per-person state, with the answer map the samples were
+// built beside — under the subtree the recursive delete takes
+await adb.doc(`v2_users/${uid}/patterns/state`).set({ v: [0, 0, 0, 0, 0, 0, 0, 0], n: 1, d: DAY, a: { "daily-000": 1 } });
+
 // cross-user leftovers: data ABOUT the deleted user, living under others
 await adb.doc(`insight_users/${OTHER}/insight_inbound_impressions/i1`)
   .set({ senderUid: uid, traits: ["kind"], createdAt: 1 });
@@ -616,11 +632,24 @@ if (!(pickedAfter.get("names") || {})[OTHER])
   fail("the pick scrub removed the other member's name");
 ok("a pick naming the erased account is gone, and the rest of that reveal is intact");
 
+// ── the voter sample: this account's row gone, the other voter's kept ──
+const sampleAfter = await adb.doc("v2_patterns/sample-daily-000").get();
+if (!sampleAfter.exists)
+  fail("the voter sample was deleted outright — it is everyone else's list");
+if (sampleAfter.get("rows")?.[uid] !== undefined)
+  fail("the erased account's row survived in a world-readable voter sample (D397)");
+if (sampleAfter.get("rows")?.[OTHER]?.o !== 0)
+  fail("the sample scrub removed more than the one row — the other voter is gone");
+if (sampleAfter.get("n") !== 1)
+  fail("the sample's basis did not follow the scrub: n is " + sampleAfter.get("n"));
+ok("the voter sample no longer names the erased account, and the other voter's row is intact");
+
 // ── every seeded phase must be gone ──
 for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer (subcollection)"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
+  [`v2_users/${uid}/patterns/state`, "the fit's per-person state and answer map (D395)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
   [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
