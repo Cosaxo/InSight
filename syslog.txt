@@ -1,0 +1,400 @@
+2026-09-06 22:10:30.611 A  App[18227:11f8c] (CoreFoundation) Updating Key-Value Observers Of Preferences
+2026-09-06 22:10:30.664 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Updating web accessibility settings
+2026-09-06 22:10:30.667 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = AccessibilityEnabled, result = 1
+2026-09-06 22:10:30.668 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 0
+2026-09-06 22:10:30.668 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:10:30.729 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:10:30.827 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Smart invert status global: 0
+2026-09-06 22:10:30.827 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Updating web accessibility settings
+2026-09-06 22:10:30.827 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = AccessibilityEnabled, result = 1
+2026-09-06 22:10:30.827 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 0
+2026-09-06 22:10:30.827 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:10:30.827 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:10:30.828 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Smart invert status global: 0
+2026-09-06 22:10:30.828 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Updating web accessibility settings
+2026-09-06 22:10:30.828 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = AccessibilityEnabled, result = 1
+2026-09-06 22:10:30.828 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 1
+2026-09-06 22:10:30.828 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:10:30.828 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:10:30.828 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Smart invert status global: 0
+2026-09-06 22:10:31.828 E  App[18227:dfa4] [com.apple.Accessibility:AXRuntimeCommon] WebContent[18274] Could not register system wide server: -25204
+2026-09-06 22:10:31.832 E  App[18227:dfa4] [com.apple.Accessibility:AXRuntimeCommon] WebContent[18274] _AXAddToElementCache was called even though the element was in the cache: <WKAccessibilityWebPageObject: 0x10507d150>
+2026-09-06 22:10:33.191 E  App[18227:dee8] [com.apple.UIKit:TraitCollection] Class CKBrowserSwitcherViewController overrides the -traitCollection getter, which is not supported. If you're trying to override traits, you must use the appropriate API.
+2026-09-06 22:10:33.885 Df App[18227:dfa4] [com.apple.BoardServices:XPCErrors] WebContent[18274] [C:1] Alloc com.apple.frontboard.systemappservices
+2026-09-06 22:10:33.889 Df App[18227:dfa4] [com.apple.xpc:connection] WebContent[18274] [0x108594140] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-09-06 22:10:33.890 Df SpringBoard[15052:11f8e] [com.apple.FrontBoard:Process] Asked to bootstrap a new process for handle: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:18227])>{vt hash: 71395982}[uuid:4CDF17FE-52CB-4B48-815A-8ABEEF1736AB]{definition:com.apple.WebKit.WebContent[extension][client]}:18274]
+2026-09-06 22:10:33.890 Df SpringBoard[15052:11f8e] [com.apple.FrontBoard:Process] Creating process (sync=true) for handle: [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:18227])>{vt hash: 71395982}[uuid:4CDF17FE-52CB-4B48-815A-8ABEEF1736AB]{definition:com.apple.WebKit.WebContent[extension][client]}:18274]
+2026-09-06 22:10:33.908 Df SpringBoard[15052:11f8e] [com.apple.runningboard:process] Starting death monitoring for handle [xpcservice<com.apple.WebKit.WebContent([app<com.cosaxo.insight((null))>:18227])>{vt hash: 71395982}[uuid:4CDF17FE-52CB-4B48-815A-8ABEEF1736AB]{definition:com.apple.WebKit.WebContent[extension][client]}:18274]
+2026-09-06 22:10:33.913 Df App[18227:dfa4] [com.apple.UIKit:UIScreen] WebContent[18274] Evaluated capturing state as 0 on <UIScreen: 0x108594500> for initial
+2026-09-06 22:10:33.917 Df App[18227:dfa4] [com.apple.UIKit:UIScreen] WebContent[18274] Evaluated capturing state as 0 on <UIScreen: 0x108594500> for CADisplay KVO
+2026-09-06 22:10:33.917 Df App[18227:dfa4] [com.apple.Accessibility:AXSupportCommon] WebContent[18274] Read CategoryName: per-app = 1, category name = (null)
+2026-09-06 22:10:33.917 Df App[18227:dfa4] [com.apple.Accessibility:AXSupportCommon] WebContent[18274] Read CategoryName: per-app = 0, category name = (null)
+2026-09-06 22:10:34.236 Df App[18227:dfa4] [com.apple.BackBoard:Display] WebContent[18274] [FBSDisplaySource 1-1] silently connecting raw configuration: <FBSDisplayConfiguration: 0x105bbca00; Main; mode: "402x874@3x 60Hz p3 SDR">
+2026-09-06 22:10:36.072 Df App[18227:dee8] [com.apple.BackBoard:Display] [FBSDisplaySource 1-1] silently connecting raw configuration: <FBSDisplayConfiguration: 0x10599ad00; Main; mode: "402x874@3x 60Hz p3 SDR">
+2026-09-06 22:10:39.156 Df App[18227:dfa4] [com.apple.xpc:connection] WebContent[18274] [0x108594140] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-09-06 22:10:39.387 Df App[18227:dee8] [com.apple.Accessibility:AXCommon] Loading PDFKit
+2026-09-06 22:10:59.158 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b11b40>
+2026-09-06 22:10:59.159 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:10:59.159 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:10:59.160 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:10:59.164 Df runningboardd[15055:126c7] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 18 for com.cosaxo.insight" ID:15055-18227-2421 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:10:59.165 Df runningboardd[15055:126c7] [com.apple.runningboard:ttl] Assertion 15055-18227-2421 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:10:59.166 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:10:59.166 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 27, taskName = GDTCCTUploader-upload, creationTime = 920 (elapsed = 0).
+2026-09-06 22:11:02.249 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 27
+2026-09-06 22:11:02.249 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b110c0>
+2026-09-06 22:11:02.249 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending task with identifier 27 and description: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 27, taskName = GDTCCTUploader-upload, creationTime = 920 (elapsed = 3), _expireHandler: <__NSMallocBlock__: 0x105b13a80>
+2026-09-06 22:11:02.249 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:11:02.249 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:11:02.249 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 28, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0).
+2026-09-06 22:11:02.249 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc22b0> (used by background task with identifier 27: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 27, taskName = GDTCCTUploader-upload, creationTime = 920 (elapsed = 3))
+2026-09-06 22:11:02.250 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 28
+2026-09-06 22:11:02.250 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b10040>
+2026-09-06 22:11:02.250 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending task with identifier 28 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 28, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x105b11380>
+2026-09-06 22:11:02.250 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:11:02.250 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:11:02.250 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 29, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0).
+2026-09-06 22:11:02.250 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc22b0> (used by background task with identifier 28: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 28, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0))
+2026-09-06 22:11:02.251 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 29
+2026-09-06 22:11:02.251 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b12900>
+2026-09-06 22:11:02.251 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending task with identifier 29 and description: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 29, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x105b11b00>
+2026-09-06 22:11:02.251 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:11:02.251 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc22b0>
+2026-09-06 22:11:02.251 Df App[18227:12d65] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 30, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0).
+2026-09-06 22:11:02.251 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc22b0> (used by background task with identifier 29: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 29, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0))
+2026-09-06 22:11:02.251 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 30
+2026-09-06 22:11:02.251 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending task with identifier 30 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 30, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x105b11b40>
+2026-09-06 22:11:02.251 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc22b0> (used by background task with identifier 30: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 30, taskName = GDTCCTUploader-upload, creationTime = 923 (elapsed = 0))
+2026-09-06 22:11:02.252 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc22b0> for task identifier: 30
+2026-09-06 22:11:02.253 Df runningboardd[15055:126c7] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2421 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:11:28.248 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b12a00>
+2026-09-06 22:11:28.249 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:11:28.249 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:11:28.250 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.251 Df runningboardd[15055:12d66] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 19 for com.cosaxo.insight" ID:15055-18227-2428 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:11:28.251 Df runningboardd[15055:12d66] [com.apple.runningboard:ttl] Assertion 15055-18227-2428 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:11:28.251 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.251 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 31, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0).
+2026-09-06 22:11:28.254 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 31
+2026-09-06 22:11:28.254 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b13bc0>
+2026-09-06 22:11:28.254 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Ending task with identifier 31 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 31, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x105b11d40>
+2026-09-06 22:11:28.254 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.254 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.254 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 32, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0).
+2026-09-06 22:11:28.254 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 31: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 31, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0))
+2026-09-06 22:11:28.254 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 32
+2026-09-06 22:11:28.254 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Ending task with identifier 32 and description: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 32, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x105b13040>
+2026-09-06 22:11:28.254 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 32: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 32, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0))
+2026-09-06 22:11:28.254 Df App[18227:13cff] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc21c0> for task identifier: 32
+2026-09-06 22:11:28.254 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b11f80>
+2026-09-06 22:11:28.254 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:11:28.255 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:11:28.255 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.255 Df runningboardd[15055:13d00] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2428 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:11:28.255 Df runningboardd[15055:12d66] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 20 for com.cosaxo.insight" ID:15055-18227-2429 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:11:28.255 Df runningboardd[15055:12d66] [com.apple.runningboard:ttl] Assertion 15055-18227-2429 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:11:28.255 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.255 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 33, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0).
+2026-09-06 22:11:28.255 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 33
+2026-09-06 22:11:28.255 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b110c0>
+2026-09-06 22:11:28.255 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending task with identifier 33 and description: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 33, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x105b13040>
+2026-09-06 22:11:28.256 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.256 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:11:28.256 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 34, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0).
+2026-09-06 22:11:28.256 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 33: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 33, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0))
+2026-09-06 22:11:28.256 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 34
+2026-09-06 22:11:28.256 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Ending task with identifier 34 and description: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 34, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x105b11600>
+2026-09-06 22:11:28.256 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 34: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 34, taskName = GDTCCTUploader-upload, creationTime = 949 (elapsed = 0))
+2026-09-06 22:11:28.256 Df App[18227:11fb2] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc21c0> for task identifier: 34
+2026-09-06 22:11:28.256 Df runningboardd[15055:12d66] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2429 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:11:28.287 A  App[18227:13d06] (Security) SecItemCopyMatching_ios
+2026-09-06 22:11:28.288 Df App[18227:13d06] [com.apple.securityd:thread-local-client-debug] SecSecurityClientGet new thread!
+2026-09-06 22:11:31.367 Df App[18227:dee8] [com.apple.CFNetwork:Default] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> resuming, timeouts(60.0, 604800.0) qos(0x21) voucher((null)) activity(00000000-0000-0000-0000-000000000000)
+2026-09-06 22:11:31.372 Df App[18227:13cff] [com.apple.network:connection] [C1] event: client:connection_reused @215.472s
+2026-09-06 22:11:31.375 Df App[18227:13cff] [com.apple.network:connection] nw_protocol_socket_notify [C1.1.1.1:3] nw_protocol_notification_type_connection_idle is false
+2026-09-06 22:11:31.379 Df App[18227:13cff] [com.apple.CFNetwork:Default] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> now using Connection 1
+2026-09-06 22:11:31.381 Df App[18227:13cff] [com.apple.CFNetwork:Default] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> sent request, body S 74
+2026-09-06 22:11:31.532 Df App[18227:11fb2] [com.apple.CFNetwork:Default] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> received response, status 403 content K
+2026-09-06 22:11:31.533 Df App[18227:11fb2] [com.apple.CFNetwork:Default] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> done using Connection 1
+2026-09-06 22:11:31.533 Df App[18227:11fb2] [com.apple.network:connection] [C1] event: client:connection_idle @215.632s
+2026-09-06 22:11:31.533 Df App[18227:11fb2] [com.apple.network:connection] nw_protocol_socket_notify [C1.1.1.1:3] nw_protocol_notification_type_connection_idle is true
+2026-09-06 22:11:31.534 Df App[18227:11fb2] [com.apple.CFNetwork:Default] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> response ended
+2026-09-06 22:11:31.535 Df App[18227:11fb2] [com.apple.CFNetwork:Summary] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> summary for task success {transaction_duration_ms=165, response_status=403, connection=1, reused=1, reused_after_ms=123864, request_start_ms=10, request_duration_ms=1, response_start_ms=162, response_duration_ms=3, request_bytes=174, request_throughput_kbps=733, response_bytes=211, response_throughput_kbps=530, cache_hit=false}
+2026-09-06 22:11:31.535 Df App[18227:13d06] [com.apple.CFNetwork:Default] Task <058913D1-781E-42CD-8D86-DB32DE3C49FA>.<4> finished successfully
+2026-09-06 22:11:31.542 Df App[18227:11fb2] [com.google.firebase:[FirebaseAppCheck]] 12.18.0 - [FirebaseAppCheck][I-FAA004002] Failed to exchange debug token. To use this token for app debugging, register it with your project.
+
+Firebase App Check debug token: FE92ED75-61EA-469E-A0C3-9464C2A028BD
+
+You can do so in the Firebase Console: 
+https://console.firebase.google.com/project/prvfire33/appcheck/apps?selectedAppId=1:437999864865:ios:0dfbab646ca1929cb8a760 
+
+Or using the Firebase CLI: 
+firebase appcheck:debugtokens:create FE92ED75-61EA-469E-A0C3-9464C2A028BD --project prvfire33 --app 1:437999864865:ios:0dfbab646ca1929cb8a760
+
+Note: To keep your project secure, please revoke and delete this token using the 
+Firebase Console or the CLI (`firebase appcheck:debugtokens:delete`) when you finish debugging.
+
+Warning: This debug token is a secret and should not be shared or uploaded to source code.
+
+Debug Token Guide: https://firebase.google.com/docs/app-check/ios/debug-provider
+Firebase CLI install instructions: https://firebase.google.com/docs/cli
+2026-09-06 22:11:36.361 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Updating web accessibility settings
+2026-09-06 22:11:36.363 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = AccessibilityEnabled, result = 1
+2026-09-06 22:11:36.363 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 1
+2026-09-06 22:11:36.363 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:11:36.407 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:11:36.407 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Smart invert status global: 0
+2026-09-06 22:11:36.751 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Updating web accessibility settings
+2026-09-06 22:11:36.751 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = AccessibilityEnabled, result = 1
+2026-09-06 22:11:36.751 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 0
+2026-09-06 22:11:36.751 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:11:36.752 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:11:36.752 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Smart invert status global: 0
+2026-09-06 22:11:36.752 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Updating web accessibility settings
+2026-09-06 22:11:36.752 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = AccessibilityEnabled, result = 0
+2026-09-06 22:11:36.752 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ApplicationAccessibilityEnabled, result = 0
+2026-09-06 22:11:36.752 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App: preference = ReduceMotionEnabled, result = 0
+2026-09-06 22:11:36.752 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Read Per-App on Update: Smart invert = 0
+2026-09-06 22:11:36.753 Df App[18227:dfa4] [com.apple.Accessibility:AXCommon] WebContent[18274] Smart invert status global: 0
+2026-09-06 22:11:47.657 Df appleaccountd[15169:b5b7] [com.apple.appleaccount:daemon] Dataclass App Install Observer - Ignoring ["com.cosaxo.insight"]
+2026-09-06 22:11:56.345 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x105b10e80>
+2026-09-06 22:11:56.348 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:11:56.348 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:11:56.348 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.350 Df runningboardd[15055:13d00] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 21 for com.cosaxo.insight" ID:15055-18227-2447 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:11:56.350 Df runningboardd[15055:13d00] [com.apple.runningboard:ttl] Assertion 15055-18227-2447 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:11:56.350 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.351 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8780>: taskID = 35, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0).
+2026-09-06 22:11:56.354 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 35
+2026-09-06 22:11:56.354 Df App[18227:14bab] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce7540>
+2026-09-06 22:11:56.354 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending task with identifier 35 and description: <_UIBackgroundTaskInfo: 0x138dd8780>: taskID = 35, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce4c80>
+2026-09-06 22:11:56.354 Df App[18227:14bab] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.354 Df App[18227:14bab] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.354 Df App[18227:14bab] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 36, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0).
+2026-09-06 22:11:56.354 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2170> (used by background task with identifier 35: <_UIBackgroundTaskInfo: 0x138dd8780>: taskID = 35, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0))
+2026-09-06 22:11:56.355 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 36
+2026-09-06 22:11:56.355 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending task with identifier 36 and description: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 36, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce4d80>
+2026-09-06 22:11:56.355 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2170> (used by background task with identifier 36: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 36, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0))
+2026-09-06 22:11:56.355 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce7a40>
+2026-09-06 22:11:56.355 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2170> for task identifier: 36
+2026-09-06 22:11:56.355 Df runningboardd[15055:12d66] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2447 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:11:56.355 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:11:56.355 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:11:56.355 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.356 Df runningboardd[15055:13d00] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 22 for com.cosaxo.insight" ID:15055-18227-2448 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:11:56.356 Df runningboardd[15055:13d00] [com.apple.runningboard:ttl] Assertion 15055-18227-2448 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:11:56.356 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.356 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 37, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0).
+2026-09-06 22:11:56.357 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 37
+2026-09-06 22:11:56.357 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Ending task with identifier 37 and description: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 37, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce4d80>
+2026-09-06 22:11:56.357 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2170> (used by background task with identifier 37: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 37, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0))
+2026-09-06 22:11:56.357 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce7800>
+2026-09-06 22:11:56.357 Df App[18227:14bad] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2170> for task identifier: 37
+2026-09-06 22:11:56.357 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:11:56.357 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:11:56.357 Df runningboardd[15055:13e8d] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2448 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:11:56.357 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.357 Df runningboardd[15055:13e8d] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 23 for com.cosaxo.insight" ID:15055-18227-2449 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:11:56.357 Df runningboardd[15055:13e8d] [com.apple.runningboard:ttl] Assertion 15055-18227-2449 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:11:56.358 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2170>
+2026-09-06 22:11:56.358 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 38, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0).
+2026-09-06 22:11:56.359 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 38
+2026-09-06 22:11:56.359 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending task with identifier 38 and description: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 38, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce4d80>
+2026-09-06 22:11:56.359 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2170> (used by background task with identifier 38: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 38, taskName = GDTCCTUploader-upload, creationTime = 977 (elapsed = 0))
+2026-09-06 22:11:56.359 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2170> for task identifier: 38
+2026-09-06 22:11:56.359 Df runningboardd[15055:12d66] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2449 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:12:12.444 Df storekitd[17985:dcec] [com.apple.storekit:Default] [Client] (com.cosaxo.insight) Initialized with server Sandbox bundle ID com.cosaxo.insight and request bundle ID com.cosaxo.insight]
+2026-09-06 22:12:29.202 Df App[18227:154d5] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce4d00>
+2026-09-06 22:12:29.206 Df App[18227:154d5] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:12:29.206 Df App[18227:154d5] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:12:29.209 Df App[18227:154d5] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.212 Df runningboardd[15055:1541b] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 24 for com.cosaxo.insight" ID:15055-18227-2451 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:12:29.212 Df runningboardd[15055:1541b] [com.apple.runningboard:ttl] Assertion 15055-18227-2451 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:12:29.215 Df App[18227:154d5] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.220 Df App[18227:154d5] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 39, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0).
+2026-09-06 22:12:29.228 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 39
+2026-09-06 22:12:29.228 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Ending task with identifier 39 and description: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 39, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce4d80>
+2026-09-06 22:12:29.229 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2210> (used by background task with identifier 39: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 39, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0))
+2026-09-06 22:12:29.229 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2210> for task identifier: 39
+2026-09-06 22:12:29.229 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce4d80>
+2026-09-06 22:12:29.229 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:12:29.229 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:12:29.230 Df runningboardd[15055:1541c] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2451 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:12:29.233 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.236 Df runningboardd[15055:1541c] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 25 for com.cosaxo.insight" ID:15055-18227-2452 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:12:29.236 Df runningboardd[15055:1541c] [com.apple.runningboard:ttl] Assertion 15055-18227-2452 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:12:29.237 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.237 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 40, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0).
+2026-09-06 22:12:29.238 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 40
+2026-09-06 22:12:29.238 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce5600>
+2026-09-06 22:12:29.238 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending task with identifier 40 and description: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 40, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce51c0>
+2026-09-06 22:12:29.238 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.238 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.238 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 41, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0).
+2026-09-06 22:12:29.239 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2210> (used by background task with identifier 40: <_UIBackgroundTaskInfo: 0x138dd8840>: taskID = 40, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0))
+2026-09-06 22:12:29.239 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 41
+2026-09-06 22:12:29.239 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce7540>
+2026-09-06 22:12:29.239 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending task with identifier 41 and description: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 41, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce4c80>
+2026-09-06 22:12:29.239 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Reusing background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.239 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2210>
+2026-09-06 22:12:29.240 Df App[18227:13d06] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 42, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0).
+2026-09-06 22:12:29.240 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2210> (used by background task with identifier 41: <_UIBackgroundTaskInfo: 0x138dd8900>: taskID = 41, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0))
+2026-09-06 22:12:29.240 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 42
+2026-09-06 22:12:29.240 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending task with identifier 42 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 42, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce78c0>
+2026-09-06 22:12:29.240 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2210> (used by background task with identifier 42: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 42, taskName = GDTCCTUploader-upload, creationTime = 1010 (elapsed = 0))
+2026-09-06 22:12:29.240 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2210> for task identifier: 42
+2026-09-06 22:12:29.241 Df runningboardd[15055:1541c] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2452 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:12:55.560 Df BackgroundShortcutRunner[30975:161e4] [com.apple.shortcuts:ToolKitIndexing] Indexing for request: <WFToolKitIndexingRequest: 0x106dac320>, changeset: .partial(updatedCount: 44 removedCount: 0 updated: ["com.apple.mobileslideshow", "com.apple.-Photos-AppIntents", "com.apple.Maps.MapsSettingsAppIntents", "com.apple.DocumentsApp", "com.apple.Spotlight", "com.apple.MobileAddressBook", "com.apple.ShortcutsActions", "com.apple.TVRemoteUIService", "com.apple.Bridge", "com.apple.mobilesafari", "com.apple.springboard", "com.apple.homed", "com.apple.BarcodeScanner", "com.apple.musicrecognition", "com.apple.SharingUIService", "com.apple.MediaRemoteAppIntentsExtension", "com.apple.AppIntents", "com.apple.LinkPresentation.-LinkPresentation-AppIntents", "com.apple.compass.CompassSettingsAppIntents", "com.apple.TransparencySettingsIntents", "com.apple.mobilecal", "com.apple.GameCenter.Settings.DeviceExpertExtension", "com.apple.news", "com.apple.contacts.autocomplete.appintentextension", "com.apple.HealthStandaloneIntents", "com.cosaxo.insight", "com.apple.Preferences", "dev.mobile.maestro-driver-iosUITests.xctrunner<…>, priority: <decode: missing data>
+2026-09-06 22:12:59.223 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce5f00>
+2026-09-06 22:12:59.224 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:12:59.224 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:12:59.224 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.225 Df runningboardd[15055:16163] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 26 for com.cosaxo.insight" ID:15055-18227-2460 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:12:59.225 Df runningboardd[15055:16163] [com.apple.runningboard:ttl] Assertion 15055-18227-2460 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:12:59.226 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.226 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 43, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0).
+2026-09-06 22:12:59.228 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 43
+2026-09-06 22:12:59.228 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending task with identifier 43 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 43, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce78c0>
+2026-09-06 22:12:59.228 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce5440>
+2026-09-06 22:12:59.228 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2260> (used by background task with identifier 43: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 43, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0))
+2026-09-06 22:12:59.228 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2260> for task identifier: 43
+2026-09-06 22:12:59.228 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:12:59.228 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:12:59.228 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.228 Df runningboardd[15055:1615c] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2460 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:12:59.229 Df runningboardd[15055:16163] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 27 for com.cosaxo.insight" ID:15055-18227-2461 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:12:59.229 Df runningboardd[15055:16163] [com.apple.runningboard:ttl] Assertion 15055-18227-2461 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:12:59.229 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.229 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 44, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0).
+2026-09-06 22:12:59.230 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 44
+2026-09-06 22:12:59.230 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending task with identifier 44 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 44, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce78c0>
+2026-09-06 22:12:59.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce51c0>
+2026-09-06 22:12:59.230 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2260> (used by background task with identifier 44: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 44, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0))
+2026-09-06 22:12:59.230 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2260> for task identifier: 44
+2026-09-06 22:12:59.230 Df runningboardd[15055:1615c] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2461 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:12:59.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:12:59.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:12:59.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.231 Df runningboardd[15055:1615c] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 28 for com.cosaxo.insight" ID:15055-18227-2462 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:12:59.231 Df runningboardd[15055:1615c] [com.apple.runningboard:ttl] Assertion 15055-18227-2462 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:12:59.231 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.231 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 45, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0).
+2026-09-06 22:12:59.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 45
+2026-09-06 22:12:59.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending task with identifier 45 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 45, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce78c0>
+2026-09-06 22:12:59.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2260> (used by background task with identifier 45: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 45, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0))
+2026-09-06 22:12:59.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2260> for task identifier: 45
+2026-09-06 22:12:59.232 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce7800>
+2026-09-06 22:12:59.232 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:12:59.232 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:12:59.232 Df runningboardd[15055:16166] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2462 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:12:59.232 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.232 Df runningboardd[15055:16166] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 29 for com.cosaxo.insight" ID:15055-18227-2463 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:12:59.233 Df runningboardd[15055:16166] [com.apple.runningboard:ttl] Assertion 15055-18227-2463 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:12:59.233 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc2260>
+2026-09-06 22:12:59.233 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 46, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0).
+2026-09-06 22:12:59.233 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 46
+2026-09-06 22:12:59.233 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Ending task with identifier 46 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 46, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce78c0>
+2026-09-06 22:12:59.233 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc2260> (used by background task with identifier 46: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 46, taskName = GDTCCTUploader-upload, creationTime = 1040 (elapsed = 0))
+2026-09-06 22:12:59.233 Df App[18227:154d6] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc2260> for task identifier: 46
+2026-09-06 22:12:59.233 Df runningboardd[15055:16166] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2463 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:13:29.209 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce6280>
+2026-09-06 22:13:29.210 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:13:29.210 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:13:29.210 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.213 Df runningboardd[15055:16a3e] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 30 for com.cosaxo.insight" ID:15055-18227-2471 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:13:29.213 Df runningboardd[15055:16a3e] [com.apple.runningboard:ttl] Assertion 15055-18227-2471 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:13:29.214 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.214 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 47, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0).
+2026-09-06 22:13:29.218 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 47
+2026-09-06 22:13:29.218 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending task with identifier 47 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 47, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce78c0>
+2026-09-06 22:13:29.218 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 47: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 47, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0))
+2026-09-06 22:13:29.218 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc21c0> for task identifier: 47
+2026-09-06 22:13:29.219 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce5680>
+2026-09-06 22:13:29.219 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:13:29.219 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:13:29.219 Df runningboardd[15055:16a3e] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2471 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:13:29.222 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.223 Df runningboardd[15055:171d1] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 31 for com.cosaxo.insight" ID:15055-18227-2472 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:13:29.223 Df runningboardd[15055:171d1] [com.apple.runningboard:ttl] Assertion 15055-18227-2472 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:13:29.224 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.224 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 48, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0).
+2026-09-06 22:13:29.225 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 48
+2026-09-06 22:13:29.225 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending task with identifier 48 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 48, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce7fc0>
+2026-09-06 22:13:29.226 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 48: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 48, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0))
+2026-09-06 22:13:29.226 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc21c0> for task identifier: 48
+2026-09-06 22:13:29.226 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce6280>
+2026-09-06 22:13:29.226 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:13:29.226 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:13:29.226 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.227 Df runningboardd[15055:1689a] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2472 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:13:29.228 Df runningboardd[15055:1689a] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 32 for com.cosaxo.insight" ID:15055-18227-2473 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:13:29.228 Df runningboardd[15055:1689a] [com.apple.runningboard:ttl] Assertion 15055-18227-2473 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:13:29.228 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.228 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 49, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0).
+2026-09-06 22:13:29.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 49
+2026-09-06 22:13:29.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending task with identifier 49 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 49, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce51c0>
+2026-09-06 22:13:29.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 49: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 49, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0))
+2026-09-06 22:13:29.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc21c0> for task identifier: 49
+2026-09-06 22:13:29.230 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: GDTCCTUploader-upload, expirationHandler: <__NSMallocBlock__: 0x138ce5680>
+2026-09-06 22:13:29.231 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-09-06 22:13:29.231 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-09-06 22:13:29.231 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.231 Df runningboardd[15055:171d1] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2473 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:13:29.231 Df runningboardd[15055:171d1] [com.apple.runningboard:ttl] Acquiring assertion targeting [app<com.cosaxo.insight((null))>:18227] from originator [app<com.cosaxo.insight((null))>:18227] with description <RBSAssertionDescriptor| "Shared Background Assertion 33 for com.cosaxo.insight" ID:15055-18227-2474 target:18227 attributes:[
+	<RBSLegacyAttribute| requestedReason:FinishTask reason:FinishTask flags:( PreventTaskSuspend )>,
+	<RBSAcquisitionCompletionAttribute| policy:AfterValidation>
+	]>
+2026-09-06 22:13:29.231 Df runningboardd[15055:171d1] [com.apple.runningboard:ttl] Assertion 15055-18227-2474 (target:[app<com.cosaxo.insight((null))>:18227]) will be created as inactive as start-time-defining assertions exist
+2026-09-06 22:13:29.231 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x138fc21c0>
+2026-09-06 22:13:29.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 50, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0).
+2026-09-06 22:13:29.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 50
+2026-09-06 22:13:29.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Ending task with identifier 50 and description: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 50, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0), _expireHandler: <__NSMallocBlock__: 0x138ce78c0>
+2026-09-06 22:13:29.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x138fc21c0> (used by background task with identifier 50: <_UIBackgroundTaskInfo: 0x138dd88c0>: taskID = 50, taskName = GDTCCTUploader-upload, creationTime = 1070 (elapsed = 0))
+2026-09-06 22:13:29.232 Df App[18227:16543] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x138fc21c0> for task identifier: 50
+2026-09-06 22:13:29.233 Df runningboardd[15055:1689a] [com.apple.runningboard:ttl] Invalidating assertion 15055-18227-2474 (target:[app<com.cosaxo.insight((null))>:18227]) from originator [app<com.cosaxo.insight((null))>:18227]
+2026-09-06 22:13:52.336 Df log[34063:0] [com.apple.log:] log run noninteractively, parent: 15009 (launchd_sim), args: 'log' 'show' '--last' '20m' '--style' 'compact' '--predicate' 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"'

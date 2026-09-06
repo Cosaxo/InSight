@@ -1,0 +1,23 @@
+2026-09-06 22:09:46.136 xcodebuild[22482:68352] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-09-06 22:09:46.161 xcodebuild[22482:68352] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, arch:arm64, id:6EE862FE-93F2-4D55-946E-8745EE2B3A88, OS:26.5, 2026-09-06 22:10:29.528653+0000 maestro-driver-iosUITests-Runner[24315:72793] [Default] Running tests...
+2026-09-06 22:10:29.864970+0000 maestro-driver-iosUITests-Runner[24315:73607] [General] Failed to send CA Event for app launch measurements for ca_event_type: 0 event_na2026-09-06 22:12:41.952 xcodebuild[22482:68352] [MT] IDETestOperationsObserverDebug: 171.426 elapsed -- Testing started completed.
+2026-09-06 22:12:41.953 xcodebuild[22482:68352] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-09-06 22:12:41.953 xcodebuild[22482:68352] [MT] IDETestOperationsObserverDebug: 171.426 sec, +171.426 sec -- end
+Testing failed:
+	maestro-driver-iosUITests-Runner (24315) encountered an error (The test runner failed to initialize for UI testing. (Underlying Error: Timed out waiting for AX loaded notification))
+
+** TEST EXECUTE FAILED **
+
+Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x106d9c310) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x106d00398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+2026-09-06 22:11:36.853728+0000 maestro-driver-iosUITests-Runner[24315:72793] [Default] Failed to initialize for UI testing: Error Domain=XCTDaemonErrorDomain Code=18 "Timed out waiting for AX loaded notification" UserInfo={NSLocalizedDescription=Timed out waiting for AX loaded notification}
+
+
+*** If you believe this error represents a bug, please attach the result bundle at /var/folders/df/djsxfhc17x95674wsm_g8s980000gn/T/maestro_xctestrunner_xcodebuild_output10585308426280489044/Logs/Test/Test-maestro-driver-ios-2026.09.06_22-09-46-+0000.xcresult
+
+
+Test session results, code coverage, and logs:
+	/var/folders/df/djsxfhc17x95674wsm_g8s980000gn/T/maestro_xctestrunner_xcodebuild_output10585308426280489044/Logs/Test/Test-maestro-driver-ios-2026.09.06_22-09-46-+0000.xcresult
+
+Testing started
