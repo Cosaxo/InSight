@@ -12,6 +12,9 @@
 // narrows a list and an empty list is exactly what "nothing wrong" looks
 // like. That is the whole argument for driving them on fixtures.
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { scanCallables, appCheckProblems } from "./check-appcheck.mjs";
 
 const SRC = `
@@ -106,5 +109,41 @@ describe("appCheckProblems", () => {
   it("fails when the parse did not reach every onCall site", () => {
     const out = appCheckProblems({ ...scan, onCallSites: scan.onCallSites + 1 }, withGate);
     expect(out.join("\n")).toMatch(/cannot parse|option blocks/);
+  });
+});
+
+// ── the two walks over functions/src must agree ──────────────────────
+//
+// The rules above are driven on fixtures, which is right for them and is
+// exactly why this one has to be different: the defect was not in a rule,
+// it was in the FILE LIST one rule was handed.
+//
+// The callable walk recurses, with a comment saying why. The provenance
+// walk beside it did not. So a callable in a subdirectory was found by
+// the first — counting toward "enforcing" — while the file declaring its
+// own `ENFORCE_APP_CHECK = false` was invisible to the second. That is
+// the scenario the provenance rule's own docblock describes, reached by a
+// directory instead of by an import. Measured 2026-09-06: the same probe
+// file at `functions/src/sub/zzprobe.ts` left the gate exit 0 with the
+// enforcing count going UP; flat at `functions/src/`, exit 1.
+//
+// Latent while `functions/src` is flat — which is what
+// `check-deploy-targets.mjs` says about this same shape, in those words,
+// before the moderation.ts miss made it real there.
+//
+// A source assertion rather than a fixture run, deliberately: what is
+// being pinned is that the two walks do not drift apart again, and that
+// is a property of the file rather than of any tree it could be run on.
+describe("the file walks", () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "check-appcheck.mjs"), "utf8");
+
+  it("both walks over functions/src are recursive", () => {
+    const walks = [...src.matchAll(/readdirSync\(\s*SRC\s*(,[^)]*)?\)/g)];
+    // The floor: if the walks are renamed or restructured this must fail
+    // loudly rather than pass over an empty list.
+    expect(walks.length, "the walks over SRC moved — re-read this rule before changing it").toBe(2);
+    for (const w of walks) {
+      expect(w[0], "a walk over functions/src stopped recursing").toContain("recursive: true");
+    }
   });
 });

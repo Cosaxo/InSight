@@ -356,9 +356,24 @@ errors.push(...checkAppCheckPolarity(readFileSync(join(SRC, "ops.ts"), "utf8")))
 // file that dropped the import and declared its own `const
 // ENFORCE_APP_CHECK = false` was tsc-clean and left this script printing
 // "20 enforcing". Measured against deviceBind.ts, restored after.
+//
+// RECURSIVE, like the callable walk above and for that walk's own stated
+// reason. This one was not, and the asymmetry was the hole: a callable in
+// a subdirectory WAS found by the walk above, so it counted toward
+// "enforcing", while the file declaring its own `ENFORCE_APP_CHECK =
+// false` was invisible to this check — the exact scenario the provenance
+// rule's docblock describes, reached by a directory rather than by an
+// import. Measured: the same probe file at `functions/src/sub/probe.ts`
+// left the gate printing OK with the enforcing count going UP, and at
+// `functions/src/probe.ts` it failed as it should.
+//
+// Latent today — `functions/src` is flat — which is exactly what
+// `check-deploy-targets.mjs` says about the same shape before the
+// moderation.ts miss made it real.
 errors.push(...checkAppCheckProvenance(
   Object.fromEntries(
-    readdirSync(SRC)
+    readdirSync(SRC, { recursive: true })
+      .map((f) => String(f).split(sep).join("/"))
       .filter((f) => f.endsWith(".ts"))
       .map((f) => [`functions/src/${f}`, readFileSync(join(SRC, f), "utf8")]),
   ),
