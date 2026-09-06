@@ -552,12 +552,24 @@ export async function runSeedV2(
     // Firestore batches cap at 500 ops.
     //
     // `>=`, not `===`. The map-clear pass above can add a SECOND op in one
-    // iteration, so the counter steps 449 → 450 (unchecked, inside that
-    // branch) → 451 here, and an equality never matches again: the batch
-    // then grows without bound and the final commit throws, losing every
-    // write since the last flush. Reachable on any run that rewrites 450+
-    // documents with at least one map clear among them, which is what a
-    // full repair reseed of the 847-document bank is.
+    // iteration, so a clear arriving while the counter already stands at
+    // 449 steps it 449 → 450 (unchecked, inside that branch) → 451 here.
+    // An equality never matches again — the batch grows to the end of the
+    // bank and the final commit throws at Firestore's 500-op cap, losing
+    // every write since the last flush.
+    //
+    // THE PRECONDITION IS THAT EXACT COINCIDENCE, and this comment claimed
+    // "any run that rewrites 450+ documents with at least one map clear"
+    // until the 2026-09-06 night review measured it. A clear anywhere else
+    // only shifts which document lands on the boundary; `===` and `>=`
+    // behave identically. Today's bank cannot reach it at all: exactly
+    // three documents carry an object-valued seeded field (feed-pt1,
+    // feed-pt2, feed-pt3, at indices 210, 211 and 307), the counter stands
+    // at 210, 212 and 309 when they arrive, and the one tripping index on
+    // an 847-document run is 449. So this is a guard against the bank
+    // gaining a fourth story in the wrong place, not a live bug — kept
+    // because `>=` is free and the failure it prevents is silent data
+    // loss, and pinned in seed.test.ts because nothing else can reach it.
     if (++inBatch >= 450) {
       await batch.commit();
       batch = db.batch();
