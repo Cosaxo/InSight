@@ -41388,3 +41388,60 @@ taken. Main's D364 is a different decision — a component defined inside
 a render — so the record and its four amendments moved to **D389**, the
 next free number above main's highest at the merge. Nothing in the
 content changed with the number.
+
+## D389 amendment (2026-09-06, third) · Paper 9: appearance, and the fourth unbuilt axis has its paper
+
+The owner: *"keep going with the appearance paper."* Paper 9 is the
+physical-appearance axis — *"physical appearance analysis from photo and
+in some cases in real life"* — and with it every one of the four unbuilt
+axes has a paper.
+
+The draft took the step the subject always takes: read a panel's
+consensus about what a face conveys, score it against the trait measured
+by an instrument that never saw the face, and call the result validity
+with the readers removed. The adversarial review's first finding was
+that the step is not available. An instrument can be blind to a face and
+its criterion still be downstream of it, because appearance draws
+treatment and a lifetime of treatment shapes self-concept, schooling and
+the behaviour others produce in a person's presence — so the bank is a
+treatment history, the keyed score is partly one, and behaviour enacted
+under an opponent who saw the face is one too. A face predicts a person
+through two doors, shared biology and treatment, and no criterion blind
+to the face tells them apart; a zero is as ambiguous as a nonzero. The
+paper now states that the physiognomic question is ill-posed and
+replaces it with two that are not — how much a face predicts, and what
+each design says about the door — with the treatment door identified per
+exposure by randomizing whether one person is displayed to another, as
+an interaction with appearance rather than a visibility effect, at the
+level of the choice set because paper 8's cancellation and paper 2's
+interference both apply, and against a uniform placeholder because a
+blank where an image is expected is itself a treatment. The lifetime
+integral of that door is identified by nothing, and within-person
+appearance change — weight, age, injury — is the one timing handle,
+because a face is not fixed.
+
+The other corrections worth the record: the session-binding channel the
+draft offered paper 7 is one claim under an enrolment requirement that
+paper must carry, and not continuity, which paper 7 assigns to the worn
+stream precisely because a camera is a gate; the two clocks are
+residuals on chronological age validated against outcomes and never
+against each other; presentation is three acts and not one parameter;
+the visible state is the fourth instrument for the body and is itself a
+perceived signal under the same discipline; the arithmetic is in units
+(about forty readers per stratum on within-stratum agreement, about four
+hundred targets per stratum for a usable standard error); and two
+sentences the draft wrote as rules — no image of a minor, no third party
+in a frame — are now a consent to be built and a fork with its costs,
+because a preference stated as a rule reads as a rule.
+
+Two decisions are the owner's and the paper states each as enumerated
+shapes with what each exposes and what each kills: what a person is
+shown about readings of their own face (four shapes; the smallest that
+avoids both failures is the person's own values on request, with the
+reliability, the ceiling and the doors beside them), and the custody of
+the image (three shapes; device-only kills every perceived reading,
+transient display to readers with no stored image is the smallest that
+keeps them, a stored capture keeps everything and is the store whose
+breach is a breach in the street). The reviewer returned twenty-five
+findings and the paper answers all of them; the rest are in it as
+conditions rather than here as prose. Nothing in the app moves.

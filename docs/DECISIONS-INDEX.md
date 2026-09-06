@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 411 lines instead of
-41,391. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 412 lines instead of
+41,448. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -425,3 +425,4 @@ detect it.
 |  | ↳ *amendment 2026-09-05, later* — [The general track: theory not tied to these axes](DECISIONS.md#d389-amendment-2026-09-05-later--the-general-track-theory-not-tied-to-these-axes) | — | 41231 |
 |  | ↳ *amendment 2026-09-06* — [Paper 6: the body's measured channel, from the owner's review of an outside concept](DECISIONS.md#d389-amendment-2026-09-06--paper-6-the-bodys-measured-channel-from-the-owners-review-of-an-outside-concept) | — | 41258 |
 |  | ↳ *amendment 2026-09-06, later* — [Four unbuilt axes, not two — and papers 7 and 8](DECISIONS.md#d389-amendment-2026-09-06-later--four-unbuilt-axes-not-two--and-papers-7-and-8) | — | 41316 |
+|  | ↳ *amendment 2026-09-06, third* — [Paper 9: appearance, and the fourth unbuilt axis has its paper](DECISIONS.md#d389-amendment-2026-09-06-third--paper-9-appearance-and-the-fourth-unbuilt-axis-has-its-paper) | — | 41392 |
