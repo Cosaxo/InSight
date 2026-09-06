@@ -1087,4 +1087,29 @@ describe("LiveCohortBody · reading is not empty", () => {
     expect(document.body.textContent, "the settled empty state lost its sentence")
       .toMatch(/nobody has answered yet/i);
   });
+
+  // …AND THE TAB BODY ONE TAP DOWN, which had the header's hedge above it
+  // and a flat assertion of its own: "No answers here yet — the first one
+  // starts the count." One screen, two answers to the same question, and
+  // the confident one made by a device that had not looked.
+  it("does not say the rows are empty before the store has attached", () => {
+    LIVE.attached = false;
+    try {
+      render(<LiveCohortBody scope="world" />);
+      fireEvent.click(screen.getByRole("tab", { name: /answers/i }));
+      const body = document.body.textContent || "";
+      expect(body, "the answers tab asserted an empty world before it had looked")
+        .not.toMatch(/first one starts the count/i);
+      expect(body).toMatch(/counting who has answered/i);
+    } finally {
+      LIVE.attached = true;
+    }
+  });
+
+  it("…and says it once the store HAS attached", () => {
+    render(<LiveCohortBody scope="world" />);
+    fireEvent.click(screen.getByRole("tab", { name: /answers/i }));
+    expect(document.body.textContent, "the settled empty rows lost their sentence")
+      .toMatch(/first one starts the count/i);
+  });
 });

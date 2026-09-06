@@ -37,6 +37,13 @@ const LIVE = vi.hoisted(() => ({
   flagAvatar: async () => {},
   flaggedAvatar: () => false,
   enabled: true,
+  // "The network boot completed this session." Carried here because the
+  // Scores lens now distinguishes "nobody has scored it" from "this device
+  // has not looked yet", and a stub without the member reads `undefined` —
+  // which is the falsy arm, so every case below would silently assert the
+  // reading state instead of the empty one. LiveCohortBody.test.tsx
+  // records the same trap costing it a whole green suite.
+  attached: true,
   budgetPaused: false as boolean,
   subscribe: () => () => {},
   loadKindred: vi.fn(async () => {}),
@@ -649,6 +656,31 @@ describe("Scores", () => {
     expect(screen.getByText(/How Oslo rates itself/)).toBeTruthy();
     expect(screen.queryByText(/Oslo is rated/)).toBeNull();
     expect(screen.getByText(/rating their own place, not this one/)).toBeTruthy();
+  });
+
+  it("counts rather than concluding, before the boot has read anything", () => {
+    // The hero above this lens got this guard when D356 named `attached`;
+    // the lens did not, so one screen said "counting who has answered…" in
+    // the header and "Nobody here has scored Oslo yet" one tap below — a
+    // claim about the world from a device that had not looked. Persistent
+    // for the whole session on a boot that never attaches.
+    LIVE.attached = false;
+    try {
+      mount("scores", []);
+      expect(screen.getByText(/Counting who has scored Oslo/)).toBeTruthy();
+      expect(screen.queryByText(/Nobody here has scored/)).toBeNull();
+      expect(screen.queryByText(/Nothing scored yet/)).toBeNull();
+    } finally {
+      LIVE.attached = true;
+    }
+  });
+
+  it("…and DOES conclude once the boot has landed", () => {
+    // The control, so the arm above cannot be satisfied by never
+    // concluding: the same empty card, attached, still says so.
+    mount("scores", []);
+    expect(screen.getByText(/Nothing scored yet/)).toBeTruthy();
+    expect(screen.queryByText(/Counting who has scored/)).toBeNull();
   });
 
   it("says nothing about a second crowd when there is not one", () => {

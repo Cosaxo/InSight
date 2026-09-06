@@ -905,11 +905,17 @@ function ScoresLens({ qs, shortName, scope }: {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
         <LlEmpty>
-          {rates.length
-            ? (mineOnly
-              ? <>Just your score so far.</>
-              : <>Nobody here has scored {shortName} yet.</>)
-            : <>Nothing scored yet — questions that rate {shortName} land here.</>}
+          {/* Before the network boot completes this card has read nothing,
+              so "nobody has scored it" is an assertion about the world made
+              by a device that has not looked — the same hole the cohort
+              hero closed with `LIVE.attached` and this lens did not. */}
+          {!LIVE.attached
+            ? <>Counting who has scored {shortName}…</>
+            : rates.length
+              ? (mineOnly
+                ? <>Just your score so far.</>
+                : <>Nobody here has scored {shortName} yet.</>)
+              : <>Nothing scored yet — questions that rate {shortName} land here.</>}
         </LlEmpty>
         {!!asks.length && <PlaceAsks asks={asks} total={askTotal} />}
       </div>
