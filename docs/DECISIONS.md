@@ -40838,7 +40838,7 @@ paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
 
-## D388 · The other two lanes leave first paint, and three stale notes are why they were still there
+## D391 · The other two lanes leave first paint, and three stale notes are why they were still there
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
 on being told the daily's archive was out and the feed's twins were not:
