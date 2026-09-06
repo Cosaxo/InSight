@@ -126,6 +126,9 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **3.4 Only after 24–48h of App Check metrics showing verified
       requests near 100%,** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
+- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+      TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
+      committed and not applied** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.7 Add a second operator uid** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.8 Put back the two access controls that were loosened on
       2026-08-12 to unblock the build-11 release (D117)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
