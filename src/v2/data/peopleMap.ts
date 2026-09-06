@@ -34,7 +34,7 @@
 // no RNG anywhere — same inputs, same field, so the whole pipeline is
 // testable without a device and the constellation cannot reshuffle
 // between renders.
-import { estimateTheta } from "./patternsMap";
+import { DEFAULT_LAMBDA_U, estimateTheta } from "./patternsMap";
 
 /** The drawn frame — the shared instrument's square field. */
 export const PEOPLE_W = 352;
@@ -206,6 +206,21 @@ export interface PeopleFoldOpts {
    * population, because knowing a friend when you see one outranks a
    * city band you already know. */
   circle?: ReadonlySet<string>;
+  /**
+   * The viewer's OWN evidence, when the caller has more of it than the
+   * two-option pool carries (D384): every answer the published rows can
+   * encode — ordinal and pick items included — as the centred residuals
+   * the fit is written in. Strangers are still placed from the fetched
+   * two-option lists (a voter row is one option index on one two-option
+   * question); the viewer's dot is solved from everything known about
+   * them, which is the honesty rule pointed at the one person the lens
+   * can know that much about. Absent, the viewer is solved from the pool
+   * like everyone else.
+   */
+  viewerObs?: readonly { L: readonly number[]; r: number }[];
+  /** The device ridge, as the fit published it (D383); the shipped value
+   * otherwise. Both solves — strangers' and the viewer's — use it. */
+  lambda?: number;
 }
 
 export function foldPeople(
@@ -258,11 +273,12 @@ export function foldPeople(
     }
   }
 
+  const lambda = opts.lambda ?? DEFAULT_LAMBDA_U;
   const placed: PlacedPerson[] = [];
   for (const a of acc.values()) {
     if (a.shared < minShared) continue;
     if (opts.keep && !opts.keep(a.uid, a.anchors)) continue;
-    const u = unit(estimateTheta(a.obs, k));
+    const u = unit(estimateTheta(a.obs, k, lambda));
     const t = Math.max(0, Math.min(1, (a.shared - minShared) / Math.max(1, fetched.length - minShared)));
     placed.push({
       uid: a.uid,
@@ -283,7 +299,13 @@ export function foldPeople(
     });
   }
 
-  const meU = unit(estimateTheta(mineAll.map((i) => ({ L: i.L, r: (i.mine as number) - i.marginal })), k));
+  const meU = unit(estimateTheta(
+    opts.viewerObs && opts.viewerObs.length
+      ? opts.viewerObs
+      : mineAll.map((i) => ({ L: i.L, r: (i.mine as number) - i.marginal })),
+    k,
+    lambda,
+  ));
   const mePx = meU[0] ?? 0;
   const mePy = meU[1] ?? 0;
 

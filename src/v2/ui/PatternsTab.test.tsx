@@ -45,6 +45,10 @@ const item = (qid: string, L: number[], mine: number | null) => ({
 
 vi.mock("../data/patterns", () => ({
   default: {
+    // D384: the viewer's evidence and the published ridge, read by the
+    // People lens's own solve — empty and the shipped value here
+    evidence: () => [],
+    lambdaU: () => 0.5,
     ready: () => h.ready,
     hasLoadings: () => h.hasLoadings,
     pool: () => h.pool,

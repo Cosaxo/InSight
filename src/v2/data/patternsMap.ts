@@ -87,49 +87,117 @@ export function edgesOf(U: readonly number[][], per = 3): MapEdge[] {
 
 // ── the Oracle's own arithmetic ─────────────────────────────────────────
 
+/** The device ridge the shipped `estimateTheta` was written at. The
+ * loadings doc publishes the ridge its scorecard was measured at as
+ * `lambdaU` (D383) and callers pass it through; this is the fallback for
+ * a document that predates the field. */
+export const DEFAULT_LAMBDA_U = 0.5;
+
 /**
- * The viewer's latent vector, estimated on the DEVICE from their own
- * answers and the published loadings: ridge regression, K×K, closed
- * form. Nothing leaves the phone — the guess is a fold over two things
- * the phone already holds.
+ * The viewer's latent vector AND the posterior precision it came with,
+ * estimated on the DEVICE from their own answers and the published
+ * loadings: ridge regression, K×K, closed form. Nothing leaves the phone
+ * — the solve is a fold over two things the phone already holds.
  *
- * obs.r is the centred encoded answer (±1 minus the question's marginal),
- * matching the server fit's own residual.
+ * `obs.r` is the centred encoded answer (±1 minus the question's marginal
+ * for a two-option item; the standardised index for an ordinal one; the
+ * centred pick for a one-hot pseudo-item — D383's `items` metadata says
+ * which), matching the server fit's own residual.
+ *
+ * `invA` is (Σ L Lᵀ + λI)⁻¹ — the posterior covariance up to the noise
+ * scale. `Lᵀ invA L` for a candidate loading is how much of that loading
+ * the viewer's answers leave UNDETERMINED, which is what the
+ * information rule (`mostInformative`) ranks by. Measured 2026-09-06
+ * before this shipped: using the same quantity to SHRINK the guess helps
+ * at λ = 0.5 (0.946 → 0.902 bits on the probe's world) and hurts once λ
+ * is tuned up (0.903 → 0.909 at λ = 2) — the two are one knob twice, and
+ * the nightly sweep already tunes λ by the scorecard — so the guess stays
+ * `marginal + θ·L` and the precision serves the question choice alone.
  */
-export function estimateTheta(
+export function ridgeSolve(
   obs: readonly { L: readonly number[]; r: number }[],
   k: number,
-  lambda = 0.5,
-): number[] {
-  // A = Σ L Lᵀ + λI ; b = Σ r·L ; θ = A⁻¹ b, by Gaussian elimination —
-  // K is 8, the solve is nothing.
-  const A: number[][] = Array.from({ length: k }, (_, i) =>
-    Array.from({ length: k }, (_, j) => (i === j ? lambda : 0)));
+  lambda = DEFAULT_LAMBDA_U,
+): { theta: number[]; invA: number[][] } {
+  // A = Σ L Lᵀ + λI ; b = Σ r·L ; θ = A⁻¹ b, and A⁻¹ itself by Gauss–Jordan
+  // on [A | I] — K is 8, the whole thing is a few hundred multiplies.
+  const M: number[][] = Array.from({ length: k }, (_, i) =>
+    Array.from({ length: 2 * k }, (_, j) => (j === i ? lambda : j === k + i ? 1 : 0)));
   const b: number[] = Array.from({ length: k }, () => 0);
   for (const o of obs) {
     for (let i = 0; i < k; i++) {
-      b[i] += o.r * (o.L[i] ?? 0);
-      for (let j = 0; j < k; j++) A[i][j] += (o.L[i] ?? 0) * (o.L[j] ?? 0);
+      const li = o.L[i] ?? 0;
+      b[i] += o.r * li;
+      for (let j = 0; j < k; j++) M[i][j] += li * (o.L[j] ?? 0);
     }
   }
   for (let col = 0; col < k; col++) {
     let piv = col;
-    for (let row = col + 1; row < k; row++) if (Math.abs(A[row][col]) > Math.abs(A[piv][col])) piv = row;
-    if (piv !== col) { [A[col], A[piv]] = [A[piv], A[col]]; [b[col], b[piv]] = [b[piv], b[col]]; }
-    const d = A[col][col] || 1e-9;
-    for (let row = col + 1; row < k; row++) {
-      const f = A[row][col] / d;
-      for (let j = col; j < k; j++) A[row][j] -= f * A[col][j];
-      b[row] -= f * b[col];
+    for (let row = col + 1; row < k; row++) if (Math.abs(M[row][col]) > Math.abs(M[piv][col])) piv = row;
+    if (piv !== col) [M[col], M[piv]] = [M[piv], M[col]];
+    const d = M[col][col] || 1e-9;
+    for (let j = 0; j < 2 * k; j++) M[col][j] /= d;
+    for (let row = 0; row < k; row++) {
+      if (row === col) continue;
+      const f = M[row][col];
+      if (f === 0) continue;
+      for (let j = 0; j < 2 * k; j++) M[row][j] -= f * M[col][j];
     }
   }
-  const theta = Array.from({ length: k }, () => 0);
-  for (let row = k - 1; row >= 0; row--) {
-    let s = b[row];
-    for (let j = row + 1; j < k; j++) s -= A[row][j] * theta[j];
-    theta[row] = s / (A[row][row] || 1e-9);
+  const invA = M.map((r) => r.slice(k));
+  const theta = Array.from({ length: k }, (_, i) => {
+    let s = 0;
+    for (let j = 0; j < k; j++) s += invA[i][j] * b[j];
+    return s;
+  });
+  return { theta, invA };
+}
+
+/** The viewer's latent vector alone — the shape every existing caller
+ * reads; `ridgeSolve` is the same solve with its precision kept. */
+export function estimateTheta(
+  obs: readonly { L: readonly number[]; r: number }[],
+  k: number,
+  lambda = DEFAULT_LAMBDA_U,
+): number[] {
+  return ridgeSolve(obs, k, lambda).theta;
+}
+
+/** How much of a loading the viewer's answers leave undetermined —
+ * `Lᵀ invA L`, the predictive variance of θ·L up to the noise scale.
+ * Large for a direction no answered question points along; small once
+ * the answers have pinned it. */
+export function undetermined(invA: readonly number[][], L: readonly number[]): number {
+  const k = invA.length;
+  let s = 0;
+  for (let i = 0; i < k; i++) {
+    let row = 0;
+    for (let j = 0; j < k; j++) row += invA[i][j] * (L[j] ?? 0);
+    s += (L[i] ?? 0) * row;
   }
-  return theta;
+  return s;
+}
+
+/**
+ * Which question to ask next: the one whose loading points where the
+ * viewer's vector is least determined — the information rule (the
+ * owner's call, 2026-09-06, on ALGORITHM-REFLECTION §5.3). Ties keep the
+ * candidates' order, so the choice is deterministic. Returns the index
+ * into `candidates`, or −1 for none.
+ *
+ * It makes the Oracle learn the viewer fastest and, for a while, look
+ * worst — it deliberately asks what it cannot yet call. The meter is
+ * honest about that either way; the opposite rule flatters the meter and
+ * learns slowly.
+ */
+export function mostInformative(invA: readonly number[][], candidates: readonly { L: readonly number[] }[]): number {
+  let best = -1;
+  let bestGain = -Infinity;
+  candidates.forEach((c, i) => {
+    const g = undetermined(invA, c.L);
+    if (g > bestGain + 1e-12) { bestGain = g; best = i; }
+  });
+  return best;
 }
 
 /** The sealed guess: P(option 0), from the question's own marginal plus

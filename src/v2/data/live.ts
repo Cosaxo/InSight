@@ -4237,6 +4237,42 @@ const patternsMine = perRev((): number => {
   return mine;
 });
 
+/**
+ * The viewer's answers to every item the candidate engine's corpus can
+ * name (D383/D384): qid → option index, over the daily bank, the core
+ * feed and the instrument items. The Oracle's and the People lens's
+ * device solves read the viewer through this rather than through the
+ * two-option view models, so an ordinal or a pick answer counts as
+ * evidence about them on day one — the fit's `items` metadata says how
+ * each encodes.
+ *
+ * From the BANKS and the vote mirror, like `patternsMine` above and for
+ * the same reason: a question you answered is evidence about you whether
+ * or not its crowd counts have landed on this device, and the instrument
+ * items' aggregates are usually not cached on the Patterns tab. `vote()`
+ * stores the option index as a string and refuses anything else, so the
+ * parse below cannot invent an index; a stored value that is not one
+ * (a catalogue entity, a rank order) is skipped. Core only, D161's rule:
+ * the tail's answers are interest-selected and never enter either fold.
+ */
+const answeredIndex = perRev((): Record<string, number> => {
+  const out: Record<string, number> = {};
+  const take = (q: QuestionDoc & { id: string }): void => {
+    if (q.active === false) return;
+    const opts = q.options;
+    if (!Array.isArray(opts) || opts.length < 2) return;
+    if (!(q.surface === "daily" || q.surface === "test" || (q.surface === "feed" && isCore(q)))) return;
+    const v = state.votes[q.id];
+    if (v === undefined) return;
+    const idx = Number(v);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= opts.length) return;
+    out[q.id] = idx;
+  };
+  for (const q of state.questions) take(q);
+  for (const q of state.feedBank) take(q);
+  return out;
+});
+
 const LIVE = {
   social: SOCIAL,
   near: NEAR,
@@ -5813,6 +5849,13 @@ const LIVE = {
    * data only (D166 §1), so a build with no fit behind it has no gate to
    * open.
    */
+  /** The viewer's answers as option indexes over the fit's whole corpus —
+   * the Oracle's and the People lens's evidence (D384). Empty in a demo
+   * build, like every other reading the Patterns tab takes. */
+  answeredIndex(): Record<string, number> {
+    if (!this.enabled || torndown) return {};
+    return answeredIndex();
+  },
   patternsSignal(): PatternsSignal {
     if (!this.enabled) return {};
     // …and NOTHING once the account is going away. `torndown` is

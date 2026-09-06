@@ -33,7 +33,7 @@
 import React from "react";
 import LIVE from "../data/live";
 import { BUDGET_PAUSED_BODY, BUDGET_PAUSED_HEAD } from "../data/budgetMode";
-import type { PoolItem } from "../data/patterns";
+import PATTERNS, { type PoolItem } from "../data/patterns";
 import {
   countryOf,
   foldPeople,
@@ -122,6 +122,10 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   );
   const myCo = countryOf(LIVE.anchors().city);
   const foldOpts = React.useMemo<PeopleFoldOpts>(() => ({
+    // the viewer's own dot from everything they have answered — ordinal
+    // and pick items included (D384) — under the ridge the fit published
+    viewerObs: PATTERNS.evidence(),
+    lambda: PATTERNS.lambdaU(),
     circle: circleSet,
     keep: pop === "circle"
       ? (uid) => circleSet.has(uid)

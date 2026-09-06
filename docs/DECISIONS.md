@@ -40569,3 +40569,88 @@ Measured before the push: 729 functions tests (`patternsAls` at 17, the
 sweep at 27, the projection pin at 9), `tsc` clean in `functions/`,
 `check:monitoring`, `check:deploy-targets`, `check:appcheck`,
 `check:content`, `check:docs`, `check:figures`.
+
+## D384 · The device reads the whole corpus: the viewer's evidence in every kind, the ridge off the document, and the Oracle asks what it knows least about
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §§2.3, 5.1–5.3 and
+the second row that page put on `OWNER-LIST.md` — *"go with your
+recommendation"* — so the Oracle asks the question it learns most from.
+The client half of D383: the rows and metadata that record publishes are
+read here.
+
+### The evidence
+
+`PATTERNS.evidence()` is the viewer's every answer the published rows can
+encode, as the centred residuals the fit is written in — under the
+candidate engine's rows, the whole corpus: a two-option answer as ±1
+minus the row's marginal, an ordinal one (the instrument items among
+them) as the index standardised by the row's mean and sd, a pick as ±1
+against each of the question's one-hot rows; under the online engine's
+rows, its two-option answers alone. It reads the viewer through a new
+store member, `LIVE.answeredIndex()` — the banks × the vote mirror, the
+way `patternsMine` already counts — because an instrument item's crowd
+counts are usually not cached on the Patterns tab and a question you
+answered is evidence about you whether or not they are. `vote()` stores
+the option index as a string and refuses anything else, so the parse
+cannot invent an index. Core only, D161's rule, and the drawn pool does
+not change: `pool()` still joins two-option questions, the Map draws
+them, and the mount gate counts them (D383). What changes is what the
+two device solves know about the viewer:
+
+- **The Oracle's seal** solves θ from the evidence minus the target's own
+  question, under the ridge the document publishes.
+- **The People lens's own dot** is solved from the same evidence
+  (`foldPeople`'s new `viewerObs`); strangers are still placed from the
+  fetched two-option lists, because a voter row is one option index on one
+  two-option question. The honesty rule pointed at the one person the lens
+  can know that much about.
+
+### The ridge
+
+`patternsMap.ridgeSolve` is `estimateTheta` with its posterior precision
+kept — (Σ L Lᵀ + λI)⁻¹ by Gauss–Jordan, K = 8 — and λ is
+`loadings.lambdaU`, the device ridge the engine's scorecard was measured
+at (D383 sweeps four and publishes the best), with the shipped 0.5 as
+the fallback for a document that predates the field. One number in one
+place, chosen by measurement, read by both solves.
+
+### The next question
+
+`nextAsk` was `pool().find(unanswered && n ≥ 8)` — the first eligible
+question in pool order. It is now the eligible question whose loading
+points where the viewer's vector is least determined: `Lᵀ A⁻¹ L`, the
+predictive variance of θ·L, maximised over the candidates
+(`mostInformative`; ties keep pool order, so the choice is deterministic;
+O(candidates × K²), no reads). It learns the viewer fastest and looks
+worst for a while, because it deliberately asks what it cannot yet call;
+the meter is honest about that either way, which is why it was the
+recommendation.
+
+### The recommendation that changed, and why
+
+§5.1 proposed shrinking the guess by that same variance — "the posterior
+instead of the clamp". Measured before building it, on the probe's world
+with a batch-fitted model and fresh people scored one step ahead: the
+shrink helps at λ = 0.5 (0.946 → 0.902 bits at one prior answer, 0.948 →
+0.895 at two) and hurts once λ is tuned up (0.903 → 0.909 at λ = 2,
+0.929 → 0.933 at λ = 4). The two are one knob twice — both temper an
+under-regularised θ — and D383's sweep already tunes λ by the scorecard
+every night. A second knob the scorecard does not see would make the
+device's guess and the server's score speak different currencies, which
+is the one thing D325 forbids. So the guess stays `marginal + θ·L`, the
+clamp stays as the floor it always was, and the precision serves the
+question choice alone. The number is in `patternsMap.ts`'s header so the
+next reader does not re-propose it without re-measuring.
+
+### What changed
+
+`src/v2/data/patternsMap.ts` (`ridgeSolve`, `undetermined`,
+`mostInformative`, `DEFAULT_LAMBDA_U`), `src/v2/data/patterns.ts`
+(`evidence`, `lambdaU`, the doc's `items`/`lambdaU`/`engine` read, `seal`
+and `nextAsk`), `src/v2/data/peopleMap.ts` (`viewerObs`, `lambda`),
+`src/v2/ui/PatternsPeople.tsx` (passes both), `src/v2/data/live.ts`
+(`answeredIndex`, on the pinned member surface and the live fixture).
+Zero reads: every input was already on the device. Measured before the
+push: `tsc -b` clean, 2,679 client tests, `check:globals` at its
+baseline, eslint clean on every touched file.

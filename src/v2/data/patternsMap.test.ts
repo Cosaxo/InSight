@@ -11,14 +11,18 @@
 //      the ACTUAL answer against the sealed posterior.
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_LAMBDA_U,
   PATTERNS_SIM_SHRINK,
   edgesOf,
   estimateTheta,
   mapGeometry,
+  mostInformative,
   nearOf,
   oracleGuess,
+  ridgeSolve,
   simOf,
   surprisalBits,
+  undetermined,
   type MapNode,
 } from "./patternsMap";
 
@@ -102,5 +106,50 @@ describe("the Oracle's arithmetic", () => {
     for (const t of theta) expect(t).toBe(0);
     const g = oracleGuess(theta, vec(1, 0), 0.4);
     expect(g.p0).toBeCloseTo(0.7, 6);
+  });
+});
+
+// ── the solve's precision, and the question it chooses (D384) ─────────
+describe("the ridge solve keeps its precision", () => {
+  it("returns the inverse it solved with, and the same θ estimateTheta gives", () => {
+    const obs = [
+      { L: vec(1, 0), r: 0.8 },
+      { L: vec(0.6, 0.8), r: -0.4 },
+      { L: vec(0, 0, 1), r: 0.3 },
+    ];
+    const { theta, invA } = ridgeSolve(obs, K, 0.5);
+    expect(theta).toEqual(estimateTheta(obs, K, 0.5));
+    // A · invA = I, with A = Σ L Lᵀ + λI
+    const A = Array.from({ length: K }, (_, i) => Array.from({ length: K }, (_, j) => (i === j ? 0.5 : 0)));
+    for (const o of obs) for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) A[i][j] += o.L[i] * o.L[j];
+    for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {
+      let s = 0;
+      for (let l = 0; l < K; l++) s += A[i][l] * invA[l][j];
+      expect(s).toBeCloseTo(i === j ? 1 : 0, 9);
+    }
+    // the shipped default still holds where nothing is passed
+    expect(DEFAULT_LAMBDA_U).toBe(0.5);
+    expect(estimateTheta(obs, K)).toEqual(estimateTheta(obs, K, 0.5));
+  });
+
+  it("an unanswered direction is undetermined, an answered one is pinned", () => {
+    const { invA } = ridgeSolve([{ L: vec(1, 0), r: 1 }, { L: vec(1, 0), r: 1 }, { L: vec(1, 0), r: -1 }], K, 0.5);
+    // three answers along axis 0: variance 1/(3 + 0.5); nothing along axis 1: 1/0.5
+    expect(undetermined(invA, vec(1, 0))).toBeCloseTo(1 / 3.5, 9);
+    expect(undetermined(invA, vec(0, 1))).toBeCloseTo(2, 9);
+    // a norm-scaled loading is scaled twice — it is a variance
+    expect(undetermined(invA, vec(0, 2))).toBeCloseTo(8, 9);
+  });
+
+  it("asks about what it knows least: the loading along the unpinned axis, ties to the first", () => {
+    const { invA } = ridgeSolve([{ L: vec(1, 0), r: 1 }], K, 0.5);
+    const cands = [{ L: vec(0.9, 0.1) }, { L: vec(0, 1) }, { L: vec(0, 1) }];
+    expect(mostInformative(invA, cands)).toBe(1);
+    expect(mostInformative(invA, [cands[0]])).toBe(0);
+    expect(mostInformative(invA, [])).toBe(-1);
+    // and once axis 1 is answered too, the strong axis-0 loading is what is
+    // left to learn about
+    const after = ridgeSolve([{ L: vec(1, 0), r: 1 }, { L: vec(0, 1), r: 1 }, { L: vec(0, 1), r: -1 }, { L: vec(0, 1), r: 1 }], K, 0.5);
+    expect(mostInformative(after.invA, cands)).toBe(0);
   });
 });

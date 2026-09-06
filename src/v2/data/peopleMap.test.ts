@@ -118,6 +118,21 @@ describe("foldPeople", () => {
     expect(Math.abs(field.me.x - aX)).toBeLessThan(Math.abs(field.me.x - bX));
   });
 
+  it("solves the viewer from their own wider evidence when the caller has it (D384)", () => {
+    // every pool item loads along axis 0; evidence along axis 1 alone
+    // moves the viewer's dot off the crowd's axis, and the strangers are
+    // placed exactly as before
+    const base = foldPeople(ITEMS, FETCHED, rowsOf);
+    const wide = foldPeople(ITEMS, FETCHED, rowsOf, { viewerObs: [{ L: [0, 1], r: 1 }], lambda: 0.5 });
+    expect(Math.abs(wide.me.x - PEOPLE_C)).toBeLessThan(Math.abs(base.me.x - PEOPLE_C));
+    expect(wide.me.y).toBeGreaterThan(PEOPLE_C);
+    expect(wide.placed.map((p) => [p.uid, p.agree, p.shared])).toEqual(base.placed.map((p) => [p.uid, p.agree, p.shared]));
+    // the card's own count is still the viewer's two-option answers
+    expect(wide.answered).toBe(base.answered);
+    // an empty list means "solve me like everyone else"
+    expect(foldPeople(ITEMS, FETCHED, rowsOf, { viewerObs: [] }).me).toEqual(base.me);
+  });
+
   it("names the tie by the RAREST shared answer, with its crowd share", () => {
     // a1 agrees on q7, whose option carries a 10% marginal share — rarer
     // than the 50% of every other shared answer

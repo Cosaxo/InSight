@@ -634,6 +634,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // `{}` is "no fit has published", which reads as a closed gate through
     // patternsReady's own defaults rather than through a second branch.
     patternsSignal: () => ({ ...(opts.patterns ?? {}) }),
+    // no answers in the fixture's corpus by default — the evidence is empty
+    // and every device solve stays at the origin, the honest cold state
+    answeredIndex: () => ({}),
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
     // The daily pulse (D139): the fixture mirrors the real pair — the
