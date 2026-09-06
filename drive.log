@@ -1,0 +1,9 @@
+
+sdk_gphone64_x86_64 — com.cosaxo.insight
+  WebView 412×891 @2.625
+Warning: Detected unsettled top-level await at file:///home/runner/work/InSight/InSight/scripts/device-screens.mjs:408
+  await runProfile(profileId, { label: model, width: size.w, height: size.h, scale: size.s }, {
+  ^
+
+
+
