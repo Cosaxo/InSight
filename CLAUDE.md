@@ -526,7 +526,7 @@ an emergency rules fix.
   What a session owes before a PR is mergeable is unchanged and is now
   the whole of it: a green head with `main` already merged in and its
   decision numbers already moved (D299) — off a **collision** only,
-  because since D390 the hole a move leaves behind is a printed note
+  because since D393 the hole a move leaves behind is a printed note
   rather than a failure, so no pull request waits on another's merge to
   go green. Then say so and stop — a
   session does not merge its own work, and the owner's click is the

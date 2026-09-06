@@ -52,14 +52,14 @@
 // THE OTHER HALF IS A NOTE, and the first run of this file is why. A
 // citation left behind points at a number no record claims, which reads
 // like a fault worth failing on — so it was written as one, and it failed
-// on the record introducing it: D390 cites D387, D388 and D389 while
+// on the record introducing it: D393 cites D387, D388 and D389 while
 // naming the three pull requests holding them. That is not a partial
 // renumber. A hole and a citation into that hole are ONE fact seen twice —
 // this head does not have that number, because another head does — so
 // failing on the second while excusing the first just puts merge order
 // back under a different name. Both are reported together by
 // `unclaimedNumbers`, which names the citers when there are any, because
-// "D387 is unclaimed and D390 points at it" is the sentence a reader
+// "D387 is unclaimed and D393 points at it" is the sentence a reader
 // wants. What survives unrefused is a citation typo landing on a free
 // number; it prints every run, and the alternative was a gate that made
 // three open branches take turns.
