@@ -1024,14 +1024,15 @@ export class DailySplit extends React.Component {
     // feed hierarchy: today's question wins on type alone — 37px against the
     // feed's 24.5px. A tinted band did the work of a border, not a zone.
     const hier = !!this.props.feedHier;
-    const dailyCard = h('div', { style: { ...col(14), position: 'relative', padding: '4px 1px 20px' } },
+    const dailyCard = h('div', { style: { ...col(14), position: 'relative', padding: '4px 1px 6px' } },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 18 } },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 7 } },
           h('span', { 'aria-hidden': true, style: { width: 6, height: 6, borderRadius: '50%', background: topicCol, flexShrink: 0 } }),
           h('span', { className: 'kicker', style: { marginBottom: 0 } }, (S.dayLabel || dayNames[wIdx]) + (catLabel ? ' \u00b7 ' + catLabel : ''))),
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
-        h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
+        // the \u24d8 icon button that sat here became the underlined words
+        // under the ballot (2026-09-06) \u2014 no icon buttons in the kicker row
         h(PassiveTag, { q: S, answered: voted })),
       chipRow,
       // the prompt voice (2026-09-02): the day's question is the one thing
@@ -1054,16 +1055,20 @@ export class DailySplit extends React.Component {
                 const t = Math.round((i * 100) / Math.max(1, S.options.length - 1));
                 return h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
               }))
-          // asking: ONE split ballot (2026-09-02). Two sides sit side by
-          // side, divided by a hairline seam — and the seam is what moves
-          // to the crowd's split once you vote, so the question and its
-          // answer are the same shape. Three or more sides stack as rows
-          // inside the same block. Each side keeps its own hue as a mark;
-          // the ground is neutral, so the filled result reads as the
-          // payoff rather than as a second version of the same tiles.
-          : h('div', { style: { display: 'grid', gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr', gap: 2, height: S.options.length === 2 ? 88 : undefined, borderRadius: 20, overflow: 'hidden', background: 'var(--rule)', border: LINE } },
-            S.options.map((o) => h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { minHeight: 56, background: 'var(--surface-2)', border: 'none', borderRadius: 0, padding: '0 18px', display: 'flex', flexDirection: S.options.length === 2 ? 'column' : 'row', alignItems: S.options.length === 2 ? 'flex-start' : 'center', justifyContent: 'center', gap: S.options.length === 2 ? 8 : 12, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease' } },
-              h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
+          // asking: ONE split ballot, as a hairline ROW since 2026-09-06
+          // (VISION-2026-09-06 §5.1). The box goes: two paper halves
+          // between a top and bottom rule, the seam an inner hairline —
+          // and the seam is still what moves to the crowd's split once
+          // you vote, so the question and its answer are the same shape.
+          // Three or more sides stack inside the same rules. The colour
+          // dots go with the box; the option's hue survives as --oc,
+          // drawn only on press (a tint and an underline — .ds-half in
+          // styles.css). The halves' height is its own literal: the
+          // repo's --field-size is a 16px input FONT size (the iOS-zoom
+          // guard), not the prototype's 56px tap height — same name, two
+          // tokens, and the trap §5.1 exists to name.
+          : h('div', { className: 'ds-ballot', style: { display: 'grid', gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr', borderTop: LINE, borderBottom: LINE } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press ds-half', onClick: () => this.castVote(S, o.id), style: { '--oc': o.color, minHeight: 56, background: 'transparent', border: 'none', borderLeft: S.options.length === 2 && i === 1 ? LINE : 'none', borderTop: S.options.length > 2 && i > 0 ? LINE : 'none', borderRadius: 0, padding: '0 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', textAlign: 'center', WebkitAppearance: 'none', boxShadow: 'none' } },
               h('span', { style: { fontWeight: 700, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.015em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, counts, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
@@ -1146,6 +1151,16 @@ export class DailySplit extends React.Component {
                 // always naming.
                 onClick: () => NAV.goTab('you'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
+      // the \u24d8, as a word under the ballot (2026-09-06, VISION-2026-09-06
+      // \u00a75.2): the context sheet keeps its two names \u2014 a sponsored card
+      // must say what it is up front, so its word stays the stronger one.
+      // The design draws *answer anonymously* beside this; that control is
+      // the surface of the open D98-amendment decision (OWNER-LIST.md) and
+      // lands in this same row the day its row is ticked \u2014 built neither
+      // silently nor dropped silently (D334).
+      st.beat !== S.id && h('div', { style: { display: 'flex', alignItems: 'center', gap: 18, marginTop: -2 } },
+        h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, style: { border: 'none', background: 'none', padding: '4px 0', cursor: 'pointer', fontFamily: BRIC, fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textDecoration: 'underline', textDecorationColor: 'color-mix(in oklch, var(--rule), var(--ink) 10%)', textUnderlineOffset: 3, WebkitAppearance: 'none' } },
+          S.bg ? 'what you need to know' : 'why this question')),
       // The live daily is a world-scope question, so it carries the D83
       // world-takes surface: anonymous, one take per person, enforced
       // moderation behind it. Suppressed in the demoInProd fallback — that

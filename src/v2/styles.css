@@ -900,6 +900,14 @@ button.card:active,
 @keyframes popIn { from { opacity: 0; transform: translateY(9px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes barIn { from { width: 0; } }
 @keyframes chipPop { from { transform: scale(0.5); opacity: 0; } to { transform: none; opacity: 1; } }
+/* the daily's ballot: two paper halves on one hairline row (2026-09-06,
+   daily-split.jsx). The pressed half tints and underlines in its own
+   side's hue (--oc, set inline per option) — the one place the option's
+   colour survives the boxless redraw before the reveal wears it. The
+   transform:none beats .press's own :active scale: the halves are one
+   block, and one shrinking half would break the seam. */
+.ds-half { transition: background .16s ease, box-shadow .16s ease; }
+.ds-half:active { transform: none; background: color-mix(in oklch, var(--oc) 9%, transparent); box-shadow: inset 0 -3px 0 var(--oc); }
 @keyframes tilePick { 0% { transform: scale(0.96); } 55% { transform: scale(1.012); } 100% { transform: none; } }
 /* a duel tile's share rises from its own floor — the fill IS the number */
 @keyframes wfFillUp { from { height: 0; } }
