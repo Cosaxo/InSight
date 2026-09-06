@@ -42950,8 +42950,79 @@ not have. Merge first, then paste — both on `OWNER-LIST.md` § Clicks.
   it (§ Decisions).
 - **Shift A's brief** — optional; with both, the phones are screened every
   two hours (§ Clicks).
+- **Whether the Android half deserves a runner that does not crash** —
+  a larger hosted runner is paid, a self-hosted machine with a GPU is a
+  machine; both are the owner's money (§ Decisions). Until then the
+  lane reboots and reports.
+- **The Android Firebase secret** (§ Clicks) — the shell boots against a
+  placeholder project without it.
 
-### The first run
+### The first runs — eighteen requests in one night, and what each taught
 
-*(Run 34056990061 was in progress when this record was written; its
-outcome is appended below before the branch is pushed for review.)*
+The lane cannot be dispatched by name until its file is on `main` (the
+API answers 404 for a workflow that exists only on a branch), so it was
+exercised the way a shift will use it: a push to a `nightb-…-screens`
+request ref, eighteen times, each run fixing what the last one showed.
+The Device screens workflow numbers them 1–18; the first seven by id are
+34056990061, 34058702498, 34059918629, 34060292996, 34060750206,
+34061114032 and 34061299385.
+
+**iOS was mechanics, and it is done.** Run 1 built, booted an iPhone 17
+Pro simulator (iOS 26.5) and launched — into a SIGABRT eleven seconds
+later: the plist had been written beside the project and never linked
+into the bundle, so the auth plugin's `FirebaseApp.configure()` aborted
+the process. The release workflow's link step fixed that in run 2, where
+Maestro 2.10.0 drove the whole flow and PASSED — and published none of
+its eighteen screenshots, because it writes them under its own output
+directory, not the working directory; pointed at the results in run 6
+it also wrote a 205 MB simulator log there and GitHub refused the push.
+Run 10 was the first complete iOS result: 21 captures, 19 of them
+distinct screens — every Mirror stop, every lens, the profile, search,
+the safe areas in frame — with the daily ruler's Circle and 1v1 taps
+captured before their animation settled (a wait, unverified until the
+next run). The simulator's first boot takes five to eight minutes
+(iOS data migration), an install one; a whole iOS job is 20–30 minutes.
+
+**Android was the finding.** The emulator on GitHub's hosted Linux
+runners CRASHES — the process is gone, not hung; the host had 15 GB
+free — one to three minutes after the app's WebView starts drawing, on
+the Android 14 and 15 images, whatever the renderer: swiftshader_indirect
+with Vulkan, without it, with host composition and direct memory off,
+the Play Store build of the image. Eleven of twelve launches across
+runs 6–11 and 15–17 ended that way; `-gpu off` is not a thing those
+images support (they fall back to lavapipe, another host renderer). The
+Android 12 and 13 images never crashed and ran all 22 scenes — and
+cannot render the app: their WebViews predate `color-mix()`, `oklch` and
+`dvh`, so every capture was a colourless page with no cards and no
+sliders, which is a false finding on every screen. Android 15 renders it
+right and lived longest, six scenes. So the lane boots Android 15,
+`.github/device-screens/android-boot.sh` holds the boot with three
+attempts, and the drive runs that script again when the emulator dies
+under it, twice a run, carrying on from the scene it was about to do —
+a night usually gets its 22 screens across two or three boots, and a
+results ref that carries fewer says which landed. Along the way: the AVD
+home the tools disagreed on (`ANDROID_AVD_HOME`, run 3), a boot step that
+must never `adb wait-for-device` (it blocked to the job's timeout in run
+1), a log step whose adb calls are bounded (run 2 hung there), a cold
+start per scene that killed the devtools target (`page.reload()`, run 4)
+and then Playwright's own adb channel (run 5) — replaced by storage
+cleared and a reload in place, then a fresh attach, which held for 22
+scenes in runs 12 and 14 — and `GOOGLE_SERVICES_JSON`, which does not
+exist (the Play release that reads it has never run), so the lane boots
+the shell against a placeholder project until the owner adds it.
+
+**What the captures showed, on the first night, before any shift read
+them:** on Android the status bar's clock and icons are drawn OVER the
+header's avatar and search button — `StatusBar.overlaysWebView: true`
+with no top inset on Android, where iOS places the header under the
+notch correctly (visible in every Android launch capture); the word
+*establishment* runs 7–8px past its column on the Compare lens on both
+the iPhone SE geometry and the emulator; and a `<text>` "Trail running"
+19px past its box on the profile — on the Android 13 image, so read
+against a current WebView before it is believed. The first is exactly
+the class of defect the owner's ask named, and nothing else in the
+tree could have seen it.
+
+**Costs, measured:** the Chromium pass 3m12s for 66 screens in the
+shift's container; an Android job 12–25 minutes depending on reboots;
+an iOS job 20–30; a results ref 5–12 MB; the runner minutes free.

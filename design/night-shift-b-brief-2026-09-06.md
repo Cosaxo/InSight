@@ -120,7 +120,11 @@ since the last one — the results' INDEX.md names the SHA it screened. About 15
 Each is one orphan commit — PNGs, `INDEX.md`, `environment.txt`, the device's own logs, and on
 Android the script's `report.md`. Read `INDEX.md` first, then the `00-launch-*` captures (a
 splash that never hands over and a launch crash are both visible there and nowhere else), then
-the driven screens. If a results ref is missing when you look, the lane is still running or it
+the driven screens. The Android emulator on GitHub's runners crashes within minutes of the
+WebView drawing (D404 measured it on every image that renders the app); the lane reboots it
+twice, so an Android results ref may carry fewer than the 22 screens and `environment.txt`
+says how many boots it took — a screen that did not land is not a finding, and a night that
+got none says "unrun" for Android rather than guessing. If a results ref is missing when you look, the lane is still running or it
 died: check again later in the flow, and name it as unrun in the summary if it never came —
 never as green.
 
