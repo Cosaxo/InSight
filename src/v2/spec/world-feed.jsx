@@ -589,8 +589,13 @@ class WorldFeed extends React.Component {
               this.setState((st) => ({ shown: st.shown + WF_STEP }));
             }
             if (Math.abs(dy) < 4) return;
+            // opening the topics rail grows the sticky head; scroll anchoring
+            // then nudges scrollTop, which read as a scroll-down and hid the
+            // bar mid-use (2026-09-06's guard) — and while the rail is open
+            // the head never hides at all: you are using it
+            if (Date.now() - (this._headHold || 0) < 500) { this._lastY = y; return; }
             this._lastY = y;
-            const hide = dy > 0 && y > 60;
+            const hide = dy > 0 && y > 60 && !this.state.topicsOpen;
             if (hide !== this.state.headHide) this.setState({ headHide: hide });
           };
         }
@@ -4111,7 +4116,9 @@ class WorldFeed extends React.Component {
     if (skin === 'bare') {
       card.background = 'transparent'; card.border = 'none'; card.boxShadow = 'none';
       card.padding = '10px 1px 22px'; card.backgroundImage = 'none';
-      if (this.opts.v2) { card.borderTop = WF_LINE; card.padding = '20px 1px 24px'; }
+      // 22/26 since 2026-09-06: the rule-separated stream trades the boxes'
+      // gaps for air inside each card's own span
+      if (this.opts.v2) { card.borderTop = WF_LINE; card.padding = '22px 1px 26px'; }
     }
     if (snap) {
       // one question per view — the card fills most of the scroller; kicker
@@ -4416,26 +4423,44 @@ class WorldFeed extends React.Component {
     cand.sort((a, b) => ((pulled[SCENES.topicOf(b.id)] ? 0 : 1) - (pulled[SCENES.topicOf(a.id)] ? 0 : 1)) || (b.match - a.match));
     const sugg = cand[0] || null;
     const snap = this.props.density !== 'compact';
+    // the disclosure's own label: how much of the rail is on (2026-09-06 —
+    // the chips fold behind one chip, so the fold has to say what it holds)
+    const nOff = chips.filter((t) => cats[t.id] === false).length;
+    const topicsOpen = !!this.state.topicsOpen;
     return (
-      <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+      <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: this.opts.v2 ? 6 : 12, marginTop: 8 }}>
         {/* the rule sits ABOVE the chip row: it separates the daily card from
             the feed, and the first feed card brings its own hairline (the v2
             bare skin) — a bottom rule here would double it */}
         <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', flexDirection: 'column', gap: 10, margin: '6px -16px 0', padding: '12px 16px 10px', background: 'var(--surface-a, var(--surface))', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 15%)', transform: this.state.headHide ? 'translateY(-115%)' : 'none', opacity: this.state.headHide ? 0 : 1, pointerEvents: this.state.headHide ? 'none' : 'auto', transition: 'transform 0.32s ease, opacity 0.26s ease' }}>
+          {/* the rail folds behind one disclosure chip (2026-09-06): a row
+              you had to swipe to see the end of becomes a named door, and
+              the head at rest is a kicker and two controls */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="kicker" style={{ marginBottom: 0, flex: 1, minWidth: 0 }}>the feed</span>
+            {/* the sort control cycles hot → top → new instead of wearing a caret */}
+            <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot', shown: WF_PAGE })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
+            <button className="wf-chip" onClick={() => { this._headHold = Date.now(); this.setState({ topicsOpen: !topicsOpen, headHide: false }); }} aria-expanded={topicsOpen}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0, border: '0.5px solid ' + (topicsOpen || nOff ? 'color-mix(in oklch, var(--ink) 22%, var(--rule))' : 'var(--rule)'), background: topicsOpen ? 'color-mix(in oklch, var(--ink) 9%, var(--surface-2))' : 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>
+              {nOff === 0 ? 'all topics' : (chips.length - nOff) + ' of ' + chips.length + ' topics'}
+              <span aria-hidden="true" style={{ width: 5, height: 5, borderRight: '1.5px solid currentColor', borderBottom: '1.5px solid currentColor', transform: topicsOpen ? 'translateY(1px) rotate(-135deg)' : 'translateY(-1.5px) rotate(45deg)', opacity: 0.7, transition: 'transform .2s' }}></span>
+            </button>
+          </div>
+          {topicsOpen && (
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* the rail ends before the + rather than running under it: no chip is ever
               cut mid-word behind the button — the fade is the rail's own edge (data-ef) */}
           <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, padding: '2px 0' }}>
-            {/* one chip grammar in this rail: same shape, same size, same weight.
-                the sort control cycles hot → top → new instead of wearing a caret. */}
-            <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot', shown: WF_PAGE })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
             {chips.map((t, ci) => {
               const on = cats[t.id] !== false;
-              const col = t.color;
               return (
                 <React.Fragment key={t.id}>
-                  <button className="wf-chip" onClick={() => onToggle(t.id)} aria-pressed={on} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '0.5px solid ' + (on ? (col ? `color-mix(in oklch, ${col} 40%, var(--rule))` : 'color-mix(in oklch, var(--rule), var(--ink) 22%)') : 'var(--rule)'), background: on ? (col ? `color-mix(in oklch, ${col} 10%, var(--surface-2))` : 'var(--surface-2)') : 'transparent', color: on ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontWeight: on ? 700 : 600, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>
-                    {col && on && <span aria-hidden="true" style={t.know ? { width: 7, height: 7, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2px ${col}`, flexShrink: 0 } : { width: 6, height: 6, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
+                  {/* one neutral chip for every follow — the per-topic colours
+                      read as clutter here (2026-09-06); the hue still lives on
+                      every card's own kicker, so nothing is lost, only said
+                      once. On = ink ground and a check, off = an outline. */}
+                  <button className="wf-chip" onClick={() => onToggle(t.id)} aria-pressed={on} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '0.5px solid ' + (on ? 'var(--ink)' : 'var(--rule)'), background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontWeight: on ? 700 : 600, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap', transition: 'background .15s ease, color .15s ease, border-color .15s ease' }}>
+                    {on && <svg aria-hidden="true" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M1.5 5.2 4 7.6 8.6 2.4"></path></svg>}
                     {t.label.toLowerCase()}
                   </button>
                 </React.Fragment>
@@ -4448,6 +4473,7 @@ class WorldFeed extends React.Component {
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5 V19 M5 12 H19"></path></svg>
           </button>
           </div>
+          )}
         </div>
         {feedList.slice(0, this.state.shown).map((q, i) => (
           <React.Fragment key={q.id}>

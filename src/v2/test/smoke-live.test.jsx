@@ -1523,6 +1523,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // sections present.
   it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
     const expectNoBoundary = mountLive();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     expect(
       screen.queryByText("Communities"),
