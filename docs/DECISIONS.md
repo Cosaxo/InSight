@@ -40190,7 +40190,157 @@ political consent guard's five checks, and a sealed duel answer's own
 fields, every one of which could be deleted with the whole suite green.
 The baseline may only come down, the same shape as `check:globals` rule 4.
 
-## D384 · Question content is not first-paint bytes, and a gate says so
+## D381 · Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on
+
+**2026-09-06.** **Status:** binding as a RELEASE RECORD and a PRE-FLIGHT
+VERDICT. One number moved — `appBuild` 29 → 30 — and no code changed.
+This is the release prep for build 30, and what it found first is that
+build 29 had already gone out.
+
+### What the run list said
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 50 (`33651487283`, 2026-09-02T15:53:40Z) is the highest run in
+  `ios-release.yml`'s list, 50 of 50.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (16:00:26Z → 16:02:20Z, 1m 54s of transfer). `UPLOAD SUCCEEDED with no
+  errors`, delivery UUID `e82cc4de-1466-4ce8-800f-a58dfb33e8c9`,
+  6,143,472 bytes. **Build 29 is spent.**
+- Run 49 (`33650731413`, 15:46:32Z) is its dry run — same commit, seven
+  minutes earlier, step 17 `skipped`. Twelfth pair of this shape.
+- `appBuild` at run 50's **own `head_sha`** — `74c84a0`, D159's rule
+  rather than any commit someone merged — is **29**.
+- The tree at `0469f5e` reads **29**.
+
+29 is not greater than 29, so the verdict is **bump**, not *run as-is*.
+`appBuild` went 29 → 30 with `check:versions --fix`, which carried it into
+`android/app/build.gradle` and `ios/App/App.xcodeproj` — five numbers
+across three files. `LAUNCH-RUNBOOK.md` 5.6 followed, because
+`check:figures` owns that sentence and went red until it did.
+
+**Had this not been read, the dispatch would have cost ~150 minutes of
+macOS quota for nothing.** Every gate in the tree passes at a stale build
+number — they compare the tree against itself — and App Store Connect
+refuses a reused number *after* the transfer completes. The archive signs,
+the export signs, both entitlement gates pass, ~6 MB moves, and Apple says
+no.
+
+### The remedy for this exact failure ran, and was empty
+
+D339 caught the same thing five days earlier and did more than record it:
+it added step 18, *Fire the release recorder*, to `ios-release.yml`, on
+the reasoning that **the step which uploaded is the one thing that cannot
+forget the upload happened.** Build 29 is the first release since that
+step existed — verified rather than inferred: at `8abb8e5`, which runs 47
+and 48 archived, the workflow's last two steps are `Upload to App Store
+Connect` and `What happens next` with no recorder between them, and at
+`74c84a0` the step is there. Its entire output was:
+
+```
+##[notice]release recorder not wired (ROUTINE_RELEASE_FIRE_URL /
+ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand,
+docs/IOS-RELEASE.md has the shape
+```
+
+The step is written to be inert and never red when the variable and the
+secret are missing, and that is right — a build that uploaded is delivered
+whatever the step does, and a red run over a shipped build is the
+confusion D339 itself records. But the consequence is that **the fix and
+the absence of the fix look identical from inside the repository.** Step
+18 reads `success` in both worlds; nothing in the tree can read the run
+list, so nothing could report that the recorder had never once fired.
+
+**A remedy waiting on a click nobody has made is not yet a remedy.** The
+click is not new — `OWNER-LIST.md` § Clicks has carried *"Set the four
+fire secrets"* since the console's first fold — but it was filed as
+plumbing for a lane that did not exist yet. It is now measurable: one
+unmade click, one unrecorded delivery, one pre-flight that opened on a
+spent number. That row now says so.
+
+This is the fifth delivery to go unrecorded (runs 25/26, 29–31 in D198,
+39/40 in D273, 45/46 in D339, now 49/50), and the sixth pre-flight to open
+on a spent build. The tally of bumps is level again at nine and nine —
+held (20, 21, 22, 28, 33, 36, 42, 44, 48) against skipped (18, 19, 24, 26,
+31, 38, 40, 46, 50) — one release after D339's amendment recorded the held
+count leading for the first time.
+
+### What the skip refutes, and what it does not
+
+D186 and D198 read the failure as an ordering: the bump sticks when it is
+made *from* step 17's conclusion while the step list is on screen, and is
+skipped when a session comes back later or not at all. Nothing here
+contradicts that — runs 49 and 50 were dispatched by the owner, no session
+held the step list, and the number sat for four days and 50 commits.
+
+What it does say is that the reading has stopped being useful on its own.
+Nine skips have each been diagnosed and each diagnosis has been correct;
+the failure recurs anyway, because every remedy so far has been a habit
+proposed to whoever happens to be holding the tree next. D339's step 18 is
+the first that is not — it is the only one keyed to the event rather than
+to attention — which is precisely why its being unwired is the finding
+here rather than a footnote. **The invariant that would end this keys on
+the run list, and the only thing in this system that can both read the run
+list and write to the tree is a Routine the workflow fires.**
+
+### The gap, and D159
+
+Both runs archived `74c84a0`, so D159's trap did not fire — the fifth
+release since run 21 where the dry run and the upload name one tree, after
+39/40, 43/44, 45/46 and 47/48. It was not arranged this time. `74c84a0` is
+*"pulse: trail row for 2026-09-02"*, a Routine's commit rather than any
+release commit, which is run 22's and run 46's shape: the dispatch ran
+against the branch as it stood. That is the case D159 exists for, and
+reading `appBuild` at the run's own `head_sha` is what made the comparison
+answerable.
+
+50 commits rode in the 29 → 30 gap, over four days — the third widest
+after build 26's 193 and build 27's 130.
+
+### What build 30 carries that build 29 did not
+
+D274 established that this prep asks the question, so: the 50 commits are
+mostly content and program work — catalogue domains (films, videogames,
+pk36), the farm's promotions, two night reviews, the console's folds — but
+three of them reach the binary and one of those is the reason to want this
+build on a device.
+
+- **A crash is fixed.** D364: the profile's Big 5 and Politics panels
+  defined their result components *inside* a render, so every render
+  remounted them — the owner's own report was the petal rose drawing empty
+  while the bars under it vibrated faster and faster until the app died.
+  Build 29 has that; build 30 does not.
+- **The paid door leaves the app** (#395). `paidBookings.ts`,
+  `suggestions.ts` and their surfaces come out of the bundle — the door
+  moved to `web/ask.html` (D369) — so the binary loses two write paths it
+  no longer offers.
+- **Near is a switch again**, off or on, the timed option retired (D370).
+
+Nothing in the three changes what the app *collects*, which is the store
+forms' question: no new field, no new purpose, no new recipient — the paid
+door's removal only subtracts. `check:store-forms`, `check:policy-claims`
+and `check:public-copy` are green on this tree, and `web/privacy.html` is
+unchanged. So this build moves no form, and 6.2 is not reopened by it.
+
+### When to revisit
+
+**At the dispatch**, on the two points that have each cost a release.
+Read `appBuild` at the run's own `head_sha` rather than at the commit that
+merged this record — `main` gains pulse rows on a schedule and `74c84a0`
+is one. And make the bump to 31 off step 17's own conclusion while the
+step list is on screen, which is the only arrangement that has ever made
+it stick (D186, D198, D273).
+
+Per D198 and D273 both, this verdict is a report about a comparison and
+never a promise about the tree: **a verdict has a shelf life of exactly
+one dispatch, and a bump has a shelf life of exactly one upload.**
+
+**And at the click.** If the four fire secrets are set before the next
+release, build 30's delivery should record itself and the next pre-flight
+is the test of whether that is true. If they are not, this entry is the
+sixth in a row and the reading above stands unchanged.
+
+## D382 · Question content is not first-paint bytes, and a gate says so
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
 in the words that are the rule: *"a iPhone should not download all the
@@ -40269,13 +40419,13 @@ The daily is the one that grows every day, and it is the obvious next
 one. Recorded here rather than done, with the arithmetic where the next
 session will find it.
 
-## D385 · The daily pages: a published length, seven documents, and the density it rests on
+## D383 · The daily pages: a published length, seven documents, and the density it rests on
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
 who had said it before and been half-answered: *"an iPhone should not
 download all the questions like YouTube does not download all the
 videos."* D316 recorded that sentence for the read path and built the
-paging for learn (D320) and the feed's tail (D321); D384 took the
+paging for learn (D320) and the feed's tail (D321); D382 took the
 questions out of the BUNDLE. The daily was left in both places, and it is
 the one surface a scheduled lane appends to every single day.
 
@@ -40355,20 +40505,20 @@ thing the boot needs), and the deck's rows are a dependent trip. A
 same-day relaunch fetches no question at all. A cold boot: **847 → ~725
 documents**, and the daily's term stops growing.
 
-## D386 · The Scores pool pages too: ids in the shape document, documents by the page
+## D384 · The Scores pool pages too: ids in the shape document, documents by the page
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
-— *"fix the rating pool too"* — against the term D385 recorded as owed
+— *"fix the rating pool too"* — against the term D383 recorded as owed
 rather than fixed. This is that record's own follow-up, and it is what
 finishes taking the daily off the boot.
 
-### What D385 left standing
+### What D383 left standing
 
 The daily's deck went to seven documents at any bank size, but the Scores
 lens's pool did not. `placeAsks()` answers "every active `rating` daily
 that names this place and I have NOT answered" — the one daily fold
 history cannot supply, because its whole subject is what you have not
-answered yet. So D385 made it a query over the surface: honest, correct,
+answered yet. So D383 made it a query over the surface: honest, correct,
 and **linear** — 29 of 130 dailies today and the same fraction of any
 bank. At ten times the bank it is ten times the reads, which is the shape
 the paging exists to remove.
@@ -40407,7 +40557,7 @@ falls back to counting the drawn rows, which is exactly right then,
 because the device is holding the whole surface. The pool is cleared on
 the same path that clears the length and never on the other one.
 
-**One bug this found in D385's own code**, recorded because it was the
+**One bug this found in D383's own code**, recorded because it was the
 dangerous kind: the fallback cleared `dailyBankN` before checking whether
 the device already held daily rows. On a warm PAGED boot whose shape read
 failed — one small document, one network blip — that turned a stale

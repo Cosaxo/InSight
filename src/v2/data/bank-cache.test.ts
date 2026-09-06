@@ -58,7 +58,7 @@ const h = vi.hoisted(() => ({
   // world.
   rankOrders: {} as Record<string, (
     | { topics: Record<string, { qids: string[]; total: number; carry?: number }> }
-    // D385's daily SHAPE doc — a length, not an order — plus D386's
+    // D383's daily SHAPE doc — a length, not an order — plus D384's
     // Scores pool, which is ids per scope rather than documents.
     | { n: number; maxSeq: number; rates?: Record<string, string[]> }
   )>,
@@ -183,7 +183,7 @@ vi.mock("firebase/firestore", () => {
         // constraint hands the query the whole bank, and the test then
         // passes on a query that in production returns nothing.
         const paidEq = cons.find((c) => c.kind === "where" && c.field === "paid" && c.op === "==");
-        // …and D385's two: the deck's `seq in [positions]` and the Scores
+        // …and D383's two: the deck's `seq in [positions]` and the Scores
         // pool's `type == "rating"`. Applied for the same reason as every
         // filter above — a fake that shrugs at `seq in` hands the deck
         // query the whole daily surface, and the test then proves nothing
@@ -356,10 +356,10 @@ afterEach(() => {
 describe("question-bank cache", () => {
   it("fetches the whole bank on a cold boot and records the cursor", async () => {
     await bootLive();
-    // FOUR since D385: the boot surfaces, the feed's core (D321), the
+    // FOUR since D383: the boot surfaces, the feed's core (D321), the
     // bought questions no published order can carry (D313), and the
     // daily. With no v2_rank/daily in this fixture the daily takes its
-    // fallback — the whole surface, exactly the pre-D385 fetch — so the
+    // fallback — the whole surface, exactly the pre-D383 fetch — so the
     // count moves but the rows do not.
     expect(bankFetches()).toBe(4);
     expect(isDelta(0)).toBe(false);
@@ -478,7 +478,7 @@ describe("question-bank cache", () => {
     await bootLive();
     // 1000 + 1000 + 500: the third page is short, which is what ends it.
     // Plus one empty page each for the core-feed and bought-question
-    // queries, and one for the daily's fallback (D385).
+    // queries, and one for the daily's fallback (D383).
     expect(bankFetches()).toBe(6);
     expect((await readCache()).questions).toHaveLength(2500);
   });
@@ -543,11 +543,11 @@ describe("question-bank cache", () => {
     // boot's second page is issued AFTER the core and paid queries' first
     // pages, and its position in the log depends on that interleaving.
     // What the off-by-one would change is the NUMBER of cursor-carrying
-    // pages, and that is what is pinned. Six since D385's daily fallback.
+    // pages, and that is what is pinned. Six since D383's daily fallback.
     expect(bankFetches()).toBe(6);
     const paged = h.bankQueries.filter((q) => q.cons.some((c) => c.kind === "startAfter"));
     expect(paged).toHaveLength(2);
-    // Every cursor-carrying page names a surface. Since D385 the loop this
+    // Every cursor-carrying page names a surface. Since D383 the loop this
     // fixture exercises is the DAILY's fallback pager — the bank here is
     // all dailies, so the boot `in` returns nothing and pages once — and
     // it is a separate loop with the same off-by-one to get wrong, which
@@ -578,7 +578,7 @@ describe("question-bank cache", () => {
     );
     await bootLive();
     // The four boot queries (D321's core split, D313's bought reach,
-    // D385's daily).
+    // D383's daily).
     expect(bankFetches()).toBe(4);
     expect(isDelta(0)).toBe(false);
     expect((await readCache()).questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
@@ -603,7 +603,7 @@ describe("question-bank cache", () => {
     storage.setItem(BANK_LS, JSON.stringify(first));
 
     await bootLive();
-    // STILL ONE. The daily's resolution runs on this path too (D385), and
+    // STILL ONE. The daily's resolution runs on this path too (D383), and
     // it fetches nothing: the migrated cache already holds the surface, so
     // with no published shape the fallback returns empty rather than
     // re-reading it. That is the property keeping a project whose nightly
@@ -637,7 +637,7 @@ describe("question-bank cache", () => {
   // delta cases are: a surface dropped by the server-side `in` and a
   // surface dropped by the client-side filter look identical from the
   // bank, and only one of them costs a read.
-  describe("the paged daily (D385)", () => {
+  describe("the paged daily (D383)", () => {
     // A bank big enough that the deck is a small slice of it — the whole
     // point being that this number can grow without the boot growing.
     const dailies = (n: number) =>
@@ -713,8 +713,8 @@ describe("question-bank cache", () => {
       expect((await readCache()).questions).toHaveLength(10);
     });
 
-    it("pages the Scores pool by id instead of querying the surface (D386)", async () => {
-      // 200 dailies, 60 of them place questions. Before D386 the top-up
+    it("pages the Scores pool by id instead of querying the surface (D384)", async () => {
+      // 200 dailies, 60 of them place questions. Before D384 the top-up
       // asked `surface == daily AND type == rating` and got all 60 — a
       // term that grows with the bank. Now the fold publishes the ids and
       // the device fetches a page of the ones it has not met.
@@ -794,7 +794,7 @@ describe("question-bank cache", () => {
     for (const s of ["test", "group", "duo", "pulse", "call"]) {
       expect(asked, `the bank query does not ask for ${s}`).toContain(s);
     }
-    // THE DAILY LEFT THIS LIST AT D385 and did not become a paged surface
+    // THE DAILY LEFT THIS LIST AT D383 and did not become a paged surface
     // in the learn/tail sense: it takes its own query, against the length
     // the server publishes. Both halves are asserted, because "gone from
     // the boot `in`" and "still fetched" have to be true together — the

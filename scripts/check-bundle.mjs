@@ -872,7 +872,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // nothing here does it on the way past. ~38 KB sits behind that one call
 // (passive-meter, result-card, type-marks, result-rose, explain-sheet),
 // which is three bands rather than one, so it is worth asking properly.
-// 642 → 607 (2026-09-06, D384): the eager-content sweep. 642 was granted
+// 642 → 607 (2026-09-06, D382): the eager-content sweep. 642 was granted
 // four days ago to fit a tree measuring 631, and 35 KB of that was
 // question CONTENT — `daily-questions.js`, the archive the farm lane
 // appends to EVERY DAY, held in first paint by three static edges (the
