@@ -1130,8 +1130,10 @@ start.
 
 The harness, the graphic and the copy all landed 2026-08-03. **The copy is
 pushed as of 2026-08-08** and so is the age rating; what is left here is a
-**recapture against live data**, the privacy form, and the trader document
-in the post.
+**recapture against live data** and the privacy form. (This sentence
+also named "the trader document in the post" until 2026-09-06; that
+document arrived, went up and verified — 4.3b — and the clause outlived
+the fact, the D39 shape one sentence wide.)
 
 The recapture is the one with a real precondition: it wants real answers
 on screen. Under D81's pause one answer per question is enough (counts
