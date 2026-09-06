@@ -825,6 +825,21 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(LIVE.kindredLoading()).toBe(false);
   });
 
+  it("a run that asked for NOTHING is not a failed read", async () => {
+    // The mirror image of the emptiness `kindredState` exists to stop: an
+    // account with no votes has no crowd to fail to read, so telling it
+    // "couldn't read the crowd" invents a failure. It has to be measured
+    // with the breaker OFF — under the breaker loadKindred returns before
+    // the line that decides this, so a case at level 1 passes whatever the
+    // rule says. That is how the first draft of this assertion was
+    // vacuous.
+    metaAt(0);
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(h.voterQueries, "nothing to ask for, so nothing asked").toHaveLength(0);
+    expect(LIVE.kindredState()).toBe("ready");
+  });
+
   it("loadKindred never even RAISES its flag — the caption is the whole point", async () => {
     // The case above cannot see this gate. Delete it and loadKindred runs
     // its loop: every loadVoters refuses on its own gate, so no query is
@@ -914,6 +929,53 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     await LIVE.loadVoters("q_1");
     expect(h.voterQueries.length).toBeGreaterThan(0);
     expect(LIVE.voters("q_1")).not.toBeNull();
+  });
+});
+
+describe("votePulse() rolls back everything it set", () => {
+  // ADDED 2026-09-05 BY THE FIX ABOVE IT, which is the point.
+  //
+  // `votePulse` was the only vote path that did not mark its answer
+  // unfolded, so today's pulse crowd was read off a document written
+  // before you answered. Marking it fixed that — and made this path's
+  // hand-rolled catch incomplete, because there was now something in
+  // `unaggregated` for it to undo and it only deleted `votes`.
+  //
+  // Nothing else clears a pulse id. Both of the store's clears iterate
+  // AGGREGATE documents fetched through live.ts's own drains, and pulse
+  // aggregates are fetched by `data/pulse` instead — so a leak here is
+  // permanent for the session: `pulsePending` keeps answering, and the
+  // card keeps adding a vote nobody cast to an option nobody chose.
+  it("leaves no pending mark when the write is refused", async () => {
+    const LIVE = await bootLive();
+    h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
+
+    await LIVE.votePulse("pulse-pace", 3);
+    await flush();
+
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "a refused pulse write left its unfolded mark set, so the reveal counts an answer that does not exist",
+    ).toBeNull();
+    expect(LIVE.myVotes()).not.toHaveProperty("pulse-pace");
+  });
+
+  it("keeps the mark while the write is in flight — the control", async () => {
+    // Without this, "never mark anything" would satisfy the case above and
+    // put back the bug the mark was added to fix.
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+
+    void LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "the unfolded mark was not set, so the reveal reads a crowd written before this answer",
+    ).toBe(3);
+
+    d.resolve();
+    await flush();
   });
 });
 
@@ -2355,16 +2417,51 @@ describe("window.LIVE public surface", () => {
       expect(deletes).toHaveLength(0);
     });
 
-    it("setPoliticalConsent(true) records it and deletes nothing", async () => {
+    it("setPoliticalConsent(true) records it, clears any withdrawal, deletes no result", async () => {
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
       const LIVE = await bootLive();
       h.setDocCalls.length = 0;
       await LIVE.setPoliticalConsent(true);
       const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
       const data = call!.data as Record<string, Record<string, Record<string, unknown>>>;
-      expect(data.consent.political.off).toBeUndefined();
+      // REMOVED, not omitted — this write is a `merge`, and a merge on a
+      // nested map merges its FIELDS. `off` is present-or-absent by design
+      // (politicalConsent.ts says why), so a grant's record simply leaves
+      // it out, and leaving it out of a merge does not take it off the
+      // server. This case asserted `undefined` here and passed for exactly
+      // that reason while a withdrawal could never be undone.
+      expect(data.consent.political.off, "a re-grant must remove the earlier withdrawal, not omit it")
+        .toBe("__delete__");
+      // "deletes nothing" is about the PUBLISHED COORDINATE: consenting
+      // must not take one away.
       expect(data.testResults).toBeUndefined();
       expect(LIVE.politicalConsented()).toBe(true);
+    });
+
+    it("survives a withdraw → re-grant round trip, which it could not before", async () => {
+      // The failure end to end: withdraw, then grant again, then read the
+      // stored record back the way a hydrate would. The merge is applied
+      // here the way Firestore applies it — field by field over the map
+      // that is already there — because that is the step the bug lived in.
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      await LIVE.setPoliticalConsent(false);
+      await LIVE.setPoliticalConsent(true);
+      const writes = h.setDocCalls.filter((c) => c.path === "v2_users/uid_test");
+      expect(writes.length, "the two writes did not both land").toBeGreaterThanOrEqual(2);
+      const stored: Record<string, unknown> = {};
+      for (const w of writes) {
+        const pol = ((w.data as Record<string, Record<string, unknown>>).consent || {}).political;
+        if (!pol) continue;
+        for (const [k, v] of Object.entries(pol as Record<string, unknown>)) {
+          if (v === "__delete__") delete stored[k];
+          else stored[k] = v;
+        }
+      }
+      const { mayPublishPolitical } = await import("./politicalConsent");
+      expect(mayPublishPolitical({ consent: { political: stored } }),
+        "the withdrawal survived the re-grant, so consent could never be given again").toBe(true);
     });
   });
 

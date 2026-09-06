@@ -478,7 +478,6 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const openSuggestions = () => openDeferred(() => { setOv('suggest'); });
     const openLogicTest = () => openDeferred(() => { closeAll(); setOv('logic'); });
     // The buyer's room is its own lazy chunk (React.lazy below), not part
     // of the spec overlay group — no loadOverlays() gate to await.
@@ -487,7 +486,7 @@ export function App() {
     // shell's state, so the registry is what lets a consumer import a door
     // without importing the shell that owns it — see data/nav.ts on why an
     // import would have drawn a real cycle here.
-    return registerNav({ openSuggestions, openLogicTest, openAskedByYou });
+    return registerNav({ openLogicTest, openAskedByYou });
   }, [openDeferred]);
 
   useEffect(() => {
@@ -693,12 +692,11 @@ export function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             <PassiveMeter />
-            {/* compose — the ask-a-question door (the paid path, D288 §1),
-                one tap from anywhere; same openDeferred synchronisation as
-                the cross-links that reached it before it had a button */}
-            <button className="icon-btn" aria-label="Ask a question" onClick={() => openDeferred(() => { closeAll(); setOv('suggest'); })}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </button>
+            {/* The ask-a-question door was here until D368. Shape A moved
+                buying to the web, so the app carries no purchase call to
+                action at all — that is the whole point of the decision,
+                and a "+" one tap from anywhere was the most exposed of
+                its five entry points. */}
             <button className="icon-btn" aria-label="Search" onClick={() => openDeferred(() => { closeAll(); setOv('search'); })}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
             </button>
@@ -800,7 +798,6 @@ export function App() {
           {person && window.PersonOverlay && <window.PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
           {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
           {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
-          {ov === 'suggest' && window.SuggestOverlay && <window.SuggestOverlay onClose={() => setOv(null)} />}
           {/* null fallback like the tabs' lazies: the room's own first frame
               is its header, and a spinner in front of that is one loading
               state too many. A failed chunk lands in this ErrorBoundary. */}

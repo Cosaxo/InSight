@@ -163,8 +163,17 @@ if (!seededQuestions || !dailyQuestions) {
 // manual can quote them. QUESTION-FARM.md is LIVE documentation — the
 // scheduled runs obey it verbatim — so a drifted budget figure there is
 // not a stale doc, it is a mis-instructed run.
+// COMMENTS ARE BLANKED BEFORE THE MATCH. This is a first-match regex over raw
+// source, so a retuned budget with its old line parked above it —
+//     // was: export const RUN_CAP = 8
+//     export const RUN_CAP = 20;
+// — made this gate certify QUESTION-FARM.md against the SUPERSEDED number and exit
+// 0. That document is live instruction: the scheduled lanes obey it verbatim, so a
+// figure drifting there is a mis-instructed run, not a stale doc. Measured on the
+// real tree 2026-09-05. (This file already imported the helper for its prose scan;
+// the constant scan is the half that never used it.)
 const constFrom = (rel) => {
-  const src = read(rel);
+  const src = stripComments(read(rel));
   return (name) => {
     const m = src.match(new RegExp(`export const ${name} = (\\d+)`));
     if (!m) {
@@ -275,6 +284,10 @@ const NOT_A_RUNNER = new Set([
   "test:e2e:moderation", // table's `test:e2e` row, not rows of their own
   "test:e2e:all",        // those three drivers on one emulator boot (D276)
   "test:coverage",       // test:unit again, instrumented
+  // test:rules again, with the coverage ratchet WRITING its baseline
+  // instead of asserting it. Not a suite: the same 179 tests, one flag on
+  // the step that follows them.
+  "test:rules:baseline",
 ]);
 const testRunners = (() => {
   const own = Object.keys(appPkg.scripts)
@@ -406,6 +419,30 @@ const anchorKeys = (() => {
  * stub in a fixture are both noise. Two of these figures had drifted, in
  * the paragraphs that argue for the memoisation itself.
  */
+/**
+ * The map's anchor ring, counted off the two array literals that build it:
+ * liveList()'s own rows plus the test rows it spreads in.
+ *
+ * The header said eight anchors and five test results, and had since D103
+ * retired the Thinking test — in a file that records the retirement twenty
+ * lines below the sentence contradicting it. Exactly the drift this gate
+ * exists for, in prose describing a data model a reader has no other
+ * summary of.
+ */
+const mapAnchors = (() => {
+  const src = stripComments(read("src/v2/spec/map-anchors.js"));
+  const rowsIn = (fn) => {
+    const open = src.indexOf(`function ${fn}()`);
+    if (open < 0) throw new Error(`check:figures: map-anchors.js has no ${fn}() — fix this scan`);
+    const start = src.indexOf("return [", open);
+    const end = src.indexOf("];", start);
+    return [...src.slice(start, end).matchAll(/\{\s*id:/g)].length;
+  };
+  const tests = rowsIn("testRows");
+  if (!tests) throw new Error("check:figures: no test anchor rows found — fix this scan");
+  return { tests, ring: rowsIn("liveList") + tests };
+})();
+
 const callSites = (call) => {
   const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
   let n = 0;
@@ -516,6 +553,40 @@ const harnessFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /\bmountApp\(/.test(
     readFileSync(join(root, "src/v2/test", f), "utf8"),
   )).length;
+
+// The same list split the way the sentence splits it. CLAUDE.md gives the
+// total, then "five of the six smoke files" and "N that go PAST first
+// paint" — three numbers that have to add up, and the third was the one
+// nothing held: the gate forced the total from nine to ten and grew the
+// list from four items to five, and the word "four" beside it never
+// moved. 5 + 4 = 9 against a stated total of 10, in the paragraph about
+// what mounts the whole App.
+const smokeMountFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /^smoke-.*\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+const pastFirstPaintFiles = harnessFiles - smokeMountFiles;
+
+// How many spec modules `loadWorldFeed()` actually awaits. CLAUDE.md said
+// "four" from the day it was written — exact then, and four modules'
+// worth of stale by the time the learn stack, pick-data, world-catalogs
+// and world-subtopics joined the loader. `spec-index.js`'s own comment
+// corrects itself in place; the prose never got the same edit, which is
+// the documentation error this repo keeps re-committing (D39).
+const worldFeedDeferred = (() => {
+  const src = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
+  const a = src.indexOf("export const loadWorldFeed");
+  if (a === -1) {
+    throw new Error(
+      "check-figures: no loadWorldFeed in spec-index.js — the loader was renamed "
+      + "or reshaped. Fix this derivation rather than dropping the figure.",
+    );
+  }
+  const b = src.indexOf("\n});", a);
+  const body = src.slice(a, b === -1 ? undefined : b);
+  return [...body.matchAll(/import\('\.\/spec\//g)].length;
+})();
 
 // How many notifications the product actually SENDS, off v2social.ts's own
 // call sites. web/privacy.html promises the token is "only used for" them
@@ -731,6 +802,20 @@ const FIGURES = [
     fix: (n) => `"five of the **${n}** smoke-*.test.jsx"`,
   },
   {
+    file: "CLAUDE.md",
+    what: "suites that mount PAST first paint (§2) — the third number in the sum",
+    re: /and (\w+) that go PAST first paint/,
+    actual: word(pastFirstPaintFiles),
+    fix: (n) => `"and ${n} that go PAST first paint"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "spec modules loadWorldFeed() defers (§1)",
+    re: /The feed's (\w+) are deferred past/,
+    actual: word(worldFeedDeferred),
+    fix: (n) => `"The feed's ${n} are deferred past first paint"`,
+  },
+  {
     file: "scripts/apply-monitoring.mjs",
     // The SECOND occurrence in that header, and the one the entry beside
     // it does not reach. When the ninth policy landed, the edit on this
@@ -862,6 +947,28 @@ const FIGURES = [
     re: /the same (\d+) keys an\n {2}\/\/ answer snapshots/,
     actual: String(anchorKeys),
     fix: (n) => `"the same ${n} keys an\n  // answer snapshots"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchors in the map's centre ring",
+    // Sentence-initial, like the workflow-jobs entry above.
+    re: /(\w+) anchors — age, work, study/,
+    actual: cap(word(mapAnchors.ring)),
+    fix: (n) => `"${n} anchors — age, work, study"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "test-result anchors in that ring",
+    re: /plus the (\w+) test results/,
+    actual: word(mapAnchors.tests),
+    fix: (n) => `"plus the ${n} test results"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchor keys an answer snapshots, as map-anchors states them",
+    re: /three of the (\w+) fields an answer snapshots/,
+    actual: word(anchorKeys),
+    fix: (n) => `"three of the ${n} fields an answer snapshots"`,
   },
   {
     file: "src/v2/ui/LiveProfileSetup.tsx",
@@ -1296,6 +1403,32 @@ const FIGURES = [
     re: /\*\*(\d+) feed questions per run\*\*/,
     actual: feedConst("RUN_CAP"),
     fix: (n) => `"**${n} feed questions per run**"`,
+  },
+  // THE SAME CAP, TWICE MORE, IN THE SUBSECTIONS A RUN ACTUALLY READS.
+  // D350 raised RUN_CAP 6 → 60 and moved the headline sentence above; both
+  // of these were left at 6, ten times low, for three days. They are not
+  // decoration: the feed lane's prompt says the manual "outranks this
+  // prompt's summary", so on a conflict between `npm run feed:budget`
+  // printing 60 and a bullet saying ≤6/run, the bullet wins by the lane's
+  // own rule.
+  //
+  // TWO ENTRIES AND TWO PATTERNS, deliberately: this gate takes the FIRST
+  // match of each `re`, so one shared pattern would hold the first bullet
+  // and leave the second free to drift — which is the failure the entry
+  // above already carries a note about, one lane over.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Continuum questions states it",
+    re: /continuum candidates count inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"count inside the lane's ≤${n}/run"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Crossroads stories states it",
+    re: /a story counts inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"a story counts inside the lane's ≤${n}/run"`,
   },
   {
     file: "docs/QUESTION-FARM.md",

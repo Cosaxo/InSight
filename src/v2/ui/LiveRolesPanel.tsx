@@ -26,7 +26,7 @@
 // them on mount and only on mount — see docs/COSTS.md.
 import React from "react";
 import LIVE from "../data/live";
-import { blendRoles, duoRole, duoRoleDays, groupRole, groupRoleDays, MIN_DUO, MIN_GROUP, type RoleResult } from "../data/roles";
+import { blendRoles, duoRole, duoRoleDays, groupRole, groupRoleDays, MIN_DUO, MIN_GROUP, type BankLookup, type RoleResult } from "../data/roles";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { matchArchetype } from "../spec/archetype-data.js";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
@@ -83,8 +83,15 @@ export default function LiveRolesPanel(): React.ReactElement {
     revealHistory: (gid: string) => Record<string, unknown>[];
     loadRevealHistory?: (gid: string) => Promise<void>;
     revealHistoryLoading?: (gid: string) => boolean;
+    bankQ?: (qid: string) => { options?: string[]; kind?: string } | null;
   };
   const uid = (LIVE.uid as string) || "";
+  // The day's option count and kind, from the bank the store already
+  // holds (D386): the fold scores every rate against luck, and holds a
+  // 1v1's mirror days apart from likeness. No bank — a fixture, or a
+  // bank not yet fetched — and every day reads as an ordinary one with
+  // the option count its own votes reach.
+  const lookup: BankLookup | undefined = S.bankQ ? (qid) => S.bankQ!(qid) : undefined;
 
   // Read fresh every render, and the EFFECT keyed on the room ids rather
   // than on the array.
@@ -160,7 +167,7 @@ export default function LiveRolesPanel(): React.ReactElement {
     const hist = S.revealHistory(r.id) || [];
     if ((r.mode || "group") === "duo") {
       const them = (r.memberUids || []).find((m) => m !== uid) || "";
-      const res = them ? duoRole(hist as never[], uid, them) : null;
+      const res = them ? duoRole(hist as never[], uid, them, lookup) : null;
       // The name the duel panel itself uses: the room's own snapshot,
       // topped up by whatever the newest reveal carried.
       const revealNames = (hist[0]?.names as Record<string, string> | undefined) || {};
@@ -177,10 +184,10 @@ export default function LiveRolesPanel(): React.ReactElement {
         // distinction, in the same words ("Reading the days…").
         note: roomNote(r.id) || (!them || !hist.length
           ? "nothing revealed yet"
-          : `${duoRoleDays(hist as never[], uid, them)} of ${MIN_DUO} days both guessed`),
+          : `${duoRoleDays(hist as never[], uid, them, lookup)} of ${MIN_DUO} days both guessed`),
       });
     } else {
-      const res = groupRole(hist as never[], uid);
+      const res = groupRole(hist as never[], uid, lookup);
       if (res) groups.push({ key: r.id, label: r.name || "Group", res });
       else groupsThin.push({
         key: r.id, label: r.name || "Group",
@@ -201,6 +208,9 @@ export default function LiveRolesPanel(): React.ReactElement {
   ) => {
     const avg = blendRoles(settings.map((s) => s.res));
     const t = avg ? typeOf(kind, avg.dims) : null;
+    // The unit `RoleResult.n` is actually counted in, in the panel's own
+    // words — the same two phrases the empty state and the thin rows use.
+    const dayUnit = kind === "duo" ? "you both guessed" : "you played";
     // The list draws whenever there is more than one thing to put in it —
     // a second reading, or a setting still on its way. With one reading
     // and nothing else, a row would only repeat the card above it.
@@ -234,10 +244,21 @@ export default function LiveRolesPanel(): React.ReactElement {
                     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginTop: 3, lineHeight: 1.4, textWrap: "pretty" }}>{t.line}</div>
                   </>
                 )}
+                {/* NOT "revealed days" — that is the one thing this number is
+                    not. `RoleResult.n` is the same unit the floor checks:
+                    days BOTH of you guessed for a 1v1 (duoRuns drops the
+                    rest), days YOU played for a group. A pair can reveal
+                    eight days and guess on three, so "3 revealed days" was
+                    false about a pair that revealed eight — the exact copy
+                    bug roles.ts says it exists to keep out of this panel,
+                    in the only line that had not been fixed for it. The
+                    empty state and the thin rows already say "days you both
+                    guessed" and "revealed days you played"; this now says
+                    the same thing in the same words. */}
                 <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)", marginTop: 4 }}>
                   {settings.length === 1
-                    ? `${avg.n} revealed ${avg.n === 1 ? "day" : "days"}`
-                    : `across ${settings.length} · ${avg.n} revealed days`}
+                    ? `${avg.n} ${avg.n === 1 ? "day" : "days"} ${dayUnit}`
+                    : `across ${settings.length} · ${avg.n} days ${dayUnit}`}
                 </div>
               </div>
             </div>
@@ -263,7 +284,11 @@ export default function LiveRolesPanel(): React.ReactElement {
                   {isOpen && (
                     // The receipts: the plain count each score is made of.
                     <div style={{ padding: "0 0 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-                      {s.res.dims.map((d) => (
+                      {/* The dims, then the asides — readings the tables do
+                          not carry yet (projection, the mirror days, reading
+                          the room — D386), drawn as receipts in the same
+                          shape so the row says everything the record does. */}
+                      {[...s.res.dims, ...(s.res.asides || [])].map((d) => (
                         <div key={d.id} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                           <span style={{ width: 86, flexShrink: 0, fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)" }}>{d.label}</span>
                           <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.4 }}>{d.note}</span>

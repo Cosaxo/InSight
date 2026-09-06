@@ -33,6 +33,7 @@
 // policy". What happens next is the verdict's to say.
 import React from "react";
 import LIVE, { TAKE_MAX_CHARS } from "../data/live";
+import { VOTER_FETCH_CAP } from "../data/voters";
 import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import type { TakeDoc } from "../data/live";
 import { isMutedAuthor, muteAuthor, subscribeMutes } from "../data/mutes";
@@ -395,6 +396,9 @@ function LiveTakesPanel({ gid, qid, options }: {
   // How many takes sit on each side, so the filter row can carry its own
   // counts and an empty side can say so rather than opening onto nothing.
   const perSide = opts.map((_, i) => all.filter((t) => sideOf[t.authorUid] === i).length);
+  // How many of the takes the chips can actually account for — the sides
+  // are read from a bounded voter page, so this can be less than `all`.
+  const sided = perSide.reduce((a, b) => a + b, 0);
   // The row appears only once a side is actually known for someone: before
   // the voter read lands, chips that all read 0 would be a filter over a
   // list the panel cannot yet sort.
@@ -443,6 +447,24 @@ function LiveTakesPanel({ gid, qid, options }: {
             );
           })}
         </div>
+      )}
+      {/* THE SIDES ADD UP TO LESS THAN "All", AND THE ROW SAID NOTHING.
+          Sides come from the voter list, which is the newest
+          VOTER_FETCH_CAP answers; takes come from their own page. An
+          author who answered outside that window has no side, so they
+          count in "All · 5" and in none of the chips — "All · 5 · Yes · 1
+          · No · 1" with no word about the other three.
+
+          Its sibling in this same sheet is careful about exactly this and
+          says so twice (LiveBreakdownPanel: "Read from the newest N
+          answers — an older answer from a friend may not be here yet").
+          The takes row was the outlier. Drawn only when the sides really
+          do fall short, so a complete row stays a row of chips. */}
+      {sided > 0 && sided < all.length && (
+        <span style={{ display: "block", padding: "0 2px 2px", fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)" }}>
+          {all.length - sided} of these {all.length - sided === 1 ? "was" : "were"} written by
+          someone whose answer is outside the newest {VOTER_FETCH_CAP} — no side to sort them under yet.
+        </span>
       )}
       {takes.map((t) => (
         <LtTakeRow

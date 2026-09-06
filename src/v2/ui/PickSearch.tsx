@@ -19,7 +19,7 @@
 import React from "react";
 import POKEDEX, { type Species } from "../data/pokedex";
 import ELEMENTS_CATALOG, { type Element } from "../data/elements";
-import { FILMS, ARTISTS, ATHLETES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES, type CatalogEntry } from "../data/catalogs";
+import { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES, type CatalogEntry } from "../data/catalogs";
 
 const PS_LINE = "1px solid var(--rule)";
 
@@ -82,6 +82,7 @@ const DOMAINS: Record<string, DomainSpec> = {
   films: catalogSpec(FILMS, "Search films…", "one favourite — the crowd's canon reveals after"),
   artists: catalogSpec(ARTISTS, "Search artists…", "one favourite — the crowd's canon reveals after"),
   athletes: catalogSpec(ATHLETES, "Search 640 athletes…", "one pick — the crowd's canon reveals after"),
+  videogames: catalogSpec(VIDEOGAMES, "Search 1,000 video games…", "one pick — the crowd's canon reveals after"),
   elements: {
     load: () => ELEMENTS_CATALOG.load().then((es) => es.map(elementRow)),
     peek: () => {

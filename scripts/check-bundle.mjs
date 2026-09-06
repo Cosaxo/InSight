@@ -804,7 +804,92 @@ const MAX_TOTAL_JS_KB = 2440;
 // world-feed — both lazy) started importing them, so each rides its
 // consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.
 // Band ~11 KB, same posture.
-const MAX_EAGER_KB = 630;
+// 630 → 642 (2026-09-05, D365's night review): the composed night tree
+// measured 631 against 630 and the fixes that spent the kilobyte are all
+// in eager modules — the pulse write marking its answer unfolded so the
+// card counts you in the crowd it reports, the Circle rebuilding its
+// follow cache from who you FOLLOW rather than from whose answers loaded,
+// `testAggsState` so a refused read stops being drawn as "nobody has
+// answered", and `crowdN` so the rank reveal says which crowd it matched
+// you against. Measured with a DSN both ways: main 629.9, composed 630.8
+// (+856 bytes); total unmoved at 2185. Band ~11 KB, the same posture as
+// every entry above.
+//
+// THE ARGUMENT AGAINST RAISING THIS RETIRED WHEN THE SDK RULE WAS WRITTEN,
+// and the entries above still carry it, so it is worth saying once here:
+// "not raiseable, because it is the constant keeping the Firestore SDK out
+// of first paint" was true while this number was the only thing saying so.
+// It is not now — MAX_EAGER_CHUNK_KB below states that directly, catches
+// either SDK by a factor of at least 1.4, and its own note explains why
+// ("a guarantee that survives only while a number stays small is not one").
+// What this number still does is make an eager kilobyte a decision with a
+// measurement beside it, which is what this entry is.
+//
+// THE RATE IS THE THING TO WATCH, not this kilobyte. D354's sweep set 630
+// with the tree measuring 619; four days later main measures 629.9. That
+// is ~2.7 KB a day of ordinary bug-fixing landing in first paint, so a
+// band of 11 KB is about four days and the next trip is due before the
+// week is out. The answer then should be a deferral rather than another
+// raise.
+//
+// THE THREE CANDIDATES THIS ENTRY FIRST NAMED DO NOT MOVE BY THEIR OWN
+// LINES, and the correction matters because this note is the instruction
+// the next deferral will start from. It named explain-sheet (8.6 KB),
+// result-rose (4.9) and relmap-lenses (4.9) as "all three behind a tap,
+// all three in spec-index.js's ORDERED side-effect list". Two things in
+// that are wrong, measured 2026-09-06:
+//
+//   · **The side-effect line is not what holds them.** Each is imported BY
+//     NAME from a module that is itself eager, so the ESM graph pulls it in
+//     whatever spec-index.js does — which is the mechanism CLAUDE.md states
+//     ("rule 2 asks whether a file LOADS, not whether spec-index.js names
+//     it"). Proved rather than reasoned: delete explain-sheet's line,
+//     rebuild, and it is STILL in the modulepreload set, because
+//     result-card.jsx imports it.
+//   · **relmap-lenses is not behind a tap at all.** vote-cuts.js imports
+//     `RMLenses` and publishes VOTECUTS, which daily-split.jsx reads for the
+//     who-voted sheet's cuts — the landing screen, on the live path.
+//     spec-index.js says so beside its line and is right to; only its
+//     MECHANISM is stale there ("reads window.RMLenses" predates D354's
+//     sweep, which made it an import).
+//
+// WHAT ACTUALLY HOLDS THEM, traced to the anchor so the next attempt does
+// not have to: explain-sheet and result-rose are both pulled by
+// result-card.jsx; result-card and type-marks.jsx (4.9 KB, also on the
+// list) are both pulled by passive-meter.jsx (23.1 KB); and passive-meter
+// is imported and RENDERED by app-shell.jsx — `<PassiveMeter />` in the
+// header, unconditionally, on every screen, "because it reports across
+// tabs, not just the feed". relmap-lenses is not part of this chain and
+// should be left alone.
+//
+// SO THIS IS NOT A LOAD-ORDER PROBLEM, which is what an earlier draft of
+// this same entry assumed when it put the risk "on passive-meter". The
+// chain terminates in something that is ON SCREEN IN THE FIRST FRAME.
+// Deferring it is mechanically easy — app-shell.jsx already React.lazy's
+// four things and the pattern is right there — and the cost is that the
+// header's lens ring pops in after the paint instead of arriving with it.
+// That is a design call about the header, not a refactor, which is why
+// nothing here does it on the way past. ~38 KB sits behind that one call
+// (passive-meter, result-card, type-marks, result-rose, explain-sheet),
+// which is three bands rather than one, so it is worth asking properly.
+// 642 → 607 (2026-09-06, D382): the eager-content sweep. 642 was granted
+// four days ago to fit a tree measuring 631, and 35 KB of that was
+// question CONTENT — `daily-questions.js`, the archive the farm lane
+// appends to EVERY DAY, held in first paint by three static edges (the
+// spec-index side-effect line, daily-split.jsx's import for one demo id,
+// and map-branches.js wanting only the category taxonomy). It measures
+// 596 with all three cut. Re-set to the file's own ~11 KB band rather
+// than banked as slack, which is what every entry above did after a
+// sweep — 645 → 630 followed D354's the same way.
+//
+// THE RATE WARNING ABOVE STILL STANDS, and this does not answer it: 11 KB
+// is still about four days of ordinary drift. What changed is that the
+// drift can no longer be a question. `check:eager-content` forbids the
+// content class outright, so this ceiling is back to measuring what it
+// was written to measure — code in first paint — and a content lane can
+// no longer be blocked by it. Raising this number to fit content is now a
+// gate failure somewhere else, which is the point.
+const MAX_EAGER_KB = 607;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

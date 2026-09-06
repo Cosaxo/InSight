@@ -106,7 +106,19 @@ export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactEl
           <span style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
             {nToday > 0
               ? bins[mine - 1] + "% of " + PULSE.fmtN(nToday) + (nToday === 1 ? " answer today" : " answers today")
-              : "the first answer today"}
+              // ZERO IS THREE DIFFERENT FACTS, and only one of them is a
+              // statement about the crowd. `todayN` answers 0 for "nobody
+              // answered", "the read is in flight" and "the read was
+              // refused" alike — and the effect above swallows the
+              // rejection, so a refused read left this saying "the first
+              // answer today" over a hundred real answers, permanently,
+              // with nothing in the session retrying. D1: where a live
+              // surface has not looked, the data is ABSENT, not zero.
+              : PULSE.todayState() === "ready"
+              ? "the first answer today"
+              : PULSE.todayState() === "failed"
+              ? "today's crowd didn't load"
+              : "counting\u2026"}
           </span>
         </div>
         <button className="press" onClick={() => { const next = !open; setOpen(next); if (next) void PULSE.ensureTrend(id).catch(() => { /* the reading draws your own line regardless */ }); }} aria-expanded={open}

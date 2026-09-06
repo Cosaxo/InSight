@@ -65,7 +65,14 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     `submitModVerdict`
   - `deleteAccount` — the one v1-era function that carries forward, and
     it still wipes the v1 collections (D13)
-  - Hosting (`web/` — the legal pages), as the **last** step and
+  - `resultsPageV2` (D379) — an HTTPS function, not a callable: the
+    shareable results page of a sponsored question, which the hosting
+    rewrite `/q/**` in `firebase.json` points at. No App Check and no
+    sign-in by design (it serves the open web); the page sets its own
+    security headers and a five-minute cache. Deployed with the
+    functions, so the rewrite has a target before hosting goes out.
+  - Hosting (`web/` — the legal pages, and the `/q/**` rewrite above),
+    as the **last** step and
     `continue-on-error` for the same reason as storage
   - The apply is **two steps, and the split is load-bearing.** Rules and
     indexes go first with no `--force`; functions follow with it.
@@ -158,14 +165,16 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Five jobs — verified rather than assumed,
+**What the environment gates.** Six jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
 sentence in a different document that had counted them. (`budget.yml`
 joined at D332, and this sentence moved in the same commit because
 `check:figures` now holds the count — the gate that grew out of exactly
-this paragraph's history.)
+this paragraph's history — and it caught the sixth, `appcheck.yml`, in
+the commit that added it, which is the first time this count moved without
+a person noticing it had.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -174,6 +183,7 @@ this paragraph's history.)
 | `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
+| `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -290,7 +300,7 @@ None are committed files:
 | --- | --- | --- |
 | `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. Set 2026-07-31 to the maintainer's uid (same account as `MOD_UIDS` — the roles are separate, the person currently is not). |
 | `MOD_UIDS` | `functions/src/moderation.ts` → `assertModerator()` | Comma-separated uids allowed to call the moderation callables (`buildModQueueNow`, `fetchModQueue`, `submitModVerdict`). **Deliberately separate** from `SEED_ADMIN_UIDS` — a moderator identity can moderate and do nothing else (docs/MODERATION.md, D22). Unset ⇒ both callables deny everyone, which is fail-safe. Set 2026-07-31 to the maintainer's uid. |
-| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
+| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. That last sentence is held by `check:appcheck`, which evaluates the constant against these environments rather than pinning its text — until 2026-09-06 the gate read the *name* at 28 call sites and nothing read the value, so flipping this to opt-in served all 20 attested callables unattested with every gate green. |
 | `DC_TEAM_ID`, `DC_KEY_ID` | `functions/src/deviceBind.ts` | Apple team id and DeviceCheck key id for `activateDeviceV2`'s iOS verifier (D29, docs/DEVICE-BIND.md). Unset ⇒ iOS activation fails `failed-precondition` — fail-safe while rules enforcement is soft. |
 | `DC_PRIVATE_KEY` *(secret, not a variable)* | `functions/src/deviceBind.ts` | The DeviceCheck `.p8` contents. Stored as a GitHub **secret**; the deploy step \n-escapes it into the dotenv, the function unescapes. |
 | `DC_ENV` | `functions/src/deviceBind.ts` | Set to `development` only when probing with development-signed builds — Apple routes dev-signed device tokens to the development endpoint. Unset ⇒ production endpoint. |

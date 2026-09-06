@@ -52,7 +52,7 @@ Every constant below is sourced, not assumed:
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+845 reads** — the whole question bank | `V2_QUESTIONS`, 845 docs / 241.5 KiB of JSON |
+| One cold boot | **+913 reads** — the whole question bank | `V2_QUESTIONS`, 913 docs / 260.7 KiB of JSON |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | A returning device's first paint | 0 reads before the deck draws — it paints off the D312 caches and the own-profile mirror, and the ~15 warm-boot reads above reconcile it behind the screen: the count is unchanged, the wait is not | `warmFromDisk()`, src/v2/data/live.ts (D356) |
 | One answer relaunched before its ack | ≤1 read, once the SDK reports its queue drained — and none when the boot's own answers delta already returned it | `settlePending`, src/v2/data/live.ts (D357). Only a boot with an unsettled answer pays it, and the `documentId() in` read covers up to 30 of them |

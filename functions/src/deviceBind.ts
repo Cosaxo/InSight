@@ -54,6 +54,50 @@ export interface TwoBits {
   last_update_time?: string;
 }
 
+/**
+ * What Apple's 200 actually said.
+ *
+ * A DEVICE APPLE HAS NEVER SEEN answers 200 with the literal string
+ * "Failed to find bit state" rather than JSON — one documented body, and
+ * the only one that means "never seen". The caller used to `JSON.parse`
+ * the body and fold EVERY failure into `bits = null`, which
+ * `decideDeviceCheck` reads as never-seen and allows. So a captive portal
+ * page, or a changed Apple error format, or anything else that comes back
+ * 200 and is not JSON, published the fact "this device has not activated
+ * this month" and opened the monthly cooldown (D29).
+ *
+ * `JSON.parse("123")` reached the same place by a second route: it
+ * succeeds, `bits.bit0` is undefined, and `!bits.bit0` allows.
+ *
+ * Exported and pure for the reason `volumeFlagged` in velocity.ts is: the
+ * decision lived inline in a callable no test reaches, so both halves
+ * could be reverted with every suite green.
+ *
+ * A failed READ is not a fact about the device — the 401/403 arm beside
+ * the call site already throws rather than granting, and this is the same
+ * rule for the body.
+ */
+export type TwoBitsRead =
+  | { kind: "never-seen" }
+  | { kind: "bits"; bits: TwoBits }
+  | { kind: "unreadable" };
+
+export function readTwoBits(text: string): TwoBitsRead {
+  if (/Failed to find bit state/i.test(text)) return { kind: "never-seen" };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { kind: "unreadable" };
+  }
+  // A number, a string, a bare `null` and an array are all valid JSON and
+  // none of them is a bit state.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { kind: "unreadable" };
+  }
+  return { kind: "bits", bits: parsed as TwoBits };
+}
+
 // iOS rule: allow unless this device already activated this calendar
 // month. bit0 = "an account was activated from this device"; the write
 // refreshes Apple's month stamp, so bit0 + current month = cooldown.
@@ -83,10 +127,27 @@ export interface RecallValues {
   bitSecond: boolean;
   bitThird: boolean;
 }
+/**
+ * Play's own write-date shape, confirmed against the live discovery
+ * document and not invented.
+ *
+ * This declared `bitFirstWriteDate?: string` and friends. Google sends
+ * `yyyymmFirst` / `yyyymmSecond` / `yyyymmThird` as int32 — "Write time in
+ * YYYYMM format (in UTC, e.g. 202402) … won't be set if the bit is false".
+ * Different keys AND a different type, so the old `typeof d === "string"`
+ * filter emptied the list on every real verdict and `decideRecall` always
+ * fell through to the epoch fallback, while its docstring said write
+ * dates give the month-exact rule. The test built the invented shape
+ * itself and called it "Google's date format", so nothing could notice.
+ *
+ * A numeric string is accepted alongside the number: this shape has been
+ * guessed wrong once already, and the normaliser below strips non-digits
+ * either way.
+ */
 export interface RecallWriteDates {
-  bitFirstWriteDate?: string;
-  bitSecondWriteDate?: string;
-  bitThirdWriteDate?: string;
+  yyyymmFirst?: number | string;
+  yyyymmSecond?: number | string;
+  yyyymmThird?: number | string;
 }
 
 // Android epoch fallback (D29): when the verdict carries recall values but
@@ -124,13 +185,15 @@ export function decideRecall(
   const next = encodeRecall(recallEpoch(now));
   if (!values || decodeRecall(values) === 0) return { allow: true, next };
   const dates = [
-    values.bitFirst ? writeDates?.bitFirstWriteDate : undefined,
-    values.bitSecond ? writeDates?.bitSecondWriteDate : undefined,
-    values.bitThird ? writeDates?.bitThirdWriteDate : undefined,
-  ].filter((d): d is string => typeof d === "string" && d.length > 0);
+    values.bitFirst ? writeDates?.yyyymmFirst : undefined,
+    values.bitSecond ? writeDates?.yyyymmSecond : undefined,
+    values.bitThird ? writeDates?.yyyymmThird : undefined,
+  ]
+    .map((d) => normalizeMonth(typeof d === "number" ? String(d) : d))
+    .filter((d) => d.length === 6);
   if (dates.length > 0) {
     const nowMonth = normalizeMonth(monthKey(now));
-    return { allow: !dates.some((d) => normalizeMonth(d) === nowMonth), next };
+    return { allow: !dates.some((d) => d === nowMonth), next };
   }
   return { allow: decodeRecall(values) !== recallEpoch(now), next };
 }
@@ -212,14 +275,15 @@ async function iosActivate(deviceToken: string, now: Date): Promise<boolean> {
   });
   let bits: TwoBits | null = null;
   if (query.ok) {
-    // A device Apple has never stored bits for answers 200 with the
-    // literal string "Failed to find bit state" instead of JSON.
-    const text = await query.text();
-    try {
-      bits = JSON.parse(text) as TwoBits;
-    } catch {
-      bits = null;
+    // `readTwoBits` has the argument: only Apple's one documented
+    // non-JSON body means "never seen", and everything else unreadable is
+    // a failed read rather than a fact about the device.
+    const read = readTwoBits(await query.text());
+    if (read.kind === "unreadable") {
+      logger.warn("[deviceBind] DeviceCheck answered 200 with a body that is not a bit state");
+      throw new HttpsError("unavailable", "attestation service unreadable");
     }
+    bits = read.kind === "bits" ? read.bits : null;
   } else if (query.status === 401 || query.status === 403) {
     logger.error(`[deviceBind] DeviceCheck auth rejected (${query.status}) — key misconfigured?`);
     throw new HttpsError("failed-precondition", "DeviceCheck credentials rejected");
@@ -314,10 +378,30 @@ async function androidActivate(
   const { allow, next } = decideRecall(recall.values, recall.writeDates, now);
   if (!allow) return false;
   try {
+    // THE ENDPOINT AND THE FIELD NAME, both confirmed against Google's
+    // live discovery document and on the wire.
+    //
+    // This posted to `v1/{pkg}:writeDeviceRecall` with `{ values }`. The
+    // method is `deviceRecall:write` under `v1/{+packageName}`, and the
+    // request field is `newValues`. Measured: the old URL answers 404 and
+    // this one answers 401 (auth required), while the decode call beside
+    // it — which is correct — also answers 401, so the difference is the
+    // path and not the sandbox.
+    //
+    // What that cost: every Android activation reaching a device with
+    // recall bits threw, the catch below turned it into `unavailable`, and
+    // no Android account ever earned the device rung. Enforcement is off
+    // (`deviceBindEnforced()` is false), so nobody was refused — but D29's
+    // month bound was inert on Android, and the readiness metric could not
+    // see it, because that log line fires on the OTHER branch. Turning
+    // enforcement on with the old call would have locked Android out.
+    //
+    // docs/DEVICE-BIND.md asks for exactly this confirmation before
+    // relying on staging results.
     await client.request({
-      url: `https://playintegrity.googleapis.com/v1/${pkg}:writeDeviceRecall`,
+      url: `https://playintegrity.googleapis.com/v1/${pkg}/deviceRecall:write`,
       method: "POST",
-      data: { integrityToken, values: next },
+      data: { integrityToken, newValues: next },
     });
   } catch (err) {
     // Same rule as iOS: no write, no claim.

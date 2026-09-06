@@ -189,6 +189,13 @@ const trendAggs: Record<string, Record<string, DayAgg | null>> = {};
 let loadingToday: Promise<void> | null = null;
 const loadingTrend: Record<string, Promise<void> | undefined> = {};
 let loadedForKey = ""; // today's key at load time — a day rollover invalidates
+// Set when the one read for today throws. `loadedForKey` stays unset on a
+// throw, which is right — nothing was read — but it makes "failed"
+// indistinguishable from "never asked", and a reader that treats either as
+// "nobody has answered" states an absence it did not measure. Same
+// distinction `trendReady` keeps for the trend half, and the same one
+// live.ts keeps for the test aggregates.
+let todayFailed = false;
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((f) => { try { f(); } catch { /* a broken listener must not stop the rest */ } });
 
@@ -319,6 +326,7 @@ export function ensureToday(force = false): Promise<void> {
   // once the bank has landed does the work.
   const ids = roster().map((q) => `${q.id}_${today}`);
   if (!ids.length) return Promise.resolve();
+  todayFailed = false; // a retry clears the previous failure before it starts
   loadingToday = (async () => {
     try {
       const got = await fetchAggs(ids);
@@ -327,6 +335,10 @@ export function ensureToday(force = false): Promise<void> {
       todayAggs = next;
       loadedForKey = today;
       notify();
+    } catch (e) {
+      todayFailed = true;
+      notify();
+      throw e;
     } finally {
       loadingToday = null;
     }
@@ -434,27 +446,85 @@ function days(pid: string): PulseDay[] {
   });
 }
 
-const meanOf = (agg: DayAgg): number | null => {
-  let n = 0, sum = 0;
-  for (const [idx, c] of Object.entries(agg.counts || {})) {
+/**
+ * A count map's crowd and mean, with one unfolded answer of your own
+ * optionally joined in. Option indices are 0-based in storage and the
+ * scale is 1..5, hence the `+ 1`.
+ *
+ * `mineIdx` is `pendingIdx`'s answer: -1 for a day that is not today and
+ * for a viewer whose anchor puts them outside this cut.
+ */
+const meanOfCounts = (
+  counts: Record<string, number> | undefined,
+  mineIdx: number,
+): { n: number; mean: number | null } => {
+  let n = mineIdx >= 0 ? 1 : 0;
+  let sum = mineIdx >= 0 ? mineIdx + 1 : 0;
+  for (const [idx, c] of Object.entries(counts || {})) {
     n += c;
     sum += (Number(idx) + 1) * c;
   }
-  return n > 0 ? sum / n : null;
+  return { n, mean: n > 0 ? sum / n : null };
 };
 
-const cutOf = (agg: DayAgg, scopeId: string): { n: number; mean: number | null } => {
+/**
+ * Your own unfolded answer's option index for one scope, or -1.
+ *
+ * ONE READER FOR BOTH HALVES, because they are two halves of one sentence:
+ * `bins` states the share and `todayN` states the crowd it is a share OF.
+ * They were joining the pending answer on different conditions —
+ * `todayN` whenever one existed, `bins` only where the published cell
+ * already did — so the first person in a city to answer today read
+ * "0% of 1 answer today" under their own step. The same wrong number the
+ * join was added to remove, one cohort narrower.
+ *
+ * A scoped cut counts you only when you are IN it: the bucket is your own
+ * anchor, so no anchor is no membership rather than an empty one. World
+ * always counts you.
+ */
+const pendingIdx = (pid: string, scopeId: string): number => {
+  const pend = LIVE.pulsePending(pid);
+  if (typeof pend !== "number" || pend < 0) return -1;
+  if (scopeId === "world") return pend;
+  const a = LIVE.anchors() || {};
+  return (scopeId === "city" ? a.city : a.country) ? pend : -1;
+};
+
+/**
+ * One scope's cut of one day, and the place `scope()` and `todayN` share.
+ *
+ * NOT the only join in the file: `bins` still does its own inline, because
+ * it needs the per-INDEX shape (`i === mineIdx`) rather than a total, and
+ * `cutOf` returns a total. Both go through `pendingIdx`, so they cannot
+ * disagree about membership — which is the half that actually drifted —
+ * but this comment said "the only place" until a review pointed at `bins`
+ * sixty lines down.
+ *
+ * D365 fixed this join in `bins` and `todayN` and did not reach here, so
+ * the card printed "of 6 answers today" beside a trend whose last point
+ * read no answers, and on a first-in-city day the point was absent while
+ * the crowd beside it was one. That is the same defect a third time, in
+ * the same file, because the join was a line at each call site instead of
+ * a parameter on the one function they share. It is a parameter now: the
+ * caller says WHICH day it is asking about, and this decides the rest.
+ *
+ * Not gated on the cell existing, for the reason `bins` records: being
+ * the first in your city today is exactly the case where the published
+ * cell is absent and you are still in it. `pendingIdx` decides
+ * membership; the cell only supplies whoever came before you.
+ */
+const cutOf = (agg: DayAgg, scopeId: string, mineIdx = -1): { n: number; mean: number | null } => {
   if (scopeId === "world") {
-    const m = meanOf(agg);
-    return { n: agg.total || 0, mean: m };
+    // `n` stays the published total plus you — the world crowd is stated
+    // from `total`, not recounted from the bins.
+    return {
+      n: (agg.total || 0) + (mineIdx >= 0 ? 1 : 0),
+      mean: meanOfCounts(agg.counts, mineIdx).mean,
+    };
   }
   const a = LIVE.anchors() || {};
   const bucket = scopeId === "city" ? a.city : a.country;
-  const cell = bucket ? agg.by?.[scopeId]?.[bucket] : undefined;
-  if (!cell) return { n: 0, mean: null };
-  let n = 0, sum = 0;
-  for (const [idx, c] of Object.entries(cell)) { n += c; sum += (Number(idx) + 1) * c; }
-  return { n, mean: n > 0 ? sum / n : null };
+  return meanOfCounts(bucket ? agg.by?.[scopeId]?.[bucket] : undefined, mineIdx);
 };
 
 function scope(pid: string, id: string): PulseScope {
@@ -472,6 +542,9 @@ function scope(pid: string, id: string): PulseScope {
         ? (a.country ? bucketLabel("country", a.country) : "Your country")
         : "World";
     const cad = cadence(pid);
+    // Once, not once per day: it reads the store and the answer is the
+    // same for all 21. Only TODAY can carry an unfolded answer.
+    const mineIdx = pendingIdx(pid, id);
     const series: ScopeDay[] = Array.from({ length: DAYS }, (_, i) => {
       const d = dayAt(i);
       // An unscheduled day is absent for the crowd too. Everyone's cadence
@@ -480,7 +553,11 @@ function scope(pid: string, id: string): PulseScope {
       // the reader has no row for.
       if (!dueOn(cad, d)) return { i, n: 0, mean: null, placed: false, thin: false, scheduled: false };
       const agg = aggFor(pid, utcKey(d));
-      const cut = agg ? cutOf(agg, id) : { n: 0, mean: null };
+      // No document at all stays zero on the trend as it does on the card
+      // (`todayN`): an absent reading is what the "first answer today" arm
+      // is about, and a lone point drawn from your own vote would be a
+      // claim about a crowd nobody has read.
+      const cut = agg ? cutOf(agg, id, i === DAYS - 1 ? mineIdx : -1) : { n: 0, mean: null };
       return {
         i, n: cut.n,
         mean: cut.n > 0 ? cut.mean : null,
@@ -551,6 +628,20 @@ export const PULSE = {
    * to land: `scope()` serves DEMO_SCOPES and `ensureTrend` returns at its
    * first line, so the reading is complete the moment it renders. */
   trendReady(pid: string): boolean { return !LIVE.enabled || !!trendAggs[pid]; },
+  /**
+   * Has today's crowd been read? 'loading' | 'ready' | 'failed'.
+   *
+   * `todayN` answers 0 for three different facts — nobody answered, the
+   * read is in flight, the read was refused — and the card turned all
+   * three into "the first answer today". That sentence is a claim about
+   * the crowd, so it may only be drawn on 'ready'. Demo is always ready:
+   * its numbers are authored and there is nothing to fetch.
+   */
+  todayState(): "loading" | "ready" | "failed" {
+    if (!LIVE.enabled) return "ready";
+    if (todayAggs && loadedForKey === utcKey(dayAt(DAYS - 1))) return "ready";
+    return todayFailed ? "failed" : "loading";
+  },
   days, scope, streak, fmtN,
   word(pid: string, v: number): string { return stepsOf(pid).find((s) => s.v === v)?.label ?? ""; },
   /** Today's crowd split as percentages — live from today's per-day agg
@@ -560,26 +651,51 @@ export const PULSE = {
     if (!LIVE.enabled) return DEMO_BINS[id] ?? DEMO_BINS.world;
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     if (!agg) return [0, 0, 0, 0, 0];
+    // YOUR OWN UNFOLDED ANSWER JOINS AT READ TIME, the store's convention
+    // (`pickCanon`, live.ts): once the trigger folds it the published
+    // document already counts it, so only a PENDING answer adds. Without
+    // this the reveal drew its crowd off a document written before you
+    // answered — so "you · Brisk" sat above "0% of 4 answers today", the
+    // percentage of the very step it was naming, with your bar at the
+    // minimum height. `PULSE.answer` forces a refetch and reliably loses
+    // the race with the fold; `ensureToday` then short-circuits on
+    // `loadedForKey`, so that pre-vote crowd was frozen for the session.
+    const mineIdx = pendingIdx(pid, id);
     if (id === "world") {
-      const total = agg.total || 0;
+      const total = (agg.total || 0) + (mineIdx >= 0 ? 1 : 0);
       return Array.from({ length: 5 }, (_, i) =>
-        total > 0 ? Math.round(100 * (agg.counts?.[String(i)] ?? 0) / total) : 0);
+        total > 0 ? Math.round(100 * ((agg.counts?.[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / total) : 0);
     }
     const cut = LIVE.anchors() || {};
     const bucket = id === "city" ? cut.city : cut.country;
     const cell = bucket ? agg.by?.[id]?.[bucket] : undefined;
-    const n = cell ? Object.values(cell).reduce((a, b) => a + b, 0) : 0;
+    // The scoped cut is your own cohort, so a pending answer of yours
+    // belongs in it too — same join, same reason as the world cut above.
+    // WITH NO PUBLISHED CELL AS WELL: being the first in your city today
+    // is the case where the cell is absent and you are still in it, and
+    // gating the join on `cell` there drew five zeros beside a crowd of
+    // one. `pendingIdx` is what decides membership; the cell only supplies
+    // whoever came before you.
+    const base = cell ? Object.values(cell).reduce((a, b) => a + b, 0) : 0;
+    const n = base + (mineIdx >= 0 ? 1 : 0);
     return Array.from({ length: 5 }, (_, i) =>
-      n > 0 && cell ? Math.round(100 * (cell[String(i)] ?? 0) / n) : 0);
+      n > 0 ? Math.round(100 * ((cell?.[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / n) : 0);
   },
   todayN(pid: string, id: string): number {
     if (!LIVE.enabled) {
       const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[2];
       return s.n[DAYS - 1];
     }
+    // The denominator the card prints beside the share above, so it joins
+    // the same way — a crowd stated as "of 4" while the share was worked
+    // out over five would be the same wrong number twice.
+    const mineIdx = pendingIdx(pid, id);
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
+    // No document at all is still zero, not one: the card's "first answer
+    // today" arm is about an absent reading, and a pending answer with
+    // nothing published yet is exactly that — you ARE the first.
     if (!agg) return 0;
-    return cutOf(agg, id).n;
+    return cutOf(agg, id, mineIdx).n;
   },
   mineToday(pid: string): number | null {
     // NOT `days(pid)[DAYS - 1].v` (D244). That fold nulls every day the
@@ -638,6 +754,7 @@ window.addEventListener("insight:local-purge", () => {
   todayAggs = null;
   for (const k of Object.keys(trendAggs)) delete trendAggs[k];
   loadedForKey = "";
+  todayFailed = false;
   notify();
 });
 

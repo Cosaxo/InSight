@@ -660,7 +660,7 @@ interface RevealVote {
   pickUid?: string;
 }
 
-async function revealGroupDay(
+export async function revealGroupDay(
   group: FirebaseFirestore.QueryDocumentSnapshot,
   dayKey: string,
 ): Promise<boolean> {
@@ -856,6 +856,42 @@ async function revealGroupDay(
     // Stamped only on the odd ones out, so the common case — everyone on the
     // same question — writes exactly the document it wrote before D71.
     const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
+    // WHO THE REVEAL SAYS WAS THERE, computed once and used twice: as the
+    // `members` field, and as the set the `names` map is cut down to.
+    //
+    // It was computed once and used ONCE. `names` above is built over the
+    // group's whole roster, and `members` is a strict subset of it —
+    // revealMembersFor drops anyone who joined after the day ended and did
+    // not play. So a person who joined this morning was NAMED in
+    // yesterday's reveal while not being in its `members`, and if they
+    // later left the circle, `deleteAccount`'s membership-independent
+    // sweep — which walks `members` — could not find them. Their display
+    // name stayed in a document every signed-in user may read, after they
+    // had asked to be erased. Confirmed against the real callable in the
+    // emulator, not reasoned: the name survived the erasure.
+    //
+    // Narrowed rather than indexed, because the field's own note two
+    // screens down already says `members` is "what the reveal's names are
+    // drawn against" — the invariant was written down and not enforced.
+    // Nothing is lost: every name any surface draws belongs to someone in
+    // `members` (a voter is always kept), and a pick can only name someone
+    // who was a member when the answer was written, which is before the
+    // day ended — so a picked person is in `members` too, or is out of the
+    // roster entirely and had no name here either way.
+    const revealMembers = revealMembersFor(
+      members,
+      joinedAtMs(gsnap.get("memberJoinedAt")),
+      dayKey,
+      Object.keys(freshVotes),
+    );
+    const revealNames: Record<string, string> = {};
+    for (const uid of revealMembers) revealNames[uid] = names[uid] ?? "";
+    // The people this day's picks name — see the field's own note below.
+    const pickedUids = [...new Set(
+      Object.values(freshVotes)
+        .map((v) => v.pickUid)
+        .filter((u): u is string => typeof u === "string" && !!u),
+    )];
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose
     // them, and the reveal condition cannot flip back to false. Re-checked
@@ -873,7 +909,7 @@ async function revealGroupDay(
       day: dayKey,
       qid: freshQid ?? qid,
       votes: freshVotes,
-      names,
+      names: revealNames,
       // Membership AT REVEAL TIME.
       //
       // THIS NO LONGER GATES THE READ, and the paragraph that used to
@@ -922,12 +958,22 @@ async function revealGroupDay(
       // instantly while gen2 functions roll out over minutes. No rule
       // requires it now, so removing the field costs an erasure sweep and
       // the reveal's names, not a window of unreadable documents.
-      members: revealMembersFor(
-        members,
-        joinedAtMs(gsnap.get("memberJoinedAt")),
-        dayKey,
-        Object.keys(freshVotes),
-      ),
+      members: revealMembers,
+      // WHO THE PICKS NAME, as an index erasure can walk.
+      //
+      // A pick answer copies the picked person's uid into `votes.<voter>
+      // .pickUid`, validated against membership at ANSWER time. `members`
+      // above is membership at REVEAL time. Answer on a pick day, leave
+      // the circle before the nightly reveal, and the two disagree — the
+      // uid is in the document and in no array anybody queries, so
+      // deleteAccount's `array-contains` sweep never finds it and the
+      // identifier stays in a document any signed-in user can read.
+      // `web/privacy.html` promises the opposite in writing.
+      //
+      // Written only when a pick actually named someone, so ordinary
+      // reveals carry no extra field. Distinct, because two voters may
+      // pick the same person and `arrayRemove` takes every copy anyway.
+      ...(pickedUids.length ? { pickedUids } : {}),
       revealedAt: FieldValue.serverTimestamp(),
     });
     // The day is settled, so it leaves pendingDays in the same write that
@@ -1057,7 +1103,7 @@ async function revealGroupDay(
 // options at every reveal with every other test still green. That is also
 // the line between this arm and the catalog one — drops defaults versus
 // drops data.
-async function foldDuelSignal(
+export async function foldDuelSignal(
   db: FirebaseFirestore.Firestore,
   mode: string,
   qid: string | null,

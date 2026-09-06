@@ -31,6 +31,10 @@
 export interface PageOrderTopic {
   qids: string[];
   total: number;
+  /** How many questions the topic CARRIES — home plus every `also` door.
+   * Optional because an order published before the fold started stating
+   * it has none, and `qids.length` is then the best truth available. */
+  carry?: number;
 }
 
 export interface PageOrderDoc {
@@ -41,10 +45,20 @@ export interface PageOrderDoc {
  * shape: a field's worth of runway, refilled every boot. */
 export const LEARN_PAGE = 24;
 
-/** Fresh tail questions fetched per feed topic per boot. Today's bank
- * holds about this many per topic in total, so the paged feed reproduces
- * the whole-bank feed exactly until the lanes outgrow it — which is the
- * point where paging starts paying. */
+/** Fresh tail questions fetched per feed topic per boot.
+ *
+ * This said the bank held about this many per topic in total, so that a
+ * paged feed reproduced the whole-bank feed exactly. That stopped being
+ * true: measured on the bank in the tree, a topic carries 13-26 questions
+ * of which 8-24 are tail, so TEN of twelve topics are over this page
+ * (all but culture at 11 and dilemma at 8) and a first boot holds 12-23
+ * of what its shelves carry. It said eight, which is the count over the
+ * ten subject shelves — it silently dropped `now` and `fav`, and the
+ * sentence says "of twelve". It converges -
+ * each boot pulls the next page and the cache keeps it - so the cost is a
+ * new install's first sessions, not a permanent one. What it is NOT is a
+ * number any surface may count and call the bank; `pageTotals` exists for
+ * that. */
 export const FEED_PAGE = 12;
 
 /**
@@ -123,14 +137,54 @@ export function pageSizesByInterest(
 }
 
 /** Per-field/topic bank totals off the order doc — the sheet's honest
- * "N questions" once the pool is a page rather than the bank. */
+ * "N questions" once the pool is a page rather than the bank.
+ *
+ * `carry` where the fold states it, because the sheets count MEMBERSHIP
+ * and `qids` is home placement: on the feed those differ by every
+ * straddler, and the client cannot recover the difference — it sees
+ * `also` only on the questions it already holds. Learn has no `also`, so
+ * the two are equal there and the fallback is not a second behaviour,
+ * only what an order published before `carry` existed can offer. */
 export function pageTotals(order: PageOrderDoc | null): Record<string, number> {
   const out: Record<string, number> = {};
   if (!order || !order.topics) return out;
   for (const [f, t] of Object.entries(order.topics)) {
-    if (t && Array.isArray(t.qids)) out[f] = t.qids.length;
+    if (t && Array.isArray(t.qids)) {
+      out[f] = typeof t.carry === "number" ? t.carry : t.qids.length;
+    }
   }
   return out;
+}
+
+// The feed's twin of learnBank's totals, and it exists for the same
+// reported failure (D283, fixed there): the topic sheet counted the
+// device's pool, which since D321 is core plus at most one FEED_PAGE of
+// tail per topic per boot — so a first boot read 12–23 questions on
+// shelves carrying 13–26. Null until a live build publishes, which is the
+// whole state machine: a demo build never calls the publisher, and a pool
+// it holds whole IS its bank.
+let feedTotals: Record<string, number> | null = null;
+
+/** Hand the sheet the bank's per-topic counts. Called by the feed pager.
+ *
+ * AN EMPTY MAP IS NO ORDER, NOT A BANK OF NOTHING — the same collapse
+ * `publishLearnTotals` documents at length: `pageTotals` returns `{}`
+ * when there is no order at all, `{}` is truthy, and `0 ?? pool` is 0, so
+ * every topic would read "0 questions" while its questions were being
+ * served. */
+export function publishFeedTotals(totals: Record<string, number> | null): void {
+  feedTotals = totals && Object.keys(totals).length ? totals : null;
+}
+
+/** The bank's count for one topic, or null where no order has loaded and
+ * the caller should count its pool instead. */
+export function feedTopicTotal(topic: string): number | null {
+  return feedTotals ? (feedTotals[topic] ?? 0) : null;
+}
+
+/** Drop back to counting the pool. Only the test fixtures need this. */
+export function resetFeedTotals(): void {
+  feedTotals = null;
 }
 
 export interface PagerIO<Row> {

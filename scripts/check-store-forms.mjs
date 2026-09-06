@@ -72,6 +72,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { stripXmlComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // The idiom check-policy-claims.mjs already uses: run as a gate, import as
@@ -188,7 +189,15 @@ for (const t of proseTypes) {
 // must say so; if it stops asking, the label must stop saying so. Neither
 // direction can drift now, and this file no longer has an opinion about
 // which one is right.
-const plist = readFileSync(join(root, "ios/App/App/Info.plist"), "utf8");
+// Comments off first — the pattern below tolerates a comment BETWEEN the
+// key and its value, and that is the wrong half. It reads the first
+// `<key>` wherever it is, so commenting the whole pair out left this gate
+// printing "Precise Location declared, matching the plist" at exit 0 while
+// the key it names was not in the shipped app. Store forms are one of the
+// four things CLAUDE.md puts outside the D334 ask, so this one is not a
+// preference. Same class, same tool, as `check-ios-location`, which reads
+// the same file.
+const plist = stripXmlComments(readFileSync(join(root, "ios/App/App/Info.plist"), "utf8"));
 // `<key>X</key>` followed by `<true/>` or `<false/>`, whitespace and
 // comments between them. Reduced accuracy TRUE means the app deliberately
 // asks for a coarse fix.

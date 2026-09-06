@@ -28,7 +28,7 @@ beforeEach(() => {
   registerNav({
     goTab: () => {}, goNav: () => true, openOverlay: () => {},
     openProfileTab: () => {}, openCity: () => {}, openPerson: () => {},
-    openSuggestions: () => {}, openLogicTest: () => {},
+    openAskedByYou: () => {}, openLogicTest: () => {},
   })();
 });
 
@@ -43,7 +43,7 @@ describe("before the shell registers", () => {
       NAV.openProfileTab("general");
       NAV.openCity("Oslo");
       NAV.openPerson({ id: 1 });
-      NAV.openSuggestions();
+      NAV.openAskedByYou();
       NAV.openLogicTest();
     }).not.toThrow();
   });
@@ -64,27 +64,27 @@ describe("registration", () => {
   });
 
   it("is additive, so a second effect does not wipe the first", () => {
-    // app-shell's real shape: `openSuggestions`/`openLogicTest` register in
+    // app-shell's real shape: `openAskedByYou`/`openLogicTest` register in
     // an effect keyed on `openDeferred`, the rest in a mount-only one. A
     // whole-object set would drop whichever registered first.
     const goTab = vi.fn();
-    const openSuggestions = vi.fn();
+    const openAskedByYou = vi.fn();
     registerNav({ goTab });
-    registerNav({ openSuggestions });
+    registerNav({ openAskedByYou });
     NAV.goTab("you");
-    NAV.openSuggestions();
+    NAV.openAskedByYou();
     expect(goTab).toHaveBeenCalled();
-    expect(openSuggestions).toHaveBeenCalled();
+    expect(openAskedByYou).toHaveBeenCalled();
   });
 
   it("tears down only its own keys", () => {
     const goTab = vi.fn();
-    const openSuggestions = vi.fn();
+    const openAskedByYou = vi.fn();
     registerNav({ goTab });
-    const dropSuggest = registerNav({ openSuggestions });
-    dropSuggest();
+    const dropAsked = registerNav({ openAskedByYou });
+    dropAsked();
 
-    expect(canNav("openSuggestions")).toBe(false);
+    expect(canNav("openAskedByYou")).toBe(false);
     expect(canNav("goTab"), "the other effect's door was torn down too").toBe(true);
     NAV.goTab("you");
     expect(goTab).toHaveBeenCalled();

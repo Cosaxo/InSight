@@ -28,7 +28,7 @@ import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
 // The report builder (PAID-PLAN §9.2): §7g drives it through THIS
 // harness's signed-in client, so the deployed rules referee every read.
 import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
-import { expectCode, expectDenied, fail, ok } from "./e2e-lib.mjs";
+import { expectCode, expectDenied, expectRefusal, fail, ok } from "./e2e-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -111,6 +111,47 @@ const qsnap = await getDocs(query(
 if (qsnap.empty) fail("daily bank empty");
 const q0 = qsnap.docs[0];
 ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slice(0, 40) + "…\"");
+
+// 3a · THE DAILY'S SEQ SPACE IS DENSE IN THE DATABASE (D383), which is the
+// precondition the paged boot rests on and the one thing only this harness
+// can prove. The client computes its seven deck positions from a published
+// LENGTH and then asks for `seq in [...]`; that maps a position to a
+// question only while the daily's seqs run 0..n-1 with no holes. Every
+// other suite checks the COMPILED bank — this checks what the real seed
+// actually wrote, which is the copy the device reads. A hole here is a
+// device on a different question from everyone else, with no symptom
+// anywhere: the deck renders, the counts publish, and the cohort readings
+// quietly stop meaning "we answered the same thing".
+{
+  const all = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "daily"), orderBy("seq")));
+  const seqs = all.docs.map((d) => d.get("seq"));
+  const holes = seqs.filter((v, i) => v !== i);
+  if (holes.length)
+    fail("the seeded daily seq space is not dense 0..n-1 — `seq` is not a "
+      + "position and the paged deck (D383) would disagree across devices; "
+      + "first bad index " + seqs.findIndex((v, i) => v !== i));
+  // …and the shape the nightly fold would publish agrees with it. The
+  // client REFUSES the fast path unless maxSeq === n - 1, so if these ever
+  // part company the daily silently reverts to fetching the whole surface.
+  if (seqs.length && seqs[seqs.length - 1] !== seqs.length - 1)
+    fail("maxSeq !== n - 1 on the seeded daily bank — the client would "
+      + "refuse the paged deck and fetch the surface whole");
+  ok("daily seq space is dense 0.." + (seqs.length - 1) + " in the database — the paged deck's precondition holds");
+
+  // …and the Scores pool the fold would publish is drawn from documents
+  // that really carry `rates` (D384). The device fetches these BY ID off
+  // the published list, so an id naming a question that is not a place
+  // ask is a wasted read on every boot, and one naming nothing at all is
+  // a read that returns nothing forever.
+  const asks = all.docs.filter((d) =>
+    d.get("active") !== false && d.get("type") === "rating" && typeof d.get("rates") === "string");
+  if (!asks.length)
+    fail("no seeded daily doc is an active place ask — the Scores pool (D384) would be empty");
+  const scopes = [...new Set(asks.map((d) => d.get("rates")))].sort();
+  ok("Scores pool: " + asks.length + " place asks over " + scopes.join(", ") + " — paged by id, not queried off the surface");
+}
 
 // 3b · the doc shape the schema promises actually lands (D234). For two
 // releases core/tag/rates (and until/sponsor/also/the call trio) were in
@@ -739,8 +780,10 @@ ok("duo streak = 1");
   const mkGroup = await httpsCallable(fns, "createGroupV2")({ name: "Marker Crew", mode: "group" });
   const mkGid = mkGroup.data.gid;
   const mkDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  // …with a call on where the room lands (D386): a group answer may carry
+  // `guessIdx` like a duo's, and the reveal below must publish it.
   await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_${mkDay}`), {
-    qid: "group-gu0", surface: "group", optionIdx: 1,
+    qid: "group-gu0", surface: "group", optionIdx: 1, guessIdx: 1,
     gid: mkGid, day: mkDay, answeredAt: serverTimestamp(), anchors: {},
   });
 
@@ -756,8 +799,13 @@ ok("duo streak = 1");
   const idx = await httpsCallable(fns, "revealDuelsNowV2")({ day: mkDay, scan: "indexed" });
   if (idx.data.mode !== "indexed") fail("scan mode not honoured: " + JSON.stringify(idx.data));
   if (idx.data.revealed < 1) fail("indexed scan revealed nothing — the marker query missed the group");
-  if (!(await getDoc(doc(db, "v2_groups", mkGid, "reveals", mkDay))).exists())
+  const mkRevealSnap = await getDoc(doc(db, "v2_groups", mkGid, "reveals", mkDay));
+  if (!mkRevealSnap.exists())
     fail("indexed scan reported a reveal that is not there");
+  const mkVotes = mkRevealSnap.get("votes") || {};
+  if (mkVotes[uid]?.guessIdx !== 1)
+    fail("the group reveal dropped the call on the room: " + JSON.stringify(mkVotes[uid]));
+  ok("a group reveal carries the member's call on the room (D386)");
   ok("indexed scan found the marked group and revealed it");
 
   // Settling the day must clear it, or every later run re-reads this group
@@ -874,6 +922,33 @@ if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists()
   if (!(lateRead.get("members") || []).includes(uid))
     fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
   ok("a joiner reads a reveal from before they joined, and it still records who was there");
+  // …and it names NOBODY it does not list as having been there.
+  //
+  // This fixture is the leak's exact shape and had been sitting here
+  // unasserted: the latecomer joined after OTHERDAY ended and never
+  // played, so `revealMembersFor` drops them from `members` — while the
+  // `names` map was built over the group's whole roster and named them
+  // anyway. Leave the circle after that and `deleteAccount`'s
+  // membership-independent sweep, which walks `members`, cannot reach the
+  // name; it stays in a document every signed-in user may read (D98's
+  // read rule), against what web/privacy.html promises in writing.
+  //
+  // Asserted as an INVARIANT of the document rather than by naming the
+  // latecomer, because the guarantee is about the pair of fields and not
+  // about this fixture: any future writer that puts a name in without
+  // putting the person in `members` fails here.
+  {
+    const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
+    const names = lateRead.get("names") || {};
+    const listed = lateRead.get("members") || [];
+    const stray = Object.keys(names).filter((u) => !listed.includes(u));
+    if (stray.length)
+      fail("the reveal names people it does not record as there: " + JSON.stringify(stray)
+        + " — members " + JSON.stringify(listed));
+    if (!Object.keys(names).length)
+      fail("the reveal named nobody at all — the assertion above would pass on an empty map");
+    ok("the reveal names only the people it records as having been there");
+  }
 }
 await expectDenied("member cannot answer a day already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
@@ -910,22 +985,41 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
   updateDoc(doc(db, "v2_users", uid, "answers", LQ), {
     optionIdx: 0, editedAt: serverTimestamp(),
   }));
+// 60 × 500 ms, matching the FIRST wait in this file rather than the warm
+// ones — raised from 40 after the feed lane counted five timeouts here.
+//
+// Why this poll is not the warm case the comment at the top describes: the
+// learn write is the only fold in the suite that runs the answer-key and
+// logic-scoring arm as well as the ledger, and it lands after the deny
+// block above, whose three refusals invoke no function at all. So this is
+// a second first-delivery window under the heaviest per-answer work in
+// the file, not the steady state 20 × 400 ms is plenty for.
+//
+// Raised rather than retried, on that comment's own argument: a retry
+// loop around a poll is still a poll with a longer ceiling, only harder
+// to read — and the cost of the longer ceiling is zero on every run that
+// does not need it, because the loop breaks the moment the document
+// appears. What a longer ceiling buys is that the message below stops
+// lying: a timeout here prints "the trigger did not fire", which is the
+// most misleading sentence this file can produce.
+// One constant, because the ceiling was written twice — the loop bound and
+// the failure message's own `40 * 500` — and a message that quotes a number
+// the loop no longer uses is this repo's most-repeated documentation error
+// pointed at a test.
+const LEARN_TRIES = 60;
+const LEARN_EVERY = 500;
 let lpub = null;
-// The learn surface is the first time this aggregate TYPE reaches the database,
-// so the trigger has no warm cache. Like the 1.0 answer's first fold (lines 164–178),
-// this wait pays the cold start and Eventarc setup costs for its first trigger
-// delivery. A client that sees this timeout is waiting on a trigger that has not
-// yet landed, and the failure reads as a counts mismatch on null. Two failures,
-// two messages — so a TIMEOUT here reports itself as a privacy regression, which
-// sends the next person hunting for one and cost an all-afternoon detour on 2026-08-05.
-// Raised rather than retried: a first-delivery window that is sometimes too short is
-// a flaky suite, and the cost of a longer ceiling is zero on every run that does not need it.
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < LEARN_TRIES; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
   if (snap.exists()) { lpub = snap.data(); break; }
-  await new Promise((r) => setTimeout(r, 500));
+  await new Promise((r) => setTimeout(r, LEARN_EVERY));
 }
-if (!lpub) fail(`learn public agg never appeared after ${60 * 500}ms — the trigger did not fire, or did not finish in time`);
+// Two failures, two messages — the same split the world-question check at
+// the top of this file already makes. Collapsed into one, a TIMEOUT here
+// reports itself as a counts mismatch on null, which reads as a privacy
+// regression and sends the next person hunting for one. It cost exactly
+// that detour on 2026-08-05.
+if (!lpub) fail(`learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms — the trigger did not fire, or did not finish in time`);
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
 if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
@@ -1240,14 +1334,18 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // Asserted through the real callable, on a real bank question, because
   // that is the half the unit test cannot reach.
   for (const [qid, what] of [["group-gu0", "a sealed duel"], ["pulse-pace", "a per-day pulse"]]) {
-    let refused = null;
-    try {
-      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
-    } catch (err) {
-      refused = String(err && err.message ? err.message : err);
-    }
-    if (!refused) fail(`the rebuild tool reported on ${what} (${qid}) instead of refusing it`);
-    // The refusal has to NAME the question and give a reason — a bare
+    // THE CODE, not just the fact that something was thrown. This block
+    // read only the message until tonight, and the callable's own
+    // `internal` wrapper answers `rebuild of <qid> failed: <reason>` —
+    // which names the question and is long, so a missing composite index
+    // or any other crash inside runRebuild passed as the refusal being
+    // asserted. `not-found` (the fixture never seeded) cleared the name
+    // check too and missed the length one by two characters.
+    const refused = await expectRefusal(
+      `the rebuild tool refuses ${what} (${qid})`,
+      "functions/failed-precondition",
+      () => httpsCallable(fns, "rebuildAggregateV2")({ qid }));
+    // AND the refusal has to NAME the question and give a reason — a bare
     // "failed-precondition" tells an operator nothing about which of the
     // two unaddressable shapes they hit.
     if (!refused.includes(qid) || refused.length < qid.length + 30)
@@ -1761,10 +1859,41 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const payFns = getFunctions(payApp, FUNCTIONS_REGION); connectFunctionsEmulator(payFns, "127.0.0.1", 5001);
   const buyer = await signInAnonymously(payAuth);
 
+  // A budget outside the card's range is refused before anything is
+  // written (D372) — the sentence names the range the buyer can pick from.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      prompt: "Should the harbour bath stay open all winter?",
+      type: "binary", options: ["Keep it open", "Close for winter"],
+      topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 2,
+    });
+    fail("a €2 budget was accepted");
+  } catch (e) {
+    if (!/budget between/.test(String(e?.message))) fail("wrong refusal for an out-of-range budget: " + e?.message);
+  }
+  ok("an out-of-range budget is refused with the range");
+
+  // A link that is not an https address is refused before anything is
+  // written (D378) — the sentence says what shape it needs.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      prompt: "Should the harbour bath stay open all winter?",
+      type: "binary", options: ["Keep it open", "Close for winter"],
+      topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 20,
+      link: "http://harboursauna.no/winter",
+    });
+    fail("an http link was accepted");
+  } catch (e) {
+    if (!/https/.test(String(e?.message))) fail("wrong refusal for a malformed link: " + e?.message);
+  }
+  ok("a link that is not https is refused by shape");
+
+  const LINK = "https://harboursauna.no/winter";
   const book = await httpsCallable(payFns, "bookPaidQuestionV2")({
     prompt: "Should the harbour bath stay open all winter?",
     type: "binary", options: ["Keep it open", "Close for winter"],
-    topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false,
+    topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false, budgetEur: 20,
+    link: LINK,
   });
   const bid = book.data?.id;
   if (!bid) fail("bookPaidQuestionV2 returned " + JSON.stringify(book.data));
@@ -1786,12 +1915,23 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (booking.review?.by !== "gates-only") {
     fail("emulator review must record by=gates-only, got " + JSON.stringify(booking.review));
   }
-  // The locked quote, off the committed card: base 0.16 × idx 0.9.
+  // The locked quote, off the LIVE card (D371) — which before any sale
+  // is the committed card's floor: base 0.02 × idx 1.0 (nobody else in
+  // rotation, D373) — with the buyer's €20 budget as the cap (D372).
+  // Read through the buyer's own client, the way the door reads it:
+  // `v2_meta/*` is readable by any signed-in user.
+  const liveCardNow = async () => {
+    const s = await getDoc(doc(payDb, "v2_meta", "pricing"));
+    return s.exists() ? s.data() : null;
+  };
+  const cardBefore = await liveCardNow();
+  const idxBefore = cardBefore?.cohorts?.city?.idx ?? 1;
+  if (idxBefore !== 1) fail("the city index moved before anything was sold: " + JSON.stringify(cardBefore));
   const q = booking.quote || {};
-  if (q.ratePerAnswer !== 0.144 || q.capEur !== 320 || q.cap !== Math.floor(320 / 0.144) || q.windowDays !== 29) {
-    fail("quote is not the committed card's arithmetic: " + JSON.stringify(q));
+  if (q.ratePerAnswer !== 0.02 || q.capEur !== 20 || q.cap !== 1000 || q.windowDays !== 29) {
+    fail("quote is not the card's arithmetic over the buyer's budget: " + JSON.stringify(q));
   }
-  ok("review approved on gates alone (recorded as such) with the locked quote");
+  ok("review approved on gates alone (recorded as such) with the locked quote: €0.02 an answer, €20 budget, 1000 answers");
 
   // A gate decline, with the reason written to be shown. Duplicate
   // options are two indexes wearing one answer — the aggregate would
@@ -1890,10 +2030,40 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const purchase = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${bid}`));
   if (!purchase.exists()) fail("the webhook wrote no purchase record");
   if (purchase.get("state") !== "running" || purchase.get("qid") !== qid
-    || purchase.get("budget")?.ratePerAnswer !== 0.144
+    || purchase.get("budget")?.ratePerAnswer !== 0.02 || purchase.get("budget")?.capEur !== 20
     || purchase.get("stripePaymentIntent") !== "pi_e2e_1") {
     fail("purchase record malformed: " + JSON.stringify(purchase.data()));
   }
+  // THE SALE MOVED THE RATE CARD (D371, D373, D377). The webhook folded
+  // the ledger after going live and published the live half onto
+  // v2_meta/pricing: the 29-day window starting tomorrow is one campaign
+  // in the city's rotation on every day of the fortnight — the crowd
+  // strip says so NOW, not after an operator runs a script. The index
+  // itself stays at the floor: the feed carries a paid card in every
+  // sixth place, so the card's free places (three) hold this campaign
+  // and the next two without anyone sharing, and the multiplier counts
+  // only what a buyer would push beyond them. The other two cohorts did
+  // not move: the places are per scope.
+  const cardAfter = await liveCardNow();
+  if (!cardAfter) fail("the webhook published no live rate card");
+  const cityAfter = cardAfter.cohorts?.city || {};
+  if (cityAfter.idx !== 1) {
+    fail("one campaign inside the free places should still read ×1: " + JSON.stringify(cardAfter.cohorts));
+  }
+  if (!Array.isArray(cityAfter.crowd) || cityAfter.crowd.some((n) => n !== 1)) {
+    fail("the crowd strip should show one campaign on every day: " + JSON.stringify(cityAfter));
+  }
+  if (!Array.isArray(cityAfter.booked) || cityAfter.booked.length !== 14 || cityAfter.booked.some((b) => b !== 1)) {
+    fail("a 29-day window starting tomorrow should book the whole fortnight: " + JSON.stringify(cityAfter));
+  }
+  if (cardAfter.cohorts?.country?.idx !== 1 || cardAfter.cohorts?.world?.idx !== 1) {
+    fail("a city sale moved another cohort's index: " + JSON.stringify(cardAfter.cohorts));
+  }
+  if (cardAfter.generated !== new Date().toISOString().slice(0, 10)) {
+    fail("the live card is not dated today: " + JSON.stringify(cardAfter.generated));
+  }
+  ok(`the sale moved the rate card by machinery: city ×${cityAfter.idx} with one campaign on every day of its strip (room for two more), country and world still ×1`);
+
   // Any signed-in user reads the question — it is bank content now. The
   // MAIN account (a different uid) is the reader on purpose.
   const qDoc = await getDoc(doc(db, "v2_questions", qid));
@@ -1905,7 +2075,57 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (qDoc.get("sponsor").buyer !== undefined) {
     fail("a nameless booking grew a buyer name: " + JSON.stringify(qDoc.get("sponsor")));
   }
-  ok("payment went live: purchase + disclosed question in one transaction");
+  // The days the buyer paid for, on the question path. `from`/`until` were
+  // checked for truthiness only, so the window could be any length: the
+  // quote assertion above reads the constant, not the dates goLive wrote.
+  // Against the quote the CALLABLE returned, so a change that moved one
+  // and not the other fails here rather than shipping a mismatch.
+  {
+    const from = qDoc.get("from"), until = qDoc.get("until");
+    const span = Math.round(
+      (Date.parse(`${until}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
+    if (span !== q.windowDays) {
+      fail(`the paid question serves ${span} days, the buyer paid for ${q.windowDays}: ${from}..${until}`);
+    }
+    // …and it starts tomorrow, not today: today's decks are already dealt
+    // on every device that booted this morning, which is the reason the
+    // window is written the way it is.
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    if (from !== tomorrow) fail(`the paid question starts ${from}, not tomorrow (${tomorrow})`);
+  }
+  // The buyer's link rides on the content (D378), whole, for every
+  // device to print after the answer — and on the buyer's own record.
+  if (qDoc.get("sponsor").link !== LINK) {
+    fail("the buyer's link is not on the question doc: " + JSON.stringify(qDoc.get("sponsor")));
+  }
+  if (purchase.get("link") !== LINK) fail("the purchase record lost the link: " + JSON.stringify(purchase.data()));
+  ok("payment went live: purchase + disclosed question in one transaction, the buyer's link on both");
+
+  // …AND CHECKOUT REFUSES IT NOW. The guard is `status === "live"` and it
+  // sits ABOVE the missing-key check, so unlike the rest of that callable
+  // it is reachable here — and nothing exercised it: deleting it left the
+  // whole suite green. web/paid-cancel.html tells the buyer that pressing
+  // Pay again "opens a fresh payment page", so a second checkout on a
+  // booking already paid for is a page the product actively offers, and
+  // "failed-precondition" rather than a payable session is the difference
+  // between one charge and two.
+  //
+  // The code distinguishes it from the not-yet-approved refusal, which is
+  // the same code with a different sentence — so the message is checked
+  // too, or this leg would pass on either guard.
+  {
+    // expectRefusal, not expectCode: this leg has to read the MESSAGE, and
+    // expectCode swallows the error and emits its own ok — which is the
+    // exact shape that helper's docstring warns about. It emits no ok, so
+    // the tally counts this only once the sentence is checked too.
+    const why = await expectRefusal("checkout refuses a booking already paid for",
+      "functions/failed-precondition",
+      () => httpsCallable(payFns, "createPaidCheckoutV2")({ id: bid }));
+    if (!/already paid/i.test(why)) {
+      fail("checkout refused a paid booking with the wrong reason: " + why);
+    }
+    ok("checkout refuses a booking already paid for, and says which refusal it is");
+  }
 
   // At-least-once delivery: the SAME event again answers 200 and mints
   // nothing new — the status guard is the idempotency.
@@ -1959,88 +2179,61 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("a paid question takes answers and aggregates through the ordinary path");
 
-  // 13 · The ad lane (D315): same loop, a different product — flat quote,
-  // queued day-exclusive windows, the webhook writing v2_ads, and the
-  // reseed NOT eating what the webhook wrote.
-  const dayKey = (off) => new Date(Date.now() + off * 86400000).toISOString().slice(0, 10);
-  const dayAfter = (k) => new Date(Date.parse(`${k}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  // The shareable results page (D379): a public web page per sponsored
+  // question, served by an HTTPS function the hosting rewrite /q/{qid}
+  // points at — reached here at the function's own path, with no token,
+  // no account and no App Check, which is the whole point of it. The
+  // same public numbers the card draws, the PAID mark, the buyer's link
+  // as its domain, the security headers a page under web/ carries; and a
+  // bank question, which no buyer stands behind, has no page.
+  const pageUrl = (q) => `http://127.0.0.1:5001/demo-insight/${FUNCTIONS_REGION}/resultsPageV2/q/${q}`;
+  const pageRes = await fetch(pageUrl(qid));
+  const pageHtml = await pageRes.text();
+  if (pageRes.status !== 200) fail("the results page did not render: " + pageRes.status + " " + pageHtml.slice(0, 200));
+  if (!/text\/html/.test(pageRes.headers.get("content-type") || "")) fail("the results page is not html: " + pageRes.headers.get("content-type"));
+  if (pageRes.headers.get("x-content-type-options") !== "nosniff" || pageRes.headers.get("referrer-policy") !== "no-referrer" || !pageRes.headers.get("content-security-policy")) {
+    fail("the results page is missing a security header: " + JSON.stringify(Object.fromEntries(pageRes.headers)));
+  }
+  if (!/max-age=300/.test(pageRes.headers.get("cache-control") || "")) fail("the results page is not cached for five minutes: " + pageRes.headers.get("cache-control"));
+  if (!pageHtml.includes("Should the harbour bath stay open all winter?")) fail("the results page does not carry the question");
+  if (!pageHtml.includes(">PAID<")) fail("the results page does not wear the PAID mark");
+  if (!/<strong>1<\/strong> answer\b/.test(pageHtml)) fail("the results page does not count the one answer: " + pageHtml.slice(0, 400));
+  if (!pageHtml.includes("harboursauna.no ↗")) fail("the results page does not print the buyer's link as its domain");
+  if (pageHtml.includes(uid) || pageHtml.includes(buyer.user.uid)) fail("the results page leaks a uid");
+  const bankPage = await fetch(pageUrl("f01"));
+  if (bankPage.status !== 404) fail("a bank question got a results page: " + bankPage.status);
+  const nonePage = await fetch(pageUrl("no-such-question"));
+  if (nonePage.status !== 404) fail("a missing question got a results page: " + nonePage.status);
+  ok("the results page serves the sponsored question's public numbers to the open web, and nothing else");
 
-  const bookAd = (headline) => httpsCallable(payFns, "bookPaidQuestionV2")({
-    kind: "ad", advertiser: "Harbour Sauna", headline,
-    body: "Open every morning from six, all winter.",
-    scope: "city", dims: { city: "Oslo, NO" },
+  // 13 · The ad lane is retired (D375): an ad booking is refused by name
+  // before anything is written, and the committed ad pen's sparing
+  // still holds — a `paidad-` doc (an ad sold before D375, or a hand
+  // contract) survives a reseed over the deliberately empty file.
+  try {
+    await httpsCallable(payFns, "bookPaidQuestionV2")({
+      kind: "ad", advertiser: "Harbour Sauna", headline: "The water is warmer than you think",
+      body: "Open every morning from six, all winter.",
+      scope: "city", dims: { city: "Oslo, NO" },
+    });
+    fail("an ad booking was accepted after the lane was retired");
+  } catch (e) {
+    if (!/ask a question instead/.test(String(e?.message))) fail("wrong refusal for an ad booking: " + e?.message);
+  }
+  ok("an ad booking is refused by name — the sponsored question is the one product");
+
+  const spared = "paidad-e2e-legacy";
+  await adminDb.doc(`v2_ads/${spared}`).set({
+    seq: 100001, advertiser: "Harbour Sauna", headline: "Still here", body: "A window sold before D375.",
+    from: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    until: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+    updatedAt: new Date(),
   });
-  const settleAd = async (id) => {
-    for (let i = 0; i < 40; i++) {
-      const s = await getDoc(doc(payDb, "v2_paid_bookings", id));
-      if (s.exists() && s.get("status") !== "review") return s;
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    fail("the ad review never settled " + id);
-    return null;
-  };
-
-  const ad1 = await bookAd("The water is warmer than you think");
-  const ad1Snap = await settleAd(ad1.data.id);
-  if (ad1Snap.get("status") !== "approved") fail("ad booking not approved: " + JSON.stringify(ad1Snap.data()));
-  const adQuote = ad1Snap.get("quote") || {};
-  if (adQuote.flatEur !== 288 || adQuote.windowDays !== 29) {
-    fail("ad quote is not adBase × idx off the committed card: " + JSON.stringify(adQuote));
-  }
-  ok("an ad books and approves at the flat committed price");
-
-  const adEvent = (evtId, csId, bid, pi) => JSON.stringify({
-    id: evtId, object: "event", type: "checkout.session.completed",
-    // `payment_status: "paid"` for the same reason the question's fixture
-    // carries it: a completion is not a payment for every method.
-    data: { object: { id: csId, object: "checkout.session", client_reference_id: bid, metadata: { bid }, payment_intent: pi, payment_status: "paid" } },
-  });
-  const adPaid = await signedPost(adEvent("evt_e2e_ad1", "cs_ad1", ad1.data.id, "pi_ad1"), whsec);
-  if (adPaid.status !== 200) fail("ad webhook answered " + adPaid.status);
-  const ad1Live = await getDoc(doc(payDb, "v2_paid_bookings", ad1.data.id));
-  const adId1 = ad1Live.get("adId");
-  if (ad1Live.get("status") !== "live" || adId1 !== `paidad-${ad1.data.id}`) {
-    fail("ad payment did not go live: " + JSON.stringify(ad1Live.data()));
-  }
-  const adPurchase1 = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${ad1.data.id}`));
-  if (!adPurchase1.exists() || adPurchase1.get("kind") !== "ad" || adPurchase1.get("priceEur") !== 288) {
-    fail("ad purchase malformed: " + JSON.stringify(adPurchase1.data()));
-  }
-  const w1 = adPurchase1.get("window");
-  if (w1.start !== dayKey(1)) fail("first ad in an empty scope must start tomorrow, got " + JSON.stringify(w1));
-  // The ad doc is bank content any signed-in user reads, in the seed's
-  // own field shape plus the queued-start `from` the client filter honours.
-  const adDoc1 = await getDoc(doc(db, "v2_ads", adId1));
-  if (!adDoc1.exists() || adDoc1.get("from") !== w1.start || adDoc1.get("until") !== w1.until
-    || adDoc1.get("advertiser") !== "Harbour Sauna" || !adDoc1.get("updatedAt")) {
-    fail("live ad doc missing its serving shape: " + JSON.stringify(adDoc1.data()));
-  }
-  ok("ad payment went live: purchase + v2_ads doc in one transaction");
-
-  // Day-exclusivity: a second ad in the same scope QUEUES — its window
-  // begins the day after the first one ends, never overlapping it.
-  const ad2 = await bookAd("Warmer still on Tuesdays");
-  await settleAd(ad2.data.id);
-  const ad2Paid = await signedPost(adEvent("evt_e2e_ad2", "cs_ad2", ad2.data.id, "pi_ad2"), whsec);
-  if (ad2Paid.status !== 200) fail("second ad webhook answered " + ad2Paid.status);
-  const adPurchase2 = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${ad2.data.id}`));
-  const w2 = adPurchase2.get("window");
-  if (w2.start !== dayAfter(w1.until)) {
-    fail(`second ad did not queue: first ends ${w1.until}, second starts ${w2.start}`);
-  }
-  ok("a second ad in the scope queues the day after the first — windows never overlap");
-
-  // The reseed must not eat sold ads: content/ads.json is deliberately
-  // empty, so without the paidad- sparing runSeedAds would delete BOTH
-  // docs here — this assertion is the sparing's pin, not a formality.
   await httpsCallable(fns, "seedContentV2")({});
-  if (!(await getDoc(doc(db, "v2_ads", adId1))).exists()) {
-    fail("a reseed deleted a sold ad — the paidad- sparing is broken");
+  if (!(await getDoc(doc(db, "v2_ads", spared))).exists()) {
+    fail("a reseed deleted a paidad- doc — the sparing is broken");
   }
-  if (!(await getDoc(doc(db, "v2_ads", `paidad-${ad2.data.id}`))).exists()) {
-    fail("a reseed deleted the queued sold ad");
-  }
-  ok("a reseed leaves sold ads standing (the seed spares paidad- ids)");
+  ok("a reseed leaves a paidad- doc standing (the seed spares the prefix)");
 }
 
 console.log("\nALL E2E CHECKS PASSED");
