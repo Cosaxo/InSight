@@ -42979,8 +42979,10 @@ it also wrote a 205 MB simulator log there and GitHub refused the push.
 Run 10 was the first complete iOS result: 21 captures, 19 of them
 distinct screens — every Mirror stop, every lens, the profile, search,
 the safe areas in frame — with the daily ruler's Circle and 1v1 taps
-captured before their animation settled (a wait, unverified until the
-next run). The simulator's first boot takes five to eight minutes
+captured before their animation settled. A wait after each tap (run 20)
+made Circle its own screen; 1v1 still captures Circle's — 20 distinct
+screens of 21 — so that one tap is the iOS flow's open item, and a
+reader compares the two PNGs rather than trusting the name. The simulator's first boot takes five to eight minutes
 (iOS data migration), an install one; a whole iOS job is 20–30 minutes.
 
 **Android was the finding.** The emulator on GitHub's hosted Linux
