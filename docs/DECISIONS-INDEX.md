@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 422 lines instead of
-42,746. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 423 lines instead of
+42,958. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -284,7 +284,7 @@ detect it.
 | **D262** | [Four sentences that stopped being true, and two of them are now counted](DECISIONS.md#d262--four-sentences-that-stopped-being-true-and-two-of-them-are-now-counted) | — | 26344 |
 | **D263** | [The room cache is keyed by one cell and folded over nine](DECISIONS.md#d263--the-room-cache-is-keyed-by-one-cell-and-folded-over-nine) | D264 | 26411 |
 | **D264** | [Five the skeptics found, and one of them was two hours old](DECISIONS.md#d264--five-the-skeptics-found-and-one-of-them-was-two-hours-old) | D265 | 26469 |
-| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D395 (+7) | 26568 |
+| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D404 (+8) | 26568 |
 | **D266** | [The films catalogue ships; artists is refused on its content, not on the network](DECISIONS.md#d266--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network) | D347 (+2) | 26816 |
 | **D267** | [The artists catalogue gets a rule and a reviewer, because no rule alone finishes](DECISIONS.md#d267--the-artists-catalogue-gets-a-rule-and-a-reviewer-because-no-rule-alone-finishes) | D308 | 26911 |
 | **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D332 (+4) | 26998 |
@@ -425,7 +425,7 @@ detect it.
 | **D390** | [The 2026-09-06 vision arrives: ink on paper, a 12px floor, and the dial in the header](DECISIONS.md#d390--the-2026-09-06-vision-arrives-ink-on-paper-a-12px-floor-and-the-dial-in-the-header) | D391 | 41261 |
 | **D391** | [The 2026-09-06 design, steps 1 and 2: the 12px floor, and the Patterns instrument on paper](DECISIONS.md#d391--the-2026-09-06-design-steps-1-and-2-the-12px-floor-and-the-patterns-instrument-on-paper) | D392 | 41352 |
 | **D392** | [The 2026-09-06 design, steps 3–6: the dial, the feed's ground, the ballot row, the polish pass](DECISIONS.md#d392--the-2026-09-06-design-steps-36-the-dial-the-feeds-ground-the-ballot-row-the-polish-pass) | — | 41426 |
-| **D393** | [The first launch explains the app: five pages before the questions, and a row to see them again](DECISIONS.md#d393--the-first-launch-explains-the-app-five-pages-before-the-questions-and-a-row-to-see-them-again) | — | 41502 |
+| **D393** | [The first launch explains the app: five pages before the questions, and a row to see them again](DECISIONS.md#d393--the-first-launch-explains-the-app-five-pages-before-the-questions-and-a-row-to-see-them-again) | D404 | 41502 |
 | **D394** | [The fit had not left its seeds, and the scorecard could not say so: a baseline row, a skill score and a seed-distance summary](DECISIONS.md#d394--the-fit-had-not-left-its-seeds-and-the-scorecard-could-not-say-so-a-baseline-row-a-skill-score-and-a-seed-distance-summary) | — | 41641 |
 | **D395** | [Two engines on one document: the person's answer map as the fit's substrate, a batch candidate scored beside the online fit, and a fortnight crossover](DECISIONS.md#d395--two-engines-on-one-document-the-persons-answer-map-as-the-fits-substrate-a-batch-candidate-scored-beside-the-online-fit-and-a-fortnight-crossover) | D396 | 41731 |
 | **D396** | [The device reads the whole corpus: the viewer's evidence in every kind, the ridge off the document, and the Oracle asks what it knows least about](DECISIONS.md#d396--the-device-reads-the-whole-corpus-the-viewers-evidence-in-every-kind-the-ridge-off-the-document-and-the-oracle-asks-what-it-knows-least-about) | — | 41871 |
@@ -435,4 +435,5 @@ detect it.
 | **D400** | [The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own](DECISIONS.md#d400--the-breakdown-caps-tail-every-city-and-country-cell-the-hot-document-cannot-hold-in-eight-shards-a-reader-opens-only-for-its-own) | — | 42249 |
 | **D401** | [A top-up fills a topic to a page, not by a page — the paged accumulation D350's amendment named, bounded at its source](DECISIONS.md#d401--a-top-up-fills-a-topic-to-a-page-not-by-a-page--the-paged-accumulation-d350s-amendment-named-bounded-at-its-source) | — | 42339 |
 | **D402** | [The logic test learns two spatial attributes: orientation and position, ten families for the tail, and a percentile that says how sure it is](DECISIONS.md#d402--the-logic-test-learns-two-spatial-attributes-orientation-and-position-ten-families-for-the-tail-and-a-percentile-that-says-how-sure-it-is) | — | 42387 |
-| **D403** | [The cost hunt: four Opus hunters a night and a Fable reviewer, on the owner's ask — proposed](DECISIONS.md#d403--the-cost-hunt-four-opus-hunters-a-night-and-a-fable-reviewer-on-the-owners-ask--proposed) | — | 42602 |
+| **D403** | [The cost hunt: four Opus hunters a night and a Fable reviewer, on the owner's ask — proposed](DECISIONS.md#d403--the-cost-hunt-four-opus-hunters-a-night-and-a-fable-reviewer-on-the-owners-ask--proposed) | D404 | 42602 |
+| **D404** | [The night shift looks at the phones: a device pass at phone geometry in its container, the real shells on GitHub's runners, and a brief that reads both](DECISIONS.md#d404--the-night-shift-looks-at-the-phones-a-device-pass-at-phone-geometry-in-its-container-the-real-shells-on-githubs-runners-and-a-brief-that-reads-both) | — | 42747 |

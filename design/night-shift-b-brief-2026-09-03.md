@@ -1,4 +1,4 @@
-> **Superseded 2026-09-06 by `night-shift-b-brief-2026-09-06.md`** (D402). This text was
+> **Superseded 2026-09-06 by `night-shift-b-brief-2026-09-06.md`** (D404). This text was
 > written for a three-flow schedule the Routine no longer has — it went back to five flows
 > on 2026-09-05 — so pasting it now would leave the 22:00 and 02:00 firings with no flow.
 > Kept for its record; do not paste it.

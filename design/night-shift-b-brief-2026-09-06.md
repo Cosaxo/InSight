@@ -364,7 +364,7 @@ say in it that the authorization is missing.
 
 ## Why this file exists, and what to do with it
 
-This is night shift B's brief with the device pass added (D402) and the L1
+This is night shift B's brief with the device pass added (D404) and the L1
 shape the owner approved on 2026-09-03 folded in — one fan-out a night,
 four fixing flows, the list capped at 32 — against the five-flow schedule
 that is live (`0 20,22,0,2,4 * * *`, re-paced 2026-09-05 21:17 UTC). It

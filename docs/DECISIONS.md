@@ -42743,3 +42743,215 @@ The cadence dial first, by `update_trigger` on the owning account.
 Retiring the lane is disabling five Routines, a dated line in
 `ROUTINES.md` §9 and this record, and the contract's status line
 moved to *past* — the same shape D385 gave the merge lane.
+
+## D404 · The night shift looks at the phones: a device pass at phone geometry in its container, the real shells on GitHub's runners, and a brief that reads both
+
+**2026-09-06.** **Status:** binding for what is in the tree — the script,
+the lane and the brief; the brief becomes the Routine's on an owner
+paste (§ What is the owner's). The owner's ask of this day, whole: *"the
+night shift should also run ios and android emulator and look for visual
+issues or things that look wrong or dont work in the apps."* Numbered
+after D403 on `main` at merge time.
+
+### What nothing was looking at
+
+Every gate in this tree reads names, types and counts, and the ten mount
+suites that render the whole App render it into jsdom, which has no
+layout. So a row that wraps onto a third line on a 375px iPhone, a button
+that lands under the home indicator, a lens label that no longer fits, a
+stop that paints nothing, a tap that changes nothing, a splash that never
+hands over — none of it was red anywhere, and each of them was found,
+when it was found, by the owner on a phone. The night shifts audit the
+tree five times a night and had never once looked at the app. The store
+screenshot harness (`scripts/gen-screenshots.mjs`) was the nearest thing
+and is the wrong shape for it: six scenes at the two store sizes, built
+to prove a capture is shippable, not to find what is wrong on a screen
+nobody chose.
+
+### Where an emulator can run, measured rather than assumed
+
+The worker's container first, because that is where the ask lands. This
+session ran in the same environment night shift B's worker is bound to
+(`env_01Ri3fw8gD9Py3LmTQ9hTYCL`), and read it: four cores, 16 GB, 30 GB
+free, `dl.google.com` reachable through the proxy, GitHub release
+downloads refused by it (403) — and **no `/dev/kvm`**. Google's emulator
+refuses an x86_64 system image without hardware acceleration, an ARM image
+on an x86 host is not something the current SDK ships for, and macOS is
+not a thing a Linux container can have. So neither emulator runs where
+the shift runs, and no allowlist widening changes that.
+
+GitHub's runners have both. `ubuntu-latest` exposes `/dev/kvm` once a udev
+rule opens it, `macos-latest` has Xcode and its simulators, and
+`ios-build.yml` has already compiled the simulator build there 323 times
+in five to eight minutes a run. The cost note in that workflow assumed a
+private repository; **the repository is public**, so the minutes — macOS
+included — are free. That settles where the shells boot.
+
+And Chromium at phone geometry in the container: Playwright is installed
+globally on the image with a Chromium beside it (`scripts/store-render.mjs`
+already resolves it), and a full pass — three phones, every screen — runs
+in 3 minutes 12 seconds. That is the instrument that runs every flow.
+
+### The device pass, in the container
+
+`scripts/device-screens.mjs` (`npm run screens`) builds nothing itself —
+it drives `dist/`, the way the store harness does — and walks the demo
+app through every screen a user reaches: the daily and its reveal, the
+feed two screens down, the Circle and 1v1 stops, the Mirror as it lands
+and every stop of its rail (seven), every lens at World (five), the
+profile and its test profiles, search, and the Patterns tab when the
+build has crossed its gate (D265 — skipped and said so otherwise). Three
+profiles, chosen to bracket the phones we ship to: an iPhone SE (375×667
+@2, where a layout gives way first), an iPhone 15 Pro (393×852 @3) and a
+Pixel 7 (412×915 @2.625). **Full panels, not Playwright's device
+descriptors**: its iPhone 15 Pro is 393×659, Safari's viewport with the
+URL bar and toolbar taken out, and the app does not run in Safari — it
+runs in a WebView that fills the screen (`StatusBar.overlaysWebView:
+true`). The pure half is `scripts/device-screens-lib.mjs`, pinned by
+`test:scripts`.
+
+Every capture is checked for what a PNG hides, and the checks have two
+weights. **Hard** fails the run on the screen's own evidence: the
+ErrorBoundary's text (`"This view hit a snag."`, pinned), an uncaught page
+error, a drive step that could not find the control it was told to tap.
+**Soft** is a lead a reader looks at: text wider than the box it is set
+in, a control partly outside the viewport sideways, a screen
+pixel-identical to the one before the tap (the tap may have done nothing —
+a baseline is hashed before every drive so a single-capture scene can
+say it too), a broken image, a webfont that failed, a `console.error`, a
+failed request. The first run flagged "content wider than its box" ten
+times on every screen and was measuring design: a container's
+`scrollWidth` counts every absolutely positioned child and every `.tap44`
+hit box, so the map's nodes and every ⓘ button read as overflow. The
+check now reads **text leaves only**, skips an element whose
+pseudo-element is a positioned hit box, and skips nowrap-plus-ellipsis
+truncation; the second run flagged one thing in 22 screens on the SE — the
+word *establishment* set 7px past its column on the World stop's Compare
+lens, below the fold, which is real. Each lead says whether the PNG shows
+it (`inView`), because a lead below the fold is still a lead.
+
+`report.md` leads with the findings, most severe first, each naming its
+PNG; then every screen per profile with a mark; then what was skipped and
+why; then what the marks mean. The point is that a night shift with
+ninety minutes reads that and then opens the PNGs it names — the checks
+see overflow and errors, not taste, and the PNGs are for the eyes the
+brief now asks for.
+
+### The real shells, on the runners
+
+`.github/workflows/device-screens.yml` boots both, and the protocol is
+built for a reader that has git and nothing else — the night shifts push
+branches and read origin, and have no API to fetch an artifact with.
+
+- **Request** — a push of the head to be screened to
+  `nightb-<date>-screens` (or `night-<date>-screens`; the lane listens for
+  both shifts' prefixes). That is a `nightb-*` branch by name, so it is
+  inside B's standing push authorization as written, and it is a pointer:
+  the lane deletes it when both platforms are done, so the next request is
+  a plain push and a shift that never force-pushes never has to.
+- **Android** — the debug APK, built as `ci.yml` builds it, on an API 34
+  `google_apis` x86_64 emulator with KVM opened by the documented udev
+  rule, no third-party emulator action (the supply chain stays what it
+  was). The WebView is driven by **the same script**, `--android`:
+  Capacitor makes a debug build's WebView debuggable
+  (`webContentsDebuggingEnabled` defaults to the app's debuggable flag),
+  and Playwright's adb attach reuses every scene — so a reader compares the
+  emulator's captures with the container's screen for screen. The device's
+  own frame is what is captured, status bar and all: the safe areas are
+  half of what this lane exists to show.
+- **iOS** — `ios-build.yml`'s unsigned simulator build, installed and
+  launched on the newest available iPhone simulator with a notch, and
+  driven by **Maestro** through the accessibility tree, because a
+  WKWebView exposes no CDP for Playwright to attach to. Every tap in the
+  flow is optional: a label that moved must not end the flow, since the
+  captures after it are still worth having, and a screen that did not
+  change is a finding a reader sees by comparing two PNGs. Maestro is
+  unpinned for the first runs on purpose — the version that works is
+  written into the results (`maestro-version.txt`) and pinned from there,
+  not guessed here.
+- **Both** — `00-launch-*` captures from the OS before anything drives
+  the app (a splash that never hands over and a launch crash are visible
+  there and nowhere else), the device's own logs, an `environment.txt`,
+  and an `INDEX.md` written first so a reader opening the ref cold knows
+  what it is. The Firebase config files come from the release workflows'
+  secrets: `@capacitor-firebase/authentication` asks for a `FirebaseApp`
+  in its constructor on Android and configures one on bridge load on iOS,
+  so a shell without them crashes at launch — an empty secret is a warning
+  here, and the launch capture is then the evidence of exactly that.
+- **Results** — each platform lands ONE orphan commit on
+  `screens/<name>-<platform>`, force-replaced on re-run so the ref never
+  grows history; the owner deletes it with the night it screened.
+  `git archive` it into `.nightb/screens/` and read.
+- **Not a gate.** Nothing here blocks a PR or a deploy — `ci.yml`'s rule
+  about a lane that could block an emergency rules fix — and every
+  capture step continues on error so one run reports every wall and the
+  results branch lands even when a driver failed.
+
+The lane cannot be dispatched by name until the workflow file is on
+`main` (the API returned 404 for it on this branch, twice), so it was
+exercised the way a shift will use it: a push to
+`nightb-20260906-lanetest-screens`, run 34056990061. Its outcome is
+recorded at the end of this record.
+
+### The brief, and the schedule it had to match
+
+`design/night-shift-b-brief-2026-09-06.md` is night shift B's brief with
+§ The device pass: request the phones at every flow start, render the app
+here, read the report, open the PNGs it names and at least five screens
+on the SE, write `[visual]` items like any other finding, fix them with
+the smallest CSS or markup change and prove the fix with a re-render
+LOOKED AT (a fix nobody has seen is not proved), read the emulator results
+when they land, and carry a **Devices** paragraph in every summary — which
+head was screened, whether each shell launched, what the captures showed,
+and a results ref that never came back named as unrun, never as green.
+The 20:00 fan-out gains a seventh finder whose slice is the report and the
+PNGs rather than code. Its merge-verdict enumeration excludes `*-screens`
+refs and never fetches `screens/*`.
+
+The schedule it had to match was not the one the tree recorded. On
+2026-09-03 the L1 lever cut the Routine to three flows and wrote a
+three-flow brief for the owner to paste; the paste never happened, and
+on 2026-09-05 at 21:17 UTC the Routine went back to five flows — the
+owner's re-pace, unrecorded until this record read `list_triggers`
+(`ROUTINES.md` §2's 2026-09-06 observations). Five firings with one
+fan-out is exactly the L1 the owner approved — *"audit once, fix four
+times"* — so the new brief keeps the five-flow hour table, fans out once at
+20:00, fixes at 22, 00 and 02, closes at 04, and caps the list at 32. The
+09-03 text is marked superseded at its top: pasted onto five flows, its
+hour table would leave the 22:00 and 02:00 firings with no flow at all.
+
+It is a paste, and a sequenced one. `update_trigger` refuses a prompt edit
+on a Routine whose fires deliver into another session (measured
+2026-09-03, `PERMISSIONS.md`), and it was deliberately not re-attempted
+here: a brief made live before this branch is on `main` would push
+request refs no workflow answers and run a script the night branch does
+not have. Merge first, then paste — both on `OWNER-LIST.md` § Clicks.
+
+### What this does not do
+
+- **It does not boot the live app.** Both instruments run the demo build —
+  deterministic, no backend, the tree every mount suite renders — so the
+  first-launch walkthrough (D393), the anonymous sign-in and the live
+  boot's attach are not on the pass. A live-build lane is one build flag
+  and the two config files away, and it would create an anonymous account
+  and write one real vote to production per shell per night. That is an
+  ask (`OWNER-LIST.md` § Decisions), with the three shapes it could take.
+- **It does not change shift A's brief**, which lives on another account;
+  the lane listens for `night-*-screens` already and the section is
+  written to be pasted there with one prefix changed (a click).
+- **It does not gate anything**, and it does not pin Maestro yet.
+- **The checks do not see taste** — overlap, contrast, alignment, whether a
+  screen makes sense. That is what the eyes in the brief are for.
+
+### What is the owner's
+
+- **Paste the brief**, after this merges (`OWNER-LIST.md` § Clicks).
+- **Whether the pass may boot the live app** and write to production to do
+  it (§ Decisions).
+- **Shift A's brief** — optional; with both, the phones are screened every
+  two hours (§ Clicks).
+
+### The first run
+
+*(Run 34056990061 was in progress when this record was written; its
+outcome is appended below before the branch is pushed for review.)*
