@@ -200,6 +200,17 @@ jobs:
             tail -80 results/android/emulator.log
             exit 1
           fi
+          # sys.boot_completed flips while the system is still settling — run
+          # 34061114032 reported it at forty seconds, and the emulator was gone
+          # forty seconds later with the app's first activity still launching.
+          # Wait for the boot animation to stop and give the system a moment
+          # before asking it to install anything.
+          for i in $(seq 1 60); do
+            [ "$(adb shell getprop init.svc.bootanim 2>/dev/null | tr -d '\r')" = "stopped" ] && break
+            sleep 2
+          done
+          sleep 15
+          adb shell getprop ro.build.version.sdk | tr -d '\r' > /dev/null
           # No animation scales: a capture taken mid-transition is a capture
           # of nothing, and the script's waits are tuned for the app's own
           # motion, not the OS's.
@@ -214,9 +225,14 @@ jobs:
           adb install -r android/app/build/outputs/apk/debug/app-debug.apk
           adb logcat -c || true
           adb shell am start -W -n "$APP_ID/.MainActivity"
-          sleep 2;  adb exec-out screencap -p > results/android/00-launch-2s.png
-          sleep 8;  adb exec-out screencap -p > results/android/00-launch-10s.png
-          if adb shell pidof "$APP_ID" > /dev/null 2>&1; then
+          sleep 2;  adb exec-out screencap -p > results/android/00-launch-2s.png || true
+          sleep 8;  adb exec-out screencap -p > results/android/00-launch-10s.png || true
+          if ! adb get-state > /dev/null 2>&1; then
+            # The emulator itself went away (run 34061114032 lost it during
+            # this step, with the activity still launching). Said here, so
+            # the drive's "no device" is read as the consequence it is.
+            echo "process: UNKNOWN — the emulator disappeared during the launch; emulator.log is the evidence" >> results/android/environment.txt
+          elif adb shell pidof "$APP_ID" > /dev/null 2>&1; then
             echo "process: alive 10s after launch" >> results/android/environment.txt
           else
             echo "process: GONE 10s after launch — a launch crash; logcat-errors.txt has it" >> results/android/environment.txt
