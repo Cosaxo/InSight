@@ -1103,7 +1103,7 @@ async function revealGroupDay(
 // options at every reveal with every other test still green. That is also
 // the line between this arm and the catalog one — drops defaults versus
 // drops data.
-async function foldDuelSignal(
+export async function foldDuelSignal(
   db: FirebaseFirestore.Firestore,
   mode: string,
   qid: string | null,
