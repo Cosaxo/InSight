@@ -31,6 +31,7 @@ import {
   modVerdictId,
   seedDocMatches,
   seedOptionConflict,
+  seedMapClears,
   describeSeedOptionConflicts,
   SEEDED_FIELDS,
   foldCanonAnchors,
@@ -1485,6 +1486,57 @@ describe("the duel question-level signal (D40 part 3)", () => {
 });
 
 // ── D52: shipped option sets are immutable ──────────────────────
+
+describe("seedMapClears — the map key `merge: true` cannot remove", () => {
+  // Verified against the emulator rather than reasoned about: storing
+  // `{a:1,b:2}` and then `set({nodes:{a:1}}, {merge:true})` reads back
+  // `{a:1,b:2}` — the key survives — while an ARRAY in the same write is
+  // replaced wholesale. So without a clear pass the story keeps the node,
+  // `seedDocMatches` keeps seeing the difference, and the seed rewrites
+  // that document on every run, churning the `updatedAt` cursor every
+  // returning device reads the bank with.
+  const story = (nodes: Record<string, unknown>) => ({
+    surface: "feed", type: "path", prompt: "?", options: [],
+    nodes, endings: { good: "x" },
+  });
+
+  it("names a field that lost a key", () => {
+    const prior = story({ a: 1, b: 2 });
+    expect(seedMapClears(prior, story({ a: 1 }))).toEqual(["nodes"]);
+  });
+
+  it("says nothing when the map only GAINED a key — merge handles that", () => {
+    // The whole point of the narrow shape: an added node needs no clear,
+    // and clearing anyway would make every growth a two-write no-op.
+    expect(seedMapClears(story({ a: 1 }), story({ a: 1, b: 2 }))).toEqual([]);
+  });
+
+  it("says nothing when a key's VALUE changed but none was removed", () => {
+    expect(seedMapClears(story({ a: 1 }), story({ a: 9 }))).toEqual([]);
+  });
+
+  it("ignores arrays, which merge already replaces", () => {
+    const a = { surface: "feed", type: "vote", options: ["x", "y"], prompt: "?" };
+    const b = { surface: "feed", type: "vote", options: ["x"], prompt: "?" };
+    expect(seedMapClears(a, b)).toEqual([]);
+  });
+
+  it("ignores a field that is absent or changing type — the caller owns those", () => {
+    expect(seedMapClears(story({ a: 1 }), { surface: "feed", type: "path", prompt: "?" }))
+      .toEqual([]);
+    expect(seedMapClears({ nodes: "a string" }, story({ a: 1 }))).toEqual([]);
+  });
+
+  it("names every affected field, not just the first", () => {
+    const prior = { ...story({ a: 1, b: 2 }), endings: { good: "x", bad: "y" } };
+    expect(seedMapClears(prior, story({ a: 1 })).sort()).toEqual(["endings", "nodes"]);
+  });
+
+  it("is empty for a doc that does not exist yet", () => {
+    expect(seedMapClears(null, story({ a: 1 }))).toEqual([]);
+    expect(seedMapClears(undefined, story({ a: 1 }))).toEqual([]);
+  });
+});
 
 describe("seedOptionConflict — the edit the seed must refuse", () => {
   const desired = {

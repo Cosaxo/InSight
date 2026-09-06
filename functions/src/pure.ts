@@ -1617,6 +1617,44 @@ function seedValueMatches(a: unknown, b: unknown): boolean {
 }
 
 /**
+ * Seeded fields whose stored MAP has keys the new payload does not — the
+ * ones that must be cleared before the merge, or they survive it.
+ *
+ * `batch.set(ref, payload, { merge: true })` merges map fields key by key
+ * rather than replacing them. Verified against the emulator, not assumed:
+ * storing `{a:1,b:2}` and merge-setting `{a:1}` reads back `{a:1,b:2}`,
+ * while an ARRAY in the same write is replaced wholesale. So a Crossroads
+ * story that drops a node keeps it forever, `seedDocMatches` keeps seeing
+ * the difference, and the seed rewrites that document on every run —
+ * churning `updatedAt`, which is the incremental cursor every returning
+ * device reads the bank with.
+ *
+ * The same defect as the field-level one recorded beside the caller
+ * ("`merge: true` cannot remove a field", D234's amendment), one level
+ * down. `nodes` and `endings` are the object-valued seeded fields today
+ * (D136); this asks the payload what shape it is rather than naming them,
+ * so a third one is covered on the day it lands.
+ */
+export function seedMapClears(
+  prior: Record<string, unknown> | null | undefined,
+  payload: Record<string, unknown>,
+): string[] {
+  if (!prior) return [];
+  const plain = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === "object" && !Array.isArray(v);
+  const out: string[] = [];
+  for (const f of SEEDED_FIELDS) {
+    const want = payload[f];
+    const have = prior[f];
+    // Only when BOTH sides are maps. A field that changed type, or that is
+    // being deleted outright, is already handled by the caller.
+    if (!plain(want) || !plain(have)) continue;
+    if (Object.keys(have).some((k) => !(k in want))) out.push(f);
+  }
+  return out;
+}
+
+/**
  * True when `existing` already carries every seeded field of `desired`.
  * `existing` is null/undefined for a doc that does not exist yet.
  *
