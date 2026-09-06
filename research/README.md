@@ -18,9 +18,21 @@ read this page whole, then the papers in order.
 An **axis** is a source of measurements about a person — the app has
 seven: the profile anchors, the question bank, the server-scored logic
 test, the four derived instruments, the nine lenses, interests, and ties
-(the sealed duels, the group picks and the follow graph) — plus two it
-does not have yet, the genome and the body. `docs/AXES-PLAN.md` §1 is
-the table. An **axiom** is the theory of what one axis could become at
+(the sealed duels, the group picks and the follow graph) — plus four it
+does not have yet. The owner named those four on 2026-09-06: *"1.
+genetics 2. body measurements 3. competitions arranged by us in
+different things with people with the app 4. physical appearance
+analysis from photo and in some cases in real life."* `docs/AXES-PLAN.md`
+§1 is the table for the first two, which is where it stops; the last two
+are new to the map and the series covers them from paper 8 on.
+
+The owner added one more thing in the same breath, and it is a crossing
+rather than an axis: the worn device of paper 6 is *also* the
+verification the app has needed — proof that the person answering is
+alive and that the genome on file is theirs — and it should be paid for
+by the system so that it is cheap and more people supply it. Paper 7 is
+that sentence taken seriously, including the part where a subsidy is an
+instrument and not just a cost. An **axiom** is the theory of what one axis could become at
 its perfect form and, above all, of what it makes the other axes worth.
 The subject of every paper is *which data makes other data mean more*.
 
@@ -83,11 +95,12 @@ Read in this order. Each file opens with its own status line.
 | 5 | `research/axiom-theory/paper-05-body-x-repeated.md` | Which changes are the body: daily occasion reports of sleep, energy and illness crossed with every repeated measure, the state share defined and identified by a within-window replicate the design buys, timescales an irregular schedule can resolve, a cross-lagged asymmetry in both directions reported as an asymmetry and never as a cause, illness against the person's own matched days, body-sensitivity as a posterior, how far a between-person finding travels, and the bad-day reporting gap published as a sensitivity band |
 | 6 | `research/axiom-theory/paper-06-genome-x-molecular-stream.md` | A stream from the body, beside the genome: a passive wearable's molecular channel as the body axis's measured one, with no single transfer model — one analyte scaled from the blood, one made by the gland the fluid comes from and so a reading of the skin, others too slow or too faint — and a stability horizon that forces every cross-epoch phenotype to be scale-free and the calibration anchor to run at twice the drift; resilience as a return on a challenge that must not perturb the sampler, and aging as its within-person slope, which the years buy and an age spread cannot; the genetics of response shapes, with the heritable transfer ratio as the confound the crossing itself invents and carriers priced as a burden design; the panel carries no proteins, so detection is rescoped from early injury to late decompensation and owes an alert rate, a predictive value and a named responder; power as overlap times reliability; two measurements that would decide the shape, and four decisions worth more than any sensor |
 
-Planned, in the order the ranked crossings suggest: the logic test
-against the bank (reasoning items in the clothes of opinions); the
-learned representation with its auditable distilled layer; custody-
-preserving computation for the genome crossings; causal patterns from
-within-unit events.
+Planned, in the order the ranked crossings suggest: physical
+appearance, the fourth unbuilt axis and the only one with no paper yet;
+the logic test against the bank (reasoning items in the clothes of
+opinions); the learned representation with its auditable distilled
+layer; custody-preserving computation for the genome crossings; causal
+patterns from within-unit events.
 
 ## The general track
 

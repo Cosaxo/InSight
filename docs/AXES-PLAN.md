@@ -1,4 +1,4 @@
-# Axes — the sources the app crosses, and the two it does not have yet
+# Axes — the sources the app crosses, and the four it does not have yet
 
 > **Building rather than deciding?**
 > [`AXES-RUNBOOK.md`](AXES-RUNBOOK.md) is the same work as an ordered
@@ -41,6 +41,26 @@ first-class subject matter (charter §1), with genetic and body
 explicitly charged with theorizing how the other axes' traits map onto
 genes and onto the body's parts and systems — at the perfect
 capability, not bounded by what ships next.
+
+**Extended by the owner, 2026-09-06 — there are four future axes, not
+two.** In their words: *"the 4 remaining axiom that is not in the app is
+1. genetics 2. body measurements 3. competitions arranged by us in
+different things with people with the app 4. physical appearance
+analysis from photo and in some cases in real life."* Sections 3 and 4
+below cover the first two and are unchanged. The third and fourth are
+new to this file and have no section here yet: an **arranged
+competition** axis, where the system builds the situation rather than
+observing one, and a **physical appearance** axis read from photographs
+and in some cases in person. The owner added, in the same message, that
+the worn device of the body axis doubles as the identity verification
+the app has needed — that the person answering is alive and that the
+genome on file is theirs — and that the system should subsidise the
+device so it is cheap and more people supply data. None of that is
+built, nothing in today's schema is bent for it, and the *build* rule at
+the top of this file applies to all four the same way. The theory for
+the new pair and for the verification role is written first, as theory,
+under `research/` — the axiom paper series, which no gate reads for
+truth and nothing in the app may cite.
 
 Everything here was measured against the tree rather than assumed, with
 paths cited so the next reader can re-check. Three discoveries shape the
