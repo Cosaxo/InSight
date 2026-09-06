@@ -45,7 +45,7 @@ const item = (qid: string, L: number[], mine: number | null) => ({
 
 vi.mock("../data/patterns", () => ({
   default: {
-    // D395: the viewer's evidence and the published ridge, read by the
+    // D396: the viewer's evidence and the published ridge, read by the
     // People lens's own solve — empty and the shipped value here
     evidence: () => [],
     lambdaU: () => 0.5,
@@ -83,7 +83,7 @@ vi.mock("../data/live", () => ({
     voters: () => [],
     votersLoading: () => false,
     loadVoters: () => Promise.resolve(),
-    // …through the nightly-sample path since D396: the lens reads and
+    // …through the nightly-sample path since D397: the lens reads and
     // loads rows through these two
     votersOrSample: () => [],
     loadVoterSample: () => Promise.resolve(),

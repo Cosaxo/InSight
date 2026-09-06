@@ -638,10 +638,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // no answers in the fixture's corpus by default — the evidence is empty
     // and every device solve stays at the origin, the honest cold state
     answeredIndex: () => ({}),
-    // the nightly samples (D396): none in the fixture, so a fold falls back
+    // the nightly samples (D397): none in the fixture, so a fold falls back
     // to the live rows the fixture already serves
     loadVoterSample: async () => {},
-    // the cap's tail (D399): no question in the fixture is near the cap
+    // the cap's tail (D400): no question in the fixture is near the cap
     loadOverflow: async () => {},
     votersOrSample: () => [
       { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },

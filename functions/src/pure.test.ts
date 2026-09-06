@@ -624,7 +624,7 @@ describe("per-anchor breakdowns", () => {
     expect(by.city).toEqual(before);
   });
 
-  it("reports what the cap discarded — an eviction with its victim, a refusal with the newcomer — and nothing while slots are free (D397)", () => {
+  it("reports what the cap discarded — an eviction with its victim, a refusal with the newcomer — and nothing while slots are free (D398)", () => {
     // Pure code has no logger, so the fold REPORTS through a callback and
     // the trigger turns each call into the `agg_evict` line the alert chain
     // counts. Three things pinned: silence while the cap is not binding
@@ -2257,9 +2257,9 @@ describe("validRankOrder / foldRankOrder — the order fold's trust boundary (D2
   });
 });
 
-// ── the tail (D399) ──────────────────────────────────────────────
+// ── the tail (D400) ──────────────────────────────────────────────
 
-describe("the breakdown cap's tail (D399)", () => {
+describe("the breakdown cap's tail (D400)", () => {
   type By = Record<string, Record<string, Record<string, number>>>;
   const sum = (cell: Record<string, number>) => Object.values(cell).reduce((a, b) => a + b, 0);
   /** hot ∪ tail for one dim, as a reader who summed both would see it. */

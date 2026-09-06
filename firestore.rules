@@ -108,7 +108,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // The breakdown cap's tail (D399): every city and country cell the
+    // The breakdown cap's tail (D400): every city and country cell the
     // aggregate above evicted or refused at BREAKDOWN_MAX_BUCKETS, in
     // eight shards per question by bucket hash (`{qid}-{shard}`). The same
     // exact counts the aggregate publishes, the same posture: any

@@ -1,4 +1,4 @@
-// nightly.ts — the one nightly pass over the agg-events ledger (D398,
+// nightly.ts — the one nightly pass over the agg-events ledger (D399,
 // ALGORITHM-REFLECTION §4.2).
 //
 // WHAT IT REPLACES. Three scheduled functions each paged yesterday's

@@ -624,7 +624,7 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
 
   // Buckets available across the questions in view, biggest first.
   //
-  // Memoised on its inputs (D397). `qs` is rebuilt by the stop on every
+  // Memoised on its inputs (D398). `qs` is rebuilt by the stop on every
   // store notify — which is when an aggregate can have moved, so that is
   // not the render being saved. The one being saved is this lens's OWN:
   // a bucket chip tapped below re-ranks the rows and used to re-tally the

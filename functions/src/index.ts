@@ -185,7 +185,7 @@ export const deleteAccount = onCall(
 
     const counts = {
       ownSubtree: 0,
-      // Voter sample rows this uid was scrubbed out of (D396, phase 1a′).
+      // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
       discoverable: 0,
       othersRelations: 0,
@@ -288,7 +288,7 @@ export const deleteAccount = onCall(
       failed.push("aggEvents");
     }
 
-    // 1a′. THE VOTER SAMPLES (D396) — the one derived, world-readable
+    // 1a′. THE VOTER SAMPLES (D397) — the one derived, world-readable
     //     document family that holds uids: `v2_patterns/sample-{qid}`, the
     //     newest two hundred voters per question, rows keyed by uid so
     //     this arm is a field delete and never a rewrite of anyone else's
@@ -1292,7 +1292,7 @@ export { logicStartV2, logicSubmitV2 } from "./logic";
 export { resolveCallsV2 } from "./calls";
 // v28 §2 (trial per D166 §1): the nightly Patterns fit — per-question
 // loading vectors from the vote log, core corpus only (D161). The fold
-// that has to exist before the Patterns tab may ship (D167). Since D398
+// that has to exist before the Patterns tab may ship (D167). Since D399
 // it runs inside the nightly pass below (`digestEngagementV2`), not as a
 // scheduled function of its own — `fitPatternsV2` is retired.
 // D316: the nightly published serving order — per-topic question order
@@ -1303,9 +1303,9 @@ export { rankBankV2 } from "./rank";
 // D317 phase 1 (D322): the per-person interest profile — feed answers
 // counted by topic, nightly, onto v2_users/{uid}/taste/profile. Derived
 // from answers alone (public by D98); the pager sizes topic pages by it
-// and nothing else reads it. Inside the nightly pass since D398;
+// and nothing else reads it. Inside the nightly pass since D399;
 // `fitTasteV2` is retired.
-// THE NIGHTLY PASS (D398): one read of yesterday's ledger feeding the
+// THE NIGHTLY PASS (D399): one read of yesterday's ledger feeding the
 // engagement digest (R1/D268 — anonymous population counts, one public
 // day doc per UTC day; nothing per-person leaves it), the Patterns fit
 // and the taste fold, then the attention and rollup folds. It keeps the

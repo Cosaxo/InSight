@@ -247,7 +247,7 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
-v2_agg_overflow/{qid}-{s}          the breakdown cap's TAIL (D399), s = FNV-1a(bucket) mod 8
+v2_agg_overflow/{qid}-{s}          the breakdown cap's TAIL (D400), s = FNV-1a(bucket) mod 8
   { dim: { bucket: {opt:n} } }     every city and country cell the hot
                                    document above evicted or refused at
                                    BREAKDOWN_MAX_BUCKETS. hot ∪ tail is the
@@ -310,7 +310,7 @@ load-bearing too: firestore.rules refuses a call answer once this document
 exists, or a player reads the grade and then "predicts" it.
 
 v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
-                                   two engines since D394)
+                                   two engines since D395)
   k                                the vectors' length (8)
   engine: "sgd"|"als"              which engine's rows are in `q`: the
                                    shipped online fit (patternsFit.ts) or
@@ -344,9 +344,9 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
   quality, displacement, seeds     the engine's scorecard (D325): the
                                    prequential series with the marginal-
                                    only baseline and skill beside every
-                                   row (D393), publish-to-publish
+                                   row (D394), publish-to-publish
                                    displacement, and the loadings' distance
-                                   from their hash seeds (D393)
+                                   from their hash seeds (D394)
   candidates {sgd?|als?: {q,       the OTHER engine, with the same rows and
      items?, quality?,              scorecard, its streak of consecutive
      displacement?, lambdaU,        winning nights, and (als) the pooled
@@ -355,12 +355,12 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
   lastDay, folded, at              the last UTC day folded (idempotence),
                                    the last run's fold count, server clock
 read: signed-in · write: NOBODY — written once per night by the nightly
-pass (`digestEngagementV2` since D398, admin SDK), so D7's per-document write ceiling never hears about it. The
+pass (`digestEngagementV2` since D399, admin SDK), so D7's per-document write ceiling never hears about it. The
 device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
 Nothing per-person in it, under either engine.
 
-v2_patterns/sample-{qid}           the nightly voter sample (D396)
+v2_patterns/sample-{qid}           the nightly voter sample (D397)
   qid
   rows {uid: {o, a, d}}            the newest PATTERNS_SAMPLE_CAP (200 — the
                                    who-voted sheet's own cap) voters of one
@@ -371,7 +371,7 @@ v2_patterns/sample-{qid}           the nightly voter sample (D396)
                                    and erasure is a field delete
   n, at                            the basis a client states; server clock
 read: signed-in (the loadings document's own rule — same collection) ·
-write: NOBODY — merged nightly by the pass (D398) from the ledger day it
+write: NOBODY — merged nightly by the pass (D399) from the ledger day it
 already reads. What Kindred, the People lens and the pair card read in
 place of two hundred answer documents per question; the who-voted sheet
 keeps the live query. THE ONE DERIVED PUBLIC DOCUMENT FAMILY THAT HOLDS
@@ -379,7 +379,7 @@ UIDS: exactly what the who-voted sheet already shows anyone signed in,
 nothing derived — and deleteAccount's phase 1a′ removes the account's row
 from every sample, asserted in e2e-delete-account.mjs.
 
-v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D394)
+v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D395)
   v: number[k], n, at              the latent vector the online fold
                                    carries this person's PUBLIC answers
                                    as, and how many it has folded

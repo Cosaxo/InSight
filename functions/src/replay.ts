@@ -124,7 +124,7 @@ export interface FoldState {
   counts: Record<string, number>;
   total: number;
   by: BreakdownCounts;
-  /** The tail (D399): shard index → dim → bucket → cell, every cell the hot
+  /** The tail (D400): shard index → dim → bucket → cell, every cell the hot
    *  map evicted or refused. In memory here, so the fold's own adds are
    *  visible to its later `has` — the trigger reads its shards for the
    *  same reason. */
@@ -145,7 +145,7 @@ export interface ReplayOutcome {
   excluded: number;
   /** Dimensions sitting at BREAKDOWN_MAX_BUCKETS — where the cap acted, so
    *  WHICH buckets the hot map holds depends on arrival order. The tail
-   *  makes hot ∪ tail exact regardless (D399); what this still warns is
+   *  makes hot ∪ tail exact regardless (D400); what this still warns is
    *  that the hot map alone is not the whole dimension. */
   cappedDims: string[];
 }
@@ -449,7 +449,7 @@ export interface RebuildReport {
   total: number;
   counts: Record<string, number>;
   cappedDims: string[];
-  /** Tail shards the vote fold produced (D399) — 0 until a dimension has
+  /** Tail shards the vote fold produced (D400) — 0 until a dimension has
    *  passed the hot document's cap, and the count a rebuild writes. */
   tailShards: number;
   published: { total: number; counts: Record<string, number> } | null;
@@ -709,7 +709,7 @@ export async function runRebuild(
     } else if (arm === "rank") {
       await pubRef.set({ total: rank.total, pos: rank.pos }, { merge: false });
     } else {
-      // The hot document and EVERY tail shard, in one batch (D399): a
+      // The hot document and EVERY tail shard, in one batch (D400): a
       // rebuild is a whole replacement, so a shard the fold did not
       // produce is deleted rather than left holding cells the hot map now
       // has — a bucket must live in exactly one of the two. One batch for

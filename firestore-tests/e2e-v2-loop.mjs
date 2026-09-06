@@ -641,7 +641,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   await adminDb.doc(`v2_question_aggs/${EMPTY}`).delete();
 }
 
-// 7j · the cap's tail (D399), through the real trigger. Twenty-five more
+// 7j · the cap's tail (D400), through the real trigger. Twenty-five more
 // voters from twenty-five cities nobody else is in — no age band, so the
 // band totals 7b–7f asserted stand. Oslo and Bergen sit at the floor, so
 // with 22 free slots the hot map fills to BREAKDOWN_MAX_BUCKETS and each
@@ -708,13 +708,13 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   ok(`the cap's tail: hot at ${BREAKDOWN_MAX_BUCKETS}, ${expectedTail} evicted cities in ${tailShardsSeen} shard(s), hot ∪ tail exact`);
 
   // …and the rebuild sees the same shape from the answers alone (D290
-  // meets D399): the dry run reports the capped dimension and the shards
+  // meets D400): the dry run reports the capped dimension and the shards
   // the fold would write, at the same total.
   const dryTail = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
   if (dryTail.total !== before.total + TAIL_N) fail("rebuild total after the tail: " + JSON.stringify(dryTail));
   if (!dryTail.cappedDims.includes("city")) fail("rebuild did not report the capped city dim: " + JSON.stringify(dryTail.cappedDims));
   if (dryTail.tailShards !== tailShardsSeen) fail(`rebuild would write ${dryTail.tailShards} shards; the trigger wrote ${tailShardsSeen}`);
-  ok("D290 × D399: the rebuild reproduces the tail's shard count from the answers");
+  ok("D290 × D400: the rebuild reproduces the tail's shard count from the answers");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak

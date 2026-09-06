@@ -83,7 +83,7 @@ export interface PatternsUserState {
   d?: string;
   /**
    * The person's CURRENT answers to every eligible item, qid → option
-   * index (D394). The candidate engine's substrate: a batch solve needs
+   * index (D395). The candidate engine's substrate: a batch solve needs
    * every observation every night, and the ledger keeps ninety days of
    * aggregate EVENTS while the fit wants a person's current answer — so
    * the nightly run compacts each day's entries into this map (an edit
@@ -420,7 +420,7 @@ export interface PatternsQuality {
   day: string;
   n: number;
   bits: number;
-  /** The marginal-only score for the same observations (D393). */
+  /** The marginal-only score for the same observations (D394). */
   baselineBits: number;
   /** 1 − bits/baselineBits: the share of the marginal's surprisal the
    * vectors remove. 0 is a fit that has learned nothing; negative is a

@@ -1,7 +1,7 @@
 # Algorithm reflection — the fit, the fold, the store, and what a rebuild would look like
 
 **Status: built — §1 is a measurement, and every step of §6 is in the
-tree (D393–D400).** The owner read this page the day it was written and
+tree (D394–D401).** The owner read this page the day it was written and
 said *"yeah agree with those apply those and go with your
 recommendation"*, then *"build the remaining steps too"*; the session that
 followed built §6's steps in order, taking the routine's own
@@ -696,22 +696,22 @@ Step 5 waits on the owner's row. Step 6 is the largest cost lever on
 this page and needs 2 for its erasure arm.
 
 **Where each step stands** (2026-09-06, the same day — the owner's *"apply
-those"* on this page, D393–D397 the records). Not maintained by
+those"* on this page, D394–D398 the records). Not maintained by
 intention: a step that moves after this gets its own record, and the
 record is the truth.
 
 | # | Built | Record, and what differs from the row above |
 | --- | --- | --- |
-| 1 | yes | D393 — `baselineBits`, `skill`, `seedCos` on the scorecard |
-| 2 | yes | D394 — `a` on `v2_users/{uid}/patterns/state`, compacted from the ledger day; no separate `patternsState.ts`, the compaction lives in `patterns.ts` |
-| 3 | yes | D394 — `patternsAls.ts` (pure); `candidates` on the loadings doc; `candidateWon` needs skill > 0 AND > the engine's; the fortnight streak |
-| 4 | yes | D394 — orthogonal Procrustes onto the published basis; the displacement rides the aligned model |
-| 5 | yes | D394 (server: bin · ord · opt items, the 160 instrument items among them) and D395 (device: every kind is evidence). The owner's row, taken with the same words |
-| 6 | yes | D396 — `v2_patterns/sample-{qid}`, the erasure arm, Kindred · People · pair card reading it; the who-voted sheet and the City pass stay live |
-| 7 | yes | D398 — one nightly pass (`nightly.ts`, `digestEngagementV2`) over a memoised reader; `fitPatternsV2` and `fitTasteV2` retired; each fold isolated, each heartbeat its own. The pass keeps the digest's deploy name because the armed alert policy is keyed on it |
-| 8 | yes | D395 — the posterior is computed and NOT used to shrink the guess (measured: helps at λ = 0.5, hurts at λ ≥ 2; `patternsMap.ts` says why); λ is published and swept nightly; the information rule, the owner's row |
-| 9 | yes | D397 the metric and the alert; D399 the tail — not one document of every cell but eight shards by bucket hash holding only what the hot map cannot, read by a device for its own city alone; a bucket lives in exactly one of hot and tail; the rebuild writes both |
-| 10 | yes | D397 three folds memoised (`WhosHere`'s needed none; the record says why) and the Circle's index; D400 the paged accumulation bounded at the PAGER rather than evicted after the fact — a top-up fills a topic to a page, not by a page — because an evicted row is a read paid for a card never shown |
+| 1 | yes | D394 — `baselineBits`, `skill`, `seedCos` on the scorecard |
+| 2 | yes | D395 — `a` on `v2_users/{uid}/patterns/state`, compacted from the ledger day; no separate `patternsState.ts`, the compaction lives in `patterns.ts` |
+| 3 | yes | D395 — `patternsAls.ts` (pure); `candidates` on the loadings doc; `candidateWon` needs skill > 0 AND > the engine's; the fortnight streak |
+| 4 | yes | D395 — orthogonal Procrustes onto the published basis; the displacement rides the aligned model |
+| 5 | yes | D395 (server: bin · ord · opt items, the 160 instrument items among them) and D396 (device: every kind is evidence). The owner's row, taken with the same words |
+| 6 | yes | D397 — `v2_patterns/sample-{qid}`, the erasure arm, Kindred · People · pair card reading it; the who-voted sheet and the City pass stay live |
+| 7 | yes | D399 — one nightly pass (`nightly.ts`, `digestEngagementV2`) over a memoised reader; `fitPatternsV2` and `fitTasteV2` retired; each fold isolated, each heartbeat its own. The pass keeps the digest's deploy name because the armed alert policy is keyed on it |
+| 8 | yes | D396 — the posterior is computed and NOT used to shrink the guess (measured: helps at λ = 0.5, hurts at λ ≥ 2; `patternsMap.ts` says why); λ is published and swept nightly; the information rule, the owner's row |
+| 9 | yes | D398 the metric and the alert; D400 the tail — not one document of every cell but eight shards by bucket hash holding only what the hot map cannot, read by a device for its own city alone; a bucket lives in exactly one of hot and tail; the rebuild writes both |
+| 10 | yes | D398 three folds memoised (`WhosHere`'s needed none; the record says why) and the Circle's index; D401 the paged accumulation bounded at the PAGER rather than evicted after the fact — a top-up fills a topic to a page, not by a page — because an evicted row is a read paid for a card never shown |
 
 ## 7 · What this does not propose
 

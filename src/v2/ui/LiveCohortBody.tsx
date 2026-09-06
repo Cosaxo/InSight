@@ -102,7 +102,7 @@ function LnNote({ title, children }: { title: string; children: React.ReactNode 
 function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
-  // The breakdown cap's tail (D399): where a question's hot map is at
+  // The breakdown cap's tail (D400): where a question's hot map is at
   // its cap without this reader's own city or country, the one shard
   // that key hashes to is read and merged into the aggregate every fold
   // below reads. Once per scope per session, and nothing while no

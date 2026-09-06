@@ -41499,7 +41499,146 @@ pins), `data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
 `check:public-copy`, `check:purge`, live `check:bundle` (598 KB eager
 / 607; 70 KB blocking css / 74), `check:eager-content`, `check:docs`,
 `check:figures`.
-## D393 · The fit had not left its seeds, and the scorecard could not say so: a baseline row, a skill score and a seed-distance summary
+## D393 · The first launch explains the app: five pages before the questions, and a row to see them again
+
+**2026-09-06.** **Status:** binding · Owner request, made directly to a
+session — *"create a walkthrough for the first time someone uses the app
+that explains how it works."* Adds a screen and one account-panel row;
+changes no rule, no vocabulary and no promise.
+
+### What was wrong
+
+The app opens on the daily card, and the daily is the SMALLER half of the
+product — `CLAUDE.md`'s opening paragraph: the Mirror's modules outweigh
+the daily's and the feed's put together — and nothing on the daily says
+so. The first screen a new account met was D151's questions, *A few
+things about you*: a form, before anything had said what the answers
+were for. That form's own pitch (*"Every answer carries a copy of these,
+so it can be counted with your city, your age, your field"*) assumes a
+reader who already knows there is a counting. A person who answers for a
+week without finding the second tab has used a poll with a streak.
+
+### What ships
+
+**The screen** — `src/v2/ui/LiveWalkthrough.tsx`. Five pages, each a
+picture, a title and a sentence or two, in D182's order (visual > word >
+sentence > sentences), met in the order a first day meets them:
+
+| Page | What it says | Where the app already says it |
+| --- | --- | --- |
+| One question a day | answer before you see the crowd; then the split opens, and a feed of more runs under it | the daily card (blind vote, D1's split), the feed beneath it |
+| How far it reaches | World · Circle · 1v1, drawn in the daily ruler's own accents; a circle is *sealed until tomorrow, then revealed with names*; 1v1 is answer, then guess theirs | `daily-split.jsx`'s header, `LiveDuelPanel`'s own sentence, `web/privacy.html`'s D5 row (*sealed … until the day after*) |
+| Every answer carries you | filed with your city, age and field, so it counts with people like you; some feed cards are test items and the profile fills in by itself | D8's snapshot, D151's pitch, D121 (the instruments fill from the feed and only from the feed) |
+| The Mirror | seven stops from you to the world, each reading the same answers through a different crowd, drawn in `mirror-tab`'s accents | `docs/MIRROR.md` §1, D111's seven stops |
+| Your answers are public | anyone signed in can read what you answered, under your name — and you can read theirs; connecting answers is the whole point | `LivePrivacyPanel`'s blunt sentence (D183), `web/privacy.html`'s D98 row, `CLAUDE.md`'s first paragraph (D334) |
+
+The right-hand column is the point of the table: **no page makes a claim
+the app does not already make**, so `web/privacy.html` does not move,
+and D183's rule that the page moves first has nothing to move for.
+`check:policy-claims` and `check:public-copy` both stay green over the
+new copy, and the suite pins the two claims that matter as claims rather
+than as sentences (`docs/COPY.md` §4): *answers are public, under your
+name*, said on the last page; *sealed until tomorrow*, said in the duel
+panel's words.
+
+**What it does not say.** The Patterns tab. D265 mounts that tab on the
+data and describes the gate from below — *no third button, no teaser* —
+and a page about a tab that is not in the bar is a teaser with more
+words. `LiveWalkthrough.test.tsx` fails on the word.
+
+**The gate** — `src/v2/ui/walkthrough.tsx`, `profileSetup.tsx`'s shape
+one screen earlier: a device-local flag (`insight.walkthrough.v1`,
+inside the namespace D51's purge sweeps, so the next account on a wiped
+device starts from the beginning), a purge listener that takes the screen
+down WITHOUT recording it (a flag written on the way out would be written
+under the new uid, which would then never be shown it), its own root
+rather than a wrapper around `<App />` (D151's bundle arithmetic, still
+true), and a promise that settles when the screen is off the page —
+closed by either button, by Escape, or by the purge — and immediately
+when there is nothing to show.
+
+**The condition is a live BUILD, not a live boot.** `LIVE.enabled` is
+the boot having attached; a first launch with no network is still a
+first launch, and the one with the most time for five screens. So the
+gate reads `enabled || demoInProd`, which is `VITE_V2_LIVE` without the
+module reading the flag itself. The demo build never shows it: every
+mount suite and the style diff run there, and neither is anybody's first
+launch.
+
+**The order** — `main.jsx` sequences the two first-launch screens
+rather than racing them: walkthrough, then D151's questions, each a
+no-op once seen. The walkthrough's third page is the sentence that makes
+the questions make sense, so it goes first; `mountWalkthrough()` settles
+only once its screen has left the page, and a walkthrough chunk that
+fails to load costs nothing but the walkthrough — its catch sits before
+the chain continues.
+
+**The row** — `LivePrivacyPanel` gains *How InSight works · Show again*,
+beside the policy the app points at, which is the one place the app
+explains itself. It asks for a RE-showing (`again: true`, so the seen
+flag does not refuse it) and the last button reads *Done* rather than
+*Start*, because the app is already running behind it.
+
+### The bundle arithmetic
+
+Measured on the shipping build (`VITE_V2_LIVE=true`, Sentry in):
+
+| | before | after |
+| --- | --- | --- |
+| eager graph (`MAX_EAGER_KB` 607) | 602 KB | 602 KB |
+| `walkthrough` chunk | — | 10.6 KB (3.6 gzipped), its own chunk, fetched after first paint on live builds only |
+| `profileSetup` chunk | 8.6 KB | 8.6 KB |
+| total JS | 2153 KB / 133 chunks | 2164 KB / 134 chunks |
+
+The chained dynamic import in `main.jsx` did not move the eager figure at
+the kilobyte. `useDialog` comes from `primitives.jsx`, which is in the
+entry chunk already, so the screen carries the dialog contract every
+overlay carries (D24) at no eager cost.
+
+### Tests, and what they were checked against
+
+Two suites and one case. `walkthrough.test.tsx` holds the gate's
+contract (`profileSetup.test.tsx`'s six properties plus the live-build
+condition and the promise); `LiveWalkthrough.test.tsx` holds the claims
+and every way through — buttons report, gestures never do: a swipe or an
+arrow past the last page stays put, because a gesture is not a commit.
+`LivePrivacyPanel.test.tsx` gains the row. All five of these deliberate
+breakages were caught by exactly one case each, and reverted:
+
+| Broken | Caught by |
+| --- | --- |
+| *"Patterns comes later."* appended to the Mirror page | *does not tease the Patterns tab (D265)* |
+| *under your name* dropped from the last page | *says answers are public, under your name — on the last page* |
+| a swipe past the last page finishes the walkthrough | *Start reports done from the last page, and only a button does* |
+| the purge teardown records the showing | *takes the screen down on the purge without recording it* |
+| the gate keys on `enabled` alone | *shows on a first launch whose boot has not attached* |
+
+Rendered in Chromium at 402 × 874 as well as in jsdom: five pages, the
+Tab cycle stays inside, Start settles the promise. The one thing the
+browser found that the suites could not was the title moving 13 px
+between the first two pages — a two-line body against a three-line one
+under a centred block — fixed with a floor under the words.
+
+### What this does not decide
+
+- **D352's design step.** The owner's rule is that a new screen is
+  designed in Claude Design before it is built. This one was built on the
+  owner's direct ask, the same day, in the tree's own vocabulary — the
+  daily ruler's accents, the Mirror's, the iris of D302, the serif prompt
+  voice of D362, the paid door's `.sg-rise` entrance — and is filed in
+  `docs/VISUAL-REQUESTS.md` § Built with what a canvas would still
+  improve: the five illustrations. A redraw replaces `Art` in
+  `LiveWalkthrough.tsx` and touches neither the gate nor the tests,
+  which pin claims and not pictures. The row is on `OWNER-LIST.md` §
+  Designs as optional.
+- **Where the flag lives.** On the device, not on the profile document —
+  D151's arithmetic, unchanged: one Firestore read per cold start is the
+  wrong price for never showing it twice across devices, and the account
+  panel's row is the cheaper answer to the second device.
+- **A tally for it.** D270's vocabulary is a fixed list on the server,
+  and a `walkthrough` key would be a functions change for a number nobody
+  has asked for. Not taken.
+## D394 · The fit had not left its seeds, and the scorecard could not say so: a baseline row, a skill score and a seed-distance summary
 
 **2026-09-06.** **Status:** binding. The owner's call on
 [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md): *"yeah agree with
@@ -41580,7 +41719,7 @@ number the run never computed.
 ### What it does not decide
 
 The engine. This record makes the finding observable in production every
-night; replacing the solver is D394's, behind a crossover rule rather
+night; replacing the solver is D395's, behind a crossover rule rather
 than a bet. The recovery test stays: it pins the fold's mechanics
 correctly, and what it did not pin — the regime — is now pinned by the
 probe's `--world test` reproducing it and the reflection saying which
@@ -41589,7 +41728,7 @@ world the app lives in.
 Measured before the push: 707 functions tests (patternsFit at 27, the
 sweep at 20), `tsc` clean in `functions/`.
 
-## D394 · Two engines on one document: the person's answer map as the fit's substrate, a batch candidate scored beside the online fit, and a fortnight crossover
+## D395 · Two engines on one document: the person's answer map as the fit's substrate, a batch candidate scored beside the online fit, and a fortnight crossover
 
 **2026-09-06.** **Status:** binding. The owner's call on
 [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §§2.2–2.4, §3 and
@@ -41656,7 +41795,7 @@ to fold. D161 holds: every instrument item is served to everyone.
 only, `readyPool` counts them only, and the client's `pool()` joins
 two-option questions only; the ordinal and one-hot rows carry `items`
 metadata so a device can encode its own answers into the same solve —
-the Oracle's and the People lens's — which is D395's, with the visuals
+the Oracle's and the People lens's — which is D396's, with the visuals
 D352 wants designed before an ordinal node or an ordinal guess is drawn.
 
 ### The scorecard, made comparable
@@ -41701,7 +41840,7 @@ pointed at the engine instead of the tab.
 `getModel` this replaces is the shape that shipped the retry stamp dead
 (`store-projection.test.ts`), and the document has grown too many fields
 to name twice; the projection that cannot drop anything is `snap.data()`,
-normalised for the pre-D394 shape. The per-person read and write name
+normalised for the pre-D395 shape. The per-person read and write name
 `a` at both ends, and the scan the candidate reads people through
 (`scanUsers`, the collection group by path, 500 a page) projects the same
 four fields — all three pinned. `putModel` strips `undefined` before the
@@ -41729,13 +41868,13 @@ sweep at 27, the projection pin at 9), `tsc` clean in `functions/`,
 `check:monitoring`, `check:deploy-targets`, `check:appcheck`,
 `check:content`, `check:docs`, `check:figures`.
 
-## D395 · The device reads the whole corpus: the viewer's evidence in every kind, the ridge off the document, and the Oracle asks what it knows least about
+## D396 · The device reads the whole corpus: the viewer's evidence in every kind, the ridge off the document, and the Oracle asks what it knows least about
 
 **2026-09-06.** **Status:** binding. The owner's call on
 [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §§2.3, 5.1–5.3 and
 the second row that page put on `OWNER-LIST.md` — *"go with your
 recommendation"* — so the Oracle asks the question it learns most from.
-The client half of D394: the rows and metadata that record publishes are
+The client half of D395: the rows and metadata that record publishes are
 read here.
 
 ### The evidence
@@ -41754,7 +41893,7 @@ answered is evidence about you whether or not they are. `vote()` stores
 the option index as a string and refuses anything else, so the parse
 cannot invent an index. Core only, D161's rule, and the drawn pool does
 not change: `pool()` still joins two-option questions, the Map draws
-them, and the mount gate counts them (D394). What changes is what the
+them, and the mount gate counts them (D395). What changes is what the
 two device solves know about the viewer:
 
 - **The Oracle's seal** solves θ from the evidence minus the target's own
@@ -41770,7 +41909,7 @@ two device solves know about the viewer:
 `patternsMap.ridgeSolve` is `estimateTheta` with its posterior precision
 kept — (Σ L Lᵀ + λI)⁻¹ by Gauss–Jordan, K = 8 — and λ is
 `loadings.lambdaU`, the device ridge the engine's scorecard was measured
-at (D394 sweeps four and publishes the best), with the shipped 0.5 as
+at (D395 sweeps four and publishes the best), with the shipped 0.5 as
 the fallback for a document that predates the field. One number in one
 place, chosen by measurement, read by both solves.
 
@@ -41794,7 +41933,7 @@ with a batch-fitted model and fresh people scored one step ahead: the
 shrink helps at λ = 0.5 (0.946 → 0.902 bits at one prior answer, 0.948 →
 0.895 at two) and hurts once λ is tuned up (0.903 → 0.909 at λ = 2,
 0.929 → 0.933 at λ = 4). The two are one knob twice — both temper an
-under-regularised θ — and D394's sweep already tunes λ by the scorecard
+under-regularised θ — and D395's sweep already tunes λ by the scorecard
 every night. A second knob the scorecard does not see would make the
 device's guess and the server's score speak different currencies, which
 is the one thing D325 forbids. So the guess stays `marginal + θ·L`, the
@@ -41814,7 +41953,7 @@ Zero reads: every input was already on the device. Measured before the
 push: `tsc -b` clean, 2,679 client tests, `check:globals` at its
 baseline, eslint clean on every touched file.
 
-## D396 · The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred
+## D397 · The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred
 
 **2026-09-06.** **Status:** binding. The owner's call on
 [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §4.3 — *"yeah agree
@@ -41892,7 +42031,7 @@ Measured before the push: 736 functions tests (`patternsSamples` at 4,
 the sweep at 30), `tsc` clean in both packages, the client suite green,
 `check:globals` at its baseline, eslint clean on every touched file.
 
-## D397 · The breakdown cap reports what it discards, three lens folds run once per input, and the Circle reads a member's newest answers
+## D398 · The breakdown cap reports what it discards, three lens folds run once per input, and the Circle reads a member's newest answers
 
 **2026-09-06.** **Status:** binding. The owner's call on
 [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §4.4 and §4.6 —
@@ -42016,11 +42155,11 @@ LOCAL-TESTING.md § Sandbox/CI note, firebase-tools parsing the sandbox
 proxy's 403 body as JSON. The documented remedy is to run with
 `HTTPS_PROXY` unset, which this session's environment forbids, so the
 three suites were not run here and CI's `test:e2e:all` is where this
-branch's trigger change (the two `logBucketCaps` calls) and D396's
+branch's trigger change (the two `logBucketCaps` calls) and D397's
 erasure arm are first exercised against real emulated functions. Said
 here rather than left to be discovered.
 
-## D398 · One nightly pass over the ledger: the digest, the Patterns fit and the taste fold read yesterday's entries once
+## D399 · One nightly pass over the ledger: the digest, the Patterns fit and the taste fold read yesterday's entries once
 
 **2026-09-06.** **Status:** binding. The owner's *"build the remaining
 steps too"* on [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §6 —
@@ -42107,19 +42246,19 @@ replaced by its delegation), `tsc` clean, the build and
 `ops.ts` module count and `functions/README.md`'s function count moved
 with the tree. `test:scripts` 957. eslint clean on every touched file.
 
-## D399 · The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own
+## D400 · The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own
 
 **2026-09-06.** **Status:** binding. The owner's *"build the remaining
 steps too"* on [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §6 —
 step 9's second half, §4.4's overflow document, built on the owner's
-word rather than on the alert D397 armed to wait for.
+word rather than on the alert D398 armed to wait for.
 
 ### What
 
 `BREAKDOWN_MAX_BUCKETS` bounds the hot aggregate document at 24 values a
 dimension, and until now what the cap evicted or refused was gone: the
 twenty-fifth city to answer a question vanished from its City stop
-(D397 made that visible; nothing made it stop). Now it goes to the
+(D398 made that visible; nothing made it stop). Now it goes to the
 TAIL — `v2_agg_overflow/{qid}-{shard}`, `{ dim: { bucket: { opt: n } } }`,
 eight shards per question by FNV-1a of the bucket — so hot ∪ tail is
 exact, the fold is commutative everywhere, and a bucket lives in exactly
@@ -42133,7 +42272,7 @@ tail as blind merge-increments after the hot document, so an eviction's
 victim moves into a shard nobody read. The edit path moves its
 -old/+new inside the tail under `retargetAnchors`' own skip rule
 (`retargetTail`). The catalog fold takes no tail: its published `by` is
-a lossy projection of the board by design (D17), so the D397 line still
+a lossy projection of the board by design (D17), so the D398 line still
 means a discarded cell there, and the alert's runbook says which.
 
 The rebuild (`rebuildAggregateV2`, D290) folds the same tail in memory
@@ -42192,12 +42331,12 @@ the whole Firestore client rode into the eager graph: 634 KB → 961 KB,
 the gate red exactly as D144 built it to be. The module binds the SDK
 off `getFirestoreApi()` at call time now, the voters module's shape
 (D122), and its header says so for the next module. **Not run here: the
-e2e** — the sandbox proxy stops the functions emulator (D397 has the
+e2e** — the sandbox proxy stops the functions emulator (D398 has the
 failure text); step 7j is written for CI's `test:e2e:all`, and it is the
 first place the transaction's conditional shard read and its blind
 increments meet a real emulator.
 
-## D400 · A top-up fills a topic to a page, not by a page — the paged accumulation D350's amendment named, bounded at its source
+## D401 · A top-up fills a topic to a page, not by a page — the paged accumulation D350's amendment named, bounded at its source
 
 **2026-09-06.** **Status:** binding. The owner's *"build the remaining
 steps too"* — step 10's third item, §4.6's eviction.
@@ -42226,14 +42365,14 @@ nothing; as they are answered, the next boot refills to a page. Memory is
 then a page per topic or field plus what was answered — which the Mirror
 files and the archive lists, and so stays by design — and the reads a
 boot pays are the paged cards the person consumed since the last one.
-The old cases stand (`held` defaults to empty, the pre-D400 page); the
+The old cases stand (`held` defaults to empty, the pre-D401 page); the
 new case pins the fill, the stale-held rule and the shrunk-page rule.
 
 ### The arithmetic the model never had
 
 The page reads were in the cost model NOWHERE: `boot` priced the meta,
 the bank cursor, the deck's aggregates and the answers page, and not the
-`v2_rank` orders or a single paged document. Before D400 that was ≈144
+`v2_rank` orders or a single paged document. Before D401 that was ≈144
 reads a boot per device — at 50 k DAU and 1.4 boots, ~10 M reads a day,
 about $90 a month unpriced. `B.pagedShare` (0.5, a guess about humans
 stated as one) now prices the refill as `worldAnswers × pagedShare` per

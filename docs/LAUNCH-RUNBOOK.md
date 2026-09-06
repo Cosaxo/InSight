@@ -1672,16 +1672,16 @@ That is a tester-count problem, not a workflow problem.
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
 - [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
-      TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D397), is
+      TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
       committed and not applied.** The breakdown cap's `agg_evict`
       metric and its policy landed after run 16 verified the nine, so
       **Arm monitoring** owes one more dispatch, and 5.5's own lesson
       applies to it: a freshly created log-based metric is not selectable
       by a policy for up to ten minutes (run 9's `404 … Cannot find
       metric`), so expect two dispatches, or one after the window. Since
-      D399 the line the alert counts means the cap's tail is live for a
+      D400 the line the alert counts means the cap's tail is live for a
       question, not that a count was lost — its runbook says what to do,
-      which is to move one number in the cost model. *Source:* D397, D399;
+      which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
 - [x] **5.6 Version lockstep — holds at 2.0.0 build 32.**
       *This line was stale three times, each one a bump behind 2.4 — build

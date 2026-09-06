@@ -205,7 +205,7 @@ export interface PeopleFoldOpts {
   circle?: ReadonlySet<string>;
   /**
    * The viewer's OWN evidence, when the caller has more of it than the
-   * two-option pool carries (D395): every answer the published rows can
+   * two-option pool carries (D396): every answer the published rows can
    * encode — ordinal and pick items included — as the centred residuals
    * the fit is written in. Strangers are still placed from the fetched
    * two-option lists (a voter row is one option index on one two-option
@@ -215,7 +215,7 @@ export interface PeopleFoldOpts {
    * like everyone else.
    */
   viewerObs?: readonly { L: readonly number[]; r: number }[];
-  /** The device ridge, as the fit published it (D394); the shipped value
+  /** The device ridge, as the fit published it (D395); the shipped value
    * otherwise. Both solves — strangers' and the viewer's — use it. */
   lambda?: number;
 }

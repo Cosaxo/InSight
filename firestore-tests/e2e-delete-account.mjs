@@ -123,7 +123,7 @@ await adb.doc(`v2_ratelimits/join_${uid}`).set({ events: [] });
 await adb.doc(`v2_agg_events/evt_mine`).set({ qid: "daily-000", uid });
 await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
 
-// The voter samples (D396): the one derived public document family that
+// The voter samples (D397): the one derived public document family that
 // holds uids — the newest voters per question, rows keyed by uid. Erasure
 // must take this account's row and leave the other voter's, and the
 // document itself: it is everyone else's list, not this account's.
@@ -637,7 +637,7 @@ const sampleAfter = await adb.doc("v2_patterns/sample-daily-000").get();
 if (!sampleAfter.exists)
   fail("the voter sample was deleted outright — it is everyone else's list");
 if (sampleAfter.get("rows")?.[uid] !== undefined)
-  fail("the erased account's row survived in a world-readable voter sample (D396)");
+  fail("the erased account's row survived in a world-readable voter sample (D397)");
 if (sampleAfter.get("rows")?.[OTHER]?.o !== 0)
   fail("the sample scrub removed more than the one row — the other voter is gone");
 if (sampleAfter.get("n") !== 1)
@@ -649,7 +649,7 @@ for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer (subcollection)"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
-  [`v2_users/${uid}/patterns/state`, "the fit's per-person state and answer map (D394)"],
+  [`v2_users/${uid}/patterns/state`, "the fit's per-person state and answer map (D395)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
   [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],

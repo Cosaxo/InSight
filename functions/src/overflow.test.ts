@@ -1,4 +1,4 @@
-// overflow.test.ts — the trigger's half of the tail (D399): the increments
+// overflow.test.ts — the trigger's half of the tail (D400): the increments
 // it writes and the shards it reads. The fold itself is pure.test.ts's.
 import { describe, expect, it } from "vitest";
 import { FieldValue } from "firebase-admin/firestore";

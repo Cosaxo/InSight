@@ -85,7 +85,7 @@ const METRICS = [
     // The breakdown cube's cap (pure.ts BREAKDOWN_MAX_BUCKETS) discarding
     // a cohort count — a sub-floor bucket evicted for a newcomer, or the
     // newcomer refused because every slot is published. Silent from the
-    // day the cap was written until D397; dormant until a question has
+    // day the cap was written until D398; dormant until a question has
     // answers from 25 cities or countries, and its first firing is the
     // evidence ALGORITHM-REFLECTION §4.4 builds the overflow document on.
     name: "agg_evict",
@@ -107,11 +107,11 @@ const METRICS = [
   // silence policies below have a metric to be absent from.
   {
     // Emitted from the nightly pass (nightly.ts, `digestEngagementV2`)
-    // since D398 folded the three ledger readers into one invocation; the
+    // since D399 folded the three ledger readers into one invocation; the
     // policy file keeps its fitPatternsV2 name because that is the display
     // name the ARMED policy carries, and a renamed policy is a new one.
     name: "patterns_fit",
-    description: "the nightly Patterns fit completed — inside digestEngagementV2 since D398 (02:23 UTC)",
+    description: "the nightly Patterns fit completed — inside digestEngagementV2 since D399 (02:23 UTC)",
     filter: 'jsonPayload.metric="patterns_fit"',
   },
   {
@@ -121,7 +121,7 @@ const METRICS = [
   },
   {
     name: "engagement_digest",
-    description: "digestEngagementV2 completed the nightly engagement pipeline (02:23 UTC; the same pass carries the Patterns fit and the taste fold since D398)",
+    description: "digestEngagementV2 completed the nightly engagement pipeline (02:23 UTC; the same pass carries the Patterns fit and the taste fold since D399)",
     filter: 'jsonPayload.metric="engagement_digest"',
   },
   // The paid pipeline had NO metric registered at all, so none of its money
@@ -143,7 +143,7 @@ const METRICS = [
 const POLICIES = [
   "monitoring/onV2AnswerCreated-errors.json",
   "monitoring/onV2AnswerCreated-contention.json",
-  // The cap alert (D397): the same trigger, the same "not an error" shape
+  // The cap alert (D398): the same trigger, the same "not an error" shape
   // as contention — the answer folds, the count for one cohort does not.
   "monitoring/onV2AnswerCreated-evictions.json",
   "monitoring/scheduledDuelReveals-silent.json",

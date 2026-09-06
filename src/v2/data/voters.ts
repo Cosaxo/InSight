@@ -212,7 +212,7 @@ export async function fetchVoterPicks(
 }
 
 /**
- * The nightly voter SAMPLE for `qid` (D396) — the newest VOTER_FETCH_CAP
+ * The nightly voter SAMPLE for `qid` (D397) — the newest VOTER_FETCH_CAP
  * voters as the fit published them last night at `v2_patterns/sample-{qid}`:
  * one document read where `fetchVoterPicks` is up to two hundred. Same
  * rows in the same shape — uid, option index, the answer's frozen chips
@@ -222,7 +222,7 @@ export async function fetchVoterPicks(
  * answer the moment it lands, keeps the live query.
  *
  * Null when no sample exists yet — a question the nightly run has not
- * touched since D396, or the tail — so the caller falls back to the live
+ * touched since D397, or the tail — so the caller falls back to the live
  * query rather than reading absence as an empty crowd.
  */
 export async function fetchVoterSample(

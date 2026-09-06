@@ -29,7 +29,7 @@ const live = vi.hoisted(() => {
     aggregated: vi.fn((): unknown[] => []),
     coreFeedAggregated: vi.fn((): unknown[] => []),
     subscribe: vi.fn(() => () => {}),
-    // The viewer's answers as option indexes (D395). Derived from the vote
+    // The viewer's answers as option indexes (D396). Derived from the vote
     // mock by default — this file's option ids are `${qid}:${idx}` — so a
     // case that sets myVotes gets consistent evidence for free; a case
     // about the wider corpus sets it directly.
@@ -71,7 +71,7 @@ const voters = vi.hoisted(() => ({
   // read is pure waste on this path — up to VOTER_FETCH_CAP profile
   // documents per question, billed, thrown away.
   fetchVoters: vi.fn(async () => []),
-  // The nightly sample (D396): null means none published yet, and the
+  // The nightly sample (D397): null means none published yet, and the
   // pair card falls back to the live picks — which is what every case
   // below that counts rows exercises. The case about the sample sets it.
   fetchVoterSample: vi.fn<(db: unknown, qid: string) => Promise<{ uid: string; optionIdx: number }[] | null>>(
@@ -188,7 +188,7 @@ describe("the pool join", () => {
   });
 });
 
-describe("the evidence and the ridge (D395)", () => {
+describe("the evidence and the ridge (D396)", () => {
   /** The candidate engine's document: two-option rows beside an ordinal
    * scale and a three-option pick, with the metadata that says which. */
   const publishWide = () => {
@@ -420,7 +420,7 @@ describe("the pair card", () => {
   });
 });
 
-describe("the pair card reads the nightly sample first (D396)", () => {
+describe("the pair card reads the nightly sample first (D397)", () => {
   it("counts the sample's rows and never issues the live query when a sample exists", async () => {
     publishFixture();
     live.myVotes.mockReturnValue({ qa: "qa:0" });

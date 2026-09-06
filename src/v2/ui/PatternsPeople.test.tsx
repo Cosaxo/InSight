@@ -19,7 +19,7 @@ const LIVE = vi.hoisted(() => ({
   budgetPaused: false as boolean,
   subscribe: () => () => {},
   loadVoters: vi.fn(() => Promise.resolve()),
-  // the nightly sample path (D396): what the lens reads and loads through
+  // the nightly sample path (D397): what the lens reads and loads through
   loadVoterSample: vi.fn(() => Promise.resolve()),
   // …and reads rows through this, which hands back whatever `voters` says
   // (a case sets `voters`; the delegation keeps the two in step)

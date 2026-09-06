@@ -44,13 +44,13 @@ function snapOf(path: string, stamp?: Stamp) {
 
 const AGG = (qid: string) => `v2_question_aggs/${qid}`;
 
-/** Shard deletes the vote arm's batch issues (D399) — recorded apart from
+/** Shard deletes the vote arm's batch issues (D400) — recorded apart from
  *  the sets so the write assertion below stays about the aggregate. */
 const deletes: string[] = [];
 
 const fakeDb = {
   // The vote arm writes the aggregate and all eight tail shards in one
-  // batch since D399; a set lands like a direct one, a delete is recorded.
+  // batch since D400; a set lands like a direct one, a delete is recorded.
   batch() {
     const ops: Array<() => void> = [];
     return {
@@ -145,7 +145,7 @@ describe("runRebuild's write-side refusals", () => {
     expect(report.scanned).toBe(0);
     expect(writes.map((w) => w.path)).toEqual([AGG(QID)]);
     expect(writes[0].data.total).toBe(0);
-    // …and the tail goes with it (D399): an empty fold has no shards, so
+    // …and the tail goes with it (D400): an empty fold has no shards, so
     // all eight are deleted in the same batch — a rebuild is a whole
     // replacement of both documents' worth, never of the hot one alone.
     expect(report.tailShards).toBe(0);

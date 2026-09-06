@@ -324,9 +324,9 @@ export const TRIGGER_READS = { world: 2, duel: 0 };
 // day — a flat term the size of the boot's top-up and reseed combined, and
 // invisible in the model until now. `.select()` narrows egress, not reads.
 export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
-// THE NIGHTLY PASS (D398): one read of the day's ledger entries serving
+// THE NIGHTLY PASS (D399): one read of the day's ledger entries serving
 // the engagement digest, the Patterns fit and the taste fold together
-// (functions/src/nightly.ts). Until D398 this was two constants of 1 —
+// (functions/src/nightly.ts). Until D399 this was two constants of 1 —
 // PATTERNS_READS_PER_LEDGER_ENTRY and ENGAGEMENT_READS_PER_LEDGER_ENTRY,
 // the fit and the digest each paging the same day as its own scheduled
 // function — and the taste fold's third read of the same entries was
@@ -343,7 +343,7 @@ export const LEDGER_PASS_READS_PER_ENTRY = 1;
 // day. The model doc itself is one read and one write per PROJECT per
 // night, under any rounding here.
 export const PATTERNS_USER_STATE_OPS = 1;
-// The candidate engine (D394) re-solves nightly over EVERY fitted person's
+// The candidate engine (D395) re-solves nightly over EVERY fitted person's
 // answer map — one state read per person who has ever answered a core
 // item, which the model charges as one read per MAU per night
 // (`B.mauMultiple` per DAU-day). Counted separately from the online fit's
@@ -352,7 +352,7 @@ export const PATTERNS_USER_STATE_OPS = 1;
 // re-read's 200 k.
 export const PATTERNS_SCAN_READS_PER_MAU = 1;
 // The engagement digest (R1/D268): its ledger read is the pass's
-// (LEDGER_PASS_READS_PER_ENTRY above) since D398. ENGAGEMENT-RUNBOOK
+// (LEDGER_PASS_READS_PER_ENTRY above) since D399. ENGAGEMENT-RUNBOOK
 // 1.1's named decision kept it separate from VELOCITY's scan — cursor
 // window against calendar day — and that separation stands: the pass
 // shares the read with the two other CALENDAR-DAY folds, not with
@@ -421,7 +421,7 @@ export const B = {
   worldAnswers: 4,
   duelAnswers: 1,
   // The share of world answers whose city or country the hot aggregate
-  // document cannot hold, so they pay the tail (D399): one shard read and
+  // document cannot hold, so they pay the tail (D400): one shard read and
   // one merge write each, on top of the trigger's two reads and one write.
   // ZERO TODAY and honestly so — no question has answers from 25 cities,
   // so the trigger never reads a shard — and the number to move the first
@@ -434,11 +434,11 @@ export const B = {
   tailShare: 0,
   // The share of a person's world answers that are PAGED cards — feed tail
   // and learn, against the daily and the feed's core, which ship whole.
-  // Half is a guess about humans, stated as one. What it prices (D400):
+  // Half is a guess about humans, stated as one. What it prices (D401):
   // since a top-up fills a topic TO a page, each paged card answered is
   // one card fetched on the next boot, so the page reads a boot pays are
   // the paged answers since the last boot — `worldAnswers × pagedShare`
-  // per user-day, in `boot` below. Before D400 the same reads were a
+  // per user-day, in `boot` below. Before D401 the same reads were a
   // fresh page per topic per boot (FEED_PAGE × twelve topics ≈ 144 a
   // boot) and were in this model NOWHERE: at 50 k DAU that was ~10 M
   // reads a day, about $90 a month, unpriced. Stated so the saving is
@@ -626,7 +626,7 @@ export function socialTerms(dau, mature, o = {}) {
   const crowd = Math.min(voterCap, dau);
   return {
     whoVoted: B.sheetOpens * crowd * names,
-    // Kindred reads the nightly voter SAMPLE (D396): one document per
+    // Kindred reads the nightly voter SAMPLE (D397): one document per
     // question in place of `crowd` answer documents, and the same profile
     // reads for names as before — `names − 1` of them per row, because the
     // ×2 above was "answers plus profiles" and the answers half is now the
@@ -662,7 +662,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     mature, staticBank = false, streamAggs = false,
     publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
   }) {
-    // …plus the page refill (D400): one paged card fetched per paged card
+    // …plus the page refill (D401): one paged card fetched per paged card
     // answered since the last boot, whatever the boot count — see
     // B.pagedShare for what this replaces.
     const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots + B.worldAnswers * B.pagedShare;
@@ -733,11 +733,11 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // Reads the SERVER issues: the aggregate transaction, the two
     // nightly ledger reads (the velocity scan's own, and the one pass
     // that serves the digest, the Patterns fit and the taste fold —
-    // D398; the fit and the digest each add one state read per active
+    // D399; the fit and the digest each add one state read per active
     // user), and the reveal pipeline.
     const server =
       B.worldAnswers * TRIGGER_READS.world
-      + B.worldAnswers * B.tailShare // the tail's shard read (D399)
+      + B.worldAnswers * B.tailShare // the tail's shard read (D400)
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
       + B.worldAnswers * LEDGER_PASS_READS_PER_ENTRY

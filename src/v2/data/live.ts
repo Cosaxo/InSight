@@ -328,7 +328,7 @@ const state = {
   deckDay: -1,
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
-  // The breakdown cap's tail (D399): the viewer's own city/country cell
+  // The breakdown cap's tail (D400): the viewer's own city/country cell
   // for each question whose hot map is at the cap without it, as read
   // from `v2_agg_overflow` — qid → dim → { key, cell }. Kept beside
   // `aggs` so a refreshed hot document (storeAgg) gets the cell merged
@@ -461,7 +461,7 @@ const state = {
   // kindredPeople() unions the two; nothing else reads this.
   cityVoters: {} as Record<string, Voter[]>,
   cityVotersAt: "",
-  // The nightly voter SAMPLES (D396): the same rows the live lists hold,
+  // The nightly voter SAMPLES (D397): the same rows the live lists hold,
   // published by the fit one document per question, read by every fold
   // that only counts — Kindred's world pass, the People lens, the pair
   // card. The who-voted sheet keeps `voters` above, live. kindredPeople()
@@ -1203,7 +1203,7 @@ let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 const aggDirty = new Set<string>();
 function storeAgg(id: string, agg: AggDoc): void {
   // A hot document arriving over one whose tail cell this session already
-  // read keeps the cell (D399): the refresh replaces the document whole,
+  // read keeps the cell (D400): the refresh replaces the document whole,
   // and the tail is not in it by construction.
   let next = agg;
   const tail = state.overflowCells[id];
@@ -3157,7 +3157,7 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
   // Each surface fails alone: a bad learn order must not cost the feed
   // its pages, or the other way around. The next boot retries either.
   try {
-    // What the device holds unanswered (D400): the learn cards in memory
+    // What the device holds unanswered (D401): the learn cards in memory
     // the mastery map has no history with. A field with a page of them
     // fetches nothing; the page refills as they are mastered.
     const learnHistory = learnHistoryIds();
@@ -3280,7 +3280,7 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
         return null;
       }
     })();
-    // What the device holds unanswered in the TAIL (D400): core and bought
+    // What the device holds unanswered in the TAIL (D401): core and bought
     // rows ship whole and are not runway the pager owes, so they do not
     // count — a fresh install with its core unanswered still gets its
     // first tail page per topic, and a topic with a page of fresh tail
@@ -4641,7 +4641,7 @@ const patternsMine = perRev((): number => {
 
 /**
  * The viewer's answers to every item the candidate engine's corpus can
- * name (D394/D395): qid → option index, over the daily bank, the core
+ * name (D395/D396): qid → option index, over the daily bank, the core
  * feed and the instrument items. The Oracle's and the People lens's
  * device solves read the viewer through this rather than through the
  * two-option view models, so an ordinal or a pick answer counts as
@@ -4831,13 +4831,13 @@ const LIVE = {
     }
   },
   /**
-   * The nightly voter sample for a question (D396) — the same rows the live
+   * The nightly voter sample for a question (D397) — the same rows the live
    * list holds, one document instead of up to two hundred, for every fold
    * that only COUNTS: Kindred's world pass, the People lens, the pair
    * card. Same cache guards and the same absent-vs-empty rule as
    * `loadVoters`, and the same loading flag, so a panel that asks
    * `votersLoading(qid)` sees either loader. A question with no sample yet
-   * — the nightly run has not touched it since D396, or it is the tail —
+   * — the nightly run has not touched it since D397, or it is the tail —
    * falls through to the live query rather than reading absence as an
    * empty crowd. A live list already in hand is never re-read as a sample:
    * the fresher rows win.
@@ -4873,7 +4873,7 @@ const LIVE = {
     return state.voters[qid] || state.voterSamples[qid] || null;
   },
   /**
-   * The breakdown cap's tail for the viewer's own place (D399): for every
+   * The breakdown cap's tail for the viewer's own place (D400): for every
    * cached aggregate whose hot map for `scope` is at the cap and lacks the
    * viewer's key, read the one shard that key hashes to and merge the
    * cell into the document every Mirror reader already folds. Kicked by
@@ -5152,7 +5152,7 @@ const LIVE = {
       // first surface has run, and firing twelve at once at boot-adjacent
       // moments is the shape that gets a client rate-limited.
       for (const qid of qids) {
-        // the nightly sample (D396) — one document — with the live query
+        // the nightly sample (D397) — one document — with the live query
         // as its own fallback for a question no sample exists for yet
         if (!state.voters[qid] && !state.voterSamples[qid]) await this.loadVoterSample(qid);
       }
@@ -5194,7 +5194,7 @@ const LIVE = {
       if (Number.isFinite(n)) mine[qid] = n;
     }
     // uid -> their answers, assembled from the cached voter lists — the
-    // live ones, and the nightly samples (D396) where no live list was
+    // live ones, and the nightly samples (D397) where no live list was
     // fetched for the question.
     const theirs: Record<string, Record<string, number>> = {};
     const lists = [
@@ -5718,7 +5718,7 @@ const LIVE = {
     // the union needs no dedupe of its own.
     const pools = [
       ...Object.entries(state.voters),
-      // the nightly samples (D396), where no live list was fetched for the question
+      // the nightly samples (D397), where no live list was fetched for the question
       ...Object.entries(state.voterSamples).filter(([qid]) => !state.voters[qid]),
       ...Object.entries(state.cityVoters),
     ];
@@ -6371,7 +6371,7 @@ const LIVE = {
    * open.
    */
   /** The viewer's answers as option indexes over the fit's whole corpus —
-   * the Oracle's and the People lens's evidence (D395). Empty in a demo
+   * the Oracle's and the People lens's evidence (D396). Empty in a demo
    * build, like every other reading the Patterns tab takes. */
   answeredIndex(): Record<string, number> {
     if (!this.enabled || torndown) return {};

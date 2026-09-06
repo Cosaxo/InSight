@@ -109,7 +109,7 @@ describe("the Oracle's arithmetic", () => {
   });
 });
 
-// ── the solve's precision, and the question it chooses (D395) ─────────
+// ── the solve's precision, and the question it chooses (D396) ─────────
 describe("the ridge solve keeps its precision", () => {
   it("returns the inverse it solved with, and the same θ estimateTheta gives", () => {
     const obs = [

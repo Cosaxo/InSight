@@ -1,4 +1,4 @@
-// overflow.reads.test.ts — the tail's one query (D399): the ids it asks
+// overflow.reads.test.ts — the tail's one query (D400): the ids it asks
 // for, how it chunks them, and what it keeps of what comes back. The
 // circle.reads pattern: a firebase/firestore double that records queries
 // and serves only the documents whose ids were named, because a fake that

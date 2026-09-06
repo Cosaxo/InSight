@@ -1,6 +1,6 @@
 // patterns.ts — the Patterns fold's wiring (v28 §2, trial per D166 §1,
 // gated by D167). The arithmetic lives in patternsFit.ts (the shipped
-// online engine) and patternsAls.ts (the candidate, D394), both pure; this
+// online engine) and patternsAls.ts (the candidate, D395), both pure; this
 // file decides WHAT gets folded and WHERE the state lives, behind an
 // injected store (the calls.ts precedent) so the pass logic tests without
 // an emulator.
@@ -21,8 +21,8 @@
 // ledgerEntry now carries optionIdx (v2.ts). Entries written before that
 // field existed simply do not fold; the basis counts say so.
 //
-// TWO ENGINES, ONE DOCUMENT (D394). The shipped online fit measured as
-// never leaving its hash seeds under the app's create-only regime (D393,
+// TWO ENGINES, ONE DOCUMENT (D395). The shipped online fit measured as
+// never leaving its hash seeds under the app's create-only regime (D394,
 // docs/ALGORITHM-REFLECTION.md §1), so a second engine runs beside it:
 // patternsAls.ts, the same model re-solved nightly in batch over every
 // person's current answers. Whichever engine has won the last fortnight
@@ -135,7 +135,7 @@ export const PATTERNS_QIDS: ReadonlySet<string> = new Set(
   ).map((q) => q.id),
 );
 
-/** The CANDIDATE engine's corpus (D394): every option-shaped core item,
+/** The CANDIDATE engine's corpus (D395): every option-shaped core item,
  * instrument items included — bin, ord and one-hot pseudo-items, compiled
  * from the bank (patternsAls.compileItems). Its two-option rows are
  * exactly PATTERNS_QIDS, which is what lets the two engines be scored on
@@ -161,7 +161,7 @@ export interface PatternsLedgerEntry {
   /** Present only on a D86 edit (v2.ts's ledgerEntry): the index the
    *  answer moved away from. Its ABSENCE is what marks a first answer. */
   fromIdx?: number;
-  /** The answer's frozen cohort chips (D8), for the voter samples (D396). */
+  /** The answer's frozen cohort chips (D8), for the voter samples (D397). */
   anchors?: Record<string, string>;
 }
 
@@ -189,7 +189,7 @@ export interface PatternsCandidate {
 }
 
 /** The whole loadings document, minus the server clock. Read and written
- * WHOLE (D394) — a field-by-field projection is how the retry stamp
+ * WHOLE (D395) — a field-by-field projection is how the retry stamp
  * shipped dead (store-projection.test.ts), and this document has grown
  * too many fields to name twice. */
 export interface PatternsPublication {
@@ -223,7 +223,7 @@ export interface PatternsStore {
   putUsers(states: Map<string, PatternsUserState>): Promise<void>;
   /** Every person's state, paged — the candidate's substrate. */
   scanUsers(each: (uid: string, state: PatternsUserState) => void): Promise<void>;
-  /** The voter samples for these questions, where one exists (D396). */
+  /** The voter samples for these questions, where one exists (D397). */
   getSamples(qids: string[]): Promise<Map<string, SampleDoc>>;
   putSamples(samples: Map<string, SampleDoc>): Promise<void>;
 }
@@ -260,7 +260,7 @@ export interface PatternsRunSummary {
   folded: number;
   /** Answers compacted onto people's maps — the candidate's substrate. */
   compacted: number;
-  /** Voter sample documents rewritten tonight (D396). */
+  /** Voter sample documents rewritten tonight (D397). */
   samples: number;
   users: number;
   questions: number;
@@ -507,7 +507,7 @@ export async function runPatternsFit(
       touched.add(uid);
     }
     if (write.size) await store.putUsers(write);
-    // ── the voter samples (D396) ───────────────────────────────────
+    // ── the voter samples (D397) ───────────────────────────────────
     //
     // Every question the day's answers touch gets its sample re-merged:
     // the newest PATTERNS_SAMPLE_CAP voters, uid → option and frozen chips,
@@ -573,7 +573,7 @@ export async function runPatternsFit(
   const sgdRowsOut: Record<string, PublishedRow> = {};
   for (const [qid, L] of Object.entries(model.q)) sgdRowsOut[qid] = { v: sgdPub[qid].v, n: L.n, sum: L.sum };
 
-  // ── the candidate engine (D394) ────────────────────────────────────
+  // ── the candidate engine (D395) ────────────────────────────────────
   //
   // Scored above, one step ahead, under each device ridge; the ridge that
   // scored best over the owed days is the one its scorecard is published
@@ -685,7 +685,7 @@ export async function runPatternsFit(
     ...((nextEngine === "als" ? alsQuality : sgdQuality) ? { quality: nextEngine === "als" ? alsQuality : sgdQuality } : {}),
     displacement: nextEngine === "als" ? alsDisplacement : sgdDisplacement,
     // Distance from birth, not from last night: the one number that says
-    // whether the vectors have learned anything at all (D393), over the
+    // whether the vectors have learned anything at all (D394), over the
     // rows the devices draw.
     seeds: seedsSummary({ k, q: binOf(enginePub) }),
     candidates: nextEngine === "als" ? { sgd: sgdCandidate } : { als: alsCandidate },
@@ -726,23 +726,23 @@ const dropUndefined = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
  * account, no new arm). */
 export function firestorePatternsStore(
   db: Firestore,
-  // The shared, memoised reader in production (nightly.ts, D398): the
+  // The shared, memoised reader in production (nightly.ts, D399): the
   // digest has already paid for the day by the time the fit asks.
   ledgerDay: LedgerDayReader = (dayKey) => readLedgerDay(db, dayKey),
 ): PatternsStore {
   const modelRef = db.collection("v2_patterns").doc("loadings");
   return {
     // One reader for one day of the ledger (ledger.ts, extracted at D322
-    // for D197's one-copy reason; shared across the night's folds at D398).
+    // for D197's one-copy reason; shared across the night's folds at D399).
     ledgerDay,
     async getModel() {
-      // WHOLE, not field by field (D394). This read used to name `k`, `q`,
+      // WHOLE, not field by field (D395). This read used to name `k`, `q`,
       // `lastDay`, `series` and `quality` one at a time, and the putModel
       // below is a `set` with no merge — so a field this projection forgot
       // was a field the next replace DELETED. `quality` nearly went that
       // way (store-projection.test.ts). The document has grown a second
       // engine, item metadata and a device ridge since; reading it whole
-      // and normalising the pre-D394 shape is the projection that cannot
+      // and normalising the pre-D395 shape is the projection that cannot
       // drop anything.
       const snap = await modelRef.get();
       if (!snap.exists) return null;
@@ -816,7 +816,7 @@ export function firestorePatternsStore(
               // retry guard reads `d` off what this returns, so omitting
               // it here made that guard dead in production.
               ...(snap.get("d") ? { d: String(snap.get("d")) } : {}),
-              // The answer map, both ways too (D394): the compaction merges
+              // The answer map, both ways too (D395): the compaction merges
               // into what this returns, so a read that dropped it would
               // publish a candidate fitted on yesterday alone, every night.
               ...(snap.get("a") ? { a: snap.get("a") as Record<string, number> } : {}),
@@ -901,7 +901,7 @@ export function firestorePatternsStore(
 }
 
 // `fitPatternsV2`, the scheduled function that ran this fit at 02:37 UTC,
-// retired at D398: the fit runs inside the nightly pass (nightly.ts,
+// retired at D399: the fit runs inside the nightly pass (nightly.ts,
 // `digestEngagementV2`, 02:23 UTC) over the ledger day the digest has
 // already read. Its heartbeat metric `patterns_fit` is emitted there, so
 // monitoring/fitPatternsV2-silent.json still watches the fit.

@@ -1,9 +1,9 @@
-// overflow.ts — the breakdown cap's tail, read side (D399).
+// overflow.ts — the breakdown cap's tail, read side (D400).
 //
 // `v2_question_aggs.by[dim]` holds at most BREAKDOWN_MAX_BUCKETS values a
 // dimension (functions/src/pure.ts) — the cells almost every reader wants,
 // and a bound on the hot document's size. Past it the trigger evicts or
-// refuses, and since D399 the cell goes to the question's TAIL:
+// refuses, and since D400 the cell goes to the question's TAIL:
 // `v2_agg_overflow/{qid}-{shard}`, eight shards by bucket hash, every city
 // and country cell the hot map cannot hold. hot ∪ tail is exact and a
 // bucket lives in exactly one of the two, so a device that finds its own

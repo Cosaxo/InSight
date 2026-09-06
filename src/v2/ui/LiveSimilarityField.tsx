@@ -432,7 +432,7 @@ function CityField({ myParsed }: {
   // minShared 2 matches kindred()'s default: one shared question is a
   // coin flip, not an overlap.
   //
-  // Ranked once per pool (D397). `kindredPeople()` is perRev — the same
+  // Ranked once per pool (D398). `kindredPeople()` is perRev — the same
   // array until the store notifies — and `myParsed` is the section's, so
   // the ranking over up to KINDRED_QUESTIONS × VOTER_FETCH_CAP people
   // re-runs when any of the three moves and not on the tap that opens a
@@ -846,7 +846,7 @@ function PlacesField({ scope, myFlat }: {
   const myCity = LIVE.myCity;
   const myCountry = myCity ? (PLACES.parse(myCity)?.country || "") : "";
   const dim = scope === "country" ? "city" as const : "country" as const;
-  // Folded once per bank and per viewer (D397). `testFeedItems()` is
+  // Folded once per bank and per viewer (D398). `testFeedItems()` is
   // perRev, so `bank` is a new array exactly when the store has notified
   // — the aggregates `placeProfiles` reads through `aggFor` can only have
   // moved then — and `myFlat` is the section's own. The render this saves

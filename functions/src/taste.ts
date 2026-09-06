@@ -200,7 +200,7 @@ export async function runTasteFold(
  * key is not a secret). */
 export function firestoreTasteStore(
   db: Firestore,
-  // The shared, memoised reader in production (nightly.ts, D398).
+  // The shared, memoised reader in production (nightly.ts, D399).
   ledgerDay: LedgerDayReader = (dayKey) => readLedgerDay(db, dayKey),
 ): TasteStore {
   const metaRef = db.collection("v2_meta").doc("app");
@@ -258,6 +258,6 @@ export function firestoreTasteStore(
 }
 
 // `fitTasteV2`, the scheduled function that ran this fold at 03:27 UTC,
-// retired at D398: the fold runs inside the nightly pass (nightly.ts,
+// retired at D399: the fold runs inside the nightly pass (nightly.ts,
 // `digestEngagementV2`, 02:23 UTC) over the ledger day the digest has
 // already read, and emits `taste_fold` from there.

@@ -56,7 +56,7 @@ describe("pageNeedList", () => {
     expect(need[0]).toBe(`learn-cell5`);
   });
 
-  it("fills a topic TO a page, not BY a page: cards held unanswered are runway the boot does not re-buy (D400)", () => {
+  it("fills a topic TO a page, not BY a page: cards held unanswered are runway the boot does not re-buy (D401)", () => {
     // The accumulation D350 named: a boot that took a fresh page whatever
     // the device already held unanswered handed a daily booter a page per
     // topic per day. `held` is what is in memory and unanswered; the boot

@@ -95,7 +95,7 @@ const slim = (items: readonly PoolItem[]): PeopleItem[] =>
 
 /** live.ts's rows, narrowed to the fold's shape (they already match). */
 /** live.ts's rows, narrowed to the fold's shape (they already match): the
- * live list where one is in hand, else the nightly sample (D396). */
+ * live list where one is in hand, else the nightly sample (D397). */
 const rowsOf = (qid: string): readonly PeopleRow[] | null => LIVE.votersOrSample(qid);
 
 function Empty({ head, line, cta }: { head: string; line: string; cta?: React.ReactNode }): React.ReactElement {
@@ -142,7 +142,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   const myCo = countryOf(LIVE.anchors().city);
   const foldOpts = React.useMemo<PeopleFoldOpts>(() => ({
     // the viewer's own dot from everything they have answered — ordinal
-    // and pick items included (D395) — under the ridge the fit published
+    // and pick items included (D396) — under the ridge the fit published
     viewerObs: PATTERNS.evidence(),
     lambda: PATTERNS.lambdaU(),
     circle: circleSet,

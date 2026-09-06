@@ -120,7 +120,7 @@ describe("foldPeople", () => {
     expect(Math.abs(field.me.x - aX)).toBeLessThan(Math.abs(field.me.x - bX));
   });
 
-  it("solves the viewer from their own wider evidence when the caller has it (D395)", () => {
+  it("solves the viewer from their own wider evidence when the caller has it (D396)", () => {
     // every pool item loads along axis 0; evidence along axis 1 alone
     // moves the viewer's dot off the crowd's axis, and the strangers are
     // placed exactly as before

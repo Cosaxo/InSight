@@ -1,4 +1,4 @@
-// patternsAls.ts — the candidate engine (D394): the shipped MODEL with a
+// patternsAls.ts — the candidate engine (D395): the shipped MODEL with a
 // batch SOLVER, over the whole corpus rather than its two-option half.
 //
 // THE MODEL is patternsFit.ts's, unchanged: an answer is encoded and
@@ -11,7 +11,7 @@
 //
 // THE SOLVER is different, and that is the whole point. patternsFit.ts
 // takes one damped SGD step per observation as the day folds; measured on
-// a log shaped like the app's own (docs/ALGORITHM-REFLECTION.md §1, D393)
+// a log shaped like the app's own (docs/ALGORITHM-REFLECTION.md §1, D394)
 // its vectors never leave their hash seeds, because the bilinear step
 // only ignites when the same person answers the same question many times
 // and D5 forbids that. This engine instead re-solves every night by
@@ -48,7 +48,7 @@
 // THE CROSSOVER is measured, not bet. The candidate publishes under
 // `candidates.als` on the loadings doc, scored one step ahead on the same
 // two-option observations the shipped fit scores itself on, against the
-// same marginal-only baseline (D393). It replaces `q` only after
+// same marginal-only baseline (D394). It replaces `q` only after
 // PATTERNS_CROSSOVER_NIGHTS consecutive nights of better skill, and the
 // rule is symmetric — whichever engine has lost the last fortnight is the
 // candidate. pat-6 in MEASUREMENT-NOTES.md: engine choice is a
@@ -91,7 +91,7 @@ export interface BankQuestionLike {
   core?: boolean;
 }
 
-/** Widened eligibility (D394/§3): option-shaped, and core — the daily
+/** Widened eligibility (D395/§3): option-shaped, and core — the daily
  * bank, `core: true` feed questions, and the instrument items. Learn
  * cards are knowledge, not disposition, and stay out; pulse, call,
  * catalog, rank and the sealed duel surfaces never had an option share

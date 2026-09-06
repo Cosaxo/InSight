@@ -28,8 +28,8 @@
 // signalling the data layer mid-session, a seam worth adding when a
 // measured session actually outruns a page.
 //
-// …AND A TOP-UP FILLS TO A PAGE, NOT BY A PAGE (D400, ALGORITHM-REFLECTION
-// §4.6's third item, D350's amendment). Until D400 a boot took the first
+// …AND A TOP-UP FILLS TO A PAGE, NOT BY A PAGE (D401, ALGORITHM-REFLECTION
+// §4.6's third item, D350's amendment). Until D401 a boot took the first
 // `pageSize` ids of the order the cache did not hold, whatever the device
 // already held unanswered — so a phone that booted daily and answered
 // little was handed a fresh page per topic every day and kept every one:
@@ -89,9 +89,9 @@ export const FEED_PAGE = 12;
  *    carries — learn's D283 follow-everything default, and the feed's
  *    D96 always-on topics), enough of the published order the cache does
  *    not already hold to bring what the device holds UNANSWERED in that
- *    topic (`held`, D400) up to `pageSize`. A device holding a page of
+ *    topic (`held`, D401) up to `pageSize`. A device holding a page of
  *    fresh cards fetches nothing; one that answered them all is handed a
- *    whole page; a caller that passes no `held` gets the pre-D400 page.
+ *    whole page; a caller that passes no `held` gets the pre-D401 page.
  */
 export function pageNeedList(
   order: PageOrderDoc | null,

@@ -838,11 +838,11 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 export const BUCKET_EVICT_BELOW = 5;
 
 /**
- * What the cap did to a bucket, reported to whoever folds (D397). Both
+ * What the cap did to a bucket, reported to whoever folds (D398). Both
  * outcomes ran silently until this callback: an EVICTION drops a
  * sub-floor bucket from the hot map to admit `bucket`; a REFUSAL keeps
  * the newcomer out because every slot is published. `total` is the
- * victim's count, or 0 for a newcomer. Since D399 neither DISCARDS on the
+ * victim's count, or 0 for a newcomer. Since D400 neither DISCARDS on the
  * vote path — the cell moves to the tail below — so the `agg_evict` line
  * the trigger emits per call now reads "this dimension is past the hot
  * document's cap and its tail is live", which a reader's City stop pays
@@ -857,7 +857,7 @@ export type OnBucketCap = (
   total: number,
 ) => void;
 
-// ── the tail (D399, ALGORITHM-REFLECTION §4.4 step 2) ─────────────────
+// ── the tail (D400, ALGORITHM-REFLECTION §4.4 step 2) ─────────────────
 //
 // The cap used to DISCARD: an evicted bucket's partial count was gone and a
 // refused newcomer's answer counted in `total` and in no cohort cell. Now
@@ -1008,7 +1008,7 @@ export function overflowTail(shards: OverflowShards): { tail: BucketTail; pendin
 }
 
 /**
- * The edit's -old/+new inside the tail (D86 meets D399): for each
+ * The edit's -old/+new inside the tail (D86 meets D400): for each
  * dimension where the answer's bucket lives in the tail rather than the
  * hot map, the shard's increments — `from: -1, to: +1` — under exactly
  * retargetAnchors' skip rule: a cell that does not hold the old option is
@@ -1390,7 +1390,7 @@ export function foldCanonAnchors(
     // slots are just as attackable here, and for the same reason. No tail:
     // the published catalog `by` is a lossy projection of the board by
     // design (D17), so a complete tail of it would complete nothing a
-    // reader can see; the discard here is the one D397's alert still means.
+    // reader can see; the discard here is the one D398's alert still means.
     if (admitBucket(byDim, dim, bucket, onCap) !== "hot") continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;

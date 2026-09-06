@@ -1,4 +1,4 @@
-// overflow.test.ts — the client half of the tail (D399): the same hash as
+// overflow.test.ts — the client half of the tail (D400): the same hash as
 // the server, the same cap, and the two decisions the read path makes.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
