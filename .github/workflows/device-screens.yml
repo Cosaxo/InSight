@@ -81,6 +81,12 @@ jobs:
       # x86_64 images on these runners.
       AVD_IMAGE: "system-images;android-34;google_apis;x86_64"
       APP_ID: com.cosaxo.insight
+      # One directory both tools agree on. On the runner image avdmanager
+      # writes the AVD under one home and the emulator searches another
+      # (run 34059918629: "Unknown AVD name [screens] … no file screens.ini
+      # in $HOME/.android/avd"), and ANDROID_AVD_HOME is the variable both
+      # honour.
+      ANDROID_AVD_HOME: /home/runner/.android/avd
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -112,8 +118,18 @@ jobs:
         run: |
           mkdir -p results/android
           if [ -z "$GS_B64" ]; then
-            echo "::warning::GOOGLE_SERVICES_JSON is empty — the auth plugin asks for a FirebaseApp at load, so expect a launch crash; the launch capture is the evidence"
-            echo "google-services.json: ABSENT (secret empty)" >> results/android/environment.txt
+            # The secret does not exist yet (the Play release that needs it
+            # has never run — docs/PLAY-RELEASE.md §2.4 is the owner's
+            # step), and without SOME config the auth plugin aborts the
+            # shell at launch and this lane shows nothing. The placeholder
+            # names a project that does not exist: the SDK initialises
+            # against it without a network call, the demo build reaches no
+            # backend, and every call a plugin makes on its own fails
+            # quietly. Never a release input — the file is untracked in the
+            # tree, and the release workflow refuses an empty secret.
+            echo "::warning::GOOGLE_SERVICES_JSON is empty — using the placeholder config; add the secret (docs/PLAY-RELEASE.md §2.4) and the shell boots against the real project"
+            cp .github/device-screens/google-services.placeholder.json android/app/google-services.json
+            echo "google-services.json: PLACEHOLDER (secret empty) — Firebase initialised against a project that does not exist; nothing reaches a backend" >> results/android/environment.txt
           else
             printf '%s' "$GS_B64" | base64 --decode > android/app/google-services.json
             echo "google-services.json: present" >> results/android/environment.txt
@@ -147,7 +163,9 @@ jobs:
           # generic phone otherwise.
           DEVICE=pixel_7
           "$AVDMANAGER" list device -c | grep -qx "$DEVICE" || DEVICE=pixel
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$AVDMANAGER" create avd -n screens -k "$AVD_IMAGE" -d "$DEVICE" --force > /dev/null
+          echo "--- AVDs the emulator can see:"; "$ANDROID_HOME/emulator/emulator" -list-avds
           echo "avd: $DEVICE on $AVD_IMAGE" >> results/android/environment.txt
 
       - name: Boot

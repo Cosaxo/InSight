@@ -1,0 +1,30 @@
+{
+  "_comment": "device-screens.yml's fallback when the GOOGLE_SERVICES_JSON secret is empty — a Firebase project that does not exist, so the Android shell can initialise its plugins and boot the DEMO build on an emulator without a backend. Never a release input: the release workflow refuses an empty secret, and android/app/google-services.json is untracked. See .github/workflows/device-screens.yml.",
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "device-screens-placeholder",
+    "storage_bucket": "device-screens-placeholder.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:00000000000000000000aa",
+        "android_client_info": {
+          "package_name": "com.cosaxo.insight"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "placeholder-device-screens-not-a-real-key"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
