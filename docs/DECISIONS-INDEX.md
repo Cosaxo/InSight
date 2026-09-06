@@ -418,4 +418,4 @@ detect it.
 | **D384** | [The Scores pool pages too: ids in the shape document, documents by the page](DECISIONS.md#d384--the-scores-pool-pages-too-ids-in-the-shape-document-documents-by-the-page) | D386 | 40574 |
 | **D385** | [The PR shepherd is retired: pull requests are merged by hand](DECISIONS.md#d385--the-pr-shepherd-is-retired-pull-requests-are-merged-by-hand) | D386 | 40646 |
 | **D386** | [The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess](DECISIONS.md#d386--the-1v1-and-group-profile-steps-1-and-2-the-days-kind-reaches-the-seed-every-rate-is-scored-against-luck-and-a-group-day-gets-a-guess) | — | 40725 |
-| **D387** | [Three behaviour signals get a reader: whether the Mirror is READ, not only answered into](DECISIONS.md#d387--three-behaviour-signals-get-a-reader-whether-the-mirror-is-read-not-only-answered-into) | — | 40841 |
+| **D389** | [Three behaviour signals get a reader: whether the Mirror is READ, not only answered into](DECISIONS.md#d389--three-behaviour-signals-get-a-reader-whether-the-mirror-is-read-not-only-answered-into) | — | 40841 |

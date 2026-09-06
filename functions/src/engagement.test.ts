@@ -692,7 +692,7 @@ const rr = (uid: string, day: string, over: Partial<RollupRow> = {}): RollupRow 
   dayparts: [0, 1, 1, 0], feedB: 0, stops: 0, lenses: 0, ...over,
 });
 
-describe("foldRollups and the Mirror-reading three (D387)", () => {
+describe("foldRollups and the Mirror-reading three (D389)", () => {
   // ENGAGEMENT-PLAN.md's rung-0 table names this blind spot in as many
   // words: "The entire Mirror — does anyone open it, which stops, which
   // lenses | reading is the point and reading writes nothing". The three

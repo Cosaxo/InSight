@@ -722,7 +722,7 @@ export function engagementFromDays(days) {
           quietShare: sessions > 0 ? round2((p.quiet ?? 0) / sessions) : null,
           fading: p.fading ?? 0,
           reachedEnd: p.depthEnd ?? 0,
-          // THE MIRROR-READING THREE (D387). ENGAGEMENT-PLAN.md's rung-0
+          // THE MIRROR-READING THREE (D389). ENGAGEMENT-PLAN.md's rung-0
           // table lists "the entire Mirror — does anyone open it, which
           // stops, which lenses" as something rung 0 cannot see, because
           // "reading is the point and reading writes nothing". These

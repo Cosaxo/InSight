@@ -962,7 +962,7 @@ export interface RollupRow {
   answers: unknown;
   depthEnd: unknown;
   dayparts: unknown;
-  // The Mirror-reading three (D387). Written by every device since the
+  // The Mirror-reading three (D389). Written by every device since the
   // rollup shipped and folded by nothing until now — see the fold below
   // for what each becomes.
   feedB: unknown;

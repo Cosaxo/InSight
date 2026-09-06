@@ -1174,7 +1174,7 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(html).toContain("Per-question attention");
   });
 
-  it("draws whether the Mirror was READ, as shares of people (D387)", () => {
+  it("draws whether the Mirror was READ, as shares of people (D389)", () => {
     // ENGAGEMENT-PLAN.md's rung-0 table calls this the one thing rung 0
     // cannot see — "does anyone open it, which stops, which lenses",
     // because "reading is the point and reading writes nothing". The
@@ -1203,7 +1203,7 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(html).toContain("75%");
   });
 
-  it("a fold written before D387 draws dashes, not invented zeros", () => {
+  it("a fold written before D389 draws dashes, not invented zeros", () => {
     // Every day already folded lacks these keys entirely. The console
     // must say it does not know, the way it does for a cohort day that
     // predates the digest — a 0% would read as "nobody opened the
