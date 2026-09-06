@@ -1522,9 +1522,12 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [ ] **5.5 Apply the nine monitoring alerts — EIGHT VERIFIED ARMED AND
-      WIRED 2026-08-27 (D333); the NINTH is committed and not applied.**
-      **REOPENED 2026-09-02 (D349).** `monitoring/paid-refund-stuck.json`
+- [ ] **5.5 Apply the ten monitoring alerts — EIGHT VERIFIED ARMED AND
+      WIRED 2026-08-27 (D333); the NINTH and TENTH are committed and not
+      applied.** **REOPENED 2026-09-02 (D349); the tenth added 2026-09-06
+      (D386)** — `monitoring/onV2AnswerCreated-evictions.json` and its
+      `agg_evict` metric, the breakdown cap's discards, which had no line
+      anywhere. Same dispatch arms both. `monitoring/paid-refund-stuck.json`
       landed with the paid pipeline's first alert of any kind, and with
       the two log-based metrics it selects on. Nothing in this tree arms
       a policy — `monitoring:apply` does, and it has not been run since —

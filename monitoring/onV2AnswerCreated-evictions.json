@@ -1,0 +1,30 @@
+{
+  "displayName": "onV2AnswerCreated is discarding cohort counts at the breakdown cap",
+  "documentation": {
+    "content": "The aggregate trigger is discarding cohort counts at the breakdown cap: a question has answers from more distinct values of one anchor than `BREAKDOWN_MAX_BUCKETS` (24) can hold.\n\nWhat fires this: `foldAnchors` / `foldCanonAnchors` (functions/src/pure.ts) report through a callback whenever the cap acts, and the trigger logs `metric: agg_evict` at WARNING after the transaction commits (`logBucketCaps`, functions/src/v2.ts) — one line per discard. `kind` says which of the two things happened: `evicted` means a bucket holding fewer than `BUCKET_EVICT_BELOW` (5) answers was dropped, count and all, to admit a newcomer; `refused` means every slot is published and the newcomer's answer was folded into the totals but into no cohort cell for that dimension. `dim` and `bucket` name the value.\n\nWhy this is a separate policy from the error and contention alerts: the answer folds and the transaction commits. Nothing throws, nothing retries, and the published document is smaller than it should be by one cell — a correct total over Oslo drawn without Trondheim. No other signal sees it.\n\nWhat it means. City (~11k values) and country (249) are the only dimensions that can reach the cap; the others are closed vocabularies far under it. At launch scale this is dormant. Sustained firing on one question means that question is being answered from more places than the document holds, and the City stop is quietly a fact about the 24 biggest places. A burst of `evicted` lines with `total: 1` on values nobody recognises is the other reading — a junk-value burst against the cap, the attack the eviction rule exists to absorb — and the log line's `bucket` tells the two apart.\n\nFirst response: read the lines — `gcloud logging read 'jsonPayload.metric=\"agg_evict\"' --limit 50 --project prvfire33` — and note which qid, which dim and which kind. Then nothing in the code: this alert is the trigger for the overflow document (docs/ALGORITHM-REFLECTION.md §4.4, step 2), which keeps the hot document at 24 cells and writes every city and country cell to `v2_agg_overflow/{qid}` in the same transaction; once it ships the cap stops discarding and this metric goes quiet. Until then the alert will keep firing on the question that woke it — snooze the incident rather than raising the threshold, and put the overflow on the work list with the qid as its evidence.\n\nNot urgent: no answer is lost from the totals, and `npm run rebuild:agg` (functions/src/replay.ts) can rebuild a question's breakdown from its answers once a larger shape exists to rebuild into.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "more than 5 breakdown discards in an hour",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/agg_evict\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5,
+        "duration": "3600s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

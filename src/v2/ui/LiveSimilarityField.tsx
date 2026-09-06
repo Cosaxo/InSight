@@ -431,7 +431,17 @@ function CityField({ myParsed }: {
   const cityName = place ? place.name : city;
   // minShared 2 matches kindred()'s default: one shared question is a
   // coin flip, not an overlap.
-  const people = rankKindred(LIVE.kindredPeople(), myParsed, { city, minShared: 2 });
+  //
+  // Ranked once per pool (D386). `kindredPeople()` is perRev — the same
+  // array until the store notifies — and `myParsed` is the section's, so
+  // the ranking over up to KINDRED_QUESTIONS × VOTER_FETCH_CAP people
+  // re-runs when any of the three moves and not on the tap that opens a
+  // card, which used to re-rank the whole pool to change one highlight.
+  const pool = LIVE.kindredPeople();
+  const people = React.useMemo(
+    () => rankKindred(pool, myParsed, { city, minShared: 2 }),
+    [pool, myParsed, city],
+  );
   const loading = LIVE.similarityLoading() || LIVE.kindredLoading();
   const shown = people.slice(0, CITY_FIELD_CAP);
   const scoredN = shown.filter((p) => p.score).length;
@@ -836,11 +846,17 @@ function PlacesField({ scope, myFlat }: {
   const myCity = LIVE.myCity;
   const myCountry = myCity ? (PLACES.parse(myCity)?.country || "") : "";
   const dim = scope === "country" ? "city" as const : "country" as const;
-  const items = testItemMeta(LIVE.testFeedItems(), DEFS);
-  const profiles = placeProfiles(
+  // Folded once per bank and per viewer (D386). `testFeedItems()` is
+  // perRev, so `bank` is a new array exactly when the store has notified
+  // — the aggregates `placeProfiles` reads through `aggFor` can only have
+  // moved then — and `myFlat` is the section's own. The render this saves
+  // is the pick below: a tapped place used to re-profile every place.
+  const bank = LIVE.testFeedItems();
+  const items = React.useMemo(() => testItemMeta(bank, DEFS), [bank]);
+  const profiles = React.useMemo(() => placeProfiles(
     items, DEFS, (qid) => LIVE.aggFor(qid), dim, myFlat,
     scope === "country" ? (key) => key.endsWith(`, ${myCountry}`) : undefined,
-  );
+  ), [items, dim, myFlat, scope, myCountry]);
   const labelOf = (key: string) =>
     dim === "city" ? (PLACES.parse(key)?.name || key) : PLACES.countryName(key);
   const homeOf = (key: string) => (dim === "city" ? key === myCity : key === myCountry);

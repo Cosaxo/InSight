@@ -41,6 +41,7 @@ import {
   catalogEntityKey,
   foldAnchors,
   foldCanonAnchors,
+  type OnBucketCap,
   canonTopN,
   foldEditFlow,
   retargetAnchors,
@@ -152,10 +153,55 @@ export function breakdownFor(
   storedBy: BreakdownCounts | null | undefined,
   anchors: unknown,
   optionIdx: number,
+  onCap?: OnBucketCap,
 ): BreakdownCounts {
   const by: BreakdownCounts = storedBy || {};
-  foldAnchors(by, anchors, optionIdx);
+  foldAnchors(by, anchors, optionIdx, onCap);
   return by;
+}
+
+/** One thing the bucket cap did while folding an answer — see
+ * `OnBucketCap` in pure.ts for the two kinds. */
+export interface BucketCapEvent {
+  kind: "evicted" | "refused";
+  dim: string;
+  bucket: string;
+  total: number;
+}
+
+/**
+ * The cap's discards, as log lines the alert chain can count (D386).
+ *
+ * `BREAKDOWN_MAX_BUCKETS` bounds the breakdown document (D7's growth
+ * arithmetic) and the bound has two silent outcomes — a sub-floor bucket
+ * evicted to admit a newcomer, or the newcomer refused because every slot
+ * is published — both of which discard an answer's cohort count without a
+ * word. Dormant at launch scale; the first daily question with answers
+ * from 25 cities wakes it, and ALGORITHM-REFLECTION §4.4 builds the
+ * overflow document on the evidence of its FIRST firing rather than on a
+ * guess. So the line exists to be counted: `metric: "agg_evict"` is what
+ * `monitoring/onV2AnswerCreated-evictions.json` thresholds, and `kind`,
+ * `dim` and `bucket` are what an operator then wants to know.
+ *
+ * Called AFTER the transaction commits, with the events of the attempt
+ * that committed. Logging from inside the body would count one line per
+ * attempt on a contended answer, and the metric would read contention
+ * rather than the cap.
+ */
+export function logBucketCaps(qid: string, events: readonly BucketCapEvent[]): void {
+  for (const e of events) {
+    const what = e.kind === "evicted"
+      ? `evicted ${e.dim}/${e.bucket} (${e.total} answers)`
+      : `refused ${e.dim}/${e.bucket}`;
+    logger.warn(`[v2] breakdown cap on ${qid} — ${what}`, {
+      metric: "agg_evict",
+      qid,
+      kind: e.kind,
+      dim: e.dim,
+      bucket: e.bucket,
+      total: e.total,
+    });
+  }
 }
 
 // How long a ledger entry lives (expireAt powers the Firestore TTL policy —
@@ -762,7 +808,11 @@ export const onV2AnswerCreated = onDocumentCreated(
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      // The cap's discards from the attempt that commits — reset per
+      // attempt, logged once the transaction returns (logBucketCaps).
+      const capped: BucketCapEvent[] = [];
       await runAggTransaction(db, qid, async (tx) => {
+        capped.length = 0;
         // Batched for the same reason as the vote path below: three
         // sequential round trips inside the transaction is three times the
         // lock window on the contended per-qid document.
@@ -795,7 +845,9 @@ export const onV2AnswerCreated = onDocumentCreated(
         // Every catalog question slices too (D98 — see the vote path).
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
-        foldCanonAnchors(entBy, snap.get("anchors"), key);
+        foldCanonAnchors(entBy, snap.get("anchors"), key, (kind, dim, bucket, total) => {
+          capped.push({ kind, dim, bucket, total });
+        });
         // The leaderboard, cut to a DISPLAY size rather than a floor.
         // canonTopN keeps the N biggest entities and folds the remainder
         // into `rest`; it used to also drop every entity under the
@@ -825,6 +877,7 @@ export const onV2AnswerCreated = onDocumentCreated(
           { merge: false },
         );
       });
+      logBucketCaps(qid, capped);
       return;
     }
     // Rank answers carry `order`, never `optionIdx` (D233) — the item
@@ -885,7 +938,11 @@ export const onV2AnswerCreated = onDocumentCreated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    // The cap's discards from the attempt that commits — reset per attempt,
+    // logged once the transaction returns (logBucketCaps).
+    const capped: BucketCapEvent[] = [];
     await runAggTransaction(db, qid, async (tx) => {
+      capped.length = 0;
       // ONE aggregate document, and it is the published one. See "the
       // private mirror is gone" in the header: since D98 the private doc
       // held byte-identical bytes to this one on this path, so the write
@@ -934,6 +991,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         agg.exists ? (agg.get("by") as BreakdownCounts) : null,
         snap.get("anchors"),
         optionIdx,
+        (kind, dim, bucket, total) => { capped.push({ kind, dim, bucket, total }); },
       );
       // The edit-flow matrix (D226) rides these same docs, and this write
       // replaces the doc whole (merge: false) — so carry it, or the first
@@ -962,6 +1020,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // not a floor.
       tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
     });
+    logBucketCaps(qid, capped);
   },
 );
 

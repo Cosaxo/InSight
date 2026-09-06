@@ -673,7 +673,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (nine policies, seven log-based metrics)
+## Alerting (ten policies, eight log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -840,6 +840,23 @@ self-heals on the next run, so they can wait until someone is actually
 reading the alerts. That "self-heals" is doing real work in this paragraph:
 it is exactly what is NOT true of the reveal scan, which is why that one
 did not wait.
+
+### The cap alert: cohort counts discarded at the breakdown cap (D386)
+
+`monitoring/onV2AnswerCreated-evictions.json` is the contention alert's
+shape pointed at the other thing the vote path does without an error:
+`BREAKDOWN_MAX_BUCKETS` bounds the breakdown document, and past 24 values
+of one anchor the fold either evicts a sub-floor bucket or refuses the
+newcomer — the answer folds, the transaction commits, and one cohort cell
+is quietly missing. `evictForNewBucket` ran silently from the day it was
+written; the fold now reports through a callback and the trigger logs
+`metric: "agg_evict"` once per discard, after the commit (so a contended
+answer counts once, not once per attempt). The metric is `agg_evict`,
+`severity>=WARNING`, and the policy thresholds more than five discards in
+an hour. Its runbook says what the first firing is FOR: it is the evidence
+`docs/ALGORITHM-REFLECTION.md` §4.4 builds the overflow document on, so
+the response is to read the qid off the line and put that work on the
+list, not to raise the threshold.
 
 ## Running a deploy manually
 

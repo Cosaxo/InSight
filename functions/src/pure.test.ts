@@ -619,6 +619,50 @@ describe("per-anchor breakdowns", () => {
     expect(by.city).toEqual(before);
   });
 
+  it("reports what the cap discarded — an eviction with its victim, a refusal with the newcomer — and nothing while slots are free (D386)", () => {
+    // Pure code has no logger, so the fold REPORTS through a callback and
+    // the trigger turns each call into the `agg_evict` line the alert chain
+    // counts. Three things pinned: silence while the cap is not binding
+    // (a metric that fired on ordinary folds would page on every answer),
+    // the eviction naming the victim and the count it lost, and the
+    // refusal — the outcome the old eviction test could not see — naming
+    // the newcomer that never got a cell.
+    const seen: Array<[string, string, string, number]> = [];
+    const onCap = (kind: string, dim: string, bucket: string, total: number) => {
+      seen.push([kind, dim, bucket, total]);
+    };
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      foldAnchors(by, { city: `Junk${i}, NO` }, 0, onCap);
+    }
+    expect(seen, "reported while slots were still free").toEqual([]);
+
+    // The 25th city evicts the smallest sub-floor bucket — the first junk
+    // value, one answer — and the report says which and how many.
+    foldAnchors(by, { city: "Oslo, NO" }, 1, onCap);
+    expect(seen).toEqual([["evicted", "city", "Junk0, NO", 1]]);
+
+    // Every slot published: the newcomer is refused, and the report says
+    // so with a zero — it never held a count to lose.
+    const full: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(full, { city: `Full${i}, NO` }, 0, onCap);
+    }
+    seen.length = 0;
+    foldAnchors(full, { city: "Newcomer, NO" }, 0, onCap);
+    expect(seen).toEqual([["refused", "city", "Newcomer, NO", 0]]);
+    expect(full.city["Newcomer, NO"]).toBeUndefined();
+
+    // The catalog fold shares the rule and the report (pure.ts admitBucket
+    // is the one place both go through).
+    seen.length = 0;
+    foldCanonAnchors(full, { city: "Another, NO" }, "pikachu", onCap);
+    expect(seen).toEqual([["refused", "city", "Another, NO", 0]]);
+
+    // …and a fold with no callback is the fold it always was.
+    expect(() => foldAnchors(full, { city: "Quiet, NO" }, 0)).not.toThrow();
+  });
+
   // The five publishableBreakdown cases that stood here — sub-floor
   // suppression, complementary suppression, the two-bucket minimum, the
   // lopsided-split carve-out and the defensive copy — went with the

@@ -40732,3 +40732,131 @@ hold uids and which do not; `SCHEMA-V2.md` has the shape.
 Measured before the push: 736 functions tests (`patternsSamples` at 4,
 the sweep at 30), `tsc` clean in both packages, the client suite green,
 `check:globals` at its baseline, eslint clean on every touched file.
+
+## D386 · The breakdown cap reports what it discards, three lens folds run once per input, and the Circle reads a member's newest answers
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §4.4 and §4.6 —
+*"yeah agree with those apply those"* — rows 9 and 10 of its §6 table,
+three small things with three separate reasons, so three sections.
+
+### The cap alert
+
+`BREAKDOWN_MAX_BUCKETS` bounds the breakdown document (D7's growth
+arithmetic), and past 24 values of one anchor the fold does one of two
+silent things: evicts a bucket holding fewer than `BUCKET_EVICT_BELOW`
+answers to admit the newcomer, or — when every slot is published —
+refuses the newcomer, whose answer then counts in the totals and in no
+cohort cell for that dimension. `evictForNewBucket` ran without a line
+from the day it was written. The reflection's own sentence said
+"eviction"; the refusal is the half it missed, and at scale it is the one
+that discards — once a daily question holds 24 published cities, every
+answer from a 25th is refused, and the City stop is quietly a fact about
+the 24 biggest places.
+
+So the fold now REPORTS, and pure code stays pure: `foldAnchors` and
+`foldCanonAnchors` take an optional `OnBucketCap` callback and go through
+one `admitBucket` (a third fold cannot forget the refusal half), which
+calls it with the kind, the dimension, the bucket and the count lost —
+the victim's, or 0 for a newcomer that never held one. The trigger
+collects the calls per attempt and logs them AFTER the transaction
+commits (`logBucketCaps`, `v2.ts`): one WARNING per discard, `metric:
+"agg_evict"` with `qid`, `kind`, `dim`, `bucket`, `total`. After, not
+inside — a contended answer re-runs its body, and a line per attempt
+would have made the metric read contention. The chain is complete:
+`agg_evict` in `apply-monitoring.mjs`'s METRICS,
+`monitoring/onV2AnswerCreated-evictions.json` thresholding more than
+five discards in an hour (one stray value churned out is the eviction
+rule doing its job; five in an hour on one trigger is a live question
+past the cap or a junk burst against it, and the line's `bucket` tells
+the two apart), `check:monitoring` at 10 policies and 8 metrics, and
+every pinned count moved with it — DEPLOYMENT.md's heading and a section,
+MONITORING.md's table, COSTS.md, the applier's header, and LAUNCH-RUNBOOK
+5.5, which the tenth reopens the way the ninth did: committed, gated,
+and silent until **Arm monitoring** is dispatched. Pinned: the callback's
+three outcomes in `pure.test.ts`, the line's shape in
+`evictions.test.ts`.
+
+What the first firing is FOR is written into the policy's runbook rather
+than left for the operator to rediscover: §4.4's second step — the
+overflow document that keeps the hot document at 24 cells and writes
+every city and country cell beside it — is built on that evidence, and
+until it ships the alert keeps firing on the question that woke it. The
+response is to read the qid off the line and put the work on the list,
+not to raise the threshold.
+
+### Three folds, not four
+
+The reflection named four unmemoised lens folds. Three are memoised on
+their inputs: Explore's tally and bucket order on `[qs, dim]` and its
+rows on `[qs, dim, picked]`; the City field's `rankKindred` over the
+kindred pool on `[pool, myParsed, city]`; the place fields'
+`testItemMeta` on the bank and `placeProfiles` on
+`[items, dim, myFlat, scope, myCountry]`. Each saves the lens's OWN
+render — a bucket chip tapped, a person's card opened, a place picked —
+which used to re-tally the archive, re-rank up to KINDRED_QUESTIONS ×
+VOTER_FETCH_CAP people, or re-profile every place to move one highlight.
+
+"On the store revision" was not taken literally, and the reason is worth
+a line: the inputs ARE the revision. `kindredPeople()` and
+`testFeedItems()` are perRev — a new array exactly when the store
+notifies — and the stop rebuilds `qs` on the same notify, so keying on
+them is keying on the revision without the
+`eslint-disable-next-line react-hooks/exhaustive-deps` that
+`PatternsPeople` needs for its `version` counter.
+
+The fourth — `WhosHere`'s two tallies — was left alone after reading its
+render triggers rather than assumed to need it. It has no state; its
+parent re-renders on the store's notify and on a tab switch, which
+remounts it. There is no render where its inputs have not moved, so a
+memo there would be dead code keyed on a prop the stop rebuilds every
+render. The same holds for `SimilaritySection`'s own `testItemMeta` and
+`myFlatAxes` at the foot of the file, which the reflection also pointed
+at: the section renders on notify alone.
+
+### The Circle reads the newest 300
+
+`fetchAnswersOf` orders by `answeredAt` descending, so `CIRCLE_ANSWER_CAP`
+keeps a member's 300 most recent answers instead of their
+alphabetically-first question ids — the bias `circle.ts` had recorded
+since 2026-08-31 as binding today (570 answerable questions against a cap
+of 300) and as the owner's to price. The owner took the price with §4.6:
+one composite index entry per answer ever written, storage only —
+Firestore bills index storage, not index writes. The
+(`surface` ASC, `answeredAt` DESC) composite is at COLLECTION scope in
+`firestore.indexes.json`, because the voter sheet's group-scope
+composites do not serve a single-collection query, and `indexes.test.ts`
+pins it for the reason its header gives: the emulator does not enforce
+index configuration, so the failure — FAILED_PRECONDITION, swallowed per
+member into an emptier stop — is production-only. Every answer carries
+`answeredAt` by rule, so the `orderBy` excludes nothing. `circle.ts`'s
+comment keeps its history and moves from "bring to the owner" to "the
+owner took it"; SCALE-PLAN §7's row moves from **Binds today** to
+**Fixed**, and its own 644 becomes the 570 `circle.ts` had already
+corrected it to.
+
+Deploy order matters once and is the existing order: `firestore:indexes`
+ships with the backend pipeline on merge, and the client build that
+carries the `orderBy` is a later, manual step (D381), so the index is
+built before any device asks for it.
+
+### Measured before the push
+
+Functions: 739 tests (`evictions` 2, `pure` +1), `tsc` clean, the build
+and `check:fn-runtime` (43 functions) green. `check:monitoring` — 10
+policies, 8 metrics, every condition resolving. `check:figures` — 100
+figures. `check:docs`. The client suite whole: 2,682 tests in 183 files;
+`test:scripts` 957; eslint clean on the tree; `check:globals` at its
+baseline of 30. The rules suite ran earlier in the same session on this
+branch's head-but-two: 197, coverage baseline unchanged.
+
+**Not run: the e2e.** `npm run test:e2e:all` booted the emulators and
+died registering the Firestore trigger with *"Unable to parse JSON:
+Unexpected token 'r', "request bl"…"* — the documented failure of
+LOCAL-TESTING.md § Sandbox/CI note, firebase-tools parsing the sandbox
+proxy's 403 body as JSON. The documented remedy is to run with
+`HTTPS_PROXY` unset, which this session's environment forbids, so the
+three suites were not run here and CI's `test:e2e:all` is where this
+branch's trigger change (the two `logBucketCaps` calls) and D385's
+erasure arm are first exercised against real emulated functions. Said
+here rather than left to be discovered.

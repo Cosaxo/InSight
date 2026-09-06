@@ -820,8 +820,27 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // junk. It has nothing to do with who may see what.
 export const BUCKET_EVICT_BELOW = 5;
 
+/**
+ * What the cap did to a bucket, reported to whoever folds (D386). Both
+ * outcomes discard data and both ran silently until this callback: an
+ * EVICTION drops a sub-floor bucket's partial count to admit `bucket`;
+ * a REFUSAL drops the newcomer itself because every slot is published.
+ * `total` is the count that was lost — the victim's, or 0 for a newcomer
+ * that never got a cell. The trigger turns each call into a `metric:
+ * "agg_evict"` log line; ALGORITHM-REFLECTION §4.4 is waiting on the first
+ * of them before it builds the overflow document. Pure code stays pure —
+ * this file has no logger, and the fold's tests read the calls directly.
+ */
+export type OnBucketCap = (
+  kind: "evicted" | "refused",
+  dim: string,
+  bucket: string,
+  total: number,
+) => void;
+
 function evictForNewBucket(
   byDim: Record<string, Record<string, number>>,
+  onEvict?: (victim: string, total: number) => void,
 ): boolean {
   const keys = Object.keys(byDim);
   if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
@@ -835,8 +854,26 @@ function evictForNewBucket(
     }
   }
   if (victim === null) return false;
+  onEvict?.(victim, victimTotal);
   delete byDim[victim];
   return true;
+}
+
+/** The cap's two silent outcomes, reported through one callback — shared by
+ * the two folds below so a third fold cannot forget the refusal half. */
+function admitBucket(
+  byDim: Record<string, Record<string, number>>,
+  dim: string,
+  bucket: string,
+  onCap?: OnBucketCap,
+): boolean {
+  if (byDim[bucket]) return true;
+  const admitted = evictForNewBucket(
+    byDim,
+    onCap && ((victim, total) => onCap("evicted", dim, victim, total)),
+  );
+  if (!admitted) onCap?.("refused", dim, bucket, 0);
+  return admitted;
 }
 
 // Fold one answer's anchors into the running breakdown. Mutates and returns
@@ -849,6 +886,7 @@ export function foldAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   optionIdx: number,
+  onCap?: OnBucketCap,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -856,7 +894,7 @@ export function foldAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
+    if (!admitBucket(byDim, dim, bucket, onCap)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     const k = String(optionIdx);
     cell[k] = (cell[k] || 0) + 1;
@@ -1170,6 +1208,7 @@ export function foldCanonAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   entityKey: string,
+  onCap?: OnBucketCap,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -1179,7 +1218,7 @@ export function foldCanonAnchors(
     const byDim = into[dim] || (into[dim] = {});
     // Same bucket cap and the same eviction rule as foldAnchors — the
     // slots are just as attackable here, and for the same reason.
-    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
+    if (!admitBucket(byDim, dim, bucket, onCap)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
     cell[entityKey] = (cell[entityKey] || 0) + 1;

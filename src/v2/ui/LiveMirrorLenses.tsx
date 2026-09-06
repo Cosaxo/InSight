@@ -623,11 +623,19 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   const [bucket, setBucket] = React.useState<string>("");
 
   // Buckets available across the questions in view, biggest first.
-  const tally: Record<string, number> = {};
-  for (const q of qs) {
-    for (const b of mixFor(q.by, dim, q.options.length)) tally[b.bucket] = (tally[b.bucket] || 0) + b.n;
-  }
-  const buckets = Object.keys(tally).sort((a, b) => tally[b] - tally[a]);
+  //
+  // Memoised on its inputs (D386). `qs` is rebuilt by the stop on every
+  // store notify — which is when an aggregate can have moved, so that is
+  // not the render being saved. The one being saved is this lens's OWN:
+  // a bucket chip tapped below re-ranks the rows and used to re-tally the
+  // whole archive first, for a `dim` that had not changed.
+  const { tally, buckets } = React.useMemo(() => {
+    const t: Record<string, number> = {};
+    for (const q of qs) {
+      for (const b of mixFor(q.by, dim, q.options.length)) t[b.bucket] = (t[b.bucket] || 0) + b.n;
+    }
+    return { tally: t, buckets: Object.keys(t).sort((a, b) => t[b] - t[a]) };
+  }, [qs, dim]);
   const picked = buckets.includes(bucket) ? bucket : buckets[0] || "";
   // The name for the sentences below. `picked` stays the KEY — it is what
   // indexes the fold — and only the copy is resolved (D125).
@@ -667,13 +675,13 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   // circle answered"). Whether the bar should be higher than "a split can
   // exist" is a product judgement, and it is on the night list rather
   // than decided here.
-  const rows = picked
+  const rows = React.useMemo(() => (picked
     ? qs.map((q) => {
       const d = divergenceFor(q.by, dim, picked, q.all, q.options.length, EXPLORE_MIN_N);
       if (!d) return null;
       return { q, split: d.pct, overall: pctFor(q.all), gap: d.gap, on: d.optionIdx, n: d.n };
     }).filter(Boolean).sort((a, b) => b!.gap - a!.gap || b!.n - a!.n)
-    : [];
+    : []), [qs, dim, picked]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
