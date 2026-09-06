@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 420 lines instead of
-42,386. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 422 lines instead of
+42,746. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -14,15 +14,15 @@ detect it.
 
 | # | Decision | Cited later by | Line |
 | --- | --- | --- | --- |
-| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D393 (+49) | 14 |
+| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D402 (+50) | 14 |
 | **D2** | ["Near" means geohash5 (~5 km), reusing the existing geo system](DECISIONS.md#d2--near-means-geohash5-5-km-reusing-the-existing-geo-system) | D84 (+3) | 29 |
 | **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D369 (+26) | 97 |
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
 | **D5** | [Sealed answers are owner-only; reveals are materialized server-side](DECISIONS.md#d5--sealed-answers-are-owner-only-reveals-are-materialized-server-side) | D395 (+23) | 393 |
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
-| **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D398 (+31) | 167 |
+| **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D403 (+32) | 167 |
 |  | ↳ *amendment 2026-08-03* — [The retry-logging trigger now has an instrument](DECISIONS.md#d7-amendment-2026-08-03--the-retry-logging-trigger-now-has-an-instrument) | — | 3523 |
-| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D397 (+42) | 449 |
+| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D403 (+43) | 449 |
 | **D9** | [Near is your city — picked from a list, or located on the device](DECISIONS.md#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device) | D192 (+21) | 556 |
 | **D10** | [@capacitor-firebase/app-check is installed under an npm alias](DECISIONS.md#d10--capacitor-firebaseapp-check-is-installed-under-an-npm-alias) | D29 | 815 |
 | **D11** | [The feed's argument surfaces are demo-only, by structure not by flag](DECISIONS.md#d11--the-feeds-argument-surfaces-are-demo-only-by-structure-not-by-flag) | D280 (+4) | 884 |
@@ -39,15 +39,15 @@ detect it.
 | **D22** | [Moderation substrate: confinement is structural, and advisory until trusted](DECISIONS.md#d22--moderation-substrate-confinement-is-structural-and-advisory-until-trusted) | D297 (+3) | 1757 |
 | **D23** | [The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted](DECISIONS.md#d23--the-mouse-only-spec-layer-controls-become-buttons-ahead-of-the-interaction-tests-d21-wanted) | D24 | 1896 |
 | **D24** | [Every overlay and sheet is a real modal dialog, and this time the interaction test came with it](DECISIONS.md#d24--every-overlay-and-sheet-is-a-real-modal-dialog-and-this-time-the-interaction-test-came-with-it) | D393 (+3) | 1989 |
-| **D25** | [The world feed loads after first paint; the rest of the split waits](DECISIONS.md#d25--the-world-feed-loads-after-first-paint-the-rest-of-the-split-waits) | D221 (+8) | 2080 |
+| **D25** | [The world feed loads after first paint; the rest of the split waits](DECISIONS.md#d25--the-world-feed-loads-after-first-paint-the-rest-of-the-split-waits) | D402 (+9) | 2080 |
 | **D26** | [The spec layer's dead render code is deleted; the one toolkit is kept](DECISIONS.md#d26--the-spec-layers-dead-render-code-is-deleted-the-one-toolkit-is-kept) | D43 | 2138 |
 | **D27** | [The v15 revision syncs in whole, and the honesty layer stays where it was](DECISIONS.md#d27--the-v15-revision-syncs-in-whole-and-the-honesty-layer-stays-where-it-was) | D38 | 2230 |
 | **D28** | [Fake accounts: prevention stays partial, the record becomes correctable](DECISIONS.md#d28--fake-accounts-prevention-stays-partial-the-record-becomes-correctable) | D342 (+14) | 2283 |
 |  | ↳ *amendment 2026-08-06* — [Identity verification (passport / driver's licence class) recorded as a possible future requirement](DECISIONS.md#d28-amendment-2026-08-06--identity-verification-passport--drivers-licence-class-recorded-as-a-possible-future-requirement) | — | 5082 |
 | **D29** | [Device-bound activation: one counted account per device per month, silently](DECISIONS.md#d29--device-bound-activation-one-counted-account-per-device-per-month-silently) | D343 (+10) | 2396 |
 | **D30** | [Farm questions may graduate to the live seed; the deck gets an epoch](DECISIONS.md#d30--farm-questions-may-graduate-to-the-live-seed-the-deck-gets-an-epoch) | D281 (+13) | 2598 |
-| **D31** | [The logic test generates its puzzles; nothing ships an answer key](DECISIONS.md#d31--the-logic-test-generates-its-puzzles-nothing-ships-an-answer-key) | D57 (+2) | 2663 |
-| **D32** | [Learn's crowd stat is measured — first attempts only, estimates labeled](DECISIONS.md#d32--learns-crowd-stat-is-measured--first-attempts-only-estimates-labeled) | D284 (+18) | 2734 |
+| **D31** | [The logic test generates its puzzles; nothing ships an answer key](DECISIONS.md#d31--the-logic-test-generates-its-puzzles-nothing-ships-an-answer-key) | D402 (+3) | 2663 |
+| **D32** | [Learn's crowd stat is measured — first attempts only, estimates labeled](DECISIONS.md#d32--learns-crowd-stat-is-measured--first-attempts-only-estimates-labeled) | D402 (+19) | 2734 |
 | **D33** | [The farm gets eyes and a faster clock: the scorecard, and daily runs](DECISIONS.md#d33--the-farm-gets-eyes-and-a-faster-clock-the-scorecard-and-daily-runs) | D350 (+12) | 2807 |
 |  | ↳ *amendment 2026-08-06* — [Ordinal splits are measured on their axis](DECISIONS.md#d33-amendment-2026-08-06--ordinal-splits-are-measured-on-their-axis) | — | 6200 |
 | **D34** | [The seed stops rewriting what it already said, and the bank pages in](DECISIONS.md#d34--the-seed-stops-rewriting-what-it-already-said-and-the-bank-pages-in) | D358 (+7) | 2866 |
@@ -70,16 +70,16 @@ detect it.
 | **D50** | [A lens question in a live feed is a self-report item, not a poll](DECISIONS.md#d50--a-lens-question-in-a-live-feed-is-a-self-report-item-not-a-poll) | D146 (+6) | 4797 |
 | **D51** | [Deleting the keys is only half the wipe: every local store hears the purge](DECISIONS.md#d51--deleting-the-keys-is-only-half-the-wipe-every-local-store-hears-the-purge) | D393 (+9) | 4863 |
 | **D52** | [The content review: what got fixed, what got flagged, and the two lines that held](DECISIONS.md#d52--the-content-review-what-got-fixed-what-got-flagged-and-the-two-lines-that-held) | D358 (+10) | 4929 |
-| **D53** | [The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned](DECISIONS.md#d53--the-logic-test-measured-zero-ambiguity-in-60000-items-and-the-curve-gets-pinned) | D61 (+2) | 5019 |
+| **D53** | [The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned](DECISIONS.md#d53--the-logic-test-measured-zero-ambiguity-in-60000-items-and-the-curve-gets-pinned) | D402 (+3) | 5019 |
 | **D54** | [The ledger gets eyes: a daily velocity scan, feeding manual review](DECISIONS.md#d54--the-ledger-gets-eyes-a-daily-velocity-scan-feeding-manual-review) | D342 (+4) | 5127 |
 | **D55** | [Three guarantees were enforced on a value and not on the way it moves](DECISIONS.md#d55--three-guarantees-were-enforced-on-a-value-and-not-on-the-way-it-moves) | D220 (+2) | 5225 |
-| **D56** | [The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock](DECISIONS.md#d56--the-logic-test-stops-telegraphing-its-rules-banded-families-and-every-puzzle-is-on-the-clock) | D62 (+1) | 5625 |
-| **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D284 (+11) | 5708 |
+| **D56** | [The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock](DECISIONS.md#d56--the-logic-test-stops-telegraphing-its-rules-banded-families-and-every-puzzle-is-on-the-clock) | D402 (+2) | 5625 |
+| **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D402 (+12) | 5708 |
 | **D58** | [The seed refuses to edit a shipped option set](DECISIONS.md#d58--the-seed-refuses-to-edit-a-shipped-option-set) | D68 | 5835 |
 | **D59** | [The deferred chunks stop caching their own failure](DECISIONS.md#d59--the-deferred-chunks-stop-caching-their-own-failure) | — | 5908 |
-| **D60** | [The verified percentile becomes a measurement at one hundred players](DECISIONS.md#d60--the-verified-percentile-becomes-a-measurement-at-one-hundred-players) | D62 (+1) | 5958 |
-| **D61** | [Twenty-five items, tail-heavy: the form grows before the norms freeze it](DECISIONS.md#d61--twenty-five-items-tail-heavy-the-form-grows-before-the-norms-freeze-it) | D227 (+1) | 6019 |
-| **D62** | [The test starts learning its own difficulty: family and slot solve rates](DECISIONS.md#d62--the-test-starts-learning-its-own-difficulty-family-and-slot-solve-rates) | — | 6093 |
+| **D60** | [The verified percentile becomes a measurement at one hundred players](DECISIONS.md#d60--the-verified-percentile-becomes-a-measurement-at-one-hundred-players) | D402 (+2) | 5958 |
+| **D61** | [Twenty-five items, tail-heavy: the form grows before the norms freeze it](DECISIONS.md#d61--twenty-five-items-tail-heavy-the-form-grows-before-the-norms-freeze-it) | D402 (+2) | 6019 |
+| **D62** | [The test starts learning its own difficulty: family and slot solve rates](DECISIONS.md#d62--the-test-starts-learning-its-own-difficulty-family-and-slot-solve-rates) | D402 | 6093 |
 | **D63** | [Near-duplicate questions get a measured gate](DECISIONS.md#d63--near-duplicate-questions-get-a-measured-gate) | D123 (+2) | 6143 |
 | **D64** | [Five findings from a cost & performance audit, and the two gates that had stopped measuring](DECISIONS.md#d64--five-findings-from-a-cost--performance-audit-and-the-two-gates-that-had-stopped-measuring) | D278 (+8) | 6315 |
 | **D65** | [A soft-hide that a query walked straight past: `hidden` becomes a required boolean](DECISIONS.md#d65--a-soft-hide-that-a-query-walked-straight-past-hidden-becomes-a-required-boolean) | D290 (+7) | 6559 |
@@ -103,7 +103,7 @@ detect it.
 | **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D378 (+9) | 8049 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D370 (+8) | 8171 |
 | **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D103 | 8248 |
-| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D392 (+24) | 8349 |
+| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D403 (+25) | 8349 |
 | **D87** | [Production writes require an approval; the `production` environment carries protection rules](DECISIONS.md#d87--production-writes-require-an-approval-the-production-environment-carries-protection-rules) | D303 (+5) | 8439 |
 | **D88** | [Seeding chains to the deploy, because the bank it writes is the deployed one](DECISIONS.md#d88--seeding-chains-to-the-deploy-because-the-bank-it-writes-is-the-deployed-one) | — | 8518 |
 | **D89** | [The feed's "knows this best" row is demo furniture — live mode refuses it](DECISIONS.md#d89--the-feeds-knows-this-best-row-is-demo-furniture--live-mode-refuses-it) | D133 (+2) | 8582 |
@@ -115,7 +115,7 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8881 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D322 (+4) | 8948 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D328 (+12) | 9015 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D397 (+82) | 9129 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D403 (+83) | 9129 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D277 (+9) | 9251 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D334 (+5) | 9394 |
 | **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D347 (+10) | 9495 |
@@ -147,7 +147,7 @@ detect it.
 | **D126** | [Foresight — the read half, on a truth that now exists](DECISIONS.md#d126--foresight--the-read-half-on-a-truth-that-now-exists) | D196 (+7) | 12329 |
 | **D127** | [A machine may propose an outcome, never be the reason one is believed](DECISIONS.md#d127--a-machine-may-propose-an-outcome-never-be-the-reason-one-is-believed) | D281 (+4) | 12452 |
 | **D128** | [You can say what you want more of; the app does not guess](DECISIONS.md#d128--you-can-say-what-you-want-more-of-the-app-does-not-guess) | D329 (+4) | 12564 |
-| **D129** | [The fan-out is gone: the deck is polled, and the cost curve is flat](DECISIONS.md#d129--the-fan-out-is-gone-the-deck-is-polled-and-the-cost-curve-is-flat) | D332 (+9) | 12635 |
+| **D129** | [The fan-out is gone: the deck is polled, and the cost curve is flat](DECISIONS.md#d129--the-fan-out-is-gone-the-deck-is-polled-and-the-cost-curve-is-flat) | D403 (+10) | 12635 |
 | **D130** | [Build 12's pre-flight: the label was right, the reasoning under it was stale](DECISIONS.md#d130--build-12s-pre-flight-the-label-was-right-the-reasoning-under-it-was-stale) | D257 (+11) | 12766 |
 | **D131** | [The Firestore region is a decision with a deadline, and it is written down before it expires](DECISIONS.md#d131--the-firestore-region-is-a-decision-with-a-deadline-and-it-is-written-down-before-it-expires) | D142 | 12894 |
 | **D132** | [The profile said "0 of 30 answered" to someone who had answered thirty](DECISIONS.md#d132--the-profile-said-0-of-30-answered-to-someone-who-had-answered-thirty) | D142 | 12998 |
@@ -308,8 +308,8 @@ detect it.
 | **D286** | [An account switch cannot delete the outgoing account's presence cell](DECISIONS.md#d286--an-account-switch-cannot-delete-the-outgoing-accounts-presence-cell) | D326 | 29002 |
 | **D287** | [The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners](DECISIONS.md#d287--the-2026-08-24-visual-passes-ship-the-paid-door-and-the-two-crowd-scorecards-wait-on-their-owners) | D362 (+2) | 29065 |
 | **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D372 (+3) | 29147 |
-| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D392 (+11) | 29202 |
-| **D290** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d290--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D400 (+6) | 29270 |
+| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D403 (+12) | 29202 |
+| **D290** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d290--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D403 (+7) | 29270 |
 |  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d290-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 29487 |
 |  | ↳ *amendment 2026-08-25* — [The other two fold arms, so the thesis stops being one third true](DECISIONS.md#d290-amendment-2026-08-25--the-other-two-fold-arms-so-the-thesis-stops-being-one-third-true) | — | 29818 |
 | **D291** | [The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×](DECISIONS.md#d291--the-alerting-refusal-said-less-than-it-was-read-as-saying-and-its-arithmetic-was-off-by-4) | D303 (+1) | 29659 |
@@ -348,16 +348,16 @@ detect it.
 | **D323** | [The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded](DECISIONS.md#d323--the-2026-08-27-night-audit-reviewed--21-fixes-kept-five-limits-recorded) | D387 (+4) | 32579 |
 | **D324** | [Build 26's pre-flight: run as-is, and the one surface no release gate can see](DECISIONS.md#d324--build-26s-pre-flight-run-as-is-and-the-one-surface-no-release-gate-can-see) | D381 (+1) | 32694 |
 | **D325** | [The bridge's first crossing: the fit publishes its own scorecard](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard) | D396 (+2) | 32846 |
-| **D326** | [The genetic axiom's ambition widens, and the night shift gets a closing hour](DECISIONS.md#d326--the-genetic-axioms-ambition-widens-and-the-night-shift-gets-a-closing-hour) | D347 (+2) | 32922 |
+| **D326** | [The genetic axiom's ambition widens, and the night shift gets a closing hour](DECISIONS.md#d326--the-genetic-axioms-ambition-widens-and-the-night-shift-gets-a-closing-hour) | D403 (+3) | 32922 |
 | **D327** | [The console kept selling the floor: twelve captions that outlived the arithmetic](DECISIONS.md#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic) | D367 (+4) | 33003 |
 | **D328** | [Profession becomes a dim, through a field — and the reason it was not one had stopped being true](DECISIONS.md#d328--profession-becomes-a-dim-through-a-field--and-the-reason-it-was-not-one-had-stopped-being-true) | D331 | 33103 |
-| **D329** | [Three of D269's seven refusals are lifted, and the bundle becomes a list](DECISIONS.md#d329--three-of-d269s-seven-refusals-are-lifted-and-the-bundle-becomes-a-list) | D385 (+2) | 33213 |
+| **D329** | [Three of D269's seven refusals are lifted, and the bundle becomes a list](DECISIONS.md#d329--three-of-d269s-seven-refusals-are-lifted-and-the-bundle-becomes-a-list) | D403 (+3) | 33213 |
 | **D330** | [The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall](DECISIONS.md#d330--the-political-consent-is-asked-at-the-start-on-d151s-screen-and-it-is-an-ask-rather-than-a-wall) | D352 (+3) | 33299 |
 | **D331** | [The political compass waits for a yes, and the toggle governs whether it is COMPUTED](DECISIONS.md#d331--the-political-compass-waits-for-a-yes-and-the-toggle-governs-whether-it-is-computed) | D352 (+4) | 33417 |
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33528 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33693 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33722 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D393 (+11) | 33878 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D403 (+12) | 33878 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 33993 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34162 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34293 |
@@ -379,14 +379,14 @@ detect it.
 | **D350** | [The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory](DECISIONS.md#d350--the-lane-regulators-lose-their-ceilings-floors-demand-shares-and-the-holdover-inventory) | D401 | 35990 |
 |  | ↳ *amendment 2026-09-01* — [The bank-size failure was a question limit in everything but name](DECISIONS.md#d350-amendment-2026-09-01--the-bank-size-failure-was-a-question-limit-in-everything-but-name) | — | 36197 |
 | **D351** | [Current events get their lane: found by searching, never from memory](DECISIONS.md#d351--current-events-get-their-lane-found-by-searching-never-from-memory) | — | 36227 |
-| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D395 (+7) | 36282 |
-| **D353** | [The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse](DECISIONS.md#d353--the-dispatchers-charter-becomes-a-contract-a-standing-instruction-a-session-cannot-verify-is-one-it-should-refuse) | D359 | 36389 |
+| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D403 (+9) | 36282 |
+| **D353** | [The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse](DECISIONS.md#d353--the-dispatchers-charter-becomes-a-contract-a-standing-instruction-a-session-cannot-verify-is-one-it-should-refuse) | D403 (+1) | 36389 |
 | **D354** | [The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32](DECISIONS.md#d354--the-store-leaves-the-bridge-and-the-sweep-behind-it-takes-the-coupling-ratchet-234--32) | D382 (+4) | 36532 |
 | **D355** | [The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB](DECISIONS.md#d355--the-mirror-leaves-the-eager-graph-through-a-same-tick-slot-761--619-kb) | D363 (+1) | 36631 |
 | **D356** | [First paint comes off the device: the warm boot, and `ready` splits from `attached`](DECISIONS.md#d356--first-paint-comes-off-the-device-the-warm-boot-and-ready-splits-from-attached) | D383 (+1) | 36710 |
 | **D357** | [An answer the server has not acknowledged survives the relaunch](DECISIONS.md#d357--an-answer-the-server-has-not-acknowledged-survives-the-relaunch) | — | 36978 |
 | **D358** | [Fourteen dials get the range they should have shipped with, by retirement and replacement](DECISIONS.md#d358--fourteen-dials-get-the-range-they-should-have-shipped-with-by-retirement-and-replacement) | — | 37159 |
-| **D359** | [The routine bill is context times turns: four sessions, not thirty-nine firings, were the spend](DECISIONS.md#d359--the-routine-bill-is-context-times-turns-four-sessions-not-thirty-nine-firings-were-the-spend) | — | 37257 |
+| **D359** | [The routine bill is context times turns: four sessions, not thirty-nine firings, were the spend](DECISIONS.md#d359--the-routine-bill-is-context-times-turns-four-sessions-not-thirty-nine-firings-were-the-spend) | D403 | 37257 |
 | **D360** | [Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story](DECISIONS.md#d360--two-night-shifts-merged-as-one-tree--60-commits-kept-and-the-sweep-they-both-branched-before-is-the-whole-story) | D387 (+1) | 37402 |
 | **D361** | [The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward](DECISIONS.md#d361--the-owners-own-upload-moves-the-vision-the-2026-09-02-standalone-is-what-the-tree-is-built-toward) | D390 (+1) | 37590 |
 | **D362** | [The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot](DECISIONS.md#d362--the-2026-09-02-design-is-built-one-instrument-for-the-three-lenses-a-voice-for-the-questions-and-the-split-ballot) | D393 (+1) | 37670 |
@@ -416,7 +416,7 @@ detect it.
 | **D382** | [Question content is not first-paint bytes, and a gate says so](DECISIONS.md#d382--question-content-is-not-first-paint-bytes-and-a-gate-says-so) | D386 (+1) | 40409 |
 | **D383** | [The daily pages: a published length, seven documents, and the density it rests on](DECISIONS.md#d383--the-daily-pages-a-published-length-seven-documents-and-the-density-it-rests-on) | D384 | 40488 |
 | **D384** | [The Scores pool pages too: ids in the shape document, documents by the page](DECISIONS.md#d384--the-scores-pool-pages-too-ids-in-the-shape-document-documents-by-the-page) | D386 | 40574 |
-| **D385** | [The PR shepherd is retired: pull requests are merged by hand](DECISIONS.md#d385--the-pr-shepherd-is-retired-pull-requests-are-merged-by-hand) | D387 (+1) | 40646 |
+| **D385** | [The PR shepherd is retired: pull requests are merged by hand](DECISIONS.md#d385--the-pr-shepherd-is-retired-pull-requests-are-merged-by-hand) | D403 (+2) | 40646 |
 |  | ↳ *amendment 2026-09-06* — [The retirement was about the automation, not about the instruction — a session merges when the owner says so](DECISIONS.md#d385-amendment-2026-09-06--the-retirement-was-about-the-automation-not-about-the-instruction--a-session-merges-when-the-owner-says-so) | — | 41076 |
 | **D386** | [The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess](DECISIONS.md#d386--the-1v1-and-group-profile-steps-1-and-2-the-days-kind-reaches-the-seed-every-rate-is-scored-against-luck-and-a-group-day-gets-a-guess) | — | 40725 |
 | **D387** | [Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read](DECISIONS.md#d387--every-night-shift-has-been-reviewed-and-the-merge-list-said-otherwise-for-four-days--the-receipt-the-console-had-no-way-to-read) | — | 40841 |
@@ -434,3 +434,5 @@ detect it.
 | **D399** | [One nightly pass over the ledger: the digest, the Patterns fit and the taste fold read yesterday's entries once](DECISIONS.md#d399--one-nightly-pass-over-the-ledger-the-digest-the-patterns-fit-and-the-taste-fold-read-yesterdays-entries-once) | — | 42162 |
 | **D400** | [The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own](DECISIONS.md#d400--the-breakdown-caps-tail-every-city-and-country-cell-the-hot-document-cannot-hold-in-eight-shards-a-reader-opens-only-for-its-own) | — | 42249 |
 | **D401** | [A top-up fills a topic to a page, not by a page — the paged accumulation D350's amendment named, bounded at its source](DECISIONS.md#d401--a-top-up-fills-a-topic-to-a-page-not-by-a-page--the-paged-accumulation-d350s-amendment-named-bounded-at-its-source) | — | 42339 |
+| **D402** | [The logic test learns two spatial attributes: orientation and position, ten families for the tail, and a percentile that says how sure it is](DECISIONS.md#d402--the-logic-test-learns-two-spatial-attributes-orientation-and-position-ten-families-for-the-tail-and-a-percentile-that-says-how-sure-it-is) | — | 42387 |
+| **D403** | [The cost hunt: four Opus hunters a night and a Fable reviewer, on the owner's ask — proposed](DECISIONS.md#d403--the-cost-hunt-four-opus-hunters-a-night-and-a-fable-reviewer-on-the-owners-ask--proposed) | — | 42602 |

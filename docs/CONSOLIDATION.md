@@ -53,9 +53,22 @@ run of `list_triggers` and one PR.
 can be decided slowly. This cannot: it is only true until a
 subscription lapses.
 
-Claude 3 can be cancelled today at no loss, and the reduction has
-already begun there: at **08:45 UTC on 2026-09-04** all four of its
-remaining Routines were disabled from the account's own Routines page
+**Claude 3 could be cancelled at no loss when this page was written, and
+D403 changed that on 2026-09-06.** The cost hunt — four Opus hunters a
+night at `50 23 * * *` and a Fable reviewer at max effort at `05 3 * * *`
+— is chartered in [`COST-HUNT.md`](COST-HUNT.md) with all five prompts
+written down, and its five Routines are the owner's pastes **in this
+account's web UI**. So the sentence below holds only while those pastes
+have not been made; make them and Claude 3 becomes the account carrying
+the program's newest and heaviest night lane, on the same night hours
+§5 argues for retiring. That is not an objection to D403 — the hunt
+looks for the very waste this page is about — but the two decisions
+have to be taken together rather than one at a time, and whichever
+account gets the hunt is the one that cannot be cancelled.
+
+The reduction had already begun here: at **08:45 UTC on 2026-09-04**
+all four of its remaining Routines were disabled from the account's own
+Routines page
 — the axiom builder, the list worker, the roll call and the console
 improver. Disabled rather than deleted, so every id still resolves;
 `routines/manifest.json` carries them as `disabled` with that date, and

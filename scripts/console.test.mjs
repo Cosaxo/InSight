@@ -319,8 +319,10 @@ describe("the lists on this tree", () => {
     // under Designed reads as still waiting. Built is 2 since D393 filed
     // the first-launch walkthrough (item 7) straight under Built the same
     // day: built on the owner's direct ask without the drafted step, and
-    // recorded there rather than skipped silently.
-    expect(v.requested.length).toBe(7);
+    // recorded there rather than skipped silently. Requested is 8 since
+    // D402 filed the logic test's worked example (item 8): a screen, so a
+    // request under D352 rather than a build.
+    expect(v.requested.length).toBe(8);
     expect(v.designed).toEqual([]);
     expect(v.built.length).toBe(2);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));

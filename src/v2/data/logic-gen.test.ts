@@ -18,9 +18,14 @@ import {
   version,
   type Cell,
   type Form,
+  type Layer,
+  type Shape,
 } from "./logic-gen";
 
-const SEEDS = Array.from({ length: 200 }, (_, i) => (i + 1) * 2654435761 % 4294967296);
+// 200 seeds in CI; LOGIC_SWEEP_SEEDS=5000 reruns the D53-sized sweep on demand
+// (the number D53 and D402 quoted was measured that way, not at 200).
+const N_SEEDS = Number(process.env.LOGIC_SWEEP_SEEDS) || 200;
+const SEEDS = Array.from({ length: N_SEEDS }, (_, i) => (i + 1) * 2654435761 % 4294967296);
 const forms: Form[] = SEEDS.map((s) => generateForm(s));
 
 describe("PRNG stability", () => {
@@ -76,6 +81,11 @@ describe("answer key integrity (every seed, every item)", () => {
       for (const item of f.items) {
         const keys = item.opts.map(canon);
         expect(new Set(keys).size, `seed ${f.seed}`).toBe(6);
+        // …as PICTURES, not just as canons (v4): two bars at one
+        // orientation draw as one bar, two marks at one place as one
+        // mark, and bar order never shows — so an option whose picture
+        // matches another's is an ambiguity canon cannot see
+        expect(new Set(item.opts.map(picture)).size, `seed ${f.seed} (${item.rules[0]})`).toBe(6);
       }
     }
   });
@@ -87,53 +97,79 @@ describe("answer key integrity (every seed, every item)", () => {
 
 });
 
-// ── the banded template (v3, D61) ──
+// ── the banded template (v3 frozen, v4 live) ──
 // The WEIGHT ramp is the calibration the percentile curve is derived
 // against, so it is pinned verbatim; the family occupying a slot is drawn
 // from that slot's same-weight band, so the sequence varies per attempt.
 // The pools are pinned literally here on purpose: moving a family between
 // bands (or changing a weight) is a recalibration and must show up as a
 // test edit. Eleven of twenty-five slots sit at weight 3.5+ — the
-// tail-heavy shape D61 chose for top-end discrimination.
-describe("the banded template (v3)", () => {
-  const P1 = ["sizeRamp", "dotCount"];
-  const P15 = ["shapeCycle", "sizeCycle"];
-  const P2 = ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"];
-  const P25 = ["overlay", "outerRowInnerCycle", "innerGrow"];
-  const P3 = ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"];
-  const P35 = ["decompose", "dist2", "overlayXor", "ringLatin"];
-  const P4 = ["latinShapeSizeFill", "outerLatinInnerLatin", "ringGrowFill", "innerGrowCycle", "fillRampShapeCycle"];
-  const P45 = ["dist2Latin", "xorLatin", "ringLatinShape", "dist2Xor"];
-  const RAMP = [1, 1, 1.5, 1.5, 2, 2, 2, 2.5, 2.5, 2.5, 3, 3, 3, 3, 3.5, 3.5, 3.5, 3.5, 4, 4, 4, 4, 4.5, 4.5, 4.5];
-  const BAND_AT: string[][] = [
-    P1, P1, P15, P15, P2, P2, P2, P25, P25, P25,
-    P3, P3, P3, P3, P35, P35, P35, P35, P4, P4, P4, P4, P45, P45, P45,
-  ];
+// tail-heavy shape D61 chose for top-end discrimination. v4 (D402) keeps
+// the ramp and adds the orientation/position families to the bands from
+// 2.5 up; v3's pools are pinned beside it because a v3 seed must keep
+// drawing from v3's pools forever.
+const RAMP_25 = [1, 1, 1.5, 1.5, 2, 2, 2, 2.5, 2.5, 2.5, 3, 3, 3, 3, 3.5, 3.5, 3.5, 3.5, 4, 4, 4, 4, 4.5, 4.5, 4.5];
+type Pools = { P1: string[]; P15: string[]; P2: string[]; P25: string[]; P3: string[]; P35: string[]; P4: string[]; P45: string[] };
+const POOLS_V3: Pools = {
+  P1: ["sizeRamp", "dotCount"],
+  P15: ["shapeCycle", "sizeCycle"],
+  P2: ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
+  P25: ["overlay", "outerRowInnerCycle", "innerGrow"],
+  P3: ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"],
+  P35: ["decompose", "dist2", "overlayXor", "ringLatin"],
+  P4: ["latinShapeSizeFill", "outerLatinInnerLatin", "ringGrowFill", "innerGrowCycle", "fillRampShapeCycle"],
+  P45: ["dist2Latin", "xorLatin", "ringLatinShape", "dist2Xor"],
+};
+const POOLS_V4: Pools = {
+  P1: ["sizeRamp", "dotCount"],
+  P15: ["shapeCycle", "sizeCycle"],
+  P2: ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
+  P25: ["overlay", "outerRowInnerCycle", "innerGrow", "barRotate"],
+  P3: ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots", "markOrbit", "latinPos"],
+  P35: ["decompose", "dist2", "overlayXor", "ringLatin", "barLatin"],
+  P4: [
+    "latinShapeSizeFill", "outerLatinInnerLatin", "ringGrowFill", "innerGrowCycle", "fillRampShapeCycle",
+    "barXor3", "orbitShapeLatin", "markOrbitGrow",
+  ],
+  P45: ["dist2Latin", "xorLatin", "ringLatinShape", "dist2Xor", "posLatinBarLatin", "orbitXor", "barXorLatin"],
+};
+const bandAt = (P: Pools): string[][] => [
+  P.P1, P.P1, P.P15, P.P15, P.P2, P.P2, P.P2, P.P25, P.P25, P.P25,
+  P.P3, P.P3, P.P3, P.P3, P.P35, P.P35, P.P35, P.P35, P.P4, P.P4, P.P4, P.P4, P.P45, P.P45, P.P45,
+];
+const templateSuite = (label: string, P: Pools, era: Form[]) =>
+  describe(`the banded template (${label})`, () => {
+    const BAND_AT = bandAt(P);
 
-  it("every form carries the fixed weight ramp — the curve's anchor does not move", () => {
-    for (const f of forms) expect(f.items.map((i) => i.diff)).toEqual(RAMP);
-  });
+    it("every form carries the fixed weight ramp — the curve's anchor does not move", () => {
+      for (const f of era) expect(f.items.map((i) => i.diff)).toEqual(RAMP_25);
+    });
 
-  it("each slot's family comes from its own weight band; no family repeats in a form", () => {
-    for (const f of forms) {
-      const fams = f.items.map((i) => i.rules[0]);
-      fams.forEach((fam, i) => expect(BAND_AT[i], `seed ${f.seed} slot ${i}`).toContain(fam));
-      expect(new Set(fams).size, `seed ${f.seed}`).toBe(25);
-    }
-  });
+    it("each slot's family comes from its own weight band; no family repeats in a form", () => {
+      for (const f of era) {
+        const fams = f.items.map((i) => i.rules[0]);
+        fams.forEach((fam, i) => expect(BAND_AT[i], `seed ${f.seed} slot ${i}`).toContain(fam));
+        expect(new Set(fams).size, `seed ${f.seed}`).toBe(25);
+      }
+    });
 
-  it("the draws actually vary: every family of every band appears across seeds", () => {
-    const seen = new Set(forms.flatMap((f) => f.items.map((i) => i.rules[0])));
-    for (const fam of new Set(BAND_AT.flat())) {
-      expect(seen.has(fam), `family ${fam} never drawn in 200 seeds`).toBe(true);
-    }
+    it("the draws actually vary: every family of every band appears across seeds", () => {
+      const seen = new Set(era.flatMap((f) => f.items.map((i) => i.rules[0])));
+      for (const fam of new Set(BAND_AT.flat())) {
+        expect(seen.has(fam), `family ${fam} never drawn in 200 seeds`).toBe(true);
+      }
+    });
   });
-});
+templateSuite("v4, the live era", POOLS_V4, forms);
+templateSuite("v3, frozen", POOLS_V3, SEEDS.map((sd) => generateForm(sd, 3)));
 
 describe("renderability (stays inside Prim's vocabulary)", () => {
   it("every layer of every cell and option is drawable", () => {
-    const okLayer = (l: { s: string; z?: number; f?: string; n?: number }) => {
+    const okLayer = (l: { s: string; z?: number; f?: string; n?: number; r?: number; p?: number }) => {
       if (l.s === ".") return typeof l.n === "number" && l.n >= 1 && l.n <= 6;
+      // v4: a bar carries only an orientation, a mark only a place
+      if (l.s === "b") return Number.isInteger(l.r) && (l.r as number) >= 0 && (l.r as number) <= 3 && l.z === undefined && l.f === undefined;
+      if (l.s === "m") return Number.isInteger(l.p) && (l.p as number) >= 0 && (l.p as number) <= 7 && l.z === undefined && l.f === undefined;
       return (
         ["c", "q", "d", "t"].includes(l.s) &&
         [1, 1.4, 2, 3].includes(l.z as number) &&
@@ -159,6 +195,32 @@ const dots = (cell: Cell) => cell.find((l) => l.s === ".")?.n ?? 0;
 // One fill-state signature per cell: outline / solid / ring-motif.
 const fillState = (cell: Cell) =>
   cell.length > 1 ? "ring" : cell[0].f === "s" ? "solid" : "outline";
+// v4 readers (D402): the bar and the mark of a cell, and modular arithmetic
+// for the attributes that wrap.
+const isBaseLayer = (l: Layer) => l.s !== "." && l.s !== "b" && l.s !== "m";
+const barOf = (c: Cell) => c.find((l) => l.s === "b");
+const markOf = (c: Cell) => c.find((l) => l.s === "m");
+const barR = (c: Cell) => barOf(c)?.r as number;
+const markP = (c: Cell) => markOf(c)?.p as number;
+const mod = (v: number, m: number) => ((v % m) + m) % m;
+// the three line elements as bits (1 = —, 2 = |, 4 = /), plus a bit for
+// the fourth orientation so a stray one cannot alias an element
+const barMask = (c: Cell) =>
+  c.filter((l) => l.s === "b").reduce((m, l) => m | (l.r === 0 ? 1 : l.r === 2 ? 2 : l.r === 1 ? 4 : 8), 0);
+const oneBase = (c: Cell, z = 3) => {
+  expect(isBaseLayer(c[0])).toBe(true);
+  expect(c[0].z).toBe(z);
+  expect(c[0].f).toBe("n");
+};
+// What a cell LOOKS like: bar order never shows, and a doubled bar or mark
+// draws as one — so this is the identity the option list must keep
+// distinct, over and above canon.
+const picture = (c: Cell): string => {
+  const bars = [...new Set(c.filter((l) => l.s === "b").map((l) => l.r))].sort((a, b) => (a as number) - (b as number));
+  const marks = [...new Set(c.filter((l) => l.s === "m").map((l) => l.p))].sort((a, b) => (a as number) - (b as number));
+  const rest = c.filter((l) => l.s !== "b" && l.s !== "m");
+  return canon(rest) + "|b" + bars.join(",") + "|m" + marks.join(",");
+};
 
 describe("family semantics", () => {
   const each = (family: string, check: (cells9: Cell[], seed: number) => void) => {
@@ -478,6 +540,180 @@ describe("family semantics", () => {
       expect(baseOf(cell)?.f).toBe("n");
     }
   });
+
+  // ── the v4 families (D402): orientation and position ──
+  // The two new attributes are arithmetic, so a progression is checked
+  // as one constant difference along every row, read off the cells, and
+  // a distribution as one trio held by every line.
+  each("barRotate", (cells9) => {
+    const rows = rows9(cells9);
+    const steps = rows.map((row) => mod(barR(row[1]) - barR(row[0]), 4));
+    expect(new Set(steps).size).toBe(1); // one turn, every row
+    expect([1, 3]).toContain(steps[0]); // ±45°
+    for (const row of rows) {
+      expect(new Set(row.map((c) => c[0].s)).size).toBe(1);
+      expect(mod(barR(row[2]) - barR(row[1]), 4)).toBe(steps[0]);
+      for (const cell of row) {
+        expect(cell).toHaveLength(2);
+        oneBase(cell);
+        expect(["c", "q", "d"]).toContain(cell[0].s); // a bar never sits in a triangle
+      }
+    }
+    expect(new Set(rows.map((row) => barR(row[0]))).size).toBe(3); // no two rows alike
+  });
+
+  each("markOrbit", (cells9) => {
+    const rows = rows9(cells9);
+    const steps = rows.map((row) => mod(markP(row[1]) - markP(row[0]), 8));
+    expect(new Set(steps).size).toBe(1);
+    expect([1, 2, 3, 5, 6, 7]).toContain(steps[0]); // one to three places, either way
+    for (const row of rows) {
+      expect(new Set(row.map((c) => c[0].s)).size).toBe(1);
+      expect(mod(markP(row[2]) - markP(row[1]), 8)).toBe(steps[0]);
+      for (const cell of row) {
+        expect(cell).toHaveLength(2);
+        oneBase(cell);
+      }
+    }
+    expect(new Set(rows.map((row) => markP(row[0]))).size).toBe(3);
+  });
+
+  each("latinPos", (cells9) => {
+    const trio = [...new Set(cells9.map(markP))].sort((a, b) => a - b);
+    expect(trio).toHaveLength(3);
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(line.map(markP).sort((a, b) => a - b)).toEqual(trio);
+    }
+    for (const cell of cells9) {
+      expect(cell).toHaveLength(2);
+      oneBase(cell);
+      expect(cell[0].s).toBe(cells9[0][0].s);
+    }
+  });
+
+  each("barLatin", (cells9) => {
+    const trio = [...new Set(cells9.map(barR))].sort((a, b) => a - b);
+    expect(trio).toHaveLength(3);
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(line.map(barR).sort((a, b) => a - b)).toEqual(trio);
+    }
+    for (const row of rows9(cells9)) expect(new Set(row.map((c) => c[0].s)).size).toBe(1);
+    for (const cell of cells9) {
+      expect(cell).toHaveLength(2);
+      oneBase(cell);
+      expect(["c", "q", "d"]).toContain(cell[0].s);
+    }
+  });
+
+  // a pin row: the operands overlap AND each holds a bar the other lacks,
+  // so XOR differs from union, intersection and both differences on it
+  const xorPinned = (row: Cell[]) => {
+    const a = barMask(row[0]), b = barMask(row[1]);
+    return (a & b) !== 0 && (a & ~b) !== 0 && (b & ~a) !== 0;
+  };
+  const barsWellFormed = (cell: Cell) => {
+    const rs = cell.filter((l) => l.s === "b").map((l) => l.r as number);
+    expect(rs.every((r) => [0, 1, 2].includes(r))).toBe(true); // three elements; never the fourth orientation
+    expect(rs).toEqual([...rs].sort((a, b) => a - b)); // one canon per picture
+    expect(new Set(rs).size).toBe(rs.length); // a doubled bar draws as one
+    for (const l of cell.slice(1)) expect(l.s).toBe("b");
+  };
+
+  each("barXor3", (cells9) => {
+    for (const cell of cells9) {
+      oneBase(cell);
+      expect(cell[0].s).toBe(cells9[0][0].s);
+      barsWellFormed(cell);
+    }
+    const rows = rows9(cells9);
+    for (const row of rows) expect(barMask(row[2])).toBe(barMask(row[0]) ^ barMask(row[1]));
+    expect(xorPinned(rows[0])).toBe(true);
+    expect(xorPinned(rows[2])).toBe(true);
+  });
+
+  each("orbitShapeLatin", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].s)).size).toBe(3);
+    }
+    const rows = rows9(cells9);
+    const steps = rows.map((row) => mod(markP(row[1]) - markP(row[0]), 8));
+    expect(new Set(steps).size).toBe(1);
+    for (const row of rows) expect(mod(markP(row[2]) - markP(row[1]), 8)).toBe(steps[0]);
+    for (const cell of cells9) {
+      expect(cell).toHaveLength(2);
+      oneBase(cell);
+    }
+  });
+
+  each("markOrbitGrow", (cells9) => {
+    const rows = rows9(cells9);
+    const steps = rows.map((row) => mod(markP(row[1]) - markP(row[0]), 8));
+    expect(new Set(steps).size).toBe(1);
+    for (const row of rows) {
+      expect(new Set(row.map((c) => c[0].s)).size).toBe(1);
+      const zs = row.map((c) => c[0].z as number);
+      expect(zs).toEqual(zs[0] < zs[1] ? [1, 2, 3] : [3, 2, 1]);
+      expect(mod(markP(row[2]) - markP(row[1]), 8)).toBe(steps[0]);
+      for (const cell of row) {
+        expect(cell).toHaveLength(2);
+        expect(cell[0].f).toBe("n");
+        expect(markOf(cell)).toBeTruthy();
+      }
+    }
+    for (const col of cols9(cells9)) expect(new Set(col.map((c) => c[0].z)).size).toBe(1);
+  });
+
+  each("posLatinBarLatin", (cells9) => {
+    const pTrio = [...new Set(cells9.map(markP))].sort((a, b) => a - b);
+    const rTrio = [...new Set(cells9.map(barR))].sort((a, b) => a - b);
+    expect(pTrio).toHaveLength(3);
+    expect(rTrio).toHaveLength(3);
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(line.map(markP).sort((a, b) => a - b)).toEqual(pTrio);
+      expect(line.map(barR).sort((a, b) => a - b)).toEqual(rTrio);
+    }
+    // opposite diagonals: every (place, orientation) pair occurs once, so
+    // neither attribute can be read off the other
+    expect(new Set(cells9.map((c) => `${markP(c)}:${barR(c)}`)).size).toBe(9);
+    for (const cell of cells9) {
+      expect(cell).toHaveLength(3);
+      oneBase(cell);
+      expect(cell[0].s).toBe(cells9[0][0].s);
+      expect(cell[1].s).toBe("b");
+      expect(cell[2].s).toBe("m");
+    }
+  });
+
+  each("orbitXor", (cells9) => {
+    const rows = rows9(cells9);
+    const steps = rows.map((row) => mod(markP(row[1]) - markP(row[0]), 8));
+    expect(new Set(steps).size).toBe(1);
+    for (const row of rows) expect(mod(markP(row[2]) - markP(row[1]), 8)).toBe(steps[0]);
+    const b = (c: Cell) => (hasDots(c) ? 1 : 0);
+    for (const row of rows) expect(b(row[2])).toBe(b(row[0]) ^ b(row[1]));
+    expect(b(rows[0][0]) === 1 && b(rows[0][1]) === 1).toBe(true); // the pin row
+    for (const cell of cells9) {
+      oneBase(cell);
+      expect(cell[0].s).toBe(cells9[0][0].s);
+      expect(cell[1].s).toBe("m");
+      expect(cell.length).toBeLessThanOrEqual(3);
+      if (cell.length === 3) expect(cell[2]).toEqual({ s: ".", n: 2 });
+    }
+  });
+
+  each("barXorLatin", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].s)).size).toBe(3);
+    }
+    const rows = rows9(cells9);
+    for (const row of rows) expect(barMask(row[2])).toBe(barMask(row[0]) ^ barMask(row[1]));
+    expect(xorPinned(rows[0])).toBe(true);
+    expect(xorPinned(rows[2])).toBe(true);
+    for (const cell of cells9) {
+      oneBase(cell);
+      barsWellFormed(cell);
+    }
+  });
 });
 
 // ── the ambiguity sweep — no distractor may satisfy the rule ──
@@ -501,7 +737,7 @@ describe("family semantics", () => {
 const first = (c: Cell) => c[0];
 const fs = fillState;
 const shapesIn = (cells: Cell[]) =>
-  new Set(cells.flat().filter((l) => l.s !== ".").map((l) => l.s));
+  new Set(cells.flat().filter(isBaseLayer).map((l) => l.s));
 
 type Pred = (V: Cell[], C: Cell) => boolean;
 const SATISFIES: Record<string, Pred> = {
@@ -744,6 +980,63 @@ const SATISFIES: Record<string, Pred> = {
     return n(C, aOf) === wantA && n(C, bOf) === wantB;
   },
 };
+{
+
+  // ── the v4 families (D402) ──
+  // Exact vocabulary throughout, the D53 discipline: a candidate whose
+  // base is not the grid's (shape, size, fill), or whose bar or mark sits
+  // where no visible cell put one, is a glyph the grid never taught. A
+  // progression completes to one value (2·b − a, mod 4 or mod 8); a
+  // distribution to the one member of the grid's trio its row and column
+  // still lack.
+  const baseIs = (C: Cell, s: string, z = 3) =>
+    C.length > 0 && isBaseLayer(C[0]) && C[0].s === s && C[0].z === z && C[0].f === "n";
+  const lines = (V: Cell[]) => [V[6], V[7], V[2], V[5]];
+  const latinBase = (V: Cell[], C: Cell) =>
+    C.length > 0 && isBaseLayer(C[0]) && C[0].z === 3 && C[0].f === "n"
+    && shapesIn(V).has(C[0].s as Shape) && lines(V).every((c) => c[0].s !== C[0].s);
+  const orbitDone = (V: Cell[], l: Layer | undefined) =>
+    !!l && l.s === "m" && l.p === mod(2 * markP(V[7]) - markP(V[6]), 8);
+  const turnDone = (V: Cell[], l: Layer | undefined) =>
+    !!l && l.s === "b" && l.r === mod(2 * barR(V[7]) - barR(V[6]), 4);
+  const barsSeen = (V: Cell[], C: Cell) => {
+    const seen = new Set(V.flatMap((c) => c.filter((l) => l.s === "b").map((l) => l.r)));
+    return C.slice(1).every((l) => l.s === "b" && seen.has(l.r));
+  };
+  SATISFIES.barRotate = (V, C) => C.length === 2 && baseIs(C, V[6][0].s) && turnDone(V, C[1]);
+  SATISFIES.markOrbit = (V, C) => C.length === 2 && baseIs(C, V[6][0].s) && orbitDone(V, C[1]);
+  SATISFIES.latinPos = (V, C) => {
+    if (C.length !== 2 || !baseIs(C, V[0][0].s) || C[1].s !== "m") return false;
+    const trio = new Set(V.map(markP)); // rows 0–1 fully visible → all three places
+    return trio.has(C[1].p as number) && lines(V).every((c) => markP(c) !== C[1].p);
+  };
+  SATISFIES.barLatin = (V, C) => {
+    if (C.length !== 2 || !baseIs(C, V[6][0].s) || C[1].s !== "b") return false;
+    const trio = new Set(V.map(barR));
+    return trio.has(C[1].r as number) && lines(V).every((c) => barR(c) !== C[1].r);
+  };
+  SATISFIES.barXor3 = (V, C) =>
+    baseIs(C, V[0][0].s) && barsSeen(V, C) && barMask(C) === (barMask(V[6]) ^ barMask(V[7]));
+  SATISFIES.orbitShapeLatin = (V, C) => C.length === 2 && latinBase(V, C) && orbitDone(V, C[1]);
+  SATISFIES.markOrbitGrow = (V, C) =>
+    C.length === 2 && isBaseLayer(C[0]) && C[0].s === V[6][0].s && C[0].f === "n"
+    && C[0].z === 2 * (V[7][0].z as number) - (V[6][0].z as number)
+    && orbitDone(V, C[1]);
+  SATISFIES.posLatinBarLatin = (V, C) => {
+    if (C.length !== 3 || !baseIs(C, V[0][0].s) || C[1].s !== "b" || C[2].s !== "m") return false;
+    return new Set(V.map(barR)).has(C[1].r as number) && lines(V).every((c) => barR(c) !== C[1].r)
+      && new Set(V.map(markP)).has(C[2].p as number) && lines(V).every((c) => markP(c) !== C[2].p);
+  };
+  SATISFIES.orbitXor = (V, C) => {
+    if (C.length < 2 || C.length > 3 || !baseIs(C, V[0][0].s) || !orbitDone(V, C[1])) return false;
+    const gB = V.map((c) => c.find((l) => l.s === ".")).find(Boolean);
+    if (C.length === 3 && (C[2].s !== "." || !gB || C[2].n !== gB.n)) return false;
+    const has = (c: Cell) => (c.some((l) => l.s === ".") ? 1 : 0);
+    return has(C) === (has(V[6]) ^ has(V[7]));
+  };
+  SATISFIES.barXorLatin = (V, C) =>
+    latinBase(V, C) && barsSeen(V, C) && barMask(C) === (barMask(V[6]) ^ barMask(V[7]));
+}
 
 describe("the ambiguity sweep (every seed, every item, every option)", () => {
   it("the answer satisfies its family's rule; no distractor does", () => {
@@ -832,7 +1125,7 @@ describe("gv 1 reconstruction (a stored {seed, gv} rebuilds its exact form forev
   });
 
   it("an unknown gv throws instead of silently reinterpreting the seed", () => {
-    expect(() => generateForm(1, 4)).toThrow(/unknown generator version/);
+    expect(() => generateForm(1, version + 1)).toThrow(/unknown generator version/);
   });
 });
 
@@ -942,4 +1235,55 @@ describe("gv 3 reconstruction (the live era — a stored {seed, gv} rebuilds its
   });
 });
 
+// ── gv 4 reconstruction ──
+// The live era since D402. Same commitment as the three blocks above: a
+// {seed, gv: 4} rebuilds its exact form forever, so the orientation and
+// position families, their pin discipline and the option assembly are
+// held still here. Captured from the generator as it landed; seed 17
+// pins every visible cell and the full option order; seeds 1 and 50 pin
+// the families and answers of forms whose draws reach different tails —
+// between the three every one of the ten v4 families appears at least once.
+const GOLDEN_V4: {
+  seed: number;
+  families: string[];
+  a: number[];
+  answers: string[];
+  cells?: string[];
+  opts?: string[];
+}[] = [
+  {"seed":17,"families":["sizeRamp","dotCount","sizeCycle","shapeCycle","sizeFillAlt","dotSub","dotAdd","innerGrow","overlay","outerRowInnerCycle","markOrbit","latinDots","latinSizeShape","latinPos","ringLatin","overlayXor","dist2","decompose","latinShapeSizeFill","barXor3","innerGrowCycle","markOrbitGrow","dist2Xor","dist2Latin","ringLatinShape"],"a":[0,2,5,2,0,4,4,5,3,3,1,5,3,5,4,0,3,3,1,2,0,0,3,2,2],"answers":["[[\"t\",1,\"n\"]]","[[\".\",3]]","[[\"t\",2,\"n\"]]","[[\"q\",3,\"n\"]]","[[\"t\",3,\"n\"]]","[[\".\",3]]","[[\".\",5]]","[[\"d\",3,\"n\"],[\"d\",2,\"s\"]]","[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"c\",3,\"n\"],[\"q\",1,\"s\"]]","[[\"q\",3,\"n\"],[\"m\",0]]","[[\".\",5]]","[[\"t\",2,\"n\"]]","[[\"c\",3,\"n\"],[\"m\",2]]","[[\"c\",3,\"n\"]]","[[\"c\",3,\"n\"],[\".\",2]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]","[[\"t\",3,\"n\"]]","[[\"q\",2,\"n\"]]","[[\"d\",3,\"n\"],[\"b\",0],[\"b\",1]]","[[\"q\",3,\"n\"],[\"q\",2,\"s\"]]","[[\"d\",3,\"n\"],[\"m\",3]]","[[\"d\",3,\"n\"]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]","[[\"t\",3,\"n\"]]"],"cells":["[[\"c\",3,\"n\"]]|[[\"c\",2,\"n\"]]|[[\"c\",1,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"d\",2,\"n\"]]|[[\"d\",1,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",2,\"n\"]]","[[\".\",2]]|[[\".\",3]]|[[\".\",4]]|[[\".\",3]]|[[\".\",4]]|[[\".\",5]]|[[\".\",1]]|[[\".\",2]]","[[\"d\",1,\"n\"]]|[[\"d\",2,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"q\",2,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"q\",1,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",1,\"n\"]]","[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"t\",3,\"n\"]]","[[\"t\",1,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",1,\"s\"]]|[[\"t\",2,\"s\"]]|[[\"t\",3,\"s\"]]|[[\"t\",1,\"n\"]]|[[\"t\",2,\"n\"]]","[[\".\",5]]|[[\".\",3]]|[[\".\",2]]|[[\".\",6]]|[[\".\",2]]|[[\".\",4]]|[[\".\",4]]|[[\".\",1]]","[[\".\",3]]|[[\".\",2]]|[[\".\",5]]|[[\".\",1]]|[[\".\",1]]|[[\".\",2]]|[[\".\",2]]|[[\".\",3]]","[[\"t\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"s\"]]|[[\"d\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"c\",3,\"n\"]]|[[\"t\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"d\",3,\"n\"]]|[[\"c\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"d\",1,\"s\"]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"c\",3,\"n\"],[\"m\",6]]|[[\"c\",3,\"n\"],[\"m\",0]]|[[\"c\",3,\"n\"],[\"m\",2]]|[[\"d\",3,\"n\"],[\"m\",2]]|[[\"d\",3,\"n\"],[\"m\",4]]|[[\"d\",3,\"n\"],[\"m\",6]]|[[\"q\",3,\"n\"],[\"m\",4]]|[[\"q\",3,\"n\"],[\"m\",6]]","[[\".\",2]]|[[\".\",5]]|[[\".\",6]]|[[\".\",5]]|[[\".\",6]]|[[\".\",2]]|[[\".\",6]]|[[\".\",2]]","[[\"q\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"c\",1,\"n\"]]|[[\"t\",1,\"n\"]]|[[\"c\",2,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"q\",1,\"n\"]]","[[\"c\",3,\"n\"],[\"m\",2]]|[[\"c\",3,\"n\"],[\"m\",1]]|[[\"c\",3,\"n\"],[\"m\",3]]|[[\"c\",3,\"n\"],[\"m\",3]]|[[\"c\",3,\"n\"],[\"m\",2]]|[[\"c\",3,\"n\"],[\"m\",1]]|[[\"c\",3,\"n\"],[\"m\",1]]|[[\"c\",3,\"n\"],[\"m\",3]]","[[\"q\",3,\"n\"]]|[[\"q\",3,\"n\"],[\"q\",2,\"n\"],[\"q\",1,\"n\"]]|[[\"q\",3,\"n\"],[\"q\",2,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]","[[\"c\",3,\"n\"],[\".\",2]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"c\",3,\"n\"],[\".\",2]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"t\",3,\"n\"],[\".\",2]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"t\",3,\"n\"],[\".\",2]]|[[\"t\",3,\"n\"],[\".\",2]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]","[[\"q\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"d\",3,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"t\",3,\"s\"]]|[[\"d\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"q\",3,\"s\"]]","[[\"q\",3,\"n\"]]|[[\"c\",2,\"n\"]]|[[\"t\",1,\"n\"]]|[[\"t\",2,\"s\"]]|[[\"q\",1,\"s\"]]|[[\"c\",3,\"s\"]]|[[\"c\",1,\"n\"]]|[[\"t\",3,\"n\"]]","[[\"d\",3,\"n\"],[\"b\",0],[\"b\",1]]|[[\"d\",3,\"n\"],[\"b\",1],[\"b\",2]]|[[\"d\",3,\"n\"],[\"b\",0],[\"b\",2]]|[[\"d\",3,\"n\"],[\"b\",1]]|[[\"d\",3,\"n\"],[\"b\",2]]|[[\"d\",3,\"n\"],[\"b\",1],[\"b\",2]]|[[\"d\",3,\"n\"],[\"b\",1],[\"b\",2]]|[[\"d\",3,\"n\"],[\"b\",0],[\"b\",2]]","[[\"t\",3,\"n\"]]|[[\"q\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"s\"]]|[[\"d\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"]]","[[\"c\",1,\"n\"],[\"m\",2]]|[[\"c\",2,\"n\"],[\"m\",5]]|[[\"c\",3,\"n\"],[\"m\",0]]|[[\"q\",1,\"n\"],[\"m\",6]]|[[\"q\",2,\"n\"],[\"m\",1]]|[[\"q\",3,\"n\"],[\"m\",4]]|[[\"d\",1,\"n\"],[\"m\",5]]|[[\"d\",2,\"n\"],[\"m\",0]]","[[\"d\",3,\"n\"],[\".\",2]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"d\",3,\"n\"],[\".\",2]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"d\",3,\"n\"],[\".\",2]]|[[\"d\",3,\"n\"],[\".\",2]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"q\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"d\",3,\"n\"],[\".\",2]]","[[\"c\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"n\"],[\"t\",1,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]"],"opts":["[[\"t\",1,\"n\"]]|[[\"c\",1,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"d\",1,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",1,\"s\"]]","[[\".\",1]]|[[\".\",2]]|[[\".\",3]]|[[\".\",6]]|[[\".\",5]]|[[\".\",4]]","[[\"q\",1,\"n\"]]|[[\"d\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",2,\"s\"]]|[[\"t\",1,\"n\"]]|[[\"t\",2,\"n\"]]","[[\"c\",3,\"n\"]]|[[\"q\",2,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"q\",3,\"s\"]]|[[\"d\",3,\"n\"]]","[[\"t\",3,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"t\",3,\"s\"]]|[[\"t\",1,\"n\"]]|[[\"c\",3,\"n\"]]","[[\".\",4]]|[[\".\",6]]|[[\".\",5]]|[[\".\",2]]|[[\".\",3]]|[[\".\",1]]","[[\".\",3]]|[[\".\",6]]|[[\".\",1]]|[[\".\",2]]|[[\".\",5]]|[[\".\",4]]","[[\"d\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"s\"]]|[[\"d\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"s\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"s\"]]","[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"d\",1,\"n\"]]","[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"q\",1,\"n\"]]|[[\"c\",3,\"s\"],[\"q\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"q\",1,\"s\"]]","[[\"q\",3,\"n\"],[\"m\",4]]|[[\"q\",3,\"n\"],[\"m\",0]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"m\",0]]|[[\"q\",3,\"n\"],[\"m\",6]]|[[\"q\",3,\"n\"],[\"m\",2]]","[[\".\",1]]|[[\".\",4]]|[[\".\",2]]|[[\".\",6]]|[[\".\",3]]|[[\".\",5]]","[[\"t\",1,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"q\",2,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"t\",2,\"s\"]]|[[\"q\",1,\"n\"]]","[[\"c\",3,\"n\"],[\"m\",4]]|[[\"c\",3,\"n\"],[\"m\",3]]|[[\"c\",3,\"s\"],[\"m\",2]]|[[\"c\",3,\"n\"],[\"m\",1]]|[[\"c\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"m\",2]]","[[\"c\",3,\"s\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]","[[\"c\",3,\"n\"],[\".\",2]]|[[\"c\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"c\",3,\"n\"],[\".\",5]]|[[\"c\",2,\"n\"],[\".\",2]]","[[\"t\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"c\",3,\"s\"],[\".\",2]]|[[\"t\",3,\"n\"],[\".\",2]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]","[[\"q\",3,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"t\",3,\"s\"]]|[[\"d\",3,\"n\"]]","[[\"t\",3,\"n\"]]|[[\"q\",2,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"q\",2,\"s\"]]|[[\"q\",1,\"n\"]]","[[\"d\",3,\"n\"],[\"b\",2]]|[[\"d\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"b\",0],[\"b\",1]]|[[\"d\",3,\"n\"],[\"b\",0],[\"b\",1],[\"b\",2]]|[[\"d\",3,\"n\"],[\"b\",0]]|[[\"d\",3,\"n\"],[\"b\",1]]","[[\"q\",3,\"n\"],[\"q\",2,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"s\"]]|[[\"q\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"]]","[[\"d\",3,\"n\"],[\"m\",3]]|[[\"d\",2,\"n\"],[\"m\",3]]|[[\"d\",3,\"n\"],[\"m\",6]]|[[\"d\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"m\",0]]|[[\"c\",3,\"n\"],[\"m\",3]]","[[\"d\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]|[[\"d\",1,\"n\"]]|[[\"d\",3,\"n\"],[\".\",2]]|[[\"d\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"q\",3,\"n\"]]","[[\"t\",3,\"n\"]]|[[\"d\",3,\"n\"],[\".\",2]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]","[[\"d\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"n\"],[\"t\",1,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]"]},
+  {"seed":1,"families":["sizeRamp","dotCount","sizeCycle","shapeCycle","dotAdd","sizeFillAlt","dotSub","outerRowInnerCycle","innerGrow","overlay","ringGrow","latinPos","latinDots","latinShapeFill","dist2","barLatin","ringLatin","overlayXor","orbitShapeLatin","ringGrowFill","fillRampShapeCycle","barXor3","ringLatinShape","dist2Latin","xorLatin"],"a":[2,0,0,2,0,4,3,5,0,2,4,5,3,3,1,1,0,5,2,3,2,0,2,3,2],"answers":["[[\"c\",3,\"n\"]]","[[\".\",3]]","[[\"q\",1,\"n\"]]","[[\"q\",3,\"n\"]]","[[\".\",4]]","[[\"d\",1,\"n\"]]","[[\".\",5]]","[[\"c\",3,\"n\"],[\"q\",1,\"s\"]]","[[\"q\",3,\"n\"],[\"q\",2,\"s\"]]","[[\"q\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]","[[\"t\",3,\"n\"],[\"m\",4]]","[[\".\",6]]","[[\"t\",3,\"n\"],[\"t\",1.4,\"s\"]]","[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"d\",3,\"n\"],[\"b\",0]]","[[\"t\",3,\"n\"],[\"t\",2,\"n\"]]","[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]","[[\"d\",3,\"n\"],[\"m\",0]]","[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"s\"]]","[[\"c\",3,\"s\"]]","[[\"c\",3,\"n\"],[\"b\",0],[\"b\",2]]","[[\"q\",3,\"n\"]]","[[\"c\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]","[[\"c\",3,\"n\"],[\".\",2]]"]},
+  {"seed":50,"families":["sizeRamp","dotCount","shapeCycle","sizeCycle","dotAdd","dotSub","sizeFillAlt","barRotate","overlay","outerRowInnerCycle","latinSizeShape","latinShapeFill","markOrbit","latinDots","ringLatin","overlayXor","dist2","barLatin","markOrbitGrow","latinShapeSizeFill","innerGrowCycle","orbitShapeLatin","posLatinBarLatin","barXorLatin","orbitXor"],"a":[1,0,5,5,5,4,0,1,0,0,3,4,0,3,3,5,3,4,2,2,5,1,3,1,3],"answers":["[[\"c\",1,\"n\"]]","[[\".\",5]]","[[\"t\",3,\"n\"]]","[[\"c\",2,\"n\"]]","[[\".\",4]]","[[\".\",2]]","[[\"d\",3,\"n\"]]","[[\"d\",3,\"n\"],[\"b\",2]]","[[\"d\",3,\"n\"],[\"t\",1,\"s\"]]","[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"d\",1,\"n\"]]","[[\"c\",3,\"n\"],[\"c\",1.4,\"s\"]]","[[\"t\",3,\"n\"],[\"m\",1]]","[[\".\",6]]","[[\"t\",3,\"n\"],[\"t\",2,\"n\"]]","[[\"d\",3,\"n\"],[\"q\",1,\"s\"]]","[[\"q\",3,\"n\"],[\".\",2]]","[[\"d\",3,\"n\"],[\"b\",0]]","[[\"q\",1,\"n\"],[\"m\",7]]","[[\"q\",2,\"n\"]]","[[\"t\",3,\"n\"],[\"t\",2,\"s\"]]","[[\"c\",3,\"n\"],[\"m\",1]]","[[\"d\",3,\"n\"],[\"b\",3],[\"m\",2]]","[[\"q\",3,\"n\"],[\"b\",1],[\"b\",2]]","[[\"t\",3,\"n\"],[\"m\",2]]"]},
+];
 
+describe("gv 4 reconstruction (the live era — a stored {seed, gv} rebuilds its exact form forever)", () => {
+  it("generateForm(seed, 4) reproduces the shipped v4 generator", () => {
+    for (const g of GOLDEN_V4) {
+      const f = generateForm(g.seed, 4);
+      expect(f.version).toBe(4);
+      expect(f.items).toHaveLength(25);
+      expect(f.items.map((i) => i.rules[0]), `seed ${g.seed}`).toEqual(g.families);
+      expect(f.items.map((i) => i.a), `seed ${g.seed}`).toEqual(g.a);
+      expect(f.items.map((i) => canon(i.opts[i.a])), `seed ${g.seed}`).toEqual(g.answers);
+      if (g.cells) expect(f.items.map((i) => i.cells.map(canon).join("|")), `seed ${g.seed} cells`).toEqual(g.cells);
+      if (g.opts) expect(f.items.map((i) => i.opts.map(canon).join("|")), `seed ${g.seed} opts`).toEqual(g.opts);
+    }
+  });
+
+  it("the three goldens between them reach every v4 family", () => {
+    const seen = new Set(GOLDEN_V4.flatMap((g) => g.families));
+    for (const fam of [
+      "barRotate", "markOrbit", "latinPos", "barLatin", "barXor3",
+      "orbitShapeLatin", "markOrbitGrow", "posLatinBarLatin", "orbitXor", "barXorLatin",
+    ]) expect(seen.has(fam), `${fam} is pinned by no golden`).toBe(true);
+  });
+
+  it("v4 is the default era, and a v3 seed still draws from v3's pools", () => {
+    // The default-version form is the one the overlay serves; a saved v3
+    // result must keep rebuilding under v3's template, not v4's.
+    expect(generateForm(17).version).toBe(4);
+    expect(generateForm(17).items.map((i) => i.rules[0])).toEqual(GOLDEN_V4[0].families);
+    expect(generateForm(17, 3).items.map((i) => i.rules[0])).toEqual(GOLDEN_V3[0].families);
+    expect(generateForm(17, 3).items.map((i) => i.rules[0])).not.toEqual(GOLDEN_V4[0].families);
+  });
+});

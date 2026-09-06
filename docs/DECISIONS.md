@@ -42383,3 +42383,363 @@ Every figure in the table moved by those two reads.
 
 `bank-pager`, `bank-cache` and `vote` suites 166; the full client suite;
 `tsc -b`; eslint. BANK-DELIVERY §4 says where the bound is now.
+
+## D402 · The logic test learns two spatial attributes: orientation and position, ten families for the tail, and a percentile that says how sure it is
+
+**2026-09-06.** **Status:** binding, built · Owner request, made
+directly to a session — *"check if you want to change anything or
+improve anything on the logic test. it should be almost as good as IQ
+test."* Generator v4, a server-side era stamp and effort floor, and one
+clause on the result screen. No rule, no promise and no store form
+moves; the privacy page has nothing to move for.
+
+### What was measured against the ask
+
+A matrices test earns "almost an IQ test" on four things: what its
+items can express, how it separates people at the top, what it claims
+about the number it prints, and whether the population it ranks against
+is a population. Held against those, the v3 instrument (D31 → D61) had
+one structural gap and three cheap ones.
+
+**The gap: the vocabulary had no space in it.** Every v3 cell is a
+shape at the centre with a size, a fill, a ring count or a dot count —
+twenty-eight families over five attributes, and every hard family a
+Latin square over one or two of them. The two attributes matrix tests
+turn on — *where* an element is and *which way* it points — did not
+exist, so neither did the rule kinds only they carry: a rotation, a
+movement, a distribution over places, and figure subtraction over LINE
+elements, which overlap into new gestalts instead of sitting side by
+side (Carpenter's hardest single motif, in the form APM gives it). A
+solver who had learned "each row holds each value once" by item twelve
+met nothing after it that was not that, which is a ceiling, and a
+learnable one.
+
+**The three cheap ones.** A percentile printed alone claims a precision
+a 25-item form does not have. The norms histogram keyed its era on form
+length only, so a generator change of equal length would have poured
+scores earned on one vocabulary into a population earned on another —
+the D61 mixing argument one axis over. And the "first attempt counts"
+rule (D32) counted a click-through: twenty-five taps in twenty seconds
+folded in as a phantom low scorer, lifting every later percentile.
+
+### What ships
+
+**Generator v4** (`src/v2/data/logic-gen.ts`, byte-identical in
+`functions/`, `check:logic-sync`). Two new layers in the glyph
+vocabulary: a **bar** (`s: "b"`, `r` ∈ 0..3, a short line through the
+centre at 0°, 45°, 90° or 135°) and a **mark** (`s: "m"`, `p` ∈ 0..7, a
+small solid dot in the cell's margin at one of eight places clockwise
+from the top). Both wrap, which is what makes "turn 45° a column" and
+"move two places clockwise" rules rather than lists, and what lets every
+progression complete from two visible cells (2·b − a) the way a size
+ramp does. **Ten families** over them, joining the bands from 2.5 up:
+
+| Weight | Family | The rule |
+| --- | --- | --- |
+| 2.5 | `barRotate` | a bar inside a fixed base turns 45° per column; rows start at three distinct orientations |
+| 3 | `markOrbit` | a mark moves one, two or three places round the cell per column, either way; rows start at distinct places |
+| 3 | `latinPos` | distribution of three over PLACE — three places, each once per row and column |
+| 3.5 | `barLatin` | distribution of three over ORIENTATION, a fixed base per row — ringLatin's low-salience twin |
+| 4 | `barXor3` | three bar orientations as elements; column 2 holds each bar in exactly one of columns 0 and 1 — line subtraction, the operands fusing into crosses and stars |
+| 4 | `orbitShapeLatin` | a mark orbits while the base shape cycles a Latin square |
+| 4 | `markOrbitGrow` | two progressions at once: the base grows across while its mark moves round |
+| 4.5 | `posLatinBarLatin` | place and orientation each form a Latin square on opposite diagonals — a Graeco-Latin pair, so neither reads off the other |
+| 4.5 | `orbitXor` | two elements under two laws: the mark orbits while the dots follow row-wise XOR (dist2Xor's shape) |
+| 4.5 | `barXorLatin` | three-element line subtraction over a Latin base |
+
+Thirty-eight families; the ramp, the weights and the slot counts are
+D61's untouched, so `logicPctileFor`'s calibration stands. Band draws
+now yield 2·2·24·24·360·120·1680·210 ≈ **3.5 × 10¹³** family sequences
+(v3: 9.6 × 10⁸). Bars sit only inside the circle, square and diamond (a
+triangle's lower half is too narrow for one), and every start is drawn
+distinct per row, so no two rows read alike and the rotation reading is
+the only consistent one — the direction ambiguity a rotation could
+carry is arithmetic: two turns of ±45° land on one orientation, and an
+orbit's way round is read off the first two columns.
+
+**The sweep held, and it was widened first.** Each family got a
+completion predicate in the D53 shape — the rule plus the grid's exact
+vocabulary, so a bar where no visible cell put one, or a base of another
+fill, is a glyph the grid never taught — and a semantic validator that
+re-derives the rule from the cells. Run at the D53 size on demand
+(`LOGIC_SWEEP_SEEDS=5000`): **125,000 items, 625,000 options, zero
+ambiguous, zero answer failures**, ~0.5 ms per form. Two things the old
+suite could not see were added because v4 made them possible: options
+are now held pairwise distinct as **pictures**, not just as canons (two
+bars at one orientation draw as one, bar order never shows), and
+`perturb` keeps both invariants when it corrupts a v4 cell. The
+5,000-seed run also found a v3 defect the 200-seed CI sweep had never
+reached: **a form can repeat a grid**, because two families construct
+the same nine cells when their streams happen to draw the same base,
+element and holes. Measured at v3 over 5,000 seeds: three such forms —
+dist2 with dist2Xor twice, overlayXor with dist2Xor once (a dist2Xor
+whose XOR rows all hold two dot cells IS a dist2 pattern, and the two
+draw their parameters from the same first calls on the stream). From
+v4 a colliding item re-draws from a salted stream until its grid is
+new to the form (one v4 form in 5,000 needed it; zero repeats after);
+v3's constructions stay frozen, collisions included, because a saved
+seed must rebuild what it was earned on (D31).
+
+**Reconstruction, every era.** `generateForm(seed, 1|2|3)` reproduce
+their frozen generators unchanged — the v3 goldens and the v3 pool pins
+now sit beside v4's, so a v3 seed keeps drawing from v3's pools forever
+— and a v4 golden block pins seed 17 down to every visible cell and the
+full option order, with seeds 1 and 50 reaching the families 17 does
+not; between the three every v4 family is pinned. An unknown gv still
+throws.
+
+**The server** (`functions/src/logic.ts`). The norms era is now
+`{items, gv}`: a histogram or a difficulty ledger from another generator
+version ranks nothing and folds nothing, and the first v4 submit starts
+both fresh — the D61 argument, applied to the axis D61 could not see. An
+attempt opened under v3 and submitted after this deploys is scored
+against its own form and its own curve and folds nowhere; before this
+record it would have been folded into the live histogram AND marked the
+account counted, and a 12-item attempt straddling D61's deploy was
+marked counted without ever folding — that unconditional `normsCounted:
+true` is fixed in the same transaction. **The effort floor**:
+`LOGIC_MIN_MS_PER_ITEM = 2000`. An attempt finished faster than two
+seconds an item (50 s for the form) is scored, written and cooled down
+like any other, and never counted; its account's flag stays unset, so
+its next verified attempt is still its first counted one. Twenty-five
+matrices cannot be read in that time, let alone solved, so nothing a
+person did is lost — only the phantom.
+
+**The likely range.** The result reads *Sharper than 90% of players
+(likely 82–94)* for 20 of 25: the score ± `LOGIC_SEM_ITEMS` (2) read through
+whatever ranked the number — the curve while the reading is the
+model's, the count once it is measured — so the range and the number
+always rest on the same thing. Spearman–Brown puts a 25-item form's
+reliability near 0.87 (D61's projection), which with the modelled
+raw-score spread is ≈ 1.8 items, rounded up; the constant is pinned
+equal in both suites. The server computes it for verified results and
+writes it beside the percentile (`testResults.logic.band`); the client
+computes it for practice results and back-fills old ones, and never
+invents one for a verified result the server did not send. The clause
+is omitted where the range collapses to a point (the clamps), where it
+would say nothing the number did not. This is the qualifier that names
+a limit (`docs/COPY.md` §3), not a word count: a percentile without it
+is a claim to precision the instrument does not have, which is the
+fabrication D1 forbids wearing fewer words.
+
+### What deliberately did not change, with the arithmetic
+
+- **The curve, the ramp, twenty-five items, the 90 s cap.** D56's
+  condition still holds: raising the honest ceiling needs harder items
+  AND measured norms, and this record supplies the first half only. The
+  modelled 98 stays; the measured flip (D60) supersedes it at n = 100
+  regardless.
+- **Six options, not eight.** APM uses eight; the gain here is small.
+  A solver who cannot solve an item guesses at 1/6 against 1/8: on the
+  twelve items a median solver misses, the guessing noise has SD 1.3
+  raw points against 1.15 — the score's standard error moves from ≈ 2.0
+  to ≈ 1.9 items — for a fourth answer column that takes every tile
+  from 80 px to 58 px on the 258 px board. Recorded as not worth the
+  tiles.
+- **No IQ-scale number.** A deviation IQ is a transform of the
+  percentile (100 + 15·Φ⁻¹), so it would be exactly as honest as the
+  percentile — and read as a claim to a norm study, which is the claim
+  D53 refused for the ceiling and D57 refused for "verified". The
+  percentile carries the same information with its basis stated; an IQ
+  number is one more sentence the owner can ask for once the histogram
+  is a measurement, and it is a display decision, not an instrument one.
+- **A worked example before item 1** — the one administration step
+  matrix tests take that this overlay does not. It is a new screen, so
+  under D352 it is a design request, not a build: `VISUAL-REQUESTS.md`
+  §8. The w1 items double as the instruction meanwhile, which is why
+  they are there.
+- **Reading D62's difficulty ledger.** Nothing reads
+  `v2_logic_norms/families` yet; recalibrating the band weights and
+  drawing the Answers lens from real solve rates stay data-gated
+  decisions of their own, now with ten more rows to fill.
+- **A per-band time cap** stays not done (D61's reason).
+
+### Verification
+
+`logic-gen.test.ts` — 67 cases: the pooled template pinned for v3 and
+v4 separately, renderability for the two layers, ten validators, ten
+predicates, the picture-level distinctness, the v4 goldens, and the
+D53 sweep at 200 seeds in CI (5,000 on demand, as above).
+`logic-score.test.ts` pins the range's arithmetic, its clamps and the
+back-fill rule; `logic-overlay.test.jsx` drives the clause onto the
+screen for a practice result, prints the server's range for a measured
+one, and proves the client invents none when a server sends none.
+Functions: `rankAndFold` is pinned for a same-length histogram of
+another gv, for a v3 attempt straddling the deploy, for the effort floor
+at, above and below the line, and for the band on both the curve and
+the count; `logic-submit.test.ts` drives a click-through and a real
+sitting through the callable and reads the histogram, the flag and the
+stamps back. `check:logic-sync`, `check:globals` (coupling unchanged at
+its baseline), `check:figures`, `check:bundle`, `check:eager-content`,
+`check:data-inventory`, `check:policy-claims`, lint, `tsc -b`, the full
+client suite (2,770), the functions suite (716) and `test:scripts`
+(954) green. The overlay's lazy chunk grows from 29.6 KB to 35.5 KB
+(10.9 KB gzipped) and the eager graph does not move — the generator is
+reached past first paint, which is the D25 shape. Rendering checked by eye at 1.5× on a Chromium
+screenshot of one item per family: bars read inside every base, marks
+read in the margin, and the fused bars read as crosses and stars.
+
+### Accepted limits, recorded
+
+- The band weights of the ten families are Carpenter priors like every
+  weight before them; D62's ledger is where they get corrected, and
+  this record resets that ledger's era along with the histogram's.
+  The histogram was young enough that the reset costs nothing today;
+  the next version bump will not be, and should carry the same
+  sentence with its own n.
+- The effort floor reads the server-observed duration, so a sitting
+  paused by the app being killed and restarted within the deadline is
+  still one duration; the floor is set where no honest sitting can be,
+  not where a fast one might.
+- The range is ±1 SEM (≈ 68%), stated as *likely*; WAIS prints 95%.
+  Wider would be more conservative and less legible on a phone line;
+  the word is chosen to match the width.
+- `barXor3`'s third element is a diagonal bar, which with the
+  horizontal and the vertical makes a six-armed figure that is not
+  symmetric; it is legible and it is deliberate — the fourth
+  orientation is held back so a stray one can never alias an element.
+
+## D403 · The cost hunt: four Opus hunters a night and a Fable reviewer, on the owner's ask — proposed
+
+**2026-09-06.** **Status:** proposed — the owner's ask of this day,
+written as the record it becomes the moment the owner creates the five
+Routines; until then it binds nothing (this file's own rule on
+*Proposed*). The contract is `COST-HUNT.md`; the register's block is
+`ROUTINES.md` §9; the two owner rows are on `OWNER-LIST.md` § Decisions
+and § Clicks. Numbered on the branch's base; the standing
+renumber-on-merge collision (D289) may move it.
+
+### The ask, in the owner's words
+
+*"create a new nightly routine that runs 4 opus ultracode sessions
+that look for unexpected cost in the app and ways to optimize data
+handling and firebase data usage in the most efficient way it can do
+decent size redesigns and then a fable max session at the end that
+reviews and adjust the changes at the end."* Asked in a session on the
+account the register calls Claude 2, with the request that the design
+be explained back before it exists — which is why this is proposed and
+not binding. Two rulings followed the read-back the same day and are
+binding on the contract as written: on the licence, *"this sounds
+wrong … dosnet that needlessly limit"* (§ below); on the account,
+*"should be claude 2, claude 3 i am not sure i want to keep yet"*; and
+on the name, *"als should a diffrent name then the night shif or it
+is confusing to refer to them"* — so the lane is the **cost hunt**,
+its four Opus sessions **hunters** and its Fable session **the
+reviewer**, and none of the night shift's or the merge shift's words
+(*shift*, *audit*, *closing*) names anything here.
+
+### The shape
+
+Five fresh-session Routines, coordinated through the repository alone
+(no session can see another's Routines, `ROUTINES.md`; the branches
+are the handoff). **Four hunters** fire together at 23:50 UTC on
+`claude-opus-5` with ultracode, one lens each over *where the bill is
+paid* — the device's reads (`src/v2/data/`), the server's writes and
+compute (`functions/src/`), the shape of the data (`firestore.rules`,
+the indexes, the schema, document sizes, the bank's delivery), and the
+bill against the model (the trail and the observe artifact against
+`COSTS.md` and `scripts/cost-arith.mjs`). Each cuts
+`claude/hunt-<D>-<lens>` from `origin/main`, reads every live branch
+first, audits as one fan-out with one adversarial verification pass
+per candidate, measures every survivor at five sizes before touching
+it, builds the largest verified saving (one redesign or up to three
+smaller changes), proves it with the gates, pushes, and reports —
+never a pull request. **The reviewer** fires at 03:05 UTC on
+`claude-fable-5-1` at max effort, opens with a cheap gate (no cost
+branches → one line and stop), reads the four lines as claims and the
+four diffs as truth, merges `origin/main` into each, runs the battery
+in parallel worktrees, re-reviews every diff as one unit itself, fixes
+and folds what that proves wrong (`review:` commits — the one push
+onto another session's branch a contract here licenses, and only onto
+that night's four), judges each MERGE / DO NOT / NEEDS OWNER, opens
+one pull request per branch — ready or draft by verdict, `what:` /
+`how:` / `measured:` first — and reports. The owner merges by hand
+(D385). The shape is D326 §2's closing flow generalised: the hunters'
+blind spot about their own work is what the fifth session exists for.
+
+### D7 is amended for this lane's subject — the owner's ruling on the licence
+
+The first draft of `COST-HUNT.md` §2 read *"decent size redesigns"*
+against D7 (*backend scale ceilings are recorded, not engineered
+around — zero users, no build*) and `COST-REDUCTION.md` §3 and §5,
+and let a hunter build only a redesign that was *"no dearer today
+and removes a wall"*, sending everything that costs today to pay
+later, or that only pays past a wall, to the owner as an ask. The
+owner read it back: *"this sounds wrong … dosnet that needlessly
+limit."* It did. This is D329's finding for the fourth time on the
+record — a preference stated as a rule reads as a rule — and D352's
+boundary in its plainest form: nothing blocks functionality on its
+own, and the question to put to a constraint is how it is made to
+work, never how the change is cut to fit it.
+
+**So, for this lane's subject — data handling and Firebase
+efficiency — D7's no-build-before-users does not apply,
+`COST-REDUCTION.md` §3's "not yet: everything else" is lifted, and
+`ANSWER-SCALE.md` §5.3's "build on the alert" shelf is lifted.** An
+hunter builds a redesign of any size at any horizon — the daily
+aggregate sharded, the answers create rule restructured against its
+expression ceiling, a fold reading its input once, a cadence widened,
+a schema moved with its compatibility path — and what travels with
+the build is the measurement in both directions (what it costs today,
+what it saves at scale), so the owner reads a trade in the pull
+request rather than a claim. D7 stands everywhere else: a night
+shift or a builder outside this lane still records a ceiling rather
+than engineering around it, until the owner says otherwise there too.
+
+**Two asks remain, and neither is about cost.** Showing a user less
+than yesterday — the who-voted, Kindred and Circle caps
+`COST-REDUCTION.md` §5 refused — is a product call: drawing the
+connection where someone can read it is what the app is for, and a
+smaller picture is not efficiency. A privacy-shaped change is
+`CLAUDE.md`'s standing rule (D334). Both go to the owner with the
+arithmetic and the smallest shape that keeps the value, never as a
+stop, and the hunter builds the part that does not depend on the
+answer. The owner may lift either in one word; the contract's §11
+names a refusal creeping back in as a reason to stop and re-plan, in
+the direction of building.
+
+### What does not change
+
+D98 in full — population counts exact from the first answer, no
+cadence, no batch publish, no floor, no suppressed cell;
+`PUBLISH_EVERY` in `scripts/cost-arith.mjs` stays the constant 1 with
+its pin. D86's one edit shape. D8 and D290 — an answer's anchors
+snapshot is the only copy there is, and `check:answer-shape` stands
+in front of the change that would trim it. The three labelled denies
+in `firestore.rules`. D385 — nothing here merges, and nothing applies
+a label. D129's rule that the poll is charged as real. The night
+shifts' contracts and branches, which the hunters read and never
+touch. `USAGE-REDUCTION.md`'s arithmetic is not changed either; it is
+added to, and honestly: on measured neighbours the lane is on the
+order of $150–300 a night, and §6 of the contract names the dials —
+nights per week, hunters per night, budget minutes — in the order to
+turn them, so the first night's `usage` blocks turn a dial rather than
+retire a lens.
+
+### The account is Claude 2, and why a session did not create the Routines
+
+The owner's word: *"should be claude 2, claude 3 i am not sure i want
+to keep yet."* So the five Routines go on the account this record was
+written on — the register's §3 — and its block is where their rows
+land. The arithmetic the choice was read against stays in the
+contract's §6: the window 23:50–05:35 UTC on this account carries the
+night shift at 01:00, 03:00 and 05:00, every night hour here holds a
+flow, and the account has already read `rejected` once
+(`USAGE-REDUCTION.md` §1); if the window rejects a session the lever
+is staggering the four hunters across the hour, then the budget,
+never a lens dropped without the owner's word. A session did not
+create the Routines because it cannot in a working form — a Routine
+minted over MCP starts its sessions with no clone and no tools
+(measured 2026-09-03, `OPS-RUNBOOK.md` § Platform measurements) and
+the only other binding, a dispatcher relay, costs a relay's whole
+context per firing and needs a charter adopted by a human turn (D353,
+D359). The web-UI path with the repository attached starts cloned and
+needs neither; the five pastes are the owner's click, and the PR that
+registers the ids flips the contract's status and this record.
+
+### Reversal
+
+The cadence dial first, by `update_trigger` on the owning account.
+Retiring the lane is disabling five Routines, a dated line in
+`ROUTINES.md` §9 and this record, and the contract's status line
+moved to *past* — the same shape D385 gave the merge lane.
