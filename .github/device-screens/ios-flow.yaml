@@ -28,18 +28,27 @@ name: InSight device screens
     timeout: 60000
 - takeScreenshot: 01-daily
 
-# The daily ruler: World · Circle · 1v1
+# The daily ruler: World · Circle · 1v1. The ruler animates the stop
+# into place, and the first run's captures of these two were identical to
+# the daily's — the screenshot beat the motion — so each waits for the
+# animation to settle first.
 - tapOn:
     text: "Circle"
     optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
 - takeScreenshot: 02-daily-circle
 - tapOn:
     text: "1v1"
     optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
 - takeScreenshot: 03-daily-1v1
 - tapOn:
     text: "World"
     optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
 
 # The Mirror and every stop of its rail
 - tapOn:
