@@ -33,7 +33,7 @@ export interface LogicResult {
    *  attempts this score was ranked against (present iff measured) */
   n?: number;
   /** the likely range round `pctile`: the score ± LOGIC_SEM_ITEMS read
-   *  through the same curve or count (D394). The server's for verified
+   *  through the same curve or count (D402). The server's for verified
    *  results; logicBandFor's for practice ones */
   band?: [number, number];
   /** server-observed attempt duration (verified results only) */
@@ -89,7 +89,7 @@ export const logicPctileFor = (frac: number, items: number): number => {
 // below depends on it meaning exactly what it meant.
 export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 
-// The likely range (D394): one standard error of measurement, in items,
+// The likely range (D402): one standard error of measurement, in items,
 // read through the same curve as the number it qualifies. Spearman–Brown
 // puts a 25-item form's reliability near 0.87, which with the modelled
 // raw-score spread is ≈ 1.8 items, rounded up. A test that prints a

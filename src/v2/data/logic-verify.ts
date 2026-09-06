@@ -37,7 +37,7 @@ export interface VerifiedScore {
   score: number;
   pctile: number;
   /** the likely range round pctile — the score ± one standard error,
-   *  ranked the same way the score was (D394) */
+   *  ranked the same way the score was (D402) */
   band?: [number, number];
   /** what the percentile IS: the modelled curve, or a measured rank among
    *  `n` verified first attempts once the histogram clears the D60 floor */

@@ -58,7 +58,7 @@ describe("persistence", () => {
       diffs: [1, 2, 3], pctile: 30, when: 5,
     };
     saveResult(r);
-    // …plus the likely range a practice result is back-filled with (D394)
+    // …plus the likely range a practice result is back-filled with (D402)
     expect(loadResult()).toEqual({ ...r, band: logicBandFor(2, 3) });
   });
 
@@ -68,7 +68,7 @@ describe("persistence", () => {
     expect(r?.pctile).toBe(logicPctile(0.5));
   });
 
-  it("back-fills the likely range on a practice result, never on a verified one (D394)", () => {
+  it("back-fills the likely range on a practice result, never on a verified one (D402)", () => {
     // a practice result saved before the range existed reads as a fresh
     // one would…
     localStorage.setItem(LKEY, JSON.stringify({ v: 2, marks: Array.from({ length: 25 }, (_, i) => i < 13), pctile: 46, when: 1 }));
@@ -123,7 +123,7 @@ describe("logicPctileFor (the 25-item curve — D61)", () => {
   });
 });
 
-describe("logicBandFor (the likely range — D394)", () => {
+describe("logicBandFor (the likely range — D402)", () => {
   it("reads the curve at the score ± one standard error, clamped to the form", () => {
     expect(LOGIC_SEM_ITEMS, "the range's width moved — functions/src/logic.ts pins the same constant").toBe(2);
     expect(logicBandFor(13, 25)).toEqual([logicPctileFor(11 / 25, 25), logicPctileFor(15 / 25, 25)]);

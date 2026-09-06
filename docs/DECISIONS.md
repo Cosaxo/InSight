@@ -41639,7 +41639,7 @@ under a centred block — fixed with a floor under the words.
   and a `walkthrough` key would be a functions change for a number nobody
   has asked for. Not taken.
 
-## D394 · The logic test learns two spatial attributes: orientation and position, ten families for the tail, and a percentile that says how sure it is
+## D402 · The logic test learns two spatial attributes: orientation and position, ten families for the tail, and a percentile that says how sure it is
 
 **2026-09-06.** **Status:** binding, built · Owner request, made
 directly to a session — *"check if you want to change anything or

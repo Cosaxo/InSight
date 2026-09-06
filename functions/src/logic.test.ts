@@ -270,7 +270,7 @@ describe("administration arithmetic", () => {
 // three e2e suites.
 describe("rankAndFold", () => {
   // A histogram of `n` players all scoring 10, stamped with an era: a form
-  // length and (since D394) a generator version.
+  // length and (since D402) a generator version.
   const hist = (items: number, n: number, gv: number = GEN_VERSION) =>
     ({ items, gv, n, b10: n } as never);
   // A whole sitting's worth of effort — every case below is about ranking
@@ -290,7 +290,7 @@ describe("rankAndFold", () => {
     expect(out.norms!.n).toBe(1);
   });
 
-  it("refuses a histogram from another GENERATOR era of the same length, and starts fresh (D394)", () => {
+  it("refuses a histogram from another GENERATOR era of the same length, and starts fresh (D402)", () => {
     // v3 and v4 forms are both 25 items, and a v4 score was earned on a
     // wider vocabulary than a v3 one — so a v3 population may no more rank
     // a v4 score than a 12-item one may. Same length, different era.
@@ -363,7 +363,7 @@ describe("rankAndFold", () => {
     expect(first.countsNorms).toBe(true);
   });
 
-  it("measures a click-through and never counts it — the effort floor (D394)", () => {
+  it("measures a click-through and never counts it — the effort floor (D402)", () => {
     // Twenty-five matrices in under two seconds each is nobody solving
     // anything. The score is still scored (it is the account's, and the
     // cooldown still applies), but a phantom low scorer must not lift
@@ -379,7 +379,7 @@ describe("rankAndFold", () => {
     expect(LOGIC_MIN_MS_PER_ITEM, "the effort floor moved — re-read logic.ts's reasoning first").toBe(2_000);
   });
 
-  it("carries the likely range, read the same way as the number (D394)", () => {
+  it("carries the likely range, read the same way as the number (D402)", () => {
     // Modelled: the curve at score ± SEM items, clamped to the form.
     const model = rankAndFold({ ...cur, score: 13, stored: null, alreadyCounted: false });
     expect(model.band).toEqual([

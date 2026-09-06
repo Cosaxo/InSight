@@ -18,7 +18,7 @@
 //                   rules refuse to let clients mutate — the fcmTokens
 //                   pattern), and folds the FIRST scored attempt per
 //                   account — provided it took the time a sitting takes
-//                   (D394's effort floor) — into a score histogram,
+//                   (D402's effort floor) — into a score histogram,
 //                   published exactly and on every attempt — the same
 //                   discipline as the question aggregates, which since
 //                   D98 means no floor and no cadence.
@@ -70,7 +70,7 @@ export const LOGIC_MAX_STARTS_PER_DAY = 3;
 // measure practice, not the population.)
 export const LOGIC_REVERIFY_DAYS = 30;
 // An attempt finished faster than this per item is scored but never
-// COUNTED (D394): twenty-five matrices cannot be read, let alone solved,
+// COUNTED (D402): twenty-five matrices cannot be read, let alone solved,
 // in under two seconds each, so such an attempt is a click-through — and
 // a click-through folded into the norms is a phantom low scorer lifting
 // every later percentile. The account's flag stays unset, so its next
@@ -186,7 +186,7 @@ export function clientItems(seed: number, gv: number): LogicClientItem[] {
 // ── norms histogram fold (pure; the callable wraps it in a transaction) ──
 // Flat b0..b25 buckets + n + the era it counts: the form length (`items` —
 // a histogram of 12-item scores must never mix with 25-item ones, so a
-// length change starts a fresh era, D61) and, since D394, the generator
+// length change starts a fresh era, D61) and, since D402, the generator
 // version (`gv` — v4's forms are 25 items like v3's but draw from a wider
 // vocabulary, so a score out of 25 means something different under each,
 // and a version change starts a fresh era too). The private doc is the working
@@ -318,7 +318,7 @@ export const logicStartV2 = onCall(
  * the published norms, and the fold made unconditional.
  *
  * THE ERA STAMP IS THE LOAD-BEARING PART. A histogram from another era —
- * another form length, or since D394 another generator version — ranks
+ * another form length, or since D402 another generator version — ranks
  * nothing and folds nothing — the first current-era submit starts the
  * count fresh — because a score out of 25 has no meaning against a
  * distribution of scores out of 12, and a v3 score out of 25 was earned
@@ -330,7 +330,7 @@ export const logicStartV2 = onCall(
  * counted, so no account can push the population toward itself by taking
  * the test again. `alreadyCounted` is the attempt's own carry of that
  * flag, and `logicStartV2` is what carries it forward across attempts.
- * D394's effort floor sits beside it: a click-through is measured too,
+ * D402's effort floor sits beside it: a click-through is measured too,
  * and counted never.
  *
  * The BAND is the score read at ±LOGIC_SEM_ITEMS through whatever ranked
@@ -444,9 +444,9 @@ export const logicSubmitV2 = onCall(
         ...attempt,
         status: "scored",
         // Set only when this attempt actually fed the histogram: an attempt
-        // from a retired era or under the effort floor (D394) leaves the
+        // from a retired era or under the effort floor (D402) leaves the
         // flag as it was, so the account's next verified attempt is still
-        // its first counted one. (Before D394 this read `true`
+        // its first counted one. (Before D402 this read `true`
         // unconditionally, which marked a straddling 12-item attempt as
         // counted without ever folding it.)
         normsCounted: attempt.normsCounted === true || countsNorms,

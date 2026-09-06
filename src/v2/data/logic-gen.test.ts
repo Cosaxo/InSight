@@ -23,7 +23,7 @@ import {
 } from "./logic-gen";
 
 // 200 seeds in CI; LOGIC_SWEEP_SEEDS=5000 reruns the D53-sized sweep on demand
-// (the number D53 and D394 quoted was measured that way, not at 200).
+// (the number D53 and D402 quoted was measured that way, not at 200).
 const N_SEEDS = Number(process.env.LOGIC_SWEEP_SEEDS) || 200;
 const SEEDS = Array.from({ length: N_SEEDS }, (_, i) => (i + 1) * 2654435761 % 4294967296);
 const forms: Form[] = SEEDS.map((s) => generateForm(s));
@@ -104,7 +104,7 @@ describe("answer key integrity (every seed, every item)", () => {
 // The pools are pinned literally here on purpose: moving a family between
 // bands (or changing a weight) is a recalibration and must show up as a
 // test edit. Eleven of twenty-five slots sit at weight 3.5+ — the
-// tail-heavy shape D61 chose for top-end discrimination. v4 (D394) keeps
+// tail-heavy shape D61 chose for top-end discrimination. v4 (D402) keeps
 // the ramp and adds the orientation/position families to the bands from
 // 2.5 up; v3's pools are pinned beside it because a v3 seed must keep
 // drawing from v3's pools forever.
@@ -195,7 +195,7 @@ const dots = (cell: Cell) => cell.find((l) => l.s === ".")?.n ?? 0;
 // One fill-state signature per cell: outline / solid / ring-motif.
 const fillState = (cell: Cell) =>
   cell.length > 1 ? "ring" : cell[0].f === "s" ? "solid" : "outline";
-// v4 readers (D394): the bar and the mark of a cell, and modular arithmetic
+// v4 readers (D402): the bar and the mark of a cell, and modular arithmetic
 // for the attributes that wrap.
 const isBaseLayer = (l: Layer) => l.s !== "." && l.s !== "b" && l.s !== "m";
 const barOf = (c: Cell) => c.find((l) => l.s === "b");
@@ -541,7 +541,7 @@ describe("family semantics", () => {
     }
   });
 
-  // ── the v4 families (D394): orientation and position ──
+  // ── the v4 families (D402): orientation and position ──
   // The two new attributes are arithmetic, so a progression is checked
   // as one constant difference along every row, read off the cells, and
   // a distribution as one trio held by every line.
@@ -982,7 +982,7 @@ const SATISFIES: Record<string, Pred> = {
 };
 {
 
-  // ── the v4 families (D394) ──
+  // ── the v4 families (D402) ──
   // Exact vocabulary throughout, the D53 discipline: a candidate whose
   // base is not the grid's (shape, size, fill), or whose bar or mark sits
   // where no visible cell put one, is a glyph the grid never taught. A
@@ -1236,7 +1236,7 @@ describe("gv 3 reconstruction (the live era — a stored {seed, gv} rebuilds its
 });
 
 // ── gv 4 reconstruction ──
-// The live era since D394. Same commitment as the three blocks above: a
+// The live era since D402. Same commitment as the three blocks above: a
 // {seed, gv: 4} rebuilds its exact form forever, so the orientation and
 // position families, their pin discipline and the option assembly are
 // held still here. Captured from the generator as it landed; seed 17

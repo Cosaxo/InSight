@@ -105,7 +105,7 @@ describe("submitting a logic test", () => {
     expect(typeof result?.pctile).toBe("number");
   });
 
-  it("counts a sitting that took real time, and never a click-through (D394)", async () => {
+  it("counts a sitting that took real time, and never a click-through (D402)", async () => {
     // The fake's open attempt is submitted the instant it opens, which is
     // exactly the click-through the effort floor exists for: scored, the
     // result written, but the histogram untouched and the account still

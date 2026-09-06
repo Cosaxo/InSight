@@ -47,7 +47,7 @@ export let LOGIC;
   // A cell is an array of layers. Layer: {s: shape, z: size, f: 'n'|'s'}
   // Shapes: 'c' circle · 'q' square · 'd' diamond · 't' triangle · '.' dots{n}
   // · 'b' bar{r: orientation in 45° steps} · 'm' mark{p: place, eight
-  // round the margin clockwise from the top} — the two v4 layers (D394).
+  // round the margin clockwise from the top} — the two v4 layers (D402).
   // Cells come from the generator; the renderers below draw whatever its
   // vocabulary produces (logic-gen's renderability test pins the match).
   const rad = (z) => 2.5 + 6.5 * z;
@@ -444,7 +444,7 @@ export let LOGIC;
             source: res.source || 'model',
             ...(res.n ? { n: res.n } : {}),
             // the likely range is the server's too — read off the same
-            // count or curve as the number (D394)
+            // count or curve as the number (D402)
             ...(Array.isArray(res.band) ? { band: res.band } : {}),
             when: Date.now(),
           };
@@ -501,7 +501,7 @@ export let LOGIC;
     const inTest = qi >= 0;
     const p = inTest ? form.items[qi] : null;
     const k = result ? result.marks.filter(Boolean).length : 0;
-    // The likely range, as a clause on the claim it qualifies (D394): a
+    // The likely range, as a clause on the claim it qualifies (D402): a
     // 25-item form places a score to within about two items, and a
     // percentile printed without that is a precision the test does not
     // have. Omitted when the range collapses to a point — at the clamps

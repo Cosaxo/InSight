@@ -408,7 +408,7 @@ it is planned here.
 ### 8 · The logic test's worked example — one solved matrix before item 1
 
 - **title · asked by** — *How a matrix works* · a session, 2026-09-06
-  (D394), the one administration step matrix tests take that the Logic
+  (D402), the one administration step matrix tests take that the Logic
   overlay does not.
 - **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), between
   opening it and the first puzzle. Today the overlay opens straight into
@@ -449,7 +449,7 @@ it is planned here.
 - **why** — the tests axiom (`AXIOMS.md`, operational): tst-3's ability
   link function says guessing and ceilings matter for logic, and a
   format-learning cost on the first items is floor noise that a
-  worked example removes. D394 recorded this as the one administration
+  worked example removes. D402 recorded this as the one administration
   step deferred, and as a screen rather than a control, so it is a
   request under D352 rather than a build.
 - **status** — `requested`.

@@ -5,7 +5,7 @@
 // the same order with the same option positions on every attempt, so one
 // memorized (or shared) key beat it permanently. This module replaces the
 // bank with a generator: each attempt draws a fresh form from a seed —
-// 25 items since v3 (D61), over a wider vocabulary since v4 (D394); 12 in
+// 25 items since v3 (D61), over a wider vocabulary since v4 (D402); 12 in
 // the frozen v1/v2 paths — with fresh
 // shapes, directions, rule parameters and shuffled option positions. What
 // ships is the rule machinery, not an answer key. (Any client-side test is
@@ -35,7 +35,7 @@
 // knows that item 3 is a shape cycle, only that it carries weight 1.5.
 // v3 (D61) lengthens the ramp to 25 slots and extends it upward with two
 // new bands: weight-4 two-rule compositions and a weight-4.5 tail of
-// triple-rule and dual-law items, Carpenter's hardest classes. v4 (D394)
+// triple-rule and dual-law items, Carpenter's hardest classes. v4 (D402)
 // keeps that ramp and widens what a cell can say: a bar with an
 // orientation and a mark with a place — the two spatial attributes matrix
 // tests turn on and this vocabulary never had — and ten families over
@@ -63,7 +63,7 @@
 export type Shape = "c" | "q" | "d" | "t";
 export type Fill = "n" | "s";
 export interface Layer {
-  /** a shape; "." a dot cluster; "b" a bar and "m" a mark (v4, D394) */
+  /** a shape; "." a dot cluster; "b" a bar and "m" a mark (v4, D402) */
   s: Shape | "." | "b" | "m";
   z?: number;
   f?: Fill;
@@ -95,7 +95,7 @@ const RING_INNER = 1.4; // the ring motif's solid core, verbatim from ring()
 
 const L = (s: Shape, z: number, f: Fill): Layer => ({ s, z, f });
 const D = (n: number): Layer => ({ s: ".", n });
-// v4's two spatial layers (D394). A bar is a short line through the
+// v4's two spatial layers (D402). A bar is a short line through the
 // centre of the cell at one of four orientations; a mark is a small solid
 // dot in the cell's margin at one of eight places. Both wrap, which is
 // what lets "turn 45° each column" and "move two places clockwise" be
@@ -864,7 +864,7 @@ const FAMILIES: Record<string, Family> = {
     };
   },
 
-  // ── families added with v4 (D394): orientation and position ──
+  // ── families added with v4 (D402): orientation and position ──
   // Two attributes the vocabulary never had — where a bar points, where a
   // mark sits — and the rule kinds only they can carry: a rotation, an
   // orbit, a distribution over places, and figure subtraction over LINE
@@ -1236,7 +1236,7 @@ function planV3(seed: number): { family: string; diff: number }[] {
   return out;
 }
 
-// v4 (D394): the same 25-slot ramp and the same weights — the calibration
+// v4 (D402): the same 25-slot ramp and the same weights — the calibration
 // D61's curve rests on — with the two attributes the vocabulary never had
 // (orientation, position) and the rule kinds only they carry joining every
 // band from 2.5 up: a turn, an orbit, distributions over place and
@@ -1287,7 +1287,7 @@ const planAt = (seed: number, gv: number): { family: string; diff: number }[] =>
 
 // ── construction, per form ──
 // Every item's cells come from its own family stream (salt i + 1), so an
-// option-side change can never move a puzzle. Since v4 (D394) a form also
+// option-side change can never move a puzzle. Since v4 (D402) a form also
 // never repeats a grid: two families can construct the same nine cells
 // when their streams happen to draw the same base, element and holes —
 // dist2 and dist2Xor, dist2 and overlayXor, dist2Latin and xorLatin all

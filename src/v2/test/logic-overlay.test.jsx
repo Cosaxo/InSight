@@ -79,7 +79,7 @@ describe("a full attempt", () => {
 
     // the result screen, immediately after the last reveal delay
     screen.getByText(/25 of 25/);
-    // …with the likely range as a clause on the claim (D394): the curve at
+    // …with the likely range as a clause on the claim (D402): the curve at
     // 23 and 25 of 25, so the top of the range is the ceiling itself
     const [lo, hi] = logicBandFor(25, 25);
     screen.getByText(new RegExp(`Sharper than ${logicPctileFor(1, 25)}% of players \\(likely ${lo}\u2013${hi}\\)\\.`));
@@ -185,7 +185,7 @@ describe("a verified attempt (D57)", () => {
     expect(vi.mocked(submitVerified)).toHaveBeenCalledWith(expected.items.map((it) => it.a));
     screen.getByText("verified"); // the badge
     screen.getByText(/scored on the server, counted once/i);
-    // a response without a range (a server from before D394) prints none
+    // a response without a range (a server from before D402) prints none
     // and saves none — the client does not invent a verified range
     expect(screen.queryByText(/likely/)).toBeNull();
     const saved = JSON.parse(localStorage.getItem(LKEY));
