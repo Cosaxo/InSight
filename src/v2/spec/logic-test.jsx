@@ -561,7 +561,13 @@ export let LOGIC;
                   <div style={{ display: 'flex', gap: 10 }}>
                     {/* the picks are held in this state, so a flaky network
                         never costs a finished attempt — retry resubmits the
-                        same twelve */}
+                        same answers, whatever the form's length is (this
+                        said "the same twelve", which was true until D61
+                        made the generated form 25; 12 survives only in the
+                        frozen v1/v2 paths). Deliberately not a number:
+                        `logic-gen.ts` owns the count and a copy of it here
+                        is the documentation error this repo keeps
+                        re-committing */}
                     <button onClick={() => sendVerified(verify.picks, verify.times)} style={pillBtn(true)}>Retry</button>
                     <button onClick={() => setVerify(null)} style={pillBtn(false)}>Discard</button>
                   </div>
