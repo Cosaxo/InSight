@@ -37,7 +37,11 @@ RESULTS="${RESULTS:-results/android}"
 APK="${APK:-android/app/build/outputs/apk/debug/app-debug.apk}"
 RENDERERS="${RENDERERS:-$'-gpu swiftshader_indirect\n-gpu swiftshader_indirect -feature -Vulkan\n-gpu swiftshader_indirect -feature -Vulkan'}"
 mkdir -p "$RESULTS"
-BOOT_NO="$(( $(grep -c '^booted:' "$RESULTS/environment.txt" 2>/dev/null || echo 0) + 1 ))"
+# How many boots this run has had, from environment.txt — `grep -c` prints
+# "0" AND exits 1 on no match, so a `|| echo 0` there yields "0 0" and an
+# arithmetic error (run 18 of the first night died on exactly that line).
+PRIOR="$(grep -c '^booted:' "$RESULTS/environment.txt" 2>/dev/null || true)"
+BOOT_NO="$(( ${PRIOR:-0} + 1 ))"
 
 boot() {
   pkill -f "emulator/qemu" 2>/dev/null || true
