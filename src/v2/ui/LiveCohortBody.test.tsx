@@ -68,9 +68,10 @@ const LIVE = vi.hoisted(() => ({
   // The Scores lens's ask rows (D307) — empty here so the stop cases stay
   // about the stop; the ask arm has its own cases in the lens suite.
   placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
+  placeAskTotal: () => 0,
   vote: vi.fn(),
   loadKindred: async () => {},
-  // The cap's tail (D388): the stop kicks the read on mount; nothing in
+  // The cap's tail (D399): the stop kicks the read on mount; nothing in
   // these cases is at the cap, so the stub is the honest fixture.
   loadOverflow: async () => {},
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,

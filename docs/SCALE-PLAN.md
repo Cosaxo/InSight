@@ -101,8 +101,8 @@ selection logic evolves or how wrong it gets about someone.
 The half that gets dearer with time is now done, and the half that does
 not is deliberately not:
 
-- **`core` is a declared field on feed questions.** 82 of the 267 in
-  `content/feed-questions.json` carry `core: true`, and 185 declare
+- **`core` is a declared field on feed questions.** 82 of the 329 in
+  `content/feed-questions.json` carry `core: true`, and 247 declare
   `core: false` — **the tail is not hypothetical; it is already more than a
   third of the feed and growing with every feed run.** The generator emits it
   onto feed entries only (`scripts/gen-v2content.mjs`, emit-when-set beside
@@ -517,7 +517,7 @@ clearing engine — not before.
 | Core grows faster than the population | The ratio gate (§6 item 6) | Until it exists, the Mirror can thin without anyone noticing |
 | Sponsored content reaches the Mirror's corpus | Tail-only placement, same flag as §1 | An operator who flags a sponsored question core |
 | Cost surprise | The model takes production rate as an input; re-run it, do not reason about it | Three behaviour inputs are still guesses (`COSTS.md` says which) |
-| A capped read truncates by NAME, not by recency | `fetchAnswersOf` (`src/v2/data/circle.ts`) caps at 300 answers per followed account, and until D386 carried no `orderBy` — an unordered `limit` takes documents by question id, so past the cap a circle member's likeness was computed from the alphabetically-first slice of what they answered, and it still drew | **Fixed (D386, 2026-09-06).** The row read "cannot bind at ~130 core questions" until 2026-08-31's closing review measured it against the wrong bank: the query asks for `WORLD_ANSWER_SURFACES`, six surfaces totalling 570 answerable questions (daily 130 · feed 166 · test 110 · learn 156 · pulse 5 · call 3 — this row said 644 off two miscounted banks; `circle.ts` has the correction) against a cap of 300. The owner took the index cost with ALGORITHM-REFLECTION §4.6: the query orders by `answeredAt` DESC, the (`surface` ASC, `answeredAt` DESC) COLLECTION-scope composite is in `firestore.indexes.json` and pinned by `indexes.test.ts`, and the cap keeps a member's 300 newest answers. What remains is the cap itself — a heavy answerer is read from their latest 300, which is a slice they chose |
+| A capped read truncates by NAME, not by recency | `fetchAnswersOf` (`src/v2/data/circle.ts`) caps at 300 answers per followed account, and until D397 carried no `orderBy` — an unordered `limit` takes documents by question id, so past the cap a circle member's likeness was computed from the alphabetically-first slice of what they answered, and it still drew | **Fixed (D397, 2026-09-06).** The row read "cannot bind at ~130 core questions" until 2026-08-31's closing review measured it against the wrong bank: the query asks for `WORLD_ANSWER_SURFACES`, six surfaces totalling 570 answerable questions (daily 130 · feed 166 · test 110 · learn 156 · pulse 5 · call 3 — this row said 644 off two miscounted banks; `circle.ts` has the correction) against a cap of 300. The owner took the index cost with ALGORITHM-REFLECTION §4.6: the query orders by `answeredAt` DESC, the (`surface` ASC, `answeredAt` DESC) COLLECTION-scope composite is in `firestore.indexes.json` and pinned by `indexes.test.ts`, and the cap keeps a member's 300 newest answers. What remains is the cap itself — a heavy answerer is read from their latest 300, which is a slice they chose |
 
 ## 8 · What I would do
 

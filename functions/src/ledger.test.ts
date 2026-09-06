@@ -172,7 +172,7 @@ describe("readLedgerDay, run", () => {
   });
 });
 
-describe("memoLedgerReader (D387)", () => {
+describe("memoLedgerReader (D398)", () => {
   // A db whose one query answers a short page and counts how often it was
   // asked — the memo's whole claim is the count.
   function countingDb(fail = false) {

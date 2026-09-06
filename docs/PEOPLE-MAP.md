@@ -299,7 +299,7 @@ public-answers sentence or `web/privacy.html`. And nothing here touches
 the corpus: core only, two options only — `PATTERNS_QIDS` stays the one
 list (D161).
 
-> **The last sentence moved on 2026-09-06 (D383, D384), on the owner's
+> **The last sentence moved on 2026-09-06 (D394, D395), on the owner's
 > call.** Core only still holds — every instrument item is served to
 > everyone, so D161's sample-bias argument is satisfied — but "two options
 > only" describes the ONLINE engine's rows now, not the corpus. The

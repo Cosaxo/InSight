@@ -136,17 +136,17 @@ export interface Working {
 }
 
 /** A published row: the vector, its basis, the sum of raw encoded answers
- * (mean = sum/n for every kind) and an ordinal row's sd (D383). */
+ * (mean = sum/n for every kind) and an ordinal row's sd (D394). */
 interface LoadingsRow { v: number[]; n: number; sum: number; sd?: number }
 /** How a device encodes its own answer into a row — the candidate
- * engine's item metadata (D383); absent while the online engine owns the
+ * engine's item metadata (D394); absent while the online engine owns the
  * rows, which are then all two-option. */
 interface LoadingsItem { kind: "bin" | "ord" | "opt"; qid: string; opt?: number; nOptions: number }
 interface LoadingsDoc {
   k: number;
   q: Record<string, LoadingsRow>;
   items?: Record<string, LoadingsItem>;
-  /** The device ridge the engine's scorecard was measured at (D383). */
+  /** The device ridge the engine's scorecard was measured at (D394). */
   lambdaU?: number;
   engine?: "sgd" | "als";
 }
@@ -176,7 +176,7 @@ function sayRows(qid: string): Promise<{ uid: string; optionIdx: number }[]> {
   if (!p) {
     p = (async () => {
       const db = await getDb();
-      // The nightly sample first (D385): one document for the same rows the
+      // The nightly sample first (D396): one document for the same rows the
       // live query would read two hundred documents for. The live query
       // stays as the fallback for a question no sample exists for yet.
       return (await fetchVoterSample(db, qid)) ?? fetchVoterPicks(db, qid);
@@ -270,7 +270,7 @@ function pool(): PoolItem[] {
 }
 
 /** The device ridge: the one the fit's scorecard was measured at, read
- * off the doc (D383), with the shipped value as the fallback for a
+ * off the doc (D394), with the shipped value as the fallback for a
  * document that predates the field. */
 function lambdaU(): number {
   return loadings?.lambdaU ?? DEFAULT_LAMBDA_U;
@@ -278,7 +278,7 @@ function lambdaU(): number {
 
 /**
  * The viewer's evidence: every answer of theirs the published rows can
- * encode, as the centred residuals the fit itself is written in (D384).
+ * encode, as the centred residuals the fit itself is written in (D395).
  * Under the candidate engine that is the whole corpus — a two-option
  * answer as ±1 minus the row's marginal, an ordinal one as the index
  * standardised by the row's mean and sd, a pick as ±1 against each of the

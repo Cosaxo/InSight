@@ -57,8 +57,8 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     ).toBe(true);
   });
 
-  it("circle.ts fetchAnswersOf: the (surface, answeredAt DESC) COLLECTION-scope composite exists (D386)", () => {
-    // The query gained `orderBy("answeredAt", "desc")` at D386 so the
+  it("circle.ts fetchAnswersOf: the (surface, answeredAt DESC) COLLECTION-scope composite exists (D397)", () => {
+    // The query gained `orderBy("answeredAt", "desc")` at D397 so the
     // 300-cap keeps a member's newest answers instead of their
     // alphabetically-first question ids. An `in` filter ordered by another
     // field needs a composite at the query's own scope — COLLECTION, not

@@ -89,7 +89,7 @@ export function edgesOf(U: readonly number[][], per = 3): MapEdge[] {
 
 /** The device ridge the shipped `estimateTheta` was written at. The
  * loadings doc publishes the ridge its scorecard was measured at as
- * `lambdaU` (D383) and callers pass it through; this is the fallback for
+ * `lambdaU` (D394) and callers pass it through; this is the fallback for
  * a document that predates the field. */
 export const DEFAULT_LAMBDA_U = 0.5;
 
@@ -101,7 +101,7 @@ export const DEFAULT_LAMBDA_U = 0.5;
  *
  * `obs.r` is the centred encoded answer (±1 minus the question's marginal
  * for a two-option item; the standardised index for an ordinal one; the
- * centred pick for a one-hot pseudo-item — D383's `items` metadata says
+ * centred pick for a one-hot pseudo-item — D394's `items` metadata says
  * which), matching the server fit's own residual.
  *
  * `invA` is (Σ L Lᵀ + λI)⁻¹ — the posterior covariance up to the noise

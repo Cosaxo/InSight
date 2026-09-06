@@ -38,7 +38,10 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
   options: string[]   (scale → the 5-point agree scale; rating → "1".."10";
                        pulse → exactly five steps; call → exactly two, and
                        index 0 is the call coming true)
-  topic, axis, test   metadata (test != null only on a test's own items)
+  topic, axis, test   metadata (test != null only on a test's own items;
+                       topic is the feed's topic id, a group question's kind
+                       us|pick|classic, and since D386 a 1v1 question's
+                       domain day|heat|mirror|ahead — the roles fold reads it)
   active: bool
   until?              feed only (D179): the UTC day after which the card
                       stops being SERVED. A client-side serving filter;
@@ -235,14 +238,16 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    counts only for bank-option questions
                                    (a pick's optionIdx indexes each
                                    group's own members — never summed);
-                                   guess fields only when a duo guessed.
+                                   guess fields when anyone guessed — a
+                                   duo at the partner's pick, a group at
+                                   the option the room landed on (D386).
                                    Same floor, crossing-based cadence
                                    (a reveal folds a batch), no
                                    timestamp. Never: gids, uids, names,
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
-v2_agg_overflow/{qid}-{s}          the breakdown cap's TAIL (D388), s = FNV-1a(bucket) mod 8
+v2_agg_overflow/{qid}-{s}          the breakdown cap's TAIL (D399), s = FNV-1a(bucket) mod 8
   { dim: { bucket: {opt:n} } }     every city and country cell the hot
                                    document above evicted or refused at
                                    BREAKDOWN_MAX_BUCKETS. hot ∪ tail is the
@@ -305,7 +310,7 @@ load-bearing too: firestore.rules refuses a call answer once this document
 exists, or a player reads the grade and then "predicts" it.
 
 v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
-                                   two engines since D383)
+                                   two engines since D394)
   k                                the vectors' length (8)
   engine: "sgd"|"als"              which engine's rows are in `q`: the
                                    shipped online fit (patternsFit.ts) or
@@ -339,9 +344,9 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
   quality, displacement, seeds     the engine's scorecard (D325): the
                                    prequential series with the marginal-
                                    only baseline and skill beside every
-                                   row (D382), publish-to-publish
+                                   row (D393), publish-to-publish
                                    displacement, and the loadings' distance
-                                   from their hash seeds (D382)
+                                   from their hash seeds (D393)
   candidates {sgd?|als?: {q,       the OTHER engine, with the same rows and
      items?, quality?,              scorecard, its streak of consecutive
      displacement?, lambdaU,        winning nights, and (als) the pooled
@@ -350,12 +355,12 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
   lastDay, folded, at              the last UTC day folded (idempotence),
                                    the last run's fold count, server clock
 read: signed-in · write: NOBODY — written once per night by the nightly
-pass (`digestEngagementV2` since D387, admin SDK), so D7's per-document write ceiling never hears about it. The
+pass (`digestEngagementV2` since D398, admin SDK), so D7's per-document write ceiling never hears about it. The
 device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
 Nothing per-person in it, under either engine.
 
-v2_patterns/sample-{qid}           the nightly voter sample (D385)
+v2_patterns/sample-{qid}           the nightly voter sample (D396)
   qid
   rows {uid: {o, a, d}}            the newest PATTERNS_SAMPLE_CAP (200 — the
                                    who-voted sheet's own cap) voters of one
@@ -366,7 +371,7 @@ v2_patterns/sample-{qid}           the nightly voter sample (D385)
                                    and erasure is a field delete
   n, at                            the basis a client states; server clock
 read: signed-in (the loadings document's own rule — same collection) ·
-write: NOBODY — merged nightly by the pass (D387) from the ledger day it
+write: NOBODY — merged nightly by the pass (D398) from the ledger day it
 already reads. What Kindred, the People lens and the pair card read in
 place of two hundred answer documents per question; the who-voted sheet
 keeps the live query. THE ONE DERIVED PUBLIC DOCUMENT FAMILY THAT HOLDS
@@ -374,7 +379,7 @@ UIDS: exactly what the who-voted sheet already shows anyone signed in,
 nothing derived — and deleteAccount's phase 1a′ removes the account's row
 from every sample, asserted in e2e-delete-account.mjs.
 
-v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D383)
+v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D394)
   v: number[k], n, at              the latent vector the online fold
                                    carries this person's PUBLIC answers
                                    as, and how many it has folded
@@ -680,7 +685,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (851 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (913 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -753,7 +758,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (851 docs) caches in localStorage keyed by
+everything. The question bank (913 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

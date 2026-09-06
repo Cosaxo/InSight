@@ -42,7 +42,7 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     // file, read method, write method, the field the guard reads
     ["taste.ts", "async getProfiles(", "async putProfiles(", "d"],
     ["patterns.ts", "async getUsers(", "async putUsers(", "d"],
-    // The answer map (D383): the compaction MERGES into what getUsers hands
+    // The answer map (D394): the compaction MERGES into what getUsers hands
     // back, so a read that dropped it would refit the candidate on
     // yesterday alone every night — with every unit test green, for the
     // same reason as `d`.
@@ -79,7 +79,7 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     });
   }
 
-  // The loadings document itself is read and written WHOLE since D383 —
+  // The loadings document itself is read and written WHOLE since D394 —
   // the fix for the hazard the two cases here used to pin. `getModel`
   // named `k`, `q`, `lastDay`, `series` and `quality` one at a time, and
   // `putModel` is a `set` with NO merge, so a field the read forgot was a
@@ -102,7 +102,7 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     expect(body).toContain("modelRef.set({ ...dropUndefined(pub), at: FieldValue.serverTimestamp() })");
   });
 
-  // The scan the candidate engine reads people through (D383) projects the
+  // The scan the candidate engine reads people through (D394) projects the
   // same four fields the per-uid read does — a fifth field added to one
   // and not the other is the D197 shape, two copies of one reader.
   it("patterns.ts: scanUsers and getUsers project the same fields", () => {

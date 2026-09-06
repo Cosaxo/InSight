@@ -22,6 +22,16 @@
 // colour now means something would read as a second claim. Size stays the
 // basis in two steps, and the legend says both in words.
 //
+// PAPER, AND NAMES ON TAP (2026-09-06, VISION-2026-09-06 §2.3): the field
+// is ink on paper now (the shell sets .lens-paper — patterns.css), no name
+// is standing type on it — the tapped person alone is named beside their
+// dot — and two faint rings frame the disc so an empty-looking crowd still
+// reads as a field. The standing legend and the floor sentence moved
+// behind the tab's one ⓘ (the `guide` prop): a basis sentence may move
+// one tap away, it may not be deleted (D146). The "Most like you" rail
+// became three ROWS, each carrying the same counts plus the answer you
+// share — `alike`'s ranking unchanged, likeness, never layout distance.
+//
 // Populations since D216 — the standalone's chips, live: `pop` narrows
 // WHO is placed (your country by the frozen city anchor's code, your
 // circle by the capped follows list), never what is counted — shared and
@@ -38,10 +48,12 @@ import {
   countryOf,
   foldPeople,
   peopleFetchSet,
+  PEOPLE_C,
   PEOPLE_H,
   PEOPLE_MIN_ANSWERED,
   PEOPLE_MIN_CROWD,
   PEOPLE_MIN_CROWD_CIRCLE,
+  PEOPLE_RMAX,
   PEOPLE_W,
   type PeopleFoldOpts,
   type PeopleItem,
@@ -55,13 +67,15 @@ export type PeoplePop = "world" | "country" | "circle";
 
 const SANS = "var(--sans)";
 
-/** The three agreement colours, lifted for the dusk field (`.lens-paper`
- * swaps the field, not these: they are the one thing on it that means
- * something, so they stay the same three hues in both grounds). */
+/** The three agreement colours, inked for the paper field the shell now
+ * sets everywhere (.lens-paper, 2026-09-06). The dusk-lifted trio went
+ * with the dusk ground — one palette, because there is one ground; git
+ * history holds the other. Split is a warm grey rather than a fourth
+ * blue, so only agreement carries the field's hue. */
 const AGREE_COL = {
-  yes: "oklch(0.84 0.10 282)",
-  mid: "oklch(0.60 0.035 282)",
-  no: "oklch(0.76 0.10 20)",
+  yes: "oklch(0.50 0.11 282)",
+  mid: "oklch(0.74 0.012 80)",
+  no: "oklch(0.58 0.11 35)",
 } as const;
 /** Mostly agrees · split · mostly disagrees, counted over what you share. */
 const stepOf = (p: { agree: number; shared: number }): keyof typeof AGREE_COL => {
@@ -81,7 +95,7 @@ const slim = (items: readonly PoolItem[]): PeopleItem[] =>
 
 /** live.ts's rows, narrowed to the fold's shape (they already match). */
 /** live.ts's rows, narrowed to the fold's shape (they already match): the
- * live list where one is in hand, else the nightly sample (D385). */
+ * live list where one is in hand, else the nightly sample (D396). */
 const rowsOf = (qid: string): readonly PeopleRow[] | null => LIVE.votersOrSample(qid);
 
 function Empty({ head, line, cta }: { head: string; line: string; cta?: React.ReactNode }): React.ReactElement {
@@ -101,11 +115,14 @@ const chipStyle: React.CSSProperties = {
   color: "var(--accent-ink, var(--accent))",
 };
 
-export default function PatternsPeople({ items, version, pop = "world", onOracle }: {
+export default function PatternsPeople({ items, version, pop = "world", onOracle, guide = false }: {
   items: PoolItem[];
   version: number;
   pop?: PeoplePop;
   onOracle: () => void;
+  /** The tab's one ⓘ — the legend and the floor sentence render only
+   * while it is open (VISION-2026-09-06 §2.4). */
+  guide?: boolean;
 }): React.ReactElement {
   const [sel, setSel] = React.useState<string | null>(null);
   React.useEffect(() => { setSel(null); }, [pop]);
@@ -125,7 +142,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   const myCo = countryOf(LIVE.anchors().city);
   const foldOpts = React.useMemo<PeopleFoldOpts>(() => ({
     // the viewer's own dot from everything they have answered — ordinal
-    // and pick items included (D384) — under the ridge the fit published
+    // and pick items included (D395) — under the ridge the fit published
     viewerObs: PATTERNS.evidence(),
     lambda: PATTERNS.lambdaU(),
     circle: circleSet,
@@ -219,24 +236,22 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
 
   return (
     <>
-      <div className="card ln-card">
-        {/* "The closer two dots, the more alike their answers" stood here
-            and is not true as a rule: a dot's position is two components
-            of an eight-dimensional solve, so two people can sit together
-            while disagreeing on everything the other six dimensions
-            carry. Measured on this fold — 16px apart, agreeing on one
-            answer of twelve. What IS true is that the position comes from
-            the answers, and the chips below now carry likeness itself. */}
-        <div className="ln-head">
-          <div className="ln-title">Where you sit in the crowd</div>
-          <div className="ln-sub">
-            Each dot is a person who answered some of the same questions as you, placed by how they answered.
-          </div>
-        </div>
+      <div className="ln-card">
+        {/* the card's title and one-sentence explainer retired into the
+            guide legend below (2026-09-06) — boxless, the field on the
+            page. "The closer two dots, the more alike their answers" is
+            still not a sentence this projection can carry (a position is
+            two components of an eight-dimensional solve), so the legend
+            says what a dot IS and the rows carry likeness itself. */}
         <div className="ln-field">
           <svg className="ln-svg" viewBox={`0 0 ${PEOPLE_W} ${PEOPLE_H}`} role="img"
             aria-label="People who share your questions, placed by their answers; colour says whether they mostly agree with you"
             onClick={() => { if (sel != null) setSel(null); }}>
+            {/* two faint rings frame the disc (2026-09-06) — structure,
+                not data: they claim nothing, and a thin crowd still
+                reads as a field rather than three dots in a void */}
+            <circle cx={PEOPLE_C} cy={PEOPLE_C} r={PEOPLE_RMAX / 3} fill="none" stroke="var(--ln-ink)" strokeOpacity="0.09" strokeWidth="1"></circle>
+            <circle cx={PEOPLE_C} cy={PEOPLE_C} r={(PEOPLE_RMAX * 2) / 3} fill="none" stroke="var(--ln-ink)" strokeOpacity="0.09" strokeWidth="1"></circle>
             {placed.map((p) => {
               const on = p.uid === sel;
               const dim = selP != null && !on;
@@ -251,50 +266,64 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
                 </g>
               );
             })}
-            {placed.map((p) => (p.lab && (selP == null || p.uid === sel) ? (
-              <text key={`l${p.uid}`} x={p.lab.x} y={p.lab.y} textAnchor={p.lab.anchor}
+            {/* the one standing name is the tapped person's, beside their
+                dot, anchored away from the hub side (2026-09-06 — every
+                other name is in the rows below or one tap away) */}
+            {selP && (
+              <text x={selP.x > PEOPLE_C ? selP.x - selP.r - 6 : selP.x + selP.r + 6} y={selP.y + 3.5}
+                textAnchor={selP.x > PEOPLE_C ? "end" : "start"}
                 fill="var(--ln-ink)" stroke="var(--ln-halo)" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke"
-                style={{ fontSize: 10.5, fontWeight: 700, pointerEvents: "none" }}>{p.name}</text>
-            ) : null))}
+                style={{ fontSize: 12, fontWeight: 700, pointerEvents: "none" }}>{selP.name || "Someone"}</text>
+            )}
             <g style={{ opacity: selP ? 0.35 : 1, transition: "opacity .25s ease" }}>
               <circle cx={me.x} cy={me.y} r="11" fill="none" stroke="var(--ln-beacon)" strokeWidth="1.6"></circle>
               <circle cx={me.x} cy={me.y} r="6" fill="var(--ln-me)"></circle>
               <text x={meLeft ? me.x - 14 : me.x + 14} y={me.y + 3.5} textAnchor={meLeft ? "end" : "start"}
                 fill="var(--ln-ink)" stroke="var(--ln-halo)" strokeWidth="3" strokeLinejoin="round" paintOrder="stroke"
-                style={{ fontSize: 11, fontWeight: 800 }}>you</text>
+                style={{ fontSize: 12, fontWeight: 800 }}>you</text>
             </g>
           </svg>
         </div>
-        {/* the legend in words: colour first, because it is the reading */}
-        <div className="ln-key" aria-hidden="true">
-          <span><i className="k-dot" style={{ width: 9, height: 9, background: AGREE_COL.yes }}></i>mostly agrees with you</span>
-          <span><i className="k-dot" style={{ width: 9, height: 9, background: AGREE_COL.mid }}></i>split</span>
-          <span><i className="k-dot" style={{ width: 9, height: 9, background: AGREE_COL.no }}></i>mostly disagrees</span>
-          <span>bigger dot = more answers in common</span>
-        </div>
-        <div className="ln-hint">{selP ? "Tap the field to see everyone again." : "Tap anyone to see what you share."}</div>
-        {/* the rail names the same five the field labels — never a sixth
-            identity the drawing does not carry, and never an unnamed
-            account dressed with an initial (D167) */}
-        {/* `alike`, not `near`: `near` is the LABEL set, ordered by where
-            the dots landed, and position is two components of an
-            eight-dimensional solve. This rail names likeness, so it ranks
-            on the agreement each chip already prints. */}
+        {/* the legend, on demand (the tab's ⓘ): what a dot is, the three
+            colours, the size rule — and the floor sentence, which is a
+            claim and so may move one tap away but never be deleted
+            (D146). `basis`/`minShared`, not the prototype's own-answers
+            count: the crowd is placed from the fetched lists, and naming
+            your number over their placement is the overstatement the
+            foot card was corrected for. */}
+        {guide && (
+          <div className="ln-key fade-in" aria-label="How to read the map">
+            <span>each dot is a person who answered some of the same questions as you, placed by how they answered</span>
+            <span><i className="k-dot" style={{ background: AGREE_COL.yes }}></i>mostly agrees with you</span>
+            <span><i className="k-dot" style={{ background: AGREE_COL.mid }}></i>split</span>
+            <span><i className="k-dot" style={{ background: AGREE_COL.no }}></i>mostly disagrees</span>
+            <span>bigger dot = more answers in common</span>
+            <span>tap anyone to see what you share</span>
+            <span>{placed.length} people · everyone who answered at least {field.minShared} of the {field.basis} questions read here · drawn from the crowd’s latest answers</span>
+          </div>
+        )}
+        {/* the rows carry the counts each claim rests on — never an
+            unnamed account dressed with an initial (D167: `alike` filters
+            to named people), and ranked on likeness, never on where the
+            dots landed (the fold's own comment says why) */}
         {alike.length > 0 && (
-          <div className="ln-rail" role="list" aria-label="The people most like you">
-            <span className="ln-rail-lab">Most like you</span>
-            {/* the row is a list and each chip is a button: the listitem
-                role goes on the WRAPPER, never on the control — a button
-                carrying it is an interactive element assigned a
-                non-interactive role, which is a real reading bug and what
-                jsx-a11y refuses (the prototype's markup did exactly that) */}
+          <div className="ln-list" role="list" aria-label="The people most like you">
+            <span className="pt-kick" style={{ color: "var(--accent-ink)", padding: "2px 0" }}>Most like you</span>
+            {/* the listitem role goes on the WRAPPER, never on the button —
+                an interactive element assigned a non-interactive role is a
+                real reading bug (the prototype's markup did exactly that) */}
             {alike.map((p) => (
-              <span key={p.uid} role="listitem">
-                <button className={"ln-chip" + (sel === p.uid ? " is-on" : "")}
+              <span key={p.uid} role="listitem" style={{ display: "contents" }}>
+                <button className={"ln-row" + (sel === p.uid ? " is-on" : "")}
                   onClick={() => pick(p)}>
-                  <span className="c-av" style={{ background: AGREE_COL[stepOf(p)], color: "var(--ln-halo)" }}>{p.name.slice(0, 1)}</span>
-                  <span className="c-name">{p.name}</span>
-                  <span className="c-sub">agrees {p.agree} of {p.shared}</span>
+                  <span className="ln-row-av" style={{ background: AGREE_COL[stepOf(p)] }}>{p.name.slice(0, 1)}</span>
+                  <span className="ln-row-body">
+                    <span className="ln-row-top">
+                      <span className="ln-row-name">{p.name}</span>
+                      <span className="ln-row-sub">agrees {p.agree} of {p.shared}</span>
+                    </span>
+                    <span className="ln-row-q">{p.tie ? <>Both said {p.tie.label}</> : <>You split on everything you share</>}</span>
+                  </span>
                 </button>
               </span>
             ))}
@@ -342,32 +371,11 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
             </div>
           )}
         </div>
-      ) : (
-        <div className="card" style={{ padding: "14px 16px" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span style={{ fontFamily: SANS, fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1 }}>{placed.length}</span>
-            <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.4, textWrap: "pretty" }}>
-              {/* THE CROWD'S BASIS, not yours. This printed `answered` —
-                  every pool question you have answered — over a crowd
-                  placed from the twelve lists the fold actually reads, so
-                  the card overstated itself by up to about nine times
-                  while every dot under it said "12 of 12 shared answers".
-                  Your own dot IS solved from all of them, which is what
-                  made the wrong number look right. */}
-              people placed around you, from the <b style={{ color: "var(--ink)", fontWeight: 700 }}>{field.basis} questions</b> you share here. Tap anyone.
-            </span>
-          </div>
-          {/* The stated sample: newest-first, capped lists (VOTER_FETCH_CAP) —
-              the who-voted sheet's own honest bias — and, since 2026-09-02,
-              the FLOOR in front of it: who is on this field at all is a rule,
-              and a reader who cannot see the people who missed it deserves
-              the rule rather than the shape. The geometry's own sentence
-              moved up into the field's `.ln-sub`. */}
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", textWrap: "pretty" }}>
-            Everyone who answered at least {field.minShared} of the {field.basis} questions read here · drawn from the crowd’s latest answers.
-          </div>
-        </div>
-      )}
+      ) : null}
+      {/* the idle foot card retired into the guide legend (2026-09-06):
+          its two claims — the crowd's basis and the floor — moved there
+          word for word, still stated over `basis`, never over the
+          viewer's own answered count */}
     </>
   );
 }

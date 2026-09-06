@@ -1,4 +1,4 @@
-// The candidate engine's contract (D383), pinned the way patternsFit's is:
+// The candidate engine's contract (D394), pinned the way patternsFit's is:
 //
 //   1. THE CORPUS — bin, ord and one-hot items compile from the bank by
 //      one rule, and each kind encodes and centres the way its header

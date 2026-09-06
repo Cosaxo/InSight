@@ -55,8 +55,10 @@ export const PEOPLE_MIN_ANSWERED = 5;
  * a legible basis, cost linear in this number, every list shared with the
  * who-voted sheet, Kindred and the pair card through live.ts's cache. */
 export const PEOPLE_QUESTIONS = 12;
-/** At most this many dots carry a name label; the rest name on tap. */
-export const PEOPLE_LABELS = 5;
+/** The "Most like you" rows under the field (the 2026-09-06 design's
+ * three). Every name on the FIELD is tap-only now, so this caps the one
+ * place a name is standing type. */
+export const PEOPLE_ALIKE = 3;
 /** The circle view's own crowd floor (D216). PEOPLE_MIN_CROWD guards an
  * ANONYMOUS crowd — eight strangers is the least that reads as one. Your
  * circle is named people you chose (FOLLOW_CAP-bounded), each drawn with
@@ -119,9 +121,6 @@ export interface PlacedPerson {
   /** The rarest answer you share: label and its crowd share, from the
    * fit's own marginal. Null when you split on everything you share. */
   tie: { label: string; share: number } | null;
-  /** Name-label anchor, when a spot exists near the dot: the least
-   * crowded of four, with the text-anchor that spot wants. */
-  lab: { x: number; y: number; anchor: "start" | "middle" | "end" } | null;
 }
 
 export interface PeopleField {
@@ -142,19 +141,17 @@ export interface PeopleField {
    * about nine times at a full pool.
    */
   basis: number;
-  /** The floor `placed` cleared — the card states it ("everyone who
+  /** The floor `placed` cleared — the legend states it ("everyone who
    * answered at least N of your questions"), and tests read it. */
   minShared: number;
-  /** The named people nearest you, nearest first — a LAYOUT set, not a
-   * ranking. Exactly the ones that carry a label on the field, so the
-   * labels and the drawing never disagree about who is close. It fed the
-   * "Most like you" rail until 2026-09-04, and that is the sentence this
-   * docstring used to carry: proximity here is two components of an
-   * eight-dimensional solve, so it is the right answer for placing labels
-   * and the wrong one for ranking likeness. `alike` is that ranking. */
-  near: PlacedPerson[];
-  /** The people who actually agree with you most, for the rail that says
-   * so — ranked on the agreement rate each chip already prints. */
+  /** The people who actually agree with you most, for the rows that say
+   * so — ranked on the agreement rate each row already prints. (The
+   * field-label set `near` and its spot-scoring placement retired with
+   * the 2026-09-06 design: no name is standing type on the field any
+   * more — the tapped person alone is named — so a layout problem this
+   * module solved for five labels stopped existing. Git history holds
+   * the placement; the D167 no-invented-names rule lives on in `alike`'s
+   * own filter.) */
   alike: PlacedPerson[];
 }
 
@@ -208,7 +205,7 @@ export interface PeopleFoldOpts {
   circle?: ReadonlySet<string>;
   /**
    * The viewer's OWN evidence, when the caller has more of it than the
-   * two-option pool carries (D384): every answer the published rows can
+   * two-option pool carries (D395): every answer the published rows can
    * encode — ordinal and pick items included — as the centred residuals
    * the fit is written in. Strangers are still placed from the fetched
    * two-option lists (a voter row is one option index on one two-option
@@ -218,7 +215,7 @@ export interface PeopleFoldOpts {
    * like everyone else.
    */
   viewerObs?: readonly { L: readonly number[]; r: number }[];
-  /** The device ridge, as the fit published it (D383); the shipped value
+  /** The device ridge, as the fit published it (D394); the shipped value
    * otherwise. Both solves — strangers' and the viewer's — use it. */
   lambda?: number;
 }
@@ -295,7 +292,6 @@ export function foldPeople(
       shared: a.shared,
       agree: a.agree,
       tie: a.tie,
-      lab: null,
     });
   }
 
@@ -406,70 +402,21 @@ export function foldPeople(
     }
   }
 
-  // Name the nearest few. A label takes the LEAST CROWDED of four spots
-  // rather than the first that happens to be clear (2026-09-02): on the
-  // round field the old first-fit walk dropped a name whenever all four
-  // candidates touched something, and a near neighbour with no name reads
-  // as a stranger. Scored instead — outside the rim or overlapping a
-  // placed label is disqualifying (+100), a near miss and each dot the box
-  // covers are penalties — so the label lands where it costs least.
-  const rects: { x0: number; x1: number; y0: number; y1: number }[] = [
-    // your own "you" word, so no name is written over it
-    { x0: me.x + 12, x1: me.x + 40, y0: me.y - 7, y1: me.y + 6 },
-  ];
-  const nearest = [...placed].sort(
-    (a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y),
-  );
-  const used = new Set<string>();
-  const near: PlacedPerson[] = [];
-  for (const p of nearest) {
-    if (near.length >= PEOPLE_LABELS) break;
-    // The prototype drew invented names for nameless accounts; live does
-    // not (D167) — an unnamed dot stays unlabeled, reads "Someone" on its
-    // card (the who-voted convention), and never reaches the rail either:
-    // a chip with no name to carry would be an identity the fold invented.
-    if (!p.name || used.has(p.name)) continue;
-    const w = p.name.length * 6.6 + 4;
-    const h = 11;
-    const cands: { x: number; y: number; anchor: "start" | "middle" | "end" }[] = [
-      { x: p.x, y: p.y + p.r + 3, anchor: "middle" },
-      { x: p.x, y: p.y - p.r - 14, anchor: "middle" },
-      { x: p.x + p.r + 5, y: p.y - 5.5, anchor: "start" },
-      { x: p.x - p.r - 5, y: p.y - 5.5, anchor: "end" },
-    ];
-    let best: { s: number; rc: { x0: number; x1: number; y0: number; y1: number }; c: typeof cands[number] } | null = null;
-    for (const c of cands) {
-      const x0 = c.anchor === "middle" ? c.x - w / 2 : c.anchor === "start" ? c.x : c.x - w;
-      const rc = { x0, x1: x0 + w, y0: c.y, y1: c.y + h };
-      let sc = Math.hypot(rc.x0 + w / 2 - PEOPLE_C, rc.y0 + h / 2 - PEOPLE_C) > PEOPLE_C - 8 ? 100 : 0;
-      if (rects.some((o) => rc.x0 < o.x1 && rc.x1 > o.x0 && rc.y0 < o.y1 && rc.y1 > o.y0)) sc += 100;
-      if (rects.some((o) => rc.x0 < o.x1 + 14 && rc.x1 > o.x0 - 14 && rc.y0 < o.y1 + 14 && rc.y1 > o.y0 - 14)) sc += 2;
-      for (const qd of all) {
-        if (qd !== p && qd.x > rc.x0 - 1 && qd.x < rc.x1 + 1 && qd.y > rc.y0 - 1 && qd.y < rc.y1 + 1) sc += 1;
-      }
-      if (!best || sc < best.s) best = { s: sc, rc, c };
-    }
-    if (!best) continue;
-    rects.push(best.rc);
-    p.lab = { x: Math.round(best.c.x * 10) / 10, y: Math.round((best.c.y + 9) * 10) / 10, anchor: best.c.anchor };
-    used.add(p.name);
-    near.push(p);
-  }
-
-  // THE RAIL SAYS "MOST LIKE YOU", SO IT RANKS ON LIKENESS.
+  // THE ROWS SAY "MOST LIKE YOU", SO THEY RANK ON LIKENESS.
   //
-  // It used to render `near`, which is this fold's LABEL set: the people
-  // whose dots sit closest to yours, chosen so the labels on the field do
-  // not collide. Position is two components of a unit-normalised
-  // EIGHT-dimensional solve, so six dimensions of agreement are discarded
-  // before that distance is taken — and the rail could therefore lead
-  // with the person who agrees with you least, wearing the "mostly
-  // disagrees" colour, under the words "Most like you", while the real
-  // 11-of-12 match sat at the far rim.
+  // They used to render `near` — the label-placement set, the people whose
+  // dots sat closest to yours. Position is two components of a
+  // unit-normalised EIGHT-dimensional solve, so six dimensions of
+  // agreement are discarded before that distance is taken — and the rail
+  // could therefore lead with the person who agrees with you least under
+  // the words "Most like you", while the real 11-of-12 match sat at the
+  // far rim. The honest number is already on every person and already
+  // printed on the row.
   //
-  // The honest number is already on every person and already printed on
-  // the chip. `near` keeps its job — labels are a layout problem and
-  // proximity is the right answer there — and the rail gets its own list.
+  // The nameless filter is D167's no-invented-names rule: an unnamed
+  // account stays a drawn dot that reads "Someone" on tap, and never
+  // reaches a row — a row with no name to carry would be an identity the
+  // fold invented.
   //
   // Everyone here has already cleared `minShared`, so a rate is a rate;
   // ties go to the bigger overlap, then to the name so the order cannot
@@ -480,11 +427,11 @@ export function foldPeople(
       (b.agree / b.shared) - (a.agree / a.shared)
       || b.shared - a.shared
       || a.name.localeCompare(b.name))
-    .slice(0, PEOPLE_LABELS);
+    .slice(0, PEOPLE_ALIKE);
 
   // `fetched` is what the caller asked the store for; the basis is how
   // many of those actually came back with rows, because a list that
   // failed or was refused placed nobody.
   const basis = fetched.filter((qid) => (rowsOf(qid) || []).length > 0).length;
-  return { placed, me, answered: mineAll.length, basis, minShared, near, alike };
+  return { placed, me, answered: mineAll.length, basis, minShared, alike };
 }

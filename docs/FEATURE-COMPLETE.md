@@ -21,7 +21,7 @@ with a gate and no deadline.
 > own create-only regime its loadings have not left their hash seeds and
 > its one-step-ahead guesses equal the marginal's — `npm run probe:fit`
 > reproduces it. **Built the same day on the owner's "apply those"
-> (D382–D386):** the scorecard carries the marginal baseline and a skill
+> (D393–D397):** the scorecard carries the marginal baseline and a skill
 > score, a batch engine is scored beside the online one on the same
 > document and takes over only after a fortnight ahead, the corpus is
 > every core item rather than the two-option half, the Oracle asks what

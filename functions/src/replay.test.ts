@@ -108,11 +108,11 @@ describe("the commutativity the rebuild rests on", () => {
     expect(forward.cappedDims).toEqual([]);
   });
 
-  it("the HOT map is not order-independent at the cap, and says so — hot ∪ tail is, exactly (D388)", () => {
+  it("the HOT map is not order-independent at the cap, and says so — hot ∪ tail is, exactly (D399)", () => {
     // More distinct cities than the cap, each with one answer, so every
     // arrival past the cap evicts a one-answer bucket — and WHICH one
     // depends on arrival order. That was the limit replay.ts's header
-    // documented; since D388 the evicted cell moves to the tail instead of
+    // documented; since D399 the evicted cell moves to the tail instead of
     // vanishing, so the two folds agree on every cell once both documents
     // are read, and the flag now warns that the hot map alone is partial.
     const answers = Array.from({ length: BREAKDOWN_MAX_BUCKETS + 6 }, (_, i) =>

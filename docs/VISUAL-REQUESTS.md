@@ -47,7 +47,7 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   behaviour toward you, not a reading of a population.
 - **data and basis** — `v2_users/{uid}/taste/profile` `{t, n, at}` —
   per-topic feed-answer counts, folded nightly by the taste fold
-  (`functions/src/taste.ts`, inside `digestEngagementV2` since D387),
+  (`functions/src/taste.ts`, inside `digestEngagementV2` since D398),
   owner-readable and client-unwritable. One
   document GET; the same one `bank-pager.ts` already consults, so a
   session-cached read costs nothing extra. The floors are the copy's
@@ -90,13 +90,20 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ### 1 · Trait-axis directions on the patterns Map
 
-**Re-aimed 2026-09-02** at the ring the current vision draws
-(`VISUAL-VISION.md`; `VISION-2026-09-02.md` §1.2, built). What the
+**Re-aimed 2026-09-02** at the ring the vision draws
+(`VISION-2026-09-02.md` §1.2, built). What the
 request wants is unchanged — *the axes exist to be connected*, drawn on
 data that publishes today — and where it can be drawn is not: the plane
 this was written against is retired, and on a ring an axis cannot be a
 direction. The version below is the whole request, re-stated; the plane
-version is in this file's history.
+version is in this file's history. **Noted 2026-09-06**: the current
+vision (`VISION-2026-09-06.md` §2.1) quiets the same field — short
+topic groups now name themselves INSIDE the rim, idle chords drop to a
+whisper, and the standing legend moves behind an ⓘ — so grammar 2
+below (the inner arc) shares its area with the new in-rim labels, and
+whichever grammar the design picks inherits the guide-ⓘ rule: its key
+lives in the legend, not as standing chrome. The three grammars and
+their trades stand.
 
 - **asked by** — the program plan, 2026-09-02, ahead of the axes
   build lane reaching step 1.4; the theory it serves is AXES-PLAN §2.
@@ -288,6 +295,116 @@ that lets a buyer read them.
   product's one paid surface, and a price a buyer cannot read is a
   price they do not pay.
 - **status** — `requested`.
+
+### 5 · The 1v1 and group profile — three instruments, and the pair's card
+
+**Asked 2026-09-06** — the owner: *"how could we make the 1v1 and
+groups profile better … assume you have full creative freedom."*
+`ROLES-PLAN.md` is the plan; this is the screen half of it, and it
+waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
+it is planned here.
+
+- **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
+  (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
+- **surface** — three places, one vocabulary. (1) The profile
+  overlay's **Roles** subtab (`ui/LiveRolesPanel.tsx`, D204 — yours,
+  live only): today an average rose, a name, a line, a day count, and
+  one row per setting with receipts on tap. (2) The **1v1 daily
+  card's** done state (`ui/LiveDuelPanel.tsx`, D156): today the two
+  runs of dots under the day's answer. (3) The **person's page**
+  (`spec/person-overlay.jsx` — its *Play together* card, D310, draws
+  a pair type from demo data only).
+- **what it draws** — on the Roles tab: *you across 1v1s* (Insight ·
+  Legibility · Projection) with the rule that earns the name, the
+  runner-up when the match is close (*The Watcher · nearly The Mind
+  Reader — if sharper on them*), and the rarity; then one row per
+  pair carrying the PAIR's type (The Familiar, The One-Way — who is
+  ahead named, The Twins…) beside your role in it, the two runs, and
+  on tap the receipts and the domain rows (*everyday · under pressure
+  · how they see you*). Then *you in groups* (Independence · Reading
+  the room · Standing · Presence) the same way, one row per group
+  with the group's cast in miniature (request 6 is the full cast).
+  On the 1v1 card: the pair's type and line under the runs. On the
+  person's page: the pair's type and their role in each group you
+  share, from the record you both already see.
+- **data and basis** — `data/roles.ts` over the reveal documents the
+  duel panel already fetches (14 per room, `COSTS.md`'s Roles row) or
+  the per-member ledger the plan's §3.3 adds to the group document
+  (zero reads either way); the tables in `ROLES-PLAN.md` §3.4–§3.5;
+  every rate chance-scaled (§3.2: 50 is luck). Floors: a pair at 4
+  days both guessed, you-across-pairs at 6, a group at 3 days played,
+  Standing at 3 pick days with D224 snapshots, Reading the room at 3
+  guessed days. Below a floor a dim is absent and the types it
+  defines are out of the running; D1's empty state is the thin row
+  with its count, as today.
+- **states** — no settings (the sentence, as today); thin (the dashed
+  ring and *2 of 4 days both guessed*); one setting (no rows, the
+  card alone); several; a close match (the runner-up line present);
+  a setting whose history could not be read (*couldn't read this
+  one*, as today); demo: never — the tab is not there.
+- **interaction** — tap a row: receipts and domains; tap a pair's
+  type: the 1v1 card (`data/duelCue`, the daily ruler's licensed
+  exit); tap a name in a group's cast: their page; the ⓘ opens the
+  explain sheet's instrument entry; long press nothing.
+- **vocabulary** — the result card family (`spec/result-card.jsx`:
+  `TestRose`, `TypeMark`, the rule line, the nearly chips, the rarity
+  field); `RP_TESTS` hues (`--c-people` for a 1v1, `--c-groups` for a
+  group, new dims need hues); the 2026-09-02 standalone family and
+  `src/v2/styles.css`; D302's palettes; `COPY.md` — a type's line is
+  a claim about a person, true and kind at once (§3.5 of the plan).
+- **constraints** — the panel stays behind its `React.lazy` boundary
+  (first paint untouched; `check:bundle` at its band); zero new
+  reads; 44 px targets (`check:tap-targets`); the daily card's done
+  state must not grow a screen (D156: a finished circle collapses to
+  its content).
+- **why** — the ties axiom (D347, tie-1: the pair, the person across
+  pairs and the person in a group are three objects); CLAUDE.md's
+  first paragraph — a join nothing draws is unfinished, and the
+  pair's reading and the group's cast fold from data already on the
+  phone.
+- **status** — `requested` (waits on the plan's owner call).
+
+### 6 · The cast — the group as roles
+
+- **asked by** — the owner, 2026-09-06, through `ROLES-PLAN.md`
+  §2.6 and §3.8.
+- **surface** — the Mirror's **Groups** stop, **People** tab
+  (`ui/LiveGroupsMirrorBody.tsx`, `LgPeopleCard`): today a
+  constellation of the members, a likeness bar per member, and the
+  twin / breaks-ranks labels (D277). The prototype's
+  `spec/group-role-map.jsx` drew a cast from a scenario generator —
+  stars with earned roles orbiting, contested roles between rivals —
+  and is the reference for the idea, not the data.
+- **what it draws** — every member's role in THIS group (the same
+  fold that gives you yours, run for each uid): mark, first name,
+  type, line — *Anna · The Anchor · Where the room lands, you were
+  already standing*; and the crowns of the pick days where D224
+  snapshots exist: *Best advice · 3 of 4*. The twin and breaks-ranks
+  labels stay. A member under the floor is listed with their count,
+  not omitted.
+- **data and basis** — `groupRole` over the stop's own reveals (or the
+  ledger), per member; nominations from `pickUid` snapshots, counted
+  only when the counted votes agree (`groupPortrait`'s
+  `majorityPickUid` rule); the same floors as request 5. Zero reads
+  beyond the stop's own.
+- **states** — a group under the floor for everyone (today's People
+  card, unchanged); some members over it; crowns present or absent
+  (pre-D224 reveals carry none); demo: the demo body keeps its sample
+  people and never draws this.
+- **interaction** — tap a member: their page; tap a crown: the pick
+  day's reveal row; the constellation keeps its place above.
+- **vocabulary** — `LgPeopleCard` and the stop's tab row; `TypeMark`
+  at 20 px beside a name (the Kindred rows' shape, D156 §7); `COPY.md`
+  — a role is said to a person in front of their group.
+- **constraints** — `LiveGroupsMirrorBody` is a static import in
+  `mirror-tab`, so anything with weight goes behind `React.lazy` as
+  `LgField` and `GroupCompare` do; zero new reads; 44 px targets;
+  the floor is D1's line — no member wears a role the days do not
+  earn.
+- **why** — the group is a population the Mirror already draws; a
+  cast is the group reading itself, which is what a group stop is
+  for. Every input is public (D98) and already on screen with names.
+- **status** — `requested` (waits on the plan's owner call).
 
 ## Planned
 

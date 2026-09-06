@@ -1,4 +1,4 @@
-// The voter samples' arithmetic (D385), pinned:
+// The voter samples' arithmetic (D396), pinned:
 //   1. one row per person — an edit or a replayed day moves the row, it
 //      never adds one;
 //   2. the cap keeps the newest, in a total order a re-run reproduces;

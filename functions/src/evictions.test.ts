@@ -1,7 +1,7 @@
 // The bucket cap's discards are observable only if the trigger says so —
 // `evictForNewBucket` (pure.ts) ran silently from the day it was written,
 // and the first question with answers from 25 cities would have dropped
-// cohort counts with no line anywhere (D386, ALGORITHM-REFLECTION §4.4).
+// cohort counts with no line anywhere (D397, ALGORITHM-REFLECTION §4.4).
 //
 // What these pin is the reporting contract the alert chain rests on, not
 // the fold (pure.test.ts has that): the structured half carries

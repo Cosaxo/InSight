@@ -67,9 +67,9 @@ import { WORLD_ANSWER_SURFACES } from "./voters";
 export const FOLLOW_CAP = 50;
 
 /**
- * Answers to read per followed account — the NEWEST ones, since D386.
+ * Answers to read per followed account — the NEWEST ones, since D397.
  *
- * WHICH answers, when it binds, is the whole question. Until D386 the
+ * WHICH answers, when it binds, is the whole question. Until D397 the
  * query below carried no `orderBy`, and an unordered `limit` in Firestore
  * takes documents by NAME — here the question id — so past this cap a
  * member's likeness was computed from the alphabetically-first 300

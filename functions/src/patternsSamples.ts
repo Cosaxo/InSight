@@ -1,4 +1,4 @@
-// patternsSamples.ts — the nightly voter samples (D385), pure.
+// patternsSamples.ts — the nightly voter samples (D396), pure.
 //
 // WHY. Every list the device intersects — Kindred's twelve, the People
 // lens's twelve, the pair card's four — is the same query: the newest 200
@@ -17,7 +17,7 @@
 // THE SHAPE, and why rows are a map. `rows` is keyed by uid — one row per
 // person by construction (an edit overwrites its key), and erasure is a
 // field delete: deleteAccount removes `rows.{uid}` from every sample
-// without reading who else is in it (index.ts, the D385 arm). Order is
+// without reading who else is in it (index.ts, the D396 arm). Order is
 // carried by each row's `d`, the day the answer was ledgered; the client
 // sorts newest first. Trimming to the cap drops the oldest days, then the
 // highest uids within a day, so a re-run reproduces the same set.

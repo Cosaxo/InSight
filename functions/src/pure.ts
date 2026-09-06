@@ -377,8 +377,8 @@ export interface DuelAggState {
   plays: number; // group-days revealed
   total: number; // persons counted — the unit the k-floor applies to
   counts: Record<string, number>; // per-option, bank-option questions only
-  guessTotal: number; // duo guesses cast (both partners may guess)
-  guessMatches: number; // …of which called the partner's actual pick
+  guessTotal: number; // guesses cast — a duo's at the partner, a group's at the room (D386)
+  guessMatches: number; // …of which landed: the partner's actual pick, or an option tied for the top
 }
 
 /**
@@ -512,6 +512,23 @@ export function duelAggDelta(
       if (!inRange(guess)) continue;
       guessTotal++;
       if (guess === votes[1 - i].optionIdx) guessMatches++;
+    }
+  } else if (mode === "group") {
+    // A group's guess is a call on where the room lands (D386): a hit
+    // when it names an option tied for the top of the counted votes.
+    // Scored only against a room of two or more — with one counted vote
+    // the "room" is the guesser, and calling your own answer is not a
+    // read. The band the scorecard reads is the same one: near 100% the
+    // room is predictable, at chance nobody can tell where it goes.
+    const counted = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (counted >= 2) {
+      const top = Math.max(...Object.values(counts));
+      for (const v of votes) {
+        const guess = v.guessIdx;
+        if (!inRange(guess)) continue;
+        guessTotal++;
+        if ((counts[String(guess)] || 0) === top) guessMatches++;
+      }
     }
   }
   return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
@@ -821,11 +838,11 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 export const BUCKET_EVICT_BELOW = 5;
 
 /**
- * What the cap did to a bucket, reported to whoever folds (D386). Both
+ * What the cap did to a bucket, reported to whoever folds (D397). Both
  * outcomes ran silently until this callback: an EVICTION drops a
  * sub-floor bucket from the hot map to admit `bucket`; a REFUSAL keeps
  * the newcomer out because every slot is published. `total` is the
- * victim's count, or 0 for a newcomer. Since D388 neither DISCARDS on the
+ * victim's count, or 0 for a newcomer. Since D399 neither DISCARDS on the
  * vote path — the cell moves to the tail below — so the `agg_evict` line
  * the trigger emits per call now reads "this dimension is past the hot
  * document's cap and its tail is live", which a reader's City stop pays
@@ -840,7 +857,7 @@ export type OnBucketCap = (
   total: number,
 ) => void;
 
-// ── the tail (D388, ALGORITHM-REFLECTION §4.4 step 2) ─────────────────
+// ── the tail (D399, ALGORITHM-REFLECTION §4.4 step 2) ─────────────────
 //
 // The cap used to DISCARD: an evicted bucket's partial count was gone and a
 // refused newcomer's answer counted in `total` and in no cohort cell. Now
@@ -991,7 +1008,7 @@ export function overflowTail(shards: OverflowShards): { tail: BucketTail; pendin
 }
 
 /**
- * The edit's -old/+new inside the tail (D86 meets D388): for each
+ * The edit's -old/+new inside the tail (D86 meets D399): for each
  * dimension where the answer's bucket lives in the tail rather than the
  * hot map, the shard's increments — `from: -1, to: +1` — under exactly
  * retargetAnchors' skip rule: a cell that does not hold the old option is
@@ -1373,7 +1390,7 @@ export function foldCanonAnchors(
     // slots are just as attackable here, and for the same reason. No tail:
     // the published catalog `by` is a lossy projection of the board by
     // design (D17), so a complete tail of it would complete nothing a
-    // reader can see; the discard here is the one D386's alert still means.
+    // reader can see; the discard here is the one D397's alert still means.
     if (admitBucket(byDim, dim, bucket, onCap) !== "hot") continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;

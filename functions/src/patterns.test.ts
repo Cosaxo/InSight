@@ -47,17 +47,17 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
   const users = new Map<string, PatternsUserState>();
   const samples = new Map<string, SampleDoc>();
   const state = {
-    /** The voter samples as the last putSamples left them (D385). */
+    /** The voter samples as the last putSamples left them (D396). */
     samples,
     /** The publication as the last putModel left it — whole, cloned, the
-     * way the Firestore store reads the document back (D383). */
+     * way the Firestore store reads the document back (D394). */
     pub: null as PatternsPublication | null,
     users,
     putModelCalls: 0,
     breakPutModelOnce: false,
     // The shapes the older cases read, derived from the publication: the
     // ONLINE engine's model wherever it lives tonight, and the engine's
-    // own scorecard fields. The setter seeds a pre-D383 document.
+    // own scorecard fields. The setter seeds a pre-D394 document.
     get model(): (PatternsModel & { lastDay?: string }) | null {
       const p = this.pub;
       if (!p) return null;
@@ -507,7 +507,7 @@ describe("the scorecard the run publishes", () => {
     expect(q?.note).toBe(PATTERNS_QUALITY_NOTE);
     // Both people are fresh, so θ·L is zero and every guess IS the
     // marginal's: the baseline equals the fit's bits and skill is 0 — the
-    // reading the probe found in production's own regime (D382).
+    // reading the probe found in production's own regime (D393).
     expect(q?.baselineBits).toBe(q?.bits);
     expect(q?.skill).toBe(0);
     expect(r.skill).toBe(0);
@@ -686,11 +686,11 @@ describe("what the fit publishes for the tab's gate", () => {
     // read for whoever comes to draw it
     expect(loadings.data.quality).toEqual(QUALITY);
     expect(loadings.data.displacement).toEqual(DISPLACEMENT);
-    // …and the seed-distance summary (D382), a property of the model rather
+    // …and the seed-distance summary (D393), a property of the model rather
     // than of a day, so it rides every publish
     expect(loadings.data.seeds).toEqual(SEEDS);
     // the whole publication, plus the server clock, and nothing undefined
-    // for Firestore to refuse (D383)
+    // for Firestore to refuse (D394)
     expect(loadings.data.engine).toBe("sgd");
     expect(loadings.data.lambdaU).toBe(SGD_LAMBDA_U);
     expect(loadings.data).toHaveProperty("at");
@@ -731,14 +731,14 @@ describe("what the fit publishes for the tab's gate", () => {
   });
 });
 
-// ── the candidate engine (D383) ───────────────────────────────────────
+// ── the candidate engine (D394) ───────────────────────────────────────
 //
 // The sweep compacts each day's answers onto the person's private map,
 // scores the candidate one step ahead on the same two-option observations
 // the online engine scores itself on, re-solves it over every map, and
 // hands it the rows only after a fortnight of better skill. Everything
 // here runs against the memory store; the arithmetic is patternsAls.test.ts's.
-describe("the candidate engine (D383)", () => {
+describe("the candidate engine (D394)", () => {
   const DAY = 24 * 3600 * 1000;
   const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
   // a test item and a multi-option daily question from the real bank, so
@@ -886,7 +886,7 @@ describe("the candidate engine (D383)", () => {
 });
 
 
-// ── the voter samples (D385) ──────────────────────────────────────────
+// ── the voter samples (D396) ──────────────────────────────────────────
 describe("the voter samples the sweep publishes", () => {
   const DAY = 24 * 3600 * 1000;
   const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;

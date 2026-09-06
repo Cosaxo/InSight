@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 134
-questions of 851 seeded; the production backend is deployed. **Measured
+questions of 913 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      851 questions land in `v2_questions` — idempotent and, since D34,
+      913 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **851** after the K=5 test expansion, D103's
+      and the bank is **913** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -413,13 +413,24 @@ arithmetic.
       same console page, and having one without the other looks identical
       to having neither.
 
+      **The soak clock did not start on 2026-08-05 (D388).** Registering
+      the DeviceCheck provider was necessary and not sufficient: the app
+      configured the native SDK and never bridged its token into the
+      JavaScript SDK that makes the requests, so the metrics this row was
+      meant to start accruing read 0% verified from that day to
+      2026-09-06, and every reading of them was explained away as the
+      browsers. 3.4 has the consequence; the clock starts with the first
+      build after #414.
+
       **AND THE REMAINING HALF IS NOT BEING DONE (D337, 2026-08-30).**
       The owner's reading, checked against the tree and correct: there is
       no public web client and none is planned. `web/` is seven static
       pages, none of which loads Firebase — `web/home.html` says so in its
       own comment, *"Deliberately NOT the app: InSight is a native
-      product"* — and the shipping product attests through DeviceCheck.
-      So the web reCAPTCHA provider was never for users. It is for the two
+      product"* — and the shipping product is configured to attest
+      through DeviceCheck (and does from the first build after #414; until
+      then it never had — D388). So the web reCAPTCHA provider was never
+      for users. It is for the two
       browsers that read production Firestore: **a developer's, and the
       screenshot job's**, both of which stop working the moment 3.4 flips.
       This step never said that, which is why it read as a launch item.
@@ -1096,7 +1107,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 851 seeded questions are live regardless.
+      working, not a leak — the 913 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1110,6 +1121,23 @@ start.
       callables already enforce in prod; `APPCHECK_ENFORCE=false` on the
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
+
+      **THE SOAK NEVER STARTED, AND THE 0% WAS THE SHIPPING BUILD (D388,
+      2026-09-06).** Every reading of these metrics — 2026-08-27's ~3,750
+      requests all MISSING, the console on 2026-09-06 at 0% verified —
+      was explained as browsers and CI, and was in fact every phone too:
+      `src/lib/appcheck.ts` initialised the NATIVE App Check SDK and never
+      registered an instance on the JavaScript SDK that makes every
+      request, so no build has ever sent a token. The bridge the plugin
+      documents is in the tree from #414; the first build carrying it is
+      the one that starts this row's 24–48h, and "near 100%" is then read
+      off phones rather than off nothing. Flipping on the old reading
+      would have refused every phone. The callables that already enforce
+      have been refusing every phone the whole time — the 2026-09-06
+      deploy log shows `APPCHECK_ENFORCE:` empty, so the switch is not
+      set — and D388 has the list and the interim choice
+      (`APPCHECK_ENFORCE=false` until that build is on phones, or wait),
+      which is the owner's.
 
       **The flip is Actions → App Check → `enforce` (D367)**, service by
       service, `apply` off first: the dry run prints the current mode and
@@ -1130,8 +1158,10 @@ start.
 
 The harness, the graphic and the copy all landed 2026-08-03. **The copy is
 pushed as of 2026-08-08** and so is the age rating; what is left here is a
-**recapture against live data**, the privacy form, and the trader document
-in the post.
+**recapture against live data** and the privacy form. (This sentence
+also named "the trader document in the post" until 2026-09-06; that
+document arrived, went up and verified — 4.3b — and the clause outlived
+the fact, the D39 shape one sentence wide.)
 
 The recapture is the one with a real precondition: it wants real answers
 on screen. Under D81's pause one answer per question is enough (counts
@@ -1140,11 +1170,27 @@ empty bank puts *"You're first"* where every crowd figure should be
 (there is no floor since D98 — the first answer publishes exactly).
 That is a tester-count problem, not a workflow problem.
 
-- [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
-      *Screenshots* → Run workflow.** Capture with upload unticked, download
-      the `store-screenshots` artifact, **look at them**, then re-run with
+- [x] **4.1 Recapture the screenshots in LIVE mode — UPLOADED 2026-09-06
+      (run 10, six to App Store Connect).** Actions → *Screenshots* → Run
+      workflow. Capture with upload unticked, download the
+      `store-screenshots` artifact, **look at them**, then re-run with
       upload ticked. Six scenes × both store sizes (1320×2868 and
       1080×1920), asserted against the store specs at generation.
+
+      **How it closed.** Run 8 (#414's head) captured `mode = LIVE`,
+      12/12, after two harness regressions were fixed on the same branch
+      — the reveal's `sd-opt` marker and D356's paint-before-attach (the
+      commit on `scripts/gen-screenshots.mjs` has both). The owner held
+      the upload that morning for the new visuals being made in Claude
+      Design, then chose the release over the wait — *"current look,
+      upload the screenshots"* — so the visuals ship with a later version
+      and this row runs again from capture when they do. Run 9 with
+      upload on lost the Play-size profiles scene to a click that never
+      found the chip still (the drive is bounded now; its commit says
+      why); run 10 captured 12/12 and `asc-push` uploaded the six 6.9"
+      captures into a new en-US `APP_IPHONE_67` set — Apple files the
+      1320×2868 size under that display type, which is why the workflow
+      defaults to it. The Play set stays local until 3.1.
 
       **The committed captures are a demo preview, not the shipping set.**
       The harness names the one that must not ship: the reveal shows
@@ -1296,8 +1342,21 @@ That is a tester-count problem, not a workflow problem.
       launch and add them on verification without a new review, which
       stays the way to register the ENK (D69's way out) before the home
       address publishes on any listing.
-- [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
-      Mandatory; Apple accepts no submission without it.
+- [x] **4.4 The privacy nutrition label — PUBLISHED 2026-09-06.** The
+      last form, and it is manual; Apple accepts no submission without it.
+
+      **How it closed.** Eleven data types, typed by the owner from App
+      Store metadata run 13's `privacy (report only)` summary into the
+      App Privacy form and published the same afternoon: ten with App
+      Functionality (Other User Content also Product Personalization),
+      Product Interaction with Analytics, every row linked to identity,
+      tracking off — `app-privacy.json` as it stands, `check:store-forms`
+      green. One transcription slip was caught on the review pass before
+      Publish: Product Personalization had landed on Photos or Videos
+      instead of Other User Content. Eleven near-identical dialogs with
+      the two that differ side by side is exactly why the printout ends
+      *"read docs/STORE-FORMS.md before ticking anything"*, and why the
+      pass was worth the minutes.
 
       **NINE ROWS SINCE D175 AND D178, AND THIS STEP SAID SEVEN UNTIL
       BUILD 18's PRE-FLIGHT.** Precise Location and Photos or Videos are
@@ -1522,20 +1581,33 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [ ] **5.5 Apply the ten monitoring alerts — EIGHT VERIFIED ARMED AND
-      WIRED 2026-08-27 (D333); the NINTH and TENTH are committed and not
-      applied.** **REOPENED 2026-09-02 (D349); the tenth added 2026-09-06
-      (D386)** — `monitoring/onV2AnswerCreated-evictions.json` and its
-      `agg_evict` metric, the breakdown cap's discards, which had no line
-      anywhere. Same dispatch arms both. `monitoring/paid-refund-stuck.json`
+- [x] **5.5 The first nine monitoring alerts, applied — ALL NINE VERIFIED
+      ARMED 2026-09-06; eight of them armed and wired 2026-08-27 (D333).
+      The tenth is 5.5b.**
+      **CLOSED 2026-09-06.** The ninth, `monitoring/paid-refund-stuck.json`,
+      went up in two dispatches of **Arm monitoring**, and the gap between
+      them is the thing to know before the next new policy: run 9 created
+      the two log-based metrics it selects on and then failed creating
+      the policy — `404 … Cannot find metric … up to 10 minutes` — because
+      a freshly created log-based metric is not selectable by a policy
+      until it has propagated. Run 10, dispatched after that window,
+      reported `✓ policy "A campaign refund is stuck and needs an
+      operator" — created` (`done, 1 created`) under the `InSight oncall`
+      channel the applier names in its first line. Then the instrument:
+      **Observe production** run 16 reads `alertPolicies 9 live, 9
+      enabled; ALL committed policies are armed`, which is the sentence
+      this box is done on. What nobody has yet read is a page that has
+      ARRIVED — the applier's own closing line asks for a test page from
+      the console, and that is the owner's hand, not a workflow's.
+      **REOPENED 2026-09-02 (D349).** `monitoring/paid-refund-stuck.json`
       landed with the paid pipeline's first alert of any kind, and with
       the two log-based metrics it selects on. Nothing in this tree arms
-      a policy — `monitoring:apply` does, and it has not been run since —
-      so the money alert is committed, gated by `check:monitoring`, and
-      silent. Dispatch **Arm monitoring** once more; the 2026-08-27
-      verification below stands for the eight it names and says nothing
-      about the ninth, which is why moving this heading's count from
-      eight to nine was not an edit that could be made on its own.
+      a policy — `monitoring:apply` does, and it had not been run since —
+      so the money alert was committed, gated by `check:monitoring`, and
+      silent. The 2026-08-27 verification below stands for the eight it
+      names and said nothing about the ninth, which is why moving this
+      heading's count from eight to nine was not an edit that could be
+      made on its own — and why it moved only with run 16's line.
       Found already applied on 2026-08-27 (the D303 path had run):
       the dry run reports every object `already exists`, `observe` reads
       `armed: true`, and — the half a green count cannot see — a direct
@@ -1599,7 +1671,19 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 30.**
+- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+      TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D397), is
+      committed and not applied.** The breakdown cap's `agg_evict`
+      metric and its policy landed after run 16 verified the nine, so
+      **Arm monitoring** owes one more dispatch, and 5.5's own lesson
+      applies to it: a freshly created log-based metric is not selectable
+      by a policy for up to ten minutes (run 9's `404 … Cannot find
+      metric`), so expect two dispatches, or one after the window. Since
+      D399 the line the alert counts means the cap's tail is live for a
+      question, not that a count was lost — its runbook says what to do,
+      which is to move one number in the cost model. *Source:* D397, D399;
+      `docs/DEPLOYMENT.md` § The cap alert.
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 32.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -2147,9 +2231,11 @@ That is a tester-count problem, not a workflow problem.
          rather than assume.
 
       **Rehearse on test keys before live ones.** The path has never run
-      against real Stripe, and the one alert that watches it
-      (`monitoring/paid-refund-stuck.json`, 5.5) is committed and not yet
-      armed — so today a stuck refund is silent twice over.
+      against real Stripe. The one alert that watches it
+      (`monitoring/paid-refund-stuck.json`, 5.5) has been armed since
+      2026-09-06, so a stuck refund would now page — which says nothing
+      about whether the path works, only that its one known failure is
+      no longer silent. (Until that day it was silent twice over.)
 
       **This step does not decide WHETHER the door ships** — that is 6.0,
       and it comes first. If 6.0 takes shape A the door leaves the binary

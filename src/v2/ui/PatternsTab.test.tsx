@@ -45,7 +45,7 @@ const item = (qid: string, L: number[], mine: number | null) => ({
 
 vi.mock("../data/patterns", () => ({
   default: {
-    // D384: the viewer's evidence and the published ridge, read by the
+    // D395: the viewer's evidence and the published ridge, read by the
     // People lens's own solve — empty and the shipped value here
     evidence: () => [],
     lambdaU: () => 0.5,
@@ -83,7 +83,7 @@ vi.mock("../data/live", () => ({
     voters: () => [],
     votersLoading: () => false,
     loadVoters: () => Promise.resolve(),
-    // …through the nightly-sample path since D385: the lens reads and
+    // …through the nightly-sample path since D396: the lens reads and
     // loads rows through these two
     votersOrSample: () => [],
     loadVoterSample: () => Promise.resolve(),
@@ -133,14 +133,28 @@ const swipe = (el: Element, dx: number) => {
   fireEvent.touchEnd(el, at(160 + dx));
 };
 
-describe("the map's meta line", () => {
-  it("says what the picture holds — answered, open, and how many ties", async () => {
+describe("the sub-row (the ⓘ and one control, 2026-09-06)", () => {
+  it("leads every lens with the guide ⓘ, and keeps the topic select one control", async () => {
     await mount();
-    expect(screen.getByText("2")).toBeTruthy();   // answered
-    expect(screen.getByText("1")).toBeTruthy();   // open
-    expect(screen.getByText(/ties/)).toBeTruthy();
+    // the facts line and the oracle's progress track retired into the
+    // instruments — the hub says the numbers now (the Map suite pins it)
+    expect(screen.queryByLabelText("What the map holds")).toBeNull();
+    const info = screen.getByRole("button", { name: "Legend" });
+    expect(info.getAttribute("aria-expanded")).toBe("false");
     // and the topic filter is one control, not a row that scrolls
     expect(screen.getByLabelText("Topic").tagName).toBe("SELECT");
+  });
+
+  it("opens the open lens's legend, and remembers across a lens swap", async () => {
+    const { container } = await mount();
+    expect(container.querySelector(".ln-key")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Legend" }));
+    expect(screen.getByRole("button", { name: "Legend" }).getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector(".ln-key"), "the guide did not reach the lens").toBeTruthy();
+    // one flag for the tab: walking to another lens keeps it open
+    swipe(container.querySelector(".pt-wrap")!, 120); // map → oracle
+    expect(screen.getByRole("tab", { name: "Oracle" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("button", { name: "Legend" }).getAttribute("aria-expanded")).toBe("true");
   });
 });
 
@@ -149,7 +163,9 @@ describe("the axis", () => {
 
   it("walks the ruler: a drag left opens the next lens along", async () => {
     const { container } = await mount();
-    expect(screen.getByText(/How your questions connect/)).toBeTruthy(); // the map
+    // the map is open (its title retired into the guide, so the ruler is
+    // the witness now)
+    expect(screen.getByRole("tab", { name: "Question map" }).getAttribute("aria-selected")).toBe("true");
     swipe(wrap(container), -120);
     // the people map is the next stop right of the question map
     expect(screen.getByRole("tab", { name: "People map" }).getAttribute("aria-selected")).toBe("true");
@@ -190,5 +206,59 @@ describe("the axis", () => {
     fireEvent.touchEnd(wrap(container), at(150, 220));
     swipe(wrap(container), -30);
     expect(screen.getByRole("tab", { name: "Question map" }).getAttribute("aria-selected")).toBe("true");
+  });
+});
+
+// ── the header dial (2026-09-06): the shell holds the lens, the tab
+// reports every move, and the two can never disagree ──────────────────
+describe("the lifted lens", () => {
+  const mountWired = async (props: Record<string, unknown>) => {
+    const { default: PatternsTab } = await import("./PatternsTab");
+    return render(<PatternsTab {...props} />);
+  };
+
+  it("reports a swipe upstream and adopts the dial's own move", async () => {
+    const onLens = vi.fn();
+    const { container, rerender } = await mountWired({ lens: "map", onLens });
+    swipe(container.querySelector(".pt-wrap")!, -120); // map → people
+    expect(onLens).toHaveBeenCalledWith("people");
+    // the shell answers by moving the prop — the tab follows it, so the
+    // dial in the header and the in-page ruler agree
+    const { default: PatternsTab } = await import("./PatternsTab");
+    rerender(<PatternsTab lens="oracle" onLens={onLens} />);
+    expect(screen.getByRole("tab", { name: "Oracle" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("keeps its own state on a bare mount — the fixtures need no shell", async () => {
+    const { container } = await mountWired({});
+    swipe(container.querySelector(".pt-wrap")!, 120); // map → oracle, internally
+    expect(screen.getByRole("tab", { name: "Oracle" }).getAttribute("aria-selected")).toBe("true");
+  });
+});
+
+describe("the folding ruler (2026-09-06)", () => {
+  it("folds after a lens is used, tells the shell, and a pull at the top brings it back", async () => {
+    const onDock = vi.fn();
+    const { default: PatternsTab } = await import("./PatternsTab");
+    const { container } = render(<PatternsTab ruler onDock={onDock} />);
+    const rulerBox = () => container.querySelector(".pt-wrap > div[aria-hidden]")!;
+    expect(rulerBox().getAttribute("aria-hidden")).toBe("false");
+    // a tap that lands in the lens body is the ruler's cue to step aside
+    fireEvent.pointerUp(container.querySelector(".pt-stack")!);
+    expect(onDock).toHaveBeenLastCalledWith(true);
+    expect(rulerBox().getAttribute("aria-hidden")).toBe("true");
+    // a deliberate pull down at the top of the body brings it back
+    const at = (x: number, y: number) => ({ touches: [{ clientX: x, clientY: y }] });
+    fireEvent.touchStart(container.querySelector(".pt-wrap")!, at(160, 80));
+    fireEvent.touchMove(container.querySelector(".pt-wrap")!, at(160, 140));
+    expect(onDock).toHaveBeenLastCalledWith(false);
+    expect(rulerBox().getAttribute("aria-hidden")).toBe("false");
+  });
+
+  it("stays put without the ruler flag — bare mounts have no header to dock into", async () => {
+    const { default: PatternsTab } = await import("./PatternsTab");
+    const { container } = render(<PatternsTab />);
+    fireEvent.pointerUp(container.querySelector(".pt-stack")!);
+    expect(container.querySelector(".pt-wrap > div[aria-hidden]")).toBeNull();
   });
 });

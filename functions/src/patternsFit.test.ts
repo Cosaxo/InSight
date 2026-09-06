@@ -265,7 +265,7 @@ describe("the prequential score", () => {
     expect(score).toEqual({ n: 1, bits: 1, baseBits: 1, perQ: { "q-new": { n: 1, bits: 1, baseBits: 1 } } });
   });
 
-  // ── the baseline (D382) ──────────────────────────────────────────────
+  // ── the baseline (D393) ──────────────────────────────────────────────
   //
   // A fit whose vectors carry nothing scores exactly what the marginal
   // alone scores. Until this row existed the scorecard published 0.93

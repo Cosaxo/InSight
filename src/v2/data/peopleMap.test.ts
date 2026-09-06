@@ -1,13 +1,15 @@
 // The People lens's arithmetic (D214), pinned before the pixels: a crowd
-// with known structure must come out placed, gated, counted and labeled
-// exactly — the honesty rules in peopleMap.ts's header are the spec, and
-// each case below names the rule it holds.
+// with known structure must come out placed, gated and counted exactly —
+// the honesty rules in peopleMap.ts's header are the spec, and each case
+// below names the rule it holds. (The field-label placement this file
+// used to pin retired with the 2026-09-06 design: no name is standing
+// type on the field, so the fold stopped solving where names go.)
 import { describe, expect, it } from "vitest";
 import {
   countryOf,
   foldPeople,
   peopleFetchSet,
-  PEOPLE_LABELS,
+  PEOPLE_ALIKE,
   PEOPLE_MIN_SHARED,
   PEOPLE_QUESTIONS,
   PEOPLE_C,
@@ -118,7 +120,7 @@ describe("foldPeople", () => {
     expect(Math.abs(field.me.x - aX)).toBeLessThan(Math.abs(field.me.x - bX));
   });
 
-  it("solves the viewer from their own wider evidence when the caller has it (D384)", () => {
+  it("solves the viewer from their own wider evidence when the caller has it (D395)", () => {
     // every pool item loads along axis 0; evidence along axis 1 alone
     // moves the viewer's dot off the crowd's axis, and the strangers are
     // placed exactly as before
@@ -144,25 +146,20 @@ describe("foldPeople", () => {
     expect(by.get("b1")!.tie).toBeNull();
   });
 
-  it("keeps every dot inside the RIM and labels at most the cap, uniquely", () => {
+  it("keeps every dot inside the RIM", () => {
     // the frame is a disc since 2026-09-02: a rectangular clamp would
     // leave a pushed dot sitting in a corner the field does not have
     for (const p of [...field.placed, field.me]) {
       expect(Math.hypot(p.x - PEOPLE_C, p.y - PEOPLE_C)).toBeLessThanOrEqual(PEOPLE_C - p.r - 12 + 1e-9);
     }
-    const labeled = field.placed.filter((p) => p.lab);
-    expect(labeled.length).toBeLessThanOrEqual(PEOPLE_LABELS);
-    const names = labeled.map((p) => p.name);
-    expect(new Set(names).size).toBe(names.length);
   });
 
-  it("rails exactly the labelled people, nearest first (the field and the rail agree)", () => {
-    expect([...field.near.map((p) => p.uid)].sort())
-      .toEqual(field.placed.filter((p) => p.lab).map((p) => p.uid).sort());
-    const d = (p: { x: number; y: number }) => Math.hypot(p.x - field.me.x, p.y - field.me.y);
-    for (let i = 1; i < field.near.length; i++) {
-      expect(d(field.near[i - 1])).toBeLessThanOrEqual(d(field.near[i]));
-    }
+  it("rows at most the cap, each named, no name twice", () => {
+    // three rows since 2026-09-06 — the one place a name is standing type
+    expect(field.alike.length).toBeLessThanOrEqual(PEOPLE_ALIKE);
+    const names = field.alike.map((p) => p.name);
+    expect(names.every(Boolean)).toBe(true);
+    expect(new Set(names).size).toBe(names.length);
   });
 
   it("sizes a dot in two steps, and draws nothing off a hue", () => {
@@ -199,17 +196,12 @@ describe("the fold's guards", () => {
     expect(uids.has("negative")).toBe(false);
   });
 
-  it("leaves a nameless account drawn but unlabeled (D167 — no invented names)", () => {
+  it("leaves a nameless account drawn but never rowed (D167 — no invented names)", () => {
     const anon = (qid: string): PeopleRow[] | null =>
       (rowsOf(qid) ?? []).map((r) => (r.uid.startsWith("a") ? { ...r, name: "" } : r));
     const field = foldPeople(ITEMS, FETCHED, anon);
-    for (const p of field.placed) {
-      if (p.uid.startsWith("a")) {
-        expect(p.name).toBe("");
-        expect(p.lab).toBeNull();
-      }
-    }
-    // still drawn — anonymity thins the labels, never the crowd
+    for (const p of field.alike) expect(p.name, "a row with no name to carry is an invented identity").not.toBe("");
+    // still drawn — anonymity thins the rows, never the crowd
     expect(field.placed.some((p) => p.uid === "a1")).toBe(true);
   });
 
@@ -286,20 +278,18 @@ describe("peopleFetchSet", () => {
 
 // ── "Most like you" ranked on pixels, not on likeness ──────────────
 //
-// The rail is labelled "Most like you", each chip prints "agrees X of Y",
-// and each chip is coloured by that number. It rendered `near` — this
-// fold's LABEL set, ordered by distance from your dot on the field.
+// The rows are labelled "Most like you" and each prints "agrees X of Y".
+// They once rendered `near` — the retired label-placement set, ordered by
+// distance from your dot on the field.
 //
 // Position is components 0 and 1 of a unit-normalised EIGHT-dimensional
 // solve, so agreement living in the other six is discarded before the
-// distance is taken. The rail could therefore lead with the person who
+// distance is taken. The rows could therefore lead with the person who
 // agrees with you least, in the colour that says "mostly disagrees",
 // while the real match sat at the opposite rim.
 //
-// `alike` is the rail's own list now, ranked on the number the chip
-// already shows. `near` keeps the labels, where proximity is the right
-// answer because it is a layout problem.
-describe("the rail that says most like you", () => {
+// `alike` ranks on the number each row already shows.
+describe("the rows that say most like you", () => {
   // Eleven questions whose loading sits on a latent dimension the field
   // does NOT draw, and one on a dimension it does. Xena disagrees on the
   // eleven and agrees on the drawn one; Yuri is the reverse.
@@ -324,15 +314,7 @@ describe("the rail that says most like you", () => {
     const dist = (p: typeof byName.XENA) => Math.hypot(p.x - f.me.x, p.y - f.me.y);
     expect(dist(byName.YURI), "the projection no longer hides the disagreement — pick a new fixture")
       .toBeLessThan(dist(byName.XENA));
-    // …so the rail must lead with the one who agrees, not the one nearby.
-    expect(f.alike[0].name, "the rail crowned the person who agrees least").toBe("XENA");
-  });
-
-  it("leaves the label set ordered by distance, which is a layout question", () => {
-    // `near` is what places the names on the field without collisions, and
-    // proximity is the right answer there. Re-sorting it would have moved
-    // the labels rather than fixed the rail.
-    const f = foldPeople(HIDDEN, FETCH, rowsHidden);
-    expect(f.near[0]?.name, "the labels stopped being placed nearest-first").toBe("YURI");
+    // …so the rows must lead with the one who agrees, not the one nearby.
+    expect(f.alike[0].name, "the rows crowned the person who agrees least").toBe("XENA");
   });
 });

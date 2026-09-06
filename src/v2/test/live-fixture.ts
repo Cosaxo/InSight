@@ -492,6 +492,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // deck's one rating question already carries a vote in most cases,
     // and the ask arm has its own unit suite (LiveMirrorLenses.test.tsx).
     placeAsks: () => [],
+    placeAskTotal: () => 0,
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set
@@ -637,10 +638,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // no answers in the fixture's corpus by default — the evidence is empty
     // and every device solve stays at the origin, the honest cold state
     answeredIndex: () => ({}),
-    // the nightly samples (D385): none in the fixture, so a fold falls back
+    // the nightly samples (D396): none in the fixture, so a fold falls back
     // to the live rows the fixture already serves
     loadVoterSample: async () => {},
-    // the cap's tail (D388): no question in the fixture is near the cap
+    // the cap's tail (D399): no question in the fixture is near the cap
     loadOverflow: async () => {},
     votersOrSample: () => [
       { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },

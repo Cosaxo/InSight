@@ -214,7 +214,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-52 modules are already off the bridge — they export and publish nothing,
+53 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -361,7 +361,15 @@ pre-D98 privacy vocabulary, in copy a user reads — D116),
 `docs/data-inventory.md`, which the store privacy label derives from —
 D130, plus D257's reader column held to the two read rules a script may
 read literally), `check:versions`,
-`check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
+`check:bundle`, **`check:eager-content`** (question content may not be in
+the static first-paint graph — the gate that exists because
+`daily-questions.js`, the file the farm lane appends to every day, was
+fetched before the app could paint, which made the bank's size the app's
+start-up cost and put two content lanes behind the eager budget; the
+worst edge was invisible to `check:bundle`, since a module inlined into
+the entry chunk has no chunk of its own to name, and the answer twice was
+to raise the ceiling instead. Its allowlist is a shrink-only ratchet in
+`check:globals` rule 4's shape), `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
 catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
 and `check:catalogs` — the last three also run on the deploy path,
@@ -513,19 +521,21 @@ an emergency rules fix.
   [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
   [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
   every program lane defers to.
-- **A pull request is merged by the PR shepherd, not by hand.** The
-  owner's merge instruction is the `merge-when-green` label; the shepherd
-  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
-  brings the branch current with `main`, moves colliding decision numbers,
-  waits for green and squash-merges. What a session owes it before the
-  label goes on: a green head with `main` already merged in and its
-  decision numbers already moved (D299) — and then no push, because a
-  commit by anyone but the shepherd after the label spends the grant.
-  `no-shepherd` is the opt-out. Neither label is a session's to apply on
-  its own judgement: the owner's word puts `merge-when-green` there —
-  applied directly, or as a tick on the PR's row in
-  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
-  into the label once the PR is green on its current head (D352).
+- **A pull request is merged BY HAND (D385), and a session merges when
+  the owner says so (D385 amendment).** There is no merge automation in
+  this repository and no label that merges anything. What a session owes
+  before a PR is mergeable is unchanged and is still the whole of the
+  contract: a green head with `main` already merged in and its decision
+  numbers already moved (D299). Then say so and stop — **unless the
+  owner tells you to merge, in that session and about that head, which
+  is the click**. What D385 retired was the unattended lane merging on a
+  label, and its first phrasing read as forbidding the instruction too;
+  the amendment is the owner's own correction (*"the sheperd did not
+  work merge when i say so"*), and it cost a round trip on #408 before
+  it was made. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where
+  the owner tracks what is waiting, and a tick there is still how
+  approval is recorded (D352); what changed is that nothing downstream
+  acts on the tick.
 - **A Routine you create, re-pace, rebind or retire is registered in
   [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
   subscriptions run scheduled lanes against this one repository and no

@@ -330,7 +330,7 @@ export async function runEngagementDigest(
  * "server-only" stays a property of the id discipline. */
 export function firestoreEngagementStore(
   db: Firestore,
-  // The shared, memoised reader in production (nightly.ts, D387); the
+  // The shared, memoised reader in production (nightly.ts, D398); the
   // default is the same pager unshared, for a caller with only a db.
   ledgerDay: LedgerDayReader = (dayKey) => readLedgerDay(db, dayKey),
 ): EngagementStore {
@@ -338,7 +338,7 @@ export function firestoreEngagementStore(
   const metaRef = daily.doc("meta");
   return {
     // One reader for one day of the ledger (ledger.ts). This held the
-    // third copy of the pager until D387 — projected uid + qid + at, its
+    // third copy of the pager until D398 — projected uid + qid + at, its
     // own page loop — and the digest reads the shared day now, so the
     // second and third fold of a night pay no ledger reads at all.
     ledgerDay,
@@ -614,7 +614,7 @@ export const MIN_SHARD_RATE = 0.001;
  * numbers = 8 leaves = 16 entries, against Firestore's 40,000 per
  * document, so 2,500 qids is the ceiling and 1,500 is the fence. At 64
  * characters that is also ~225 KB, comfortably inside 1 MiB. The bank is
- * 851 questions today, so a day cannot hold enough BANK qids to reach the
+ * 913 questions today, so a day cannot hold enough BANK qids to reach the
  * fence. This said "the bank can double before this truncates anything
  * real" and check:figures kept the number current underneath it until the
  * claim expired: at 750 against 1,500 doubling lands exactly ON the fence,
@@ -1139,7 +1139,7 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
 
 // The scheduled function that ran the three folds below — the digest,
 // then the attention fold, then the rollup fold — is `digestEngagementV2`
-// in nightly.ts since D387, where it also hosts the patterns fit and the
+// in nightly.ts since D398, where it also hosts the patterns fit and the
 // taste fold over one shared ledger read. The deploy identity and the
 // heartbeat metric (`engagement_digest`) are unchanged; only the module
 // moved, so that the pass has one home and one header.

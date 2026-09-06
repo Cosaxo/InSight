@@ -1,0 +1,41 @@
+--- recorded/mirror-field.jsx
++++ 2026-09-06/mirror-field.jsx
+@@ -277,8 +277,10 @@
+       cc = (top + bot) / 2;
+     const aspectH = box ? MF_W * (box.h / box.w) : tall ? 470 : MF_H;
+     const h = Math.max(contentH, aspectH);
++    // the figure sits a little high in its frame — read with the header, not the lens row
++    const lift = box ? Math.min(40, Math.max(0, (h - contentH) / 2 - 12)) : 0;
+     return {
+-      y: cc - h / 2,
++      y: cc - h / 2 + lift,
+       h
+     };
+   }, [key, box, tall]);
+@@ -451,7 +453,7 @@
+       alignItems: 'center',
+       gap: 6,
+       fontFamily: 'var(--sans)',
+-      fontSize: 11,
++      fontSize: 12,
+       fontWeight: 600,
+       color: 'var(--ink-3)'
+     }
+@@ -782,7 +784,7 @@
+     key: c,
+     style: {
+       fontFamily: 'var(--sans)',
+-      fontSize: 11,
++      fontSize: 12,
+       fontWeight: 500,
+       color: `oklch(0.34 0.13 ${hue})`,
+       padding: '2px 8px',
+@@ -857,7 +859,7 @@
+   return /*#__PURE__*/React.createElement("div", {
+     style: {
+       marginTop: 'auto',
+-      paddingTop: 16
++      paddingTop: 12
+     }
+   }, /*#__PURE__*/React.createElement("div", {
+     ref: rowRef,

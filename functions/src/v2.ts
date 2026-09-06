@@ -167,7 +167,7 @@ export function breakdownFor(
   return by;
 }
 
-/** The tail's document for one shard of one question (D388). */
+/** The tail's document for one shard of one question (D399). */
 export const overflowRef = (db: Firestore, qid: string, shard: number) =>
   db.collection("v2_agg_overflow").doc(overflowDocId(qid, shard));
 
@@ -217,7 +217,7 @@ export interface BucketCapEvent {
 }
 
 /**
- * The cap's discards, as log lines the alert chain can count (D386).
+ * The cap's discards, as log lines the alert chain can count (D397).
  *
  * `BREAKDOWN_MAX_BUCKETS` bounds the breakdown document (D7's growth
  * arithmetic) and the bound has two silent outcomes — a sub-floor bucket
@@ -284,7 +284,7 @@ export const LEDGER_RETENTION_DAYS = 90;
 // pool is two-option questions only — and an edit's entry carries the
 // NEW side, so a refit leans toward what the person now says.
 //
-// `anchors` joined for the nightly voter samples (D385): the sample a
+// `anchors` joined for the nightly voter samples (D396): the sample a
 // device reads instead of querying two hundred answer documents carries
 // each voter's FROZEN cohort chips (D8), and the ledger is the one place
 // the sample builder can take them from without a second read per entry.
@@ -1033,7 +1033,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // Every question slices since D98 — there is no political carve-out
       // and no per-cell floor. The breakdown folded here is the breakdown
       // published, whole.
-      // The tail (D388): the shards this fold may need, read only where a
+      // The tail (D399): the shards this fold may need, read only where a
       // dimension is at the cap and lacks this answer's bucket — never
       // before the cap, so the ordinary answer still pays the one getAll
       // above and nothing more. What the cap then evicts or refuses goes
@@ -1145,7 +1145,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // churn means the old vote is no longer represented (pure.ts has the
       // accounting). Bucket totals never move.
       retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
-      // …and the same move inside the tail (D388), for a bucket the hot
+      // …and the same move inside the tail (D399), for a bucket the hot
       // map does not hold: its shard is read (only then — capBoundShards
       // is empty for a bucket in the hot map or a dimension under the
       // cap) and the -old/+new lands as increments under retargetAnchors'

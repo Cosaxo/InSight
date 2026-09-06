@@ -1023,14 +1023,14 @@ describe("the cohort day an account never got", () => {
   });
 });
 
-describe("the digest's ledger read (D387)", () => {
+describe("the digest's ledger read (D398)", () => {
   // The pager that lived here — projected uid + qid + at, its own page
   // loop, and the "at"-in-the-projection lesson its test carried — is
-  // `readLedgerDay` in ledger.ts since D387, where ledger.test.ts pins
+  // `readLedgerDay` in ledger.ts since D398, where ledger.test.ts pins
   // the projection against the entry type. What the adapter owes now is
   // smaller and worth one case: it hands the day to the reader it was
   // built with, which in production is the night's shared memo.
-  it("ledgerDay is the reader the store was built with (D387: one read a night, three folds)", async () => {
+  it("ledgerDay is the reader the store was built with (D398: one read a night, three folds)", async () => {
     const asked: string[] = [];
     const reader = async (day: string) => { asked.push(day); return [{ uid: "u1", qid: "daily-000" }]; };
     const db = {

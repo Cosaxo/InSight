@@ -5,12 +5,12 @@
 // parser existed in three copies and the one with a try/catch reported an
 // invented wire size instead of failing. patterns.ts read the day inline
 // until this file; the engagement digest kept a third copy of the pager
-// until D387 folded it into `memoLedgerReader` below; the velocity scan
+// until D398 folded it into `memoLedgerReader` below; the velocity scan
 // keeps its own read on purpose — it wants different fields, a different
 // page size and per-page flag logic, so sharing would couple what only
 // rhymes.
 //
-// ONE READ A NIGHT, THREE FOLDS (D387, ALGORITHM-REFLECTION §4.2). The
+// ONE READ A NIGHT, THREE FOLDS (D398, ALGORITHM-REFLECTION §4.2). The
 // digest, the patterns fit and the taste fold each want yesterday's
 // entries, and each ran as its own scheduled function paging the same
 // day again — the cost model counted the day's entries billed three
@@ -33,7 +33,7 @@ export interface LedgerDayEntry {
    *  Its absence is what marks an entry as a first answer. */
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the nightly voter samples
-   *  (D385). Absent on entries written before the field, and on catalog
+   *  (D396). Absent on entries written before the field, and on catalog
    *  entries. */
   anchors?: Record<string, string>;
 }
@@ -47,7 +47,7 @@ export type LedgerDayReader = (dayKey: string) => Promise<LedgerDayEntry[]>;
 /**
  * `readLedgerDay`, remembered per day for the life of one nightly pass.
  * Three stores built over one of these read the ledger once between them
- * (D387). A read that FAILS is forgotten, so the next fold that asks
+ * (D398). A read that FAILS is forgotten, so the next fold that asks
  * retries rather than inheriting the rejection — the folds are isolated
  * from one another's failures in nightly.ts, and a poisoned memo would
  * undo that.

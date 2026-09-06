@@ -267,7 +267,7 @@ holds it (D161). Of the census above, the topic counts and search still
 read the device's pool; their conversions are recorded in D321 with the
 fixes named.
 
-**What a device accumulates by paging — bounded at the pager, D389**
+**What a device accumulates by paging — bounded at the pager, D400**
 (D350's amendment asked for it, 2026-09-01): a phone that booted daily
 was handed a fresh page per topic every boot whatever it already held
 unanswered — `pageNeedList` took the first `pageSize` ids of the order
