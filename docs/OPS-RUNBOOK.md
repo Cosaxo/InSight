@@ -4,7 +4,7 @@
 production reader, the release recorder and the list worker, created
 2026-09-02 and bound to the ops dispatcher); the probe, the pulse
 responder and the dependency shepherd do not yet.** The merge lane that
-used to be the eighth was retired at D382: no Routine and no Action
+used to be the eighth was retired at D385: no Routine and no Action
 merges anything in this repository, the owner does it by hand.
 § The account-side inventory has the ids and what stopped the other
 three. This file is the contract each one defers to from its first
@@ -71,7 +71,7 @@ they live in one runbook and share one run log.
   responder, the list worker) open or advance pull requests and **never
   merge** — D289's engineering tier, D276 the measured reason. Nothing
   here inherits the content lanes' D212 self-merge. **Nothing in this
-  program merges at all (D382)**: a PR carrying `merge-when-green` is
+  program merges at all (D385)**: a PR carrying `merge-when-green` is
   one the owner has decided to merge, and the owner then merges it by
   hand on GitHub. The label is the owner's act,
   and since D352 (2026-09-02) it has two hands: the owner applies it
@@ -188,7 +188,7 @@ one per lane, so the morning read is one page.
    roll call to a persistent session of its own so no stall elsewhere
    can silence the lane that reports stalls. Record which binding was
    taken in the inventory row. No lane needs the GitHub merge tool at
-   all since D382 — nothing here merges — but a lane that pushes still
+   all since D385 — nothing here merges — but a lane that pushes still
    needs local git writes granted, because `.claude/settings.json`
    deliberately does not carry it (that file reaches every session in
    the repo; the grant here is per PR, by label, and per session, by
@@ -222,7 +222,7 @@ one per lane, so the morning read is one page.
    claude.ai/code/routines before enabling all five daily fires. If it
    binds, the roll call and the production reader are the two to keep.
 7. **Create the label once** in the repository's label list:
-   `merge-when-green`, which since D382 is a marker the merge shift
+   `merge-when-green`, which since D385 is a marker the merge shift
    applies to say a PR is ready for the owner's own merge — nothing
    acts on it automatically. GitHub applies only labels that exist, and
    no lane creates one.
@@ -347,7 +347,7 @@ shepherd and the list worker.** The read-only tier plus
 `mcp__github__list_branches`, `mcp__github__get_check_run`. No merge
 tool in any of the four.
 
-**No merge tier, and that is the point (D382).**
+**No merge tier, and that is the point (D385).**
 `mcp__github__merge_pull_request` is granted to no lane in this
 program. Every lane brings a PR to a state the owner can merge and
 stops there; the merge itself is the owner's click.
@@ -543,7 +543,7 @@ digest line on the run log: checked, green, red, and the one to merge
 first.
 
 **Merge authority:** none. The owner merges from the digest, by hand
-(D382 — nothing in this program merges). If the owner ever grants this lane a
+(D385 — nothing in this program merges). If the owner ever grants this lane a
 standing scope — say, dev-only patch bumps with every runner green —
 the grant is recorded here, in this paragraph, with its date, and the
 lane merges only inside it. Until a sentence stands here, the prompt's
@@ -736,7 +736,7 @@ dispatcher's `create_session` call, which the first fire measures. The
 roll call's first fire is the same day it was created.
 
 **The merge lane's rows are gone from this inventory because the lane is
-(D382).** Its Routine is not: `trig_01Ln6FDEipFzAghqJ777AL5j` lives on
+(D385).** Its Routine is not: `trig_01Ln6FDEipFzAghqJ777AL5j` lives on
 the ops subscription, which no session here can read or disable —
 `list_triggers` returns the caller's Routines and nothing else. It is on
 `OWNER-LIST.md` § Clicks as the one action this retirement needs, and

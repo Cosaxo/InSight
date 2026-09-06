@@ -9,7 +9,7 @@
       `test --prefix functions`, `test:rules`, `test:e2e`
 - [ ] New behaviour has a test that **fails without the change**
 - [ ] Ready to merge: `main` merged in, decision numbers uncollided,
-      green on the current head. The owner merges by hand (D382) — no
+      green on the current head. The owner merges by hand (D385) — no
       lane and no Action merges anything here
 
 ## If this touches the access surface

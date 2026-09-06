@@ -68,6 +68,7 @@ const LIVE = vi.hoisted(() => ({
   // The Scores lens's ask rows (D307) and the vote they cast through the
   // ordinary path. Empty/spy by default; the ask cases supply both.
   placeAsks: (scope: string) => { void scope; return [] as Array<{ id: string; text: string; optionCount: number }>; },
+  placeAskTotal: (scope: string): number => { void scope; return 0; },
   vote: vi.fn((qid: string, optionId: string) => { void qid; void optionId; }),
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
@@ -151,6 +152,7 @@ beforeEach(() => {
   LIVE.myTestResults = () => ({});
   LIVE.aggFor = () => null;
   LIVE.placeAsks = () => [];
+  LIVE.placeAskTotal = () => 0;
   LIVE.vote = vi.fn();
 });
 afterEach(cleanup);
@@ -824,11 +826,37 @@ describe("Scores · the asks (D307)", () => {
     LIVE.placeAsks = () => Array.from({ length: 5 }, (_, i) => ({
       id: `d${i}`, text: `Place question ${i} long enough to read.`, optionCount: 10,
     }));
+    LIVE.placeAskTotal = () => 5;
     mount("scores", []);
     expect(screen.getByText("Place question 0 long enough to read.")).toBeTruthy();
     expect(screen.getByText("Place question 2 long enough to read.")).toBeTruthy();
     expect(screen.queryByText("Place question 3 long enough to read.")).toBeNull();
     expect(screen.getByText("2 more after these.")).toBeTruthy();
+  });
+
+  it("counts the POOL, not the page it was handed (D384)", () => {
+    // The regression this exists to stop. Since D384 the device fetches a
+    // bounded page of ask documents and knows every ask ID, so the two
+    // numbers part company on exactly the stops with the most to offer:
+    // counting the array would say "1 more after these" on a scope
+    // holding forty, which is the same class of quietly-wrong sentence
+    // D1 is about. The line reads the pool.
+    LIVE.placeAsks = () => Array.from({ length: 4 }, (_, i) => ({
+      id: `d${i}`, text: `Place question ${i} long enough to read.`, optionCount: 10,
+    }));
+    LIVE.placeAskTotal = () => 40;
+    mount("scores", []);
+    expect(screen.getByText("37 more after these.")).toBeTruthy();
+    expect(screen.queryByText("1 more after these.")).toBeNull();
+  });
+
+  it("says nothing about a tail when the pool is what is on screen", () => {
+    LIVE.placeAsks = () => Array.from({ length: 3 }, (_, i) => ({
+      id: `d${i}`, text: `Place question ${i} long enough to read.`, optionCount: 10,
+    }));
+    LIVE.placeAskTotal = () => 3;
+    mount("scores", []);
+    expect(screen.queryByText(/more after these/)).toBeNull();
   });
 
   it("offers nothing when every place question is answered", () => {

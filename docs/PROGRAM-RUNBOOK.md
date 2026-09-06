@@ -42,7 +42,7 @@ of `CLAUDE.md`'s new rule sharpens into *never a stop*.
     on the merge list      to the label `approved`               (+ the pinned Console issue)
                      →     the MERGE SHIFT fixes the PR,
                            labels `merge-when-green`
-                     →     the OWNER merges, by hand (D382)
+                     →     the OWNER merges, by hand (D385)
 
     reads the lists  ←     the AXIOM BUILDER (3×/day) opens PRs, docs/WORKLIST.md, AXIOMS.md,
                            files tagged to-dos, proposals,        VISUAL-REQUESTS.md, OWNER-LIST.md,
@@ -232,7 +232,7 @@ log** like the list worker they are.
       Claude 2** — in progress per the owner (2026-09-02); their rows
       in `OPS-RUNBOOK.md` § The account-side inventory and the
       register. The merge lane that used to head this row was retired
-      at D382; the owner merges by hand.
+      at D385; the owner merges by hand.
 - [ ] **5.3 The register's overview.** Once `ROUTINES.md` is on `main`
       (PRs #362 / #365), a section every account may extend: one plain
       sentence per routine, what it does and for whom, beside the
@@ -479,7 +479,7 @@ only what that proves broken; every commit's subject begins `shift:`.
 Push. When every check on the *current* head has concluded green and
 the review is clean, apply `merge-when-green` and post one comment:
 what changed, what was verified, what was left alone. The label then
-marks the PR for the owner's own merge (D382), and because the shift's
+marks the PR for the owner's own merge (D385), and because the shift's
 commits precede it, the labelled head is the head the owner merges.
 
 **When it cannot:** a conflict where both sides changed the same

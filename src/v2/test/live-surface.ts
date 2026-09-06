@@ -35,6 +35,7 @@ export const LIVE_MEMBERS = [
   // lens's ask rows. From the bank, not the aggregates: an unanswered
   // rates question usually has no counts yet, which is the point.
   "placeAsks",
+  "placeAskTotal",
   "anchors", "appBuild",
   // Named who-voted (D98) — the app's only cross-user read, and the
   // reason the reversal was worth doing. On LIVE rather than LIVE.social

@@ -310,7 +310,7 @@ worker, The roll call, The production reader.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | State |
 | --- | --- | --- | --- | --- |
-| ~~InSight PR shepherd (B)~~ | `trig_01MuYGKG82KdEXnqNuXkdviz` | — | — | **retired 2026-09-06 (D382)** — the merge lane is gone: its Action is deleted and no Routine replaces it. The trigger lives on the ops subscription, which no session here can disable, so the row stays until the owner does (`OWNER-LIST.md` § Clicks) |
+| ~~InSight PR shepherd (B)~~ | `trig_01MuYGKG82KdEXnqNuXkdviz` | — | — | **retired 2026-09-06 (D385)** — the merge lane is gone: its Action is deleted and no Routine replaces it. The trigger lives on the ops subscription, which no session here can disable, so the row stays until the owner does (`OWNER-LIST.md` § Clicks) |
 | InSight list worker (B) | `trig_01VH8PvZCaqKciAwzpxmfMYW` | `0 17 * * *` | same dispatcher | enabled |
 | InSight roll call (B) | `trig_017cQ4WECG5mHeFGFnmkVrYQ` | `30 15 * * *` | same dispatcher | **disabled** — § The roll call forbids a dispatcher binding and that is the only one a session can give it; the owner creates it in the web UI |
 | InSight production reader (B) | `trig_01FD7t9MySRfZd19BD9YyEDQ` | `40 6 * * *` | same dispatcher | **retired** — the lane is `.github/workflows/production-reader.yml`, which needs no account bucket |
@@ -454,7 +454,7 @@ filled four rows of `OPS-RUNBOOK.md`'s inventory with real ids and
 written the reason into the rest: **three lanes could not be created
 from a session at all** — the merge lane, the pulse responder and the
 dependency shepherd were refused by the permission classifier. The
-merge lane was retired outright at D382; the other two are the owner's
+merge lane was retired outright at D385; the other two are the owner's
 to create in Claude 2's web UI.
 
 The lesson is rule 2's, one rung up: **the owner's word establishes that
@@ -507,7 +507,7 @@ read their trigger state. The ops program's run log is one issue titled
 sweep's precedent, issue #336. At **17:45 UTC on 2026-09-02** it still
 does not exist; the merge lane's 06:20 and 16:20 slots have both passed
 with no comment on either labelled PR. On traces alone, no ops lane has
-completed a run. (That lane was retired at D382 — it never merged
+completed a run. (That lane was retired at D385 — it never merged
 anything in the four days it ran as an Action either.)
 
 **And the reason is written down rather than invisible**, which is the
@@ -524,7 +524,7 @@ therefore a Routine that exists and has never run:
 - **The program dispatcher** (Claude 3) refused the same shape the same
   day, so the **merge shift** and four siblings relay nothing either.
 - **The GitHub merge tool** has never been approved in the ops
-  dispatcher's own history — moot since D382, which retired the merge
+  dispatcher's own history — moot since D385, which retired the merge
   lane: no Routine in this register may merge, and none needs the tool.
 
 D353's fix is structural rather than another instruction: the charter
@@ -662,14 +662,14 @@ than either file's older half:
 3. **The merge shift** (Claude 3) applies **`merge-when-green`** once the
    PR is green on its current head and it has reviewed the diff as one
    unit.
-4. **The owner merges**, by hand on GitHub (D382). Nothing in this
+4. **The owner merges**, by hand on GitHub (D385). Nothing in this
    register merges, and the label is a marker that a named head is
    ready rather than an instruction any lane executes.
 
 **The rule that a lane may never apply the label is retired**, in the
 owner's words of 2026-09-02 — *"this is wrong, the shepherd can"* —
 which is why step 3 exists at all. (The lane that quote licensed was
-itself retired at D382, for never merging anything; a lane may still
+itself retired at D385, for never merging anything; a lane may still
 apply the label, and the owner still merges.) What did not move is
 that no lane decides: the tick is
 upstream of every label, and a label applied without one is a lane

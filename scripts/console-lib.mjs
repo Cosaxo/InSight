@@ -306,7 +306,7 @@ console workflow runs on that push, mirrors the tick to the label
 there: brings the branch current with \`main\`, runs the full battery,
 reviews the whole diff as one unit, fixes what that proves broken,
 and applies \`merge-when-green\`. **Nothing merges it after that: you
-do, by hand on GitHub** (D382 retired the PR shepherd). The same rows stand in
+do, by hand on GitHub** (D385 retired the PR shepherd). The same rows stand in
 the pinned **Console** issue with clickable boxes; a tick there is the
 same act, mirrored back into this file. Untick here to withdraw an
 approval the shift has not yet acted on. Ticking a *no PR yet* row

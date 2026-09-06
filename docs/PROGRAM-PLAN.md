@@ -74,13 +74,13 @@ Four more facts the design leans on:
 
 - **The merge door exists on paper and not in the world.** A PR
   labelled `merge-when-green` is one the owner has decided to merge,
-  and since D382 the owner then merges it by hand — no lane and no
+  and since D385 the owner then merges it by hand — no lane and no
   Action merges anything. The label exists in the
   repository and five open PRs carry it as this is written; the
   merge lane that was to act on it does not — the session's permission classifier
   refused to create it, along with the pulse responder, the dependency
   shepherd and the probe, and their rows say *create from the web UI*
-  (PR #364). Since D382 an approved PR waits on the owner's own merge,
+  (PR #364). Since D385 an approved PR waits on the owner's own merge,
   which is a click rather than a lane.
 - **The to-do doer's contract already exists** — `OPS-RUNBOOK.md`
   § The list worker, working `WORKLIST.md`: topmost open item, one
@@ -151,7 +151,7 @@ every gate that runs without production secrets), re-review the whole
 diff adversarially as one unit, fix only what that proves broken, with
 every commit it makes prefixed `shift:` — then, when the head is green
 and the review is clean, **apply `merge-when-green`** — which since
-D382 marks it for the owner's own merge. A PR the shift cannot get green
+D385 marks it for the owner's own merge. A PR the shift cannot get green
 stays in the shift's column with exactly what is red and why, and the
 owner decides.
 
@@ -173,7 +173,7 @@ A seeded row, as it would read today:
 
 | PR | From | What | How | State | Stage |
 | --- | --- | --- | --- | --- | --- |
-| #367 | an interactive session (which account, the row would say) | a returning device paints its real deck from disk before the network; an offline answer survives relaunch | the PR body's mechanism, one line, D352/D354 | as GitHub reports it at render time | `ready` — the owner labelled it `merge-when-green` at 11:23 UTC, and since D382 it waits on the owner's own merge |
+| #367 | an interactive session (which account, the row would say) | a returning device paints its real deck from disk before the network; an offline answer survives relaunch | the PR body's mechanism, one line, D352/D354 | as GitHub reports it at render time | `ready` — the owner labelled it `merge-when-green` at 11:23 UTC, and since D385 it waits on the owner's own merge |
 
 ### 2.2 The to-do list — `docs/WORKLIST.md`, extended
 
@@ -231,7 +231,7 @@ Seeded from what the tree and today's PRs already record:
 | Need | Hit by | Blocks | Fix | Status |
 | --- | --- | --- | --- | --- |
 | Create the pulse responder, the dependency shepherd and the probe | the ops session, 2026-09-02 — the permission classifier refused creation from a session | three lanes that do not run | create each in the web UI (claude.ai/code/routines), repository attached, prompt from `OPS-RUNBOOK.md` §4 | open |
-| ~~The GitHub merge tool approved once in the ops dispatcher's own history~~ | — | — | **not needed since D382** — no lane merges, so no lane needs the tool | closed |
+| ~~The GitHub merge tool approved once in the ops dispatcher's own history~~ | — | — | **not needed since D385** — no lane merges, so no lane needs the tool | closed |
 | `FIREBASE_API_KEY` in the environment's configuration | the farm (asked twice), the pulse responder | `npm run scorecard -- --fetch` in a routine; the scorecard stays stale | the environment's settings, not a shell file | open |
 | `ROUTINE_PULSE_FIRE_URL` / `_TOKEN`, `ROUTINE_RELEASE_FIRE_URL` / `_TOKEN` | `pulse.yml`, `ios-release.yml` — the steps are committed and inert | the pulse responder and the release recorder firing from a workflow | one repository variable and one secret each, from the web UI's API trigger | open |
 | The Claude GitHub App on the repository | a lane's event triggers | acting on a label within the hour rather than at the next slot | install from the web UI's prompt | open |
@@ -632,7 +632,7 @@ share a minute with a content lane's self-merge.
 
 ## 8 · What this plan deliberately does not do
 
-- **No lane merges at all (D382).** The owner's `approved` tap is the
+- **No lane merges at all (D385).** The owner's `approved` tap is the
   decision; the shift brings the PR to green and the owner merges it by
   hand. D289's tier stands, with nothing above it.
 - **No lane edits its own contract.** The improver and the maker
@@ -713,7 +713,7 @@ what the runbook builds from. Every one is binding on adoption
    ticking a box in the list file."* — The owner's act is the tick in
    `MERGE-LIST.md`; the console workflow mirrors it to the label
    `approved`; the merge shift applies `merge-when-green` when the PR
-   is green and reviewed; **the owner merges** (D382 — the answer above
+   is green and reviewed; **the owner merges** (D385 — the answer above
    is the owner's word of 2026-09-02, and the lane it licensed was
    retired on 2026-09-06 for never merging anything). `OPS-RUNBOOK.md` §0's
    "no lane ever applies it" is amended to *the owner's act, executed

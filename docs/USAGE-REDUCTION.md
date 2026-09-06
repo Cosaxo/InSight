@@ -98,7 +98,7 @@ one holding 564k tokens.
 
 | What | Before | After | Worth |
 | --- | --- | --- | --- |
-| **Merge lane cadence** (retired, D382) | `55 * * * *`, 24 firings a day | `55 */3 * * *`, 8 | ~16 firings a day at ~$4 |
+| **Merge lane cadence** (retired, D385) | `55 * * * *`, 24 firings a day | `55 */3 * * *`, 8 | ~16 firings a day at ~$4 |
 | **The twelve theory lanes** | every 2nd day, 6.0 runs a day, 7 of them stacked on one date | every 4th day, 3.43 runs a day, spread 3 per date across a four-day cycle | ~$70 a day, and the daily burst no longer meets the five-hour window |
 | **The four ops lanes' binding** | the 564k dispatcher | a new dispatcher session opened empty (`session_01XhD4kBN7fXgeBdFPZEyPY6`), on `claude-haiku-4-5` — a relay is five fields and one line | ~$4 a firing → the cost of a short conversation |
 | **The merge lane's prompt** | contract, `CLAUDE.md` and `ORIENTATION.md` read before it knew if there was work | the cheap gate first; a no-op run reads nothing else | the orientation above, on every idle firing |
