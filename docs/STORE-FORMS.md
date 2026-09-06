@@ -153,6 +153,23 @@ What moving it costs, stated plainly: an optional photo, off by default,
 one 256px object per account, deleted with the account (bytes included —
 `deleteAccount` reaches Storage since D178, which it never did before).
 
+**The iOS purpose strings, and why there are two of them for one control.**
+The photo is added through a plain `<input type="file">` — no camera
+plugin, no code path in this app that asks for a camera. WebKit's upload
+sheet offers one regardless: it builds its menu from the `accept`
+attribute, `image/jpeg` and `image/png` conform to `public.image`, and it
+presents the system camera in-process with no check for a purpose string,
+so iOS terminates the app on the tap. `Info.plist` therefore carries
+NSCameraUsageDescription and NSPhotoLibraryUsageDescription, and the
+mechanism is written out beside them. This changes nothing in the table
+above: the datum is the same optional photo the row already declares, and
+a photo taken with the camera is the same "Photos or Videos" as a photo
+chosen from the library. It is recorded here because this is where a
+reviewer will look for it, and because §"Facial symmetry" below reasons
+about camera capture — the app can now be handed a camera photo, and still
+does no face processing of any kind, which is what that refusal was about.
+Android needs no permission for a file input, so its manifest is unchanged.
+
 Four of those are worth knowing *why*, because each looks tickable:
 
 - **Health — YES since D203, and the trip-wire is what moved it.** This
@@ -471,9 +488,27 @@ answers came from:
   health topic. The nearest real candidate is the personality and politics
   profiles, and neither is health or wellness.
 
-Also **Made for Kids: No**, and **In-app purchases: No** — `MONETIZATION.md`
-records no consumer paid tier at launch. Neither is an
-`ageRatingDeclarations` attribute, so neither is in the table.
+Also **Made for Kids: No**, and **In-app purchases: No** — there are no
+StoreKit products, which is what that field asks about.
+
+**The answer stands; the reason it used to give does not.** It read
+"`MONETIZATION.md` records no consumer paid tier at launch", which went
+stale at D313: there IS a paid tier now — a buyer books a question or a
+feed ad and pays through Stripe — it is simply B2B and off-StoreKit.
+Same answer, dead reasoning, which is the D179/D183 shape exactly. Where
+that purchase surface may live without the stores taking a cut of it is
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md), and SHIP-CHECKLIST § 3 carries
+it as a pre-submission decision.
+
+Neither is an `ageRatingDeclarations` attribute, so neither is in the
+table.
+
+**Play's equivalent declaration answers No for the same reason** — there
+are no Google Play Billing products either. But the two stores do not ask
+the same second question: whether Play's *Payments* policy **requires**
+that sale to use its billing system is separate, open, and disposed of by
+neither declaration. [`PLAY-RELEASE.md`](PLAY-RELEASE.md) §3.4 has it, and
+`STORE-CUT-PLAN.md` above is the same subject from the Apple side.
 
 **Expect 12+ / 13+.** Answer it deliberately rather than accepting a
 default.
@@ -530,7 +565,7 @@ same inventory and should not be re-derived in a hurry.
 | Personal info → Political or religious beliefs | Yes | No | Optional | App functionality |
 | Personal info → Gender | Yes | No | Optional | App functionality |
 | Location → Approximate location | Yes | No | **Optional** | App functionality |
-| Location → Precise location | **Yes** (D175) | App Functionality | Not linked to identity beyond the account | No |
+| Location → Precise location | **Yes** (D175) | No | **Optional** | App functionality |
 | App activity, Web browsing, Contacts, Photos, Financial, Purchases | **No** | — | — | — |
 | App info & performance → Crash logs | Yes | No | **Required** (on with no in-app switch since D211 — Play's "users can choose" definition no longer holds, so the honest answer moved from Optional to Required with it) | App functionality |
 | Advertising ID / any ads box | **No** | — | — | — |
@@ -544,6 +579,55 @@ Play additionally asks two things Apple does not:
 Play asks whether location is *required*: it is **optional**. Declining
 leaves the city picker working, and the app never prompts unless the
 button is tapped.
+
+**Three corrections to this table, found 2026-09-01 while assessing the
+Play path ([`PLAY-RELEASE.md`](PLAY-RELEASE.md)). The first is made; the
+other two are flagged rather than made, because they are re-derivations
+and this page's own rule is that `data-inventory.md` is canonical.**
+
+1. **The Precise location row had its columns transposed** against the
+   header — it read `Yes | App Functionality | Not linked to identity
+   beyond the account | No`, which put a purpose in the Shared column, a
+   note in the Optional column and "No" under Purpose. Corrected above to
+   `Yes | No | Optional | App functionality`, matching the Approximate
+   location row directly over it and the paragraph directly under it.
+   The dropped note — *not linked to identity beyond the account* — was an
+   Apple-ism: Play's form has no "linked" column, so there was nowhere
+   for it to go. What it was reaching for is real and belongs in prose:
+   the coordinate is folded to a 0.002° cell on the device and the fix
+   itself discarded (D175).
+
+2. **The App activity row is stale against D270/D272 and reads as an
+   under-declaration** — the direction that gets an app pulled. It files
+   the whole group **No**, but §1's Apple table carries *Usage Data →
+   Product Interaction* as **collected at D270 and linked at D272**, in
+   two shapes (the anonymous device tally, and the per-account day
+   rollup). Play's *App activity → App interactions* is the row that
+   answers to the same facts. Re-derive it from `data-inventory.md`
+   before filing; do not transcribe this table's **No**.
+
+3. **The Purchases row postdates its own answer.** It files **No**, and
+   §1's not-collected list agrees for Apple's *Purchase History*. Since
+   D313/D315 the app records purchase contracts (`v2_purchases`, read by
+   their buyer). Whether that is Play's *Financial info → Purchase
+   history* is a genuine question rather than an oversight — the buyer is
+   a sponsor rather than a consumer, and no payment instrument reaches
+   this tree — but it is a question nobody has answered on the record,
+   and both stores' rows were derived before the sale existed.
+
+**None of these is what §4 of `PLAY-RELEASE.md` is asking for.** The
+reason a transposed row survived in a file this careful is that nothing
+can read it: `check:store-forms` holds `app-privacy.json` equal to §1–2
+and this section has no machine-readable twin. Points 2 and 3 are the
+same absence one step further out — a Play answer can go stale against a
+decision and no gate is watching.
+
+Play's data-safety **Advertising ID** row is a different question from
+the store listing's **Contains ads** declaration, and they now diverge:
+no advertising ID is collected (the row stays **No**), while the app does
+carry paid placements since D315 (the listing declaration is **Yes**).
+Keeping them apart is the point — one is about an identifier, the other
+about the presence of ads.
 
 ---
 

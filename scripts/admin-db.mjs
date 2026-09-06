@@ -25,6 +25,7 @@
 // this directory, so a fifth script cannot repeat it.
 import { initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
 /** The database the app actually serves from. Mirrors functions/src/db.ts. */
 export const FIRESTORE_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
@@ -43,4 +44,21 @@ export function adminDb({ projectId, emulator = false } = {}) {
   }
   initializeApp(emulator ? { projectId } : { credential: applicationDefault(), projectId });
   return getFirestore(FIRESTORE_DB_ID);
+}
+
+/**
+ * The Auth handle, for the operator scripts that read account state rather
+ * than documents. Init lives here for the same reason `adminDb` does: one
+ * place that decides how this process authenticates, so a second script
+ * cannot quietly pick a different answer.
+ *
+ * No database id involved — Auth is project-scoped, so the `(default)`
+ * trap above does not apply here.
+ */
+export function adminAuth({ projectId, emulator = false } = {}) {
+  if (emulator && !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+  }
+  initializeApp(emulator ? { projectId } : { credential: applicationDefault(), projectId });
+  return getAuth();
 }

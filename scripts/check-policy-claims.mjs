@@ -57,6 +57,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const CLAIMS = [
   ["D98 · answers are public, under your display name",
     /your answers are public/i],
+  // D236 · the page must NAME the notifications, not just count them.
+  // check:figures holds the count against v2social.ts's own call sites;
+  // this holds the list, because a fifth kind added as "and others" would
+  // satisfy a count and tell the reader nothing. The sentence said "the
+  // one notification this app sends" for the nine days after D236 shipped
+  // three more — the exact shape this file's header names: not a promise
+  // thinned on purpose, a promise left behind by a change three commits
+  // away.
+  ["D236 · the token is used for the reveal AND the three circle notices",
+    /revealed,\s*someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
   // One pattern, not an alternation. It shipped as
   // `/…from the first answer|no minimum, no delay/` and the gate's own
   // test caught it inside an hour: with two spellings of one claim, either
@@ -94,6 +104,19 @@ export const CLAIMS = [
     /scrolled past or skipped stays on your device and is not\s+collected/i],
   ["D288 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
     /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
+  // D378 · the one way off-app: after the answer, and counted by nobody.
+  // Two tokens, because the two halves are separate promises — WHEN the
+  // link shows (the question is answered as a question) and WHAT we do
+  // with a tap (nothing) — and a page that kept one and lost the other
+  // would be the half-corrected promise this file exists to notice.
+  ["D378 · a bought question's link shows only after you have answered",
+    /buyer&rsquo;s own link[\s\S]{0,120}?only after you have answered/i],
+  ["D378 · and a tap on it is counted by nobody",
+    /opens their site in your browser[\s\S]{0,80}?we count\s+nothing/i],
+  // D379 · the results page is a PUBLIC surface, and the page says what
+  // it carries and what it never does — the counts, never a name.
+  ["D379 · a bought question's numbers are a public web page, and it never names who answered",
+    /served as a web page\s+anyone can open[\s\S]{0,240}?never who\s+answered/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
   // The row above pins the SEAL and says nothing about who reads the
@@ -117,6 +140,18 @@ export const CLAIMS = [
     /~200-metre grid square/i],
   ["D175 · the retired kilometre claim is gone",
     (src) => !/kilometre-sized/i.test(src)],
+  // D175's other half, and the one this file's own header warned about: a
+  // promise left behind by a change three commits away. D175 made the app
+  // request a PRECISE fix, and the page went on saying it asked for "an
+  // approximate location" — for a year, through the very sweep that was
+  // opened because three of these claims were stale. The page now says who
+  // decides the precision, and the second row is the promise the refusal in
+  // locate.ts makes true: an approximate grant does not become a guessed
+  // square.
+  ["D175 · the page does not claim the app asks only for an approximate fix",
+    (src) => !/ask your device for an approximate location/i.test(src)],
+  ["D175 · a fix too coarse for the square is refused, not guessed",
+    /says it cannot place you rather than guessing a square/i],
   ["D84 · no user can read your presence square",
     /No other user can ever read your square/i],
   ["D177 · the people in your square see your name, type and answers",

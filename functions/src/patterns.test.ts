@@ -15,7 +15,7 @@ vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
 }));
 
-import { AXES_TRAIT_ITEMS, PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore, type PatternsUserDoc } from "./patterns";
+import { AXES_TRAIT_ITEMS, PATTERNS_CATCHUP_DAYS, PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore, type PatternsUserDoc } from "./patterns";
 import { V2_QUESTIONS } from "./v2content";
 import type { Firestore } from "firebase-admin/firestore";
 import {
@@ -200,6 +200,78 @@ describe("idempotence and catch-up", () => {
     // every night forever: every person is stamped, so no later run can
     // ever score them.
     expect(state.model!.lastDay).toBe(yesterday);
+  });
+
+  it("keeps a day the retry actually scored, even though a dead run stamped some of it", async () => {
+    // THE CASE THE `&&` EXISTS FOR, and the one neither test above
+    // reaches: both of those are all-or-nothing — every person stamped, or
+    // no entries at all. The guard drops a day only when it had entries
+    // AND every one of them was already folded. A PARTIAL crash — the run
+    // died after stamping some people and before stamping the rest — is
+    // the ordinary shape of a crash, and there `write.size` is non-zero
+    // and `refolded` is non-zero at the same time.
+    //
+    // Measured before this case existed: `&&` → `||` left all 616
+    // functions tests green, and the day that really scored an
+    // observation then vanished from the published series — the standing
+    // 90-day prequential record D325 calls "the number any candidate
+    // engine must beat", world-readable and unrecomputable once the
+    // ledger day it describes has been consumed. `taste.test.ts` has this
+    // exact case for its own fold; its twin here did not.
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "stamped", qid: CORE_A, optionIdx: 0 },
+        { uid: "fresh", qid: CORE_A, optionIdx: 1 },
+      ],
+    });
+    // What a dead run leaves behind: one person carrying the day's stamp,
+    // one untouched. `d >= day` is the retry guard's own test.
+    state.users.set("stamped", { v: Array(8).fill(0), n: 1, d: yesterday });
+
+    await runPatternsFit(store, NOW);
+
+    const row = state.quality!.series.find((r) => r.day === yesterday);
+    expect(row, "the day the retry scored is missing from the series").toBeTruthy();
+    expect(row!.n, "the day was published as one nobody answered").toBeGreaterThan(0);
+    // …and the person the dead run never reached really was folded, so
+    // this is a day that was scored rather than merely kept.
+    expect(state.users.get("fresh")?.d).toBe(yesterday);
+  });
+
+  it("publishes NO scorecard when every owed day crashed and there is no prior", async () => {
+    // The hole in the case above's own scenario. When `scored` empties AND
+    // there is no previous publish to carry forward, the fallback
+    // manufactured `publishableQuality([{ day: yesterday, score:
+    // emptyDayScore() }])` — the exact "nobody answered" row the drop
+    // exists to suppress, published as the head of the series.
+    //
+    // Reachable, and this is the shape: a FIRST-EVER run with answers on
+    // every day of the catch-up window, which dies before putModel. Every
+    // person is stamped as folded, no model was written, so the retry
+    // drops all seven days and has no prior. The case above escapes it
+    // only because its window still holds five genuinely-empty days.
+    const ledger: Record<string, Array<{ uid: string; qid: string; optionIdx: number }>> = {};
+    for (let back = 1; back <= PATTERNS_CATCHUP_DAYS; back++) {
+      ledger[utcDay(NOW, -back)] = [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u2", qid: CORE_A, optionIdx: 1 },
+      ];
+    }
+    const { store, state } = memoryStore(ledger);
+    state.breakPutModelOnce = true;
+    await expect(runPatternsFit(store, NOW)).rejects.toThrow("model write lost");
+    expect(state.quality, "nothing was published by the run that died").toBeNull();
+
+    const r = await runPatternsFit(store, NOW);
+    //  because the two absences differ by construction: the
+    // memory store starts at null and the fix OMITS the field, so it is
+    // undefined. Both mean the same thing here — nothing was published.
+    expect(state.quality ?? null, "a run with nothing to score published a day nobody answered")
+      .toBeNull();
+    // The model itself still publishes and the cursor still advances —
+    // the loadings are the product, the scorecard is the commentary.
+    expect(state.model!.lastDay).toBe(yesterday);
+    expect(r.bits).toBe(0);
   });
 
   it("a vector written before the stamp existed folds once, not never", async () => {

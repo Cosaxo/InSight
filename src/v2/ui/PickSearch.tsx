@@ -19,7 +19,7 @@
 import React from "react";
 import POKEDEX, { type Species } from "../data/pokedex";
 import ELEMENTS_CATALOG, { type Element } from "../data/elements";
-import { FILMS, ARTISTS, ATHLETES, EMOJI, COUNTRIES, DOGS, COLORS, type CatalogEntry } from "../data/catalogs";
+import { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES, type CatalogEntry } from "../data/catalogs";
 
 const PS_LINE = "1px solid var(--rule)";
 
@@ -82,6 +82,7 @@ const DOMAINS: Record<string, DomainSpec> = {
   films: catalogSpec(FILMS, "Search films…", "one favourite — the crowd's canon reveals after"),
   artists: catalogSpec(ARTISTS, "Search artists…", "one favourite — the crowd's canon reveals after"),
   athletes: catalogSpec(ATHLETES, "Search 640 athletes…", "one pick — the crowd's canon reveals after"),
+  videogames: catalogSpec(VIDEOGAMES, "Search 1,000 video games…", "one pick — the crowd's canon reveals after"),
   elements: {
     load: () => ELEMENTS_CATALOG.load().then((es) => es.map(elementRow)),
     peek: () => {
@@ -122,6 +123,15 @@ const DOMAINS: Record<string, DomainSpec> = {
     // colour outside the spec's 139 names is honestly "Not listed".
     noMatch:
       "No match — these are the CSS names (try “aqua”, “gray”). Anything unnamed counts as “Not listed”.",
+  },
+  languages: {
+    ...catalogSpec(LANGUAGES, "Search languages…", "one pick from 183 — the crowd's canon reveals after"),
+    // The ISO 639-1 set, so each entry is a language family's headline
+    // name; rows carry the native name too ("French (français)"), and a
+    // search in either script resolves. Dialects and languages outside
+    // the 183 are honestly "Not listed".
+    noMatch:
+      "No match — try the English or native name. Anything beyond the ISO 183 counts as “Not listed”.",
   },
   countries: {
     ...catalogSpec(COUNTRIES, "Search countries…", "one pick from 250 — the crowd's canon reveals after"),
@@ -308,8 +318,5 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
     </div>
   );
 }
-
-// Render-time lookup bridge for the spec layer (world-feed.jsx).
-Object.assign(globalThis, { PickSearch });
 
 export default PickSearch;

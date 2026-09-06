@@ -1475,6 +1475,7 @@
       "lo": 1,
       "hi": 12,
       "unit": "h",
+      "active": false,
       "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two."
     },
     {
@@ -1997,6 +1998,7 @@
       "lo": 25,
       "hi": 45,
       "unit": "yrs",
+      "active": false,
       "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
     },
     {
@@ -2086,6 +2088,7 @@
       "lo": 1,
       "hi": 10,
       "unit": "cups",
+      "active": false,
       "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
     },
     {
@@ -2113,7 +2116,8 @@
       "prompt": "How long should a concert be?",
       "lo": 1,
       "hi": 4,
-      "unit": "hrs"
+      "unit": "hrs",
+      "active": false
     },
     {
       "id": "f73",
@@ -2391,7 +2395,8 @@
       "prompt": "How many close friends does a person need?",
       "lo": 0,
       "hi": 10,
-      "unit": "friends"
+      "unit": "friends",
+      "active": false
     },
     {
       "id": "f87",
@@ -2598,7 +2603,8 @@
       "prompt": "How many hours a day on a phone is too many?",
       "lo": 0,
       "hi": 12,
-      "unit": "h"
+      "unit": "h",
+      "active": false
     },
     {
       "id": "f92",
@@ -2706,7 +2712,8 @@
       "prompt": "Books finished last year — how many?",
       "lo": 0,
       "hi": 30,
-      "unit": "books"
+      "unit": "books",
+      "active": false
     },
     {
       "id": "f97",
@@ -2803,7 +2810,8 @@
       "prompt": "Hours of live sport in a good week?",
       "lo": 0,
       "hi": 20,
-      "unit": "h"
+      "unit": "h",
+      "active": false
     },
     {
       "id": "f102",
@@ -2847,7 +2855,8 @@
       "prompt": "How old were you when your taste in music settled?",
       "lo": 10,
       "hi": 40,
-      "unit": "yrs"
+      "unit": "yrs",
+      "active": false
     },
     {
       "id": "f104",
@@ -2969,7 +2978,8 @@
       "prompt": "Meals cooked from scratch in a week?",
       "lo": 0,
       "hi": 14,
-      "unit": "meals"
+      "unit": "meals",
+      "active": false
     },
     {
       "id": "f109",
@@ -3124,7 +3134,8 @@
       "prompt": "The ideal dinner hour?",
       "lo": 17,
       "hi": 23,
-      "unit": "h"
+      "unit": "h",
+      "active": false
     },
     {
       "id": "f117",
@@ -3219,7 +3230,2753 @@
       "prompt": "How many years ahead do you actually plan?",
       "lo": 0,
       "hi": 20,
+      "unit": "years",
+      "active": false
+    },
+    {
+      "id": "f122",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+      "options": [
+        {
+          "label": "Dolly Parton",
+          "count": 1500
+        },
+        {
+          "label": "Keanu Reeves",
+          "count": 1800
+        },
+        {
+          "label": "David Attenborough",
+          "count": 1600
+        },
+        {
+          "label": "Michelle Obama",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "dl18",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Minutes late before it counts as late?",
+      "lo": 0,
+      "hi": 30,
+      "unit": "min",
+      "active": false
+    },
+    {
+      "id": "f123",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Never lie again — and never be lied to. Take the deal?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2700
+        },
+        {
+          "label": "Too much truth",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f124",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "A referendum on every big question: more democracy, or chaos?",
+      "options": [
+        {
+          "label": "More democracy",
+          "count": 2100
+        },
+        {
+          "label": "Chaos",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f125",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Breakfast: sweet, or savoury?",
+      "options": [
+        {
+          "label": "Sweet",
+          "count": 2500
+        },
+        {
+          "label": "Savoury",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f126",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Black-and-white films: a treat, or a chore?",
+      "options": [
+        {
+          "label": "A treat",
+          "count": 2600
+        },
+        {
+          "label": "A chore",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f127",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The band re-forms without its singer: still the band, or a tribute act?",
+      "options": [
+        {
+          "label": "Still the band",
+          "count": 2100
+        },
+        {
+          "label": "A tribute act",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f128",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The teacher you'd want for one term: Aristotle, Leonardo da Vinci, Charles Darwin, or Maya Angelou?",
+      "options": [
+        {
+          "label": "Aristotle",
+          "count": 1300
+        },
+        {
+          "label": "Leonardo da Vinci",
+          "count": 1700
+        },
+        {
+          "label": "Charles Darwin",
+          "count": 1500
+        },
+        {
+          "label": "Maya Angelou",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "f129",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "The Olympics: summer, or winter?",
+      "options": [
+        {
+          "label": "Summer",
+          "count": 3400
+        },
+        {
+          "label": "Winter",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f130",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Video calls: camera on, or camera off?",
+      "options": [
+        {
+          "label": "Camera on",
+          "count": 2400
+        },
+        {
+          "label": "Camera off",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f131",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "What writes more of a life: luck, or effort?",
+      "options": [
+        {
+          "label": "Luck",
+          "count": 2300
+        },
+        {
+          "label": "Effort",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "pt3",
+      "core": true,
+      "cat": "culture",
+      "type": "path",
+      "hue": 200,
+      "title": "The Reunion",
+      "prompt": "The Reunion — twenty years, one evening",
+      "intro": "Twenty years since the last day of school. The invitation has sat in your inbox for a week; the RSVP closes at midnight.",
+      "nodes": {
+        "_": {
+          "axis": "risk",
+          "q": "Midnight is an hour away. The form wants one click.",
+          "a": [
+            {
+              "t": "Reply yes"
+            },
+            {
+              "t": "Let it close"
+            }
+          ]
+        },
+        "A": {
+          "axis": "company",
+          "q": "You arrive early. Across the room: your old best friend, mid-laugh, twenty years older.",
+          "a": [
+            {
+              "t": "Walk straight over"
+            },
+            {
+              "t": "Get a drink, read the room first"
+            }
+          ]
+        },
+        "B": {
+          "axis": "disclosure",
+          "q": "Next morning the group chat fills with photos. Someone writes: \"Where were you?\"",
+          "a": [
+            {
+              "t": "The truth — crowds aren't your thing"
+            },
+            {
+              "t": "Say work got in the way"
+            }
+          ]
+        },
+        "AA": {
+          "axis": "time",
+          "q": "An hour in, no time has passed at all. They mention they're moving back next month.",
+          "a": [
+            {
+              "t": "Set a date and a place, tonight"
+            },
+            {
+              "t": "\"We should catch up sometime\""
+            }
+          ]
+        },
+        "AB": {
+          "axis": "disclosure",
+          "q": "From your corner the room sorts itself into its old tables. Your old friend spots you and waves.",
+          "a": [
+            {
+              "t": "Go over: \"I almost didn't come\""
+            },
+            {
+              "t": "Wave back, keep the corner"
+            }
+          ]
+        },
+        "BA": {
+          "axis": "company",
+          "q": "A private reply: \"Fair. I only went hoping you'd be there.\"",
+          "a": [
+            {
+              "t": "Offer a coffee, just you two"
+            },
+            {
+              "t": "Leave it warm and unanswered"
+            }
+          ]
+        },
+        "BB": {
+          "axis": "certainty",
+          "q": "The chat moves on. One tagged photo shows your old table — someone new in your old seat.",
+          "a": [
+            {
+              "t": "Open the whole album"
+            },
+            {
+              "t": "Mute the chat"
+            }
+          ]
+        }
+      },
+      "endings": {
+        "AAA": {
+          "name": "The One Who Books It",
+          "line": "A date, a place, no 'sometime'. Twenty years turned out to be a scheduling problem."
+        },
+        "AAB": {
+          "name": "The Warm Maybe",
+          "line": "The hug was real. The 'sometime' stayed a sometime."
+        },
+        "ABA": {
+          "name": "The Late Arrival",
+          "line": "'Almost didn't come' — said out loud, it became the best story of the night."
+        },
+        "ABB": {
+          "name": "The Observer",
+          "line": "You saw the whole evening clearly. It never quite saw you."
+        },
+        "BAA": {
+          "name": "The Two-Chair Table",
+          "line": "No name tags, no speeches. The reunion that actually reunited."
+        },
+        "BAB": {
+          "name": "The Door Ajar",
+          "line": "Warm, unanswered. Some doors you like exactly this open."
+        },
+        "BBA": {
+          "name": "The Midnight Scroller",
+          "line": "Every photo, twice. You attended after all — from here."
+        },
+        "BBB": {
+          "name": "The Clean Break",
+          "line": "The chat went quiet because you asked it to. So did the decade."
+        }
+      }
+    },
+    {
+      "id": "f132",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Teleport anywhere instantly — but you can never travel slowly again. Take it?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2600
+        },
+        {
+          "label": "Keep the journey",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f133",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "A cashless world: convenient future, or something lost?",
+      "options": [
+        {
+          "label": "Convenient future",
+          "count": 2200
+        },
+        {
+          "label": "Something lost",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f134",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Ketchup: fridge, or cupboard?",
+      "options": [
+        {
+          "label": "Fridge",
+          "count": 3600
+        },
+        {
+          "label": "Cupboard",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f135",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "One genre forever: comedy, thriller, drama, or documentary?",
+      "options": [
+        {
+          "label": "Comedy",
+          "count": 2400
+        },
+        {
+          "label": "Thriller",
+          "count": 1900
+        },
+        {
+          "label": "Drama",
+          "count": 1400
+        },
+        {
+          "label": "Documentary",
+          "count": 900
+        }
+      ]
+    },
+    {
+      "id": "dl19",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How many songs on a perfect album?",
+      "lo": 6,
+      "hi": 20,
+      "unit": "songs",
+      "active": false
+    },
+    {
+      "id": "f136",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "One selfie with: Beyoncé, the Pope, Lionel Messi, or Taylor Swift?",
+      "options": [
+        {
+          "label": "Beyoncé",
+          "count": 1600
+        },
+        {
+          "label": "The Pope",
+          "count": 1400
+        },
+        {
+          "label": "Lionel Messi",
+          "count": 1700
+        },
+        {
+          "label": "Taylor Swift",
+          "count": 1500
+        }
+      ]
+    },
+    {
+      "id": "n07",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Nine-figure transfer fees: the market working, or football losing the plot?",
+      "bg": "Europe's summer transfer window closed on 1 September. Deadline day brought a rush of deals across the big leagues, several at nine-figure fees, before squads lock until the winter window opens in January.",
+      "from": "2026-09-02",
+      "until": "2026-09-04",
+      "options": [
+        {
+          "label": "The market working"
+        },
+        {
+          "label": "Losing the plot"
+        },
+        {
+          "label": "Fine — until my club pays"
+        }
+      ]
+    },
+    {
+      "id": "n08",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A $4bn telescope just left to hunt dark energy. Money well spent?",
+      "bg": "NASA's Nancy Grace Roman Space Telescope launched on a SpaceX Falcon Heavy on 30 August, bound for the L2 point 1.5 million kilometres out. Its wide-field camera will hunt exoplanets and map dark energy; the mission cost about $4.3 billion.",
+      "from": "2026-09-02",
+      "until": "2026-09-05",
+      "options": [
+        {
+          "label": "Every cent"
+        },
+        {
+          "label": "Fix Earth first"
+        },
+        {
+          "label": "Ask me when it finds something"
+        }
+      ]
+    },
+    {
+      "id": "n09",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A Grand Slam without the world No. 1: wide open, or missing something?",
+      "bg": "The 2026 US Open runs 30 August to 13 September in New York. Top-ranked Jannik Sinner withdrew before play began with a knee injury; Carlos Alcaraz and Aryna Sabalenka arrived as the defending singles champions.",
+      "from": "2026-09-02",
+      "until": "2026-09-06",
+      "options": [
+        {
+          "label": "Wide open"
+        },
+        {
+          "label": "Missing something"
+        }
+      ]
+    },
+    {
+      "id": "n10",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Awards season opens at Venice. Do festival prizes change what you watch?",
+      "bg": "The 83rd Venice International Film Festival runs 2 to 12 September and opens the autumn awards season. Maggie Gyllenhaal chairs the main-competition jury; 21 world premieres compete for the Golden Lion.",
+      "from": "2026-09-02",
+      "until": "2026-09-07",
+      "options": [
+        {
+          "label": "I seek winners out"
+        },
+        {
+          "label": "They reach me eventually"
+        },
+        {
+          "label": "Industry theatre"
+        }
+      ]
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "A win by a bad call: still sweet, or spoiled?",
+      "options": [
+        {
+          "label": "Still sweet",
+          "count": 2400
+        },
+        {
+          "label": "Spoiled",
+          "count": 2100
+        }
+      ],
+      "id": "f137"
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Would you rather coach, or commentate?",
+      "options": [
+        {
+          "label": "Coach",
+          "count": 2600
+        },
+        {
+          "label": "Commentate",
+          "count": 2300
+        }
+      ],
+      "id": "f138"
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Home advantage: a real force, or an excuse?",
+      "options": [
+        {
+          "label": "A real force",
+          "count": 3300
+        },
+        {
+          "label": "An excuse",
+          "count": 1600
+        }
+      ],
+      "id": "f139"
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Anthems before the game: goosebumps, or get on with it?",
+      "options": [
+        {
+          "label": "Goosebumps",
+          "count": 2300
+        },
+        {
+          "label": "Get on with it",
+          "count": 2600
+        }
+      ],
+      "id": "f140"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Your phone dies for a day: freedom, or panic?",
+      "options": [
+        {
+          "label": "Freedom",
+          "count": 2500
+        },
+        {
+          "label": "Panic",
+          "count": 2800
+        }
+      ],
+      "id": "f141"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "A smart home: convenient, or creepy?",
+      "options": [
+        {
+          "label": "Convenient",
+          "count": 2400
+        },
+        {
+          "label": "Creepy",
+          "count": 2700
+        }
+      ],
+      "id": "f142"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Typing, or talking to your devices?",
+      "options": [
+        {
+          "label": "Typing",
+          "count": 3400
+        },
+        {
+          "label": "Talking",
+          "count": 1700
+        }
+      ],
+      "id": "f143"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "The terms and conditions: ever read them, or never once?",
+      "options": [
+        {
+          "label": "Sometimes, honestly",
+          "count": 1300
+        },
+        {
+          "label": "Never once",
+          "count": 3900
+        }
+      ],
+      "id": "f144"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "A life with no regrets: achievable, or not even desirable?",
+      "options": [
+        {
+          "label": "Achievable",
+          "count": 1800
+        },
+        {
+          "label": "Not even desirable",
+          "count": 2900
+        }
+      ],
+      "id": "f145"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "A guaranteed ordinary life, or a risky remarkable one?",
+      "options": [
+        {
+          "label": "Guaranteed ordinary",
+          "count": 2200
+        },
+        {
+          "label": "Risky remarkable",
+          "count": 2900
+        }
+      ],
+      "id": "f146"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Are you the same person at 18 and 80?",
+      "options": [
+        {
+          "label": "Same person",
+          "count": 2000
+        },
+        {
+          "label": "Someone new",
+          "count": 2800
+        }
+      ],
+      "id": "f147"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Do animals have it figured out better than we do?",
+      "options": [
+        {
+          "label": "They do",
+          "count": 2700
+        },
+        {
+          "label": "We do",
+          "count": 1900
+        }
+      ],
+      "id": "f148"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "History will judge our era…",
+      "options": [
+        {
+          "label": "Kindly",
+          "count": 1500
+        },
+        {
+          "label": "Harshly",
+          "count": 3300
+        }
+      ],
+      "id": "f149"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Queue-jumpers: say something, or seethe in silence?",
+      "options": [
+        {
+          "label": "Say something",
+          "count": 2200
+        },
+        {
+          "label": "Seethe in silence",
+          "count": 2800
+        }
+      ],
+      "id": "f150"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Adult birthdays: celebrate big, or let them pass?",
+      "options": [
+        {
+          "label": "Celebrate big",
+          "count": 2100
+        },
+        {
+          "label": "Let them pass",
+          "count": 2700
+        }
+      ],
+      "id": "f151"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Re-reading old favourites: deepening, or time stolen from the new?",
+      "options": [
+        {
+          "label": "Deepening",
+          "count": 2600
+        },
+        {
+          "label": "Stolen time",
+          "count": 1800
+        }
+      ],
+      "id": "f152"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Weddings: small and close, or big and once?",
+      "options": [
+        {
+          "label": "Small and close",
+          "count": 3300
+        },
+        {
+          "label": "Big and once",
+          "count": 1800
+        }
+      ],
+      "id": "f153"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Swap lives with a stranger for a week — you don't choose who. Go?",
+      "options": [
+        {
+          "label": "Go",
+          "count": 2300
+        },
+        {
+          "label": "Stay me",
+          "count": 2900
+        }
+      ],
+      "id": "f154"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "A pill that removes all fear. Take it?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 1900
+        },
+        {
+          "label": "Fear is doing a job",
+          "count": 3100
+        }
+      ],
+      "id": "f155"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Double your money, or double your free time?",
+      "options": [
+        {
+          "label": "Double the money",
+          "count": 2100
+        },
+        {
+          "label": "Double the time",
+          "count": 3200
+        }
+      ],
+      "id": "f156"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Invisible for a day, or pause time for an hour?",
+      "options": [
+        {
+          "label": "Invisible",
+          "count": 2200
+        },
+        {
+          "label": "Pause time",
+          "count": 3100
+        }
+      ],
+      "id": "f157"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Your biography: warts and all, or flattering and false?",
+      "options": [
+        {
+          "label": "Warts and all",
+          "count": 3400
+        },
+        {
+          "label": "Flattering and false",
+          "count": 1400
+        }
+      ],
+      "id": "f158"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Adverts in the night sky: just business, or vandalism?",
+      "options": [
+        {
+          "label": "Just business",
+          "count": 1100
+        },
+        {
+          "label": "Vandalism",
+          "count": 3900
+        }
+      ],
+      "id": "f159"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Should museums be free?",
+      "options": [
+        {
+          "label": "Free, always",
+          "count": 3100
+        },
+        {
+          "label": "Tickets are fine",
+          "count": 1800
+        }
+      ],
+      "id": "f160"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "New Olympic sports: keep experimenting, or protect the classics?",
+      "options": [
+        {
+          "label": "Keep experimenting",
+          "count": 2600
+        },
+        {
+          "label": "Protect the classics",
+          "count": 2200
+        }
+      ],
+      "id": "f161"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "An upper age limit for national leaders: sensible, or ageist?",
+      "options": [
+        {
+          "label": "Sensible",
+          "count": 3200
+        },
+        {
+          "label": "Ageist",
+          "count": 1600
+        }
+      ],
+      "id": "f162"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Drone shows replacing fireworks: an upgrade, or not the same?",
+      "options": [
+        {
+          "label": "An upgrade",
+          "count": 2100
+        },
+        {
+          "label": "Not the same",
+          "count": 2800
+        }
+      ],
+      "id": "f163"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Too much garlic: impossible, or very possible?",
+      "options": [
+        {
+          "label": "Impossible",
+          "count": 2900
+        },
+        {
+          "label": "Very possible",
+          "count": 1900
+        }
+      ],
+      "id": "f164"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Eating alone at a restaurant: a treat, or a trial?",
+      "options": [
+        {
+          "label": "A treat",
+          "count": 2500
+        },
+        {
+          "label": "A trial",
+          "count": 2200
+        }
+      ],
+      "id": "f165"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "The end slice of the loaf: the best bit, or the bird's?",
+      "options": [
+        {
+          "label": "The best bit",
+          "count": 2000
+        },
+        {
+          "label": "The bird's",
+          "count": 2600
+        }
+      ],
+      "id": "f166"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Cheese course, or dessert course?",
+      "options": [
+        {
+          "label": "Cheese",
+          "count": 2100
+        },
+        {
+          "label": "Dessert",
+          "count": 3000
+        }
+      ],
+      "id": "f167"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "A mid-film phone check: unforgivable, or human?",
+      "options": [
+        {
+          "label": "Unforgivable",
+          "count": 2400
+        },
+        {
+          "label": "Human",
+          "count": 2500
+        }
+      ],
+      "id": "f168"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "So bad it's good: a real category, or cope?",
+      "options": [
+        {
+          "label": "A real category",
+          "count": 3200
+        },
+        {
+          "label": "Cope",
+          "count": 1500
+        }
+      ],
+      "id": "f169"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Musicals: joy, or endurance?",
+      "options": [
+        {
+          "label": "Joy",
+          "count": 2400
+        },
+        {
+          "label": "Endurance",
+          "count": 2400
+        }
+      ],
+      "id": "f170"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "The adaptation you dread most: a beloved book, a favourite game, or your childhood cartoon?",
+      "options": [
+        {
+          "label": "The beloved book",
+          "count": 2200
+        },
+        {
+          "label": "The favourite game",
+          "count": 1300
+        },
+        {
+          "label": "The childhood cartoon",
+          "count": 1800
+        }
+      ],
+      "id": "f171"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Music in restaurants: atmosphere, or noise?",
+      "options": [
+        {
+          "label": "Atmosphere",
+          "count": 2600
+        },
+        {
+          "label": "Noise",
+          "count": 1900
+        }
+      ],
+      "id": "f172"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The opening act: get there early, or time your arrival?",
+      "options": [
+        {
+          "label": "Get there early",
+          "count": 2300
+        },
+        {
+          "label": "Time your arrival",
+          "count": 2500
+        }
+      ],
+      "id": "f173"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "One artist for life: The Beatles, Beyoncé, Bach, or Bob Marley?",
+      "options": [
+        {
+          "label": "The Beatles",
+          "count": 1900
+        },
+        {
+          "label": "Beyoncé",
+          "count": 1500
+        },
+        {
+          "label": "Bach",
+          "count": 1100
+        },
+        {
+          "label": "Bob Marley",
+          "count": 1400
+        }
+      ],
+      "id": "f174"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Singing in the shower: everyone does it, or not you?",
+      "options": [
+        {
+          "label": "Everyone does it",
+          "count": 3100
+        },
+        {
+          "label": "Not me",
+          "count": 1600
+        }
+      ],
+      "id": "f175"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Explicit lyrics with kids in the car: relax, or radio edit?",
+      "options": [
+        {
+          "label": "Relax",
+          "count": 1700
+        },
+        {
+          "label": "Radio edit",
+          "count": 2900
+        }
+      ],
+      "id": "f176"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Your bodyguard for one risky day: Serena Williams, The Rock, Zlatan, or Jackie Chan?",
+      "options": [
+        {
+          "label": "Serena Williams",
+          "count": 1200
+        },
+        {
+          "label": "The Rock",
+          "count": 1900
+        },
+        {
+          "label": "Zlatan",
+          "count": 1300
+        },
+        {
+          "label": "Jackie Chan",
+          "count": 1600
+        }
+      ],
+      "id": "f177"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Your life story, written by: Jane Austen, Ernest Hemingway, or Agatha Christie?",
+      "options": [
+        {
+          "label": "Jane Austen",
+          "count": 1800
+        },
+        {
+          "label": "Ernest Hemingway",
+          "count": 1500
+        },
+        {
+          "label": "Agatha Christie",
+          "count": 1700
+        }
+      ],
+      "id": "f178"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Marooned with one: Bear Grylls, Marie Kondo, Gordon Ramsay, or David Attenborough?",
+      "options": [
+        {
+          "label": "Bear Grylls",
+          "count": 2100
+        },
+        {
+          "label": "Marie Kondo",
+          "count": 900
+        },
+        {
+          "label": "Gordon Ramsay",
+          "count": 1200
+        },
+        {
+          "label": "David Attenborough",
+          "count": 1800
+        }
+      ],
+      "id": "f179"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Who'd win at chess: Napoleon, or Einstein?",
+      "options": [
+        {
+          "label": "Napoleon",
+          "count": 2000
+        },
+        {
+          "label": "Einstein",
+          "count": 2900
+        }
+      ],
+      "id": "f180"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Your fictional neighbour: Sherlock Holmes, Mary Poppins, Gandalf, or Homer Simpson?",
+      "options": [
+        {
+          "label": "Sherlock Holmes",
+          "count": 1400
+        },
+        {
+          "label": "Mary Poppins",
+          "count": 1500
+        },
+        {
+          "label": "Gandalf",
+          "count": 1700
+        },
+        {
+          "label": "Homer Simpson",
+          "count": 1300
+        }
+      ],
+      "id": "f181"
+    },
+    {
+      "id": "dl20",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "Minutes of stoppage time that feel honest?",
+      "lo": 0,
+      "hi": 15,
+      "unit": "min"
+    },
+    {
+      "id": "dl21",
+      "core": false,
+      "cat": "tech",
+      "type": "dial",
+      "prompt": "Browser tabs open right now?",
+      "lo": 0,
+      "hi": 50,
+      "unit": "tabs"
+    },
+    {
+      "id": "dl22",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Seconds a silence can sit comfortably?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "s"
+    },
+    {
+      "id": "dl23",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "Too late for coffee — from what hour?",
+      "lo": 10,
+      "hi": 22,
+      "unit": "h"
+    },
+    {
+      "id": "dl24",
+      "core": false,
+      "cat": "movies",
+      "type": "dial",
+      "prompt": "Cinema trips in a year?",
+      "lo": 0,
+      "hi": 50,
+      "unit": "trips"
+    },
+    {
+      "id": "dl25",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many big decisions does a life turn on?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "decisions"
+    },
+    {
+      "id": "dl26",
+      "core": false,
+      "cat": "dilemma",
+      "type": "dial",
+      "prompt": "A fair finder's fee, in percent?",
+      "lo": 0,
+      "hi": 50,
+      "unit": "%"
+    },
+    {
+      "id": "dl27",
+      "core": false,
+      "cat": "event",
+      "type": "dial",
+      "prompt": "Hours of news in your week?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "h"
+    },
+    {
+      "id": "dl28",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "Your favourite song comes on — volume, in percent?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "%"
+    },
+    {
+      "id": "dl29",
+      "core": false,
+      "cat": "people",
+      "type": "dial",
+      "prompt": "Autographs you've asked for, ever?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "autographs"
+    },
+    {
+      "id": "fd5",
+      "core": false,
+      "cat": "sport",
+      "type": "field",
+      "prompt": "Losing — place it",
+      "ax": [
+        "shrug it off",
+        "carry it"
+      ],
+      "ay": [
+        "just a game",
+        "personal"
+      ]
+    },
+    {
+      "id": "fd6",
+      "core": false,
+      "cat": "tech",
+      "type": "field",
+      "prompt": "Your phone — place it",
+      "ax": [
+        "a tool",
+        "a limb"
+      ],
+      "ay": [
+        "serves you",
+        "runs you"
+      ]
+    },
+    {
+      "id": "fd7",
+      "core": false,
+      "cat": "culture",
+      "type": "field",
+      "prompt": "Hosting — place it",
+      "ax": [
+        "full house",
+        "quiet house"
+      ],
+      "ay": [
+        "a joy",
+        "a duty"
+      ]
+    },
+    {
+      "id": "fd8",
+      "core": false,
+      "cat": "food",
+      "type": "field",
+      "prompt": "Cooking — place it",
+      "ax": [
+        "a chore",
+        "therapy"
+      ],
+      "ay": [
+        "by the book",
+        "improvised"
+      ]
+    },
+    {
+      "id": "fd9",
+      "core": false,
+      "cat": "movies",
+      "type": "field",
+      "prompt": "Horror films — place it",
+      "ax": [
+        "can’t watch",
+        "can’t stop"
+      ],
+      "ay": [
+        "silly",
+        "art"
+      ]
+    },
+    {
+      "id": "n11",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Eight years in transit, and a probe finally arrives at Mercury. Slow space travel: the grandeur, or the problem?",
+      "bg": "ESA and JAXA's BepiColombo launched in October 2018 and began its Mercury arrival on 3 September 2026 — the transfer module separating before the two orbiters enter orbit in November. Science operations start in spring 2027.",
+      "from": "2026-09-03",
+      "until": "2026-09-08",
+      "options": [
+        {
+          "label": "The grandeur"
+        },
+        {
+          "label": "The problem"
+        },
+        {
+          "label": "Wait — eight years?"
+        }
+      ]
+    },
+    {
+      "id": "n12",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Vinyl is closing in on the CD again. Which do you actually play: the record, the disc, or the stream?",
+      "bg": "US recorded-music revenue neared $6 billion in the first half of 2026 on paid-streaming growth, with vinyl closing in on CDs by units sold — even at an average LP price more than double a CD's.",
+      "from": "2026-09-03",
+      "until": "2026-09-09",
+      "options": [
+        {
+          "label": "The record"
+        },
+        {
+          "label": "The disc"
+        },
+        {
+          "label": "The stream"
+        }
+      ]
+    },
+    {
+      "id": "n13",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Fashion month begins, Manhattan to Milan. Does the runway ever reach your wardrobe?",
+      "bg": "September is fashion's busiest stretch: the spring shows run from New York through London and Milan to Paris, setting what stores carry next year. London's week overlaps the city's Design Festival.",
+      "from": "2026-09-03",
+      "until": "2026-09-10",
+      "options": [
+        {
+          "label": "Eventually, diluted"
+        },
+        {
+          "label": "Straight away"
+        },
+        {
+          "label": "Never — and proudly"
+        }
+      ]
+    },
+    {
+      "id": "dl30",
+      "core": true,
+      "cat": "dilemma",
+      "also": [
+        "tech"
+      ],
+      "type": "dial",
+      "prompt": "Daily screen time — where does “too much” start?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "h",
+      "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two."
+    },
+    {
+      "id": "dl31",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "At what age is an athlete past their peak?",
+      "lo": 20,
+      "hi": 50,
+      "unit": "yrs",
+      "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
+    },
+    {
+      "id": "dl32",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "How many coffees a day is too many?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "cups",
+      "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
+    },
+    {
+      "id": "dl33",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How long should a concert be?",
+      "lo": 30,
+      "hi": 270,
+      "unit": "min"
+    },
+    {
+      "id": "dl34",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many close friends does a person need?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "friends"
+    },
+    {
+      "id": "dl35",
+      "core": false,
+      "cat": "tech",
+      "type": "dial",
+      "prompt": "How many hours a day on a phone is too many?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "h"
+    },
+    {
+      "id": "dl36",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Books finished last year — how many?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "books"
+    },
+    {
+      "id": "dl37",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "Hours of live sport in a good week?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "h"
+    },
+    {
+      "id": "dl38",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How old were you when your taste in music settled?",
+      "lo": 5,
+      "hi": 50,
+      "unit": "yrs"
+    },
+    {
+      "id": "dl39",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "Meals cooked from scratch in a week?",
+      "lo": 0,
+      "hi": 21,
+      "unit": "meals"
+    },
+    {
+      "id": "dl40",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "The ideal dinner hour?",
+      "lo": 12,
+      "hi": 24,
+      "unit": "h"
+    },
+    {
+      "id": "dl41",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many years ahead do you actually plan?",
+      "lo": 0,
+      "hi": 30,
       "unit": "years"
+    },
+    {
+      "id": "dl42",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Minutes late before it counts as late?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "min"
+    },
+    {
+      "id": "dl43",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How many songs on a perfect album?",
+      "lo": 6,
+      "hi": 30,
+      "unit": "songs"
+    },
+    {
+      "id": "n14",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Flying cars land at the tech fair again. A dream worth keeping, or a bit that got old?",
+      "bg": "IFA Berlin, Europe's biggest consumer-tech fair, opened on 4 September — 1,900 brands across 190,000 square metres, AI in everything from fridges to laptops, and, once again, flying-car concepts on the floor. It runs to 8 September.",
+      "from": "2026-09-05",
+      "until": "2026-09-11",
+      "options": [
+        {
+          "label": "Keep the dream"
+        },
+        {
+          "label": "It got old"
+        },
+        {
+          "label": "Just build trains"
+        }
+      ]
+    },
+    {
+      "id": "n15",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A season opening on a Wednesday for the first time in a decade: fine, or leave the rituals alone?",
+      "bg": "The NFL's 2026 season opens on Wednesday 9 September in Seattle — a Super Bowl rematch against New England, and the league's first Wednesday opener in well over a decade. Season openers traditionally hold Thursday night.",
+      "from": "2026-09-05",
+      "until": "2026-09-12",
+      "options": [
+        {
+          "label": "Fine — a game's a game"
+        },
+        {
+          "label": "Leave the rituals alone"
+        }
+      ]
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "A one-club career: nobler, or just rarer?",
+      "options": [
+        {
+          "label": "Nobler",
+          "count": 2600
+        },
+        {
+          "label": "Just rarer",
+          "count": 2000
+        }
+      ],
+      "id": "f182"
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Sports films: better than the real thing, or never close?",
+      "options": [
+        {
+          "label": "Sometimes better",
+          "count": 1900
+        },
+        {
+          "label": "Never close",
+          "count": 2700
+        }
+      ],
+      "id": "f183"
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Commentary: essential company, or mute and watch?",
+      "options": [
+        {
+          "label": "Essential company",
+          "count": 2800
+        },
+        {
+          "label": "Mute and watch",
+          "count": 1700
+        }
+      ],
+      "id": "f184"
+    },
+    {
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Warming up: sacred, or skipped?",
+      "options": [
+        {
+          "label": "Sacred",
+          "count": 2300
+        },
+        {
+          "label": "Skipped",
+          "count": 2400
+        }
+      ],
+      "id": "f185"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "A watch tracking your sleep: insight, or anxiety?",
+      "options": [
+        {
+          "label": "Insight",
+          "count": 2300
+        },
+        {
+          "label": "Anxiety",
+          "count": 2400
+        }
+      ],
+      "id": "f186"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Old phones in the drawer: an archive, or a hoard?",
+      "options": [
+        {
+          "label": "An archive",
+          "count": 2100
+        },
+        {
+          "label": "A hoard",
+          "count": 2800
+        }
+      ],
+      "id": "f187"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Passwords: a manager, or your own good system?",
+      "options": [
+        {
+          "label": "A manager",
+          "count": 2400
+        },
+        {
+          "label": "My own system",
+          "count": 2600
+        }
+      ],
+      "id": "f188"
+    },
+    {
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "QR-code menus: fine now, or bring back paper?",
+      "options": [
+        {
+          "label": "Fine now",
+          "count": 2200
+        },
+        {
+          "label": "Bring back paper",
+          "count": 2700
+        }
+      ],
+      "id": "f189"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Is nostalgia a friend, or a liar?",
+      "options": [
+        {
+          "label": "A friend",
+          "count": 2500
+        },
+        {
+          "label": "A liar",
+          "count": 2100
+        }
+      ],
+      "id": "f190"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Would you rather be right, or be kind?",
+      "options": [
+        {
+          "label": "Right",
+          "count": 1500
+        },
+        {
+          "label": "Kind",
+          "count": 3300
+        }
+      ],
+      "id": "f191"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Does everything happen for a reason?",
+      "options": [
+        {
+          "label": "It does",
+          "count": 2200
+        },
+        {
+          "label": "It doesn’t",
+          "count": 2700
+        }
+      ],
+      "id": "f192"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "The unexamined life: actually fine?",
+      "options": [
+        {
+          "label": "Actually fine",
+          "count": 1900
+        },
+        {
+          "label": "Socrates was right",
+          "count": 2600
+        }
+      ],
+      "id": "f193"
+    },
+    {
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Big fish in a small pond, or small fish in a big one?",
+      "options": [
+        {
+          "label": "Big fish, small pond",
+          "count": 2400
+        },
+        {
+          "label": "Small fish, big pond",
+          "count": 2300
+        }
+      ],
+      "id": "f194"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Talking to strangers on a train: welcome, or headphones in?",
+      "options": [
+        {
+          "label": "Welcome",
+          "count": 2000
+        },
+        {
+          "label": "Headphones in",
+          "count": 2900
+        }
+      ],
+      "id": "f195"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Gift cards: thoughtful enough, or an apology?",
+      "options": [
+        {
+          "label": "Thoughtful enough",
+          "count": 2300
+        },
+        {
+          "label": "An apology",
+          "count": 2400
+        }
+      ],
+      "id": "f196"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "House shoes for guests: offer them, or never?",
+      "options": [
+        {
+          "label": "Offer them",
+          "count": 2500
+        },
+        {
+          "label": "Never",
+          "count": 2000
+        }
+      ],
+      "id": "f197"
+    },
+    {
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "The group photo: the organiser, or the edge-lurker?",
+      "options": [
+        {
+          "label": "The organiser",
+          "count": 1800
+        },
+        {
+          "label": "The edge-lurker",
+          "count": 3000
+        }
+      ],
+      "id": "f198"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Speak every language, or play every instrument?",
+      "options": [
+        {
+          "label": "Every language",
+          "count": 3300
+        },
+        {
+          "label": "Every instrument",
+          "count": 1900
+        }
+      ],
+      "id": "f199"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Always know the truth, or always be happy?",
+      "options": [
+        {
+          "label": "The truth",
+          "count": 2500
+        },
+        {
+          "label": "Happy",
+          "count": 2400
+        }
+      ],
+      "id": "f200"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Your memories of a trip, or the photos of it — keep only one?",
+      "options": [
+        {
+          "label": "The memories",
+          "count": 3600
+        },
+        {
+          "label": "The photos",
+          "count": 1200
+        }
+      ],
+      "id": "f201"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Free flights forever, or free food forever?",
+      "options": [
+        {
+          "label": "Free flights",
+          "count": 2500
+        },
+        {
+          "label": "Free food",
+          "count": 2600
+        }
+      ],
+      "id": "f202"
+    },
+    {
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Perfect sleep every night, or perfect meals every day?",
+      "options": [
+        {
+          "label": "Perfect sleep",
+          "count": 3200
+        },
+        {
+          "label": "Perfect meals",
+          "count": 1800
+        }
+      ],
+      "id": "f203"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Ticket resale above face value: the market, or scalping?",
+      "options": [
+        {
+          "label": "The market",
+          "count": 1400
+        },
+        {
+          "label": "Scalping",
+          "count": 3500
+        }
+      ],
+      "id": "f204"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "Election day as a public holiday: overdue, or unnecessary?",
+      "options": [
+        {
+          "label": "Overdue",
+          "count": 2900
+        },
+        {
+          "label": "Unnecessary",
+          "count": 1800
+        }
+      ],
+      "id": "f205"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Space junk: whoever launched it cleans it, or everyone together?",
+      "options": [
+        {
+          "label": "The launchers",
+          "count": 2900
+        },
+        {
+          "label": "Everyone together",
+          "count": 1900
+        }
+      ],
+      "id": "f206"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Museums lending famous works abroad: generous, or risky?",
+      "options": [
+        {
+          "label": "Generous",
+          "count": 2600
+        },
+        {
+          "label": "Risky",
+          "count": 1800
+        }
+      ],
+      "id": "f207"
+    },
+    {
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "A four-day festival, or four one-day concerts?",
+      "options": [
+        {
+          "label": "The festival",
+          "count": 2200
+        },
+        {
+          "label": "Four concerts",
+          "count": 2500
+        }
+      ],
+      "id": "f208"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Salad as a main: a meal, or a side that got ambitious?",
+      "options": [
+        {
+          "label": "A meal",
+          "count": 2400
+        },
+        {
+          "label": "An ambitious side",
+          "count": 2300
+        }
+      ],
+      "id": "f209"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Tea: milk first, or tea first?",
+      "options": [
+        {
+          "label": "Milk first",
+          "count": 1600
+        },
+        {
+          "label": "Tea first",
+          "count": 3200
+        }
+      ],
+      "id": "f210"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "The bread basket: restraint, or ruin your appetite happily?",
+      "options": [
+        {
+          "label": "Restraint",
+          "count": 1700
+        },
+        {
+          "label": "Ruin it happily",
+          "count": 3100
+        }
+      ],
+      "id": "f211"
+    },
+    {
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Fruit: on the counter, or in the fridge?",
+      "options": [
+        {
+          "label": "On the counter",
+          "count": 2500
+        },
+        {
+          "label": "In the fridge",
+          "count": 2400
+        }
+      ],
+      "id": "f212"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "The cinema alone: a pleasure, or a last resort?",
+      "options": [
+        {
+          "label": "A pleasure",
+          "count": 2700
+        },
+        {
+          "label": "A last resort",
+          "count": 2000
+        }
+      ],
+      "id": "f213"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Film scores: half the film, or background?",
+      "options": [
+        {
+          "label": "Half the film",
+          "count": 3100
+        },
+        {
+          "label": "Background",
+          "count": 1500
+        }
+      ],
+      "id": "f214"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Opening weekend, or wait for the verdict?",
+      "options": [
+        {
+          "label": "Opening weekend",
+          "count": 1900
+        },
+        {
+          "label": "Wait for the verdict",
+          "count": 2800
+        }
+      ],
+      "id": "f215"
+    },
+    {
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Actors doing accents: commit, or don’t bother?",
+      "options": [
+        {
+          "label": "Commit",
+          "count": 3000
+        },
+        {
+          "label": "Don’t bother",
+          "count": 1600
+        }
+      ],
+      "id": "f216"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Live music: outdoors under the sky, or in a room built for it?",
+      "options": [
+        {
+          "label": "Under the sky",
+          "count": 2300
+        },
+        {
+          "label": "A room built for it",
+          "count": 2500
+        }
+      ],
+      "id": "f217"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Lyrics you’ve misheard for years: correct them, or keep yours?",
+      "options": [
+        {
+          "label": "Correct them",
+          "count": 1800
+        },
+        {
+          "label": "Keep mine",
+          "count": 2900
+        }
+      ],
+      "id": "f218"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "An album on shuffle: harmless, or heresy?",
+      "options": [
+        {
+          "label": "Harmless",
+          "count": 2400
+        },
+        {
+          "label": "Heresy",
+          "count": 2200
+        }
+      ],
+      "id": "f219"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The perfect concert companion: the superfan, or the first-timer?",
+      "options": [
+        {
+          "label": "The superfan",
+          "count": 2100
+        },
+        {
+          "label": "The first-timer",
+          "count": 2500
+        }
+      ],
+      "id": "f220"
+    },
+    {
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Wedding band, or wedding DJ?",
+      "options": [
+        {
+          "label": "Band",
+          "count": 2600
+        },
+        {
+          "label": "DJ",
+          "count": 2200
+        }
+      ],
+      "id": "f221"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Your driving instructor: Lewis Hamilton, or your mum?",
+      "options": [
+        {
+          "label": "Lewis Hamilton",
+          "count": 2100
+        },
+        {
+          "label": "My mum",
+          "count": 2600
+        }
+      ],
+      "id": "f222"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "A duet with: Freddie Mercury, Aretha Franklin, or Frank Sinatra?",
+      "options": [
+        {
+          "label": "Freddie Mercury",
+          "count": 2000
+        },
+        {
+          "label": "Aretha Franklin",
+          "count": 1700
+        },
+        {
+          "label": "Frank Sinatra",
+          "count": 1300
+        }
+      ],
+      "id": "f223"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Whose wardrobe: David Bowie’s, Audrey Hepburn’s, or Pharrell’s?",
+      "options": [
+        {
+          "label": "David Bowie’s",
+          "count": 1600
+        },
+        {
+          "label": "Audrey Hepburn’s",
+          "count": 1900
+        },
+        {
+          "label": "Pharrell’s",
+          "count": 1200
+        }
+      ],
+      "id": "f224"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The group project partner: Hermione Granger, or Tony Stark?",
+      "options": [
+        {
+          "label": "Hermione Granger",
+          "count": 2900
+        },
+        {
+          "label": "Tony Stark",
+          "count": 1900
+        }
+      ],
+      "id": "f225"
+    },
+    {
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Who’d survive a week in your job: Gordon Ramsay, Oprah, or The Rock?",
+      "options": [
+        {
+          "label": "Gordon Ramsay",
+          "count": 1500
+        },
+        {
+          "label": "Oprah",
+          "count": 1900
+        },
+        {
+          "label": "The Rock",
+          "count": 1400
+        }
+      ],
+      "id": "f226"
+    },
+    {
+      "id": "dl44",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "Push-ups you could do right now?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "push-ups"
+    },
+    {
+      "id": "dl45",
+      "core": false,
+      "cat": "tech",
+      "type": "dial",
+      "prompt": "Unread notifications right now?",
+      "lo": 0,
+      "hi": 120,
+      "unit": "notifications"
+    },
+    {
+      "id": "dl46",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many lives would you want to live, if you could?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "lives"
+    },
+    {
+      "id": "dl47",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Decorations up — from which week of the year?",
+      "lo": 0,
+      "hi": 52,
+      "unit": "weeks"
+    },
+    {
+      "id": "dl48",
+      "core": false,
+      "cat": "dilemma",
+      "type": "dial",
+      "prompt": "The most you’d queue for anything, in minutes?",
+      "lo": 0,
+      "hi": 120,
+      "unit": "min"
+    },
+    {
+      "id": "dl49",
+      "core": false,
+      "cat": "event",
+      "type": "dial",
+      "prompt": "Fireworks on New Year’s: how many minutes is right?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "min"
+    },
+    {
+      "id": "dl50",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "Spice jars in your kitchen?",
+      "lo": 0,
+      "hi": 48,
+      "unit": "jars"
+    },
+    {
+      "id": "dl51",
+      "core": false,
+      "cat": "movies",
+      "type": "dial",
+      "prompt": "Times you’ve seen your most-watched film?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "times"
+    },
+    {
+      "id": "dl52",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "Songs on your on-repeat playlist right now?",
+      "lo": 0,
+      "hi": 36,
+      "unit": "songs"
+    },
+    {
+      "id": "dl53",
+      "core": false,
+      "cat": "people",
+      "type": "dial",
+      "prompt": "Posters on your teenage bedroom wall — how many?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "posters"
+    },
+    {
+      "id": "fd10",
+      "core": false,
+      "cat": "sport",
+      "type": "field",
+      "prompt": "Team loyalty — place it",
+      "ax": [
+        "born into it",
+        "chosen"
+      ],
+      "ay": [
+        "for life",
+        "transferable"
+      ]
+    },
+    {
+      "id": "fd11",
+      "core": false,
+      "cat": "tech",
+      "type": "field",
+      "prompt": "Social media — place it",
+      "ax": [
+        "drains me",
+        "feeds me"
+      ],
+      "ay": [
+        "quitting soon",
+        "here to stay"
+      ]
+    },
+    {
+      "id": "fd12",
+      "core": false,
+      "cat": "culture",
+      "type": "field",
+      "prompt": "Traditions — place it",
+      "ax": [
+        "keep them all",
+        "invent new"
+      ],
+      "ay": [
+        "comforting",
+        "confining"
+      ]
+    },
+    {
+      "id": "fd13",
+      "core": false,
+      "cat": "food",
+      "type": "field",
+      "prompt": "Snacking — place it",
+      "ax": [
+        "a grazer",
+        "three meals"
+      ],
+      "ay": [
+        "proud",
+        "guilty"
+      ]
+    },
+    {
+      "id": "fd14",
+      "core": false,
+      "cat": "movies",
+      "type": "field",
+      "prompt": "Sequels — place it",
+      "ax": [
+        "never needed",
+        "keep them"
+      ],
+      "ay": [
+        "cash grabs",
+        "real stories"
+      ]
+    },
+    {
+      "id": "n16",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Eleven districts of London fill with design installations. Public art on your daily route: a gift, or in the way?",
+      "bg": "The 24th London Design Festival runs 12–20 September 2026: nine days of landmark installations, museum commissions and open studios across eleven design districts, from the V&A and the Barbican to a new Soho district.",
+      "from": "2026-09-06",
+      "until": "2026-09-13",
+      "options": [
+        {
+          "label": "A gift"
+        },
+        {
+          "label": "In the way"
+        },
+        {
+          "label": "I stop noticing by Tuesday"
+        }
+      ]
+    },
+    {
+      "id": "n17",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "TV’s big night returns. Award shows: still appointment viewing, or a highlights reel the morning after?",
+      "bg": "The 78th Primetime Emmy Awards air live from the Peacock Theater in Los Angeles on 14 September 2026, hosted by Mariska Hargitay, with the Creative Arts ceremonies held the weekend before.",
+      "from": "2026-09-06",
+      "until": "2026-09-14",
+      "options": [
+        {
+          "label": "Appointment viewing"
+        },
+        {
+          "label": "The highlights after"
+        },
+        {
+          "label": "Neither, honestly"
+        }
+      ]
     }
   ]
 }

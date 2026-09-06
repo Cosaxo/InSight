@@ -8,6 +8,7 @@ import { RMCore } from './relmap-core.js';
 import { RMPersonPanel, RMHubPanel } from './relmap-panels.jsx';
 import { useDialog } from './primitives.jsx';
 import NAV from '../data/nav';
+import { RMLenses } from './relmap-lenses.jsx';
 
 // RelationshipMap — a force-directed map of your people.
 // You sit at the center; each circle (family, friends, work…) gathers around its
@@ -362,8 +363,8 @@ let RelationshipMapExport;
       const sc = st.pxScale || (this.props.embedded ? 0.5 : 0.55);
       const upx = (t) => t / sc / Math.max(1, zoom * 0.8);
       // ── test lenses: stable per-person values for the active test ──
-      const RL = window.RMLenses;
-      const isLens = RL && RL.TESTS[mode];
+      const RL = RMLenses;
+      const isLens = RL.TESTS[mode];
       let lensVals = null;
       if (isLens) {
         lensVals = {};

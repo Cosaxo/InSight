@@ -9,6 +9,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
+import { PATHS } from "../spec/paths-data.js";
 import { getApp, growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
@@ -92,20 +93,56 @@ describe("the daily tab", () => {
     expectNoBoundary("feed window");
   });
 
-  // Crossroads (D136) at the head of the feed, reading its DEMO source —
-  // this build has no bank, so `LIVE.pathQs()` is empty and the card falls
-  // back to paths-data.js. smoke-live.test.jsx owns the other source, and
-  // the pair is what makes the fallback a decision rather than an accident:
-  // each would pass alone if the card only ever had one source.
+  // Crossroads as MEMBERS of the demo feed (D341), reading the DEMO source
+  // — this build has no bank, so the pool's path stubs resolve their
+  // content from paths-data.js by id. smoke-live.test.jsx owns the other
+  // source, and the pair is what makes the source switch a decision rather
+  // than an accident: each would pass alone if the card only ever had one.
   //
   // On the real mount rather than in the card's own suite, because the card
-  // renders perfectly well in isolation whether or not anything ever puts
-  // it on screen — which is the failure this catches.
-  it("puts Crossroads at the head of the demo feed, from the demo story", () => {
+  // renders perfectly well in isolation whether or not anything ever deals
+  // it in — which is the failure this catches. What is pinned is the
+  // owner's correction itself (D341: a story is a question TYPE, "in the
+  // feed like the others"): BOTH demo stories on screen at once, at
+  // whatever depths the mix put them — the pinned singleton read
+  // pathQs()[0] and could never show a second story (D185 §6).
+  it("deals both demo stories into the feed stream as members", async () => {
+    PATHS.stories().forEach((s) => PATHS.reset(s.id));
     const expectNoBoundary = mountApp();
-    expect(screen.getByText("Crossroads"), "the Crossroads card is not in the demo feed").toBeTruthy();
-    expect(screen.getByText("The Wallet"), "the card is not showing the demo story").toBeTruthy();
-    expectNoBoundary("crossroads card");
+    await growUntil(
+      () => screen.queryByText("The Wallet") && screen.queryByText("The Wrong Text"),
+      "both Crossroads stories",
+    );
+    expect(screen.getAllByText("Crossroads").length, "fewer than two story cards in the stream")
+      .toBeGreaterThanOrEqual(2);
+    expectNoBoundary("crossroads cards");
+  });
+
+  // …and the other half of "like the others": a FINISHED story is an
+  // answered question. It leaves the fresh stream and waits behind the
+  // Answered expander with its reveal — the same parking every answered
+  // card gets — while the unfinished story stays dealt in. This is also
+  // the one case that renders the expander's path dispatch, which a
+  // vote-only doneList never would.
+  it("parks a finished story behind the Answered expander", async () => {
+    PATHS.stories().forEach((s) => PATHS.reset(s.id));
+    const st = PATHS.stories()[0];
+    PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); // AAA
+    try {
+      const expectNoBoundary = mountApp();
+      await growUntil(() => screen.queryByText("The Wrong Text"), "the unfinished story");
+      expect(screen.queryByText("The Wallet"), "a finished story is still in the fresh stream").toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /answered · \d+/i }));
+      expect(screen.getByText("The Wallet"), "the finished story is not behind the expander").toBeTruthy();
+      // Its reveal, not a fresh card: the ending is named. Once since
+      // 2026-09-02 — the label the tree used to carry on its end node
+      // moved into the card, where it can be read (paths-card.test.jsx
+      // holds the same count).
+      expect(screen.getAllByText(st.endings.AAA.name).length).toBe(1);
+      expectNoBoundary("finished story parked");
+    } finally {
+      PATHS.stories().forEach((s) => PATHS.reset(s.id));
+    }
   });
 
   it("parks a previously answered feed card behind the Answered expander", () => {

@@ -113,7 +113,7 @@ describe("reading the queue", () => {
 
   it("renders an avatar entry as a token and bucket, not as an empty take", async () => {
     // D178 — the content IS the image, and the server sends `text: ""` on
-    // those entries (moderation.ts:334). So the failure this guards is not
+    // those entries (moderation.ts, "No text to copy"). So the failure this guards is not
     // an `undefined`: it is an avatar rendered as a take with an empty
     // body, which reads as a corrupt row. Asserted as the presence of what
     // a reviewer needs AND the absence of the empty-quote rendering.
@@ -193,7 +193,7 @@ describe("submitting a verdict", () => {
     // certified a hint that could not fire in production.
     //
     // The real refusal is HttpsError("permission-denied", "moderator-only")
-    // at functions/src/moderation.ts:95, serialised upper-snake.
+    // by `assertModerator` in functions/src/moderation.ts, serialised upper-snake.
     verdictStatus = 403;
     verdictResponse = { error: { status: "PERMISSION_DENIED", message: "moderator-only" } };
     const msg = await fails(["--keep", "t_abc"]);

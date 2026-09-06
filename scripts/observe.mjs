@@ -30,7 +30,7 @@
 //
 // Env: FIREBASE_SERVICE_ACCOUNT, FIREBASE_PROJECT_ID (default prvfire33)
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,6 +51,18 @@ const DETAIL = argv.includes("--functions");
 // answer only changes when a function moves generation. On when somebody
 // is writing or repairing a policy FILTER, which is what needs it.
 const METRICS = argv.includes("--metrics");
+// A machine-readable copy of the same payload, written to a file while the
+// human output goes to stdout unchanged. It exists so the production reader
+// can be a workflow instead of a Claude session: a reader that parses the
+// padded `✓ alertPolicies  5 live` lines is the one-parser-in-three-copies
+// failure D197 recorded, and this probe is the last instrument that should
+// carry it. Off unless asked for, and it never changes what the run prints
+// or what it exits with — the write happens after the readings are in hand,
+// so a broken path cannot cost a reading.
+const JSON_OUT = (() => {
+  const i = argv.indexOf("--json-out");
+  return i >= 0 ? argv[i + 1] : null;
+})();
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
 
 // ABOVE the REGION block on purpose: `die`'s only remaining call site is
@@ -284,6 +296,8 @@ const out = {
   blocked: results.filter((r) => r.status !== "ok").map((r) => ({ name: r.name, why: r.why, http: r.http })),
   ...(metricReadings ? { metricResources: metricReadings } : {}),
 };
+
+if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(out, null, 2));
 
 if (AS_JSON) {
   console.log(JSON.stringify(out, null, 2));

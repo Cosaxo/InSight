@@ -377,8 +377,8 @@ export interface DuelAggState {
   plays: number; // group-days revealed
   total: number; // persons counted — the unit the k-floor applies to
   counts: Record<string, number>; // per-option, bank-option questions only
-  guessTotal: number; // duo guesses cast (both partners may guess)
-  guessMatches: number; // …of which called the partner's actual pick
+  guessTotal: number; // guesses cast — a duo's at the partner, a group's at the room (D386)
+  guessMatches: number; // …of which landed: the partner's actual pick, or an option tied for the top
 }
 
 /**
@@ -512,6 +512,23 @@ export function duelAggDelta(
       if (!inRange(guess)) continue;
       guessTotal++;
       if (guess === votes[1 - i].optionIdx) guessMatches++;
+    }
+  } else if (mode === "group") {
+    // A group's guess is a call on where the room lands (D386): a hit
+    // when it names an option tied for the top of the counted votes.
+    // Scored only against a room of two or more — with one counted vote
+    // the "room" is the guesser, and calling your own answer is not a
+    // read. The band the scorecard reads is the same one: near 100% the
+    // room is predictable, at chance nobody can tell where it goes.
+    const counted = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (counted >= 2) {
+      const top = Math.max(...Object.values(counts));
+      for (const v of votes) {
+        const guess = v.guessIdx;
+        if (!inRange(guess)) continue;
+        guessTotal++;
+        if ((counts[String(guess)] || 0) === top) guessMatches++;
+      }
     }
   }
   return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
@@ -1037,8 +1054,10 @@ export type CatalogSpec =
 
 /**
  * The stored form of a catalog answer's entity, or null to never
- * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure
- * like meetsKFloor: the specs live in v2.ts (CATALOG_DOMAINS), the
+ * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure —
+ * it names no catalogue itself (the comparison here used to be to
+ * `meetsKFloor`, deleted with the floors at D98): the specs live in
+ * v2.ts (CATALOG_DOMAINS), the
  * committed catalogues are cross-checked against them by
  * scripts/check-pokedex.mjs and scripts/check-catalogs.mjs.
  */
@@ -1058,25 +1077,21 @@ export function catalogEntityKey(value: unknown, spec: CatalogSpec): string | nu
 export type CanonCounts = Record<string, number>;
 
 /**
- * The publishable leaderboard: entities at or above the floor, capped at
- * topN, everything else folded into `rest`. Null means nothing finer than
- * the total may be published.
+ * The published leaderboard: the `topN` biggest entities, with everything
+ * else summed into `rest`. Never null — an empty board is an empty
+ * catalogue question, not a suppression.
  *
- * Three rules beyond the plain floor, each with a reader in mind:
+ * One rule beyond the plain cut, with a reader in mind: key "0" ("Not
+ * listed") is counted in the total but NEVER enumerated — the moment it
+ * would lead a board, the catalogue is stale, not newsworthy.
  *
- * - Key "0" ("Not listed") is counted but NEVER enumerated — the moment it
- *   would lead a board, the catalogue is stale, not newsworthy.
- * - Ties at the topN boundary fold entirely: publishing 2 of 4 entities
- *   that share the boundary count would rank equals arbitrarily, and the
- *   arbitrary half would look like a standing.
- * - Complementary suppression, tie-group flavoured: exactly one folded
- *   entity is recoverable as `total - published`, so the smallest published
- *   COUNT (the whole tie group at that count, to keep the no-split rule)
- *   folds with it. Conservative on purpose: a nonzero "Not listed" count
- *   inside `rest` would often mask the hole, but "often" is not a floor.
+ * THIS BLOCK USED TO DESCRIBE A DIFFERENT FUNCTION. It promised a
+ * k-floor, boundary tie-group folding, complementary suppression and a
+ * `null` return — every one of them deleted by D98, and three of them
+ * contradicted by the note directly below it while the signature
+ * contradicted the fourth. A JSDoc block is what an editor shows on
+ * hover, so it was the version a caller would code against.
  */
-// The published leaderboard: the `topN` biggest entities, with everything
-// else summed into `rest`.
 //
 // This was `publishableCanon`, and it did three more things, all of which
 // D98 deleted:
@@ -1196,13 +1211,13 @@ export function foldCanonAnchors(
  * document is now its only job (D98 removed the floors that used to
  * follow it).
  *
- * Two deliberate conservatisms, recorded in D17:
- * - the floor then applies to the SHOWN total (top-N answers in the
- *   bucket), not the bucket's true cohort — a bucket can be suppressed
- *   more than strictly necessary, never less;
- * - entities outside the global top-N do not exist here. A segment's own
- *   favourite that never made the global board is not published — the
- *   D14 arithmetic, not an oversight.
+ * One deliberate conservatism, recorded in D17 and outliving the floors
+ * that surrounded it: entities outside the global top-N do not exist
+ * here. A segment's own favourite that never made the global board is not
+ * published — the D14 arithmetic, not an oversight.
+ *
+ * (The bullet that stood beside it described what the FLOOR was applied
+ * to. D98 removed the floor and left the sentence.)
  */
 export function canonBreakdownFor(
   entBy: BreakdownCounts,
@@ -1617,6 +1632,44 @@ function seedValueMatches(a: unknown, b: unknown): boolean {
 }
 
 /**
+ * Seeded fields whose stored MAP has keys the new payload does not — the
+ * ones that must be cleared before the merge, or they survive it.
+ *
+ * `batch.set(ref, payload, { merge: true })` merges map fields key by key
+ * rather than replacing them. Verified against the emulator, not assumed:
+ * storing `{a:1,b:2}` and merge-setting `{a:1}` reads back `{a:1,b:2}`,
+ * while an ARRAY in the same write is replaced wholesale. So a Crossroads
+ * story that drops a node keeps it forever, `seedDocMatches` keeps seeing
+ * the difference, and the seed rewrites that document on every run —
+ * churning `updatedAt`, which is the incremental cursor every returning
+ * device reads the bank with.
+ *
+ * The same defect as the field-level one recorded beside the caller
+ * ("`merge: true` cannot remove a field", D234's amendment), one level
+ * down. `nodes` and `endings` are the object-valued seeded fields today
+ * (D136); this asks the payload what shape it is rather than naming them,
+ * so a third one is covered on the day it lands.
+ */
+export function seedMapClears(
+  prior: Record<string, unknown> | null | undefined,
+  payload: Record<string, unknown>,
+): string[] {
+  if (!prior) return [];
+  const plain = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === "object" && !Array.isArray(v);
+  const out: string[] = [];
+  for (const f of SEEDED_FIELDS) {
+    const want = payload[f];
+    const have = prior[f];
+    // Only when BOTH sides are maps. A field that changed type, or that is
+    // being deleted outright, is already handled by the caller.
+    if (!plain(want) || !plain(have)) continue;
+    if (Object.keys(have).some((k) => !(k in want))) out.push(f);
+  }
+  return out;
+}
+
+/**
  * True when `existing` already carries every seeded field of `desired`.
  * `existing` is null/undefined for a doc that does not exist yet.
  *
@@ -1666,9 +1719,9 @@ export interface SeedOptionConflict {
   /**
    * Which frozen field changed. Absent means `options`, which is what every
    * conflict was until catalogue questions turned out to have none — see
-   * the `domain` arm below.
+   * the `domain` and `type` arms below.
    */
-  field?: "options" | "domain";
+  field?: "options" | "domain" | "type";
   stored: string[];
   desired: string[];
 }
@@ -1715,6 +1768,31 @@ export function seedOptionConflict(
   const dDesired = typeof desired.domain === "string" ? desired.domain : "";
   if (dStored !== dDesired) {
     return { qid, field: "domain", stored: [dStored || "(none)"], desired: [dDesired || "(none)"] };
+  }
+
+  // …AND THE TYPE, which is the outermost of the three: it decides what a
+  // stored answer even IS. `optionIdx` for vote/binary/choice, an order
+  // string for rank, `entity` for catalog, a bucket for dial. Change it on
+  // a question people have answered and every stored answer is re-read
+  // under the new rule — a catalogue key becomes an option index, a rank's
+  // order becomes nonsense, and the published aggregate is folded from
+  // then on as though it had always been the new form.
+  //
+  // Nothing else catches it. `options` is equal on both sides for a
+  // vote→catalog change (a catalog question ships `options: []`, so does
+  // an emptied vote), and `domain` is equal whenever neither side is a
+  // catalogue. It reaches the rules too: `isCatalogAnswer` gates on
+  // `type == "catalog"`, so a retyped question changes which answer shapes
+  // production accepts, silently and immediately.
+  //
+  // Same argument as `domain` one field over, and the same measurement
+  // behind it: across all 33 commits that have ever touched the feed bank,
+  // no existing question's type has changed once. This refuses something
+  // that has never legitimately happened, which is what a freeze is for.
+  const tStored = typeof stored.type === "string" ? stored.type : "";
+  const tDesired = typeof desired.type === "string" ? desired.type : "";
+  if (tStored !== tDesired) {
+    return { qid, field: "type", stored: [tStored || "(none)"], desired: [tDesired || "(none)"] };
   }
   return null;
 }
@@ -1810,16 +1888,10 @@ export function presenceNeighbors(cell: string): string[] {
  */
 export const PRESENCE_LINGER_MIN = 180;
 
-/**
- * The "visible for a while" option's length (D174's middle state).
- *
- * Shorter than the linger on purpose: the session is a promise about
- * WHEN YOU STOP BEING VISIBLE, and `until` is what makes it exact. A
- * client in session mode clamps every `until` it writes to the session's
- * deadline, so closing the app ten minutes before the deadline cannot
- * leave the position standing for a further linger.
- */
-export const PRESENCE_SESSION_MIN = 120;
+// `PRESENCE_SESSION_MIN = 120` stood here from D174 to D370 — the length of
+// the timed option, which the client clamped every `until` to. The option
+// is gone (the owner: off and on only), so is the deadline, and a constant
+// nothing reads is the drift this file is otherwise careful about.
 
 /**
  * Typed phones a neighbourhood needs before the room's mix is drawn at all
@@ -2155,13 +2227,22 @@ export function roomQids(
 /**
  * Bounds on a stored FCM token, applied before it reaches FCM.
  *
- * Rules cap the token array at 10 entries but never check what is IN
- * them, so a client can store ten ~1MB strings in its own profile and we
- * would hand them straight to sendEachForMulticast. Length only — no
- * format regex, which is the part most likely to silently kill every
- * notification the day FCM changes its token shape.
+ * WHAT ACTUALLY ENFORCES THE REST, because this said "rules cap the token
+ * array at 10 entries but never check what is IN them, so a client can
+ * store ten ~1MB strings in its own profile" and both halves stopped
+ * being true at D98. Tokens left the profile for
+ * `v2_users/{uid}/push/tokens`, which is `allow read, write: if false` —
+ * no client can store anything there at all (firestore.rules, and
+ * rules.test.ts pins both the shut door and the profile not keeping a
+ * back way in). There is no rules clause capping the array; the cap of
+ * ten is a server literal, `nextFcmTokens(…, 10)` in v2social.ts,
+ * reachable only through `registerPushToken`, which already rejects
+ * anything failing `isPlausibleFcmToken`.
  *
- * NB: this bounds SEND cost, not what is stored.
+ * So this is the second, looser bound, applied at SEND time to whatever
+ * is already stored — length only, no format regex, which is the part
+ * most likely to silently kill every notification the day FCM changes
+ * its token shape. It bounds send cost, not what is stored.
  */
 export const FCM_TOKEN_MIN = 20;
 export const FCM_TOKEN_MAX = 4096;

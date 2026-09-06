@@ -114,7 +114,7 @@ describe("LiveRoomTabs · People, the one tab that discloses something new", () 
   beforeEach(() => {
     LIVE.near.room = () => ({
       // "The Host", not "Host": the presence doc carries what myType()
-      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // resolved (`myType`, data/typeMix), which is an IS_ARCHETYPES name verbatim.
       // The short form was fixture-only and quietly made the mark below
       // unresolvable, which is half of why it went four days undrawn.
       people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],
@@ -293,7 +293,7 @@ describe("LiveRoomTabs · People draws faces and can report one", () => {
   beforeEach(() => {
     LIVE.near.room = () => ({
       // "The Host", not "Host": the presence doc carries what myType()
-      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // resolved (`myType`, data/typeMix), which is an IS_ARCHETYPES name verbatim.
       // The short form was fixture-only and quietly made the mark below
       // unresolvable, which is half of why it went four days undrawn.
       people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],
@@ -324,6 +324,41 @@ describe("LiveRoomTabs · People draws faces and can report one", () => {
     expect(LIVE.flagAvatar).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
     expect(LIVE.flagAvatar).toHaveBeenCalledWith("u1");
+  });
+
+  it("a refused report is not an unhandled rejection", async () => {
+    // The store rolls a refused report back and reports it, then rethrows
+    // for callers that await it. This one does not await — a `void` tap
+    // handler — so the rejection has to be caught here, or it surfaces
+    // as an unhandled one (and D356's gate gave the method a second way
+    // to reject: a failed sign-in). vitest fails the file on an unhandled
+    // rejection, which is the assertion.
+    // A PLAIN function, not a vi.fn: the mock wrapper records a returned
+    // promise's outcome, which attaches a handler to it — so through a
+    // vi.fn the rejection is never unhandled and the case cannot fail.
+    // Node reports a rejection nobody handled at its next checkpoint;
+    // listen for it directly rather than trusting the runner to notice.
+    const wrapped = LIVE.flagAvatar;
+    let reported = "";
+    (LIVE as { flagAvatar: unknown }).flagAvatar = (uid: string) => {
+      reported = uid;
+      return Promise.reject(new Error("permission-denied"));
+    };
+    const unhandled: unknown[] = [];
+    const onRejection = (reason: unknown) => { unhandled.push(reason); };
+    process.on("unhandledRejection", onRejection);
+    try {
+      render(<LiveRoomTabs tab="people" />);
+      fireEvent.click(screen.getByRole("button", { name: /Report this photo/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      expect(reported).toBe("u1");
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+      (LIVE as { flagAvatar: unknown }).flagAvatar = wrapped;
+    }
   });
 
   it("a hidden face reads exactly like no face at all", () => {

@@ -143,20 +143,6 @@
       ]
     },
     {
-      "collectionGroup": "invites",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "from",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "at",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "answers",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
@@ -257,6 +243,16 @@
     {
       "collectionGroup": "reveals",
       "fieldPath": "members",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "reveals",
+      "fieldPath": "pickedUids",
       "indexes": [
         {
           "queryScope": "COLLECTION_GROUP",

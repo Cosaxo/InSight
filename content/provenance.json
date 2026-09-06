@@ -253,6 +253,46 @@
         "audited": false
       }
     },
+    "130": {
+      "archiveId": "dqx101",
+      "source": "farm",
+      "batch": "2026-09-04",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-04",
+        "audited": false
+      }
+    },
+    "131": {
+      "archiveId": "dqx102",
+      "source": "farm",
+      "batch": "2026-09-04",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-04",
+        "audited": false
+      }
+    },
+    "132": {
+      "archiveId": "dqx103",
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-06",
+        "audited": false
+      }
+    },
+    "133": {
+      "archiveId": "dqx104",
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-06",
+        "audited": false
+      }
+    },
     "000": {
       "archiveId": "dq30",
       "source": "editorial",
@@ -1798,6 +1838,1306 @@
     "dl17": {
       "source": "farm",
       "batch": "2026-08-29",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f122": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl18": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f123": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f124": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f125": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f126": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f127": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f128": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f129": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f130": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f131": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "pt3": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f132": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f133": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f134": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f135": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl19": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f136": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n07": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n08": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n09": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n10": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f137": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f138": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f139": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f140": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f141": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f142": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f143": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f144": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f145": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f146": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f147": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f148": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f149": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f150": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f151": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f152": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f153": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f154": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f155": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f156": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f157": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f158": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f159": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f160": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f161": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f162": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f163": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f164": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f165": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f166": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f167": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f168": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f169": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f170": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f171": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f172": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f173": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f174": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f175": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f176": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f177": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f178": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f179": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f180": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f181": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl20": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl21": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl22": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl23": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl24": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl25": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl26": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl27": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl28": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl29": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd5": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd6": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd7": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd8": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd9": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n11": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n12": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n13": {
+      "source": "farm",
+      "batch": "2026-09-03",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl30": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "dl31": {
+      "source": "farm",
+      "batch": "2026-08-19",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl32": {
+      "source": "farm",
+      "batch": "2026-08-20",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl33": {
+      "source": "farm",
+      "batch": "2026-08-21",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl34": {
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl35": {
+      "source": "farm",
+      "batch": "2026-08-24",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl36": {
+      "source": "farm",
+      "batch": "2026-08-25",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl37": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl38": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl39": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl40": {
+      "source": "farm",
+      "batch": "2026-08-28",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl41": {
+      "source": "farm",
+      "batch": "2026-08-29",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl42": {
+      "source": "farm",
+      "batch": "2026-09-01",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl43": {
+      "source": "farm",
+      "batch": "2026-09-02",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n14": {
+      "source": "farm",
+      "batch": "2026-09-05",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n15": {
+      "source": "farm",
+      "batch": "2026-09-05",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f182": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f183": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f184": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f185": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f186": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f187": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f188": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f189": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f190": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f191": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f192": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f193": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f194": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f195": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f196": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f197": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f198": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f199": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f200": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f201": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f202": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f203": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f204": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f205": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f206": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f207": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f208": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f209": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f210": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f211": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f212": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f213": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f214": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f215": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f216": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f217": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f218": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f219": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f220": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f221": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f222": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f223": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f224": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f225": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f226": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl44": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl45": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl46": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl47": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl48": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl49": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl50": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl51": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl52": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl53": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd10": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd11": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd12": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd13": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd14": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n16": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n17": {
+      "source": "farm",
+      "batch": "2026-09-06",
       "review": {
         "by": "ai",
         "audited": false

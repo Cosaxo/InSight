@@ -24,6 +24,27 @@
 //   4. tracking.used is false. Tracking gates the entire form and carries
 //      an ATT prompt; it should never change as a side effect.
 //   5. Every age-rating answer agrees with the prose, KEY AND VALUE.
+//   6. Play's Data Safety form agrees with STORE-FORMS.md §3, row for row.
+//
+// Rule 6 was added 2026-09-01, and what it caught on the way in is the
+// argument for it: §3's Precise location row had its columns TRANSPOSED
+// against the header — a purpose in the Shared column, a note in the
+// Optional column, "No" under Purpose — and had been that way since D175
+// added the row. Rules 1-5 could not see it, because until this rule the
+// Play half of this file had no machine-readable twin at all: the section
+// was prose that nobody could compare to anything. That is the same
+// absence rule 5 was added for, one store over.
+//
+// Nothing here has been FILED yet — D42 parked Play and D345 un-parked it
+// onto an ENK, but the Console account does not exist as this is written.
+// The rule matters more now than when it was added a few hours earlier,
+// for the reason §3 itself gives for existing: the answers were derived
+// once from an audited inventory and should not be re-derived under time
+// pressure, which is only true if they are still correct when they are
+// picked up. §3 carries three answers that are NOT settled — the Shared
+// column, App activity, Purchases — and this rule deliberately does not
+// arbitrate them; it holds the two copies equal so that whatever is
+// decided is decided once.
 //
 // Rule 5 was added after the age rating failed to push at all. The privacy
 // half of app-privacy.json was gated by rules 1-4 from the day it was
@@ -48,11 +69,16 @@
 //
 // Run: node scripts/check-store-forms.mjs
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { stripXmlComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// The idiom check-policy-claims.mjs already uses: run as a gate, import as
+// a library of parsers.
+const isEntry = process.argv[1]
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
 const privacy = JSON.parse(readFileSync(join(root, "design/store/app-privacy.json"), "utf8"));
 const prose = readFileSync(join(root, "docs/STORE-FORMS.md"), "utf8");
 
@@ -62,6 +88,53 @@ const errors = [];
 // "Coarse Location"). Normalise both sides to SCREAMING_SNAKE so the
 // comparison is on the answer rather than on the formatting.
 const norm = (s) => s.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+// ── rule 6's parser ─────────────────────────────────────────────────
+// Exported and pure so it can be tested against synthetic markdown. A
+// gate parser that silently matches nothing is this repo's recurring
+// failure (D179, D197, D275) and the only defence is feeding it input
+// whose answer is known.
+//
+// A cell carries an answer plus, often, a note: "**Yes** (D175)",
+// "Optional (Google linking only)", "**Required** (on with no in-app
+// switch since D211 — ...)". The answer is what precedes the first
+// parenthesis; bold markers are formatting. Everything after is for the
+// human and deliberately not compared — pinning a prose note would make
+// the gate fire on an edit that improved it.
+export const playCell = (cell) => cell.split("(")[0].replace(/\*/g, "").trim();
+
+/**
+ * STORE-FORMS.md §3's table as rows. Empty array when the section or its
+ * table cannot be found, which the caller must treat as an error rather
+ * than as "no rows" — see rule 6's own guard.
+ */
+export function playRows(md) {
+  const section = md.split(/^## 3 · Play Data Safety/m)[1]?.split(/^## /m)[0] ?? "";
+  // An em-dash cell is the table's "not applicable", which is a different
+  // answer from "No" and must not collapse into one.
+  const blank = (v) => (v === "—" || v === "" ? null : v);
+  const rows = [];
+  for (const line of section.split("\n")) {
+    if (!line.startsWith("|")) continue;
+    const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+    if (cells.length !== 5) continue;
+    const category = playCell(cells[0]);
+    // The header and its separator, skipped by what they say rather than
+    // by position — the table could gain a leading paragraph.
+    if (!category || /^Play category$/i.test(category) || /^-+$/.test(category)) continue;
+    const collected = playCell(cells[1]);
+    if (!/^(Yes|No)$/i.test(collected)) continue;
+    const shared = blank(playCell(cells[2]));
+    rows.push({
+      category,
+      collected: /^yes$/i.test(collected),
+      shared: shared === null ? null : /^yes$/i.test(shared),
+      optional: blank(playCell(cells[3])),
+      purpose: blank(playCell(cells[4])),
+    });
+  }
+  return rows;
+}
 
 // Only the "Collected — declare these five" table. Slicing to that section
 // matters: the "Not collected" list names types too, and reading both
@@ -116,7 +189,15 @@ for (const t of proseTypes) {
 // must say so; if it stops asking, the label must stop saying so. Neither
 // direction can drift now, and this file no longer has an opinion about
 // which one is right.
-const plist = readFileSync(join(root, "ios/App/App/Info.plist"), "utf8");
+// Comments off first — the pattern below tolerates a comment BETWEEN the
+// key and its value, and that is the wrong half. It reads the first
+// `<key>` wherever it is, so commenting the whole pair out left this gate
+// printing "Precise Location declared, matching the plist" at exit 0 while
+// the key it names was not in the shipped app. Store forms are one of the
+// four things CLAUDE.md puts outside the D334 ask, so this one is not a
+// preference. Same class, same tool, as `check-ios-location`, which reads
+// the same file.
+const plist = stripXmlComments(readFileSync(join(root, "ios/App/App/Info.plist"), "utf8"));
 // `<key>X</key>` followed by `<true/>` or `<false/>`, whitespace and
 // comments between them. Reduced accuracy TRUE means the app deliberately
 // asks for a coarse fix.
@@ -141,6 +222,50 @@ if (reduced === undefined) {
     + "    safer direction, but it is still two files disagreeing about one\n"
     + "    attestation — decide which is right and move the other.",
   );
+}
+
+// …AND THE FILE THE FORMS ARE ANSWERED FROM.
+//
+// The two rules above hold app-privacy.json to the plist, and they were
+// both green while `docs/data-inventory.md` — which calls itself "the
+// audited list the store forms are answered from" — still said the app
+// declares Coarse location and that FINE is "capped at maxSdkVersion 30".
+// D175 uncapped it. So the forms were right, the source they are supposed
+// to be derived from was not, and anyone re-answering a form from it would
+// have under-declared: the direction SHIP-CHECKLIST calls the one that
+// gets an app pulled.
+//
+// That paragraph is itself a record of the SAME error made once before,
+// in the same direction. Twice is a pattern, and a pattern is what a gate
+// is for.
+if (reduced === "false") {
+  const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
+  // The CONCLUSION, not the whole paragraph. That paragraph is partly a
+  // record of the two times this went wrong, so it quotes the wordings it
+  // replaced — and a rule reading the whole thing fires on the history it
+  // is written to prevent repeating. Measured: it did, on the very commit
+  // that corrected it.
+  const para = /What is true today[\s\S]{0,1500}?App Functionality, optional\.\*\*/.exec(inv)?.[0];
+  if (!para) {
+    errors.push(
+      "docs/data-inventory.md: could not find the Location paragraph's "
+      + "\"What is true today\" conclusion. It is what a store form is answered from, "
+      + "so this rule cannot be silently skipped — fix the pattern.",
+    );
+  } else if (!/\bPrecise\b/.test(para)) {
+    errors.push(
+      "iOS asks for a PRECISE fix, and docs/data-inventory.md's Location "
+      + "paragraph does not say Precise. The store forms are answered FROM "
+      + "that file, so it under-declares even while the forms are right — "
+      + "which is exactly what that paragraph's own history records.",
+    );
+  } else if (/maxSdkVersion=?.?30/.test(para)) {
+    errors.push(
+      "docs/data-inventory.md still describes ACCESS_FINE_LOCATION as capped "
+      + "at maxSdkVersion 30. D175 uncapped it, and the manifest line says so "
+      + "in its own comment.",
+    );
+  }
 }
 
 if (privacy.tracking?.used !== false) {
@@ -208,6 +333,89 @@ for (const key of ageTable.keys()) {
   }
 }
 
+// ── 6. Play's Data Safety form against §3 ───────────────────────────
+// Total in both directions, unlike rules 1-2, which compare only the
+// collected SET. Play's table is small enough to hold whole, and the
+// failure that produced this rule was inside a row rather than a missing
+// one — a set comparison would have been green through all of it.
+const playJson = JSON.parse(
+  readFileSync(join(root, "design/store/play-data-safety.json"), "utf8"),
+);
+const playProse = playRows(prose);
+
+if (!playProse.length) {
+  errors.push(
+    "docs/STORE-FORMS.md: could not read §3's Play Data Safety table.\n"
+    + "    Expected `## 3 · Play Data Safety` followed by a five-column table.\n"
+    + "    If that section moved or was renamed, fix the pattern here — do not\n"
+    + "    delete the rule. A parser that matches nothing reports no rows and\n"
+    + "    calls it agreement, which is how three earlier gates went quiet.",
+  );
+} else {
+  const key = (r) => norm(r.category);
+  const proseByKey = new Map(playProse.map((r) => [key(r), r]));
+  const jsonByKey = new Map((playJson.rows ?? []).map((r) => [key(r), r]));
+
+  for (const [k, jr] of jsonByKey) {
+    const pr = proseByKey.get(k);
+    if (!pr) {
+      errors.push(
+        `play-data-safety.json has a row for ${k}, but docs/STORE-FORMS.md §3's\n`
+        + "    table does not. The filing and the reasoning behind it have to be\n"
+        + "    the same list — add the row, with why.",
+      );
+      continue;
+    }
+    for (const field of ["collected", "shared", "optional", "purpose"]) {
+      const a = jr[field] ?? null;
+      const b = pr[field] ?? null;
+      const same = typeof a === "string" && typeof b === "string"
+        ? a.toLowerCase() === b.toLowerCase()
+        : a === b;
+      if (!same) {
+        errors.push(
+          `${k}.${field}: play-data-safety.json says ${JSON.stringify(a)},\n`
+          + `    docs/STORE-FORMS.md §3 says ${JSON.stringify(b)}. One of them is\n`
+          + "    what a human reviewed and the other is what would be filed. This\n"
+          + "    is the rule that catches a cell under the wrong header.",
+        );
+      }
+    }
+  }
+  for (const k of proseByKey.keys()) {
+    if (!jsonByKey.has(k)) {
+      errors.push(
+        `docs/STORE-FORMS.md §3 has a row for ${k}, but play-data-safety.json\n`
+        + "    does not. A documented answer with no machine-readable twin is\n"
+        + "    exactly the state rule 6 was added to end.",
+      );
+    }
+  }
+
+  // The deletion URL is enforced by Play independently of the rest of the
+  // form, so a missing or non-https value is its own failure rather than a
+  // row mismatch. It cannot be checked for reachability from here; what it
+  // CAN be held to is that the page it names exists in this tree.
+  const url = playJson.deletionRequestUrl ?? "";
+  if (!/^https:\/\/\S+$/.test(url)) {
+    errors.push(
+      "play-data-safety.json: deletionRequestUrl must be an https URL.\n"
+      + "    Play requires every app offering account creation to publish a web\n"
+      + "    deletion route, reachable without installing the app, and enforces\n"
+      + "    it separately from every row above.",
+    );
+  } else {
+    const page = url.split("/").pop();
+    if (page && !existsSync(join(root, "web", page))) {
+      errors.push(
+        `play-data-safety.json points deletionRequestUrl at ${page}, which is\n`
+        + "    not in web/. The URL is hosted from that directory, so a rename\n"
+        + "    there is a dead link on a filed form.",
+      );
+    }
+  }
+}
+
 if (errors.length) {
   console.error("\ncheck-store-forms: the two copies of the store answers disagree:\n");
   for (const e of errors) console.error(`  ${e}\n`);
@@ -216,11 +424,18 @@ if (errors.length) {
     + "  docs/STORE-FORMS.md is what a human reads before approving it.\n"
     + "  They are two copies of one attestation, which is why they are compared.",
   );
-  process.exit(1);
+  // Guarded so importing this module for its parsers cannot kill a test
+  // run. The report above still prints either way.
+  if (isEntry) process.exit(1);
 }
 
 console.log(
   `check-store-forms OK — ${jsonTypes.size} collected type(s) and ${ageTable.size} `
   + "age-rating answer(s) agree across app-privacy.json and STORE-FORMS.md; "
-  + `tracking off; Precise Location ${jsonTypes.has("PRECISE_LOCATION") ? "declared" : "absent"}, matching the plist.`,
+  + `tracking off; Precise Location ${jsonTypes.has("PRECISE_LOCATION") ? "declared" : "absent"}, matching the plist; `
+  // The Play count is REPORTED, not just checked. A parser that quietly
+  // stops matching reports zero rows and passes every comparison — the
+  // D275 shape exactly — so the number goes in the success line where a
+  // reader sees it fall.
+  + `${playProse.length} Play row(s) agree across play-data-safety.json and §3.`,
 );

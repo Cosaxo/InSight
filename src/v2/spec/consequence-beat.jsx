@@ -18,7 +18,7 @@ function cbRand(seed) { let h = 2166136261; const s = String(seed); for (let i =
 const cbEaseOut = (x) => 1 - Math.pow(1 - x, 3);
 const cbEaseInOut = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 
-function ConsequenceBeat({ seed, options, pcts, counts, mineIdx, height = 220, onDone }) {
+export function ConsequenceBeat({ seed, options, pcts, counts, mineIdx, height = 220, onDone }) {
   const rootRef = React.useRef(null), canvasRef = React.useRef(null), doneRef = React.useRef(false);
   const finish = () => { if (!doneRef.current) { doneRef.current = true; onDone && onDone(); } };
   const maxP = Math.max(...pcts), mineP = pcts[mineIdx];
@@ -34,8 +34,13 @@ function ConsequenceBeat({ seed, options, pcts, counts, mineIdx, height = 220, o
   // each would have made the beat contradict the line two seconds later.
   //
   // `counts` is optional so a caller that has none degrades exactly as
-  // before rather than throwing. Today world-feed's renderBeat is the
-  // only caller and it always has them.
+  // before rather than throwing. Both callers pass them — world-feed's
+  // renderBeat, and the daily's own beat. The daily did NOT until
+  // 2026-09-02: this paragraph said world-feed was "the only caller",
+  // which stopped being true without anyone noticing, and the daily beat
+  // — the app's front door, two seconds after today's answer — decided
+  // its verdict by index on tied percentages. On 449 against 451 it told
+  // the voter on 449 they were with the majority.
   const rank = counts && counts.length === pcts.length ? counts : pcts;
   // Not `maxR` — that name is a RADIUS further down and shadowing it here
   // would read as the same quantity.

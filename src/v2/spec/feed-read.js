@@ -4,6 +4,11 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import { sharePcts } from '../data/pct';
+// The store (D354): `feedInsight` below reads the aggregate through it at
+// call time. Imported rather than `window.LIVE` — the load-order guard
+// that read carried is unreachable on an import.
+import LIVE from '../data/live';
+import PLACES from '../data/places';
 
 // feed-read.js — the feed's memory.
 //
@@ -81,13 +86,39 @@ export let feedInsight;
   // of the line is that it cuts AGAINST the overall result.
   const MIN_GAP = 12;
 
+  // The smallest cell this line will describe.
+  //
+  // WHY IT EXISTS: there was no floor at all — `if (!n) continue` — so a
+  // card a thousand people had answered could carry "25-34 flips it to
+  // Agree — 100%" resting on ONE answer, with nothing on the line saying
+  // so. A flip is the highest-scoring shape there is (`+1000`), and a
+  // one-answer cell flips whenever that one person disagreed with the
+  // room, so the thinnest cut on the card was also the likeliest to win
+  // the line.
+  //
+  // THREE, because that is what the two sibling lines on this same card
+  // family already require — `renderDialInsight` and `renderFieldInsight`
+  // both `continue` on `r.n < 3` (world-feed.jsx). This was the only one
+  // of the three for ordinary option questions and the only one without a
+  // floor. Whether three is high ENOUGH for a percentage is the open
+  // question Explore's floor asks too; it is the owner's, and it is not a
+  // reason to leave this at one.
+  const MIN_CELL = 3;
+
   // The one published cut that disagrees most with the room.
   //
-  // Reads only `agg.by`, which the server has already floored per cell with
-  // complementary suppression (functions/src/pure.ts) — so anything visible
-  // here is publishable by construction, and this adds no disclosure of its
-  // own. Returns null for anything it cannot say honestly: a demo card, a
-  // question below the floor, a breakdown with nothing surprising in it.
+  // Reads only `agg.by`. This said the server had "already floored per cell
+  // with complementary suppression", and D98 removed every floor from that
+  // path — `functions/src/pure.ts` now says so in as many words: "there is
+  // no other floor left in this path — every cell folded here is
+  // published." That is correct and deliberate for DISCLOSURE, which is
+  // what the sentence was about; what it was read as, for as long as it
+  // stood, was that a cell arriving here had a size worth talking about.
+  // It does not. `MIN_CELL` below is this line's own floor, and it is an
+  // honesty floor, not a privacy one.
+  //
+  // Returns null for anything it cannot say honestly: a demo card, a cell
+  // too small to describe, a breakdown with nothing surprising in it.
   //
   // `mine` is the viewer's own option index, third in the demo signature
   // the call site still uses (`feedInsight(q, counts, mine, …)`) and the
@@ -95,8 +126,7 @@ export let feedInsight;
   // below, where the room baseline is built.
   feedInsight = function feedInsightImpl(q, _counts, mine) {
     if (!q || !q.live || !q.options || q.options.length < 2) return null;
-    const L = window.LIVE;
-    const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
+    const agg = LIVE.enabled ? LIVE.aggFor(q.id) : null;
     const by = agg && agg.by;
     if (!by) return null;
 
@@ -104,10 +134,31 @@ export let feedInsight;
     // about has to be the room the card above it drew. `o.count` comes from
     // `countsFor` (data/deck.ts), which SUBTRACTS the viewer's vote once the
     // trigger has folded it — the UI layer adds its own +1. So the card
-    // renders `wfPcts(counts, mine)`, which puts it back, and the cohort
-    // cells in `agg.by` contain it too. Without this line the baseline was
-    // the only population on the screen that nobody was counted in, and it
-    // decided both `roomWin` and `gap`.
+    // renders `wfPcts(counts, mine)`, which puts it back. Without this line
+    // the baseline was the only population on the screen that nobody was
+    // counted in, and it decided both `roomWin` and `gap`.
+    //
+    // AND THE COHORT CELLS BELOW DO NOT AGREE WITH IT FOR THE FIRST FEW
+    // SECONDS. This said they "contain it too", flatly, and that is true
+    // only after the trigger has folded your vote. `countsFor`
+    // (data/deck.ts) subtracts the viewer's vote back out `if (!ctx.pending
+    // && …)` — so while the write is unfolded there is nothing to subtract,
+    // `o.count` is the crowd without you, this line's `+ 1` puts you in the
+    // ROOM, and `agg.by`'s cells still do not have you. Your own cohort is
+    // short by one against a baseline that counts you, in the window
+    // immediately after you vote, which is the window this line renders in.
+    //
+    // What it costs is bounded but real: one vote inside a cell of
+    // MIN_CELL..n shifts that cell's share by up to 1/n, which can create
+    // or erase a `flip` against `roomWin` — and `FEEDREAD.log`'s majority
+    // bit is written to a permanent per-device record that feeds the
+    // Mirror's sparse gate and its with-the-crowd rate. Not fixed here: the
+    // join needs a per-question "is my vote folded yet" reader that the
+    // store does not export (`state.unaggregated` is internal;
+    // `pulsePending` is the pulse's own), and adding one moves the surface
+    // `data/vote.test.ts` pins. Written down rather than half-done —
+    // the fourth site of the D365 +1 mismatch, after `bins`/`todayN`,
+    // `scope()`'s day series, and the two above.
     //
     // What that produced: whenever your own vote made or changed the
     // leader — routine at the counts a question has in its first hours —
@@ -127,7 +178,7 @@ export let feedInsight;
       for (const bucket of Object.keys(buckets)) {
         const cell = buckets[bucket];
         const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
-        if (!n) continue;
+        if (n < MIN_CELL) continue;
         const cellCounts = q.options.map((_, i) => cell[String(i)] || 0);
         const pct = cellCounts.map((c) => (c / n) * 100);
         const win = pct.indexOf(Math.max(...pct));
@@ -159,12 +210,9 @@ export let feedInsight;
     // City and country are stored canonically ("Oslo, NO", "NO") so one
     // cohort is one key worldwide; they read as names only after PLACES
     // turns them back (D9).
-    const P = window.PLACES;
     let label = best.group;
-    if (P) {
-      if (best.dim === 'country') label = P.countryName(best.group);
-      else if (best.dim === 'city') { const pl = P.parse(best.group); if (pl) label = pl.name; }
-    }
+    if (best.dim === 'country') label = PLACES.countryName(best.group);
+    else if (best.dim === 'city') { const pl = PLACES.parse(best.group); if (pl) label = pl.name; }
     return {
       kind: best.kind, group: label, sideIdx: best.sideIdx, dim: best.dim,
       // Rounded once, at the end, and only for the cell that won.
@@ -172,4 +220,3 @@ export let feedInsight;
     };
   };
 })();
-window.FEEDREAD = FEEDREAD;

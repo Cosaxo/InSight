@@ -85,11 +85,32 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<!-- THE PROFILE PHOTO, AND WHY BOTH KEYS ARE HERE FOR ONE `<input
+	     type="file">`. There is no camera plugin in this app and no code
+	     path that asks for a camera. WebKit's own upload sheet adds the
+	     action anyway: WKFileUploadPanel builds its menu from the accept
+	     attribute's MIME types, and image/jpeg and image/png both conform
+	     to public.image, so the sheet offers Take Photo and presents
+	     UIImagePickerControllerSourceTypeCamera in-process — with no check
+	     anywhere in that file for this key. iOS TCC then terminates the
+	     app the instant the tap lands. Nothing in this tree could have
+	     caught that: check:ios-location reads only the location keys, and
+	     check:store-forms reads only NSLocationDefaultAccuracyReduced.
+
+	     Verbatim in the system prompt, like the location strings below, so
+	     each says what happens rather than what the feature is called. The
+	     256px re-encode is data/avatar.ts: createImageBitmap → a 256×256
+	     canvas → toBlob, so the original's EXIF does not survive the
+	     round trip. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Used only if you choose Take Photo while adding a profile picture. The photo is cropped square and shrunk to 256 pixels on this device before it is uploaded, so the original's location and camera details are not sent. A profile picture is optional and off until you add one.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used only if you choose an existing picture as your profile picture. It is cropped square and shrunk to 256 pixels on this device before it is uploaded, so the original's location and camera details are not sent. A profile picture is optional and off until you add one.</string>
 	<!-- Location, when-in-use only (D9). Shown verbatim in the system
 	     prompt, so it says what actually happens rather than what the
 	     feature is called. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<string>Used on this device to work out which city you are nearest, so the daily can show how your city answered — once, unless you switch Near on, which sends a ~200-metre grid square every few minutes while the app is open. Your exact coordinates are never sent anywhere and never stored. You can skip this and pick your city from a list instead.</string>
 	<!-- The same string again, for an authorisation this app never asks for.
 	     Apple's upload analysis reads the linked binary, not the call
 	     sites: @capacitor/geolocation depends on ion-ios-geolocation, whose
@@ -116,7 +137,7 @@
 	     request, and UIBackgroundModes above carries remote-notification
 	     only. The same check holds that pair too. -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<string>Used on this device to work out which city you are nearest, so the daily can show how your city answered — once, unless you switch Near on, which sends a ~200-metre grid square every few minutes while the app is open. Your exact coordinates are never sent anywhere and never stored. You can skip this and pick your city from a list instead.</string>
 	<!-- PRECISE SINCE D175, and this key flipping is the whole of that
 	     decision on iOS. It used to be <true/>, which asked for a
 	     neighbourhood-level fix and showed "Precise: Off" in the permission

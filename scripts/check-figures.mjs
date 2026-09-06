@@ -163,8 +163,17 @@ if (!seededQuestions || !dailyQuestions) {
 // manual can quote them. QUESTION-FARM.md is LIVE documentation — the
 // scheduled runs obey it verbatim — so a drifted budget figure there is
 // not a stale doc, it is a mis-instructed run.
+// COMMENTS ARE BLANKED BEFORE THE MATCH. This is a first-match regex over raw
+// source, so a retuned budget with its old line parked above it —
+//     // was: export const RUN_CAP = 8
+//     export const RUN_CAP = 20;
+// — made this gate certify QUESTION-FARM.md against the SUPERSEDED number and exit
+// 0. That document is live instruction: the scheduled lanes obey it verbatim, so a
+// figure drifting there is a mis-instructed run, not a stale doc. Measured on the
+// real tree 2026-09-05. (This file already imported the helper for its prose scan;
+// the constant scan is the half that never used it.)
 const constFrom = (rel) => {
-  const src = read(rel);
+  const src = stripComments(read(rel));
   return (name) => {
     const m = src.match(new RegExp(`export const ${name} = (\\d+)`));
     if (!m) {
@@ -186,6 +195,7 @@ const learnConst = constFrom("scripts/learn-budget.mjs");
 // not less: a manual quoting a bigger number than the script computes is the
 // one way a run could be told to spread the crowd thinner than the design says.
 const feedConst = constFrom("scripts/feed-budget.mjs");
+const nowConst = constFrom("scripts/now-budget.mjs");
 // The duel regulator's constants (D213), same reasoning as the other three
 // lanes': the duel section is what a scheduled run obeys.
 const duelConst = constFrom("scripts/duel-budget.mjs");
@@ -274,6 +284,10 @@ const NOT_A_RUNNER = new Set([
   "test:e2e:moderation", // table's `test:e2e` row, not rows of their own
   "test:e2e:all",        // those three drivers on one emulator boot (D276)
   "test:coverage",       // test:unit again, instrumented
+  // test:rules again, with the coverage ratchet WRITING its baseline
+  // instead of asserting it. Not a suite: the same 179 tests, one flag on
+  // the step that follows them.
+  "test:rules:baseline",
 ]);
 const testRunners = (() => {
   const own = Object.keys(appPkg.scripts)
@@ -388,6 +402,86 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
+// The anchor keys the client sends, off ANCHOR_FIELDS — the table
+// check:anchors already diffs against firestore.rules cap for cap.
+const anchorKeys = (() => {
+  const src = read("src/v2/data/live.ts");
+  const open = src.indexOf("export const ANCHOR_FIELDS");
+  const body = stripComments(src.slice(open, src.indexOf("};", open)));
+  return [...body.matchAll(/(\w+):\s*\d+/g)].length;
+})();
+
+/**
+ * Live call sites of a store accessor, across the app's own source.
+ *
+ * Comments stripped, tests and fixtures excluded: what the perRev
+ * comments count is folds paid for per RENDER, so a mention in prose and a
+ * stub in a fixture are both noise. Two of these figures had drifted, in
+ * the paragraphs that argue for the memoisation itself.
+ */
+/**
+ * The map's anchor ring, counted off the two array literals that build it:
+ * liveList()'s own rows plus the test rows it spreads in.
+ *
+ * The header said eight anchors and five test results, and had since D103
+ * retired the Thinking test — in a file that records the retirement twenty
+ * lines below the sentence contradicting it. Exactly the drift this gate
+ * exists for, in prose describing a data model a reader has no other
+ * summary of.
+ */
+const mapAnchors = (() => {
+  const src = stripComments(read("src/v2/spec/map-anchors.js"));
+  const rowsIn = (fn) => {
+    const open = src.indexOf(`function ${fn}()`);
+    if (open < 0) throw new Error(`check:figures: map-anchors.js has no ${fn}() — fix this scan`);
+    const start = src.indexOf("return [", open);
+    const end = src.indexOf("];", start);
+    return [...src.slice(start, end).matchAll(/\{\s*id:/g)].length;
+  };
+  const tests = rowsIn("testRows");
+  if (!tests) throw new Error("check:figures: no test anchor rows found — fix this scan");
+  return { tests, ring: rowsIn("liveList") + tests };
+})();
+
+const callSites = (call) => {
+  const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
+  let n = 0;
+  for (const dir of dirs) {
+    for (const f of readdirSync(join(root, dir))) {
+      if (!/\.(ts|tsx|js|jsx)$/.test(f) || /\.test\./.test(f)) continue;
+      const src = stripComments(read(`${dir}/${f}`));
+      n += src.split(call).length - 1;
+    }
+  }
+  return n;
+};
+
+// The political marker's two figures, and the store header's own count of
+// the dynamic-import sites it points a reader at. All three sit in source
+// comments, which is where this repo's figure drift keeps surviving.
+const politicalQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.political === true && q.surface !== "test").length;
+})();
+const dailyFeedQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.surface === "daily" || q.surface === "feed").length;
+})();
+const getDbSites = (() => {
+  const src = stripComments(read("src/v2/data/live.ts"));
+  return [...src.matchAll(/await getDb\(\)/g)].length;
+})();
+
+// The anchors MapStats can answer for — the keys of MAP_ANCHOR_DIM, which
+// is the table the refusal is decided by. Two files quote this count in
+// prose and neither is reachable any other way.
+const mapAnchorDims = (() => {
+  const src = read("src/v2/data/cohort.ts");
+  const open = src.indexOf("export const MAP_ANCHOR_DIM");
+  const body = src.slice(open, src.indexOf("};", open));
+  return [...stripComments(body).matchAll(/^\s{2}(\w+):/gm)].length;
+})();
+
 // The modules that define Cloud Functions, counted off the tree. ops.ts's
 // header prose said "nine" while there were fifteen — the hand-kept-figure
 // drift this script exists for, in the file whose whole subject is that a
@@ -437,6 +531,140 @@ const coreTests = (() => {
 const smokeFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /^smoke-.*\.test\.jsx$/.test(f)).length;
 
+// …and the suites that actually SHARE that harness, which is a different
+// number and the one CLAUDE.md's sentence is about. The glob and the
+// harness parted company twice over: `dialog.test.jsx` has imported
+// mount-app for a long time, and the 2026-09-02 render-coverage files are
+// not named smoke-*. Until this entry the sentence read "these are the
+// only ones that execute a render", which by then was wrong about eighteen
+// suites in this one directory.
+// Counted by what they DO, not by how they spell an import. This asked for
+// `from "./mount-app.jsx"` with the extension, and fifteen suites import
+// that module — nine with the extension, six without — so normalising any
+// one import, a tidy-up nobody would think twice about, would have failed
+// the gate demanding CLAUDE.md say "fifteen" with nothing having changed.
+// It also counted two files that import the harness for its helpers and
+// never mount anything.
+//
+// `mountApp(` is the real predicate: it is the call that renders the whole
+// App, which is what the sentence is about.
+const harnessFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+
+// The same list split the way the sentence splits it. CLAUDE.md gives the
+// total, then "five of the six smoke files" and "N that go PAST first
+// paint" — three numbers that have to add up, and the third was the one
+// nothing held: the gate forced the total from nine to ten and grew the
+// list from four items to five, and the word "four" beside it never
+// moved. 5 + 4 = 9 against a stated total of 10, in the paragraph about
+// what mounts the whole App.
+const smokeMountFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /^smoke-.*\.test\.jsx$/.test(f))
+  .filter((f) => /\bmountApp\(/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+const pastFirstPaintFiles = harnessFiles - smokeMountFiles;
+
+// How many spec modules `loadWorldFeed()` actually awaits. CLAUDE.md said
+// "four" from the day it was written — exact then, and four modules'
+// worth of stale by the time the learn stack, pick-data, world-catalogs
+// and world-subtopics joined the loader. `spec-index.js`'s own comment
+// corrects itself in place; the prose never got the same edit, which is
+// the documentation error this repo keeps re-committing (D39).
+const worldFeedDeferred = (() => {
+  const src = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
+  const a = src.indexOf("export const loadWorldFeed");
+  if (a === -1) {
+    throw new Error(
+      "check-figures: no loadWorldFeed in spec-index.js — the loader was renamed "
+      + "or reshaped. Fix this derivation rather than dropping the figure.",
+    );
+  }
+  const b = src.indexOf("\n});", a);
+  const body = src.slice(a, b === -1 ? undefined : b);
+  return [...body.matchAll(/import\('\.\/spec\//g)].length;
+})();
+
+// How many notifications the product actually SENDS, off v2social.ts's own
+// call sites. web/privacy.html promises the token is "only used for" them
+// and names them, and that sentence said ONE for the nine days after D236
+// shipped three more — while the sender's own comment beside them said
+// "two". A promise in writing is the one thing CLAUDE.md says moves first,
+// so the number it quotes is derived here rather than typed.
+//
+// `validate` is excluded and named rather than filtered by a pattern: it
+// is a dryRun send that never reaches a phone (registerPushToken uses it
+// to test a token), so it is not a notification anyone receives.
+const pushKinds = (() => {
+  const src = readFileSync(join(root, "functions/src/v2social.ts"), "utf8");
+  const kinds = new Set([...src.matchAll(/\bkind:\s*"([a-z-]+)"/g)].map((m) => m[1]));
+  kinds.delete("validate");
+  if (!kinds.size) {
+    throw new Error(
+      "check-figures: no `kind: \"…\"` push sites in v2social.ts — the sender "
+      + "changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return kinds.size;
+})();
+
+// The content banks' own README, which is the file that DESCRIBES them and
+// carried five hand-typed counts. Four were stale at once — 10 topics
+// against 11, a group bank of 24 against 26, a 1v1 bank of 30 against 32
+// and a romantic pool of 20 against 24, with "50 together" for 56 — and
+// the learn card count said 106 against 166. `check:content` prints the
+// live numbers two lines away in the same terminal.
+//
+// The lane that adds questions moves these files nightly now, so a
+// hand-count here is stale within days rather than months. Read off the
+// JSON, which is what the sentences are about.
+const contentCounts = (() => {
+  const j = (rel) => JSON.parse(readFileSync(join(root, rel), "utf8"));
+  const n = (v) => (Array.isArray(v) ? v.length : Object.keys(v || {}).length);
+  const feed = j("content/feed-questions.json");
+  const duel = j("content/duel-questions.json");
+  const learn = j("content/learn-questions.json");
+  const out = {
+    topics: n(feed.topics),
+    channels: n(feed.channels),
+    group: n(duel.group),
+    duo: n(duel.oneVsOne),
+    romantic: n(duel.romantic),
+    learnCards: n(learn.cards),
+  };
+  out.duoTotal = out.duo + out.romantic;
+  for (const [k, v] of Object.entries(out)) {
+    if (!v) {
+      throw new Error(
+        `check-figures: content/*.json gave 0 for ${k} — the bank's shape changed; `
+        + "fix this reader, do not delete the entries.",
+      );
+    }
+  }
+  return out;
+})();
+
+// Storage's byte cap, read off storage.rules itself. The suite that pins
+// that rule described it as an "8MB cap" for as long as the number had
+// been 256 KB — the 8 MB was the retired dailyPhotos cap, stranded by the
+// sweep that removed the surface, while the file's own cases used 300 KB
+// and 200 KB against the real rule. Exactly this table's class: a number
+// beside a thing that moved.
+const storageCapKb = (() => {
+  const src = readFileSync(join(root, "storage.rules"), "utf8");
+  const m = /request\.resource\.size\s*<\s*(\d+)\s*\*\s*1024/.exec(src);
+  if (!m) {
+    throw new Error(
+      "check-figures: no `request.resource.size < N * 1024` in storage.rules — "
+      + "the cap moved or changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  return Number(m[1]);
+})();
+
 // The city catalogue's size, read off the generated file's own header — the
 // same line check-cities.mjs parses. It is quoted exactly once in live
 // documentation and was quoted in seven code comments besides, none of them
@@ -470,6 +698,55 @@ const FIGURES = [
     re: /(\d+) declare\s+`core: false`/,
     actual: String(feedTailCount),
     fix: (n) => `"${n} declare \`core: false\`"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed topics defined in the bank",
+    re: /\+ topic \((\d+)\) and channel/,
+    actual: String(contentCounts.topics),
+    fix: (n) => `"+ topic (${n}) and channel"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed channels defined in the bank",
+    re: /and channel \((\d+)\) definitions/,
+    actual: String(contentCounts.channels),
+    fix: (n) => `"and channel (${n}) definitions"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the group daily duel bank",
+    re: /Group daily bank \((\d+):/,
+    actual: String(contentCounts.group),
+    fix: (n) => `"Group daily bank (${n}:"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the 1v1 duel bank",
+    re: /1v1 bank \((\d+)\)/,
+    actual: String(contentCounts.duo),
+    fix: (n) => `"1v1 bank (${n})"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the romantic 1v1 pool",
+    re: /romantic 1v1 pool \((\d+),/,
+    actual: String(contentCounts.romantic),
+    fix: (n) => `"romantic 1v1 pool (${n},"`,
+  },
+  {
+    file: "content/README.md",
+    what: "the two duo banks together",
+    re: /share the `duo` surface, (\d+) together/,
+    actual: String(contentCounts.duoTotal),
+    fix: (n) => `"share the duo surface, ${n} together"`,
+  },
+  {
+    file: "content/README.md",
+    what: "learn cards in the bank",
+    re: /subjects, fields and cards \((\d+)\)/,
+    actual: String(contentCounts.learnCards),
+    fix: (n) => `"subjects, fields and cards (${n})"`,
   },
   {
     file: "content/README.md",
@@ -519,10 +796,57 @@ const FIGURES = [
   },
   {
     file: "CLAUDE.md",
-    what: "mount smoke files over one harness (§2)",
-    re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
+    what: "mount smoke files (§2)",
+    re: /five of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
-    fix: (n) => `"(${n} files over one harness"`,
+    fix: (n) => `"five of the **${n}** smoke-*.test.jsx"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites that mount PAST first paint (§2) — the third number in the sum",
+    re: /and (\w+) that go PAST first paint/,
+    actual: word(pastFirstPaintFiles),
+    fix: (n) => `"and ${n} that go PAST first paint"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "spec modules loadWorldFeed() defers (§1)",
+    re: /The feed's (\w+) are deferred past/,
+    actual: word(worldFeedDeferred),
+    fix: (n) => `"The feed's ${n} are deferred past first paint"`,
+  },
+  {
+    file: "scripts/apply-monitoring.mjs",
+    // The SECOND occurrence in that header, and the one the entry beside
+    // it does not reach. When the ninth policy landed, the edit on this
+    // line moved `five` to `seven` for the metrics and left `eight` for
+    // the policies — under a commit message saying "all corrected". Two
+    // numbers on one line is exactly where a hand-count survives a sweep.
+    what: "alert policies, in the applier's console-steps sentence",
+    re: /log-based metrics, and (\w+) policies/,
+    actual: word(monitoringPolicies),
+    fix: (n) => `"seven log-based metrics, and ${n} policies"`,
+  },
+  {
+    file: "web/privacy.html",
+    what: "notifications the token is promised to be used for",
+    re: /only used for the (\w+) notifications this app/,
+    actual: word(pushKinds),
+    fix: (n) => `"only used for the ${n} notifications this app sends"`,
+  },
+  {
+    file: "firestore-tests/storage.rules.test.ts",
+    what: "the storage byte cap the suite says it pins",
+    re: /owner-only path match, (\d+) KB cap, image content-type/,
+    actual: String(storageCapKb),
+    fix: (n) => `"owner-only path match, ${n} KB cap, image content-type"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites that mount the whole App through the harness (§2)",
+    re: /harness, and \*\*(\w+)\*\* suites mount\s+the whole `App`/,
+    actual: word(harnessFiles),
+    fix: (n) => `"and **${n}** suites mount the whole App"`,
   },
   {
     file: "CLAUDE.md",
@@ -616,6 +940,110 @@ const FIGURES = [
     re: /a notification channel, (\w+) log-based metrics/,
     actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "anchor keys an answer snapshots, off ANCHOR_FIELDS",
+    re: /the same (\d+) keys an\n {2}\/\/ answer snapshots/,
+    actual: String(anchorKeys),
+    fix: (n) => `"the same ${n} keys an\n  // answer snapshots"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchors in the map's centre ring",
+    // Sentence-initial, like the workflow-jobs entry above.
+    re: /(\w+) anchors — age, work, study/,
+    actual: cap(word(mapAnchors.ring)),
+    fix: (n) => `"${n} anchors — age, work, study"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "test-result anchors in that ring",
+    re: /plus the (\w+) test results/,
+    actual: word(mapAnchors.tests),
+    fix: (n) => `"plus the ${n} test results"`,
+  },
+  {
+    file: "src/v2/spec/map-anchors.js",
+    what: "anchor keys an answer snapshots, as map-anchors states them",
+    re: /three of the (\w+) fields an answer snapshots/,
+    actual: word(anchorKeys),
+    fix: (n) => `"three of the ${n} fields an answer snapshots"`,
+  },
+  {
+    file: "src/v2/ui/LiveProfileSetup.tsx",
+    what: "anchor keys the setup screen maps onto",
+    re: /fields onto the (\d+) anchor keys/,
+    // `check:anchors` holds the CAPS against firestore.rules and reports
+    // all ten agreeing; nothing held the prose, which said seven in one
+    // file and eight in the other.
+    actual: String(anchorKeys),
+    fix: (n) => `"fields onto the ${n} anchor keys"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "call sites of kindredPeople(), the fold perRev exists for",
+    re: /walks every cached voter list and has (\d+)\n\/\/ call sites/,
+    // The COUNT is the argument for the memoisation — how many folds per
+    // render are being paid for — so it is the sentence's load-bearing
+    // half. It said six with "LiveSimilarityField ×2"; that file has had
+    // one since the Near field was rewritten.
+    actual: String(callSites("kindredPeople()")),
+    fix: (n) => `"walks every cached voter list and has ${n}\n// call sites"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "render-path callers of testFeedItems()",
+    re: /and this has (\d+)\n {2}\/\/ render-path callers/,
+    actual: String(callSites("testFeedItems()") - 1),
+    // −1 for live.ts's own internal call, which is not a render path.
+    fix: (n) => `"and this has ${n}\n  // render-path callers"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "questions carrying the political marker",
+    re: /is (\d+) questions carrying the political marker/,
+    actual: String(politicalQuestions),
+    fix: (n) => `"is ${n} questions carrying the political marker"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "the daily+feed corpus that count is read against",
+    re: /out of the\n\/\/ (\d+) on the daily and the feed/,
+    // The RATIO is the sentence's whole point, so both halves have to
+    // follow the bank. This said "ten out of 278" — the first had moved
+    // and the second was wrong when it was written.
+    actual: String(dailyFeedQuestions),
+    fix: (n) => `"out of the\n// ${n} on the daily and the feed"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "the dynamic-import sites the store's header sends a reader to",
+    re: /the (\d+) `await getDb\(\)` sites in this file/,
+    actual: String(getDbSites),
+    fix: (n) => `"the ${n} \`await getDb()\` sites in this file"`,
+  },
+  {
+    file: "src/v2/spec/map-group-stats.js",
+    what: "the anchors MapStats answers for, off MAP_ANCHOR_DIM",
+    re: /REAL for the (\w+) anchors/,
+    // D328 moved `job` from refusing to real, and updated the paragraph
+    // thirteen lines down inside this same header while leaving the
+    // opening sentence at "two" — a file contradicting itself, in the
+    // direction that understates what the Map now draws. A second copy in
+    // world-feed.jsx said "five null anchors" for the same reason.
+    actual: word(mapAnchorDims),
+    fix: (n) => `"REAL for the ${n} anchors"`,
+  },
+  {
+    file: "functions/src/engagement.ts",
+    what: "the bank the day-document's qid fence is sized against",
+    re: /The bank is\n \* (\d+) questions today/,
+    // The whole point of the sentence is the HEADROOM — "the bank can
+    // double before this truncates anything real" — so the number it is
+    // measured against has to be the live one. It said 710 against 722.
+    actual: String(seededQuestions),
+    fix: (n) => `"The bank is\n * ${n} questions today"`,
   },
   {
     file: "src/v2/data/patternsReady.ts",
@@ -895,6 +1323,29 @@ const FIGURES = [
     actual: budgetConst("PROMOTE_PACE"),
     fix: (n) => `"promotes up to **${n} pen questions per run**"`,
   },
+  // The daily lane's floor and its demand share's thresholds (D350) — the
+  // allocation § Picking topics quotes, computed by farm-budget.mjs.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily per-top floor (TOP_FLOOR)",
+    re: /\*\*(\d+) questions per top\*\*/,
+    actual: budgetConst("TOP_FLOOR"),
+    fix: (n) => `"**${n} questions per top**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited daily answers\*\*/,
+    actual: budgetConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited daily answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the daily lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: budgetConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the daily lane reads no scorecard older than **${n} days**"`,
+  },
   // The four D115 learn-lane figures, quoted in § The learn-card lane.
   {
     file: "docs/QUESTION-FARM.md",
@@ -905,9 +1356,9 @@ const FIGURES = [
   },
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the learn per-field depth target (FIELD_TARGET)",
+    what: "the learn per-field floor (FIELD_FLOOR)",
     re: /\*\*(\d+) cards per\s*\n?\s*field\*\*/,
-    actual: learnConst("FIELD_TARGET"),
+    actual: learnConst("FIELD_FLOOR"),
     fix: (n) => `"**${n} cards per field**"`,
   },
   {
@@ -924,6 +1375,21 @@ const FIGURES = [
     actual: learnConst("MIN_CHUNK"),
     fix: (n) => `"at least **${n} cards into any field it touches**"`,
   },
+  // The learn demand share's two thresholds (D350), same shape as the feed's.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited learn answers\*\*/,
+    actual: learnConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited learn answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the learn lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: learnConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the learn lane reads no scorecard older than **${n} days**"`,
+  },
   // The three feed-lane figures, quoted in § The feed lane. Same reasoning as
   // the other two lanes': the section is what a scheduled run obeys, so a cap
   // drifted there hands the run a budget feed-budget.mjs does not compute.
@@ -938,11 +1404,37 @@ const FIGURES = [
     actual: feedConst("RUN_CAP"),
     fix: (n) => `"**${n} feed questions per run**"`,
   },
+  // THE SAME CAP, TWICE MORE, IN THE SUBSECTIONS A RUN ACTUALLY READS.
+  // D350 raised RUN_CAP 6 → 60 and moved the headline sentence above; both
+  // of these were left at 6, ten times low, for three days. They are not
+  // decoration: the feed lane's prompt says the manual "outranks this
+  // prompt's summary", so on a conflict between `npm run feed:budget`
+  // printing 60 and a bullet saying ≤6/run, the bullet wins by the lane's
+  // own rule.
+  //
+  // TWO ENTRIES AND TWO PATTERNS, deliberately: this gate takes the FIRST
+  // match of each `re`, so one shared pattern would hold the first bullet
+  // and leave the second free to drift — which is the failure the entry
+  // above already carries a note about, one lane over.
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the feed per-topic breadth target (TOPIC_TARGET)",
+    what: "the feed lane's per-run cap, as § Continuum questions states it",
+    re: /continuum candidates count inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"count inside the lane's ≤${n}/run"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap, as § Crossroads stories states it",
+    re: /a story counts inside the lane's ≤(\d+)\/run/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"a story counts inside the lane's ≤${n}/run"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed per-topic coverage floor (TOPIC_FLOOR)",
     re: /\*\*(\d+)\s*\n?\s*servable questions per\s*\n?\s*topic\*\*/,
-    actual: feedConst("TOPIC_TARGET"),
+    actual: feedConst("TOPIC_FLOOR"),
     fix: (n) => `"**${n} servable questions per topic**"`,
   },
   {
@@ -951,6 +1443,53 @@ const FIGURES = [
     re: /\*\*(\d+)\*\* unreviewed questions on\s*\n?\s*that PR/,
     actual: feedConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on that PR"`,
+  },
+  // The demand share's two thresholds (D350): the crowd it will not read a
+  // ranking off, and the scorecard age past which it goes blind. Quoted in
+  // the same section, for the same reason as the caps above.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited feed answers\*\*/,
+    actual: feedConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited feed answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /no older than \*\*(\d+) days\*\*/,
+    actual: feedConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"no older than **${n} days**"`,
+  },
+  // The now lane's four figures (D351), quoted in § The now lane: the cap,
+  // the open-PR ceiling, and the two halves of the source rule.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's per-run cap (NOW_CAP)",
+    re: /\*\*(\d+) current-events questions per run\*\*/,
+    actual: nowConst("NOW_CAP"),
+    fix: (n) => `"**${n} current-events questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's open-PR ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed questions on the now lane's open PR/,
+    actual: nowConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed questions on the now lane's open PR"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's corroboration bar (SOURCES_MIN)",
+    re: /at least \*\*(\d+) independent outlets\*\*/,
+    actual: nowConst("SOURCES_MIN"),
+    fix: (n) => `"at least **${n} independent outlets**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's freshness bound (FRESH_DAYS)",
+    re: /published within the last \*\*(\d+) days\*\*/,
+    actual: nowConst("FRESH_DAYS"),
+    fix: (n) => `"published within the last **${n} days**"`,
   },
   // The three duel-lane figures (D213), quoted in § The duel lane.
   {

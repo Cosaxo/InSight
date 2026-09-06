@@ -7,16 +7,18 @@
 // — "delivered by the contract channel" is the only fulfilment that
 // exists (D251 builds reports by hand).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Purchase } from "../data/purchases";
 import { sharePcts } from "../data/pct";
 
 const STORE = vi.hoisted(() => ({
   rows: null as Purchase[] | null,
+  failed: false,
 }));
 vi.mock("../data/live", () => ({ default: { enabled: true } }));
 vi.mock("../data/purchases", () => ({
   mine: () => STORE.rows,
+  mineFailed: () => STORE.failed,
   loadMine: async () => STORE.rows ?? [],
   subscribePurchases: () => () => {},
 }));
@@ -51,6 +53,7 @@ beforeEach(() => {
   cleanup();
   localStorage.clear();
   STORE.rows = null;
+  STORE.failed = false;
 });
 
 describe("the room", () => {
@@ -139,9 +142,45 @@ describe("the room", () => {
     expect(container.textContent).not.toMatch(/n 44|this month/);
   });
 
+  // THREE STATES BEHIND ONE NULL. `mine()` answers null both before the
+  // read lands and after it fails, and the room drew "Reading your
+  // contracts…" for both — a spinner with nothing behind it, no error and
+  // no way back, for the life of the session. Settling the cache to an
+  // empty list instead would have traded the hang for a lie: "Nothing
+  // bought from this account yet", said to a buyer whose read failed.
+  it("says it is reading while the read is in flight", () => {
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    expect(screen.getByText(/Reading your contracts/)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t read/)).toBeNull();
+  });
+
+  it("…and says the read failed once it has", () => {
+    STORE.failed = true;
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    expect(screen.getByText(/Couldn’t read your contracts/)).toBeTruthy();
+    expect(screen.queryByText(/Reading your contracts/)).toBeNull();
+    // …and never the empty state, which would be a claim about the
+    // account rather than about the read.
+    expect(screen.queryByText(/Nothing bought from this account yet/)).toBeNull();
+  });
+
   it("keeps the room's one honesty line in its foot", () => {
     STORE.rows = [];
     render(<AskedByYouOverlay onClose={() => {}} />);
     expect(screen.getByText(/this room has no other source/)).toBeTruthy();
+  });
+});
+
+describe("the results page's address, in the buyer's room (D379)", () => {
+  it("offers to copy the public page's link on a question row", () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    STORE.rows = [PURCHASE];
+    STORE.failed = false;
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    const b = screen.getByRole("button", { name: /results page/i });
+    fireEvent.click(b);
+    expect(writeText).toHaveBeenCalledWith("https://prvfire33.web.app/q/pd01");
+    expect(screen.getByText(/A public page of these results/)).toBeTruthy();
   });
 });

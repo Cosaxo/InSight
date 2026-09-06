@@ -164,8 +164,9 @@ export interface QuestionDoc {
   // and at most one coarse audience tag the DEVICE matches against its own
   // anchors. The window is `until` above rather than a field here, so the
   // label the disclosure prints and the filter that stops serving the card
-  // are one value.
-  sponsor?: { buyer: string; audience?: Record<string, string> };
+  // are one value. `link` (D378) is the buyer's one https address, shown
+  // as its bare domain after the answer and opened in the system browser.
+  sponsor?: { buyer: string; audience?: Record<string, string>; link?: string };
 }
 
 /** One published grade — `v2_call_outcomes/{qid}`, admin-written (D194). */
@@ -244,6 +245,20 @@ export const FEED_ID_LANES = ["feed-", "pick-"] as const;
 /** Whether a question id belongs to the feed surface, both lanes. */
 export function isFeedQid(id: string): boolean {
   return FEED_ID_LANES.some((p) => id.startsWith(p));
+}
+
+// The daily's lanes — one today, declared the same way and for the same
+// reason the feed's are. The daily became a paged surface at D383, so
+// "which of my answers are dailies?" is now a question the store asks on
+// every boot, and the wrong answer is silent: an answered daily that no
+// longer resolves to a document is an answer the Mirror cannot name.
+// scripts/feed-lanes.test.mjs holds this list to the generator's output
+// too, so a second lane fails there rather than shipping quietly.
+export const DAILY_ID_LANES = ["daily-"] as const;
+
+/** Whether a question id belongs to the daily surface. */
+export function isDailyQid(id: string): boolean {
+  return DAILY_ID_LANES.some((p) => id.startsWith(p));
 }
 
 export const DECK_DAYS = 7; // today + the recent past, like the demo pager
@@ -380,11 +395,24 @@ export const CANON_BOARD_N = 10;
  * card's first-voter state, not an error. Ties break by item index so
  * equal sums render identically on every device.
  */
-export function rankCrowdFor(
+/**
+ * The crowd order AND how many people it rests on.
+ *
+ * `n` is the number this function has always computed and never returned:
+ * the viewer is subtracted out of the order when their own fold has
+ * landed, so the crowd is `total - 1` then and `total` when the aggregate
+ * is stale. The card could not tell those apart from `agg.total` alone,
+ * which is why the live rank reveal stated "You matched the crowd on 2 of
+ * 4" with no idea whether the crowd was one stranger or a thousand.
+ *
+ * `rankCrowdFor` below stays exactly as it was — the order alone — so
+ * every existing caller and case is untouched.
+ */
+export function rankCrowd(
   agg: AggDoc | undefined,
   mine: number[] | null,
   pending: boolean,
-): number[] | null {
+): { crowd: number[]; n: number } | null {
   const pos = agg?.pos;
   const total = agg?.total ?? 0;
   if (!Array.isArray(pos) || pos.length < 2 || total <= 0) return null;
@@ -412,7 +440,16 @@ export function rankCrowdFor(
   const byMean = [...rest.keys()].sort((a, b) => rest[a] - rest[b] || a - b);
   const crowd = new Array<number>(rest.length).fill(0);
   byMean.forEach((item, i) => { crowd[item] = i + 1; });
-  return crowd;
+  return { crowd, n };
+}
+
+/** The crowd order alone — the long-standing shape. */
+export function rankCrowdFor(
+  agg: AggDoc | undefined,
+  mine: number[] | null,
+  pending: boolean,
+): number[] | null {
+  return rankCrowd(agg, mine, pending)?.crowd ?? null;
 }
 
 export function buildS(
@@ -499,6 +536,32 @@ export function computeDeckIds(
     const idx = (((today - DECK_EPOCH - back) % n) + n) % n;
     return questionIds[idx];
   });
+}
+
+/**
+ * The deck as POSITIONS rather than ids (D383) — the same arithmetic as
+ * `computeDeckIds`, for a device that no longer holds the daily bank.
+ *
+ * The two must agree exactly or two devices disagree about what today's
+ * question is, which is the one thing the daily cannot survive: a blind
+ * question is only worth comparing because everyone answered the same
+ * one. So this is the same expression, and `deck.test.ts` pins them
+ * against each other over a span of days rather than trusting that.
+ *
+ * A position is a `seq` only while the daily's seq space is dense from
+ * zero — live.ts's boot query already states it is ("per-surface and
+ * contiguous"), the server publishes `maxSeq` so a device can CHECK it,
+ * and the caller falls back to the whole-bank fetch when it does not
+ * hold. Nothing here assumes it; the caller does the checking.
+ */
+export function computeDeckSeqs(
+  n: number,
+  today: number,
+  deckDays = DECK_DAYS,
+): number[] {
+  if (!Number.isFinite(n) || n <= 0) return [];
+  return Array.from({ length: Math.min(deckDays, n) }, (_, back) =>
+    (((today - DECK_EPOCH - back) % n) + n) % n);
 }
 
 // The per-surface bank split, extracted from live.ts's refresh path so the

@@ -38,6 +38,16 @@ import { resolve } from "node:path";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  testAggsState: () => "ready" as "loading" | "ready" | "failed",
+  // Its people twin — every surface that mounts a similarity field
+  // reads it now, so the stub belongs beside its sibling.
+  kindredState: (): "loading" | "ready" | "failed" => "ready",
+  // ATTACHED BY DEFAULT, so every case below is about a store that has
+  // finished looking. It was absent from this mock entirely, which meant
+  // `LIVE.attached` read `undefined` — and the whole suite stayed green
+  // when the empty arm's wording changed, because nothing here asserted
+  // it. The two cases at the foot of this file are what closes that.
+  attached: true,
   uid: "u_me",
   myCity: "Oslo, NO",
   deck: () => [] as Array<Record<string, unknown>>,
@@ -58,6 +68,7 @@ const LIVE = vi.hoisted(() => ({
   // The Scores lens's ask rows (D307) — empty here so the stop cases stay
   // about the stop; the ask arm has its own cases in the lens suite.
   placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
+  placeAskTotal: () => 0,
   vote: vi.fn(),
   loadKindred: async () => {},
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
@@ -807,6 +818,33 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     }
   });
 
+  it("…and pay it the moment someone opens People", async () => {
+    // The other half of the case above, and the half its sibling case's
+    // NAME has been promising with nothing behind it.
+    //
+    // "costs nothing for a tab nobody opened, and pays as soon as one is"
+    // is asserted at CITY, where the constellation fetches the voter rows
+    // on arrival — so at that scope the second half is unobservable, and
+    // the People click in it has no assertion after it. The closing review
+    // of 2026-08-31 found the assertion that once stood there had been
+    // deleted rather than reframed when the fan-out moved.
+    //
+    // World is where the property is visible: nothing fetches the rows
+    // until the tab that draws them is opened. LiveMirrorLenses.test.tsx
+    // holds the same property one layer down ("fetches Kindred when People
+    // mounts, and never for another lens") — this is the host half, that
+    // the tab bar actually reaches the mount.
+    const kindred = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    render(<LiveCohortBody scope="world" />);
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(kindred, "the world stop fetched voter rows nobody asked for").not.toHaveBeenCalled();
+    fireEvent.click(tab("People"));
+    await vi.waitFor(() => {
+      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
+    });
+  });
+
   it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
     // The property the old collapsed strip existed for, restated for
     // tabs: People pays for voter lists, so it may not run because the
@@ -1008,4 +1046,42 @@ describe("LiveCohortBody · one answer is a count, not a share", () => {
   // split at all, so there is no majority test left to get wrong. The two
   // above are the surviving halves of the same decision and they are the
   // ones that were always about a NUMBER rather than about a word.
+});
+
+// ── the biggest claim the app makes, before it has looked ──────────
+//
+// The header figure is `reach`, and `reach` is 0 whenever the aggregate
+// archive is — which is the whole of a cold first launch before the first
+// snapshot lands, and the whole SESSION on a live build whose boot never
+// completes. Through both of those the stop read "— nobody has answered
+// yet": an assertion about the world, made by a device that had not
+// looked, on the largest population claim in the app.
+//
+// `LIVE.attached` is the store's own word for "the network boot completed
+// this session". The daily has had a reconnecting pill since D356; this
+// stop had nothing.
+//
+// The mock carried no `attached` at all until now, so this arm's wording
+// could change with the whole suite green. These two are what stops that.
+describe("LiveCohortBody · reading is not empty", () => {
+  it("does not say nobody has answered before the store has attached", () => {
+    LIVE.attached = false;
+    try {
+      render(<LiveCohortBody scope="world" />);
+      const body = document.body.textContent || "";
+      expect(body, "the stop asserted an empty world before it had looked")
+        .not.toMatch(/nobody has answered/i);
+      expect(body, "it says nothing at all about the wait").toMatch(/counting who has answered/i);
+    } finally {
+      LIVE.attached = true;
+    }
+  });
+
+  it("still says it once the store HAS attached and the world really is empty", () => {
+    // The control. Without it, "never says nobody" passes the case above
+    // and deletes a true sentence instead of a premature one.
+    render(<LiveCohortBody scope="world" />);
+    expect(document.body.textContent, "the settled empty state lost its sentence")
+      .toMatch(/nobody has answered yet/i);
+  });
 });

@@ -112,5 +112,6 @@ console.log("  NEXT is the whole-bank install fetch, silent in the same way: eve
 console.log("  device still reads the entire bank (the localStorage quota cliff is gone —");
 console.log("  D318 moved the cache to IndexedDB), so nothing errors at any size and the");
 console.log("  per-device bill just climbs until D316's paged read path lands. check:quality's");
-console.log("  BANK_WARN/BANK_FAIL now watch that fetch and say so in MB.\n");
+console.log("  INSTALL_WARN now watches what a fresh install is handed whole, as a");
+console.log("  warning in MB — no bank size fails a gate (D350 amendment).\n");
 console.log("  docs/SCALE-PLAN.md is the plan these numbers were computed for.\n");

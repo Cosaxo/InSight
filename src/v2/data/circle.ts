@@ -110,8 +110,13 @@ export interface Member {
   uid: string;
   /** Display name, or "" when the account has not set one. */
   name: string;
-  /** True when they follow you back — derived, never stored. */
-  mutual: boolean;
+  /** True when they follow you back — derived, never stored. NULL when the
+   *  followers read was refused: "we could not ask" is not "they do not",
+   *  and a screen that states the second on the strength of the first is
+   *  making a claim about another person it never checked. The two places
+   *  that read this already treat a falsy value as "draw no badge", which
+   *  is the safe direction; only the SENTENCE has to know the difference. */
+  mutual: boolean | null;
   /** How alike your answers are, over what you have both answered. */
   like: Agreement;
   /** qid → optionIdx, as read. */
@@ -304,14 +309,39 @@ export async function fetchAnswersOf(
   return out;
 }
 
-/** Follow someone. Idempotent — re-following an existing row rewrites it. */
+/**
+ * Follow someone.
+ *
+ * NOT idempotent at the rules layer, whatever this docstring used to say.
+ * `firestore.rules` has `allow update: if false` on this row, and a
+ * non-merge `setDoc` onto a document that already exists is an UPDATE in
+ * rules terms rather than a create — the rules suite pins that shape in
+ * three places. So a re-follow of somebody already followed is
+ * PERMISSION_DENIED, and the caller's optimistic state is rolled back:
+ * the row stays, the button springs back, and nothing says why.
+ *
+ * Reachable whenever the caller's own `isFollowing` reads false against a
+ * row that exists — a member dropped from the fold by a failed answer
+ * read, the read breaker, or the window before the follow list lands.
+ *
+ * Swallowing permission-denied is safe HERE and only here, because every
+ * other way this write can be refused is already impossible at this call
+ * site: `me` is the authenticated uid, `me === target` returns above, and
+ * `to`/`at` are built to the rule's exact shape. What is left is "the row
+ * is already there", which is success for the caller — and letting it
+ * through is what lets the caller's own refresh run.
+ */
 export async function follow(db: Firestore, me: string, target: string): Promise<void> {
   if (!me || !target || me === target) return;
-  await setDoc(doc(db, "v2_users", me, "following", target), {
-    at: serverTimestamp(),
-    // Pinned equal to the doc id by the rules; see firestore.rules.
-    to: target,
-  });
+  try {
+    await setDoc(doc(db, "v2_users", me, "following", target), {
+      at: serverTimestamp(),
+      // Pinned equal to the doc id by the rules; see firestore.rules.
+      to: target,
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code !== "permission-denied") throw err;
+  }
 }
 
 export async function unfollow(db: Firestore, me: string, target: string): Promise<void> {
@@ -332,12 +362,40 @@ export async function loadCircle(
   me: string,
   myAnswers: Readonly<Record<string, number>>,
   names: (uid: string) => string,
-): Promise<Member[]> {
+): Promise<{ members: Member[]; following: string[] }> {
+  // TWO ANSWERS, NOT ONE, and conflating them cost a friend their place.
+  // `uids` is who you FOLLOW — read from the follow rows, which is the
+  // only authority on it. `members` is who could be PLACED, which drops
+  // anyone whose answers could not be read; that drop is right for the
+  // fold, because there is nothing to place them by. It is wrong for the
+  // membership, and live.ts was rebuilding its follow cache from the
+  // survivors — so one refused answer read removed a friend from the
+  // Friends cut of every who-voted sheet, from its headline count and from
+  // the patterns map's circle, and left `isFollowing` false so the Follow
+  // button offered to re-follow them: a write the rules refuse as an
+  // update and `follow()` swallows, so the tap did nothing and said
+  // nothing. `loadFollows` could not repair it either — it early-returns
+  // on a non-null cache, and its own docstring states the intent this
+  // violated: "two caches that can disagree about who your friends are is
+  // the bug this note exists to prevent". Named rather than cited by line
+  // — the first draft of this comment said live.ts:4826 and the same
+  // night's edits to that file moved the sentence eight lines down, which
+  // is the hand-maintained-figure failure one layer over. Handing both
+  // back keeps the two questions apart at the one place that knows the
+  // difference.
   const uids = capFollows(await fetchFollowing(db, me));
-  if (!uids.length) return [];
+  if (!uids.length) return { members: [], following: [] };
   const [answerSets, followers] = await Promise.all([
     Promise.all(uids.map((u) => fetchAnswersOf(db, u).catch(() => null))),
-    fetchFollowersOf(db, me, uids).catch(() => new Set<string>()),
+    // null, NOT an empty set. An empty set is a real answer — "nobody
+    // follows you back" — and swallowing the refusal into it is what let
+    // the Circle stop print "following is one-way, nobody is told" after a
+    // read it never got. This function's own docstring names that outcome
+    // as the failure it exists to prevent; the paging cause was fixed and
+    // the swallowed-error cause outlived it. Every sibling loader in the
+    // store keeps the same distinction ("absent is 'we could not ask',
+    // empty is 'nobody answered'").
+    fetchFollowersOf(db, me, uids).catch(() => null),
   ]);
   const out: Member[] = [];
   uids.forEach((uid, i) => {
@@ -346,10 +404,10 @@ export async function loadCircle(
     out.push({
       uid,
       name: names(uid),
-      mutual: followers.has(uid),
+      mutual: followers ? followers.has(uid) : null,
       like: agreement(myAnswers, answers),
       answers,
     });
   });
-  return rankMembers(out);
+  return { members: rankMembers(out), following: uids };
 }

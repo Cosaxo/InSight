@@ -41,6 +41,27 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= max);
     }
 
+    // A moment, or nothing. Written for `v2_users.createdAt`/`updatedAt`,
+    // which the allowlist admitted with NO type, shape or length check of
+    // any kind — so either could carry a 400 KB string, measured.
+    //
+    // That matters because of who reads them. `data/voters.ts` fetches
+    // these documents WHOLE, thirty uids per query, with no field mask —
+    // the client SDK has none — on every Mirror surface that turns a uid
+    // into a name. One free anonymous account parking a megabyte on its
+    // own profile is a megabyte every reader of that person downloads,
+    // and thirty such rows is a thirty-megabyte response on a phone.
+    //
+    // Nothing in the tree writes either field: no client path, no Cloud
+    // Function. That is the "dead allowlist entry" the comment on the
+    // allowlist itself names — "not free, it is a promise the tree cannot
+    // keep" — so this bounds them rather than removing them, because an
+    // older client in the wild may still send one and a number cannot be
+    // a megabyte either way.
+    function isOptionalStamp(value) {
+      return value == null || value is int || value is timestamp;
+    }
+
     // v1 rate-limit ledgers — one doc per sender, holding recent
     // impression-send timestamps. Their writer (sendInboundImpression)
     // was deleted in D13, so nothing creates these any more; existing
@@ -370,6 +391,8 @@ service cloud.firestore {
                 && request.resource.data.testResults.logic
                   == resource.data.get("testResults", {}).get("logic", null)))))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
+        && isOptionalStamp(request.resource.data.get("createdAt", null))
+        && isOptionalStamp(request.resource.data.get("updatedAt", null))
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal
 
@@ -682,9 +705,29 @@ service cloud.firestore {
         // literal rewritten to true, so flip day ships a one-word diff
         // whose behavior is pinned in both states.
         function deviceBindEnforced() { return false; }
+        // THE BAR, as a number rather than a boolean (D343). `db` carries
+        // the LEVEL of account requirements the activation callable could
+        // verify — see functions/src/accountLevel.ts, which is the source
+        // of truth this literal must equal (`npm run check:account-level`).
+        //
+        // Raising it here is how the requirements get stricter: every
+        // account below the new value stops counting on the deploy, with
+        // no code change and no migration. That is deliberate power, so
+        // read the daily per-level bind coverage first (velocity.ts,
+        // `bind_coverage`) — it says how many REAL votes each level would
+        // refuse, which is the only honest way to price the move.
+        function requiredAccountLevel() { return 1; }
         function deviceBound() {
           return !deviceBindEnforced()
-            || request.auth.token.get("db", 0) == 1;
+            // `>=`, not `==`: levels subsume, so an account that cleared a
+            // HIGHER bar must not be refused by a lower one. With `==`,
+            // raising the bar to 2 and later lowering it to 1 would refuse
+            // every level-2 account — the strictest users locked out by a
+            // relaxation, which is the exact wrong direction.
+            //
+            // Type-strict either way: a claim carrying a string fails the
+            // comparison rather than passing it, pinned in rules.test.ts.
+            || request.auth.token.get("db", 0) >= requiredAccountLevel();
         }
 
         // World-facing surfaces: one doc per question, id == qid.
@@ -728,7 +771,8 @@ service cloud.firestore {
             // arm below keys on the ANSWER's self-declared surface and
             // excludes "learn", because first-attempt-only IS D32's
             // measurement — so a learn question answered as "feed" was an
-            // editable learn answer. live.ts:4027 already assumed this
+            // editable learn answer. `LIVE.vote`'s world-shape lookup (the
+            // `state.callBank.find` fallback) already assumed this
             // clause was an equality ("would claim surface: daily and rules
             // would refuse it"); it is one now.
             //
@@ -1506,7 +1550,21 @@ service cloud.firestore {
           : (request.resource.data.gid is string
             && request.auth.uid in
               get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && (!("qid" in request.resource.data) || request.resource.data.qid is string)
+            // LENGTH TOO, and the sentence below is why it was missed: the
+            // paragraph argues carefully about the id's VALUE — that a
+            // circle id must not collide with somebody's world id — and
+            // says "the id is bounded HERE too", which was true of the
+            // shape and not of the size. The world branch four lines up
+            // caps it at 120; this one only asked that it be a string, so
+            // a 400 KB qid was accepted, measured.
+            //
+            // `text` is capped at 280 on both branches, and `v2_takes` is
+            // readable by any signed-in user as a list query that pulls
+            // whole documents — so an unbounded field here is a download
+            // every reader of that thread pays for.
+            && (!("qid" in request.resource.data)
+              || (request.resource.data.qid is string
+                && request.resource.data.qid.size() <= 120))
             // The id is bounded HERE too, and not for the same reason as
             // the world branch above. A circle take is many-per-person, so
             // there is no one-take bound to enforce — but both branches

@@ -30,6 +30,7 @@ import {
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
 import { PEN_TARGET } from "./farm-budget.mjs";
+import { stripComments } from "./strip-comments.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
@@ -37,17 +38,47 @@ import {
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
+// The constant pins below mirror cost-arith's own readers, so they have to
+// read the same way it does — over COMMENT-STRIPPED source. They did not:
+// `.match` takes the first hit, so a superseded value parked in a comment
+// above the live declaration was what both the model priced from and what
+// this file compared it against. Two blind readers agreeing is not a check.
+// (Measured: one commented `DECK_DAYS = 3` above the real declaration
+// repriced boot 21 → 15 reads and the Hit scenario $2,568 → $2,462 with
+// this suite green.) `read` itself is left alone — three cases parse JSON
+// through it, and the stripper is a scanner, not a parser.
+const readSrc = (rel) => stripComments(read(rel));
 
 describe("cost-arith reads its constants from source, not from memory", () => {
   // The whole point of D47's fix: these used to be retyped, and the model
   // spent two days disagreeing with the code because nothing compared them.
   // If someone re-hardcodes a value, these fail.
   it("DECK_DAYS matches src/v2/data/deck.ts", () => {
-    expect(DECK_DAYS).toBe(Number(read("src/v2/data/deck.ts").match(/DECK_DAYS = (\d+)/)[1]));
+    expect(DECK_DAYS).toBe(Number(readSrc("src/v2/data/deck.ts").match(/DECK_DAYS = (\d+)/)[1]));
+  });
+
+  it("reads its constants past comments, on both sides of the comparison", () => {
+    // The class swept out of check-anchors, check-cities, account-level-lib
+    // and check-figures on 2026-09-05. cost-arith was missed, which is the
+    // file whose own header cites D47 and D200 for this exact failure, and
+    // ten pins read through its two readers.
+    //
+    // A SHAPE check, said plainly: `readNum`/`readStr` take a path rather
+    // than a source string, so there is no seam to inject a commented
+    // fixture through without changing their signature. What it holds is
+    // that neither reader goes back to raw source — which is the whole of
+    // the defect, since the value read is otherwise correct.
+    const src = read("scripts/cost-arith.mjs");
+    expect(src, "cost-arith stopped stripping comments before matching")
+      .toContain('import { stripComments } from "./strip-comments.mjs";');
+    const raw = [...src.matchAll(/readFileSync\(join\(ROOT, rel\), "utf8"\)/g)];
+    const stripped = [...src.matchAll(/stripComments\(readFileSync\(join\(ROOT, rel\), "utf8"\)\)/g)];
+    expect(raw.length, "a reader is back on raw source").toBe(stripped.length);
+    expect(stripped.length, "expected both readNum and readStr").toBe(2);
   });
 
   it("AGG_CAP matches live.ts's AGG_ID_CAP", () => {
-    expect(AGG_CAP).toBe(Number(read("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
+    expect(AGG_CAP).toBe(Number(readSrc("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
   });
 
   it("the price sheet follows the database's own region, not a default", () => {
@@ -57,7 +88,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // false input for the three days after D165 moved production to a single
     // region, and no gate could see it: check:figures compares quoted
     // figures against the tree, and this was never quoted anywhere.
-    const declared = read("functions/src/db.ts").match(/FIRESTORE_LOCATION = "([^"]+)"/)[1];
+    const declared = readSrc("functions/src/db.ts").match(/FIRESTORE_LOCATION = "([^"]+)"/)[1];
     expect(LOCATION).toBe(declared);
     // The rule that turns a place into a price: GCP multi-regions are bare
     // names (nam5, eur3) and every real region carries a hyphen.
@@ -157,13 +188,13 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // throws on a RENAME; these hold the VALUES equal so a retuned cap
     // re-derives the model on the next run instead of drifting from it.
     expect(VOTER_FETCH_CAP).toBe(
-      Number(read("src/v2/data/voters.ts").match(/VOTER_FETCH_CAP = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/voters.ts").match(/VOTER_FETCH_CAP = (\d+)/)[1]));
     expect(KINDRED_QUESTIONS).toBe(
-      Number(read("src/v2/data/live.ts").match(/KINDRED_QUESTIONS = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/live.ts").match(/KINDRED_QUESTIONS = (\d+)/)[1]));
     expect(FOLLOW_CAP).toBe(
-      Number(read("src/v2/data/circle.ts").match(/FOLLOW_CAP = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/circle.ts").match(/FOLLOW_CAP = (\d+)/)[1]));
     expect(CIRCLE_ANSWER_CAP).toBe(
-      Number(read("src/v2/data/circle.ts").match(/CIRCLE_ANSWER_CAP = (\d+)/)[1]));
+      Number(readSrc("src/v2/data/circle.ts").match(/CIRCLE_ANSWER_CAP = (\d+)/)[1]));
   });
 
   it("readsPerUser's key set is exactly what the consumers draw (D102)", () => {
@@ -378,9 +409,21 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // over the window rather than a counter or an aggregation query.
     const v = read("functions/src/velocity.ts");
     expect(v).toMatch(/collection\("v2_agg_events"\)/);
-    expect(v).toMatch(/\.select\("uid", "qid", "at"\)/);
+    // The FIELD LIST is not the tripwire and must not be pinned as one:
+    // `select()` narrows egress, not billed reads, so adding a field (as
+    // `fromIdx` was, to tell a D86 edit's row from a create) changes the
+    // bytes and not the number this constant charges for. Pinning the
+    // exact string made a projection change look like a cost regression.
+    //
+    // What the constant actually rests on is below: a paged query over the
+    // window, one document per entry, rather than a counter or an
+    // aggregation query that would bill differently.
+    expect(v, "the scan stopped projecting — it now reads whole documents")
+      .toMatch(/\.select\(/);
     expect(v, "select() narrows egress, not reads — one billed read per entry")
       .not.toMatch(/\.count\(\)/);
+    expect(v, "an aggregation query bills differently from a paged scan")
+      .not.toMatch(/\.aggregate\(/);
   });
 
   it("the reveal pipeline's per-member read count still has its five parts", () => {
@@ -539,7 +582,7 @@ describe("the pulse artifact", () => {
 
   it("derives the runway as bank minus days elapsed since the epoch", () => {
     const { deck } = p.pipeline;
-    const epoch = Number(read("src/v2/data/deck.ts").match(/DECK_EPOCH = (\d+)/)[1]);
+    const epoch = Number(readSrc("src/v2/data/deck.ts").match(/DECK_EPOCH = (\d+)/)[1]);
     expect(deck.epoch).toBe(epoch);
     expect(deck.runwayDays).toBe(deck.dailyBank - deck.daysElapsed);
     // D30's invariant, stated as the thing the tile is actually claiming.

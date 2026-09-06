@@ -19,10 +19,9 @@
 // already publishes, and it is personal to nobody — D163/D317's line
 // holds because this fold never reads a uid. The sink is D316 phase 4's
 // first signal: a question ≥ RANK_DEAD_MIN answers whose leading option
-// holds ≥ RANK_DEAD_SHARE of them is the scorecard's landslide — a
-// correct average nobody needs to be asked (the retire-proposal
-// predicate) — and it serves LAST in its topic rather than waiting for
-// a human to read a retire proposal. Deletion stays the lane's;
+// holds ≥ RANK_DEAD_SHARE of them has stopped asking anything, and it
+// serves LAST in its topic rather than waiting for a human to read a
+// retire proposal. Deletion stays the lane's;
 // `active: false` stays the kill switch; this only orders.
 //
 // SURFACES: feed and learn — the two D316 unbounds. The daily is
@@ -51,11 +50,110 @@ import { utcDay } from "./pure";
 export const RANK_SURFACES = ["feed", "learn"] as const;
 export type RankSurface = (typeof RANK_SURFACES)[number];
 
-/** The landslide sink (D316 phase 4's first signal): at this many answers
+/**
+ * The daily's shape document (D383) — NOT an order, and the distinction
+ * is the reason the file header excludes the daily from RANK_SURFACES.
+ * The daily stays positional: everyone answers the same question on the
+ * same day, which is what makes a cohort comparison mean anything.
+ *
+ * What a device needs to run that rule is the bank's LENGTH, not the
+ * bank. `computeDeckIds` indexes `(today - epoch - back) mod n`, so with
+ * `n` in hand a device computes its seven positions locally — which also
+ * keeps the midnight rollover working, where a published deck would hand
+ * out yesterday's questions until the 03:07 fold ran.
+ *
+ * `maxSeq` is the SAFETY, not decoration. Position i maps to `seq === i`
+ * only while the daily's seq space is dense from zero, which live.ts's
+ * own boot query already states ("per-surface and contiguous") and
+ * nothing enforced. Publishing the max lets the device CHECK it —
+ * `maxSeq === n - 1` or the fast path is off and the whole-bank fetch
+ * stands. A hole must never silently shift the day: retiring a question
+ * below the window already moves every visible card (the tombstone note
+ * in live.ts), and a device disagreeing with its neighbours about which
+ * question today is would be that bug with no symptom.
+ */
+export interface DailyShapeDoc {
+  n: number;
+  maxSeq: number;
+  /**
+   * The Scores lens's pool, per place scope (D384) — question ids, not
+   * documents. The lens asks "every active `rating` daily that names this
+   * place and I have NOT answered", which is the one daily fold that
+   * history cannot supply: its whole subject is what you have not
+   * answered yet. Before this it was a query over the surface, so it grew
+   * with the bank — 29 of 130 today, and the same fraction of any bank.
+   *
+   * Ids rather than documents for the same reason the feed's order
+   * carries qids: the device subtracts its own votes locally (nothing
+   * per-person reaches the server, D163's line), gets an exact remaining
+   * count for the lens's "N more after these", and fetches documents only
+   * for the few it is about to draw.
+   *
+   * ACTIVE ONLY, and the device still checks the flag on the document it
+   * fetches. A question retired in the console after a fold is in this
+   * list until the next one; that costs a read and the device drops it.
+   * The other direction — a retired question the device would DRAW — is
+   * the one that matters, and the document is the authority for it.
+   */
+  rates: Record<string, string[]>;
+}
+
+/**
+ * The daily bank as the CLIENT counts it. The predicate mirrors
+ * `splitBanks`'s daily arm (src/v2/data/deck.ts) exactly, including that
+ * it does NOT filter on `active`: retired dailies stay in the bank as
+ * tombstones so the positions around them hold, and a count that dropped
+ * them would shift every device's day. Two spellings of one predicate is
+ * how they drift, so this comment is the second half of the pin —
+ * `rank.test.ts` asserts the count against the seed the client reads.
+ */
+export function dailyShape(bank: readonly V2SeedQuestion[]): DailyShapeDoc {
+  const daily = bank.filter(
+    (q) => q.surface === "daily" && Array.isArray(q.options) && q.options.length >= 2,
+  );
+  // The Scores pool, keyed by the scope a question names. The predicate is
+  // `placeAsks`'s own (src/v2/data/live.ts) minus the per-person half:
+  // active, `type: "rating"`, carrying `rates`. Ordered by seq so the list
+  // is stable between folds — a device that has answered the head should
+  // meet the same tail tomorrow, not a reshuffle.
+  const rates: Record<string, string[]> = {};
+  for (const q of [...daily].sort((a, b) => a.seq - b.seq)) {
+    if (q.active === false || q.type !== "rating" || !q.rates) continue;
+    (rates[q.rates] ||= []).push(q.id);
+  }
+  return {
+    n: daily.length,
+    maxSeq: daily.reduce((m, q) => Math.max(m, q.seq), -1),
+    rates,
+  };
+}
+
+/**
+ * The landslide sink (D316 phase 4's first signal): at this many answers
  * with the leading option at this share, a question has stopped asking
- * anything and serves last in its topic. The numbers are the scorecard's
- * own retire-proposal floor, kept equal on purpose — one predicate,
- * spelled twice, is how the two would drift apart. */
+ * anything and serves last in its topic.
+ *
+ * NOT THE SCORECARD'S LANDSLIDE, though this said it was — "the
+ * scorecard's own retire-proposal floor, kept equal on purpose — one
+ * predicate, spelled twice, is how the two would drift apart", under a
+ * predicate that had already drifted. The scorecard grades on EVENNESS
+ * (scripts/scorecard-metrics.mjs), which normalises the leading share by
+ * the option count: `1 − (maxShare − 1/n)/(1 − 1/n) < 0.18`. This is a
+ * raw top share and ignores n, so the two disagree in both directions —
+ * measured, on the same aggregates:
+ *
+ *   binary 90/10     sunk here, NOT a scorecard landslide (evenness 0.20)
+ *   4-option 88/4/4/4  a scorecard landslide, NOT sunk here (evenness 0.16)
+ *
+ * They also cover different question types: the scorecard has a second
+ * formula for ordinals, and this predicate is applied to everything.
+ *
+ * So an operator reading the nightly retire proposals and the published
+ * serving order gets two verdicts on the same question. WHICH ONE IS
+ * RIGHT IS THE OWNER'S CALL — making them one predicate changes what the
+ * feed serves, so it is not a comment fix — and the comment now says what
+ * is true rather than telling the next reader not to look.
+ */
 export const RANK_DEAD_MIN = 20;
 export const RANK_DEAD_SHARE = 0.9;
 
@@ -69,6 +167,16 @@ export interface RankTopicOrder {
   qids: string[];
   /** Answers across the topic — the topic sheet's honest count feed. */
   total: number;
+  /** How many questions the topic CARRIES: home plus every `also` door
+   * (docs/TAGS-PLAN.md §2). `qids` is home placement only, because that
+   * is what paging needs — a straddler must be fetched once, from one
+   * page, not once per shelf it appears on. But the topic sheet counts
+   * membership, so `qids.length` under-reports every straddler and the
+   * client cannot recover the difference: it sees `also` only on the
+   * questions it already holds. So the fold, which sees the whole bank,
+   * states it. Equal to `qids.length` on any surface without `also`
+   * (learn), which is why the reader can take it unconditionally. */
+  carry: number;
 }
 
 export interface RankDoc {
@@ -84,6 +192,8 @@ export interface RankStore {
   /** Aggregates for these qids; absent means unanswered. */
   aggsFor(qids: string[]): Promise<Map<string, RankAgg>>;
   putOrder(surface: RankSurface, doc: RankDoc): Promise<void>;
+  /** `v2_rank/daily` — the shape, not an order (see DailyShapeDoc). */
+  putDailyShape(doc: DailyShapeDoc): Promise<void>;
 }
 
 const BASIS = "volume desc, landslides sink (D316); ties by seq";
@@ -122,11 +232,27 @@ export function computeRank(
       (q) => q.surface === surface && q.active !== false && inWindow(q, today),
     );
     const topics: Record<string, RankTopicOrder> = {};
+    // Membership, counted over the same roster the order is built from:
+    // a topic carries a question if it is its home OR one of its `also`
+    // doors. Kept beside the home walk rather than folded into it because
+    // the two answer different questions — what to PAGE, and what to
+    // COUNT — and a topic can be an `also` door with no home question at
+    // all, which still belongs on the sheet.
+    const carried: Record<string, number> = {};
     for (const q of roster) {
       // A topic-less entry still serves; "" would make a key nothing
       // renders, so it files under a name the client can ask for.
       const topic = q.topic ?? "untopiced";
-      (topics[topic] ??= { qids: [], total: 0 }).qids.push(q.id);
+      (topics[topic] ??= { qids: [], total: 0, carry: 0 }).qids.push(q.id);
+      for (const t of new Set([topic, ...(q.also ?? [])])) {
+        carried[t] = (carried[t] ?? 0) + 1;
+      }
+    }
+    // An `also`-only topic has no home question, so the home walk never
+    // made it a key. It still carries questions a reader can reach, so it
+    // gets an entry that pages nothing and counts honestly.
+    for (const t of Object.keys(carried)) {
+      topics[t] ??= { qids: [], total: 0, carry: 0 };
     }
     for (const t of Object.keys(topics)) {
       const rows = topics[t].qids.map((qid) => {
@@ -148,6 +274,7 @@ export function computeRank(
       topics[t] = {
         qids: rows.map((r) => r.qid),
         total: rows.reduce((s, r) => s + r.total, 0),
+        carry: carried[t] ?? 0,
       };
     }
     out[surface] = { day: today, basis: BASIS, topics };
@@ -162,7 +289,7 @@ export async function runBankRank(
   store: RankStore,
   nowMs: number,
   bank: readonly V2SeedQuestion[] = V2_QUESTIONS,
-): Promise<{ surfaces: number; topics: number; ranked: number }> {
+): Promise<{ surfaces: number; topics: number; ranked: number; dailyN: number }> {
   const today = utcDay(nowMs, 0);
   const qids = bank
     .filter((q) => RANK_SURFACES.includes(q.surface as RankSurface))
@@ -176,7 +303,14 @@ export async function runBankRank(
     ranked += Object.values(docs[surface].topics).reduce((s, t) => s + t.qids.length, 0);
     await store.putOrder(surface, docs[surface]);
   }
-  return { surfaces: RANK_SURFACES.length, topics, ranked };
+  // The daily's shape rides the same nightly write (D383). It is not an
+  // order and takes no aggregates — the daily is positional — but it
+  // belongs here rather than in its own function: one schedule, one place
+  // a device looks for "what does the bank look like tonight", and the
+  // publish is a single small document.
+  const daily = dailyShape(bank);
+  await store.putDailyShape(daily);
+  return { surfaces: RANK_SURFACES.length, topics, ranked, dailyN: daily.n };
 }
 
 /** The Firestore store: aggregates read in getAll chunks (the patterns
@@ -207,6 +341,12 @@ export function firestoreRankStore(db: Firestore): RankStore {
       await db
         .collection("v2_rank")
         .doc(surface)
+        .set({ ...docPayload, at: FieldValue.serverTimestamp() });
+    },
+    async putDailyShape(docPayload) {
+      await db
+        .collection("v2_rank")
+        .doc("daily")
         .set({ ...docPayload, at: FieldValue.serverTimestamp() });
     },
   };

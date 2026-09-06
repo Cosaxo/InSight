@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   722 questions land in `v2_questions`. Re-running is safe (idempotent,
+   913 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 722-read
+   alone, so a reseed no longer costs every returning device a 913-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -131,6 +131,25 @@ Both apps must be registered under `com.cosaxo.insight`:
   the file is a snapshot, not a live lookup. Nothing in this repo can see
   either omission: the file is gitignored and account-gated, so
   `check:store-copy` and CI are both blind to it.
+
+  **And register the app for App Check with the Play Integrity provider,
+  which this entry did not name until 2026-09-01.** Every callable in the
+  tree demands App Check attestation (D36, `check:appcheck` on the deploy
+  path). `src/lib/appcheck.ts` initialises the native plugin, which
+  auto-selects DeviceCheck on iOS and **Play Integrity on Android** — so
+  the Android half needs the Play Integrity API enabled on the linked
+  Cloud project, the Play Console account linked to it, and the Android
+  app registered in Firebase Console → App Check with that provider.
+
+  Miss it and the app installs, opens, renders, and **every callable is
+  rejected**. That is the same silent shape as the two traps above, and
+  the reason it was missing is worth keeping: on iOS this was satisfied as
+  a side effect of enrolling in the Apple Developer Program, so the
+  omission could not show up on the platform that shipped.
+  `docs/DEVICE-BIND.md` §1 already carries the Play Integrity console
+  steps for D29's purposes — the App Check registration is a different
+  switch on the same API, and doing one does not do the other.
+  `docs/PLAY-RELEASE.md` §2.3 has the rest of the Play path.
 - **iOS** — Add app → iOS → download `GoogleService-Info.plist` → add to
   `ios/App/App/` in Xcode (add to target), then copy that file's
   `REVERSED_CLIENT_ID` value over the `REPLACE_WITH_REVERSED_CLIENT_ID`
@@ -221,15 +240,34 @@ Both apps must be registered under `com.cosaxo.insight`:
   account opens as an organization**, backed by an ENK and a D-U-N-S.
   Two stores, two answers.
 
-  **Superseded on timing by [D42](DECISIONS.md) (2026-08-04): Play is
-  deferred and InSight launches on iOS alone.** D41's answer is not
-  reversed, it is conditional — organization is still the right account
-  type *if Play is opened before there is an installed base*. After one,
-  the 12×14 gate may be satisfiable by asking existing users, because the
-  two routes' costs move in opposite directions: the ENK chain costs the
-  same whenever taken, while recruiting twelve installed testers is brutal
-  cold and easy with an audience. So deferring may retire D41 unused
-  rather than merely postponing it. Nothing below about Apple changes.
+  **Deferred on timing by [D42](DECISIONS.md) (2026-08-04) — and
+  UN-DEFERRED by [D345](DECISIONS.md) (2026-09-01), which is the state
+  today.** D42 never reversed D41, it made it conditional: organization is
+  the right account type *if Play is opened before there is an installed
+  base*, and after one the 12×14 gate may be satisfiable by asking
+  existing users, because the two routes' costs move in opposite
+  directions — the ENK chain costs the same whenever taken, while
+  recruiting twelve installed testers is brutal cold and easy with an
+  audience.
+
+  **The owner took the before-an-installed-base branch** (*"yes, do both
+  and i will go for a ENK"*), which is the branch D41 was written for, so
+  **D41 stands in full and needs no re-deriving**. Two of its figures moved
+  in this choice's favour: the gate is 12 testers rather than the 20 D41
+  launched at, and tester *engagement* is now checked as well as count.
+  D345 also built the two code items that blocked any Android artifact —
+  release signing and `play-release.yml` — so Play is work rather than
+  backlog. The one thing still unverified is the one that costs money:
+  whether Google's organization verification accepts an
+  Enhetsregisteret-only ENK or wants Foretaksregisteret (~3,000 kr); check
+  it in the Play Console account-type flow before paying for a D-U-N-S
+  expedite. Nothing here about Apple changes.
+
+  **This paragraph said "iOS alone" for three days after it stopped being
+  true**, and this file is the canonical one — `LAUNCH-RUNBOOK.md` defers
+  to it. D345 named neither. No gate reads whether a sentence is still
+  true, which is `docs/DOC-SWEEP.md`'s subject and the reason that lane
+  exists.
 
   Registering the ENK does not change the values above — an ENK is not a
   separate legal person, so the operator is still Olaf Taule. **If it is
@@ -477,6 +515,35 @@ Both apps must be registered under `com.cosaxo.insight`:
   comfortable if a live takes surface ships later" — has come due twice
   over: the surface shipped at D83 with the report control alongside it,
   and D98 attached names. Both obligations are met above; keep them met.
+
+  **The second trap is guideline 3.1, and nothing in this checklist saw
+  it until 2026-08-31.** The app carries a complete purchase funnel:
+  `SuggestOverlay` (`src/v2/spec/suggestions.jsx`) is the paid door —
+  rate card, scope ruler, composer, and a pay tap that opens Stripe —
+  entered from the profile tab, selling a question window at EUR 320 or
+  an ad at EUR 288. D313's *"commerce stays on the web side"* is a true
+  sentence about where the payment **form** renders; 3.1.1 is about
+  where the **call to action** lives, and that is inside the binary.
+
+  Two readings, and the gap between them is the risk. What is sold is
+  **advertising** — distribution to other people, not a feature unlocked
+  for the buyer — and MONETIZATION.md's *"a buyer gets no read path a
+  signed-in user does not have"* makes that structurally true rather
+  than merely argued. Apple's 3.1.3(e) *forbids* IAP for campaign
+  purchases, and Play has never required its billing for ad spend. But
+  3.1.3(e) is written for apps *"for the sole purpose of"* campaign
+  management and *"not offered to a general audience"*, and this is a
+  consumer app with a B2B door in its profile tab — Meta's "Boost Post"
+  shape, which Apple charged for.
+
+  **Decide it before the first submission, not after a rejection.**
+  There are zero sales and no submission yet, so the door can leave at
+  no cost today; removing it after a review costs a cycle and a flag on
+  the account. [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is the working —
+  including the finding that IAP could not express this product's
+  billing at all, since the closer's partial refund (D164) has no
+  in-app-purchase primitive, and the four legal facts to verify before
+  the decision is recorded.
 - Apple Developer Program (~2 days to approve — start early, as an
   **individual** enrollment). **A Mac is no longer required**: since
   2026-08-05 `.github/workflows/ios-release.yml` archives, exports and

@@ -53,6 +53,11 @@ const LIVE = vi.hoisted(() => ({
       void gid;
       return this.takeList.filter((t) => !qid || t.qid === qid);
     },
+    /** Settled by default: every case below is about a list that HAS been
+     *  read, and the reading arm is asserted by the two cases that set
+     *  this true. */
+    reading: false,
+    takesLoading(this: { reading: boolean }) { return this.reading; },
     loadTakes: vi.fn(async () => {}),
     postTake: vi.fn(async () => "t_new"),
     deleteTake: vi.fn(async () => {}),
@@ -81,6 +86,7 @@ beforeEach(() => {
   LIVE.loadVoters.mockClear();
   LIVE.loadNames.mockClear();
   LIVE.social.flags = {};
+  LIVE.social.reading = false;
   LIVE.social.loadTakes.mockClear();
   LIVE.social.postTake.mockClear();
   LIVE.social.deleteTake.mockClear();
@@ -418,6 +424,46 @@ describe("a take carries the side its author voted", () => {
   });
 });
 
+describe("a list still being read is not an empty room", () => {
+  // `takes()` answers [] for three different things — never fetched, in
+  // flight, and genuinely nothing written. The panel branched on length
+  // alone, so it printed "No takes yet. Say the first thing." over a query
+  // still running — and kept printing it for the life of that mount after
+  // a FAILED fetch, because loadTakes' catch deliberately leaves the key
+  // absent so a later open retries rather than caching an empty list.
+  //
+  // Same defect the Compare lens and the Near field were fixed for, on the
+  // surface where the sentence is an invitation: "say the first thing" to
+  // someone whose circle may already have said several.
+  it("says it is reading rather than that nobody has written", () => {
+    LIVE.social.takeList = [];
+    LIVE.social.reading = true;
+    panel();
+    expect(screen.getByText(/Reading the room/)).toBeTruthy();
+    expect(screen.queryByText(/Say the first thing/),
+      "an unread list was called an empty one").toBeNull();
+  });
+
+  it("says the room is empty once it really has been read", () => {
+    // The control: the reading arm must not swallow the true empty state,
+    // which is the one the composer's invitation belongs to.
+    LIVE.social.takeList = [];
+    LIVE.social.reading = false;
+    panel();
+    expect(screen.getByText(/Say the first thing/)).toBeTruthy();
+  });
+
+  it("keeps the paused sentence in front of the reading one", () => {
+    // The breaker's state is true whatever the query would have found, so
+    // it stays the outermost arm.
+    LIVE.social.takeList = [];
+    LIVE.social.reading = true;
+    LIVE.budgetPaused = true;
+    panel();
+    expect(screen.queryByText(/Reading the room/)).toBeNull();
+  });
+});
+
 describe("the side filter", () => {
   const OPTS = ["Champions League final", "Super Bowl"];
   const sidePanel = () => render(<LiveTakesPanel gid="world" qid="q1" options={OPTS} />);
@@ -448,6 +494,37 @@ describe("the side filter", () => {
     expect(screen.getByRole("button", { name: "All · 2" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Champions League final · 1" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Super Bowl · 1" })).toBeTruthy();
+  });
+
+  it("says how many takes the chips cannot account for", async () => {
+    // Sides come from the voter list, which is the newest VOTER_FETCH_CAP
+    // answers; takes come from their own page. An author who answered
+    // outside that window has no side, so they count in "All" and in none
+    // of the chips — "All · 3 · Champions League final · 1 · Super Bowl ·
+    // 1" with no word about the third. The sibling panel in this same
+    // sheet says exactly this about its own bound, twice.
+    LIVE.social.takeList = [
+      wtake("w1", "u_named", "Ninety minutes of flow."),
+      wtake("w2", "u_me", "The halftime show alone."),
+      wtake("w3", "u_older", "Answered a long time ago."),
+    ];
+    LIVE.voterList = [
+      { uid: "u_named", optionIdx: 0 },
+      { uid: "u_me", optionIdx: 1 },
+    ];
+    sidePanel();
+    expect(screen.getByRole("button", { name: "All · 3" })).toBeTruthy();
+    expect(screen.getByText(/1 of these was written by someone whose answer is outside the newest/))
+      .toBeTruthy();
+  });
+
+  it("says nothing when every take has a side — the control", () => {
+    // A complete row stays a row of chips. Without this, printing the
+    // sentence unconditionally passes the case above and puts a caveat
+    // under every question in the app.
+    sidePanel();
+    expect(screen.getByRole("button", { name: "All · 2" })).toBeTruthy();
+    expect(screen.queryByText(/outside the newest/)).toBeNull();
   });
 
   it("tapping the open side again returns to All", () => {

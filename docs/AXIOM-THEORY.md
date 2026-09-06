@@ -1,9 +1,10 @@
 # Axiom Theory — the theory layer, and its bridge into the product
 
 **Status: operating since 2026-08-25.** This page is the product-side
-record of a system that lives OUTSIDE the product: eight recurring
-Claude lanes writing theory on the orphan branch `axiom-theory` of this
-repo. **`CHARTER.md` at that branch's root is canonical** for
+record of a system that lives OUTSIDE the product: twelve recurring
+Claude lanes on the orphan branch `axiom-theory` of this repo — eleven
+writing theory (two of them, ties and interests, chartered 2026-09-01
+at D347), and since D346 one scoring their work every second night. **`CHARTER.md` at that branch's root is canonical** for
 everything about how the lanes behave; this page records what the
 product needs to know — where the system is, what may cross from it
 into the tree, and the account-side inventory. If the two disagree,
@@ -39,8 +40,9 @@ the buildable one — and just as deliberately may not disregard law,
 ethics or honesty (charter §9: no medical advice, no invented sources,
 consent and privacy as design axioms).
 
-Nine lanes: four subject axioms — genetic, body, questions, tests —
-plus **map theory** (how everything should be displayed), **pattern
+Eleven theory lanes: six subject axioms — genetic, body, questions,
+tests, and since D347 **ties** (the relational axis: the 1v1 and group
+profile) and **interests** — plus **map theory** (how everything should be displayed), **pattern
 theory** (how patterns should be found), and **database theory** (the
 perfect, most efficient and most useful database for the axes and
 their connections — deliberately *not* an axiom, the owner's note
@@ -48,7 +50,10 @@ their connections — deliberately *not* an axiom, the owner's note
 **Central** synthesizes: the combination theory, the axiom portfolio,
 new-axiom proposals, focus questions into the other lanes, and the
 weekly `DIGEST.md`. The **graph optimizer** keeps the graphs
-themselves healthy, including its own methods.
+themselves healthy, including its own methods. And a tenth lane since
+2026-09-01, **review** (D346), scores every other lane's latest work
+every second night against the charter's own clauses and leaves each
+lane feedback — *The review lane*, below.
 
 ## Why the branch shape
 
@@ -89,7 +94,7 @@ alignment; the fit-not-Oracle note) carried into the record.
 
 ## The account-side inventory (product-side copy)
 
-All nine fire a **fresh session per run** on model `claude-fable-5`
+All twelve fire a **fresh session per run** on model `claude-fable-5`
 (the owner's 2026-08-25 direction: Fable orchestrates, subagents are
 Opus at matched effort, never lower), completion notifications off —
 the digest is the legibility channel.
@@ -99,12 +104,270 @@ measurement: cron-spawned sessions stall on the provisioning step's
 permission prompt, so the crons now wake a persistent dispatcher
 session that spawns each run with its tools pre-approved), and the
 owner re-paced the cadence the same evening: **every lane every other
-day** — subject axioms (genetic, body, questions, tests) at
-09:02–12:02 UTC on odd dates, reader lanes (map, pattern, graph
-optimizer, central) at the same hours on even dates, so readers always
-work on subject output at most a day old. **The charter's §10 table
-carries the live trigger ids** and is updated first on any change;
+day** — subject axioms (genetic, body, questions, tests, and since D347 ties and interests) at 09:02–14:02 UTC on odd dates, reader lanes (map, pattern, graph
+optimizer, central) at the same hours on even dates, so readers always work on subject output at most a day old; the
+review lane at 02:02 UTC on odd dates, six hours before the earliest
+lane slot (D346). **The charter's §10 table carries the live trigger ids** and is updated first on any change;
 this page stopped copying the ids the evening they started moving.
+
+## The review lane (D346)
+
+Chartered 2026-09-01 on the owner's direction — *"a system that scores
+the different axiom work each 2 night and leaves feedback on how it
+could be even more useful, innovative, effective or other relevant
+score"* — as charter §12 on the branch, in the lanes' own grammar
+rather than as a report bolted on: a workspace, a graph whose claims
+are about what a score IS, a versioned instrument
+(`theory/review/RUBRIC.md`), a ledger (`scores.json`, rendered as
+`SCORES.md` beside `DIGEST.md`), and one Routine.
+
+**What it scores.** Six dimensions, each 0–10, each a clause of the
+charter turned into a count: **useful** (§1's purpose), **innovative**
+(§1's perfection licence, used), **effective** (§3's ratchet and the
+direction of the motion — falsifiers named and contradictions resolved
+score above node count), **rigorous** (§4 and §9), **connected** (§1's
+cross-axis rule) and **legible** (§6's five-minute reader). Scores are
+against the contract, never a ranking of lanes against each other, and
+a score without its evidence line — what was counted — is not a score.
+The one check a lane cannot run on itself is the lane's highest-value
+act: at least two risen `cited` sources per lane fetched and read each
+review, a failure named by node id and lowering Rigorous (D162's
+correlated-blind-spot rule, transposed to the theory layer).
+
+**How feedback reaches a lane.** Each review rewrites
+`theory/<lane>/FEEDBACK.md` — the scores, their evidence, whether the
+last feedback was acted on, and at most three items, each actionable
+within one run and naming the dimension it would move. The lane reads
+it in its Orient step and answers each item in its next LOG row, took
+or declined-with-a-reason, and the next review scores the response. A
+reasoned decline is never marked down; three reviews of reasoned
+declines are evidence against the rubric, not the lane (charter §11's
+review-drift rule) — the reviewer's own falsifier.
+
+**Cadence and cost.** Every second night at 02:02 UTC on odd dates, so
+every lane's next run reads feedback that already covers its latest
+landed run. Roughly half to one theory run per review (~$10–20), ≈ 15
+a month.
+
+**Delivery state.** Live on both halves: the Routine (id in D346, the
+account-side half) and the charter amendment — §12, the workspace, the
+checker's path set, nine seeded `FEEDBACK.md` files — landed on
+`axiom-theory` as `fa2de8e` on the owner's word the same evening,
+staged on a branch first because a change to a lane's contract passes
+the owner (D289 §4). The first review is the Routine's first firing.
+
+## The drift — the lanes theorize the current app, not the perfect form
+
+**Found 2026-09-03, on the owner's reading of the corpus.** The owner's
+words: *"they have missed the point… what we should have envisioned is
+if we could have found out what genes were connected to certain things
+like intelligence, what people with ADHD or autism's main traits are…
+and how other data can be discovered and made stronger by it"* — and,
+naming the mechanism: *"most is wrong like database for example does not
+talk about the theoretical perfect database for axiom theory but instead
+improvements to the current database, this goes for all the axioms."*
+
+Both readings check out against the branch, and the second is the one
+with a fixable cause.
+
+**The evidence.** The review lane scored the questions lane
+**Connected = 2**, the lowest cell in its table. `gen-4` rules that
+*"discovery genetics stays out of scope"* — the genetic lane scoping out
+the owner's own question by name. Of sixteen `worth-building` bridge
+requests, fourteen are folds, fields and audits over what already ships
+(a fold cursor, a serving-design stamp, a replay audit); **two** propose
+new measurement, and **none** proposes a cross-axis capability. Across
+ten days and 129 claims the corpus contains **zero** worked scenarios of
+what the app could know, and zero visualisations — from a program whose
+map lane theorizes how to draw things.
+
+**The cause is the ladder, not the lanes.** §1 already says what the
+owner wants, in the owner's own 2026-08-26 words: *each axiom's purpose
+is to create data and data-connections as powerful and useful as
+possible, or to make another axiom's data stronger and more useful.*
+§4 then makes that clause unreachable:
+
+- **`cited`** requires named external sources. A claim like *"our logic
+  instrument crossed with imported genomes would measure ability
+  genetics without the education proxy"* has no source, because it
+  describes a dataset that does not exist.
+- **`measured`** requires agreement with *"InSight's own published
+  numbers readable from `main`"* — so the ladder's **top rung is
+  literally the current app**. The only way to reach it is to say
+  something true about what already ships.
+- **§3's ratchet** demands every run move a status or prune, so a run
+  spent on potential looks like a failed run.
+
+A lane maximizing its status therefore drifts, run by run, from the
+perfect form toward describing and improving the product. The database
+lane is the clean case: its `THEORY.md` opens by promising *"the
+perfect, most efficient and most useful database"*, its graph records
+*"none yet measured"*, and all three of its bridge requests are current
+-app maintenance. **The drift is the ladder's gradient, not a choice.**
+
+**D352 never reached the charter.** *Axiom power first* was recorded
+2026-09-02 — a limitation is a design problem to be solved around that
+power, never a reason to shrink it. `CHARTER.md` was last amended
+2026-09-01 and contains no reference to it. Every lane has been running
+against a contract the owner's own decision superseded.
+
+[`AXIOM-POTENTIAL.md`](AXIOM-POTENTIAL.md) is the missing half, written
+directly rather than waited for.
+
+## The charter amendment — superseded 2026-09-05 by the restart
+
+**Status: not applied, and now moot.** The wording below was approved on
+2026-09-03 to fix the charter the twelve lanes ran under. On 2026-09-05
+the owner ruled instead that the branch is discarded and the program
+restarts from a fresh plan — so there is no charter left to amend, and
+the rules below reach the new lanes through their standing prompt rather
+than through `CHARTER.md`. It is kept because the five clauses are the
+diagnosis turned into rules, and a restart that does not carry them
+rebuilds the same gradient: the perfect-form test, scale as no
+constraint, a status for capability claims that needs no citation, a
+route for potential entries, and a mechanical check rather than a
+paragraph. `graph/potential.mjs` exists on the unpushed branch
+`claude/charter-potential-2026-09-03` if the shape is ever wanted.
+
+## The wording, as approved 2026-09-03
+
+The owner's direction, given on this evaluation: *"Both and make sure it
+never drifts again and all should be the potential."* No routine may
+amend the charter (`AXES-PLAN.md` §10), and this one is not amended by a
+routine: it is the owner's word, recorded here, in the shape D346's
+review amendment used. Five sections change, and the fifth is a gate,
+because **a rule this program does not mechanically check is a rule it
+has already been shown not to keep** — `go-10`, its own finding, in the
+lane that wrote it.
+
+**§1 gains D352.** Appended:
+
+> **Axiom power first (D352, the owner, 2026-09-02).** What the axes can
+> measure and connect is the first priority. A limitation — privacy,
+> cost, the schema, a store form, a refusal already written down — is a
+> design problem to be solved AROUND that power, never a reason to
+> shrink it, and never a claim in place of one. A theory whose run
+> produced only limits produced nothing.
+
+**§1 gains the perfect-form test**, the answer to the drift:
+
+> A claim belongs in the graph only if it would still be worth making
+> if the current app did not exist. A statement that describes, audits
+> or improves what ships is not theory — it is a bridge request, and it
+> goes to `REQUESTS.md` where requests live. The test in one question:
+> *would this claim survive the product being rewritten from scratch?*
+
+**§4 gains a fifth rung, off the current-app axis entirely:**
+
+> **demonstrated** — a worked cross-axis scenario: what becomes
+> knowable when two or more axes cross, what it would take to get
+> there, and what it makes the other axes worth. It requires **no
+> citation and no existing data**, because it is a claim about
+> capability rather than about the world or the product. It is not
+> below `cited`; it is the other axis of the ladder, and a lane with no
+> `demonstrated` node is failing §1 however many `cited` nodes it
+> holds.
+
+**§3 gains the run requirement:**
+
+> Every run advances at least one `demonstrated` scenario — added,
+> deepened, or crossed into another axis. A run that produced only
+> current-app increments has not met the ratchet, whatever its node
+> count.
+
+**§8 widens the bridge.** Today a lane may only file *data to track,
+gather or compute*, which is why fourteen of sixteen requests are
+maintenance. It gains a second entry kind:
+
+> A **potential entry** — a capability the crossing would unlock,
+> filed whether or not the data exists yet. Central rules on these as
+> on any other, and a `worth-building` potential entry names the
+> collection it waits on.
+
+**§1 gains the scale clause** (the owner, 2026-09-03 — *"it should not
+take into account things like current number of users as it looks at
+what it potentially can do, not what it can do now"*):
+
+> **Scale is not a constraint.** A theory assumes its axis **fully
+> populated** — everyone who could supply it does, at whatever depth and
+> cadence the perfect form asks for. Current user count, answers per
+> day, the length of the bank this month, what the crowd can support
+> this year: none of these bound a theory. A claim that holds only at
+> today's N is a measurement of today, not a theory of the perfect form.
+> Where a design genuinely needs scale, that is a **requirement it
+> generates** — stated as what the axis needs, never as a reason to want
+> less.
+
+This clause has specific work to do, because scale-boundedness is
+already in the corpus and reads as rigour: `db-8` bounds the read side
+by *"population times a small, effort-bounded number of answers per
+person-day"*, `pat-6` turns engine choice into a data-volume crossover,
+and `gen-21` — the one `measured` node — is measured against the bank as
+it stands today. Each is a fine engineering observation and none is a
+theory of a perfect form.
+
+**§2 gains the ruling that names what exists** (the owner, 2026-09-03 —
+*"nothing that has been created so far is axiom theory"*):
+
+> The 129 claims written between 2026-08-25 and 2026-09-03 are **not
+> axiom theories**. They are measurement method, negative results,
+> engineering proposals for the shipped product, and findings about
+> running this program — kept, and extracted to
+> `docs/MEASUREMENT-NOTES.md` on `main` under that name. No lane may
+> cite them as its axiom or treat them as a base to extend; a lane's
+> axiom theory starts from §1's perfect-form test and §4's
+> `demonstrated` rung. What is useful in the old corpus reaches the
+> product the way anything else does — through the bridge, as a
+> request, labelled as what it is.
+
+**§12 gains a scored dimension.** The review lane scores **Potential**
+0–10 beside its six: how much of the run went to what becomes possible
+versus what already exists — with the evidence line naming the
+`demonstrated` nodes counted. A lane whose runs are all maintenance
+scores low however rigorous they are.
+
+**§13 is new — the gate, so it cannot drift again.** `graph/potential.mjs`,
+run by the checker and by the review lane:
+
+> Every lane carries at least **two** `demonstrated` nodes, each naming
+> at least **two** axes; the count may only rise. A lane whose last
+> three runs added no `demonstrated` node fails, and the failure names
+> the lane. A `demonstrated` node whose axes are all one axis is not
+> cross-axis and does not count.
+
+## The read budget — a charter amendment to approve, not a rule this page sets
+
+**Proposed 2026-09-03, unapplied.** The charter is canonical for how the
+lanes behave and no routine may amend it (`AXES-PLAN.md` §10: no lane edits
+its own contract), so this section is the arithmetic and the wording, and
+the row on `OWNER-LIST.md` is the decision.
+
+**What was measured.** A theory run costs **$24.44** against the charter's
+own $20 estimate, and 77% of every dollar this account meters goes on
+cache reads and cache writes rather than output (`USAGE-REDUCTION.md`
+§§ 1–2). The lanes' inputs are what get read, and they grow every run: the
+branch is 1.27MB, `theory/genetic/graph.json` alone is 132KB and its
+`THEORY.md` 36KB, and `theory/central/` is chartered to read **every**
+lane's `graph.json` and `THEORY.md` — which is why central is the most
+expensive lane on the account at $39.47 a run. Nothing about that trend
+stops on its own: the ratchet adds nodes, the graphs get bigger, and every
+byte is billed once to write the cache and again on every later turn.
+
+**The wording proposed for §3's orient step**, as a refinement of what it
+already says rather than a new rule:
+
+> Orient from a **bounded** slice: the last twenty `LOG.md` rows rather
+> than the file; `node graph/health.mjs --json` for structure rather than a
+> sibling's whole `graph.json`; a sibling's `THEORY.md` by the headings the
+> step needs. Your own `graph.json` is read whole — it is what you write.
+> A run that needs more names what it needed in its log row.
+
+**What it would not change.** The ratchet, the citation ladder, the
+adversarial pass, the subagent floor (*never any model below opus*), and
+central's licence to read across lanes — only how much of each sibling it
+reads to do it. And it is not a cost rule dressed as a quality rule: a lane
+that genuinely needs a whole graph says so in its log, which is also how
+the review lane would notice the budget hurting the work.
 
 ## The owner's controls
 
@@ -119,3 +382,194 @@ of why the owner re-paced the 64-run/day trial to every-other-day
 still logs that honestly; the weekly digest plus a next-morning
 quality peek (2026-08-26) are what say whether the cadence earns
 itself.
+
+## New axioms — the 2026-09-01 reflection
+
+**Adopted the same day (D347): Ties and Interests are chartered.** The
+rest of this section stays plan notes, not decisions — time-use, the
+anchors, Learn and the crowd-reading placement are recommendations
+until their day.
+
+The owner opened the question — *"lets reflect on new axioms to add,
+my first suggestion would be the 1v1 and group profile"* — and this
+section is the reflection, in the AXES-PLAN convention: a *charter*
+verdict here is this page's recommendation, not adoption. A candidate
+has two tests to pass, and both already exist. The frame's (D289 §1):
+an axiom is the theory of an **axis's** perfect form, and an axis is a
+shipped source with one collection path and one custody class. And
+central's own, written the same day this was asked (`cen-3`, argued
+2026-09-01): a new-axiom candidate names the residual variance it would
+explain, the budget dimension that funds it, its custody tier, its entry
+mode, and its direct-output anchors. Everything below was measured
+against the tree and the branch, with paths cited.
+
+### 1 · The owner's candidate — the 1v1 and group profile
+
+**What the record is in the tree.** `v2_groups/{gid}` holds groups and
+duos alike (`mode: group|duo`, membership by a server-minted invite
+code — a capability, which is why the doc stays member-gated after
+D98). Each day's duel answer is sealed at `g_{gid}_{day}`, readable by
+its author only — the one answer shape D98 did not publish, for game
+timing rather than privacy. The next day's reveal,
+`v2_groups/{gid}/reveals/{day}`, is readable by any signed-in user and
+carries every member's `optionIdx` and, for a 1v1, both members'
+`guessIdx` (`data/duelRuns.ts` folds the read-runs from exactly that).
+At reveal time `foldDuelSignal` (`functions/src/v2social.ts`) sums the
+day into `v2_question_aggs/duel-{qid}` across every circle — plays,
+per-option counts, guess totals (D40). Beside it sits the follow graph,
+`v2_users/{uid}/following` (D101: a bookmark, no handshake,
+`FOLLOW_CAP` 50). The banks: 25 group questions (12 `us`, 7 `pick`, 6
+plain), 31 1v1 questions live, 22 romantic-mode questions authored and
+dark (`active: false`, every one). Two instruments already read this
+record and nothing else — D204's roles (Insight · Legibility ·
+Likeness · Steadiness for a 1v1; Independence · Centrality · Steadiness
+for a group; `data/roles.ts`, floors `MIN_DUO` 3 and `MIN_GROUP` 2) and
+the person overlay's shared-record types (`poPersonTypes`, D310) — and
+one dimension is deliberately unbuilt: `cast`, the group's crowns, which
+D204 refused as a dead axis and D224's `pickUid` snapshot unblocked
+forward from its own date.
+
+**It passes the frame's test, and the frame says so itself.** AXES-PLAN
+§1 records that custody is a property of the axis and that the app
+already runs four classes — public-and-exact, denied-at-a-path,
+**sealed-until (duel timing)**, and device-only. Its table then files
+duels under Questions ("the one write — daily, feed, learn, duels,
+pulses"). So one of the four custody classes the frame names belongs to
+no row of its own table. The axis is there; the row is missing. And its
+unit differs from every other axis the program has: a genome, a body, an
+answer and a test score are all measurements of a **person**; a duel is
+a measurement of a **tie** — a pair, or a group — keyed by two or more
+people and a day. It also holds the app's only **second-person**
+measurement: a guess is a claim about someone *else*, scored the next
+day against their sealed answer. After the logic test, that is the
+second thing in the app graded against a key rather than reported.
+
+**Against `cen-3`'s five parts.**
+
+- *Residual variance.* Central already lists "social-graph texture"
+  second on its own candidate list (`cen-9`), in these words: the
+  relational data "carries relational variance (who is chosen, how
+  contests resolve) no self-report item reaches". The duel record adds
+  what that phrasing leaves out — interpersonal **accuracy**, and its
+  decomposition: a right guess can be knowledge of *them* or projection
+  of *yourself* (guess = their answer versus guess = your own; Likeness
+  and Insight are the two halves the roles already draw); **legibility**
+  is a property of the target that no self-report reaches at all; and
+  a `pick` day is a nomination, the crowd's reputation of a member.
+- *Funding.* `pat-8` (cited) says persons fund crowd value and a
+  person's own occasions fund personal value. Ties are a third
+  resource neither names: a person in several 1v1s is a perceiver
+  measured across targets, a person guessed by several is a target
+  measured across perceivers, and a pair's days are its occasions. The
+  data shape exists — every friend pair can hold a 1v1 — so the claim
+  is funded in principle, which is what the test asks.
+- *Custody.* Already run, not designed: sealed-until, then published
+  (D98) — and central's own note on this candidate, that its consent
+  structure is **dyadic** because an edge names two people, is the
+  charter's §9 consent axiom applied, not a blocker. Nothing here is a
+  D334 ask today: legibility and reputation are folded from reveals
+  that already publish, and D204 priced `cast` as a fold hazard, never
+  as a privacy one.
+- *Entry mode.* A collected stream — the daily duel — with no import
+  door and no artifact; the cheapest entry mode on the list.
+- *Anchors.* Every 1v1 day is keyed against reality; the 7 pick
+  questions are nominations with the picked uid snapshotted (D224); the
+  cross-group guess-match rate publishes per question (D40's "guessable
+  if you truly know them" number).
+
+**No lane owns it.** The tests lane's scope is logic, the four
+instruments and the nine lenses; its 2026-09-01 joint-density verdict
+says in terms that "the two duel systems (duo, group) have no
+`testResults` entry and sit outside this ruling". Central carries the
+social graph as a *candidate*, not a theory. The body lane's open
+question of the same day asks whether "duel participation and outcomes"
+could serve as a third method for its common-method-variance rival — a
+consumer of a theory nobody is writing.
+
+**What the lane would write, and why it can climb fast.** The
+literatures are old and deep, so `cited` is a matter of reading rather
+than invention: the Social Relations Model (Kenny — perceiver, target
+and relationship variance, which is exactly what a person holding
+several 1v1s lets you separate); accuracy and assumed similarity
+(Cronbach's 1955 decomposition, Ickes's empathic accuracy, Funder's
+Realistic Accuracy Model); sociometry and peer nomination (Moreno; the
+Coie–Dodge status classes) for pick days and the unbuilt `cast`;
+homophily and assortativity (McPherson, Smith-Lovin and Cook) for the
+follow graph against the answer vectors; consensus, independence and
+centrality in small groups for the group instrument; and tie *type* as
+a variable — the dark romantic pool is a second kind of tie waiting for
+a theory of why it should differ. The cross-connection half (charter
+§1) is where the value concentrates: what the person-level axioms
+predict about how a tie goes (do alike trait profiles read each other
+better? does the logic score predict Insight? do the anchors predict
+who is chosen?) and what a tie reveals about a person that no
+self-report can (legibility is a target effect; reputation is what your
+groups pick you for). `measured` is reachable early: reveals and
+`duel-` aggregates are public, and `scorecard --fetch` already downloads
+the latter (D40).
+
+**One lane, not two.** A pair is the two-member group with a guess —
+one store, one custody class, one family of literature. Two lanes would
+double the price of one theory. **The name** is the owner's word
+decision (D182): the charter's lanes are one word each and "Social" is
+taken by the fourth core instrument; this page's suggestion is
+**Ties** (id prefix `tie`), because a pair and a group are both ties
+and the follow graph is one too.
+
+### 2 · The other candidates, held to the same test
+
+| Candidate | What it is in the tree | Verdict here | Why |
+| --- | --- | --- | --- |
+| **Interests** | AXES-PLAN §1's row 6 — the one axis in the table with no lane. Three implementations: follows/mutes (device-local), catalogue favourites (public, D14–D17), D163's interest model (binding, not built, never leaves the phone) | **Charter, second** | The genetic lane already asked for factor-level interest scoring (2026-08-28) and got *not-yet* because no inventory-grade items exist on the answer stream — which is a theory question nobody owns: what the perfect interests axis IS, how it is held under D163's surviving property (the server never learns what anyone is into), and what it deepens. The genetic lane's own finding: interests are twin-heritable and no GWAS of an administered interest inventory exists — a first-of-its-kind asset behind a gate nobody is theorizing |
+| **Time-use / chronotype** | Answer timestamps; cadence, streaks, edit rates. Central's own first candidate (`cen-9`) | **Not a lane yet** | Central already carries it, the body lane holds the behavioural-traces question, and the binding confound is named (answering phase is convolved with the product's delivery schedule). Charter it when that cheap test survives. D269's ceiling bounds it either way: no hesitation timing, no dossier |
+| **General info (the anchors)** | The nine profile anchors, seven of them breakdown dims; D328's `jobField` | **A focus question, not a lane** | Its theory is the questions lane's invariance and spine work (`que-4`, `que-6`) — which anchors carry conditioning value, and how a band is chosen. Central can ask that in one appended question |
+| **Learn (knowledge)** | A question with a right answer, a trap and a crowd difficulty `p` (`learn-data.js`); misconception maps | **A focus question, not a lane** | Knowledge items are instruments with estimable parameters (`que-2`) and distractor analysis is item theory; the ability half is tests' logic work. A lane only if the owner wants knowledge as an axis in its own right |
+| **Reading the crowd** | Foresight READ (D126, live), calls retired in service (D196), the Oracle's surprisal grade | **Inside Ties, not beside it** | The same family as the 1v1 guess one level up — person → crowd, and model → person. Name it in the Ties row so the cross-connection has an owner |
+| Microbiome · voice · place history | Central's last three | **Nothing to charter** | Each is behind a gate by central's own argument: an import door, an instrument-validity gate, and the physical-safety deny |
+
+### 3 · What a lane costs, and what chartering one takes
+
+- **Money.** ~$20 a run (charter §10's first-day measurement), every
+  other day ≈ 15 runs a month ≈ **$300 a month per lane**. Two lanes ≈ $600 a month on top of the ten (the review lane
+  included, D346). The owner's standing call is
+  that budget is not the constraint and quality is — recorded, not
+  re-argued.
+- **The dispatcher.** The 2026-09-01 digest reports roughly two days
+  of cadence lost to a dispatcher backlog with nine theory lanes at
+  four to five runs a day, and the review lane (D346) now fires at
+  night. An eleventh and twelfth add to that queue. Slots that
+  keep central reading fresh subject work: **13:02 and 14:02 UTC on
+  odd dates** (the subject group), with central still at 12:02 on
+  even dates. If the backlog recurs, the fix is §11's cadence dial.
+- **On the branch.** A charter §2 row and §10 inventory row;
+  `graph/SCHEMA.md`'s prefix list and the `LANES` map in
+  `graph/check.mjs` — a checker change lands with its schema note in
+  one commit or not at all (§5); `theory/ties/` seeded with the five
+  files (`graph.json` with conjecture nodes, `THEORY.md`, `LOG.md`'s
+  seed row, `QUESTIONS.md`, `REQUESTS.md`); the README's workspace
+  count.
+- **Account side.** One Routine per lane bound to the dispatcher,
+  fresh session per run, prompt forwarded verbatim, `claude-fable-5`,
+  notifications off — the D326 shape, create before delete.
+- **In this repo.** This page's roster and count; AXES-PLAN §1 gains
+  its seventh row (the relational axis, custody sealed-until →
+  published); the ORIENTATION line; a DECISIONS record in the
+  D289/D326 shape. Nothing in the app moves — the bridge stays the
+  only crossing.
+- **What a Ties lane would ask for first**, so the owner sees it
+  coming: the `cast` fold (D204 priced it, D224 unblocked it); a
+  per-person perceiver/target summary over public reveals; the
+  romantic pool's activation as a tie-type variable; homophily over the
+  follow graph against answer likeness. Every one is public data
+  today, and every one is the governed process's to price.
+
+### 4 · The recommendation
+
+Charter **Ties** now, on the owner's own suggestion and central's
+second-ranked candidate, which it subsumes. Charter **Interests** with
+it — the axis the frame already lists and no lane theorizes. Leave
+time-use inside central until its cheap test runs, and route the
+anchors and Learn to the questions lane as appended focus questions.
+Twelve lanes with the review lane (D346), ≈ $600 a month more, two
+new odd-date slots. **Adopted 2026-09-01 — D347.** The remaining
+verdicts in §2 bind nothing until theirs.

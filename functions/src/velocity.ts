@@ -33,7 +33,7 @@
 // force attackers into exactly that slow, human-shaped posture — which
 // the device-bind month rule then prices per device.
 
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -44,6 +44,7 @@ import { utcDayKeyOf } from "./pure";
 // outcome).
 import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
+import { REQUIRED_LEVEL, levelDef } from "./accountLevel";
 import { db as firestore } from "./db";
 
 const REGION = FUNCTIONS_REGION;
@@ -60,6 +61,10 @@ export interface LedgerRow {
   uid: string;
   qid: string;
   atMs: number;
+  /** A D86 edit's ledger row, marked by `fromIdx` on the entry. Counted in
+   *  CADENCE — an edit is an action, and a script's rhythm shows in it —
+   *  and not in VOLUME, where the ceiling is one entry per question. */
+  isEdit?: boolean;
 }
 
 // UTC calendar day, "YYYY-MM-DD" — the ledger's `at` is server commit
@@ -68,8 +73,22 @@ export interface LedgerRow {
 
 // The impossible-volume ceiling. Answers are create-only with doc id ==
 // qid and deleteAccount sweeps the ledger with the account, so one uid
-// can NEVER honestly exceed one ledger entry per aggregate-feeding bank
-// question — not per day, ever. Duel surfaces never reach the ledger
+// can never honestly hold more than one CREATE per aggregate-feeding bank
+// question — not per day, ever.
+//
+// CREATES, and that word is the correction. This said "one ledger entry
+// per question" and D86 broke it: an optionIdx edit writes a SECOND row
+// (v2.ts's update arm, `ledgerEntry(uid, qid, toIdx, fromIdx)`), which is
+// why ledger.ts projects `fromIdx` and why both nightly folds dedupe on
+// it. With the bank at its current size the ceiling had become almost
+// exactly the honest maximum, so a heavy user who also revised answers
+// inside the 72-hour window could cross it — a false WARN on the person
+// using the app most.
+//
+// Restored by counting what the invariant is about rather than by
+// inflating the bound: edit rows are excluded from the volume count and
+// still feed the cadence signal, which is where an edit-spam script would
+// show anyway. Duel surfaces never reach the ledger
 // (they feed member reveals, not aggregates — D29), so they are not in
 // the ceiling. Derived from the committed bank at cold start, the
 // POLITICAL_QIDS pattern: no Firestore read.
@@ -90,8 +109,10 @@ export const AGG_BANK_SIZE = V2_QUESTIONS.filter((q) => isAggregateSurface(q.sur
 //
 // PER DAY OF THE SCAN'S WINDOW, not of the ledger's retention. This
 // allowance was derived from the 90-day `expireAt` TTL, and the quantity
-// it is compared against is `fold.perUid.get(uid).length` — entries
-// inside the scan window, which `WINDOW_CAP_MS` caps at 72 hours. At the
+// it is compared against is `fold.createsPerUid.get(uid)` — non-edit
+// entries inside the scan window, which `WINDOW_CAP_MS` caps at 72 hours.
+// (It said `perUid.get(uid).length` until the edit rows were split out;
+// that is the cadence signal's quantity, not this one.) At the
 // current bank that made the ceiling 1026 against an honest maximum of
 // about 596: the detector's stated target is a dedup failure or forged
 // writes, which shows as roughly 2x a uid's real count, and 2x an
@@ -236,14 +257,115 @@ export function burstSignal(
   };
 }
 
+// ── bind coverage (D342) — a MEASUREMENT, not a signal ──────────
+//
+// WHAT IT IS. Of the accounts that actually voted this window, how many
+// hold D29's `db` claim, and how many of the window's counted answers came
+// from them. Two ratios, logged at INFO: this flags nothing and accuses
+// nobody, which is why it sits apart from the four signals above.
+//
+// WHY IT EXISTS, and it closes a hole in D37 rather than adding a nicety.
+// D37 makes the enforcement flip conditional on two rates read from
+// `activateDeviceV2`'s own logs: the error rate, and Android's
+// missing-recall rate. Both measure THE ENDPOINT. Neither can see an
+// account that never called it — a client below the activation build, a
+// device whose bridge is absent (which was every device until D342), a
+// boot where the call was never reached. Those accounts vote and are
+// invisible to both numbers, so both thresholds can read perfect while
+// most voters would be refused the moment the flip lands. That is exactly
+// the silent-refusal failure D37 exists to prevent, surviving inside D37's
+// own instrument.
+//
+// This measures the POPULATION THAT MATTERS instead: people who voted.
+// `1 - boundAnswers/answers` is, directly, the share of real votes the
+// flip would have refused had it been on during this window.
+//
+// COST: zero extra reads. The scan already fetches a UserRecord for every
+// uid in the window for the birth-cluster signal, and custom claims ride
+// that record.
+export interface LevelTally {
+  voters: number;
+  answers: number;
+}
+
+export interface BindCoverage {
+  voters: number;
+  answers: number;
+  /** Level → what that level's accounts contributed. Sparse: only levels seen. */
+  byLevel: Map<number, LevelTally>;
+}
+
+/**
+ * `perUid` is the window fold's per-account timestamp lists, so its value
+ * lengths ARE that account's counted answers. `levels` maps uid → the `db`
+ * claim it holds.
+ *
+ * A uid absent from `levels` counts as LEVEL 0. That includes accounts
+ * erased since they voted (D28's vote-then-erase residual — getUsers
+ * simply omits them), and it is the honest direction: an answer that
+ * cannot be shown to have come from a qualifying account has not been
+ * shown to have come from one. The other direction overstates coverage on
+ * precisely the day it is trusted.
+ */
+export function bindCoverage(
+  perUid: Map<string, number[]>,
+  levels: Map<string, number>,
+): BindCoverage {
+  const byLevel = new Map<number, LevelTally>();
+  let voters = 0;
+  let answers = 0;
+  for (const [uid, times] of perUid) {
+    const lvl = levels.get(uid) ?? 0;
+    voters += 1;
+    answers += times.length;
+    const t = byLevel.get(lvl) || { voters: 0, answers: 0 };
+    t.voters += 1;
+    t.answers += times.length;
+    byLevel.set(lvl, t);
+  }
+  return { voters, answers, byLevel };
+}
+
+/**
+ * What moving the bar to `bar` would have cost over this window: the
+ * voters and answers sitting BELOW it.
+ *
+ * This is the number to read before raising `REQUIRED_LEVEL`
+ * (accountLevel.ts) — and before the first flip of `deviceBindEnforced`,
+ * where the bar is already 1. `refusedAnswers / answers` is the share of
+ * real votes that would have been silently rolled back, which is the
+ * failure D37 exists to prevent and could not see (D342).
+ */
+export function refusedAt(cov: BindCoverage, bar: number): LevelTally {
+  let voters = 0;
+  let answers = 0;
+  for (const [lvl, t] of cov.byLevel) {
+    if (lvl < bar) {
+      voters += t.voters;
+      answers += t.answers;
+    }
+  }
+  return { voters, answers };
+}
+
+/** Percent, one decimal, and 0 rather than NaN on an empty window. */
+export function pct(part: number, whole: number): number {
+  return whole === 0 ? 0 : Math.round((part / whole) * 1000) / 10;
+}
+
 export interface WindowFold {
   entries: number;
   perUid: Map<string, number[]>;
+  /** Non-edit rows per uid — what VOLUME_CEILING bounds. Separate from
+   *  `perUid` because cadence wants every action and volume wants one per
+   *  question; folding them into one number would put the invariant back
+   *  where D86 left it. */
+  createsPerUid: Map<string, number>;
   perDayQid: DayCounts;
 }
 
 export function emptyFold(): WindowFold {
-  return { entries: 0, perUid: new Map(), perDayQid: {} };
+  return { entries: 0, perUid: new Map(), createsPerUid: new Map(), perDayQid: {} };
 }
 
 // Fold a batch INTO an existing accumulator. The scan calls this once per
@@ -260,12 +382,31 @@ export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
       acc.perUid.set(r.uid, times);
     }
     times.push(r.atMs);
+    if (!r.isEdit) acc.createsPerUid.set(r.uid, (acc.createsPerUid.get(r.uid) || 0) + 1);
     const day = utcDayKeyOf(r.atMs);
     const forDay = acc.perDayQid[day] || (acc.perDayQid[day] = {});
     forDay[r.qid] = (forDay[r.qid] || 0) + 1;
   }
   acc.entries += rows.length;
   return acc;
+}
+
+/**
+ * Is this uid over the volume ceiling?
+ *
+ * EXPORTED and pure, for the reason `heldPageFrom` in paid.ts is: the
+ * decision lived inline in the scheduled handler, which no test reaches —
+ * the whole `ledgerVelocityScan` body is uncovered — so both halves of the
+ * D86 edit fix could be reverted with all 550 tests green. The fold's two
+ * cases proved the COUNTING and nothing proved what the count was used
+ * for.
+ *
+ * Reads `createsPerUid`, not `perUid`: an edit writes a second ledger row
+ * and the ceiling is one create per question. The cadence signal beside
+ * the call site still reads every row.
+ */
+export function volumeFlagged(fold: WindowFold, uid: string): boolean {
+  return (fold.createsPerUid.get(uid) || 0) > VOLUME_CEILING;
 }
 
 export function foldWindow(rows: LedgerRow[]): WindowFold {
@@ -310,6 +451,107 @@ const PAGE = 5000;
 // list — a 500-account cluster is a finding, not a log payload.
 const LOG_UID_CAP = 40;
 
+/**
+ * Read one window of the ledger and fold it, page by page.
+ *
+ * EXTRACTED so it can be executed, for the reason `volumeFlagged` above
+ * was: the whole `ledgerVelocityScan` body is unreachable from any test,
+ * so the paging loop could be broken with every suite green.
+ * Measured before this existed — widening `page.size < PAGE` to `<=`
+ * makes a full first page end the read, and all 607 functions tests
+ * stayed green. That turns every one of D28's four signals into a
+ * reading of an arbitrary 5,000-row prefix while the heartbeat below
+ * goes on logging a confident entry count, and it is also the source of
+ * the coverage line the owner is told to read before moving the account
+ * bar (accountLevel.ts).
+ *
+ * Folded PER PAGE rather than accumulated — the argument is at the call
+ * site, and it is a memory one: a 50k-DAU catch-up buffered as rows
+ * exceeds the instance and leaves the cursor unmoved, so the next run
+ * dies identically, forever.
+ */
+export async function scanLedgerWindow(
+  db: Firestore,
+  windowStart: number,
+): Promise<{ fold: WindowFold; maxAt: number }> {
+  const fold = emptyFold();
+  // Tracked here rather than reduced over `rows` at the end, for the same
+  // reason: there is no `rows` to reduce over any more.
+  let maxAt = windowStart;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  for (;;) {
+    let q = db
+      .collection("v2_agg_events")
+      .where("at", ">", Timestamp.fromMillis(windowStart))
+      .orderBy("at")
+      // `fromIdx` rides along because an edit's row carries it and
+      // nothing else does — the volume ceiling is about creates, and a
+      // field left out of the projection is a guard that is dead in
+      // production while the in-memory fake goes on proving it works
+      // (the note store-projection.test.ts exists for).
+      .select("uid", "qid", "at", "fromIdx")
+      .limit(PAGE);
+    if (cursor) q = q.startAfter(cursor);
+    const page = await q.get();
+    const pageRows: LedgerRow[] = [];
+    for (const d of page.docs) {
+      const uid = d.get("uid");
+      const at = d.get("at") as Timestamp | undefined;
+      // Entries without a uid predate D28's attribution field; they
+      // can still be inside the window shortly after that deploy.
+      if (typeof uid === "string" && uid && at) {
+        const atMs = at.toMillis();
+        pageRows.push({
+          uid, qid: String(d.get("qid") || ""), atMs,
+          ...(d.get("fromIdx") === undefined ? {} : { isEdit: true }),
+        });
+        if (atMs > maxAt) maxAt = atMs;
+      }
+    }
+    foldInto(fold, pageRows);
+    if (page.size < PAGE) break;
+    cursor = page.docs[page.docs.length - 1];
+  }
+  return { fold, maxAt };
+}
+
+/**
+ * One page of auth records, folded into the two things the scan reads from
+ * it: when each account was created, and which of them carry a usable
+ * device-bind level.
+ *
+ * PURE, and extracted for the reason the ledger reader was (the same shape
+ * one file over): the loop lived inside the scheduled handler, which no
+ * runner executes, so the filter below could be replaced with a coercion
+ * and the whole functions suite and every e2e stayed green — while its own
+ * comment names exactly what that costs.
+ *
+ * An ACTUAL integer only, matching what firestore.rules accepts —
+ * `get("db", 0) >= n` errors on a string or a boolean and denies. Coercing
+ * would overstate coverage: `Number(true)` is 1, so a malformed claim
+ * would count as a qualifying account on exactly the day this number is
+ * trusted, and the number is D37's flip decision — what share of real
+ * votes enforcement would refuse. A level ABOVE the ladder is kept rather
+ * than discarded: that is an account minted by a newer deploy than this
+ * code, which levelDef describes honestly.
+ *
+ * An unparseable creation time drops the account from the birth-cluster
+ * input rather than seeding it with NaN, which would make every span
+ * involving it NaN and the cluster silently unreportable.
+ */
+export function foldAuthPage(
+  users: readonly { uid: string; metadata: { creationTime: string }; customClaims?: Record<string, unknown> | null }[],
+  created: { uid: string; createdMs: number }[],
+  levels: Map<string, number>,
+): void {
+  for (const u of users) {
+    const ms = Date.parse(u.metadata.creationTime);
+    if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
+    const raw = u.customClaims?.db;
+    if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) levels.set(u.uid, raw);
+  }
+}
+
 export const ledgerVelocityScan = onSchedule(
   // Daily, off the top-of-hour herd. Cost at D7's own write ceiling
   // (~14k answers/day): one page-scan of the day's ledger entries plus
@@ -337,46 +579,18 @@ export const ledgerVelocityScan = onSchedule(
     // run re-reads the same capped window and dies identically, forever,
     // with D28's only detector silently dead. Folding per page keeps peak
     // live memory at one PAGE of rows plus the fold itself.
-    const fold = emptyFold();
-    // Tracked here rather than reduced over `rows` at the end, for the same
-    // reason: there is no `rows` to reduce over any more.
-    let maxAt = windowStart;
-    let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
-    for (;;) {
-      let q = db
-        .collection("v2_agg_events")
-        .where("at", ">", Timestamp.fromMillis(windowStart))
-        .orderBy("at")
-        .select("uid", "qid", "at")
-        .limit(PAGE);
-      if (cursor) q = q.startAfter(cursor);
-      const page = await q.get();
-      const pageRows: LedgerRow[] = [];
-      for (const d of page.docs) {
-        const uid = d.get("uid");
-        const at = d.get("at") as Timestamp | undefined;
-        // Entries without a uid predate D28's attribution field; they
-        // can still be inside the window shortly after that deploy.
-        if (typeof uid === "string" && uid && at) {
-          const atMs = at.toMillis();
-          pageRows.push({ uid, qid: String(d.get("qid") || ""), atMs });
-          if (atMs > maxAt) maxAt = atMs;
-        }
-      }
-      foldInto(fold, pageRows);
-      if (page.size < PAGE) break;
-      cursor = page.docs[page.docs.length - 1];
-    }
+    const { fold, maxAt } = await scanLedgerWindow(db, windowStart);
 
     // Signals 1 + 2: per-uid volume and cadence.
     let volumeFlags = 0;
     let cadenceFlags = 0;
     for (const [uid, times] of fold.perUid) {
-      if (times.length > VOLUME_CEILING) {
+      const creates = fold.createsPerUid.get(uid) || 0;
+      if (volumeFlagged(fold, uid)) {
         volumeFlags++;
         logger.warn(
-          `[velocity] impossible volume: uid=${uid} n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
-          { metric: "velocity_flag", kind: "volume", uid, n: times.length },
+          `[velocity] impossible volume: uid=${uid} creates=${creates} of n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
+          { metric: "velocity_flag", kind: "volume", uid, n: creates, entries: times.length },
         );
       }
       const cad = cadenceSignal(times);
@@ -395,12 +609,12 @@ export const ledgerVelocityScan = onSchedule(
     // not appear; their votes still count toward the other signals.
     const uids = [...fold.perUid.keys()];
     const created: { uid: string; createdMs: number }[] = [];
+    // Riding the same fetch: the `db` claim lives on the UserRecord this
+    // loop already pulls, so coverage below costs no extra call.
+    const levels = new Map<string, number>();
     for (let i = 0; i < uids.length; i += 100) {
       const res = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
-      for (const u of res.users) {
-        const ms = Date.parse(u.metadata.creationTime);
-        if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
-      }
+      foldAuthPage(res.users, created, levels);
     }
     const clusters = birthClusters(created);
     for (const c of clusters) {
@@ -438,6 +652,35 @@ export const ledgerVelocityScan = onSchedule(
     }
 
     await stateRef.set({ lastScanAt: maxAt, days: pruneDays(merged) });
+
+    // Bind coverage (D342, per-level since D343). INFO, and stated as the
+    // decision it informs rather than as bare ratios — the question an
+    // operator has on flip day, and again on every later tightening, is
+    // "what share of real votes would this refuse", and they should not
+    // have to do the subtraction while deciding.
+    const cov = bindCoverage(fold.perUid, levels);
+    const atBar = refusedAt(cov, REQUIRED_LEVEL);
+    const ladder = [...cov.byLevel.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([lvl, t]) => `L${lvl}(${levelDef(lvl).key})=${t.voters}v/${t.answers}a`)
+      .join(" ");
+    logger.info(
+      `[velocity] bind coverage: ${ladder || "no voters"} — at the current bar (>=${REQUIRED_LEVEL}) `
+        + `enforcement would refuse ${atBar.answers}/${cov.answers} answers (${pct(atBar.answers, cov.answers)}%) `
+        + `from ${atBar.voters}/${cov.voters} voters`,
+      {
+        metric: "bind_coverage",
+        voters: cov.voters,
+        answers: cov.answers,
+        bar: REQUIRED_LEVEL,
+        refusedVoters: atBar.voters,
+        refusedAnswers: atBar.answers,
+        refusedPct: pct(atBar.answers, cov.answers),
+        // Per level, so raising the bar can be priced from the same line
+        // rather than from a second query written during an incident.
+        levels: Object.fromEntries([...cov.byLevel].map(([l, t]) => [l, t])),
+      },
+    );
 
     // The heartbeat — the scheduledDuelReveals pattern: the message is
     // what a human greps, the fields are what a log-based metric would

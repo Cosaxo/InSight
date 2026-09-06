@@ -65,9 +65,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // thing that goes stale, and it did: the note beside `join.html` said it
 // "was the one page in web/ this list did not name", which was false the
 // day it was written. `paid-done.html` and `paid-cancel.html` had landed
-// the same day, and `paid-done-ad.html` followed — the pages a buyer
-// lands on straight out of Stripe Checkout, carrying both classes this
-// gate reads: a who-can-see-what claim ("the same public numbers every
+// the same day (and `paid-done-ad.html` followed, until D375 retired the
+// ad lane with it) — the pages a buyer lands on straight out of Stripe
+// Checkout, carrying both classes this gate reads: a who-can-see-what claim ("the same public numbers every
 // voter reads") and a contract claim ("the unserved part refunds to your
 // card automatically at close").
 //
@@ -120,7 +120,16 @@ const LISTING = "design/store/listing.json";
 // sentence: a reviewer's answers are derived from them. check:store-forms
 // compares the collected-type and age-rating TABLES and reads none of the
 // prose, so nothing looked at these words at all.
-const FORM_FILES = ["docs/STORE-FORMS.md", "design/store/app-privacy.json"];
+const FORM_FILES = [
+  "docs/STORE-FORMS.md",
+  "design/store/app-privacy.json",
+  // Play's half, added with check:store-forms rule 6 (2026-09-01). Parked
+  // under D42 and scanned anyway: a parked file is exactly the one that
+  // goes stale, because nobody reads it for months and then transcribes
+  // it in a hurry. That is the whole reason it was kept rather than
+  // deleted.
+  "design/store/play-data-safety.json",
+];
 
 // The retired vocabulary, in the PRESENT tense only.
 //

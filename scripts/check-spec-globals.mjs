@@ -439,40 +439,14 @@ for (const name of [...defined].sort()) {
 // deadline here and inventing one would be the kind of figure this repo
 // keeps having to correct. The contract is only the direction.
 const COUPLING_BASELINE = {
-  "src/v2/main.jsx": 1,
-  "src/v2/spec/app-shell.jsx": 39,
-  "src/v2/spec/city-overlay.jsx": 2,
-  "src/v2/spec/compare-breakdown.jsx": 1,
-  "src/v2/spec/daily-questions.js": 3,
-  "src/v2/spec/daily-split.jsx": 29,
-  "src/v2/spec/demographics.jsx": 3,
-  "src/v2/spec/duo-daily.jsx": 7,
-  "src/v2/spec/feed-read.js": 2,
-  "src/v2/spec/group-mirror.jsx": 11,
-  "src/v2/spec/group-role-map.jsx": 2,
-  "src/v2/spec/learn-bits.jsx": 1,
-  "src/v2/spec/learn-data.js": 1,
-  "src/v2/spec/learn-progress.js": 4,
-  "src/v2/spec/learn-social.js": 4,
-  "src/v2/spec/lens-cards.jsx": 3,
-  "src/v2/spec/map-bottom-card.jsx": 4,
-  "src/v2/spec/map-learn-card.jsx": 3,
-  "src/v2/spec/map-tab.jsx": 17,
-  "src/v2/spec/mirror-field-pops.jsx": 23,
-  "src/v2/spec/mirror-tab.jsx": 6,
-  "src/v2/spec/passive-progress.js": 2,
-  "src/v2/spec/person-mindmap.jsx": 4,
-  "src/v2/spec/person-overlay.jsx": 2,
-  "src/v2/spec/profile-general.jsx": 13,
-  "src/v2/spec/profile-overlay.jsx": 6,
-  "src/v2/spec/relmap.jsx": 1,
-  "src/v2/spec/search-overlay.jsx": 4,
+  "src/v2/spec/app-shell.jsx": 12,
+  "src/v2/spec/daily-split.jsx": 6,
+  "src/v2/spec/map-tab.jsx": 2,
+  "src/v2/spec/mirror-field-pops.jsx": 1,
+  "src/v2/spec/search-overlay.jsx": 3,
   "src/v2/spec/segment-explorer.jsx": 1,
-  // suggestions.jsx left the map 2026-08-24: the D288 rebuild imported
-  // WORLD_TOPICS (its one remaining shared-global read) while it was open.
   "src/v2/spec/test-definitions.js": 4,
-  "src/v2/spec/vote-cuts.js": 1,
-  "src/v2/spec/world-feed.jsx": 32,
+  "src/v2/spec/world-feed.jsx": 1,
 };
 
 const coupling = {};

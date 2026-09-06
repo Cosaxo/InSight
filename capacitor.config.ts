@@ -79,7 +79,8 @@ const config: CapacitorConfig = {
       // It was DEFAULT, under a comment saying the app handles its own
       // status-bar styling via the `.dark` class. Nothing has set that
       // class since the v15 revision removed the dark-mode switch outright
-      // (DECISIONS.md:2265, app-shell.jsx:34) — the `.dark` rules survive
+      // (D27, and app-shell.jsx's own note that "the v15 revision removed
+      // the dark-mode switch outright") — the `.dark` rules survive
       // in styles.css with no writer. So the claim was carrying the
       // configuration, and DEFAULT means "based on the device appearance:
       // if the device is using Dark mode, the statusbar text will be

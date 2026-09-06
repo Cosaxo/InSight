@@ -19,13 +19,15 @@
 //     design's own posture — no notification path to build or promise.
 import React from "react";
 import LIVE from "../data/live";
-import { loadMine, mine, subscribePurchases, type Purchase } from "../data/purchases";
+import { loadMine, mine, mineFailed, subscribePurchases, type Purchase } from "../data/purchases";
 // `fmtExact`, not `fmt`: every euro figure on this card is one this
 // account was actually charged — the cap it paid up front, the rate its
 // contract locked, an ad's flat price — and `fmt` rounds above a hundred
 // to the nearest ten, which is a rate card's shape and a lie about a
 // receipt. scripts/quote-copy.test.mjs pins the rule.
 import { fmtExact, subscribeCur } from "../data/pricing";
+import { SPONSOR_EVERY } from "../data/sponsored";
+import { SponsorShare } from "./SponsorShare";
 import { askWindow } from "../data/askWindow";
 import { sharePcts } from "../data/pct";
 // The switch lives in its own module since phase 4: the ask-a-question
@@ -150,6 +152,14 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
       <div style={{ marginTop: 5, fontFamily: SANS, fontSize: 11.5, fontWeight: 650, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
         <span style={{ fontWeight: 800, color: "var(--ink)" }}>{fmtN(total)}</span> of {fmtN(p.budget.cap)} budget · {pct}% — bills per answer at {fmtExact(p.budget.ratePerAnswer)}, stops at the cap
       </div>
+      {/* The results page (D379): the payoff, as an address the buyer can
+          post — the same numbers everyone reads, on the open web. */}
+      {p.qid ? (
+        <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ flex: 1, fontFamily: SANS, fontSize: 11, fontWeight: 650, color: "var(--ink-3)", lineHeight: 1.4 }}>A public page of these results, for anyone you send it to.</span>
+          <SponsorShare qid={p.qid} />
+        </div>
+      ) : null}
       <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
         <span aria-hidden="true" style={{ flex: 1, height: 2, borderRadius: 99, background: "var(--surface-3)", position: "relative", overflow: "hidden" }}>
           <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.min(100, Math.round(((daysTotal - daysLeft) / daysTotal) * 100))}%`, background: "color-mix(in oklch, var(--ink) 30%, transparent)" }}></span>
@@ -205,7 +215,10 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
   React.useEffect(() => {
     if (!LIVE.enabled) return; // a demo build has no ledger to read
     const un = subscribePurchases(bump);
-    void loadMine().catch(() => { /* the empty state stands; reopening retries */ });
+    // The room falls to its "couldn't read" line, and reopening retries.
+    // It used to say "the empty state stands", which was not true: a throw
+    // left the cache null and the spinner up for the life of the session.
+    void loadMine().catch(() => { /* mineFailed() carries it; reopening retries */ });
     return un;
   }, []);
   const rows = LIVE.enabled ? mine() : [];
@@ -224,10 +237,12 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
           Everything this account has bought — with its live public numbers and the report shelf. Reports are picked up here (no bells, no email — by design).
         </div>
         {rows == null ? (
-          <div style={{ marginTop: 18, fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "var(--ink-3)", textAlign: "center" }}>Reading your contracts…</div>
+          <div style={{ marginTop: 18, fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "var(--ink-3)", textAlign: "center" }}>
+            {mineFailed() ? "Couldn’t read your contracts. Close and reopen to try again." : "Reading your contracts…"}
+          </div>
         ) : questions.length === 0 && adRows.length === 0 && subsRows.length === 0 ? (
           <div className="card" style={{ marginTop: 16, padding: "22px 18px", textAlign: "center", fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-            Nothing bought from this account yet. The door is “Ask a question” — one paid slot a day, each place.
+            {`Nothing bought from this account yet. A bought question takes one card in ${SPONSOR_EVERY} in the feed, and every one says PAID.`}
           </div>
         ) : (
           <>

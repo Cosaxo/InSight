@@ -22,11 +22,17 @@
 //   node scripts/mod-queue.mjs --remove <takeId> --line H3
 //
 // WHAT IT DELIBERATELY DOES NOT DO. No bulk mode, no "remove everything
-// over N flags", no loop over the queue. `MOD_RUN_CAP` bounds a run's blast
-// radius on the server, and this side keeps the matching shape: one verdict
-// per invocation, each typed by a person who read the text. A CLI that
-// could clear the queue in one command is a CLI that will, and D22's
-// confinement argument is about exactly that.
+// over N flags", no loop over the queue: one verdict per invocation, each
+// typed by a person who read the text. A CLI that could clear the queue in
+// one command is a CLI that will, and D22's confinement argument is about
+// exactly that.
+//
+// THIS SHAPE IS THE BOUND. It used to say the server's `MOD_RUN_CAP`
+// bounded a run and that this side merely matched it — which is backwards:
+// the fresh runId per invocation two paragraphs down means the server's
+// per-run counter always reads 0, so the cap has never once fired. The
+// confinement is here, plus one verdict per take per queue generation on
+// the server.
 //
 // The runId groups verdicts submitted together in the server's log. It is
 // generated per invocation rather than taken as a flag, because a run id
@@ -126,7 +132,7 @@ const call = async (name, data) => {
     // /permission-denied/ and never fired: the wire carries
     // `{status: "PERMISSION_DENIED", message: "moderator-only"}` (the
     // HttpsError code is upper-snake by the time it is serialised, and
-    // moderation.ts:95 chose the message), so callOperator's line reads
+    // `assertModerator` chose the message), so callOperator's line reads
     // "submitModVerdict failed (403): PERMISSION_DENIED moderator-only" —
     // no lowercase-hyphen spelling anywhere in it. The hint that exists to
     // explain the single most likely refusal was unreachable.
@@ -163,7 +169,7 @@ if (!verdictKind) {
     console.log(`    ${marks.join(" · ")}`);
     // D178: an avatar's content IS the image, so what a reviewer needs is
     // the token and bucket to fetch it. The server sends `text: ""` on
-    // those entries deliberately (moderation.ts:334, "No text to copy") —
+    // those entries deliberately (moderation.ts, "No text to copy") —
     // so printing the text field would render an avatar as a take with an
     // empty body, which reads as a corrupt row rather than as an image.
     // (This comment said the field was ABSENT and that printing it would

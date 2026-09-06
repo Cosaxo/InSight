@@ -67,6 +67,8 @@ const h = vi.hoisted(() => ({
   // carried. What proves the `where` reached Firestore rather than being
   // applied on the device afterwards.
   voterQueries: [] as Array<Record<string, unknown>>,
+  /** qids whose voter query rejects — see the fan-out handler below. */
+  voterFailQids: new Set<string>(),
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
   // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
@@ -291,6 +293,12 @@ vi.mock("firebase/firestore", () => {
           if (w && w.__kind === "where" && typeof w.field === "string") wheres[w.field] = w.value;
         }
         h.voterQueries.push(wheres);
+        // A per-qid failure hook. `loadVoters` swallows its own error and
+        // leaves the list unset, which is the state `kindredAt` has to
+        // count around — and no fixture could produce it before this.
+        if (h.voterFailQids.has(String(wheres.qid ?? ""))) {
+          return Promise.reject(new Error("voter query refused"));
+        }
         const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
         return Promise.resolve(snapOf(h.voterDocs[city] || []));
       }
@@ -351,6 +359,10 @@ vi.mock("firebase/firestore", () => {
     // consent record, in one merge — a sentinel here, asserted in
     // political-consent.test.ts rather than in these boot fixtures.
     deleteField: () => "__delete__",
+    // D357: the queue-drained signal settlePending awaits. Resolved at
+    // once here — no case in this file relaunches with an unacked answer;
+    // those live in warm-boot.test.ts, whose mock gates it.
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 
@@ -402,8 +414,10 @@ async function bootLive() {
   // A 1 ms race budget keeps no long-lived boot timer around; boot is
   // pure microtasks with these mocks, so just wait for it to settle.
   await mod.initLive(1);
+  // `attached` (D356): boot complete — the network phase done — rather
+  // than `ready`, which a cached device answers off disk first.
   await vi.waitFor(() => {
-    expect(LIVE.ready).toBe(true);
+    expect(LIVE.attached).toBe(true);
   });
   return LIVE;
 }
@@ -476,6 +490,7 @@ beforeEach(() => {
   h.aggFailIds.length = 0;
   h.voterDocs = {};
   h.voterQueries.length = 0;
+  h.voterFailQids.clear();
   h.engagementCalls.length = 0;
   h.bankDocs = [
     {
@@ -673,6 +688,25 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
   });
 
+  it("fills the TRAILING options nobody has picked yet", async () => {
+    // The bank's half of the union, which nothing reached. Every case
+    // above happens to have `highestKey === options.length`, so
+    // `optionCountOf` could return 0 for every question and all of them
+    // still passed — while the bank half is the one that matters in the
+    // ORDINARY early state of a multi-option question: counts that stop
+    // before the option list ends, because the last options have no votes
+    // yet.
+    //
+    // Divisiveness normalises by the vector's length, so a short vector is
+    // RESCALED rather than merely missing zeros — and the value is the
+    // selection key for `pickKindredQids`, so it decides which twelve
+    // collection-group queries the Kindred fetch spends.
+    const mod = await withCounts("q_tail", ["A", "B", "C", "D", "E"], { "0": 2, "1": 3 });
+    // Five options, lead 3 of 5 → (1 − 3/5) / (1 − 1/5) = 0.5. Truncated
+    // to the two that have counts it is (1 − 3/5) / (1 − 1/2) = 0.8.
+    expect(mod.divisivenessOf("q_tail")).toBeCloseTo((1 - 3 / 5) / (1 - 1 / 5), 6);
+  });
+
   it("still answers −1 when the device holds no counts at all", async () => {
     const mod = await withCounts("q_none", ["A", "B"], null);
     expect(mod.divisivenessOf("q_none")).toBe(-1);
@@ -791,6 +825,21 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(LIVE.kindredLoading()).toBe(false);
   });
 
+  it("a run that asked for NOTHING is not a failed read", async () => {
+    // The mirror image of the emptiness `kindredState` exists to stop: an
+    // account with no votes has no crowd to fail to read, so telling it
+    // "couldn't read the crowd" invents a failure. It has to be measured
+    // with the breaker OFF — under the breaker loadKindred returns before
+    // the line that decides this, so a case at level 1 passes whatever the
+    // rule says. That is how the first draft of this assertion was
+    // vacuous.
+    metaAt(0);
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(h.voterQueries, "nothing to ask for, so nothing asked").toHaveLength(0);
+    expect(LIVE.kindredState()).toBe("ready");
+  });
+
   it("loadKindred never even RAISES its flag — the caption is the whole point", async () => {
     // The case above cannot see this gate. Delete it and loadKindred runs
     // its loop: every loadVoters refuses on its own gate, so no query is
@@ -814,6 +863,34 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(LIVE.kindredLoading()).toBe(false);
     await pending;
     expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("counts the questions that LANDED, not the ones it asked about", async () => {
+    // `kindredDepth()` is printed as the Mirror's own basis — "across N
+    // questions" under the People lens — and `loadVoters` swallows its
+    // failures (reportError, then the list stays unset). So the line this
+    // asserts, `qids.filter((id) => state.voters[id]).length`, is what
+    // stops the caption claiming twelve after twelve refused queries.
+    //
+    // Nothing reached it: every consumer of kindredDepth is stubbed in the
+    // UI suites, and no test drove the real loadKindred with a failure —
+    // there was no way to produce one until the fixture grew the hook
+    // above.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran at all").toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(),
+      "the caption counted questions whose voter query failed").toBe(1);
   });
 
   it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
@@ -852,6 +929,53 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     await LIVE.loadVoters("q_1");
     expect(h.voterQueries.length).toBeGreaterThan(0);
     expect(LIVE.voters("q_1")).not.toBeNull();
+  });
+});
+
+describe("votePulse() rolls back everything it set", () => {
+  // ADDED 2026-09-05 BY THE FIX ABOVE IT, which is the point.
+  //
+  // `votePulse` was the only vote path that did not mark its answer
+  // unfolded, so today's pulse crowd was read off a document written
+  // before you answered. Marking it fixed that — and made this path's
+  // hand-rolled catch incomplete, because there was now something in
+  // `unaggregated` for it to undo and it only deleted `votes`.
+  //
+  // Nothing else clears a pulse id. Both of the store's clears iterate
+  // AGGREGATE documents fetched through live.ts's own drains, and pulse
+  // aggregates are fetched by `data/pulse` instead — so a leak here is
+  // permanent for the session: `pulsePending` keeps answering, and the
+  // card keeps adding a vote nobody cast to an option nobody chose.
+  it("leaves no pending mark when the write is refused", async () => {
+    const LIVE = await bootLive();
+    h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
+
+    await LIVE.votePulse("pulse-pace", 3);
+    await flush();
+
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "a refused pulse write left its unfolded mark set, so the reveal counts an answer that does not exist",
+    ).toBeNull();
+    expect(LIVE.myVotes()).not.toHaveProperty("pulse-pace");
+  });
+
+  it("keeps the mark while the write is in flight — the control", async () => {
+    // Without this, "never mark anything" would satisfy the case above and
+    // put back the bug the mark was added to fix.
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+
+    void LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "the unfolded mark was not set, so the reveal reads a crowd written before this answer",
+    ).toBe(3);
+
+    d.resolve();
+    await flush();
   });
 });
 
@@ -2293,16 +2417,51 @@ describe("window.LIVE public surface", () => {
       expect(deletes).toHaveLength(0);
     });
 
-    it("setPoliticalConsent(true) records it and deletes nothing", async () => {
+    it("setPoliticalConsent(true) records it, clears any withdrawal, deletes no result", async () => {
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
       const LIVE = await bootLive();
       h.setDocCalls.length = 0;
       await LIVE.setPoliticalConsent(true);
       const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
       const data = call!.data as Record<string, Record<string, Record<string, unknown>>>;
-      expect(data.consent.political.off).toBeUndefined();
+      // REMOVED, not omitted — this write is a `merge`, and a merge on a
+      // nested map merges its FIELDS. `off` is present-or-absent by design
+      // (politicalConsent.ts says why), so a grant's record simply leaves
+      // it out, and leaving it out of a merge does not take it off the
+      // server. This case asserted `undefined` here and passed for exactly
+      // that reason while a withdrawal could never be undone.
+      expect(data.consent.political.off, "a re-grant must remove the earlier withdrawal, not omit it")
+        .toBe("__delete__");
+      // "deletes nothing" is about the PUBLISHED COORDINATE: consenting
+      // must not take one away.
       expect(data.testResults).toBeUndefined();
       expect(LIVE.politicalConsented()).toBe(true);
+    });
+
+    it("survives a withdraw → re-grant round trip, which it could not before", async () => {
+      // The failure end to end: withdraw, then grant again, then read the
+      // stored record back the way a hydrate would. The merge is applied
+      // here the way Firestore applies it — field by field over the map
+      // that is already there — because that is the step the bug lived in.
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      await LIVE.setPoliticalConsent(false);
+      await LIVE.setPoliticalConsent(true);
+      const writes = h.setDocCalls.filter((c) => c.path === "v2_users/uid_test");
+      expect(writes.length, "the two writes did not both land").toBeGreaterThanOrEqual(2);
+      const stored: Record<string, unknown> = {};
+      for (const w of writes) {
+        const pol = ((w.data as Record<string, Record<string, unknown>>).consent || {}).political;
+        if (!pol) continue;
+        for (const [k, v] of Object.entries(pol as Record<string, unknown>)) {
+          if (v === "__delete__") delete stored[k];
+          else stored[k] = v;
+        }
+      }
+      const { mayPublishPolitical } = await import("./politicalConsent");
+      expect(mayPublishPolitical({ consent: { political: stored } }),
+        "the withdrawal survived the re-grant, so consent could never be given again").toBe(true);
     });
   });
 
@@ -2535,6 +2694,42 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     expect(LIVE.learnAgg("cap6")).toBeNull();
   });
 
+  // THE THIRD STATE, and the two sentences it used to collapse into one.
+  //
+  // An unwarmed read returns null — the case above — and so does a card
+  // nobody has answered. Two surfaces printed "Nobody else has answered
+  // this one yet" for both, so on every learn card's first paint the app
+  // stated a falsehood about a question thousands may have answered, and
+  // then quietly replaced it with a number a beat later.
+  it("says a cold read is IN FLIGHT, not that nobody has answered", async () => {
+    const LIVE = await bootLive();
+    expect(LIVE.learnAgg("cap6"), "the cold read still has nothing to hand back").toBeNull();
+    expect(LIVE.learnAggLoading("cap6"), "…but it is a read in the air, not an empty card").toBe(true);
+    // …and it stops saying so once the read settles. Bounded rather than
+    // a fixed tick: the chain is a getDb plus a getDoc.
+    for (let i = 0; i < 50 && LIVE.learnAggLoading("cap6"); i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(LIVE.learnAggLoading("cap6"), "a settled read must not still look pending").toBe(false);
+    // The single-document read finds nothing in this harness — `aggDocs`
+    // feeds the WARM-UP query, which is the whole point of the D125 case
+    // above — so what is cached now is a fetched absence. That is the
+    // second sentence, and the surfaces may state it.
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+  });
+
+  it("…and a warmed card is neither null nor pending", async () => {
+    // The control. Every assertion above is about a flag being SET or a
+    // value being null, which a store that always answered "pending" or
+    // always answered null would satisfy.
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAgg("cap6")).toEqual({ total: 40, counts: { "0": 30, "1": 10 } });
+    expect(LIVE.learnAggLoading("cap6"), "a warmed card was never in flight here").toBe(false);
+  });
+
   it("warms only what it was asked for", async () => {
     h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30 } } }];
     const LIVE = await bootLive();
@@ -2552,16 +2747,57 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     expect(h.aggIdQueries).toEqual([["learn-cap6"], ["learn-cap7"]]);
   });
 
-  it("leaves the estimate standing when the fetch fails", async () => {
-    // A failed warm-up must cost the measurement, never the reveal: the
-    // cache keeps its null, LEARN_SPLIT falls back to the authored model,
-    // and the footer says so. Silence here would be the honest outcome
-    // rendered as a crash.
+  it("reports a warm-up in flight as a wait, not as nobody having answered", async () => {
+    // THE FOURTH SOURCE, MADE REACHABLE ON THE ROUTE THAT USES IT. This
+    // path claimed its ids by pre-filling the cache with NULL — the same
+    // shape `learnAgg` was corrected out of, for the same stated reason
+    // (one read per card) — so `learnAggLoading` stayed false throughout
+    // and `'loading'` could not occur on the feed's own route, which is
+    // where every learn card is drawn.
     const LIVE = await bootLive();
+    const p = LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAggLoading("cap6"),
+      "a read in flight was indistinguishable from a settled absence").toBe(true);
+    await p;
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+  });
+
+  it("caches a missing document as an answer once the batch is back", async () => {
+    // The control for the case above, and the fact it must not lose: a
+    // document that is not there means nobody has answered this card, and
+    // caching that is what lets the reveal say so. Cached AFTER the batch
+    // returns rather than before it goes out.
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAggLoading("cap6")).toBe(false);
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    // …and it is settled, so nothing asks again.
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries).toEqual([]);
+  });
+
+  it("does not turn a failed warm-up into a permanent 'nobody has answered'", async () => {
+    // A read that FAILED is not a fact about the card. The nulls used to
+    // stand for the session, so one dropped batch made every card in it
+    // report an empty crowd — even after the network came back. `learnAgg`
+    // carries this rule already; this path did not.
+    //
+    // (The case here asserted the old behaviour as correct, under a
+    // comment about the authored estimate falling back — which D149
+    // removed from live builds a month ago.)
+    const LIVE = await bootLive();
+    h.aggDocs.push({ id: "learn-cap6", data: { total: 40, counts: { 0: 30, 1: 10 } } } as never);
     h.getDocsImpl = () => new Error("offline");
     await expect(LIVE.loadLearnAggs(["cap6"])).resolves.toBeUndefined();
-    expect(LIVE.learnAgg("cap6")).toBeNull();
     expect(h.reportError).toHaveBeenCalled();
+    expect(LIVE.learnAggLoading("cap6"), "the pending claim outlived the failure").toBe(false);
+    // The network comes back. The card must be readable again.
+    h.getDocsImpl = null;
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries, "the failure was cached, so nothing ever asked again").toEqual([["learn-cap6"]]);
+    expect(LIVE.learnAgg("cap6"), "the measurement never came back after one dropped request").toEqual({ total: 40, counts: { 0: 30, 1: 10 } });
   });
 
   it("does nothing at all in demo mode", async () => {
@@ -2726,6 +2962,38 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
     // deleteAccount, not left to the purge event, because the privacy
     // page's claim is about the device, not about a dispatch (D312).
     expect((await readAnsCache()).votes).toEqual({});
+  });
+
+  it("stops answering the patterns gate, so the purge cannot undo itself", async () => {
+    // The gate the Patterns tab mounts on (D265) is REMEMBERED in an
+    // insight.* key, and `patternsEarned` re-writes that key whenever the
+    // live signal still passes. deleteAccount purges local trace and only
+    // THEN signs out, so between the two the in-memory vote mirror is
+    // still the deleted account's — and the shell's own purge listener
+    // shuts the tab, which re-runs its effect, which re-asks the gate. The
+    // key went straight back and the tab reopened, mid-deletion, and the
+    // next fresh anonymous session on this device inherited it.
+    //
+    // patternsReady's arm cannot close this: it drops the key on the same
+    // event, and the re-write happens after. What closes it is the SIGNAL
+    // going empty for every reader at once, which is what teardown means.
+    const LIVE = await bootLive();
+    await captureCallable();
+    LIVE.vote("q_1", "0");
+    await flush();
+    // Populated before, or the assertion after would pass on an empty
+    // fixture rather than on the guard.
+    expect(
+      LIVE.patternsSignal(),
+      "the fixture never had a signal, so this case proves nothing",
+    ).not.toEqual({});
+
+    await LIVE.deleteAccount();
+
+    expect(
+      LIVE.patternsSignal(),
+      "the signal still answers after teardown — patternsEarned will re-write the key the purge just removed",
+    ).toEqual({});
   });
 
   it("unlatches teardown when the wipe is refused, so the session survives", async () => {
@@ -3042,6 +3310,42 @@ describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
     // to avoid.
     expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
   });
+
+  it("trims and CAPS each field, because one long one loses the whole write", async () => {
+    // `isValidV2Anchors` bounds every anchor, and firestore.rules refuses
+    // the DOCUMENT rather than the field — so one over-long value does not
+    // lose a city, it loses the profile write, display name included. The
+    // comment above `saveAnchors` says exactly that ("Sending anything
+    // else fails the whole write, so the client must not rely on the
+    // server to reject the extras") and nothing held it: every test that
+    // touches saveAnchors mocks it, so the real body's caps ran under
+    // nothing and could be deleted with the whole suite green.
+    //
+    // Asserted against ANCHOR_FIELDS itself rather than against numbers
+    // typed here, so the day a cap moves in the rules and in that table
+    // this case follows instead of arguing.
+    // Imported HERE, not at the top of the file: this suite sets `window`
+    // up per case and evaluates the store through a dynamic import, so a
+    // static import of anything in it runs before that and dies on
+    // `window is not defined`.
+    const { ANCHOR_FIELDS } = await import("./live");
+    const LIVE2 = await bootLive();
+    const anchorsFor = async (next: Record<string, string>) => {
+      h.setDocCalls.length = 0;
+      LIVE2.saveAnchors(next);
+      await flush();
+      const c = h.setDocCalls.find((x) => x.path === "v2_users/uid_test");
+      return ((c?.data as { anchors?: Record<string, string> })?.anchors) || {};
+    };
+    for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
+      const out = await anchorsFor({ [k]: `   ${"x".repeat(max + 25)}  ` });
+      expect(out[k]?.length, `${k} was written past its ${max}-character cap`).toBe(max);
+    }
+    // …and the trim is a trim, not a side effect of the slice.
+    expect((await anchorsFor({ city: "  Oslo, NO  " })).city).toBe("Oslo, NO");
+    // A key the rules do not accept never reaches the write at all.
+    expect((await anchorsFor({ ssn: "123" })).ssn).toBeUndefined();
+  });
 });
 
 // ── the cold answer fetch is PAGED, not capped ─────────────────────────
@@ -3169,5 +3473,66 @@ describe("hydrate's edit-delta watermark", () => {
       meta?.maxEditTs,
       "the edit cursor was raised to an edit no edit query returned",
     ).toBeLessThanOrEqual(10_05);
+  });
+});
+
+// The SAME rule, pointed the other way, and it was missing for exactly as
+// long as the one above existed.
+//
+// A page may raise the ANSWERED cursor only if it is a complete account of
+// the creates in the range it covers. The answered delta is: it truncates
+// ascending, so the cursor lands on the oldest unread create and the next
+// boot picks up where this one stopped. The EDIT delta is not — it returns
+// the docs whose editedAt moved, and their answeredAt can be far newer
+// than the creates the answered page had to defer.
+//
+// Raising from it seals those creates out permanently: the deck re-offers
+// their questions, the create-only rule refuses every re-vote, and each
+// card silently un-votes itself.
+describe("hydrate's answered-delta watermark", () => {
+  const stamp = (ms: number) => ({ toMillis: () => ms });
+
+  it("does not let the edit page carry the answered cursor past a deferred create", async () => {
+    // The stub serves one document per query and shares its cursor across
+    // both, so this fixture is built to that: the answered query takes the
+    // first matching row, the edit query the second.
+    //
+    //   q_seen     created 09:00, edited 08:50  -> the answered page's one row
+    //   q_deferred created 20:00, never edited  -> truncated away, the victim
+    //   q_edited   created 30:00, edited 40:00  -> the edit page's one row
+    h.answerPageSize = 1;
+    h.answerDocs.push(
+      {
+        id: "q_seen",
+        data: {
+          qid: "q_seen", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(9_00), editedAt: stamp(8_50),
+        },
+      },
+      {
+        id: "q_deferred",
+        data: {
+          qid: "q_deferred", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(20_00),
+        },
+      },
+      {
+        id: "q_edited",
+        data: {
+          qid: "q_edited", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(30_00), editedAt: stamp(40_00),
+        },
+      },
+    );
+    await seedAnsCache({ uid: "uid_test", votes: {}, maxTs: 8_00, maxEditTs: 8_00 });
+
+    await bootLive();
+
+    const meta = await readAnsCache();
+    expect(
+      meta?.maxTs,
+      "the edit page carried the ANSWERED cursor past a create the answered page "
+        + "deferred — that answer is now unreachable on this device forever",
+    ).toBeLessThan(20_00);
   });
 });

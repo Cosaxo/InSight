@@ -3,11 +3,17 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import { DAILYQ } from './daily-questions.js';
+// The taxonomy only — NOT daily-questions.js. This module is in the entry
+// chunk, so importing DAILYQ here put that file's 36 KB demo archive (the
+// one the question farm grows every day) into first paint for a list of
+// fourteen labels and hues. daily-cats.js is that list, and nothing else.
+import { EMERGENT_CATS } from './daily-cats.js';
 
 // InSight — Map branches: the shared category list for the Map tab (and the
 // per-person mini-maps). The old statistical lens engine is gone — answers now
 // read against the profile anchors instead (see map-anchors.js).
+// Exported (D354's sweep) — map-tab and person-mindmap import it.
+export let MapLens;
 (function () {
   const CATS = [
     { id: 'health',    label: 'Body & Health',      hue: 150 },
@@ -19,8 +25,8 @@ import { DAILYQ } from './daily-questions.js';
     { id: 'values',    label: 'Values',             hue: 356 },
   ];
   // Topical branches the Daily-Question system grows into the map (Sport, Film, …).
-  if (Array.isArray(DAILYQ.EMERGENT_CATS)) {
-    DAILYQ.EMERGENT_CATS.forEach((c) => { if (!CATS.some((x) => x.id === c.id)) CATS.push({ id: c.id, label: c.label, hue: c.hue }); });
+  if (Array.isArray(EMERGENT_CATS)) {
+    EMERGENT_CATS.forEach((c) => { if (!CATS.some((x) => x.id === c.id)) CATS.push({ id: c.id, label: c.label, hue: c.hue }); });
   }
 
   function buildById(nodes) {
@@ -35,6 +41,6 @@ import { DAILYQ } from './daily-questions.js';
     return cur ? cur.id : null;
   }
 
-  window.MapLens = { CATS, topCat, buildById };
+  MapLens = { CATS, topCat, buildById };
 })();
 

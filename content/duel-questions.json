@@ -218,6 +218,11 @@
         "Even split",
         "What you had"
       ]
+    },
+    {
+      "id": "gp7",
+      "kind": "pick",
+      "prompt": "Who tells the same story every time, and it still lands?"
     }
   ],
   "oneVsOne": [
@@ -529,6 +534,15 @@
         "People-pleasing",
         "Distraction"
       ]
+    },
+    {
+      "id": "053",
+      "d": "heat",
+      "prompt": "Realising you're wrong mid-argument: concede on the spot, or land the plane quietly?",
+      "options": [
+        "Concede on the spot",
+        "Quietly change course"
+      ]
     }
   ],
   "romantic": [
@@ -772,6 +786,29 @@
       "options": [
         "Settled deep",
         "Still moving"
+      ],
+      "active": false
+    },
+    {
+      "id": "054",
+      "d": "heat",
+      "prompt": "When they need help, they…",
+      "options": [
+        "Ask straight out",
+        "Hint and hope",
+        "Soldier on alone"
+      ],
+      "active": false
+    },
+    {
+      "id": "055",
+      "d": "ahead",
+      "prompt": "Ten years on, the two of you are known for…",
+      "options": [
+        "The open house",
+        "The adventures",
+        "The quiet steadiness",
+        "The double act"
       ],
       "active": false
     }

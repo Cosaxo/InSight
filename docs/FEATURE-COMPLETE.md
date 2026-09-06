@@ -87,15 +87,22 @@ the live figures: `node scripts/farm-budget.mjs`,
 - **Refill the daily pen**: the unpromoted archive is the promotion
   buffer and runs against `PEN_TARGET` in `scripts/farm-budget.mjs`;
   promotion carries a weekly floor (D30) and a catch-up target while the
-  pen has stock (D97). [`QUESTION-FARM.md`](QUESTION-FARM.md).
-- **Level the feed bank**: every topic short of `TOPIC_TARGET`
-  (`scripts/feed-budget.mjs`) needs servable questions — vote, dial,
-  field and path count; rank and duel do not (D12). The lane is
-  scheduled (D145); its output to date is nil — every feed provenance
-  row still reads editorial.
-- **Fill the learn fields**: every field short of `FIELD_TARGET`
-  (`scripts/learn-budget.mjs`), with the minimum-chunk and spread rules
-  (D115).
+  pen has stock (D97). Since D350 the script also prints where a
+  granted budget goes — the per-top floor, then demand, then levelling
+  with no ceiling — so an empty pen is never a no-op.
+  [`QUESTION-FARM.md`](QUESTION-FARM.md).
+- **Grow the feed bank**: every topic is brought to `TOPIC_FLOOR`
+  (`scripts/feed-budget.mjs`) first, and above it the budget follows
+  demand with no ceiling (D350) — vote, dial, field, path and rank count
+  as servable; duel-type cards do not. The lane is scheduled daily
+  (D145, D213) and producing — the majority of feed provenance rows now
+  read `farm`; `npm run feed:budget` prints the live split. What is
+  still owed: the demand share waits on a crowd the scorecard does not
+  yet credit enough of, so the lane levels blind until it does.
+- **Grow the learn fields**: every field is brought to `FIELD_FLOOR`
+  (`scripts/learn-budget.mjs`) first, then the budget follows the
+  fields being read fastest, with no ceiling (D350) and the
+  minimum-chunk and spread rules (D115).
 - **Grow the tail** (decided, D161): once review throughput rises, new
   feed questions default `core: false` — the tail is the thing being
   grown, and its first content is what triggers the Mirror-side filter
@@ -133,12 +140,14 @@ the live figures: `node scripts/farm-budget.mjs`,
   `content/pulse-questions.json` carries all five (pace, energy, sleep,
   focus, social) through the ordinary content gates.
   [`VISION-V28.md`](VISION-V28.md) §3.
-- **Event topics** (proposed only): `content/event-topics.json`, the
-  discussion-window rules arm, the feed card, editorial first topics,
-  then a farm lane with its two new rules (a named published source
-  found by searching, never memory; personal angle, honest `political`
-  flag). No code exists; building any phase graduates to a decision.
-  [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md).
+- **Event topics** (proposed, half taken): the thread surface —
+  `content/event-topics.json`, the discussion-window rules arm, the
+  feed card — has no code. Its farm lane's two rules (a named published
+  source found by searching, never memory; personal angle, honest
+  `political` flag) are BUILT for the `now` topic at D351 as the now
+  lane, sized to what a session can reach: two outlets, a week old,
+  cited in the PR body. [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md),
+  [`QUESTION-FARM.md`](QUESTION-FARM.md) § The now lane.
 - **Standing constraints**: no place-scoped civic questions from any
   lane (paid inventory — hard rule 6); `rates:` questions are editorial
   only (D187); sponsored content is tail-only and never farm-written
@@ -149,15 +158,34 @@ the live figures: `node scripts/farm-budget.mjs`,
 D161–D164 are the frame; [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is the
 ordered list. Open, in its order:
 
-- **The core/tail enforcement half** (decided, D161 — lands with the
-  first tail content, not before): write the filter placement down per
-  call site (cohort folds read core only; a person's own answers are
-  always all of them), extend the fold filter beyond `LiveCohortBody` to
-  the similarity fields and Kindred, and add the test that a non-core
-  aggregate never reaches a Mirror stop. `LiveCircleBody` stays
-  unfiltered on purpose. Never ship the interest model before this.
-  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 2.1, [`MIRROR.md`](MIRROR.md)
-  preamble.
+- ~~**The core/tail enforcement half**~~ — **DONE, and this row was
+  stale from the day it was written (D367).** Phase 2 of
+  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is fully ticked: 2.2 applied the
+  filter at the City/Country/World stop on 2026-08-15
+  (`LIVE.aggregated().filter((q) => q.coreCorpus)`), 2.3 shipped the
+  mutation-verified test the same day, and **2.1 decided the placement on
+  2026-08-19** — the day this page was compiled, which is why it captured
+  the question rather than the answer.
+
+  Two of the three things this row asked for were **decided unnecessary**
+  rather than left undone, and that distinction is the whole point of
+  2.1: the five lenses take `qs` as a prop from the already-filtered
+  list, so they inherit the filter; and the similarity fields read
+  `LIVE.myTestResults()` with `CORE_TEST_KINDS` — test instruments, core
+  by construction — never the feed archive. Verified against the code
+  rather than against 2.1's prose. `isCore` makes the tail feed-only, so
+  the instruments, the deck, the reveals and the single-question sheets
+  cannot be diluted; a no-op filter at each of them would have been
+  ceremony.
+
+  **What this row's last sentence cost.** *"Never ship the interest model
+  before this"* was read in 2026-09 as the interest model being blocked,
+  and it is not — Phase 5 follows **Phase 4**, not Phase 2, because an
+  interest model is only meaningful once the tail has content. The
+  buildable next step is **3.2 batch approval**, which the runbook itself
+  marks buildable now and which is what unblocks raising the farm budget.
+  A stale index row that names a real dependency in the wrong place is
+  worse than one that is merely out of date: it redirects work.
 - **The core-size ratio gate** (decided, blocked on population): core
   may grow only as fast as the audience that fills its cohort cells — a
   `check:quality` gate once there is a population to measure against.

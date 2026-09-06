@@ -441,13 +441,24 @@ function CityField({ myParsed }: {
     // Paused before empty (D332): with the breaker on, the kindred pool
     // was never fetched, and "Nobody from {city} yet" would be a claim
     // about a crowd nothing looked at.
+    // …AND FAILED BEFORE EMPTY, for the same reason paused comes before
+    // empty. `loading` is false again the moment the kindred run RETURNS,
+    // including when every one of its twelve queries threw — loadVoters
+    // swallows each failure and leaves the list absent — so this said
+    // "Nobody from {city} yet" about a crowd nothing managed to look at.
+    // The Country and World fields had the same shape and were fixed one
+    // fold over; this arm reads PEOPLE rather than published cells, so it
+    // takes the people twin of that reader rather than stretching it.
+    const people$ = LIVE.kindredState();
     return (
       <SfEmptyField caption={<>{cityName}</>}>
-        {loading
+        {loading || people$ === "loading"
           ? <>Matching…</>
           : LIVE.budgetPaused
             ? <>{BUDGET_PAUSED_BODY}</>
-            : <>Nobody from {cityName} yet — fills in as the city answers.</>}
+            : people$ === "failed"
+              ? <>Couldn’t read the crowd here. Close and reopen to try again.</>
+              : <>Nobody from {cityName} yet — fills in as the city answers.</>}
       </SfEmptyField>
     );
   }
@@ -624,8 +635,31 @@ export function NearField() {
   // back fresh on every notify — an effect keyed on the array itself would
   // re-fire on every beat and re-ask for names it already holds.
   const rosterKey = roster.map((p) => p.uid).join(",");
+  // READING IS NOT EMPTY — the same flag LiveCompareLens took for the same
+  // reason, on the surface where it matters more. `scoresFor` answers null
+  // for "fetched, has none" and "never fetched" alike (its own docstring
+  // says so), the fetch below runs AFTER first paint, and there is no
+  // loading flag for name resolution in the store. So without this the
+  // first frame reads every roster member as untested and the empty arm
+  // says "Nobody here has taken the test — N in the room" about a room
+  // where everybody may have. Compare is behind a tab; Near OPENS on this.
+  //
+  // `roomLoading()` does not cover it: that is the ROSTER's flag, and the
+  // roster has already arrived by the time this matters.
+  //
+  // A no-op on a warm open: the fetch resolves without a round trip when
+  // the cache already holds the roster, so the flag never becomes visible.
+  const [reading, setReading] = React.useState(false);
   React.useEffect(() => {
-    void LIVE.loadNames(rosterKey ? rosterKey.split(",") : []);
+    // Clearing on the way OUT matters as much as setting on the way in:
+    // the cleanup drops `live`, so a fetch in flight when the key empties
+    // never runs its setReading(false), and this arm would return without
+    // clearing it either — leaving the flag up for the life of the mount.
+    if (!rosterKey) { setReading(false); void LIVE.loadNames([]); return; }
+    let live = true;
+    setReading(true);
+    void LIVE.loadNames(rosterKey.split(",")).finally(() => { if (live) setReading(false); });
+    return () => { live = false; };
   }, [rosterKey]);
   // AFTER the hooks, never before: an early return above them changes the
   // hook order between renders (react-hooks/rules-of-hooks), and this
@@ -671,7 +705,13 @@ export function NearField() {
   // about six people standing next to them. The sort comment above already
   // says the slice is "a real choice"; the caption contradicted it.
   const placed = placeable.slice(0, NEAR_FIELD_CAP);
-  const untested = roster.length - placeable.length;
+  // Nobody is "untested" while their profile is still in flight — the same
+  // conflation the empty arm below guards against, in the caption instead.
+  // The `!placed.length` arm below returns FIRST, so this number is only
+  // ever read in a PARTIALLY read room: some members' scores already in
+  // the profile cache, the rest still on the wire. Those in flight would
+  // be counted as people who have not taken it.
+  const untested = reading ? 0 : roster.length - placeable.length;
   const capped = placeable.length > placed.length;
 
   if (!on) {
@@ -704,8 +744,15 @@ export function NearField() {
             ? <>Nobody else has Near on right now.</>
             : !Object.keys(myFlat).length
               ? <>Finish a test and the room draws in around you.</>
-              : <>Nobody here has taken the test — {roster.length} in the room,
-                {" "}<strong>People</strong> lists them.</>}
+              : reading
+                /* FIFTH state, and it goes BELOW the viewer's-own-state arm
+                   above deliberately: "finish a test" is true whatever the
+                   room's profiles are doing, and it is the one thing the
+                   reader can act on. Only the claim ABOUT THE ROOM has to
+                   wait for the room to be read. */
+                ? <>Matching…</>
+                : <>Nobody here has taken the test — {roster.length} in the room,
+                  {" "}<strong>People</strong> lists them.</>}
       </SfEmptyField>
     );
   }
@@ -815,12 +862,37 @@ function PlacesField({ scope, myFlat }: {
     (n === 1 ? what : what === "city" ? "cities" : "countries");
 
   if (!profiles.length) {
+    // THREE EMPTINESSES, NOT TWO. This branched on `similarityLoading()`
+    // alone, and that flag is false again the moment `loadSimilarity()`
+    // RETURNS — including when it threw. So a failed read drew "No
+    // country has answered a score question yet" as a finding about the
+    // whole world, and kept drawing it for the life of the mount, since
+    // the throw leaves `testAggsLoaded` false with nothing to retry it.
+    // The largest population claim the app makes, made out of an error.
+    //
+    // `testAggsState()` is the reader written for exactly this (it says so
+    // in its docstring), and these profiles are folded from `agg.by`
+    // cells, which is the scope that docstring names — so it applies here.
+    //
+    // THIS SAID THE CityField ARM ABOVE "was already covered", AND IT IS
+    // NOT. That arm calls neither this reader nor anything like it; its
+    // `loading` is `similarityLoading() || kindredLoading()`, and it folds
+    // PEOPLE rather than cells, so it is a different shape with the same
+    // hole one fold over: a failed kindred read leaves both flags false
+    // and the list empty, and it prints "Nobody from {city} yet" about a
+    // read that did not happen. Left alone deliberately — `testAggsState`
+    // does not scope to a people fetch, so closing it wants its own
+    // reader rather than this one stretched — and written down here
+    // rather than left as the false reassurance it was.
+    const cells = LIVE.testAggsState();
     return (
       <SfEmptyField
         caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}>
-        {loading
+        {loading || cells === "loading"
           ? <>Reading profiles…</>
-          : <>No {what} has answered a score question yet.</>}
+          : cells === "failed"
+            ? <>Couldn’t read the scores here. Close and reopen to try again.</>
+            : <>No {what} has answered a score question yet.</>}
       </SfEmptyField>
     );
   }

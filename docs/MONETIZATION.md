@@ -95,11 +95,18 @@ aggregate.
 ([D195](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet)).**
 Every note this paragraph used to hold is now a thing with a gate behind
 it: the disclosure band (`ui/SponsorMark.tsx`, the app's ink and never a
-buyer's), the one-card cap and its slot in the interleave
-(`data/sponsored.ts`, `SPONSOR_SLOT`), the coarse audience tags matched **on
+buyer's), the paid cards' own places in the interleave — one after every
+sixth world card since D377 (`data/sponsored.ts`, `SPONSOR_EVERY`; a
+single slot, `SPONSOR_SLOT`, before it), the coarse audience tags matched **on
 the device** against the published breakdown dims (one to three since
 D228, matched conjunctively and each printed on the band), `until` as the
-window, and `sponsor` as a provenance source `check:quality` holds in both
+window, `sponsor.link` — since D378 the buyer's one https address, shown
+as its bare domain only after a person has answered, opened in the system
+browser, and counted by nobody (the review reads the address; the app
+never fetches it) — the **results page** (D379, `functions/src/share.ts`
+at the hosting rewrite `/q/{qid}`): the same public numbers as one web
+page anyone can open, which the buyer's room and the answered card copy
+the address of — and `sponsor` as a provenance source `check:quality` holds in both
 directions. Since D228 the buyer may be an **individual** as well as a
 company, and the printed name is the buyer's to wear or omit — the word
 PAID is not: the band renders from the sponsor block's presence, because
@@ -127,9 +134,10 @@ sponsored question wears, and no image, logo, brand colour or link —
 `check:content` refuses each by name. **No tap-through is the design, not
 an omission**: with nowhere to send you there is no click, and with no
 click there is nothing to attribute, which is what keeps this path clear
-of the tracking apparatus below. It shares the SINGLE paid slot with path
-2 and rotates with it by day, so the feed can never show two paid things
-at once. `content/ads.json` ships empty and a test asserts it.
+of the tracking apparatus below. It takes the same paid places as path
+2, in the same day's order (one card in six since D377; until then the
+single slot, one paid thing a day). `content/ads.json` ships empty and a
+test asserts it.
 
 The original note, kept because it is what the build was measured
 against — open as a path by the owner (2026-08-01), not ruled out. The version that coexists with the
@@ -154,10 +162,25 @@ server-written edit-flow record) and D195's one-dim audience cap, so
 adopting it is a set of DECISIONS.md records, not a build ticket. Until
 then, everything else on this page stands as written.
 
+**Where the door lives is an open question (2026-08-31).** Paths 2 and 3
+sell through one surface inside the app binary — `SuggestOverlay`, its
+rate card, its composer and its pay tap — and that is the surface Apple's
+3.1.1 is about, whatever D313 meant by "commerce stays on the web side".
+At EUR 320 a question and EUR 288 an ad, a store cut is EUR 48-96 a sale
+against roughly EUR 5 of card processing; and the closer's partial refund
+(D164) has no in-app-purchase primitive at all, so the billing model and
+IAP are not merely expensive together, they are incompatible.
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) sets out the three shapes and
+recommends moving the door to the web. **Nothing is adopted** — the door
+is where it has always been until a decision record says otherwise.
+
 ## Ruled out by standing posture
 
-Narrower than "no ads" — ads are path 3. What stays out is the
-**tracking apparatus**, because other standing records pin it:
+Narrower than "no ads" — ads are path 3 (the committed pen; the
+self-serve ad lane D315 built on it retired at D375, the sponsored
+question being the one paid product — `SPONSORED-PLAN.md`). What
+stays out is the **tracking apparatus**, because other standing
+records pin it:
 
 - **Advertising/analytics identifiers and per-user targeting.** The
   data inventory declares none collected, and QUESTION-FARM.md draws

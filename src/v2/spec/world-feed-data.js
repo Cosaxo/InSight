@@ -137,9 +137,21 @@ window.WORLD_FEED_QS = [
   { id: 'f37', cat: 'culture', type: 'vote', prompt: 'Small talk is a skill, not a chore.', options: [ { label: 'A skill', count: 4700 }, { label: 'A chore', count: 4100 } ] },
 
   // dilemmas
+  // The two Crossroads stories ride the pool as members (D341) — a story is
+  // a feed question, placed by the mix like everything else, and both can
+  // be on screen at once. Only what the feed mechanics read lives here (id,
+  // home topic, a prompt for search and the pass row); the CONTENT is
+  // paths-data.js's, resolved by id at render (paths-card.jsx srcOf), so
+  // the story is written once. 'dilemma' is their genre AND an always-on
+  // channel, which is what keeps them reachable with no scene followed.
+  // One early and one deep in the group on purpose: the mix serves streams
+  // round-robin, so the reader meets the first story a few cards in and
+  // the second a couple of screens later — not stacked, not pinned.
+  { id: 'wallet', cat: 'dilemma', type: 'path', prompt: 'The Wallet' },
   { id: 'f38', cat: 'dilemma', type: 'vote', prompt: 'Read minds \u2014 but everyone knows you can. Take it?', options: [ { label: 'Take it', count: 2600 }, { label: 'Pass', count: 7900 } ] },
   { id: 'f39', cat: 'dilemma', type: 'vote', prompt: '$1M now, but a stranger somewhere loses everything. Press the button?', options: [ { label: 'Press', count: 1400 }, { label: 'Never', count: 9800 } ] },
   { id: 'f40', cat: 'dilemma', type: 'vote', prompt: 'Would you want to know the date of your death?', options: [ { label: 'Tell me', count: 2900 }, { label: 'Never', count: 8400 } ] },
+  { id: 'text', cat: 'dilemma', type: 'path', prompt: 'The Wrong Text' },
   { id: 'f41', cat: 'dilemma', type: 'vote', prompt: 'Five years in a job you hate, then never work again?', options: [ { label: 'Take the deal', count: 6600 }, { label: 'Keep working', count: 4100 } ] },
   { id: 'f42', cat: 'dilemma', type: 'vote', prompt: 'Restart life at 10, everything you know intact?', options: [ { label: 'Restart', count: 5100 }, { label: 'Stay here', count: 5600 } ] },
   { id: 'f43', cat: 'dilemma', type: 'vote', prompt: 'Perfect memory \u2014 but you can never forget anything. Take it?', options: [ { label: 'Take it', count: 3300 }, { label: 'Keep forgetting', count: 6200 } ] },
@@ -166,32 +178,71 @@ window.WORLD_FEED_QS = [
   // \u2500\u2500 dials & fields \u2500\u2500 continuum answers.
   // dial: a value on a range \u2014 dist: 12 crowd buckets lo\u2192hi, med: crowd median.
   // (dl1\u2013dl4 filed under always-on channels \u2014 bigq/dilemma \u2014 so they reach
-  // every demo feed; later dials keep the topic their batch allocated)
+  // every demo feed; later dials keep the topic their batch allocated.
+  // Ranges: whole units per bucket where the unit allows \u2014 a step under
+  // one unit prints twin labels like "18\u201318 h", D358.)
+  // dl30\u2013dl43 (D358) are the WIDENED twins of dl3, dl6\u2013dl8 and dl10\u2013dl19:
+  // a shipped range is frozen with its bucket labels (D114), so the old
+  // ids retired (`active: false` in content/feed-questions.json) and the
+  // same copy came back under a new id on the wider range. The demo pool
+  // carries only the live id \u2014 a retired dial has no card to draw.
   // field: a dot on a 2D plane \u2014 ax/ay: axis end labels, cloud: [x, y, count,
   // spread] clusters in 0\u2013100 coords (y runs 0=top), n: answers.
   { id: 'dl1', cat: 'bigq', type: 'dial', prompt: 'When does old age begin?', lo: 40, hi: 90, unit: 'yrs', med: 63, n: 5200, dist: [1, 3, 5, 9, 14, 18, 17, 13, 9, 6, 3, 2] },
   { id: 'dl2', cat: 'dilemma', type: 'dial', prompt: 'The right tip', lo: 0, hi: 30, unit: '%', med: 10, n: 7400, dist: [6, 9, 14, 18, 16, 12, 9, 6, 4, 3, 2, 1] },
-  { id: 'dl3', cat: 'dilemma', type: 'dial', prompt: 'Daily screen time \u2014 where does \u201ctoo much\u201d start?', lo: 1, hi: 12, unit: 'h', med: 5, n: 6100, dist: [2, 6, 12, 17, 18, 14, 10, 4, 3, 2, 1, 1] },
+  { id: 'dl30', cat: 'dilemma', type: 'dial', prompt: 'Daily screen time \u2014 where does \u201ctoo much\u201d start?', lo: 0, hi: 24, unit: 'h', med: 6, n: 6100, dist: [3, 10, 18, 20, 15, 10, 7, 5, 4, 3, 2, 2] },
   { id: 'dl4', cat: 'bigq', type: 'dial', prompt: 'How much of your life is actually in your control?', lo: 0, hi: 100, unit: '%', med: 55, n: 4800, dist: [4, 6, 8, 9, 10, 12, 14, 13, 10, 7, 4, 3] },
   { id: 'dl5', cat: 'event', type: 'dial', prompt: 'How many years until a human walks on Mars?', lo: 0, hi: 100, unit: 'yrs', med: 28, n: 4700, dist: [2, 9, 16, 18, 14, 10, 7, 5, 4, 3, 3, 9] },
-  { id: 'dl6', cat: 'sport', type: 'dial', prompt: 'At what age is an athlete past their peak?', lo: 25, hi: 45, unit: 'yrs', med: 32, n: 5100, dist: [2, 5, 11, 17, 18, 15, 11, 8, 5, 4, 2, 2] },
-  { id: 'dl7', cat: 'food', type: 'dial', prompt: 'How many coffees a day is too many?', lo: 1, hi: 10, unit: 'cups', med: 4, n: 5100, dist: [3, 8, 15, 19, 16, 12, 9, 7, 5, 3, 2, 1] },
-  { id: 'dl8', cat: 'music', type: 'dial', prompt: 'How long should a concert be?', lo: 1, hi: 4, unit: 'hrs', med: 2, n: 4600, dist: [2, 5, 10, 16, 19, 16, 12, 8, 5, 3, 2, 2] },
+  { id: 'dl31', cat: 'sport', type: 'dial', prompt: 'At what age is an athlete past their peak?', lo: 20, hi: 50, unit: 'yrs', med: 33, n: 5100, dist: [1, 3, 8, 14, 18, 17, 13, 10, 7, 4, 3, 2] },
+  { id: 'dl32', cat: 'food', type: 'dial', prompt: 'How many coffees a day is too many?', lo: 0, hi: 12, unit: 'cups', med: 4, n: 5100, dist: [2, 4, 9, 15, 19, 16, 12, 9, 6, 4, 2, 2] },
+  { id: 'dl33', cat: 'music', type: 'dial', prompt: 'How long should a concert be?', lo: 30, hi: 270, unit: 'min', med: 120, n: 4600, dist: [1, 3, 8, 15, 19, 17, 13, 9, 6, 4, 3, 2] },
   { id: 'dl9', cat: 'movies', type: 'dial', prompt: 'Trailers before the film \u2014 how many minutes is right?', lo: 0, hi: 30, unit: 'min', med: 10, n: 4300, dist: [6, 9, 13, 17, 16, 12, 9, 7, 5, 3, 2, 1] },
-  { id: 'dl10', cat: 'bigq', type: 'dial', prompt: 'How many close friends does a person need?', lo: 0, hi: 10, unit: 'friends', med: 3, n: 4900, dist: [4, 10, 18, 20, 15, 11, 8, 6, 4, 2, 1, 1] },
-  { id: 'dl11', cat: 'tech', type: 'dial', prompt: 'How many hours a day on a phone is too many?', lo: 0, hi: 12, unit: 'h', med: 4, n: 4600, dist: [2, 5, 10, 15, 18, 16, 12, 9, 6, 4, 2, 1] },
-  { id: 'dl12', cat: 'culture', type: 'dial', prompt: 'Books finished last year — how many?', lo: 0, hi: 30, unit: 'books', med: 6, n: 4200, dist: [18, 20, 16, 12, 9, 7, 5, 4, 3, 2, 2, 2] },
-  { id: 'dl13', cat: 'sport', type: 'dial', prompt: 'Hours of live sport in a good week?', lo: 0, hi: 20, unit: 'h', med: 4, n: 4100, dist: [16, 18, 15, 12, 10, 8, 6, 5, 4, 3, 2, 1] },
+  { id: 'dl34', cat: 'bigq', type: 'dial', prompt: 'How many close friends does a person need?', lo: 0, hi: 12, unit: 'friends', med: 3, n: 4900, dist: [4, 9, 16, 20, 16, 12, 8, 6, 4, 2, 2, 1] },
+  { id: 'dl35', cat: 'tech', type: 'dial', prompt: 'How many hours a day on a phone is too many?', lo: 0, hi: 24, unit: 'h', med: 4, n: 4600, dist: [5, 16, 20, 17, 12, 9, 7, 5, 4, 2, 2, 1] },
+  { id: 'dl36', cat: 'culture', type: 'dial', prompt: 'Books finished last year — how many?', lo: 0, hi: 60, unit: 'books', med: 8, n: 4200, dist: [22, 20, 15, 11, 8, 6, 5, 4, 3, 2, 2, 2] },
+  { id: 'dl37', cat: 'sport', type: 'dial', prompt: 'Hours of live sport in a good week?', lo: 0, hi: 24, unit: 'h', med: 4, n: 4100, dist: [15, 18, 16, 13, 10, 8, 6, 5, 4, 2, 2, 1] },
   { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza \u2014 place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
   { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk \u2014 place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
   { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today \u2014 place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },
-  // 2026-08-26 lane batch (D309) \u2014 the two continuum twins; copy matches
+  // 2026-08-26 lane batch (D309) and after \u2014 continuum twins; copy matches
   // content/feed-questions.json exactly, texture is this demo pool's own
-  { id: 'dl14', cat: 'music', type: 'dial', prompt: 'How old were you when your taste in music settled?', lo: 10, hi: 40, unit: 'yrs', med: 17, n: 3400, dist: [4, 10, 18, 20, 15, 10, 7, 5, 4, 3, 2, 2] },
-  { id: 'dl15', cat: 'food', type: 'dial', prompt: 'Meals cooked from scratch in a week?', lo: 0, hi: 14, unit: 'meals', med: 4, n: 4000, dist: [10, 12, 14, 15, 13, 11, 8, 6, 4, 3, 2, 2] },
-  { id: 'dl16', cat: 'food', type: 'dial', prompt: 'The ideal dinner hour?', lo: 17, hi: 23, unit: 'h', med: 19, n: 4400, dist: [3, 5, 8, 12, 16, 17, 14, 10, 7, 4, 2, 2] },
-  { id: 'dl17', cat: 'bigq', type: 'dial', prompt: 'How many years ahead do you actually plan?', lo: 0, hi: 20, unit: 'years', med: 3, n: 4300, dist: [14, 18, 16, 13, 10, 8, 6, 5, 4, 3, 2, 1] },
+  { id: 'dl38', cat: 'music', type: 'dial', prompt: 'How old were you when your taste in music settled?', lo: 5, hi: 50, unit: 'yrs', med: 17, n: 3400, dist: [3, 8, 16, 20, 16, 11, 8, 6, 4, 3, 3, 2] },
+  { id: 'dl39', cat: 'food', type: 'dial', prompt: 'Meals cooked from scratch in a week?', lo: 0, hi: 21, unit: 'meals', med: 5, n: 4000, dist: [9, 12, 14, 15, 13, 11, 8, 6, 5, 3, 2, 2] },
+  { id: 'dl40', cat: 'food', type: 'dial', prompt: 'The ideal dinner hour?', lo: 12, hi: 24, unit: 'h', med: 19, n: 4400, dist: [1, 1, 2, 3, 5, 9, 15, 20, 18, 12, 8, 6] },
+  { id: 'dl41', cat: 'bigq', type: 'dial', prompt: 'How many years ahead do you actually plan?', lo: 0, hi: 30, unit: 'years', med: 3, n: 4300, dist: [16, 19, 15, 12, 9, 7, 6, 5, 4, 3, 2, 2] },
+  { id: 'dl42', cat: 'culture', type: 'dial', prompt: 'Minutes late before it counts as late?', lo: 0, hi: 60, unit: 'min', med: 12, n: 4500, dist: [8, 14, 19, 17, 12, 9, 6, 5, 4, 3, 2, 1] },
+  { id: 'dl43', cat: 'music', type: 'dial', prompt: 'How many songs on a perfect album?', lo: 6, hi: 30, unit: 'songs', med: 12, n: 4300, dist: [4, 11, 18, 20, 15, 10, 7, 5, 4, 3, 2, 1] },
+  { id: 'dl44', cat: 'sport', type: 'dial', prompt: 'Push-ups you could do right now?', lo: 0, hi: 60, unit: 'push-ups', med: 12, n: 4100, dist: [10, 15, 17, 15, 12, 9, 7, 5, 4, 3, 2, 1] },
+  { id: 'dl45', cat: 'tech', type: 'dial', prompt: 'Unread notifications right now?', lo: 0, hi: 120, unit: 'notifications', med: 9, n: 4300, dist: [16, 19, 15, 12, 9, 7, 6, 5, 4, 3, 2, 2] },
+  { id: 'dl46', cat: 'bigq', type: 'dial', prompt: 'How many lives would you want to live, if you could?', lo: 0, hi: 12, unit: 'lives', med: 3, n: 3900, dist: [6, 14, 18, 17, 13, 9, 7, 5, 4, 3, 2, 2] },
+  { id: 'dl47', cat: 'culture', type: 'dial', prompt: 'Decorations up — from which week of the year?', lo: 0, hi: 52, unit: 'weeks', med: 47, n: 4000, dist: [3, 2, 2, 2, 3, 3, 4, 5, 7, 12, 25, 32] },
+  { id: 'dl48', cat: 'dilemma', type: 'dial', prompt: 'The most you’d queue for anything, in minutes?', lo: 0, hi: 120, unit: 'min', med: 25, n: 4200, dist: [7, 12, 16, 16, 13, 10, 8, 6, 5, 4, 2, 1] },
+  { id: 'dl49', cat: 'event', type: 'dial', prompt: 'Fireworks on New Year’s: how many minutes is right?', lo: 0, hi: 24, unit: 'min', med: 10, n: 4100, dist: [5, 8, 12, 15, 16, 14, 10, 8, 5, 4, 2, 1] },
+  { id: 'dl50', cat: 'food', type: 'dial', prompt: 'Spice jars in your kitchen?', lo: 0, hi: 48, unit: 'jars', med: 14, n: 4000, dist: [6, 10, 14, 16, 15, 12, 9, 7, 5, 3, 2, 1] },
+  { id: 'dl51', cat: 'movies', type: 'dial', prompt: 'Times you’ve seen your most-watched film?', lo: 0, hi: 24, unit: 'times', med: 6, n: 4200, dist: [8, 14, 17, 15, 12, 10, 8, 6, 4, 3, 2, 1] },
+  { id: 'dl52', cat: 'music', type: 'dial', prompt: 'Songs on your on-repeat playlist right now?', lo: 0, hi: 36, unit: 'songs', med: 8, n: 4300, dist: [9, 15, 17, 14, 11, 9, 7, 6, 5, 4, 2, 1] },
+  { id: 'dl53', cat: 'people', type: 'dial', prompt: 'Posters on your teenage bedroom wall — how many?', lo: 0, hi: 12, unit: 'posters', med: 3, n: 3800, dist: [12, 16, 17, 14, 11, 9, 7, 5, 4, 3, 1, 1] },
+  { id: 'dl20', cat: 'sport', type: 'dial', prompt: 'Minutes of stoppage time that feel honest?', lo: 0, hi: 15, unit: 'min', med: 4, n: 4100, dist: [6, 10, 15, 17, 15, 11, 8, 6, 4, 3, 3, 2] },
+  { id: 'dl21', cat: 'tech', type: 'dial', prompt: 'Browser tabs open right now?', lo: 0, hi: 50, unit: 'tabs', med: 9, n: 4400, dist: [10, 16, 17, 14, 11, 8, 7, 6, 4, 3, 2, 2] },
+  { id: 'dl22', cat: 'culture', type: 'dial', prompt: 'Seconds a silence can sit comfortably?', lo: 0, hi: 60, unit: 's', med: 8, n: 4000, dist: [12, 18, 17, 13, 10, 8, 6, 5, 4, 3, 2, 2] },
+  { id: 'dl23', cat: 'food', type: 'dial', prompt: 'Too late for coffee — from what hour?', lo: 10, hi: 22, unit: 'h', med: 16, n: 4300, dist: [3, 5, 8, 11, 14, 16, 14, 11, 8, 5, 3, 2] },
+  { id: 'dl24', cat: 'movies', type: 'dial', prompt: 'Cinema trips in a year?', lo: 0, hi: 50, unit: 'trips', med: 6, n: 4200, dist: [14, 19, 16, 12, 10, 8, 6, 5, 4, 3, 2, 1] },
+  { id: 'dl25', cat: 'bigq', type: 'dial', prompt: 'How many big decisions does a life turn on?', lo: 0, hi: 20, unit: 'decisions', med: 5, n: 3900, dist: [4, 8, 14, 17, 15, 12, 9, 7, 5, 4, 3, 2] },
+  { id: 'dl26', cat: 'dilemma', type: 'dial', prompt: "A fair finder's fee, in percent?", lo: 0, hi: 50, unit: '%', med: 10, n: 4100, dist: [10, 14, 16, 15, 12, 9, 7, 6, 4, 3, 2, 2] },
+  { id: 'dl27', cat: 'event', type: 'dial', prompt: 'Hours of news in your week?', lo: 0, hi: 20, unit: 'h', med: 4, n: 4200, dist: [9, 15, 17, 14, 11, 9, 7, 6, 5, 3, 2, 2] },
+  { id: 'dl28', cat: 'music', type: 'dial', prompt: 'Your favourite song comes on — volume, in percent?', lo: 0, hi: 100, unit: '%', med: 78, n: 4500, dist: [1, 2, 3, 4, 5, 7, 9, 12, 15, 17, 14, 11] },
+  { id: 'dl29', cat: 'people', type: 'dial', prompt: "Autographs you've asked for, ever?", lo: 0, hi: 20, unit: 'autographs', med: 1, n: 3800, dist: [30, 22, 14, 10, 7, 5, 4, 3, 2, 1, 1, 1] },
   { id: 'fd4', cat: 'bigq', type: 'field', prompt: 'Human nature \u2014 place it', ax: ['selfish', 'kind'], ay: ['fixed', 'changeable'], n: 4700, cloud: [[70, 30, 11, 15], [28, 68, 9, 14], [50, 48, 5, 12]] },
+  { id: 'fd5', cat: 'sport', type: 'field', prompt: 'Losing — place it', ax: ['shrug it off', 'carry it'], ay: ['just a game', 'personal'], n: 4300, cloud: [[30, 35, 10, 14], [72, 68, 11, 13], [50, 50, 5, 10]] },
+  { id: 'fd6', cat: 'tech', type: 'field', prompt: 'Your phone — place it', ax: ['a tool', 'a limb'], ay: ['serves you', 'runs you'], n: 5100, cloud: [[25, 30, 10, 13], [74, 70, 12, 14], [55, 52, 6, 11]] },
+  { id: 'fd7', cat: 'culture', type: 'field', prompt: 'Hosting — place it', ax: ['full house', 'quiet house'], ay: ['a joy', 'a duty'], n: 4000, cloud: [[28, 30, 11, 14], [70, 62, 10, 13], [48, 50, 5, 11]] },
+  { id: 'fd8', cat: 'food', type: 'field', prompt: 'Cooking — place it', ax: ['a chore', 'therapy'], ay: ['by the book', 'improvised'], n: 4600, cloud: [[30, 38, 11, 13], [72, 64, 10, 14], [52, 50, 6, 10]] },
+  { id: 'fd9', cat: 'movies', type: 'field', prompt: 'Horror films — place it', ax: ['can’t watch', 'can’t stop'], ay: ['silly', 'art'], n: 4400, cloud: [[24, 40, 10, 13], [74, 60, 11, 14], [50, 48, 5, 11]] },
+  { id: 'fd10', cat: 'sport', type: 'field', prompt: 'Team loyalty — place it', ax: ['born into it', 'chosen'], ay: ['for life', 'transferable'], n: 4200, cloud: [[26, 28, 11, 14], [70, 66, 10, 13], [50, 50, 5, 10]] },
+  { id: 'fd11', cat: 'tech', type: 'field', prompt: 'Social media — place it', ax: ['drains me', 'feeds me'], ay: ['quitting soon', 'here to stay'], n: 5000, cloud: [[28, 64, 11, 13], [70, 70, 10, 14], [48, 50, 6, 11]] },
+  { id: 'fd12', cat: 'culture', type: 'field', prompt: 'Traditions — place it', ax: ['keep them all', 'invent new'], ay: ['comforting', 'confining'], n: 4100, cloud: [[28, 30, 11, 13], [68, 62, 10, 14], [50, 48, 5, 11]] },
+  { id: 'fd13', cat: 'food', type: 'field', prompt: 'Snacking — place it', ax: ['a grazer', 'three meals'], ay: ['proud', 'guilty'], n: 4400, cloud: [[30, 36, 11, 13], [70, 62, 10, 14], [50, 50, 6, 10]] },
+  { id: 'fd14', cat: 'movies', type: 'field', prompt: 'Sequels — place it', ax: ['never needed', 'keep them'], ay: ['cash grabs', 'real stories'], n: 4300, cloud: [[28, 36, 10, 13], [72, 62, 11, 14], [50, 48, 5, 11]] },
 
   // ── scene questions ── asked inside one scene; counts are community-scale
   { id: 's01', scene: 'tennis', cat: 'sport', type: 'vote', prompt: 'Doubles or singles?', options: [ { label: 'Doubles', count: 1900 }, { label: 'Singles', count: 2600 } ] },

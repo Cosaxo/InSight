@@ -137,6 +137,10 @@ export const CATALOG_FILES = {
   pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
   countries: "countries.txt", dogs: "dogs.txt", colors: "colors.txt",
   films: "films.txt", artists: "artists.txt", athletes: "athletes.txt",
+  // languages was absent from this map from its commit (#344) until
+  // 2026-09-06 — exactly the one-transcription drift the paragraph above
+  // exists to prevent: its cards (pk32/pk33/pk35) could never promote.
+  languages: "languages.txt", videogames: "videogames.txt",
 };
 
 // Catalogue picks run their own seq lane from here (D232, amended at
@@ -444,6 +448,16 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
+  // A 1v1 question's DOMAIN rides `topic` (D386) — `day` (everyday),
+  // `heat` (under pressure), `mirror` (a read of the other person), `ahead`
+  // (the future, romantic only) — the way a group question's kind does.
+  // The source has always carried it as `d` and the demo layer read it
+  // there; the seed dropped it, so the live roles fold could not tell a
+  // mirror day ("The word that fits them best?") from an ordinary one and
+  // scored knowing how you are seen as reading their preferences, and the
+  // same word about each other as likeness. `check:content` holds the set
+  // closed like the group kinds; `duelQFor` carries it to the card as
+  // `kind`, which only ever asked "pick".
   duel.oneVsOne.forEach((q, i) => {
     entries.push({
       id: `duo-${requireId(q, `duel-questions.json oneVsOne[${i}]`)}`,
@@ -455,7 +469,7 @@ export function buildEntries(content = loadContent()) {
       domain: null,
       prompt: q.prompt,
       options: q.options,
-      topic: null,
+      topic: q.d ?? null,
       axis: null,
       test: null,
     });
@@ -480,7 +494,7 @@ export function buildEntries(content = loadContent()) {
       domain: null,
       prompt: q.prompt,
       options: q.options,
-      topic: null,
+      topic: q.d ?? null,
       axis: null,
       test: null,
       mode: "romantic",
@@ -676,7 +690,7 @@ const HEADER =
   "// question ALSO belongs to beside its `topic` home. Reach, never\n" +
   "// placement — the client's filter/stock/search read topic ∪ also, the\n" +
   "// Map and grouping stay on `topic`. Emit-when-set; never on sponsored.\n" +
-  "// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question\n" +
+  "// `sponsor` is feed-only (D195): `{ buyer, audience?, link? }` on a question\n" +
   "// somebody paid to ask. The WINDOW is `until`, not a field here, so the\n" +
   "// label the card prints and the filter that stops serving it are one\n" +
   "// value. A sponsored question is never `core` — paid questions inside\n" +
@@ -690,7 +704,7 @@ const HEADER =
   "// marks a reverse-scored instrument item so the nightly axes fold\n" +
   "// (AXES-PLAN §2) can score answers server-side; the client keeps joining\n" +
   "// scoring metadata from IS_TESTS by prompt and never reads it.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

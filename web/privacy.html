@@ -118,7 +118,7 @@
 
   <span class="kicker">InSight · privacy</span>
   <h1>Privacy policy</h1>
-  <div class="updated">last updated 2026-08-23</div>
+  <div class="updated">last updated 2026-09-02</div>
 
   <p class="lead">
     InSight asks you one question a day, shows you how everyone else
@@ -219,7 +219,7 @@
       <br />
       Your city is either chosen from a fixed list of places, or — only if
       you tap &ldquo;use my location&rdquo; and allow it — worked out from a
-      single approximate location reading. That reading is matched to the
+      single location reading. That reading is matched to the
       nearest city <em>on your own device</em>, using a list of cities that
       ships inside the app. Your coordinates are not sent to us, not stored,
       and not written down anywhere. What is saved is the city name, exactly
@@ -307,9 +307,11 @@
     </li>
     <li>
       <strong>A notification token, on phones.</strong> Only if you allow
-      notifications, and only used for the one notification this app
-      sends: your group's day has been revealed. It is stored where no
-      other user can read it.
+      notifications, and only used for the four notifications this app
+      sends: your group's day has been revealed, someone invited you to a
+      group, someone asked to join a group you are in, and a join request
+      of yours was approved. It is stored where no other user can
+      read it.
     </li>
     <li>
       <strong>Data on your device.</strong> A cache of the questions and
@@ -336,7 +338,14 @@
       bought for, the rate and the cap — and only you can read it. What a
       buyer receives is the same public numbers everyone reads; there is
       no private cut. The current prices are published in the app and in
-      its source. Deleting your account deletes the record with it.
+      its source. A bought question may carry the buyer&rsquo;s own link:
+      it is shown only after you have answered, as the site&rsquo;s name,
+      and tapping it opens their site in your browser &mdash; we count
+      nothing, log no tap, and add nothing of yours to the address. The
+      public numbers of a bought question are also served as a web page
+      anyone can open, at an address the buyer can share: it shows the
+      counts, the audience they bought and the window, and never who
+      answered. Deleting your account deletes the record with it.
       Submitted questions and ads are checked automatically — by our own
       rules and by an AI reviewer (Anthropic&rsquo;s Claude) that reads only
       what you typed into the ask — before any payment exists. Payment
@@ -351,13 +360,16 @@
   <h2>What we do not collect</h2>
 
   <p>
-    No coordinates. The app can ask your device for an approximate location
-    if — and only if — you tap &ldquo;use my location&rdquo;, but that
-    reading is turned into a city name on your device and then discarded. No
-    latitude or longitude is ever transmitted to us or stored, so the most
-    precise thing we could ever hold about where you are is the name of a
-    city — or, if you switch on the Near counter, the ~200-metre
-    square described above, which no other user can read. No location
+    No coordinates. The app asks your device for your location only if
+    &mdash; and only if &mdash; you tap &ldquo;use my location&rdquo;, and on a
+    phone that offers the choice it is you who decides how precise that
+    reading is. Either way the reading is turned into a city name on your
+    device and then discarded. No latitude or longitude is ever transmitted
+    to us or stored, so the most precise thing we could ever hold about
+    where you are is the name of a city &mdash; or, if you switch on the
+    Near counter, the ~200-metre square described above, which no other
+    user can read. If you choose the less precise option, the Near counter
+    says it cannot place you rather than guessing a square. No location
     history, no background location, and no working out where you are from
     your IP address.
   </p>
@@ -542,6 +554,12 @@
     anonymous aggregate counts your answers contributed to (there is no
     per-person attribution in them to unwind), and any error reports
     already sent, until they age out.
+  </p>
+
+  <p>
+    If you no longer have the app installed, the
+    <a href="delete-account.html">account deletion page</a> carries the
+    same list and a route that does not need the button.
   </p>
 
   <h2>Children</h2>

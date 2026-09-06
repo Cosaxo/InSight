@@ -101,7 +101,21 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
         {header(`in ${place}`)}
         {chips}
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
-          {mix.sampleN === 0
+          {/* THE READING STATE IS ASKED FIRST, ABOVE THE SAMPLE SPLIT.
+              `241ed9d0` gave the sampleN===0 arm three states for exactly
+              this reason and left the arm below it with one: with eight
+              people read and eleven voter lists still on the wire, the
+              card stated "8 sampled here, none typed on this one yet" — a
+              settled sentence about a population still arriving. The
+              loader walks twelve lists sequentially and each landing list
+              notifies, so a partial frame is not an edge case, it is most
+              of the first visit.
+
+              The breaker still comes first, and only where it is the
+              answer: with a sample in hand there is no instruction to
+              offer, so "N sampled, none typed" IS the settled truth under
+              D332 — nothing more will load. */}
+          {LIVE.budgetPaused && mix.sampleN === 0
             // The instruction is only offered while following it works —
             // under the breaker (D332) the sheet's fetch refuses, and an
             // instruction that does nothing is worse than saying so. The
@@ -109,8 +123,23 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
             // the People lens, where Kindred one card up already carries
             // the full why, and a clause restating the clause above it is
             // the deletion COPY.md names.
-            ? (LIVE.budgetPaused ? BUDGET_PAUSED_HEAD : "Open a question's who-voted sheet and this fills in.")
-            : mix.sampleN + " sampled here, none typed on this one yet."}
+            //
+            // …and it is not offered while the fetch is ALREADY RUNNING,
+            // which is the third state D332 gave this branch copy for two
+            // of. The People lens kicks `loadKindred()` on mount, so an
+            // empty sample is the normal first frame of every visit — and
+            // the card told the reader to go do a thing that was already
+            // happening, directly under a Kindred card correctly saying
+            // "Matching…". LiveBreakdownPanel keeps the same three apart
+            // for the same reason, in the same words: "Distinguished from
+            // 'nobody is typed' because they are different facts and the
+            // second one is permanent."
+            ? BUDGET_PAUSED_HEAD
+            : LIVE.kindredLoading()
+              ? "Reading who answered…"
+              : mix.sampleN === 0
+                ? "Open a question's who-voted sheet and this fills in."
+                : mix.sampleN + " sampled here, none typed on this one yet."}
         </span>
       </div>
     );

@@ -51,6 +51,13 @@ export interface FindResult {
   busy: boolean;
   /** The query came back empty. Carries what was searched, for the wording. */
   empty: string | null;
+  /**
+   * The lookup FAILED — offline, or a refused read. Distinct from `empty`
+   * because "we could not ask" and "nobody" are different facts and only
+   * one of them is about the person being searched for
+   * (`data/budgetMode.ts`'s rule, stated there and broken here).
+   */
+  failed: boolean;
 }
 
 /**
@@ -71,8 +78,21 @@ export function usePeopleFinder(query: string, exclude: readonly string[] = []):
   const [rows, setRows] = React.useState<DirectoryPerson[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [empty, setEmpty] = React.useState<string | null>(null);
+  const [failed, setFailed] = React.useState(false);
   const canonical = normalizeHandle(query);
-  const key = query.trim().toLowerCase();
+  // ASCII-ONLY, matching `foldName` in data/socialFetch and the fold in
+  // `LIVE.social.searchPeople` this key is handed to. It ends up as a
+  // prefix over `nameKey`, which firestore.rules pins to `name.lower()` —
+  // and the rules engine's `.lower()` touches A-Z and nothing else, so a
+  // full-Unicode `toLowerCase()` here lowers "Ó" to "ó" and the prefix
+  // stops matching the stored key. This is the THIRD hop that had to
+  // agree; socialFetch's own docstring calls this module "what every
+  // surface that finds people actually uses", which is why it is the one
+  // that decides whether the other two are reachable at all.
+  // The two `toLowerCase()` calls above, in the local circle filter,
+  // stay: they compare a name against a name, both in JS, and never meet
+  // a rules-computed key.
+  const key = query.trim().replace(/[A-Z]/g, (c) => c.toLowerCase());
   // A string, so the effect re-runs when the SET changes rather than on
   // every render — an array literal from a caller is a new identity each
   // time and would restart the debounce forever.
@@ -81,6 +101,7 @@ export function usePeopleFinder(query: string, exclude: readonly string[] = []):
   React.useEffect(() => {
     setRows([]);
     setEmpty(null);
+    setFailed(false);
     // Lowered HERE and only here. This is the one exit that starts no
     // replacement lookup, so it is the one path where nothing else will
     // ever lower the flag: the cleanup below sets `live = false` for the
@@ -112,16 +133,25 @@ export function usePeopleFinder(query: string, exclude: readonly string[] = []):
             // The registry stores a uid and nothing else, so the name is
             // a second read, batched into the shared profile cache every
             // other person surface reads from.
-            await LIVE.loadNames([handleUid]);
+            // CAUGHT SEPARATELY, and this is the whole reason: the name
+            // matches are already in `out` at this point. When this read
+            // threw, the outer catch discarded every one of them and the
+            // panel said "Nobody found" over five real people held in
+            // memory. The row is still worth showing without its name —
+            // `nameFor` falls back — so a failure here costs a name, not
+            // a search.
+            await LIVE.loadNames([handleUid]).catch(() => {});
             if (!live) return;
             out.unshift({ uid: handleUid, name: LIVE.nameFor(handleUid), handle: canonical || "" });
           }
           setRows(out);
           if (!out.length) setEmpty(query.trim());
         } catch {
-          // Offline, or a refused read. A search box that throws is
-          // worse than one that finds nothing.
-          if (live) setEmpty(query.trim());
+          // Offline, or a refused read — NOT an empty directory. This set
+          // `empty`, so the panel drew "Nobody found for 'ada'": a claim
+          // about who exists, made when the only thing that happened was
+          // that we could not ask.
+          if (live) setFailed(true);
         } finally {
           if (live) setBusy(false);
         }
@@ -130,5 +160,5 @@ export function usePeopleFinder(query: string, exclude: readonly string[] = []):
     return () => { live = false; clearTimeout(t); };
   }, [key, canonical, skip, query]);
 
-  return { rows, busy, empty };
+  return { rows, busy, empty, failed };
 }

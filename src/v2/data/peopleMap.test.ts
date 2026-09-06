@@ -10,8 +10,7 @@ import {
   PEOPLE_LABELS,
   PEOPLE_MIN_SHARED,
   PEOPLE_QUESTIONS,
-  PEOPLE_W,
-  PEOPLE_H,
+  PEOPLE_C,
   type PeopleItem,
   type PeopleRow,
 } from "./peopleMap";
@@ -130,17 +129,34 @@ describe("foldPeople", () => {
     expect(by.get("b1")!.tie).toBeNull();
   });
 
-  it("keeps every dot inside the frame and labels at most the cap, uniquely", () => {
+  it("keeps every dot inside the RIM and labels at most the cap, uniquely", () => {
+    // the frame is a disc since 2026-09-02: a rectangular clamp would
+    // leave a pushed dot sitting in a corner the field does not have
     for (const p of [...field.placed, field.me]) {
-      expect(p.x).toBeGreaterThanOrEqual(14);
-      expect(p.x).toBeLessThanOrEqual(PEOPLE_W - 14);
-      expect(p.y).toBeGreaterThanOrEqual(16);
-      expect(p.y).toBeLessThanOrEqual(PEOPLE_H - 14);
+      expect(Math.hypot(p.x - PEOPLE_C, p.y - PEOPLE_C)).toBeLessThanOrEqual(PEOPLE_C - p.r - 12 + 1e-9);
     }
     const labeled = field.placed.filter((p) => p.lab);
     expect(labeled.length).toBeLessThanOrEqual(PEOPLE_LABELS);
     const names = labeled.map((p) => p.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("rails exactly the labelled people, nearest first (the field and the rail agree)", () => {
+    expect([...field.near.map((p) => p.uid)].sort())
+      .toEqual(field.placed.filter((p) => p.lab).map((p) => p.uid).sort());
+    const d = (p: { x: number; y: number }) => Math.hypot(p.x - field.me.x, p.y - field.me.y);
+    for (let i = 1; i < field.near.length; i++) {
+      expect(d(field.near[i - 1])).toBeLessThanOrEqual(d(field.near[i]));
+    }
+  });
+
+  it("sizes a dot in two steps, and draws nothing off a hue", () => {
+    // size is a RANK (more shared answers), not a measurement: a continuum
+    // read as jitter. Colour is the lens's job now, so the fold carries no
+    // per-person hue to be mistaken for one.
+    expect(new Set(field.placed.map((p) => p.r)).size).toBeLessThanOrEqual(2);
+    for (const p of field.placed) expect(p.many).toBe(p.r > 4);
+    expect(field.placed.every((p) => !("hue" in p))).toBe(true);
   });
 
   it("is deterministic — same inputs, same field, bit for bit", () => {
@@ -250,5 +266,58 @@ describe("peopleFetchSet", () => {
     expect(set[0]).toBe("strong");
     expect(set).not.toContain("open");
     expect(set).not.toContain("weak");
+  });
+});
+
+// ── "Most like you" ranked on pixels, not on likeness ──────────────
+//
+// The rail is labelled "Most like you", each chip prints "agrees X of Y",
+// and each chip is coloured by that number. It rendered `near` — this
+// fold's LABEL set, ordered by distance from your dot on the field.
+//
+// Position is components 0 and 1 of a unit-normalised EIGHT-dimensional
+// solve, so agreement living in the other six is discarded before the
+// distance is taken. The rail could therefore lead with the person who
+// agrees with you least, in the colour that says "mostly disagrees",
+// while the real match sat at the opposite rim.
+//
+// `alike` is the rail's own list now, ranked on the number the chip
+// already shows. `near` keeps the labels, where proximity is the right
+// answer because it is a layout problem.
+describe("the rail that says most like you", () => {
+  // Eleven questions whose loading sits on a latent dimension the field
+  // does NOT draw, and one on a dimension it does. Xena disagrees on the
+  // eleven and agrees on the drawn one; Yuri is the reverse.
+  const HIDDEN: PeopleItem[] = [
+    ...Array.from({ length: 11 }, (_, i) => item(`h${i}`, { L: [0, 0, 0.9] })),
+    item("shown", { L: [0.9, 0] }),
+  ];
+  const FETCH = HIDDEN.map((i) => i.qid);
+  const rowsHidden = (qid: string): PeopleRow[] | null =>
+    qid === "shown"
+      ? [row("xena", 1), row("yuri", 0)]
+      : [row("xena", 0), row("yuri", 1)];
+
+  it("ranks on agreement, not on where the dots landed", () => {
+    const f = foldPeople(HIDDEN, FETCH, rowsHidden);
+    const byName = Object.fromEntries(f.placed.map((p) => [p.name, p]));
+    // The premise, asserted rather than assumed: YURI agrees with one
+    // answer of twelve and XENA with eleven — and YURI is the NEARER dot,
+    // because the disagreement lives in dimensions the field does not
+    // draw. Measured on this fixture: YURI 16px from you, XENA 292px.
+    expect(byName.YURI.agree, "the fixture does not separate them").toBeLessThan(byName.XENA.agree);
+    const dist = (p: typeof byName.XENA) => Math.hypot(p.x - f.me.x, p.y - f.me.y);
+    expect(dist(byName.YURI), "the projection no longer hides the disagreement — pick a new fixture")
+      .toBeLessThan(dist(byName.XENA));
+    // …so the rail must lead with the one who agrees, not the one nearby.
+    expect(f.alike[0].name, "the rail crowned the person who agrees least").toBe("XENA");
+  });
+
+  it("leaves the label set ordered by distance, which is a layout question", () => {
+    // `near` is what places the names on the field without collisions, and
+    // proximity is the right answer there. Re-sorting it would have moved
+    // the labels rather than fixed the rail.
+    const f = foldPeople(HIDDEN, FETCH, rowsHidden);
+    expect(f.near[0]?.name, "the labels stopped being placed nearest-first").toBe("YURI");
   });
 });

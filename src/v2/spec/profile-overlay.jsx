@@ -18,23 +18,165 @@ import { passiveStanding } from './passive-meter.jsx';
 // were already here takes it DOWN instead, which is the trade the ratchet
 // exists to force.
 import LIVE from '../data/live.ts';
+// Same trade at D344: the account sheet below is this panel's ONLY
+// consumer, so its two `window.LivePrivacyPanel` sites became an import,
+// the publication came off the bridge with them (rule 5's honest shape —
+// single writer, checked per rule 6's warning), and this file's rule-4
+// count dropped 6 → 4. The import also moves the panel out of the entry
+// chunk: this file rides loadOverlays() (D223), so the panel now loads
+// with its one consumer instead of on first paint.
+import LivePrivacyPanel from '../ui/LivePrivacyPanel.tsx';
+// Android's back has to peel the account sheet before the shell peels the
+// profile overlay itself — same import, same reason as primitives' Sheet.
+import { pushBackLayer } from '../data/backLayers';
+// The identity row shows a linked account's handle (D344 amendment) —
+// the display form comes from the same pure module the account sheet's
+// panel uses, so "@olaf" is spelled one way everywhere.
+import { atHandle } from '../data/handles.ts';
+import { LensesPanel } from './lens-cards.jsx';
+import { GeneralPanel } from './profile-general.jsx';
 
-// The Roles tab (D204), behind a lazy boundary. THIS FILE IS EAGER — it is
-// imported by spec-index.js at line ~123 — and check:bundle's MAX_EAGER_KB
-// had ~8 KB of headroom when Roles shipped, so a static import here would
-// have put two roses, the archetype matcher and the panel itself on first
-// paint for a subtab most opens never reach.
+// The Roles tab (D204), behind a lazy boundary. When Roles shipped this
+// file was eager (spec-index imported it at top level) and MAX_EAGER_KB
+// had ~8 KB of headroom, so a static import would have put two roses, the
+// archetype matcher and the panel itself on first paint for a subtab most
+// opens never reach. D223 moved this file into loadOverlays(), which
+// retires the first-paint half of that argument — the lazy boundary still
+// earns its keep by keeping Roles' weight out of the overlay group's
+// chunk, for a subtab most profile opens still never reach.
 const RolesPanelLazy = React.lazy(() => import('../ui/LiveRolesPanel.tsx'));
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The sit-down test flow is gone (D121 — the four core instruments fill
 // from the feed); question banks live in test-definitions.js.
 
+// The account & privacy sheet (D344). The panel opened the General tab for
+// every profile visit; the owner moved it behind the gear in the corner, so
+// the tab opens on what the answers have built instead of on settings.
+// Stacked over the profile the way person-overlay's map is (zIndex 24),
+// plus the dialog semantics that pattern skips: useDialog for Escape and
+// the focus trap — its stopPropagation is what keeps Escape from closing
+// the profile underneath in the same press — and a back layer so Android's
+// back peels this sheet first (app-shell asks closeTopBackLayer before its
+// own levels).
+function AccountSheet({ onClose }) {
+  const dlg = useDialog(onClose, 'Account & privacy');
+  // The ref shape primitives' Sheet uses, for its reason: onClose is a
+  // fresh arrow every parent render, and re-registering on each would
+  // churn the back stack until its LIFO order meant nothing.
+  const closeRef = React.useRef(onClose);
+  React.useEffect(() => { closeRef.current = onClose; });
+  React.useEffect(() => pushBackLayer(() => closeRef.current()), []);
+  return (
+    <div className="overlay surface-tint" {...dlg} style={{ zIndex: 24, '--accent': 'var(--c-people)' }}>
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>✕</button>
+        <div className="h-title">Account &amp; <em>privacy</em></div>
+        <div style={{ width: 32, flexShrink: 0 }} />
+      </div>
+      <div className="app-body">
+        <LivePrivacyPanel />
+      </div>
+    </div>
+  );
+}
+
+// ── one tab per test — the unified "results profile" card ──
+//
+// WHAT USED TO BE HERE: a "Take this test →" button, shown whenever the
+// test had no stored result. D121 removed it along with the sit-down
+// flow behind it — the instruments fill from the feed and only from the
+// feed — and a tab whose whole content was a button to a screen that no
+// longer exists is worse than the empty one it was covering for.
+//
+// What stands in its place is the same page one step earlier: the
+// instrument's own progress, its axes, and which of them are still too
+// thin to read. Not a nudge — a reading of where the profile has got to,
+// which is the only honest thing to show before there is a type.
+//
+// AT MODULE SCOPE, NOT INSIDE ProfileOverlay (D364). This and the four
+// result panels below it were defined inside the overlay's render body
+// until 2026-09-05, which hands React a NEW component type on every
+// render of the overlay — and a new type is an unmount and a fresh mount
+// of everything under it, not an update. The overlay re-renders whenever
+// the shell does, and the shell re-renders on every store notify
+// (app-shell's `liveTick`). ResultProfileCard's mount effect calls
+// `LIVE.loadKindred()`, whose `finally` notifies. So on a live build:
+// mount → loadKindred → notify → shell → overlay → new type → remount →
+// mount effect → loadKindred… Each pass restarted every reveal animation
+// on the card (the petals' `roseGrow` and the rows' `rpv2-bar` both fill
+// `both`, so a restarted petal sits at scale 0.12 / opacity 0 — the rose
+// drew EMPTY while it shook), paced by the network while the twelve
+// voter lists were landing and then, once every list was cached and the
+// loader ran to its `finally` synchronously, as fast as React could
+// commit — the "vibrating faster and faster, then the app dies" the
+// owner reported from the Big 5 and Politics tabs. A component is
+// defined once; what varies per render is passed as props or written
+// inline as JSX.
+function TestProgress({ k }) {
+  const p = ownProgress(k);
+  if (!p || p.ready) return null;
+  // This card is the state BEFORE there is a type, so the flat category
+  // accent was the only colour it could wear — `(RP_TESTS[k]||{}).banner`,
+  // which is the same TEST_HUE value `col` falls back to. D230 gave the
+  // partial fold a colour of its own, so the card can wear where you
+  // actually stand: tapping a two-tone row in the profiles sheet through
+  // to here now lands on the same two tones instead of on the family hue.
+  const { col: hue, sp } = passiveStanding(k);
+  const pct = Math.round((p.answered / Math.max(1, p.total)) * 100);
+  return (
+    <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ height: 3, background: `color-mix(in oklch, ${hue} 14%, var(--surface-3))` }}>
+        {/* deep base with the runner-up's lighter tone laid on its right —
+            the progress pill's own construction (passive-meter.jsx), at
+            bar scale, so the two read as one thing */}
+        <div style={{ height: '100%', width: `${pct}%`, display: 'flex', background: sp ? sp.deep : hue }}>
+          {sp ? <span style={{ marginLeft: 'auto', width: ((1 - sp.ratio) * 100).toFixed(1) + '%', background: sp.lift }}></span> : null}
+        </div>
+      </div>
+      <div style={{ padding: '15px 18px 17px' }}>
+        <div className="kicker" style={{ color: hue }}>{(RP_TESTS[k] || {}).kicker || 'Filling in'}</div>
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', marginTop: 4, letterSpacing: '-0.01em' }}>
+          {p.answered} of {p.total} answered
+        </div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 7 }}>
+          {/* Says where the answers come from, because there is no longer
+              anywhere else they could. */}
+          Marked cards in the feed fill this in. There is no sitting down
+          for it — answer them when they come.
+        </div>
+        {/* The axes, and which are still a coin flip. An axis with one
+            answer behind it lands on an extreme more often than not, so
+            the card refuses a TYPE until every one of them has two —
+            and naming them is what makes the refusal legible instead of
+            looking like a stall. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 14 }}>
+          {p.dims.map((d) => (
+            <div key={d.dim} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ width: 96, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
+              <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
+                <span style={{ display: 'block', height: '100%', width: `${Math.round((d.n / Math.max(1, d.items)) * 100)}%`, background: hue, opacity: 0.75 }}></span>
+              </span>
+              <span style={{ width: 40, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{d.n}/{d.items}</span>
+            </div>
+          ))}
+        </div>
+        {!!p.thin.length && (
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
+            Still thin: {p.thin.join(', ')}. Your type appears once every
+            side of this has at least two answers behind it.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // `lensBoxed` left the signature with the v28 §10 teardown (this branch);
 // the Roles panel and the LIVE read arrived with D204 (main). The merge
 // keeps both changes.
 function ProfileOverlay({ onClose, me }) {
-  const L = window.LIVE || {};
+  const L = LIVE;
   const dims = [
     { label: 'Openness', v: me.personality.O },
     { label: 'Conscientiousness', v: me.personality.C },
@@ -62,6 +204,10 @@ function ProfileOverlay({ onClose, me }) {
   const validSub = (id) => SUBTABS.some(s => s.id === id) ? id : 'general';
   const [sub, setSubRaw] = React.useState(validSub(window.__profileSub));
   const setSub = (id) => { window.__profileSub = id; setSubRaw(id); };
+  // The gear's sheet (D344). Deliberately NOT remembered the way `sub` is:
+  // settings are an errand, and a profile that reopens onto them would be
+  // the old General tab wearing a worse door.
+  const [acct, setAcct] = React.useState(false);
   // Keep the active chip fully visible: seven chips are wider than the frame
   // (since D204's Roles), so the last two are off-rail until it scrolls. A
   // single smooth scrollTo on mount lost the race — the tab re-mount resets
@@ -96,106 +242,18 @@ function ProfileOverlay({ onClose, me }) {
   };
   const meta = labels[top.label];
 
-  // ── one tab per test — the unified "results profile" card ──
-  //
-  // WHAT USED TO BE HERE: a "Take this test →" button, shown whenever the
-  // test had no stored result. D121 removed it along with the sit-down
-  // flow behind it — the instruments fill from the feed and only from the
-  // feed — and a tab whose whole content was a button to a screen that no
-  // longer exists is worse than the empty one it was covering for.
-  //
-  // What stands in its place is the same page one step earlier: the
-  // instrument's own progress, its axes, and which of them are still too
-  // thin to read. Not a nudge — a reading of where the profile has got to,
-  // which is the only honest thing to show before there is a type.
-  const TestProgress = ({ k }) => {
-    const p = ownProgress(k);
-    if (!p || p.ready) return null;
-    // This card is the state BEFORE there is a type, so the flat category
-    // accent was the only colour it could wear — `(RP_TESTS[k]||{}).banner`,
-    // which is the same TEST_HUE value `col` falls back to. D230 gave the
-    // partial fold a colour of its own, so the card can wear where you
-    // actually stand: tapping a two-tone row in the profiles sheet through
-    // to here now lands on the same two tones instead of on the family hue.
-    const { col: hue, sp } = passiveStanding(k);
-    const pct = Math.round((p.answered / Math.max(1, p.total)) * 100);
-    return (
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
-        <div style={{ height: 3, background: `color-mix(in oklch, ${hue} 14%, var(--surface-3))` }}>
-          {/* deep base with the runner-up's lighter tone laid on its right —
-              the progress pill's own construction (passive-meter.jsx), at
-              bar scale, so the two read as one thing */}
-          <div style={{ height: '100%', width: `${pct}%`, display: 'flex', background: sp ? sp.deep : hue }}>
-            {sp ? <span style={{ marginLeft: 'auto', width: ((1 - sp.ratio) * 100).toFixed(1) + '%', background: sp.lift }}></span> : null}
-          </div>
-        </div>
-        <div style={{ padding: '15px 18px 17px' }}>
-          <div className="kicker" style={{ color: hue }}>{(RP_TESTS[k] || {}).kicker || 'Filling in'}</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', marginTop: 4, letterSpacing: '-0.01em' }}>
-            {p.answered} of {p.total} answered
-          </div>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 7 }}>
-            {/* Says where the answers come from, because there is no longer
-                anywhere else they could. */}
-            Marked cards in the feed fill this in. There is no sitting down
-            for it — answer them when they come.
-          </div>
-          {/* The axes, and which are still a coin flip. An axis with one
-              answer behind it lands on an extreme more often than not, so
-              the card refuses a TYPE until every one of them has two —
-              and naming them is what makes the refusal legible instead of
-              looking like a stall. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 14 }}>
-            {p.dims.map((d) => (
-              <div key={d.dim} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span style={{ width: 96, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
-                <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: '100%', width: `${Math.round((d.n / Math.max(1, d.items)) * 100)}%`, background: hue, opacity: 0.75 }}></span>
-                </span>
-                <span style={{ width: 40, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{d.n}/{d.items}</span>
-              </div>
-            ))}
-          </div>
-          {!!p.thin.length && (
-            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
-              Still thin: {p.thin.join(', ')}. Your type appears once every
-              side of this has at least two answers behind it.
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // CONVERTED off the shared-global bridge (D39, "convert on touch"):
-  // adding the fifth panel below would have taken this file's cross-module
-  // global count UP, which check:globals rule 4 refuses. ResultProfileCard
-  // is a named export of result-card.jsx, which spec-index.js imports
-  // eagerly and BEFORE this file, so the import is sound.
-  //
-  // Every fallback the five panels used to carry is gone with it, and that
-  // is the conversion rather than a tidy-up: each one guarded LOAD ORDER
-  // ("has result-card.jsx evaluated yet?"), and an imported binding cannot
-  // be unset. The AttachmentPanel chain even said so — "unreachable today
-  // … written defensively anyway, because load order in this layer is
-  // exactly what changes" — and a static import is what stops it changing.
-  // No data guard was removed: none of them guarded data. The card still
-  // returns null on its own for a test with no result or no RP_TESTS entry.
-  const Big5Panel = () => (
-    <ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} />
-  );
-
-  const PoliticsPanel = () => (
-    <ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} />
-  );
-
-  const ValuesPanel = () => (
-    <ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" />
-  );
-
-  const AttachmentPanel = () => (
-    <ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
-  );
+  // The four result cards are written inline in the tab body below, as
+  // JSX rather than as `const Big5Panel = () => <ResultProfileCard …/>`
+  // wrappers — see the note above TestProgress (D364) for what a wrapper
+  // defined here cost. ResultProfileCard itself is an import, CONVERTED
+  // off the shared-global bridge at D39 ("convert on touch"): it is a
+  // named export of result-card.jsx, which spec-index.js imports eagerly
+  // and BEFORE this file, so the import is sound, and every load-order
+  // fallback the panels used to carry ("has result-card.jsx evaluated
+  // yet?") went with the conversion — an imported binding cannot be
+  // unset. No data guard was removed: none of them guarded data. The
+  // card still returns null on its own for a test with no result or no
+  // RP_TESTS entry.
 
   const dlg = useDialog(onClose, 'Your profile');
   return (
@@ -203,7 +261,27 @@ function ProfileOverlay({ onClose, me }) {
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>
-        <div style={{ width: 32, flexShrink: 0 }} />
+        {/* the corner gear (D344) — the door to Account & privacy since it
+            left the General tab. Live only: the panel states facts about a
+            real account and renders nothing in demo, and a gear opening an
+            empty sheet is worse than no gear (D167's rule, one control
+            down). The spacer keeps the title centred when it is absent —
+            both are 32px, so the title does not shift between builds. */}
+        {L.enabled ? (
+          <button className="icon-btn" aria-label="Account & privacy" onClick={() => setAcct(true)}>
+            {/* the stroke idiom of the header's other icon buttons
+                (app-shell's ask/search): 24-grid, currentColor, 1.8.
+                The outline is Feather's `settings` cog verbatim — a
+                hand-simplified tooth ring was tried first and rendered
+                as a squiggle; screenshot-verified, don't re-shorten. */}
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        ) : (
+          <div style={{ width: 32, flexShrink: 0 }} />
+        )}
       </div>
       <div className="app-body" style={{ paddingTop: 0 }}>
         {/* compact identity row — the content is the star, not the header.
@@ -218,13 +296,29 @@ function ProfileOverlay({ onClose, me }) {
             const init = live
               ? ((nm.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
               : me.initials;
-            const sub = live ? 'anonymous session — link Google below to keep it' : (me.location + ' · ' + me.country);
+            // This line said "anonymous session — link Google below to
+            // keep it" for EVERY live session, hardcoded (D344 amendment).
+            // Wrong twice: live.ts's auth observer had this site on record
+            // ("hardcodes the same sentence with no check at all"), so a
+            // Google-linked account was told it was anonymous; and "below"
+            // pointed at the Sign-in row D211 removed. Now only what the
+            // session holds: the handle when linked (or nothing while none
+            // is claimed), and for an anonymous session the nudge WITHOUT
+            // the false location — D343 revived the Sign-in row (D219 took
+            // the D134 wall down, so anonymous sessions are real and each
+            // reinstall minted a duplicate account), and that row lives in
+            // the account sheet behind the gear above, one tap away, with
+            // the full stake in its sub-line. The control is D343's; this
+            // line only stops pointing at a place that is not there.
+            const sub = live
+              ? (L.linked ? (L.handle ? atHandle(L.handle) : '') : 'anonymous session — sign in to keep it')
+              : (me.location + ' · ' + me.country);
             return (
               <>
                 <Av init={init} hue={38} size={42} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>
+                  {sub ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div> : null}
                 </div>
               </>
             );
@@ -241,18 +335,23 @@ function ProfileOverlay({ onClose, me }) {
         </div>
 
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
-          {sub === 'general' && L.enabled && window.LivePrivacyPanel && <window.LivePrivacyPanel />}
-          {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
-          {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}
-          {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
-          {sub === 'values' && <><ValuesPanel /><TestProgress k="values" /></>}
-          {sub === 'attachment' && <><AttachmentPanel /><TestProgress k="attachment" /></>}
+          {/* LivePrivacyPanel opened this tab from D98 to D344; it lives
+              behind the header's gear now — see AccountSheet above. */}
+          {sub === 'general' && <GeneralPanel onGo={setSub} />}
+          {sub === 'big5' && <><ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} /><TestProgress k="big5" /></>}
+          {sub === 'politics' && <><ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} /><TestProgress k="political" /></>}
+          {sub === 'values' && <><ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" /><TestProgress k="values" /></>}
+          {sub === 'attachment' && <><ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" /><TestProgress k="attachment" /></>}
           {sub === 'roles' && (
             <React.Suspense fallback={null}><RolesPanelLazy /></React.Suspense>
           )}
-          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
+          {sub === 'lenses' && <LensesPanel />}
         </div>
       </div>
+
+      {/* the gear's sheet — a sibling of the header and body so its
+          inset:0 covers the whole profile, person-overlay's map shape */}
+      {acct ? <AccountSheet onClose={() => setAcct(false)} /> : null}
     </div>
   );
 }

@@ -68,6 +68,12 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import { bankArray } from "./v2content-lib.mjs";
+// The batch-mix ceiling, from the module whose comment promises it is
+// "spelled once so the allocation and the gate agree". It was not: the
+// allocation held the constant and the GATE — this file, both batch
+// checks — held the literal twice. lane-tiers is pure and import-safe by
+// its own header, so the promise is cheap to keep.
+import { BATCH_TOPIC_SHARE } from "./lane-tiers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -397,33 +403,40 @@ const ALLOW = new Map([]);
 // a silently truncated bank fetch) are invisible at the moment they land.
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
-// Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
-// that fetch, at which point the ceiling they watched stopped existing —
-// so they were re-pointed rather than deleted, because the NEXT silent
-// ceiling wants the same alarm at a different number. Re-pointed a THIRD
-// time at D312: the localStorage quota cliff they watched second is gone
-// too — the bank cache lives in IndexedDB rows now (data/cacheStore.ts),
-// where these sizes are nothing — exactly as BANK-DELIVERY §3's closing
-// rule said to do rather than deleting them.
+// Install headroom (D350 amendment, 2026-09-01). These guarded live.ts's
+// `limit(1500)` until D161 paged that fetch, then the localStorage quota
+// (gone at D312), then "every cached row read into memory each boot" —
+// counted as the SEEDED bank, which after D320/D321 is the wrong quantity:
+// the bank is not what a device holds. The owner's question that retired
+// the count: "does youtube have a limit to how many videos can exist or
+// twitter how many tweets?" A bank-size FAILURE was a question limit in
+// everything but name, and the constant is gone.
 //
-// What they watch now is what remains of BANK-DELIVERY §4 after the
-// paged read path (D320/D321): the INSTALL fetch no longer scales with
-// the bank — a fresh device takes the boot surfaces, the feed's core
-// and a page per topic — but a device's MEMORY still holds every row
-// its cache has accumulated, and hydrate reads all of them each boot
-// (the feed pool, the topic counts, search, the test joins walk that
-// memory). There is no hard cliff at these numbers, which is why they
-// kept their values: they are the size at which "hold everything a
-// device has ever met in memory" wants re-arguing on a low-end phone
-// rather than assumed, comfortably before it becomes an incident.
-// checkHeadroom() still derives bytes-per-document from the seed itself
-// so the message moves when the documents do.
+// What every fresh device IS handed whole — the boot surfaces (daily, test,
+// group, duo, pulse, call) plus the feed's core (D321: "core ships whole,
+// always") — is the install fetch, and that is what INSTALL_WARN watches:
+// a WARNING, never an error, at the size where a fresh install's first
+// fetch wants re-arguing (about 1 MB at the seed's measured bytes per
+// document; ~460 docs today, moving at the daily's promotion pace and the
+// core's curation, so years out). The paged surfaces — learn and the feed
+// tail — are not counted: a device fetches them a page at a time. What a
+// device ACCUMULATES over months of paging is a device-side design (an
+// eviction rule for unanswered pages — BANK-DELIVERY §4, D350 amendment),
+// not a number a content gate can hold, and never a reason to stop
+// writing questions. checkHeadroom() still derives bytes-per-document
+// from the seed itself so the message moves when the documents do.
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
 export const AUDIT_ONE_IN = 20;
-export const BANK_WARN = 6000;
-export const BANK_FAIL = 10000;
+export const INSTALL_WARN = 4000;
+export const INSTALL_SURFACES = new Set(["daily", "test", "group", "duo", "pulse", "call"]);
+
+/** How many seed rows a fresh device is handed whole: the boot surfaces
+ * plus the feed's core (D321). The paged surfaces are not in it. */
+export function installDocs(rows) {
+  return rows.filter((q) => INSTALL_SURFACES.has(q.surface) || (q.surface === "feed" && q.core === true)).length;
+}
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
 function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
@@ -447,7 +460,13 @@ function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
 export function loadCorpus() {
   const specSrc = readFileSync(join(root, "src", "v2", "spec", "daily-questions.js"), "utf8");
   const specQ = extractLiteral(specSrc, "const Q = [", "daily-questions.js");
-  const catMeta = extractLiteral(specSrc, "const CAT_META = {", "daily-questions.js", "{", "}");
+  // CAT_META moved to daily-cats.js when map-branches.js needed the
+  // taxonomy without the archive (the eager-content sweep). Read from
+  // there, not from `specSrc` — this is the ONLY site that parses it,
+  // checked rather than assumed, so D197's three-copies trap does not
+  // apply here.
+  const catSrc = readFileSync(join(root, "src", "v2", "spec", "daily-cats.js"), "utf8");
+  const catMeta = extractLiteral(catSrc, "export const CAT_META = {", "daily-cats.js", "{", "}");
   const baseM = specSrc.match(/const DQ_BASE = (\d+)/);
   if (!baseM) throw new Error("daily-questions.js: DQ_BASE not found");
   const dqBase = Number(baseM[1]);
@@ -886,6 +905,17 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       const num = (v) => typeof v === "number" && Number.isFinite(v);
       if (!num(q.lo) || !num(q.hi) || q.lo >= q.hi) {
         err("range", `dial needs numeric lo < hi (got lo ${JSON.stringify(q.lo)}, hi ${JSON.stringify(q.hi)})`);
+      } else if (q.active !== false && (q.hi - q.lo) / DIAL_BUCKETS < 1) {
+        // At least a whole unit per bucket (D358). `dialFmt` prints
+        // integers and the synthesized labels round their edges, so a
+        // 17–23 h dial's twelve buckets read "17–18 h", "18–18 h",
+        // "18–19 h" in the voters panel, and a 1–4 hrs dial has buckets no
+        // integer can sit in at all (the recorded limit in
+        // dial-bucket.test.jsx). Fourteen shipped like that before the
+        // rule existed; the fix is the UNIT (minutes, not hours), never a
+        // stretched end. Retired entries are exempt — they are the ones
+        // this rule retired, kept in the bank so the seed reads the flag.
+        err("step", `${q.hi - q.lo} ${q.unit || "units"} over ${DIAL_BUCKETS} buckets is under one unit per bucket — labels collapse ("18–18 h"); widen the span to at least ${DIAL_BUCKETS}, or change the unit (minutes, not hours)`);
       }
       if (texture) {
         if (!num(q.med) || (num(q.lo) && num(q.hi) && (q.med < q.lo || q.med > q.hi))) {
@@ -1156,7 +1186,7 @@ export function checkBatch(batch) {
     const types = {};
     for (const q of daily) types[q.type] = (types[q.type] || 0) + 1;
     const [topType, topCount] = Object.entries(types).sort((a, b) => b[1] - a[1])[0];
-    if (topCount > Math.ceil(daily.length * 0.75)) {
+    if (topCount > Math.ceil(daily.length * BATCH_TOPIC_SHARE)) {
       errs.push(`${topCount} of ${daily.length} daily questions are ${topType} — vary the forms (the scorecard's optionSlots say which earn their place)`);
     }
   }
@@ -1171,7 +1201,7 @@ export function checkBatch(batch) {
   // form rule is why `dial`, `field` and `path` are authorable at all, and
   // the topic rule is the budget's own instruction ("spreads across thin
   // topics rather than chunking into one", feed-budget.mjs) said at the one
-  // moment a run can still obey it. The 0.75 ceiling is shared with daily
+  // moment a run can still obey it. The ceiling is shared with daily
   // deliberately — a batch of eight may be six votes, which is honest,
   // and may not be seven.
   // The current-events lane is not the budgeted farm lane, and the two
@@ -1244,7 +1274,7 @@ export function checkBatch(batch) {
         errs.push(`a batch of ${feed.length} feed questions declares no ${label} — the gate cannot judge the spread`);
         return;
       }
-      if (top[1] > Math.ceil(feed.length * 0.75)) {
+      if (top[1] > Math.ceil(feed.length * BATCH_TOPIC_SHARE)) {
         errs.push(`${top[1]} of ${feed.length} feed questions are ${label} ${top[0]} — ${extra}`);
       }
     };
@@ -1436,7 +1466,7 @@ export function checkProvenance(corpus) {
 }
 
 // ── headroom tripwires ──
-export function checkHeadroom(corpus) {
+export function checkHeadroom(corpus, { contentSrc } = {}) {
   const errs = [];
   const warn = [];
   const maxDailyId = Math.max(...corpus.seed.map((q) => Number(q.id)));
@@ -1448,38 +1478,48 @@ export function checkHeadroom(corpus) {
     warn.push(`daily ids at ${maxDailyId} of 999 — an id-scheme decision is approaching`);
   }
 
-  const v2content = readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
-  const bankSize = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+  // `contentSrc` is for the case below that cannot otherwise be reached:
+  // a bank the parser refuses. Defaults to the real file.
+  const v2content = contentSrc ?? readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
   // Measured, not assumed: the same wire-size scan check-figures runs, so
   // the estimate moves when the documents do (adding `core` to 82 entries
   // moved it by ~1 KiB and check:figures caught that on COSTS.md).
-  const bankBytes = (() => {
-    try {
-      return JSON.stringify(bankArray(v2content)).length;
-    } catch {
-      // The fallback stays, and the comment it used to carry was too
-      // relaxed about it: this path reports an INVENTED wire size rather
-      // than failing, so a parser that quietly stopped working would move
-      // a documented figure with nothing to show for it. That is exactly
-      // what happened when V2_ADS arrived (D197) — the other two copies
-      // of this scan crashed and this one silently guessed. It survives
-      // because a scorecard is not worth crashing a gate over; the scan
-      // itself now lives in one place so it cannot half-break again.
-      return bankSize * 250;
-    }
-  })();
-  const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
-  if (bankSize >= BANK_FAIL) {
-    errs.push(
-      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — past the point where a device holding `
-      + "its whole cache in memory was last argued (BANK-DELIVERY §4). The install fetch is paged since "
-      + "D320/D321, but every cached row is still read into memory each boot; decide the in-memory design "
-      + "before promoting more, rather than after a low-end phone reports it.",
-    );
-  } else if (bankSize >= BANK_WARN) {
+  let rows = null;
+  try {
+    rows = bankArray(v2content);
+  } catch {
+    // The fallback stays, and the comment it used to carry was too
+    // relaxed about it: this path reports an INVENTED wire size rather
+    // than failing, so a parser that quietly stopped working would move
+    // a documented figure with nothing to show for it. That is exactly
+    // what happened when V2_ADS arrived (D197) — the other two copies
+    // of this scan crashed and this one silently guessed. It survives
+    // because a scorecard is not worth crashing a gate over; the scan
+    // itself now lives in one place so it cannot half-break again.
+    rows = null;
+  }
+  const bankSize = rows ? rows.length : (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+  const bankBytes = rows ? JSON.stringify(rows).length : bankSize * 250;
+  const mb = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
+  const install = rows ? installDocs(rows) : null;
+  // A PARSE FAILURE IS NOT A SMALL INSTALL. `install` was 0 on this path,
+  // so `0 >= INSTALL_WARN` was false and the one tripwire watching the
+  // first fetch could never fire when the parser broke — while `bankSize`
+  // above kept a regex fallback and carried on. That asymmetry is what
+  // the retired BANK_FAIL/BANK_WARN pair did NOT have: they counted
+  // `bankSize`, so they still fired through a parse failure. D197's shape,
+  // one function over.
+  if (install == null) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — the install fetch is paged (D320/D321), `
-      + "but a device still holds every cached row in memory; that design wants re-arguing before this doubles",
+      "the install-fetch count could not be computed — bankArray refused this bank, so the wire "
+      + "size above is a regex estimate and the INSTALL_WARN tripwire did not run. Fix the parser "
+      + "(scripts/v2content-lib.mjs); a tripwire that reads zero from a broken parse is worse than none",
+    );
+  } else if (install >= INSTALL_WARN) {
+    warn.push(
+      `a fresh install is handed ${install} docs whole ≈ ${mb(install)} MB (the boot surfaces plus the feed's core) — `
+      + "the first fetch wants re-arguing before this doubles (BANK-DELIVERY §4). The paged surfaces are not "
+      + "counted, and no bank size fails this gate (D350 amendment)",
     );
   }
   return { errs, warn };
@@ -1698,9 +1738,31 @@ if (invokedDirectly) {
     for (const w of warn) console.log(`  • ${label} ${id}: ${w}`);
   };
 
+  // The ARCHIVE (src/v2/spec/daily-questions.js) — the frozen prototype the
+  // live bank was promoted from. Its own header says the twins must not
+  // drift, and only prompts are pinned.
   corpus.specQ.forEach((q, i) => {
     const { errs, warn } = checkQuestion(q, "daily", corpus);
     report("daily", corpus.dailyIdOf(i), errs, warn);
+  });
+  // …AND THE BANK THAT ACTUALLY SHIPS, which this walk did not read.
+  //
+  // `content/daily-questions.json` is what the seed callable writes to
+  // Firestore and what 130 daily questions come off. It was loaded as
+  // `corpus.seed` and used only for provenance ids and the id headroom, so
+  // every tone and tag rule in this file ran over the archive and none of
+  // them over the live bank. Measured: the identical violation (a tone
+  // outside light/blend/deep, a tag over four words) fails in the archive
+  // and passes in the bank. `check:content` owns the structural half and
+  // has no tone or tag rule, so nothing else covered it either.
+  //
+  // The pick seed already gets this treatment one block down, with its
+  // reason written out — "a retyped prompt or a swapped domain here is the
+  // drift the script exists to make impossible". Daily is the same seed,
+  // one surface over.
+  corpus.seed.forEach((q) => {
+    const { errs, warn } = checkQuestion(q, "daily", corpus);
+    report("daily seed", q.id, errs, warn);
   });
   corpus.feed.questions.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus);
@@ -1777,8 +1839,15 @@ if (invokedDirectly) {
   }
   for (const w of head.warn) console.log(`  • ${w}`);
 
-  const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length
-    + corpus.pick.length + corpus.continuum.length + corpus.learn.cards.length;
+  // EVERY WALK ABOVE, and the line is only worth printing if it is all of
+  // them. `pickSeed` and `pulse` were validated and uncounted, so the run
+  // under-reported itself — which matters here more than it looks: this
+  // number is the one thing a reader has to tell "the gate checked
+  // everything" from "the gate checked what it happened to reach", and
+  // that distinction is the whole subject of the walk added above it.
+  const n = corpus.specQ.length + corpus.seed.length + corpus.feed.questions.length
+    + corpus.duel.length + corpus.pick.length + corpus.pickSeed.length
+    + corpus.continuum.length + corpus.learn.cards.length + corpus.pulse.length;
   console.log(`quality: ${n} questions checked${failed ? "" : " · all bounds hold"}`);
   process.exit(failed ? 1 : 0);
 }

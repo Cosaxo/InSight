@@ -50,6 +50,15 @@ jobs:
       # ENFORCE_APP_CHECK is false under FUNCTIONS_EMULATOR and that is what
       # check:fn-runtime sets.
       - run: npm run check:appcheck
+      # firestore.rules' account bar equals accountLevel.ts's REQUIRED_LEVEL.
+      # The two numbers must agree, cannot import each other, and disagree
+      # SILENTLY in both directions: rules ahead of the source means reports
+      # say accounts qualify while their votes are refused; source ahead of
+      # rules means the bar you believe you set is not the one enforced.
+      # Neither shows in any test — the rules tests mint their own claims,
+      # and the callable's tests never open firestore.rules. On the deploy
+      # path because it is a statement about what production refuses.
+      - run: npm run check:account-level
       # Every exported function must appear in firebase-deploy.yml's --only
       # list, or it builds, passes every test, goes green — and is never
       # deployed. This gate existed and ran nowhere for its whole life: it

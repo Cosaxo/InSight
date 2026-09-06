@@ -25,6 +25,8 @@ const purchases: Rec[] = [];
 const queries: Array<{ after: string | null }> = [];
 const aggs = new Map<string, Record<string, number>>();
 const deletedAds: string[] = [];
+/** Every v2_meta write the run made — the rate card republish (D371). */
+const published: Array<{ id: string; data: Record<string, unknown> }> = [];
 
 function snapOf(r: Rec) {
   return {
@@ -41,6 +43,7 @@ function snapOf(r: Rec) {
 
 function purchaseQuery() {
   let eq: unknown = null;
+  let untilFrom: string | null = null;
   let cap = Infinity;
   let after: string | null = null;
   const q = {
@@ -50,6 +53,10 @@ function purchaseQuery() {
     // test would still be green, which is the failure this whole file
     // exists to prevent one level up.
     where: (f: string, op: string, v: unknown) => {
+      // Two shapes reach this fake since D371: the closer's own
+      // `state == running` walk, and the pricing fold's `window.until >=`
+      // range at the end of the run. Anything else is the wrong field.
+      if (f === "window.until" && op === ">=") { untilFrom = String(v); return q; }
       expect([f, op]).toEqual(["state", "=="]);
       eq = v;
       return q;
@@ -62,6 +69,15 @@ function purchaseQuery() {
     limit: (n: number) => { cap = n; return q; },
     startAfter: (s: { id: string }) => { after = s.id; return q; },
     get: async () => {
+      if (untilFrom !== null) {
+        // The fold's read: every row whose window ended on or after the
+        // cutoff. Not counted in `queries` — those are the closer's pages.
+        const docs = purchases
+          .filter((r) => String((r.data.window as { until?: string })?.until ?? "") >= (untilFrom as string))
+          .slice(0, cap)
+          .map((r) => ({ ...snapOf(r), data: () => r.data }));
+        return { docs, empty: docs.length === 0, size: docs.length };
+      }
       queries.push({ after });
       // Evaluated live, like the real query: docs this run has already
       // closed have left the "running" set. Safe because the cursor only
@@ -93,6 +109,11 @@ const fakeDb = {
     if (name === "v2_ads") {
       return { doc: (id: string) => ({ delete: async () => { deletedAds.push(id); } }) };
     }
+    if (name === "v2_meta") {
+      // The nightly republish (D371) lands here; what was written is
+      // what the door will print tomorrow.
+      return { doc: (id: string) => ({ set: async (d: Record<string, unknown>) => { published.push({ id, data: d }); } }) };
+    }
     throw new Error(`unexpected collection ${name}`);
   },
 };
@@ -107,7 +128,10 @@ const stripeCalls = {
   created: [] as Array<{ intent: string; amount: number; key: string | undefined }>,
   listed: [] as string[],
 };
-const refundsByIntent = new Map<string, Array<{ id: string }>>();
+// `amount` in CENTS and `status`, because the closer now reads both: it
+// records what actually went back rather than what was owed, and a failed
+// or canceled refund is not money returned.
+const refundsByIntent = new Map<string, Array<{ id: string; amount: number; status?: string }>>();
 vi.mock("stripe", () => ({
   default: class {
     refunds = {
@@ -122,7 +146,7 @@ vi.mock("stripe", () => ({
         stripeCalls.created.push({
           intent: body.payment_intent, amount: body.amount, key: opts?.idempotencyKey,
         });
-        const made = { id: `re_${stripeCalls.created.length}` };
+        const made = { id: `re_${stripeCalls.created.length}`, amount: body.amount, status: "succeeded" };
         refundsByIntent.set(body.payment_intent, [...(refundsByIntent.get(body.payment_intent) ?? []), made]);
         return made;
       },
@@ -131,6 +155,9 @@ vi.mock("stripe", () => ({
 }));
 
 const { closePaidCampaignsV2, CLOSER_PAGE, CLOSER_MAX_PAGES } = await import("./paid");
+// The committed card the closer's fold reads its clamps from — the
+// expectations below are arithmetic over it, not today's numbers.
+const { PRICING_CARD } = await import("./pricing");
 
 const YESTERDAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const NEXT_YEAR = "2099-01-01";
@@ -162,6 +189,7 @@ beforeEach(() => {
   purchases.length = 0;
   queries.length = 0;
   deletedAds.length = 0;
+  published.length = 0;
   aggs.clear();
   stripeCalls.created.length = 0;
   stripeCalls.listed.length = 0;
@@ -204,13 +232,57 @@ describe("the closer never refunds the same campaign twice", () => {
     // The exact survivor of a crash between the transfer and the write:
     // the money is gone, the row still says running.
     process.env.STRIPE_SECRET_KEY = "sk_test_closer";
-    refundsByIntent.set("pi_p2", [{ id: "re_from_the_dead_run" }]);
+    refundsByIntent.set("pi_p2", [{ id: "re_from_the_dead_run", amount: 10000, status: "succeeded" }]);
     purchases.push(owed("p2"));
     await runCloser();
     expect(stripeCalls.created, "the buyer was refunded twice").toHaveLength(0);
     expect(stateOf("p2")).toBe("closed");
     const closed = purchases.find((r) => r.id === "p2")!.data.closed as { refundId?: string };
     expect(closed.refundId, "the refund that really happened was not recorded").toBe("re_from_the_dead_run");
+  });
+
+  it("records what was SENT, not what was owed, when a hand refund was partial", async () => {
+    // The record is what a dispute is read against. This took the FIRST
+    // prior refund and then wrote `refundEur` — the amount owed — into
+    // `closed`, whatever had actually gone back. An operator issuing a
+    // partial refund in the Stripe dashboard therefore closed the campaign
+    // with the remainder neither paid nor flagged, and the contract record
+    // saying it had been settled in full.
+    process.env.STRIPE_SECRET_KEY = "sk_test_closer";
+    refundsByIntent.set("pi_p3", [{ id: "re_hand_partial", amount: 4000, status: "succeeded" }]);
+    purchases.push(owed("p3"));
+    await runCloser();
+    expect(stripeCalls.created, "a partial prior refund triggered a second transfer").toHaveLength(0);
+    const closed = purchases.find((r) => r.id === "p3")!.data.closed as
+      { refundEur: number; refundedEur: number };
+    expect(closed.refundEur, "what was owed stopped being recorded").toBe(100);
+    expect(closed.refundedEur, "the record claims the full amount went back").toBe(40);
+  });
+
+  it("does not count a failed refund as money returned", async () => {
+    // The control on the filter. Without it a refund Stripe rejected would
+    // read as a prior payment, and the closer would close the campaign
+    // having sent nothing at all.
+    process.env.STRIPE_SECRET_KEY = "sk_test_closer";
+    refundsByIntent.set("pi_p4", [{ id: "re_failed", amount: 10000, status: "failed" }]);
+    purchases.push(owed("p4"));
+    await runCloser();
+    expect(stripeCalls.created, "a failed refund was read as money already returned").toHaveLength(1);
+    const closed = purchases.find((r) => r.id === "p4")!.data.closed as { refundedEur: number };
+    expect(closed.refundedEur).toBe(100);
+  });
+
+  it("adds up several prior refunds rather than reading the first", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_closer";
+    refundsByIntent.set("pi_p5", [
+      { id: "re_a", amount: 3000, status: "succeeded" },
+      { id: "re_b", amount: 7000, status: "succeeded" },
+    ]);
+    purchases.push(owed("p5"));
+    await runCloser();
+    expect(stripeCalls.created).toHaveLength(0);
+    const closed = purchases.find((r) => r.id === "p5")!.data.closed as { refundedEur: number };
+    expect(closed.refundedEur, "only the first of two refunds was counted").toBe(100);
   });
 });
 
@@ -278,5 +350,51 @@ describe("the campaign closer walks past its first page", () => {
     await runCloser();
     expect(queries).toHaveLength(1);
     expect(purchases.every((r) => r.data.state === "closed")).toBe(true);
+  });
+});
+
+describe("the closer republishes the rate card (D371)", () => {
+  // The demand half of the card used to move only when an operator ran
+  // scripts/build-pricing.mjs and committed the result — which, once
+  // D313 automated the sale, was never. The nightly run is where a window
+  // that ended tonight leaves the index and the booked strip rolls a day,
+  // so it folds the ledger at the end of every walk, sale or no sale.
+  it("publishes v2_meta/pricing at the end of every run, even with nothing to close", async () => {
+    await runCloser();
+    expect(published.map((p) => p.id)).toEqual(["pricing"]);
+    const card = published[0].data as { generated: string; cohorts: Record<string, { idx: number; booked: number[] }> };
+    expect(card.generated).toBe(new Date().toISOString().slice(0, 10));
+    for (const scope of ["city", "country", "world"]) {
+      expect(card.cohorts[scope].idx).toBe(PRICING_CARD.floorX);
+      expect(card.cohorts[scope].booked).toHaveLength(14);
+    }
+  });
+
+  it("folds what it just closed — the campaign leaves the rotation and becomes an estimate's basis", async () => {
+    const start = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
+    purchases.push({
+      id: "p_city", data: {
+        state: "running", kind: "question", scope: "city", qid: "q_p_city",
+        window: { start, until: YESTERDAY },
+        budget: { cap: 100, capEur: 100, ratePerAnswer: 1 },
+      },
+    });
+    aggs.set("q_p_city", { "0": 30, "1": 20 });
+    await runCloser();
+    expect(stateOf("p_city")).toBe("closed");
+    const card = published.at(-1)!.data as {
+      cohorts: Record<string, { idx: number; crowd: number[] }>;
+      estimates: Record<string, { perDay: number; campaigns: number; days: number }>;
+    };
+    // Closed tonight, so it is in nobody's rotation tomorrow: the index
+    // reads crowding ahead (D373), and this scope has none left.
+    const { floorX } = PRICING_CARD;
+    expect(card.cohorts.city.idx).toBe(floorX);
+    expect(card.cohorts.city.crowd).toEqual(Array(14).fill(0));
+    expect(card.cohorts.world.idx).toBe(floorX);
+    // …and the campaign it closed tonight is already an estimate's basis,
+    // off the answer total the closer itself wrote: 50 answers over the
+    // 28 inclusive days of the window (today−28 through yesterday).
+    expect(card.estimates.city).toEqual({ perDay: Math.round(50 / 28), campaigns: 1, days: 28 });
   });
 });

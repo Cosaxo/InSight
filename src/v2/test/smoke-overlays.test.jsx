@@ -79,46 +79,11 @@ describe("the overlays with no button — opened through the nav registry", () =
     }
   });
 
-  it("opens the ask-a-question door", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openSuggestions");
-    // "ask a question" since D288 §1 retired the community board — the
-    // door is the paid path alone, and the title says what the room is.
-    expectOpened(/ask a\s*question/i, "suggest overlay");
-    expectNoBoundary("suggest overlay");
-  });
-
-  // The door's honesty arithmetic (D288 §3, D167): everything it prints
-  // comes from the COMMITTED content/pricing.json, and the committed card
-  // is the empty-ledger fold — every idx at floor, every day open, no
-  // completed campaign. So the board must say "tomorrow" three times and
-  // never the design's mocked demand, and the composer must state the
-  // no-forecast line and a contract sheet without the estimate clause.
-  // This is the only test that executes the composer path at all.
-  it("the composer prints the committed card and withholds every forecast", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openSuggestions");
-    expect(screen.getAllByText(/next open tomorrow/i)).toHaveLength(3);
-    expect(document.body.textContent).not.toMatch(/contested|12 Sep/);
-    // into the composer — the accessible name needs the "+", because the
-    // header's compose icon answers to the bare phrase too
-    fireEvent.click(screen.getByRole("button", { name: /^\+ Ask a question$/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Sunrise or sunset/i), { target: { value: "Ferry or bridge?" } });
-    fireEvent.change(screen.getByPlaceholderText("Option 1"), { target: { value: "Ferry" } });
-    fireEvent.change(screen.getByPlaceholderText("Option 2"), { target: { value: "Bridge" } });
-    expect(screen.getByText(/No completed campaign here yet — no forecast/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
-    // the contract sheet: rate at the floor index, the functional channel
-    // (D313 retired "arranged directly" the day the loop stopped being a
-    // human), and no make-good clause — the refund is the promise the
-    // closer actually keeps, and the old free-extension line must stay out
-    expect(screen.getByText(/per answer · ×0\.9 · locked at approval/)).toBeTruthy();
-    expect(screen.getByText(/Checked automatically before anything is charged\./)).toBeTruthy();
-    expect(screen.getByText(/refunds automatically at close/)).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/Arranged directly|no self-serve yet/);
-    expect(document.body.textContent).not.toMatch(/under 80% of the estimate|extends free/);
-    expectNoBoundary("the composer and its contract sheet");
-  });
+  // "opens the ask-a-question door" and the composer's committed-card case
+  // stood here until D368. Shape A took the purchase funnel out of the
+  // binary, so there is no door to open and no composer to print a card:
+  // what replaces them is smoke-live's inverted pair, which asserts that
+  // NO ask-a-question control exists anywhere in the app.
 
   it("opens a person's profile", async () => {
     const expectNoBoundary = mountApp();
@@ -206,7 +171,6 @@ describe("the overlays with no button — opened through the nav registry", () =
 
   describe("a failed overlay chunk degrades rather than crashing", () => {
     const GUARDED = [
-      ["SuggestOverlay", "openSuggestions", []],
       ["LogicOverlay", "openLogicTest", []],
       ["PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
       ["CityOverlay", "openCity", () => [(IS_DATA.cities || [])[0]?.name]],
@@ -287,5 +251,24 @@ describe("the retired Thinking test is gone from every surface", () => {
       "attachment",
     ]);
     expectNoBoundary("profile with the four surviving tests");
+  });
+});
+
+// D344 put Account & privacy behind a gear in the profile's corner — and
+// the gear is live-only, because the panel it opens states facts about a
+// real account and renders nothing in demo. A gear whose sheet can only
+// ever open empty is D167's rule one control down, so the button itself
+// must be absent, not just inert. The live half — the gear exists and its
+// sheet holds the panel — is in smoke-live; what a demo mount can prove
+// is the absence.
+describe("the profile's account gear (D344)", () => {
+  it("is not offered in a demo build", async () => {
+    const expectNoBoundary = mountApp();
+    await openHeaderOverlay("profile");
+    expect(
+      screen.queryByRole("button", { name: "Account & privacy" }),
+      "a demo profile offers the gear, whose sheet can only open empty",
+    ).toBeNull();
+    expectNoBoundary("profile without the account gear");
   });
 });

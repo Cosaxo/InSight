@@ -13,20 +13,26 @@ import {
   CADENCE_MIN_N,
   CLUSTER_MIN,
   CLUSTER_WINDOW_MS,
+  PULSE_BANK_SIZE,
+  VOLUME_CEILING,
+  WINDOW_MAX_DAYS,
+  bindCoverage,
   birthClusters,
   burstSignal,
   cadenceSignal,
   emptyFold,
   foldInto,
+  scanLedgerWindow,
   foldWindow,
+  volumeFlagged,
   isAggregateSurface,
-  PULSE_BANK_SIZE,
-  VOLUME_CEILING,
-  WINDOW_MAX_DAYS,
   mergeDays,
+  pct,
   pruneDays,
+  refusedAt,
   type DayCounts,
   type LedgerRow,
+  foldAuthPage,
 } from "./velocity";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKeyOf } from "./pure";
@@ -74,6 +80,63 @@ describe("the impossible-volume ceiling", () => {
     // The shape of the mistake, stated so a re-derivation from any
     // longer-lived constant fails here rather than in production.
     expect(VOLUME_CEILING).toBeLessThan(AGG_BANK_SIZE + PULSE_BANK_SIZE * 90);
+  });
+
+  it("counts CREATES, so an honest reviser is not flagged", () => {
+    // D86 made an optionIdx edit write a SECOND ledger row, which broke
+    // the invariant this ceiling rests on ("one entry per question, ever")
+    // and left the bound sitting almost exactly at the honest maximum. A
+    // heavy user who also revised answers inside the window crossed it —
+    // a false WARN on the person using the app most.
+    //
+    // Every row still feeds cadence: an edit is an action, and an
+    // edit-spam script's rhythm shows there.
+    const rows: LedgerRow[] = [];
+    for (let i = 0; i < VOLUME_CEILING; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 1_000 + i });
+    }
+    // …and then revises a hundred of them.
+    for (let i = 0; i < 100; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 900_000 + i, isEdit: true });
+    }
+    const fold = foldWindow(rows);
+    expect(fold.perUid.get("u_heavy")!.length,
+      "cadence lost the edits — a script's rhythm hides in them").toBe(VOLUME_CEILING + 100);
+    expect(fold.createsPerUid.get("u_heavy"),
+      "edits counted toward a ceiling that is about creates").toBe(VOLUME_CEILING);
+  });
+
+  it("flags on creates, and only past the line", () => {
+    // The DECISION, not just the counting. Both cases here proved the fold
+    // and nothing proved what the number was used for — the comparison
+    // lived inline in the scheduled handler, whose body no test reaches,
+    // so either half of the D86 edit fix could be reverted with all 550
+    // tests green.
+    const rows: LedgerRow[] = [];
+    for (let i = 0; i < VOLUME_CEILING; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 1_000 + i });
+    }
+    for (let i = 0; i < 200; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 900_000 + i, isEdit: true });
+    }
+    const heavy = foldWindow(rows);
+    expect(volumeFlagged(heavy, "u_heavy"),
+      "an honest reviser at the ceiling was flagged").toBe(false);
+    expect(volumeFlagged(heavy, "u_nobody"), "an unknown uid was flagged").toBe(false);
+
+    rows.push({ uid: "u_heavy", qid: "q_extra", atMs: 950_000 });
+    expect(volumeFlagged(foldWindow(rows), "u_heavy"),
+      "one create past the line was not flagged").toBe(true);
+  });
+
+  it("still counts a create past the ceiling", () => {
+    // The control: excluding edits must not exclude everything. One create
+    // over the line is over the line.
+    const rows: LedgerRow[] = [];
+    for (let i = 0; i <= VOLUME_CEILING; i++) {
+      rows.push({ uid: "u_forged", qid: `q${i}`, atMs: 1_000 + i });
+    }
+    expect(foldWindow(rows).createsPerUid.get("u_forged")).toBe(VOLUME_CEILING + 1);
   });
 });
 
@@ -317,5 +380,231 @@ describe("window fold and state", () => {
     expect(Object.keys(pruned)).toHaveLength(7);
     expect(Object.keys(pruned).sort()[0]).toBe("2026-08-06");
     expect(pruned["2026-08-12"]).toEqual({ q: 12 });
+  });
+});
+
+// Bind coverage (D342, per-level since D343) — the number D37's two
+// thresholds cannot see.
+//
+// D37 gates the enforcement flip on rates read from activateDeviceV2's own
+// logs. Both measure the ENDPOINT, so an account that never called it —
+// old build, missing bridge, a boot that never reached the call — is
+// invisible to both while still voting. This measures the voting
+// population instead, which is the one the flip actually refuses.
+describe("bindCoverage", () => {
+  const fold = (m: Record<string, number[]>) => new Map(Object.entries(m));
+  const lv = (m: Record<string, number>) => new Map(Object.entries(m));
+
+  it("counts voters and their answers separately, because they diverge", () => {
+    // One bound account answering thirty times against thirty unbound
+    // answering once each is 3% of voters and 50% of answers. Reporting
+    // only the voter ratio calls that window catastrophic; only the answer
+    // ratio calls it fine. The flip refuses ANSWERS, so both are logged.
+    const perUid = fold({
+      heavy: Array(30).fill(0),
+      ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`u${i}`, [0]])),
+    });
+    const cov = bindCoverage(perUid, lv({ heavy: 1 }));
+    expect(cov.voters).toBe(31);
+    expect(cov.answers).toBe(60);
+    expect(cov.byLevel.get(1)).toEqual({ voters: 1, answers: 30 });
+    expect(cov.byLevel.get(0)).toEqual({ voters: 30, answers: 30 });
+    expect(pct(refusedAt(cov, 1).answers, cov.answers)).toBe(50);
+  });
+
+  it("treats an unknown uid as level 0 — the honest direction", () => {
+    // Erased accounts (D28's vote-then-erase residual) never come back from
+    // getUsers. An answer that cannot be shown to qualify has not been shown
+    // to qualify; the other direction overstates coverage on exactly the day
+    // it is trusted.
+    const cov = bindCoverage(fold({ a: [1], gone: [1, 2] }), lv({ a: 1 }));
+    expect(cov.byLevel.get(0)).toEqual({ voters: 1, answers: 2 });
+    expect(refusedAt(cov, 1)).toEqual({ voters: 1, answers: 2 });
+  });
+
+  it("prices raising the bar, which is the whole reason levels exist", () => {
+    // Three tiers in one window. Raising the bar from 1 to 2 is free of
+    // nothing: it newly refuses every level-1 account, and this is the
+    // number to read BEFORE editing REQUIRED_LEVEL.
+    const cov = bindCoverage(
+      fold({ anon: [1, 2], dev: [1, 2, 3], linked: [1] }),
+      lv({ dev: 1, linked: 2 }),
+    );
+    expect(refusedAt(cov, 1)).toEqual({ voters: 1, answers: 2 });
+    expect(refusedAt(cov, 2)).toEqual({ voters: 2, answers: 5 });
+    // A bar of 0 refuses nobody — every account is at least 0.
+    expect(refusedAt(cov, 0)).toEqual({ voters: 0, answers: 0 });
+  });
+
+  it("counts a level ABOVE the bar as qualifying", () => {
+    // `>=` in the rules, so this must agree: a level-2 account must not be
+    // reported as refused by a bar of 1. With `==` semantics anywhere in
+    // this chain, the strictest accounts are the ones locked out.
+    const cov = bindCoverage(fold({ linked: [1, 2] }), lv({ linked: 2 }));
+    expect(refusedAt(cov, 1)).toEqual({ voters: 0, answers: 0 });
+  });
+
+  it("reports an empty window as zero rather than NaN", () => {
+    // A quiet day must not log "NaN% would be refused" — the flip decision
+    // is read off this line, and NaN reads as broken instrumentation
+    // exactly when the honest answer is "nothing happened".
+    const cov = bindCoverage(new Map(), new Map());
+    expect(cov).toEqual({ voters: 0, answers: 0, byLevel: new Map() });
+    expect(pct(refusedAt(cov, 1).answers, cov.answers)).toBe(0);
+    expect(Number.isNaN(pct(0, 0))).toBe(false);
+  });
+
+  it("rounds to one decimal, so a third of a percent does not read as zero", () => {
+    expect(pct(1, 3)).toBe(33.3);
+    expect(pct(1, 1000)).toBe(0.1);
+    // Below a tenth of a percent it does read as zero, accepted: the flip
+    // decision does not turn on the fourth significant figure.
+    expect(pct(1, 100000)).toBe(0);
+  });
+});
+
+// ── the window scan, run ────────────────────────────────────────────
+//
+// Everything above tests the pure fold and the pure signals, thoroughly.
+// What none of it reaches is the READ that feeds them: the whole
+// `ledgerVelocityScan` body is unreachable from any test, so its paging
+// loop could be broken with every suite green.
+//
+// Measured before `scanLedgerWindow` was extracted: widening
+// `page.size < PAGE` to `<=` makes a full first page end the read, and all
+// 607 functions tests stayed green. That turns each of D28's four signals
+// — impossible volume, scripted cadence, birth clusters, per-question
+// bursts — into a reading of an arbitrary 5,000-row prefix, while the
+// heartbeat goes on logging a confident entry count. It is also the source
+// of the coverage line the owner is told to read before moving the account
+// bar.
+//
+// The fake is `ledger.test.ts`'s and `engagement.test.ts`'s: a document
+// carries ONLY the projected fields, which is what makes a field left out
+// of the `select` undefined at every reader.
+describe("scanLedgerWindow, run", () => {
+  type Doc = { get: (f: string) => unknown };
+  function fakeDb(rows: Record<string, unknown>[], pageSize: number) {
+    const asked: { limit: number; projection: string[] } = { limit: 0, projection: [] };
+    let from = 0;
+    const docOf = (r: Record<string, unknown>): Doc => ({
+      get: (f: string) => (asked.projection.includes(f) ? r[f] : undefined),
+    });
+    const query = {
+      where: () => query,
+      orderBy: () => query,
+      select: (...f: string[]) => { asked.projection = f; return query; },
+      limit: (n: number) => { asked.limit = n; return query; },
+      startAfter: (d: Doc) => { from = rows.findIndex((r) => r.uid === d.get("uid")) + 1; return query; },
+      async get() {
+        const slice = rows.slice(from, from + pageSize);
+        return { size: slice.length, docs: slice.map(docOf) };
+      },
+    };
+    return {
+      db: { collection: () => query } as unknown as Parameters<typeof scanLedgerWindow>[0],
+      asked,
+    };
+  }
+  const ts = (ms: number) => ({ toMillis: () => ms });
+  const t0 = Date.parse("2026-09-03T10:00:00Z");
+
+  it("keeps reading past a full page", async () => {
+    // The page size is a module constant, so a full page has to be a real
+    // one: 5,000 rows and then 3. A loop that ends on a full page folds
+    // 5,000 and reports a confident number for the day.
+    const PAGE = 5000;
+    const rows = Array.from({ length: PAGE + 3 }, (_, i) => ({
+      uid: `u${i}`, qid: "q", at: ts(t0 + i),
+    }));
+    const { fold } = await scanLedgerWindow(fakeDb(rows, PAGE).db, t0 - 1);
+    expect(fold.entries, "the window was truncated to one page — every signal reads a prefix")
+      .toBe(PAGE + 3);
+  });
+
+  it("counts an edit apart from a first answer, which is what the ceiling is about", async () => {
+    // `fromIdx` rides the projection because an edit's row carries it and
+    // nothing else does. Drop it and every edit reads as a create, which
+    // is the volume ceiling's whole subject.
+    const { db } = fakeDb([
+      { uid: "u1", qid: "q1", at: ts(t0) },
+      { uid: "u1", qid: "q1", at: ts(t0 + 1000), fromIdx: 0 },
+    ], 5000);
+    const { fold } = await scanLedgerWindow(db, t0 - 1);
+    expect(fold.entries).toBe(2);
+    expect(fold.createsPerUid.get("u1"), "an edit was counted as a first answer").toBe(1);
+  });
+
+  it("skips a row with no uid, and still advances the high-water mark", async () => {
+    // Entries without a uid predate D28's attribution field. They must not
+    // fold, and they must not stall the cursor either.
+    const { db } = fakeDb([
+      { uid: "u1", qid: "q1", at: ts(t0) },
+      { qid: "q2", at: ts(t0 + 5000) },
+    ], 5000);
+    const { fold, maxAt } = await scanLedgerWindow(db, t0 - 1);
+    expect(fold.entries, "an unattributed row was folded").toBe(1);
+    expect(maxAt, "the high-water mark is not the newest row this read saw").toBe(t0);
+  });
+
+  it("asks for the four fields the fold needs, and a page worth a round trip", async () => {
+    const { db, asked } = fakeDb([], 5000);
+    await scanLedgerWindow(db, t0);
+    expect(asked.projection.sort(), "the projection dropped a field the fold reads")
+      .toEqual(["at", "fromIdx", "qid", "uid"]);
+    expect(asked.limit,
+      "a page this small makes thousands of round trips over one window").toBeGreaterThanOrEqual(500);
+  });
+});
+
+describe("foldAuthPage — what the coverage number is allowed to count", () => {
+  const rec = (uid: string, db: unknown, creationTime = "2026-09-01T00:00:00Z") =>
+    ({ uid, metadata: { creationTime }, customClaims: db === undefined ? null : { db } });
+
+  it("counts a real integer level and nothing that merely looks like one", () => {
+    // The comment this loop carries names the cost exactly: `Number(true)`
+    // is 1, so a coerced claim would count as a qualifying account on the
+    // day the coverage number is trusted — and that number is D37's flip
+    // decision, what share of real votes enforcement would refuse.
+    // firestore.rules is the other half: `get("db", 0) >= n` errors on a
+    // string or a boolean and denies, so a coerced claim here would count
+    // an account the rules refuse.
+    const created: { uid: string; createdMs: number }[] = [];
+    const levels = new Map<string, number>();
+    foldAuthPage([
+      rec("real", 1),
+      rec("bool", true),
+      rec("str", "1"),
+      rec("frac", 1.5),
+      rec("zero", 0),
+      rec("neg", -1),
+      rec("none", undefined),
+    ], created, levels);
+    expect([...levels.keys()]).toEqual(["real"]);
+    expect(levels.get("real")).toBe(1);
+  });
+
+  it("keeps a level above the ladder — that is a newer deploy, not a bad claim", () => {
+    const levels = new Map<string, number>();
+    foldAuthPage([rec("ahead", 99)], [], levels);
+    expect(levels.get("ahead")).toBe(99);
+  });
+
+  it("drops an unparseable creation time instead of seeding NaN into the clusters", () => {
+    // A NaN in `created` makes every span involving it NaN, so the birth
+    // clusters this feeds go silently unreportable rather than wrong.
+    const created: { uid: string; createdMs: number }[] = [];
+    foldAuthPage([rec("ok", 1), rec("bad", 1, "not a date")], created, new Map());
+    expect(created.map((c) => c.uid)).toEqual(["ok"]);
+    expect(created.every((c) => Number.isFinite(c.createdMs))).toBe(true);
+  });
+
+  it("appends across pages rather than replacing — the loop calls it per 100", () => {
+    const created: { uid: string; createdMs: number }[] = [];
+    const levels = new Map<string, number>();
+    foldAuthPage([rec("a", 1)], created, levels);
+    foldAuthPage([rec("b", 2)], created, levels);
+    expect(created.map((c) => c.uid)).toEqual(["a", "b"]);
+    expect([...levels.keys()]).toEqual(["a", "b"]);
   });
 });

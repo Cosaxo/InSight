@@ -85,7 +85,7 @@ vi.mock("firebase/firestore", () => ({
   documentId: () => {}, getDoc: () => {}, getDocs: () => {}, limit: () => {},
   onSnapshot: () => {}, orderBy: () => {}, query: () => {}, startAfter: () => {},
   serverTimestamp: () => {}, setDoc: () => {}, terminate: () => {},
-  Timestamp: {}, updateDoc: () => {}, where: () => {},
+  Timestamp: {}, updateDoc: () => {}, waitForPendingWrites: () => {}, where: () => {},
 }));
 
 vi.mock("firebase/functions", () => ({

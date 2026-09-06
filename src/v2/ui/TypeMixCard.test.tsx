@@ -28,6 +28,9 @@ vi.mock("../data/live", () => ({
     anchors: () => ({ city: "Oslo, NO", country: "NO" }),
     kindredPeople: () => PEOPLE,
     myTestResults: () => ({}),
+    // A getter for the same reason `budgetPaused` is one — the loading
+    // case flips it after the factory has run.
+    kindredLoading: () => LOADING,
     // A getter so the D332 case can flip it after the factory has run —
     // the closure reads the module-level flag at render time, the PEOPLE
     // pattern one line up.
@@ -49,9 +52,11 @@ const BIG5 = { O: 72, C: 55, E: 15, A: 58, N: 50 };
 const POL = { econ: 30, auth: 40, foreign: 60, env: 70, tech: 55, estab: 45 };
 let PEOPLE: ReturnType<typeof person>[] = [];
 let PAUSED = false;
+let LOADING = false;
 
 beforeEach(() => {
   PAUSED = false;
+  LOADING = false;
   PEOPLE = [
     ...Array.from({ length: 6 }, (_, i) => person(`b${i}`, { big5: BIG5 })),
     person("p0", { big5: BIG5, political: POL }),
@@ -144,5 +149,63 @@ describe("what each instrument is allowed to say", () => {
     render(<TypeMixCard scope="city" />);
     expect(screen.getByText("Paused for now")).toBeTruthy();
     expect(screen.queryByText(/who-voted sheet and this fills in/i)).toBeNull();
+  });
+
+  it("…and drops it while the roster is still being read", () => {
+    // THE NORMAL FIRST FRAME OF EVERY VISIT. The People lens kicks
+    // `loadKindred()` on mount and this card renders inside it, so for
+    // the whole round trip the sample is empty — and the card used to
+    // tell the reader to go open a who-voted sheet, an instruction for a
+    // thing already happening, printed directly under a Kindred card
+    // correctly saying "Matching…".
+    //
+    // Three states, and D332 gave this branch copy for two of them.
+    PEOPLE = [];
+    LOADING = true;
+    render(<TypeMixCard scope="city" />);
+    expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+    expect(screen.queryByText(/who-voted sheet and this fills in/i)).toBeNull();
+  });
+
+  it("does not state a partial sample as a finished one", () => {
+    // THE ARM `241ed9d0` LEFT BEHIND. It gave the empty-sample branch its
+    // three states and stopped one line short: with people already read
+    // and lists still on the wire, the card stated "8 sampled here, none
+    // typed on this one yet" — a settled sentence about a population
+    // still arriving. The loader walks twelve voter lists sequentially
+    // and each landing list notifies, so this frame is most of a visit,
+    // not an edge of one.
+    //
+    // Eight people, none of them carrying a Politics result, read while
+    // the rest are still coming.
+    PEOPLE = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => person(`u${n}`, { big5: BIG5 }));
+    LOADING = true;
+    render(<TypeMixCard scope="city" />);
+    fireEvent.click(screen.getByText("Politics"));
+    expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+    expect(screen.queryByText(/sampled here, none typed/i),
+      "a partial sample was stated as a finished count").toBeNull();
+  });
+
+  it("states it once the read is done and the sample really is typed by nobody", () => {
+    // The control for the case above: same eight people, nothing in
+    // flight. The sentence is true then and is the one worth printing.
+    PEOPLE = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => person(`u${n}`, { big5: BIG5 }));
+    render(<TypeMixCard scope="city" />);
+    fireEvent.click(screen.getByText("Politics"));
+    expect(screen.getByText(/8 sampled here, none typed on this one yet/)).toBeTruthy();
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
+  });
+
+  it("offers the instruction once the read is done and found nobody", () => {
+    // The control for both cases above: with nothing paused and nothing
+    // in flight, an empty sample really is "nobody here yet", and the one
+    // action that fills it is worth offering. Without this, either
+    // absence assertion above would pass against a card that had simply
+    // stopped saying anything.
+    PEOPLE = [];
+    render(<TypeMixCard scope="city" />);
+    expect(screen.getByText(/who-voted sheet and this fills in/i)).toBeTruthy();
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
   });
 });

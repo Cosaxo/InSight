@@ -74,10 +74,12 @@ function parseCatalogue(file, label) {
 const films = parseCatalogue(join(root, "public", "films.txt"), "films.txt");
 const artists = parseCatalogue(join(root, "public", "artists.txt"), "artists.txt");
 const athletes = parseCatalogue(join(root, "public", "athletes.txt"), "athletes.txt");
+const videogames = parseCatalogue(join(root, "public", "videogames.txt"), "videogames.txt");
 const emoji = parseCatalogue(join(root, "public", "emoji.txt"), "emoji.txt");
 const countries = parseCatalogue(join(root, "public", "countries.txt"), "countries.txt");
 const dogs = parseCatalogue(join(root, "public", "dogs.txt"), "dogs.txt");
 const colors = parseCatalogue(join(root, "public", "colors.txt"), "colors.txt");
+const languages = parseCatalogue(join(root, "public", "languages.txt"), "languages.txt");
 
 // Countries-only invariants: the catalogue's one minted key is Kosovo's
 // 900 (build-countries.mjs header) — every other key must be a 3-digit
@@ -126,6 +128,28 @@ if (colors.present) {
   for (const [k, name] of want) {
     if (colors.names.get(k) !== name) {
       errors.push(`colors.txt: expected key ${k} to be ${name}, found ${colors.names.get(k) ?? "absent"}`);
+    }
+  }
+}
+
+// Languages-only invariant: keys are catalogue-minted (build-languages.mjs)
+// under the append-only discipline — the initial mint was 1..N in ISO-code
+// order and entries never renumber or leave, so the keys stay exactly 1..N
+// contiguous (the dogs discipline). Three anchors pin the recorded mint
+// itself: first, a mid-list name, and the last of the initial mint — a
+// moved anchor means a re-mint, which re-keys stored answers.
+if (languages.present) {
+  const sorted = [...languages.keys].sort((a, b) => a - b);
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i] !== i + 1) {
+      errors.push(`languages.txt: minted keys must be contiguous from 1 — expected ${i + 1}, found ${sorted[i]}`);
+      break;
+    }
+  }
+  const want = [[1, "Afar (Afaraf)"], [47, "French (Français)"], [183, "Zulu (isiZulu)"]];
+  for (const [k, name] of want) {
+    if (languages.names.get(k) !== name) {
+      errors.push(`languages.txt: expected key ${k} to be ${name}, found ${languages.names.get(k) ?? "absent"}`);
     }
   }
 }
@@ -224,10 +248,12 @@ if (src !== null) {
     ["FILM_KEYS", films, "films.txt"],
     ["ARTIST_KEYS", artists, "artists.txt"],
     ["ATHLETE_KEYS", athletes, "athletes.txt"],
+    ["VIDEOGAME_KEYS", videogames, "videogames.txt"],
     ["EMOJI_KEYS", emoji, "emoji.txt"],
     ["COUNTRY_KEYS", countries, "countries.txt"],
     ["DOG_KEYS", dogs, "dogs.txt"],
     ["COLOR_KEYS", colors, "colors.txt"],
+    ["LANGUAGE_KEYS", languages, "languages.txt"],
   ]) {
     const declared = declaredKeys(src, name);
     if (declared === null) {
@@ -254,8 +280,10 @@ console.log(
   `check:catalogs OK — films ${films.present ? films.keys.length : "absent"}, ` +
     `artists ${artists.present ? artists.keys.length : "absent"}, ` +
     `athletes ${athletes.present ? athletes.keys.length : "absent"}, ` +
+    `videogames ${videogames.present ? videogames.keys.length : "absent"}, ` +
     `emoji ${emoji.present ? emoji.keys.length : "absent"}, ` +
     `countries ${countries.present ? countries.keys.length : "absent"}, ` +
     `dogs ${dogs.present ? dogs.keys.length : "absent"}, ` +
-    `colors ${colors.present ? colors.keys.length : "absent"}, key sets agree`,
+    `colors ${colors.present ? colors.keys.length : "absent"}, ` +
+    `languages ${languages.present ? languages.keys.length : "absent"}, key sets agree`,
 );

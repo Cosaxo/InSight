@@ -169,7 +169,14 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
   // becomes visible on a warm open.
   const [reading, setReading] = React.useState(false);
   React.useEffect(() => {
-    if (!uidKey) return;
+    // Clearing on the way OUT matters as much as setting on the way in.
+    // The cleanup below drops `live`, so a fetch still in flight when the
+    // key empties — the list emptied, or the stop switched to the `cells`
+    // basis — never runs its setReading(false); and this arm used to
+    // return without clearing it either. The flag then stayed true for
+    // the life of the mount and the lens said "Reading…" forever, with
+    // nothing left to read. A no-op when it is already false.
+    if (!uidKey) { setReading(false); return; }
     let live = true;
     setReading(true);
     void LIVE.loadNames(uidKey.split(",")).finally(() => { if (live) setReading(false); });
@@ -221,6 +228,19 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
 
   const read = compareRead(DEFS, CORE_TEST_KINDS, mine, theirs, theirN);
 
+  // THE SAME QUESTION FOR THE OTHER BASIS. `reading` above is wired to
+  // `uidKey`, which is `""` for the `cells` basis — so a stop that folds
+  // published cells rather than people had no reading signal at all, and
+  // the first frame after opening City → Compare stated "Nobody in Oslo
+  // has answered a test card yet" from aggregates the device had not read.
+  // It could persist, too: `loadSimilarity` sets `testAggsLoaded` inside
+  // its try, so a throw left it false for the life of the mount.
+  //
+  // `testAggsState()` keeps the three apart — and "failed" says so rather
+  // than saying "Reading…" forever, which is the trap this file's own
+  // effect comment above describes.
+  const cellsState = pop.basis === "cells" ? LIVE.testAggsState() : "ready";
+
   if (!read.cards.length) {
     // FOUR emptinesses now, kept apart. Collapsing them would tell someone
     // who has taken every test that they have taken none — and the fourth,
@@ -232,11 +252,13 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
       <LcNote>
         {!mineN
           ? <>Fills in as you answer the test cards in your feed.</>
-          : reading && !themN
+          : (reading || cellsState === "loading") && !themN
             ? <>Reading…</>
-            : !themN
-              ? emptyThem
-              : <>No instrument you have both answered enough of yet.</>}
+            : cellsState === "failed" && !themN
+              ? <>Couldn’t read the scores here. Close and reopen to try again.</>
+              : !themN
+                ? emptyThem
+                : <>No instrument you have both answered enough of yet.</>}
       </LcNote>
     );
   }

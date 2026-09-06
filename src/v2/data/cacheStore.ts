@@ -40,6 +40,8 @@
 // leaves rows without a cursor, and every reader treats a missing or
 // mismatched meta row as "no cache", so a torn write degrades to a
 // refetch instead of to a cache that lies about its own completeness.
+// The kill is not the only way to tear one, which is why writeTo tracks
+// the chunks that aborted and withholds the meta row itself — see there.
 //
 // THE PURGE. purgeLocalTrace (live.ts) sweeps `insight.*` localStorage
 // keys and dispatches `insight:local-purge`; this module hears that event
@@ -131,20 +133,23 @@ function noteWriteFailure(err: unknown): void {
   }
 }
 
-/** One transaction, resolved on complete. Best-effort: a failure reports
- * (once per session) and resolves, so no caller has to guard a cache. */
+/** One transaction, resolved TRUE on complete and FALSE on failure — never
+ * rejected. Best-effort: a failure reports (once per session) and resolves,
+ * so no caller has to guard a cache. The boolean is not decoration:
+ * writeTo's meta row is a claim about the rows around it, and it may only
+ * be written when they all landed (see there). */
 function tx(
   db: IDBDatabase,
   scope: string[],
   body: (t: IDBTransaction) => void,
-): Promise<void> {
+): Promise<boolean> {
   return new Promise((resolve) => {
     try {
       const t = db.transaction(scope, "readwrite");
-      t.oncomplete = () => resolve();
+      t.oncomplete = () => resolve(true);
       t.onabort = () => {
         noteWriteFailure(t.error ?? new Error("cacheStore transaction aborted"));
-        resolve();
+        resolve(false);
       };
       t.onerror = () => {
         /* onabort follows and settles */
@@ -154,7 +159,7 @@ function tx(
       // A synchronous throw (DataCloneError on an unclonable value, a
       // deleted store) is a write failure like any other.
       noteWriteFailure(err);
-      resolve();
+      resolve(false);
     }
   });
 }
@@ -236,19 +241,35 @@ async function writeTo(
   const chunks: Array<Array<[string, unknown]>> = [];
   for (let i = 0; i < rows.length; i += WRITE_CHUNK) chunks.push(rows.slice(i, i + WRITE_CHUNK));
   if (!chunks.length) chunks.push([]);
+  // A chunk that ABORTED is not a process kill: the loop keeps going and
+  // would reach the last transaction and commit the cursor anyway, which
+  // is a cache claiming to hold rows it lost. Measured before this flag
+  // existed: one unclonable value at index 4000 of 8500 left 4500 rows on
+  // disk under a cursor saying all 8500 were there — and readDiskCaches
+  // trusts that cursor, so every later boot fetches only the delta and the
+  // 4000 lost answers never come back. The deck re-offers them and the
+  // create-only rule (D5/D86) refuses every re-vote.
+  //
+  // So: rows are still written (they are correct as far as they go, and a
+  // reader without a cursor ignores them), but the meta row is withheld —
+  // which is exactly the torn-write shape the header above promises, and
+  // degrades to a refetch.
+  let torn = false;
   for (let i = 0; i < chunks.length; i++) {
     const first = i === 0;
     const last = i === chunks.length - 1;
-    const scope = last && opts.meta?.length ? [store, "meta"] : [store];
-    await tx(db, scope, (t) => {
+    const withMeta = last && !torn && !!opts.meta?.length;
+    const scope = withMeta ? [store, "meta"] : [store];
+    const ok = await tx(db, scope, (t) => {
       const s = t.objectStore(store);
       if (first && opts.clearFirst) s.clear();
       for (const [k, v] of chunks[i]) s.put(v, k);
-      if (last && opts.meta?.length) {
+      if (withMeta) {
         const m = t.objectStore("meta");
-        for (const [k, v] of opts.meta) m.put(v, k);
+        for (const [k, v] of opts.meta!) m.put(v, k);
       }
     });
+    if (!ok) torn = true;
   }
 }
 
@@ -260,8 +281,37 @@ export function writeMeta(key: string, value: unknown): Promise<void> {
 /** Empty every store. REJECTS on failure — the callers are the purge
  * paths, where a wipe that did not happen must never read as one. */
 export async function clearAll(): Promise<void> {
+  // No IndexedDB in this environment is the ONE honest early return: there
+  // is no database, so there is nothing that failed to be wiped. It is
+  // also the case cacheStore.test.ts pins — no count, no report.
+  if (typeof indexedDB === "undefined") return;
   const db = await open();
-  if (!db) return;
+  if (!db) {
+    // …but open() returns null for three other reasons, and they are not
+    // that one: the open request errored, it timed out, or the accessor
+    // threw (a browser set to block site data). In every one of those the
+    // database can exist and hold answers, and returning here reported a
+    // wipe that never happened — precisely what the contract above forbids,
+    // on precisely the paths where it matters (account delete, uid change).
+    //
+    // Deleting the database outright needs no usable connection, so it is
+    // the fallback that can still tell the truth. On a device that never
+    // wrote anything it succeeds quietly rather than inventing a failure.
+    return new Promise((resolve, reject) => {
+      try {
+        const req = indexedDB.deleteDatabase(CACHE_DB);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error ?? new Error("cacheStore deleteDatabase failed"));
+        // BLOCKED IS NOT SUCCESS. Another tab still holds a connection, so
+        // the delete is queued, not done — and this call cannot honestly
+        // say it happened. Loud, for the same reason the rest of this
+        // function is; the purge paths retry and deleteAccount awaits.
+        req.onblocked = () => reject(new Error("cacheStore deleteDatabase blocked"));
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    });
+  }
   return new Promise((resolve, reject) => {
     try {
       const t = db.transaction([...STORES], "readwrite");

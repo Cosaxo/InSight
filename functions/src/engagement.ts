@@ -638,10 +638,16 @@ export const MIN_SHARD_RATE = 0.001;
  * numbers = 8 leaves = 16 entries, against Firestore's 40,000 per
  * document, so 2,500 qids is the ceiling and 1,500 is the fence. At 64
  * characters that is also ~225 KB, comfortably inside 1 MiB. The bank is
- * 710 questions today, so the bank can double before this truncates
- * anything real — and when it does, it truncates into `qOther`, the
- * "…and more" cell the client's own cap already spills into, so the
- * reading stays reported rather than silently dropped.
+ * 913 questions today, so a day cannot hold enough BANK qids to reach the
+ * fence. This said "the bank can double before this truncates anything
+ * real" and check:figures kept the number current underneath it until the
+ * claim expired: at 750 against 1,500 doubling lands exactly ON the fence,
+ * and it was only ever true by twelve questions. The headroom is not
+ * stated as a multiple again — a ratio between a gated figure and a
+ * constant is a claim nothing holds. What the fence catches when it is
+ * reached (a bank past it, or paid `paidq-` qids on top of one) is
+ * `qOther`, the "…and more" cell the client's own cap already spills
+ * into, so the reading stays reported rather than silently dropped.
  */
 export const QID_KEY_MAX = 64;
 export const QIDS_PER_DAY_CAP = 1500;
@@ -885,7 +891,27 @@ export function firestoreAttentionStore(db: Firestore): AttentionStore {
           day,
           attn: {
             devices: FieldValue.increment(delta.devices),
-            s,
+            // EMIT-WHEN-SET, like the two lines under it — and it was the
+            // one of the three that was not. An empty map written under
+            // { merge: true } does not merge into what is there, it
+            // REPLACES it: Firestore puts an explicitly-written empty map
+            // in the update mask, and the SDK says so in those words
+            // ("Add a field path for an explicitly updated empty map").
+            // So one shard carrying `s: {}` erased `attn.s` for the whole
+            // day — opens, slow boots, errors, tab and lens visits,
+            // answers by surface, reveals, notification opens — and it
+            // could not be recomputed, because the same batch deletes the
+            // shards it was folded from, three lines below.
+            //
+            // Reachable without an attacker: `onHidden()` calls
+            // `ensureToday()` without `note()`, so a phone backgrounded
+            // just after UTC midnight and not reopened that day flushes a
+            // shard whose `s` is empty, and a LATE shard — this fold's own
+            // header calls that the normal case — lands on a later night,
+            // after the day's real counters are already in the document.
+            // It was also a one-write attack: the rules require only that
+            // `s` be a map whose keys are known, and `{}` satisfies that.
+            ...(Object.keys(s).length ? { s } : {}),
             ...(Object.keys(q).length ? { q } : {}),
             ...(delta.qOther ? { qOther: FieldValue.increment(delta.qOther) } : {}),
           },

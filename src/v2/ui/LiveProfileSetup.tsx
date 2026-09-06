@@ -47,10 +47,13 @@
 //   3. It collects no free text and no exact anything. Every control is a
 //      closed vocabulary held equal to the server's buckets by
 //      check:anchors, the city is the catalogue picker (D9), and the
-//      birthday never leaves the device — only its band is written
-//      (profile-vitals.js anchorsFrom).
+//      BIRTHDAY never leaves the device — what `anchorsFrom` writes is
+//      the band and, since D155, the exact age derived from it
+//      (profile-vitals.js). This said "only its band is written", which
+//      understated what the profile carries: a year-resolution age is
+//      published, the date it was computed from is not.
 //   4. It has no vocabulary of its own. Every list, and the map from these
-//      fields onto the eight anchor keys, is imported from
+//      fields onto the 10 anchor keys, is imported from
 //      spec/profile-vitals.js, which is the file check:anchors reads. A
 //      second copy here would pass every gate and quietly stop a level
 //      counting.
@@ -164,7 +167,22 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // screen up (below), so Save is a button that can be pressed twice —
   // and without this the second press would re-write the anchors and the
   // name it saved on the first.
-  const written = React.useRef({ anchors: false, name: "" });
+  //
+  // KEYED ON THE CONTENT, both halves. The anchors half used to be a
+  // boolean latched on the first save, and the name half one line down
+  // already keyed on the name — so the two disagreed about what "already
+  // written" meant. A refused handle keeps this screen up precisely so
+  // the person can fix something, and anything they fix on the way back
+  // is an EDIT: picking a birth year after the first Save, correcting a
+  // gender they mis-tapped. The latch swallowed all of it, silently, and
+  // the screen then closed as though it had saved.
+  //
+  // Keyed on `v` rather than on `anchors`, because `mergeProfileVitals(v)`
+  // merges the raw controls while `saveAnchors` merges a lossy fold over
+  // them — two vitals can produce one anchor set, and the raw pair is what
+  // actually changed. Both writes merge and are idempotent, so a retry
+  // with nothing edited still costs nothing.
+  const written = React.useRef({ anchors: "", name: "" });
 
   // D331 — the political consent, asked here for D151's own reason: an
   // answer cannot be re-filed, and a coordinate published before anyone
@@ -192,7 +210,8 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   async function finish(save: boolean) {
     if (busy) return;
     setBusy(true);
-    if (save && filled && !written.current.anchors) {
+    const vKey = JSON.stringify(v);
+    if (save && filled && written.current.anchors !== vKey) {
       // Both halves, exactly as setCityAnchor does it and for the same
       // reason: GeneralPanel mirrors anchorsFrom(vitals) into saveAnchors
       // on EVERY mount, so anchors saved only server-side would survive
@@ -204,7 +223,7 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
       // would be lost to a screen dismissed mid-flight.
       mergeProfileVitals(v);
       LIVE.saveAnchors(anchors);
-      written.current.anchors = true;
+      written.current.anchors = vKey;
     }
     if (save) {
       // Best-effort, like the anchors: a name that fails to write is worth

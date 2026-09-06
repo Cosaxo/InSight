@@ -144,4 +144,60 @@ jobs:
       # owns the repo and blocks nobody's pull request, which is the whole
       # reason this lives on a clock instead of in CI (D47).
       - name: Operator gate
+        id: gate
         run: node scripts/pulse.mjs --check
+
+      # A red gate on the SCHEDULED run hands its output to the pulse
+      # responder Routine (docs/OPS-RUNBOOK.md § The pulse responder), which
+      # prepares the operator's answer — a promotion PR, a scorecard refresh,
+      # or a report with the guard's arithmetic — and never merges. Schedule
+      # fires only: this workflow also runs on every push to main, and a
+      # gate that stays red for a day would otherwise fire a session per
+      # push. Inert until the repository variable and secret exist — a
+      # missing pair is a notice and exit 0, so the gate's own red above
+      # stays the signal and nothing here can turn a red day green. No
+      # `| tee`, on purpose: the response is captured and appended, so the
+      # step's exit status is curl's own.
+      - name: Fire the pulse responder
+        # `failure()` FIRST, and it is what makes the rest reachable.
+        # GitHub inserts an implicit `success()` into any `if:` that names
+        # no status function, and the gate above deliberately carries no
+        # `continue-on-error` — a red scheduled job is D47's whole signal.
+        # So on the one day this step is for, the job is already failing,
+        # the implicit success() is false, and the step was skipped: the
+        # condition could only ever be EVALUATED after the gate passed,
+        # where `outcome == 'failure'` is false. It could not fire, ever.
+        #
+        # `continue-on-error` on the gate would also make it reachable and
+        # is the wrong fix: it turns the scheduled run green and takes the
+        # red morning email with it.
+        #
+        # `failure()` rather than `always()`, which the other shift reached
+        # independently and is the half worth keeping from it: this job sets
+        # concurrency.cancel-in-progress, so `always()` would fire a
+        # responder session for a run that was superseded. The
+        # `steps.gate.outcome` clause is what keeps it precise — if
+        # "Record today's row" is what failed, the gate is skipped, its
+        # outcome is 'skipped', and this correctly stays quiet.
+        if: ${{ failure() && steps.gate.outcome == 'failure' && github.event_name == 'schedule' }}
+        env:
+          ROUTINE_URL: ${{ vars.ROUTINE_PULSE_FIRE_URL }}
+          ROUTINE_TOKEN: ${{ secrets.ROUTINE_PULSE_FIRE_TOKEN }}
+        run: |
+          if [ -z "$ROUTINE_URL" ] || [ -z "$ROUTINE_TOKEN" ]; then
+            echo "::notice::pulse responder not wired (ROUTINE_PULSE_FIRE_URL / ROUTINE_PULSE_FIRE_TOKEN unset) — the red gate above is the only signal"
+            exit 0
+          fi
+          GATE_TEXT=$(node scripts/pulse.mjs --check 2>&1 || true)
+          BODY=$(GATE_TEXT="$GATE_TEXT" node -e 'process.stdout.write(JSON.stringify({ text: process.env.GATE_TEXT.slice(0, 20000) }))')
+          if RESP=$(curl -sS --fail-with-body -X POST "$ROUTINE_URL" \
+              -H "Authorization: Bearer $ROUTINE_TOKEN" \
+              -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+              -H "anthropic-version: 2023-06-01" \
+              -H "Content-Type: application/json" \
+              -d "$BODY"); then
+            echo "pulse responder fired: $RESP"
+            printf '\n### Pulse responder fired\n\n%s\n' "$RESP" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::pulse responder fire failed: $RESP"
+          fi

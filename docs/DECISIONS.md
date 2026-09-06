@@ -18178,6 +18178,24 @@ write. The timed mode is unaffected (its deadline is two hours, well under
 the cap). Not the reported failure, which was in timed mode, but it is a
 real one and it is recorded here rather than fixed blind.
 
+**FIXED 2026-09-04, and the shape of the fix is the point.** The obvious
+route — widening the rules ceiling by a skew allowance — moves the only
+bound that enforces "your position stops counting", on the presence cell,
+which is one of the three labelled denies; the server trusts the doc's
+`until` (v2social.ts's `nearbyCountV2` falls back to `at + linger` only
+when it is absent), so that ceiling is the whole enforcement and widening
+it really does extend how long a modified client can stand in a room. It
+would also have turned `firestore-tests/rules.test.ts`'s `soon(181)`
+refusal red and left four "the cap equals the linger" statements stale.
+The client writes a minute short of the linger instead: ordinary skew is
+absorbed inside an UNCHANGED fence, the cap stays hand-matched to
+PRESENCE_LINGER_MIN, every comment and document saying so stays true, and
+it costs one minute of three hours. A device more than a minute fast has a
+broken clock, not skew. `near-presence.test.ts` asserts the written
+deadline sits a real margin inside the ceiling rather than on it — the
+device-clock condition itself cannot be reproduced where the emulator and
+the test share one clock, and the case says so.
+
 ## D182 · The copy pass: a visual beats a word, a word beats a sentence
 
 **2026-08-16.** Owner report, with two screenshots — the Mirror's People
@@ -21959,6 +21977,30 @@ follows), so the card divided by zero and printed it. The chips now read
 "you're the first to end here" while the crowd holds nobody at your
 ending, and a share that rounds to zero prints "<1%" rather than "0%" —
 the D72 posture, one card over: a null is a refusal, not a zero.
+
+**AMENDED 2026-09-04 — the sentence stays, one of its two readings goes.**
+"`myShare` is 0 until the aggregate fold lands your vote (and stays 0 if
+nobody follows)" was true and describes a second defect underneath this
+one: the share was computed over `counts`, the PUBLISHED aggregate, which
+excludes the reader's own ending until that fold runs. So the reveal — the
+whole payload of the card, and the one number D341 says the tree exists to
+state — was wrong for every reader who had just walked, and wrong in one
+direction: it always made their road rarer than it was. Ten others
+finished, one where you did, and the card said "1 in 10" against a true 1
+in 6. The error is exactly one vote in `total + 1`, so it is largest when a
+story is new, which is when this card is most likely to be read.
+
+The reader is now folded into their own crowd. The GATE is not: it still
+asks whether the CROWD is non-empty, so a story only you have finished
+draws no tree and keeps "You are the first to reach the end of this one"
+— moving the gate to the crowd-plus-you would print "you and 100% ended
+here" over a crowd of one, which is this record's own failure with a
+different number. The chips' first-walker sentence therefore keeps exactly
+one reading: the window between finishing a walk and the vote being
+stored. A finished walk nobody else ever followed now reads "you and 2%
+ended here", because you are no longer absent from your own count. The
+"<1%" guard above still has a case; it needed a larger fixture to reach,
+and has one.
 
 ### 3 · The account panel offered three things sign-in already settled
 
@@ -34599,3 +34641,6331 @@ so unless something dispatches in between, that pre-flight should answer
 *run as-is*. Per D198 that sentence is a report about a comparison, never
 a promise about the tree: **a verdict has a shelf life of exactly one
 dispatch, and a bump has a shelf life of exactly one upload.**
+
+## D340 · The app icon moves to the paper tile, and the two-palette rule survives the move
+
+**2026-09-01.** Owner: *"lets mostly use the white app logo not the black
+one."* D302 made the **ink tile** the primary icon — every launcher
+asset, both favicons and the Android adaptive background composited the
+iris over `--ink`. That reverses here: the icon is now the **paper
+tile**, the mark on `--surface-2` (`#fefdfb`, oklch 0.994 0.0025 80) with
+the ink pupil and the paper dot conversions.
+
+Sixteen launcher rasters, two favicons and one colour resource moved.
+`design/store/feature-graphic.png` did not: it was already the paper
+mark, which is the whole reason the file had two palettes to choose
+between.
+
+### The palette rule was the constraint, and it decided the file's shape
+
+D302's finding stands: the dot colours cannot be shared between grounds,
+because converting one set of oklch tokens for both leaves the dots muddy
+on ink. So "use the white one" is not a background swap — it is a
+different set of seventeen fills. `design/icon/mark.svg` already carried
+both palettes, so the artwork existed; what it did not carry was the
+paper palette **at icon radii**.
+
+That is why the file now has **three flat groups over one geometry**
+rather than two:
+
+| group | palette · ground | radii tuned for | consumer |
+| --- | --- | --- | --- |
+| `mark` | paper | ~190 px | `gen-feature-graphic.mjs` |
+| `mark-paper-tile` | paper | 48 px (mdpi worst case) | `gen-icons.mjs` |
+| `mark-tile` | ink | 48 px | none since this change |
+
+Reusing `mark` for the icon would have been the smaller diff and the
+wrong one: its dots are a radius step finer because it renders six times
+larger, and the fatter set exists precisely because mdpi is 48 px. The
+split is by **size**, not by palette, and collapsing it would have
+undone a tuning D302 made for a reason.
+
+`mark-tile` is kept rather than deleted. It is the identity canvas's dark
+variant and the source `web/home.html`'s dark mode inlines its hexes
+from; it is now artwork with no extractor, which the file says about
+itself so nobody reads its lack of a tripwire as a gap.
+
+### One prefix hazard, in both directions
+
+`mark` is a prefix of `mark-paper-tile`. Both generators find their group
+with `indexOf`, and what keeps `gen-feature-graphic`'s search off the new
+group is the closing `">` in `<g id="mark">` — nothing else. Trimming
+either search string to a bare name would silently hand the feature
+graphic the icon's artwork. Both scripts and `mark.svg` now say so at the
+site of the search, alongside D302's older rule that the comment may
+never spell a group tag out in angle brackets.
+
+The blank-render tripwire moved with the ground: it counts pixels that
+differ from the opaque master's background, so its constant is now
+`GROUND` rather than `INK`. Had it been left pointing at ink it would
+have called a correct paper icon 100% marked — passing, but measuring
+nothing.
+
+### What this restores, and what it does not touch
+
+The splash is paper `#FAF9F2` (capacitor.config.ts). D302 noted that the
+icon had "deliberately stopped matching it"; at a shade's distance they
+read as one surface again, so the launch transition is quieter than it
+was. That is a consequence, not the reason — the reason is the owner's
+sentence.
+
+Unchanged: every in-app lockup (`app-shell.jsx` header, `LiveSignInGate`)
+already drew the mark on the app's paper ground filling from live tokens,
+so there was nothing there to flip; `web/join.html` and `web/home.html`
+likewise, including home's dark-mode swap to the ink palette, which is
+the two-palette rule doing its job on a dark page and is what "mostly"
+leaves standing. The notification status icon, the boot wordmark and the
+legacy splash PNGs are all outside this.
+
+### When to revisit
+
+If the icon ever needs to read on a dark launcher wallpaper more than it
+needs to be the app's own paper: `mark-tile` is still there, and the move
+back is `GROUND`, `ic_launcher_background.xml`, the extractor's group
+name and the two favicons — the same four places this change touched.
+
+## D341 · Crossroads is a question TYPE, and its stories ride the feed as members
+
+**2026-09-01.** **Status:** binding. Amends the placement half of D136's
+"Not dealt into the card stream" — the component half stands. Closes the
+client limit D185 §6 recorded. Recorded once, with its own first cut
+inside, because the misread is the useful part.
+
+> *"it seams the crossroad is at second to top of the feed all time it
+> should be in the feed like the others"*
+
+The shipped layout: daily card, then Crossroads, every visit — D136
+pinned the card at the head of the feed (`{i === 0 && <PathsCard />}`)
+and held `path` docs out of `WORLD_FEED_QS`. The first cut of this
+change read the ask as a placement tune and moved the pin five cards
+deep — still one reserved slot, one singleton card, `pathQs()[0]`. The
+owner's correction, same day:
+
+> *"crossroad is a type of question that can apper 5 or 7 or 9 and
+> multiple of them can apper crossroad is like any other question in the
+> feed"*
+
+`path` is a question TYPE. Its questions are members of the feed like
+any other: the pool carries them, the sort and the topic chips and the
+weave place them, several can be on screen at once, and where one
+appears is the feed's business, not a constant's. The five-cards-deep
+slot shipped for about an hour on this branch and is gone; nothing of it
+survives to amend.
+
+### What moved
+
+- **`buildFeedGlobals` (data/live.ts) stops holding `path` out** and maps
+  a path arm instead: the doc's story fields plus folded `counts`, `n`
+  for the "top" sort key, `cat` from the bank's `topic` — 'dilemma' for
+  the shipped stories, an always-on channel in both builds — and NOT the
+  synthesized endings-as-options, which are the vote path's business.
+- **The demo pool carries two stubs** (world-feed-data.js, in the
+  dilemmas group, one early and one deep): id, home topic, a prompt for
+  search. The content stays written once in paths-data.js; the card
+  resolves it by id.
+- **`PathsCard` takes its feed item as a prop** (`q`). A live item is the
+  bank doc's fields; a demo stub is an id. `srcOf` keeps D136's
+  two-sources-never-mixed rule with the item's `live` flag as the
+  switch, and `pathQs()[0]` — the head-of-list read that could never
+  show the second story (D185 §6) — is gone from the card. `pathQs()`
+  itself stays, as the Map's Walks branch's reader.
+- **Three dispatch sites in world-feed.jsx** route `type === 'path'` to
+  the card: the stream map, the Answered expander, and focus mode — so a
+  story found through search opens as the real story card.
+- **A finished walk is an answered question.** `answered()` grew a path
+  arm: walk finished locally (PATHS, demo and live alike) or a standing
+  vote (the returning device whose localStorage is gone). A finished
+  story parks behind the Answered expander with its reveal, exactly like
+  every answered card — where the pinned card had sat at the head
+  forever, finished or not. An unfinished walk is not an answer and
+  stays dealt in, resuming where it stood.
+- Two small honesty arms: `wfVotes` reads `n` for paths (the "top" sort
+  key), and the closing-ring picker skips them — the ring is
+  renderCard's to draw and a hash landing on a story would silently
+  spend the grace note.
+
+### What D136 said that is still true
+
+A walk's reveal is a TREE, not a split, so the card stays its own
+component — `renderCard`'s apparatus (option rows, who-voted, takes, the
+insight line) still has nothing to say about it, and the dispatch is the
+whole cost of that. The two sources still never mix. The vote path is
+untouched: a finished walk writes the same `optionIdx` through the same
+fold and ledger, and D211's no-redo rule stands.
+
+Left alone, knowingly: the search overlay's own `srchAnswered` copy has
+no path arm, so a finished demo walk can still be offered under "Open
+questions" — tapping it opens the finished card's reveal, which is
+correct if unpolished; the live case self-heals because the reconcile
+loop copies a standing path vote into the feed's vote map through its
+generic arm. And the reading game keeps the feed head (D196's reasoning
+is its own: one thing you are DOING, not a card in the stream), as does
+`LiveCallCard`'s unmounted machinery — a call is a commitment you are
+carrying, not content.
+
+### What proves it
+
+`test:unit` green, with the pins now on the owner's sentence itself: the
+demo mount asserts BOTH stories on screen at once as stream members
+(impossible under the singleton — it could only ever render
+`pathQs()[0]`), and that a finished story parks behind the Answered
+expander while the unfinished one stays dealt in (probed: removing the
+`answered()` path arm fails exactly that case with "a finished story is
+still in the fresh stream"). The live mount's title binding now pins the
+membership dispatch — the fixture pushes the story into `WORLD_FEED_QS`
+the way `buildFeedGlobals` emits it, one object behind both that door
+and `pathQs`. The card suite passes the item as a prop throughout;
+`lint`, `tsc -b`, `check:globals` (coupling unchanged), `check:figures`,
+`check:docs`, `test:scripts`, `check:bundle` on the CI-equivalent live
+build all green.
+
+### When to revisit
+
+If a future story's `cat` leaves the channel row (the farm's taxonomy is
+wider than the always-on set), the bank doc's `topic` is what places it —
+a story filed under a topic no chip can name is a card nobody can see,
+which is `wfFeedMatch` working, not a bug; give it a served topic. And if
+the demo's two stubs ever drift from paths-data.js ids, the card renders
+null and the demo smoke fails on the missing titles — that is the drift
+alarm, not a crash.
+
+---
+
+## D342 · The fake-account defence was inert, and two records had already spent it
+
+**Date:** 2026-08-30 · **Status:** built. Owner's report is the trigger:
+*"one of the things that has been warned about the most is fake accounts
+would ruin this app by destroying the data's authenticity. right now it
+seems like there's no good defence against it as I have no issue creating
+multiple accounts and ruining the data."*
+
+He is right, and the reason is not a missing design. It is a design that
+shipped switched off while three later records reasoned as though it were
+running.
+
+### The chain, in the order it happened
+
+1. **D29** built device binding end to end — the callable, the month
+   logic, the soft rules switch, the client flow — and deliberately left
+   out the ~30 lines of native code that fetch the platform attestation,
+   because the machine writing them could not compile them.
+2. `src/v2/data/deviceBind.ts` therefore asks
+   `Capacitor.isPluginAvailable("DeviceBind")`, does not find it, logs
+   `native bridge missing — activation deferred`, and returns.
+   **Activation has never run once, on any device.**
+3. **D211** removed the Sign-in row from the account panel, reasoning that
+   "the D134 gate walls every release build behind Google, so the row
+   could only ever read Linked ✓".
+4. **D219** took that wall down. Its own record answers the owner's stated
+   condition — *"as long as that means that everyone has a account and
+   question can be attribute to a spesific user that cant easly create
+   duplicate acounts"* — by naming two mechanisms: App Check on the
+   account-creation surface, and D29's device binding, "shipped end to end
+   and soft". App Check has never been enabled console-side
+   (`SECURITY.md`), and the bridge was not there. **Both cited controls
+   were inert at the moment they were cited.**
+5. Nobody returned to the row D211 had removed on the strength of a wall
+   D219 then removed. So a store build has no link control at the door and
+   none in settings, and D134's own sentence — an anonymous session "lives
+   on ONE phone and dies with it" — became the shipping default.
+
+Each step is defensible alone. The composite is a product where making a
+counted duplicate costs thirty seconds and where the app mints duplicates
+on its users' behalf.
+
+### The threat model this tree never wrote down
+
+D28, D29 and D54 are all written against **a ring**: few actors, many
+accounts, aimed at particular questions. The owner is describing something
+else — **diffuse duplication at population scale**, where ordinary people
+hold a second account because they reinstalled, replaced a handset,
+cleared storage or answered again out of curiosity.
+
+Nothing built can see it or undo it, and the reasons are structural:
+
+- **D54's four signals all look for CONCENTRATION** — impossible per-uid
+  volume, scripted cadence, birth clusters, per-question bursts. A
+  duplicate account produced by a reinstall has none of them, because it
+  is behaviourally indistinguishable from an honest new user. It is one.
+- **D28's guarantee is correction GIVEN A UID LIST.** No list can be
+  built. Nothing distinguishes a second account from a first.
+
+So for this shape the whole fallback story — detect, attribute, subtract,
+republish — is silent, and was silent without ever saying so.
+
+### The arithmetic, and why D28's decays and this one does not
+
+D28 prices a **fixed** F against a **growing** R: shifting a 50/50 split
+ten points takes F ≈ R/4, so exposure is worst at launch and decays with
+every honest vote. That reasoning is sound and does not apply here.
+
+Diffuse duplication scales WITH the population. If a fraction q of people
+hold two accounts, the published share is off by
+
+    bias = q / (1 + q) × (how much duplicators differ from everyone else)
+
+— a constant, at any crowd size, forever. At q = 0.2 and a ten-point
+difference that is a permanent ~1.7 points. And it is **bias, not noise**:
+duplicators are a selected group (more engaged, more likely to be
+re-answering *because* they disagreed with what they saw), so it does not
+average out the way random duplication would.
+
+The exposure is also worse than the world-level figure suggests, because
+this app slices. Since D98 every cell publishes exact counts from the
+first answer, so the R that matters is the smallest cell a reader can
+reach, not the question's total.
+
+### What shipped here
+
+- **The Sign-in row is back** (`LivePrivacyPanel.tsx`), because the
+  cheapest fix for duplication is to stop manufacturing it. Unlinked, it
+  states the loss and offers the link; linked, it is a fact with no
+  control. It calls `linkGoogle()` — the uid and every existing answer
+  survive — and on a credential collision it REPORTS and stops rather than
+  offering the gate's "sign in and leave this phone's answers", which from
+  settings would be a wipe wearing a login.
+- **Both native bridges landed.** iOS: `DeviceBindPlugin.swift` plus
+  `MainViewController.swift`, which registers it from `capacitorDidLoad()`
+  — not the `CAP_PLUGIN` macro DEVICE-BIND.md prescribed, which needs an
+  Objective-C file and a bridging header this project does not have, over
+  a Capacitor that arrives as a Swift Package with no ObjC umbrella header.
+  Android: `DeviceBindPlugin.java` plus `registerPlugin` in `MainActivity`
+  **before** `super.onCreate`, which is where Capacitor builds the bridge
+  — after it, the registration compiles and does nothing.
+- **The Android snippet the doc called paste-ready was broken**, and the
+  way it was broken is this record's own theme. It built its
+  `IntegrityTokenRequest` without a nonce, which that builder refuses. Had
+  anyone pasted it, activation would have failed on every Android device,
+  and failed *silently* — `deviceBind.ts` treats any activation error as
+  "try again on a later boot", so the symptom would have been
+  indistinguishable from the missing bridge it was written to end. The
+  committed plugin mints a 32-byte base64url nonce and returns it;
+  `activateDeviceV2` now refuses a payload whose signed nonce disagrees
+  (`requestDetailsProblem`, five unit tests). It fails CLOSED on a missing
+  nonce, because an optional check is one a caller skips by omission.
+- **`check:devicebind`**, because the failure being fixed is silent.
+  An unregistered plugin leaves a green build, a passing suite and an app
+  that behaves identically — enforcement is soft, so nothing differs. That
+  is precisely how D29 sat inert for a month. It holds both platforms and
+  reads the tool-managed files each depends on — `Main.storyboard`'s
+  `customClass`, the pbxproj compile phase, and on Android the
+  registration ORDER against `super.onCreate` plus the nonce, every one of
+  which fails without an error on a device.
+
+**The caution that kept the bridges out was already unnecessary**, and that
+is the reusable finding: `ios-build.yml` compiles the iOS target on every
+PR touching `ios/**`, unsigned, on a macOS runner, needing no Apple
+account, and `ci.yml`'s `android-build` runs `assembleDebug`. The compile
+check that made committing these safe existed the whole time, on both
+platforms — and its absence was never the real reason the code was not
+written, because a compiler would not have caught the missing nonce
+either. Only a reader would.
+
+### The instrument the flip was missing
+
+D37 makes the flip conditional on two rates, and this record found that
+**both measure the wrong population.** They are computed from
+`activateDeviceV2`'s own logs, so an account that never called it does not
+appear in either — a client below the activation build, a device whose
+bridge was absent (every device, until this record), a boot where the call
+was never reached. Those accounts vote. The flip refuses them. So both
+thresholds could read perfect while most real votes would be silently
+rolled back, which is the exact failure D37 exists to prevent, surviving
+inside D37's own instrument.
+
+`ledgerVelocityScan` now logs **bind coverage** daily at INFO: of the
+accounts that actually voted in the window, how many hold the `db` claim,
+and what share of the window's counted answers came from them. The derived
+figure — `refusedPct` — is the share of real votes the flip would have
+refused had it been on, and it is the number to read on flip day.
+
+It costs nothing: the scan already fetches a `UserRecord` per voting uid
+for the birth-cluster signal, and custom claims ride that record. It flags
+nothing and accuses nobody, so it sits apart from D54's four signals; D54's
+"review, not action" clause is untouched. An unknown uid counts as
+UNBOUND — erased accounts never come back from `getUsers`, and an answer
+that cannot be shown to be bound has not been shown to be bound. The other
+direction would overstate coverage on exactly the day it is trusted.
+
+This does not amend D37's thresholds; it puts a third number in front of
+them, and DEVICE-BIND.md §4 now reads it first.
+
+### What did NOT ship, deliberately
+
+- **The enforcement flip stays `false`.** D37's sequence is unchanged and
+  its conditions are unmet: `minBuild` has not been raised and neither
+  fleet rate can be read until activation has run on real devices. An
+  early flip refuses honest votes *silently* — the option takes, then
+  un-takes — which is the failure D37 exists to prevent.
+- **Nothing about D42.** The Android bridge is here because the owner
+  corrected the premise mid-change — iOS is the first store, not the only
+  one. Play's device-recall opt-in still carries the open API questions
+  DEVICE-BIND.md flags, and `decideRecall` already handles both verdict
+  shapes, so those are a console question rather than a code one.
+- **App Check console enforcement**, which is owner-gated and is the one
+  control that limits account CREATION rather than counting. Its absence
+  is the older half of D219's unmet condition.
+
+### The ceiling, stated so nobody reads more into this than it does
+
+After the flip, one person with N phones gets N counted accounts a month.
+There is no mechanism, here or anywhere, that guarantees one human one
+account: D28's Douceur argument is unchanged, and D28's own 2026-08-06
+amendment already prices the rung above — government ID re-prices a fake
+account in *documents*, which for some attackers is cheaper than a phone.
+What this record buys is narrower and worth having: the accidental
+duplicates stop being created, the deliberate ones acquire a hardware
+price, and the app can eventually say what its numbers are a count OF.
+D28's claim was never "no fake accounts" — it was that the number is
+bounded in how wrong it can silently be. Until today that claim rested on
+two controls that were not running.
+---
+
+## D343 · The account requirement becomes a level, so the bar can be raised later
+
+**Date:** 2026-08-30 · **Status:** built. Owner's ask: *"I also want a way
+to filter out profiles that hasn't fulfilled the newest account
+requirements so I can update them to be stricter later."*
+
+**Decision.** The `db` custom claim carries the account-requirement LEVEL
+an account has been shown to meet, and `firestore.rules` compares `>=`
+rather than `== 1`. `functions/src/accountLevel.ts` is the ladder and the
+source of truth; `requiredAccountLevel()` in the rules is the enforced
+copy, held equal by `check:account-level`.
+
+**Why a boolean was the wrong shape.** D29's `db: 1` meant "passed the
+device check", which was sufficient while there was exactly one
+requirement and is wrong the moment there are two. A boolean cannot say
+WHICH bar an account cleared, so tightening later leaves no way to
+separate the accounts that met the old requirements from the accounts that
+meet the new ones — you would be re-deriving that per account, after the
+fact, from whatever evidence survived.
+
+**Why now rather than later, and this is the load-bearing part.**
+Activation has never run — the native bridges did not exist until D342 —
+so **no account anywhere holds a `db` claim**. Redefining what the claim
+MEANS is free today and is a migration over live auth users the moment one
+real account carries it. This window closes the day the owner sets the
+Apple key.
+
+### The ladder
+
+| Level | Key | What it has been shown to satisfy |
+| --- | --- | --- |
+| 0 | `none` | Signed in, nothing verified. Every account starts here (D3) and stays here if activation never succeeds |
+| 1 | `device` | The platform confirmed this physical device had not already activated an account this calendar month (D29) |
+| 2 | `device+identity` | Device-bound AND linked to a real identity provider — the account survives the handset, and carries a second scarce factor whose Sybil defence Google and Apple already pay for |
+
+`REQUIRED_LEVEL` is **1**. Level 2 exists so the bar can be raised with no
+new code, which is the whole request.
+
+Deliberately short. A level is only worth minting when something can
+actually VERIFY it; a rung nothing checks is the dead allowlist entry D331
+removed from the profile — a promise the tree cannot keep. The level is
+computed from the ID token's own `sign_in_provider`, never from
+`request.data`: a client-declared level is not a level.
+
+### Four properties that are decisions, not details
+
+- **`>=`, never `==`.** Levels subsume. With `==`, raising the bar to 2 and
+  later relaxing it to 1 would refuse every level-2 account — the strictest
+  users locked out by a relaxation, reading as a random outage. Pinned in
+  `rules.test.ts` against the enforced ruleset.
+- **Levels ratchet up per account, never down.** Re-activation on a linked
+  account raises 1 → 2; an already-linked account whose next boot happens
+  to read as anonymous must not be demoted, because a demotion silently
+  stops that person's votes counting with nothing on screen to explain it.
+- **A malformed claim is level 0, in all three readers.** The claim is read
+  by `firestore.rules`, by the nightly scan and by the operator script, in
+  three languages, and they must agree on the case every account is in
+  today: absent. Rules answer 0 by `get("db", 0)`, and a string or boolean
+  errors the comparison and denies. The first drafts of the other two
+  coerced with `Number()` — which reads `db: true` as level **1**, a
+  malformed claim reported as a qualifying account on precisely the day the
+  report is trusted. A test caught it; both now accept an integer only.
+- **A level ABOVE the ladder is described, not discarded.** During a
+  rollout an account can be minted by a newer deploy than the reader.
+  `levelDef` names it rather than crashing a nightly scan.
+
+### The two instruments, and why both
+
+Raising `REQUIRED_LEVEL` is one number, and on deploy every account below
+it stops counting. That is deliberate power, so it gets priced before it is
+used — by two measurements that answer different questions and diverge
+hard:
+
+- **`ledgerVelocityScan`'s `bind_coverage`** (D342, per-level here) counts
+  ANSWERS from accounts that actually voted, and reports what each bar
+  would have refused. This is the aggregate question.
+- **`npm run account-levels -- --below 2`** counts ACCOUNTS. This is the
+  population question.
+
+A thousand dormant unbound accounts barely move the published numbers,
+while one heavy unbound voter moves them a lot. Reading only the second
+would price a tightening as catastrophic; reading only the first would miss
+how many people are about to be quietly excluded.
+
+The script is **read-only and has no `--apply`**, deliberately: raising the
+bar is a code edit and a deploy. A script that could re-level accounts
+would be a way to grant the claim without the device check that is supposed
+to earn it.
+
+### `check:account-level`, on the deploy path
+
+Two numbers that must agree, cannot import each other, and disagree
+silently in **both** directions: rules ahead of the source means every
+report says accounts qualify while their votes are refused; source ahead of
+rules means the bar you believe you set is not the one enforced. Neither
+appears in any test — the rules tests mint their own claims, and the
+callable's tests never open `firestore.rules`.
+
+The gate treats a missing match as a FAILURE rather than a pass, because a
+gate that reads nothing and reports OK is worse than no gate: it is
+believed. Its own test suite pins that, and pinned one real defect already
+— the ladder parser was anchored to line starts, so a formatter collapsing
+those object literals would have blinded it.
+
+### The identity rung was unreachable, twice over — found in review
+
+The first cut graded the identity rung on the ID token's
+`firebase.sign_in_provider`, and that was wrong in a way no test caught,
+because every test supplied the fact directly rather than deriving it.
+firebase-admin documents that field as *"the provider used to **sign in**
+the user"*, and this app **links** rather than signs in — D134's whole
+point, since the uid and every answer survive only because the session is
+not replaced. So a linked account's token keeps saying `anonymous` for the
+life of the account, and level 2 was reachable only by someone who
+ABANDONED their session through the gate's second button. Exactly
+backwards: the users who kept their history were the ones refused the
+higher rung.
+
+The fact now comes from `UserRecord.providerData` — firebase-admin's
+*"providers linked to the user"* — read from the record `regrade` already
+fetches, so it costs no extra call and cannot disagree with token refresh
+timing.
+
+**The second half was worse.** Activation runs ONCE, at boot, and
+memoizes: `activationPlan` answers "skip" for a settled account forever
+after. Linking happens later, from the account panel. So even with the
+right fact, the level was computed at a moment before the fact could be
+true, and nothing ever looked again. The rung was unreachable in two
+independent ways at once, and the docstring promising a 1 → 2 ratchet
+described a path that did not exist.
+
+Both halves close with one shape: the cooldown arm **re-grades**.
+`regrade(uid, deviceBoundNow)` treats `prior >= 1` as the record that this
+account already earned the device rung, so a cooldown — which carries no
+new device fact — can still raise the identity rung. A different account
+on the same spent device has `prior === 0` and gets nothing, which is the
+distinction that makes this safe. On the client, `linkGoogle` drops the
+activation memo at the single choke point in the store, so the next boot
+asks again and receives the cooldown that re-grades it. Next boot rather
+than immediately: re-running now would mean a platform round trip inside a
+settings tap whose answer is a foregone cooldown, and the claim only
+matters when the bar moves.
+
+**The rung grades on FEDERATED providers, not on any provider.** A review
+pass caught `linkedProviders.length > 0` accepting `password` — an
+email/password identity is free and unlimited, and carries none of the
+Sybil resistance the rung's own description claims to be borrowing. The
+predicate now names the providers whose abuse defence someone else
+actually pays for. `phone` is deliberately absent: it IS scarce, but it is
+scarce for a different reason and at a different price, so it belongs to
+its own rung rather than being folded into this one.
+
+**What this says about the ladder's design, kept because it generalises:**
+a rung is only as good as the FACT it grades on, and a fact taken from the
+wrong side of an auth boundary can be perfectly typed, fully tested, and
+still describe something else. Every test passed while the rung was
+unreachable, because every test handed `levelFor` the fact rather than
+deriving it.
+
+### Open to rungs that do not exist yet
+
+**Adding a stricter requirement later is one entry**, which was the point
+of the ask rather than a nicety. Each rung carries its own `met` predicate
+over a `LevelFacts` record, and `levelFor` walks the ladder, stopping at
+the first unmet rung — so it names no specific level and needs no edit
+when one is added. A unit test reads the walker's own source and fails if
+a number appears in it.
+
+Stopping rather than taking the highest satisfied rung is what makes
+levels subsume: an account that somehow met rung 3 but not rung 2 would
+otherwise report as 3, and the rules' `>=` would wave through an account
+that never met the bar it is compared against.
+
+The operator filter READS the ladder out of `accountLevel.ts` rather than
+restating it (`scripts/account-level-lib.mjs`, shared with the gate), so a
+new rung appears in the distribution with its name and can be filtered on
+with no edit to the tool. `--below` takes a KEY as well as a number, which
+is the future-proof form: `--below device+identity` keeps meaning the same
+requirement even if a rung is inserted beneath it and every number shifts.
+A bar the ladder does not define is REFUSED rather than filtered against —
+a typo'd `--below 5` that quietly matched everything would report the whole
+population as unqualified, which is a very convincing wrong answer.
+
+The gate grew with it: the ladder must be ascending, dense from 0, and
+every rung must declare a `met`. A gap makes a bar unreachable; a rung with
+no predicate is a requirement nothing can satisfy, and accounts would stop
+at the rung below it forever with nothing failing.
+
+**Three parser bugs in a row while writing that**, all one family — a
+parser matching slightly the wrong thing and reporting something
+plausible: the block finder took the first `[` after the name, which is the
+TYPE's (`AccountLevelDef[]`), returning an empty ladder from a file with
+three rungs; `countMet` ran over the whole file and counted the interface's
+own `met` declaration plus `levelDef`'s fallback; and an earlier level
+parser was anchored to line starts, so a formatter collapsing the object
+literals would have blinded it. Two failed loudly, and only because the
+gate treats an empty parse as an error rather than a pass.
+
+A fourth of the same family hit this file rather than the code: the edit
+adding this very section used replace-first-occurrence over a 34,000-line
+document, and `### What this does NOT do` is not unique in it, so the text
+landed in an unrelated record. Anchor inside the record.
+
+### What this does NOT do
+
+It does not flip enforcement (`deviceBindEnforced()` is still `false`, and
+D37's sequence is unchanged), it does not raise the bar above 1, and it
+stores nothing new — the level lives in the auth claim, so there is no new
+collection, no data-inventory row and no erasure phase. Filtering profiles
+is a `listUsers` scan by an operator, not a queryable field on a public
+profile document; `v2_users` is world-readable since D98, and "this account
+is unverified" is not a fact this app needs to publish about a person.
+---
+
+
+## D344 · Account & privacy moves behind a gear in the profile's corner
+
+**2026-09-01.** Owner: *"Hide accont and privacy in a gear icon in the
+cornor of your profile"*, over a screenshot of the profile opening on the
+settings card. Since D98 the account panel (`ui/LivePrivacyPanel.tsx`)
+has been the first thing the General tab draws, above the profile it
+names — so every profile visit opened on an errand surface. It now lives
+in its own sheet behind a gear `icon-btn` in the profile header's right
+corner, where the spacer that centred the title stood, and the General
+tab opens on what the answers have built.
+
+### What moved one tap deeper, and what did not move
+
+The panel carries the app's bluntest disclosure, so the move is worth its
+own paragraph rather than a silent relocation. `docs/COPY.md` §3 already
+draws the line this change stands on: **"Moving a disclosure one tap away
+and deleting a clause from it are different edits."** This is the first
+edit and not the second — the panel moves whole, no sentence changed.
+The public-answers line stays open, unlinked and untapped *on the panel*
+(`LivePrivacyPanel.test.tsx` pins that inside the component, unchanged),
+and the smoke case pins that the sheet holds it one tap from the profile.
+The three denies, `web/privacy.html` (which names no in-app placement),
+the store forms and D331's consent row are all untouched — the compass
+toggle still governs whether the coordinate is computed, from the same
+row, one tap over. The disclosure a user meets *before* any answer
+exists is unchanged too: D330 put the political consent at the start,
+and the sign-in gate's copy is not this panel's.
+
+### The gear is live-only, and the sheet is a real dialog
+
+- **No gear in demo** (`L.enabled` gates it): the panel states facts
+  about a real account and renders nothing without one, so the button
+  would open an empty sheet — D167's rule one control down. The 32px
+  spacer returns so the title does not shift between builds. Pinned from
+  both sides: `smoke-overlays` (demo — absent), `smoke-live` (live —
+  present, opens, holds the panel).
+- **The sheet** (`AccountSheet`, profile-overlay.jsx) is person-overlay's
+  stacked-map shape — a second `.overlay` at `zIndex: 24` — plus the
+  dialog semantics that pattern skips: `useDialog` for Escape and the
+  focus trap (its stopPropagation is why Escape peels the sheet and not
+  the profile under it), and a `pushBackLayer` registration so Android's
+  back does the same (app-shell asks `closeTopBackLayer` first). The
+  smoke case presses Escape and asserts the profile survives.
+- **The kicker is gone from the panel**: the sheet's header says
+  "Account & privacy" directly above the card, and a noun the header
+  already says is one of D182's four deletions.
+
+### The touch converted the panel off the bridge, and out of first paint
+
+D39's convert-on-touch, applied at the site being touched: the two
+`window.LivePrivacyPanel` sites became a static import, the
+`Object.assign(globalThis, …)` publication is deleted with its last
+render-time reader (single writer, checked per rule 6's warning), and
+rule 4 drops **6 → 4** for profile-overlay.jsx, **236 → 234** total.
+The panel also leaves the entry chunk: its spec-index line was what kept
+it eager, and its one consumer rides `loadOverlays()` (D223), so the
+import moves it into that chunk and first paint stops paying for a
+settings panel — same ESM-graph guarantee, no new race.
+
+Three comments whose premises had expired were corrected where the work
+touched them, because two of them mis-stated the tree to this change
+(the D200 shape — a correct reason outliving its premise): profile-
+overlay's "THIS FILE IS EAGER" (false since D223, and the reason the
+Roles lazy boundary exists was written against it), and the
+`handles.ts` / `socialFetch.ts` claim that LiveDuelPanel and
+LivePrivacyPanel are eager importers (half-false since D156 made the
+duel panel a `React.lazy`, fully false here) — the purity split stays,
+dated, with why it outlives them.
+
+## D344 amendment (2026-09-01) · The identity row stops calling every session anonymous
+
+Found while shipping D344 — the stale line sat directly above the new
+gear in the owner's own screenshot — and fixed on the owner's word the
+same day (*"yes fix the link google text too"*). The profile's identity
+row said **"anonymous session — link Google below to keep it"** for
+every live session, hardcoded. Wrong twice over, and half of it was
+already on the record: live.ts's auth observer comment named this exact
+site — *"profile-overlay.jsx hardcodes the same sentence with no check
+at all"* — so a Google-linked account was told it was anonymous. The
+other half expired at D211: "below" pointed at the Sign-in row that
+decision removed, and — as the branch stood when this was found — the
+only link path left was the D134 gate before the app opens, so the
+instruction clause had nothing to point at: COPY.md’s fourth deletion,
+an instruction for a control that is not underneath.
+
+The first cut therefore deleted the nudge outright: bare "anonymous
+session" was all the line could honestly say. The same day, D343 landed
+on main having revived the Sign-in row — D219 had taken the wall down
+(`VITE_REQUIRE_SIGNIN` defaults false), so anonymous sessions are real
+in release builds and every reinstall minted a duplicate account — and
+the merge changed the honest answer (the D318-amendment shape: the tree
+converged mid-flight). A link control exists again, inside the very
+panel D344 put behind the gear. So the line keeps the nudge and loses
+only what was false: **"anonymous session — sign in to keep it"** — no
+"below", no claim about where; the Sign-in row one gear tap away
+carries the full stake and the control. A linked account shows its
+handle instead — the durable identity, the same fact the account sheet
+states — or nothing while none is claimed. `LIVE.linked` picks the
+branch (the flag live.ts already derives and announces). This change
+still adds no control of its own: D343's row is the control, and the
+copy now points at a thing that exists.
+
+Both branches are pinned in smoke-live — the fixture is anonymous-first,
+so the default mount holds the nudge line and the absence of the dead
+"link Google below"; the linked case flips the flag, claims a handle,
+and asserts the swap. live.ts's observer comment and the fixture's
+`linked` note are updated to stop describing the defect as current.
+
+## D345 · Play is un-parked on an ENK, and the two code items that had no owner get built
+
+**Date:** 2026-09-01 · **Status:** Adopted (owner-confirmed: *"yes, do both
+and i will go for a ENK"*)
+
+**Decision.** Google Play is no longer deferred.
+[D42](#d42--insight-launches-on-ios-alone-play-is-deferred-and-the-path-to-it-gets-cheaper-while-it-waits)'s
+park is lifted, and it is lifted **onto D41's organization route**: an ENK,
+a D-U-N-S, and a Play Console organization account, which is exempt from
+the closed-testing gate. The two code items that blocked any Android
+artifact at all — release signing and a release workflow — are built here.
+
+**Why this is D41's branch and not the other one.** D42 made D41
+conditional rather than reversing it: organization is right *if Play opens
+before there is an installed base*, and after one the 12×14 gate may be
+satisfiable by asking existing users. The owner chose the ENK, which is the
+before-an-installed-base branch, so **D41 stands in full and nothing in it
+needs re-deriving.** What has moved since D41 was written moves in this
+choice's favour and is recorded because D41's own numbers are now stale:
+the gate is **12 testers, not the 20 it launched at** (Google reduced it in
+December 2024, the 14 continuous days unchanged), and reporting through
+2026 says tester *engagement* is now checked as well as tester count. That
+lowers the count and raises the bar on who counts — which makes the route
+this decision does not take slightly worse, not better.
+
+**D42's unverified link is still unverified, and it is still the one that
+costs money.** Whether Google's organization verification accepts an
+Enhetsregisteret-only ENK or wants what Foretaksregisteret provides. Free
+either way for the ENK itself; ~3,000 kr if it is the latter. **Check it in
+the Play Console account-type flow before paying for a D-U-N-S expedite.**
+Nothing in this record turns on it — the code below is the same either way.
+
+### What was built
+
+- **Release signing** (`android/app/build.gradle`). The release build type
+  had no `signingConfig` at all, so `bundleRelease` produced an unsigned
+  AAB. Invisible for as long as it was true, because CI only ever runs
+  `assembleDebug`, which signs with the debug keystore and says nothing
+  about this path. Values come from the environment first and an untracked
+  `android/keystore.properties` second; **with neither present the release
+  stays unsigned on purpose**, so a clean clone and the `android-build` job
+  D42 kept alive both keep working. `signingConfig` is left null rather
+  than defaulted to debug: a debug-signed AAB is worse than an unsigned
+  one, because it uploads, installs, and can never be updated by a
+  correctly-signed build.
+- **`.github/workflows/play-release.yml`**, the sibling of
+  `ios-release.yml` and much cheaper — ubuntu rather than macOS at 10×, no
+  cloud signing, no provisioning profiles. Dispatch-only for the second of
+  that file's two reasons: the billing one does not apply, the
+  irreversibility one applies harder, because `production` reaches every
+  user at full rollout the moment the edit commits.
+- **`scripts/play-upload.mjs`**, hand-rolled against the Play Developer API
+  v3 with **no dependency at all** — Node 22's `fetch` plus `node:crypto`
+  for the RS256 assertion. The obvious move is a marketplace action, and
+  this tree's bar for those is visible in `ci.yml`, which declined even
+  `gradle/actions/setup-gradle` for "one fewer third-party action to pin
+  and audit". An upload step holds the one credential that can publish to
+  real users; that is the last place to widen it.
+- **`check:store-copy --first-upload`**, for a genuine chicken-and-egg.
+  The assetlinks fingerprint is minted by Play Console → App signing, which
+  has nothing to show until something has been uploaded, so the first Play
+  upload cannot pass a bare check and every upload after it must. The flag
+  excuses that one run, loudly, and is deliberately **separate from
+  `--ios`**: the two excuse the same line for opposite reasons ("not my
+  store" versus "not yet mintable"), and collapsing them would make the two
+  indistinguishable in a log. It fails closed in both directions —
+  forgetting the flag is a red build, and so is forgetting to fill the
+  value afterwards.
+
+### What was measured rather than reasoned
+
+`PLAY-RELEASE.md` §2.6 flagged the 16 KB page-size requirement as the one
+item it could not measure, because neither the Android SDK nor
+`node_modules` was present when it was written. Both were installed and the
+build was run:
+
+- `assembleDebug` — **succeeds** with the signing change in place, so CI's
+  job is unaffected.
+- `bundleRelease` with nothing configured — **succeeds and is unsigned**,
+  which is the designed behaviour, and the configure-time warning prints.
+- `bundleRelease` with a throwaway keystore — **succeeds and carries a
+  signature block**.
+- The bundle carries **three native libraries × four ABIs**: `libsentry.so`
+  and `libsentry-android.so` (predicted) and
+  `libdatastore_shared_counter.so` (not predicted — androidx.datastore).
+  **Every LOAD segment on both 64-bit ABIs reports `0x4000` = 16384**, so
+  the app is 16 KB compliant with no work. That is now a **step in the
+  workflow** rather than a fact in a document, because what makes it true
+  is a dependency version and nothing else would notice it regressing.
+
+The workflow's three artifact assertions were each verified in both
+directions against real bundles — the signature check passes on the signed
+build and fails on the unsigned one; the `google_app_id` check correctly
+reports the config missing here, which is the true state and proves it is
+not a no-op. That last one is deliberately matched on the exact resource
+name: a looser grep for "firebase" passes on a config-less bundle, because
+the SDK ships `firebase_common_keep` in `resources.pb` regardless.
+
+### The follow-up this creates, and it is the owner's
+
+**If the ENK is registered under a business name, `web/terms.html` must be
+revisited.** D41 said this and SHIP-CHECKLIST repeats it: an ENK is not a
+separate legal person, so the operator is still Olaf Taule *unless* it
+trades under a registered name, in which case the operator line should name
+the entity a user is actually contracting with. `check:store-copy` cannot
+tell a correct name from a stale one — it only sees placeholders — so
+nothing in this repo will ever raise it.
+
+**The ENK is not registered yet (owner, 2026-09-01), so the operator line
+is CORRECT as it stands and was deliberately not changed.** Editing it now
+would make it wrong. What was done instead is to put the trigger at the
+line itself: `web/terms.html`'s contact block carries a comment saying why
+the line is right today, what changes when the ENK exists, and that no gate
+can raise either. A document nobody opens while editing HTML was not enough
+— that is the same reasoning as D41's warning, applied to where the warning
+has to be read.
+
+**And a second change nobody had written down, found while doing it.**
+Norway's **ehandelsloven § 8** obliges a provider of information society
+services to state the register it is entered in and its
+**organisasjonsnummer**; a registered ENK must carry that number on its
+website. There is no row for it on the page and there should not be one
+yet — there is no number. But it is not optional the day there is, and it
+is a second edit rather than a variant of the first, which is exactly the
+kind of thing that gets missed when only the name is on the checklist.
+
+### When to revisit
+
+At the first `play-release.yml` dispatch. Nothing in this record has been
+exercised against a real Play account, because there is not one yet — the
+workflow, the uploader's network half, and both secrets are written and
+untested, which is stated here rather than discovered later. Run it with
+`upload=false` first; that exercises everything except the four API calls.
+
+## D346 · The review lane: every second night, every axiom lane's work is scored and told how to be more useful
+
+**2026-09-01.** **Status:** binding — the owner's ask in their own
+words (*"lets also add a system that scores the different axiom work
+each 2 night and leaves feedback on how it could be even more useful,
+innovative, effective or other relevant score"*), recorded here
+because, as with D326, the account-side half lives nowhere else in this
+tree. Written on `claude/axioms-1v1-group-profiles-70lkd7`; main mints
+numbers while a branch is open, so the standing collision pattern
+(D289) may renumber it at merge.
+
+### What was built
+
+A tenth lane on `axiom-theory`, **review**, in the charter's own
+grammar rather than as a report bolted on — `CHARTER.md` §12, chartered
+2026-09-01:
+
+- **The instrument.** `theory/review/RUBRIC.md` v1: six dimensions,
+  each 0–10 with shared anchors (0 nothing landed · 4 the charter's
+  minimum met honestly · 6 an advance another lane could use · 8 one
+  another lane DID use, or `measured` on InSight's own numbers · 10
+  reserved for a bridge crossing or a sibling claim overturned by
+  evidence). The three the owner named — useful, innovative, effective
+  — plus the three the charter's own clauses add — rigorous, connected,
+  legible. Each is a charter clause turned into a count, and **a score
+  without its evidence line is not a score**.
+- **The spot-check.** At least two risen `cited` sources per lane
+  fetched and read each review; a source that does not exist or does
+  not say what the node claims is named by node id and lowers
+  Rigorous. The lanes verify their own citations already; a reviewing
+  pass that shares its generator's tilt cannot see what the generator
+  could not (D162), so this is the lane's highest-value act.
+- **The feedback contract.** Each review rewrites
+  `theory/<lane>/FEEDBACK.md`: the scores with their evidence, whether
+  the previous feedback was acted on, and at most three items, each
+  actionable within one run and naming the dimension it would move.
+  Charter §3 now reads it in Orient and answers it in the LOG row
+  (`feedback: took …; declined … (why)`); the next review scores the
+  response. A reasoned decline is never marked down, and three reviews
+  of reasoned declines are evidence against the rubric (§11's new
+  review-drift rule) — the reviewer's own falsifier. The optimizer's
+  own finding is why it is a file in the lane's directory rather than
+  a table elsewhere: across fresh-session lanes, nothing converges
+  without an active channel (go-10).
+- **The ledger.** `scores.json`, rendered as `SCORES.md` beside the
+  digest; central's weekly digest carries the latest table (§6). The
+  ratchet applies: a review that changes no score says so.
+- **Mechanics.** `graph/check.mjs` gains the lane and its one
+  cross-workspace write (every lane's `FEEDBACK.md`, nothing else);
+  `graph/SCHEMA.md` the `rev` prefix; the workspace its five files
+  plus the rubric and ledger; nine `FEEDBACK.md` files seeded; the
+  charter's §2, §3, §6, §7, §10 and §11 amended. `node graph/check.mjs
+  --all`: ten graphs, one hundred nodes, green.
+
+### Delivery state, recorded honestly
+
+- **The Routine is live**: `trig_01P1aDKgDhab3yLeCrYn3TAt`, schedule
+  `2 2 1-31/2 * *` (02:02 UTC on odd dates, six hours before the
+  earliest lane slot, so every lane's next run reads feedback that
+  already covers its latest landed run), bound to the dispatcher like
+  every lane, same tool grants, first firing 2026-09-03 02:02 UTC. The
+  prompt carries central's provisioning preamble and a guard: if the
+  charter does not list the lane or the rubric is missing, stop and
+  report — no improvised review.
+- **The charter amendment landed on the owner's word** (*"land it"*, the same evening): `fa2de8e` on `axiom-theory`, a fast-forward from `f759260`, pushed after the checker ran green on the rebased tip. It was staged first on `claude/axiom-theory-review-70lkd7` rather than pushed, because a change to a lane's contract passes the owner (D289 §4: *"no run ever merges a change to any lane's contract"*) — the staging branch was the vehicle; its one commit is now the branch tip, and the branch itself stays on origin only because this environment's git proxy refused the delete — identical to the tip, safe to remove from GitHub whenever. The first firing therefore finds the lane chartered; the prompt's guard is for a future charter that drops it, not for this one.
+- **Cost**: roughly half to one theory run per review (~$10–20), ≈ 15
+  a month, under the owner's standing call that budget is not this
+  program's constraint.
+
+**Not adopted here:** any change to the nine lanes' subjects; a rubric
+bump (the review lane's own graph is where one is argued); and the
+Ties and Interests lanes proposed in `docs/AXIOM-THEORY.md`'s
+2026-09-01 reflection, which wait on the owner's word.
+
+## D347 · Ties and Interests are chartered: the relational axis gets its row and its lane, and the interests axis gets the lane it never had
+
+**2026-09-01.** **Status:** binding — the owner's word (*"charter the
+ties and interests lanes too"*), adopting the same day's reflection in
+`docs/AXIOM-THEORY.md` (its §1 and §2 hold the arguments; this record
+holds what was done). Written on
+`claude/axioms-1v1-group-profiles-70lkd7`; the standing collision
+pattern (D289) may renumber it at merge.
+
+### The two lanes
+
+- **Ties** (`theory/ties/`, ids `tie-`): the relational axiom — the
+  data whose unit is a tie rather than a person: the 1v1 and group
+  duel record, the membership store, the follow graph. Seeded with
+  seven claims: the tie as unit; the guess as a key-scored
+  second-person measurement that decomposes into perceiver, target
+  and relationship variance; knowledge against projection; picks as
+  nominations, with the unbuilt `cast` (D204) read as a sociometric
+  status score awaiting its floor; homophily on chosen ties, which
+  subsumes central's own second-ranked candidate; and two conjectures
+  — tie type, and reading the crowd as the same family at crowd scale.
+  Slot 13:02 UTC on odd dates; Routine
+  `trig_01PjG2bW3zK3GTgnfaYTjQky`; first firing 2026-09-03.
+- **Interests** (`theory/interests/`, ids `int-`): the axis AXES-PLAN
+  §1 listed with no lane. Seeded with six claims: three custody
+  classes and which of them is the measurement; the missing
+  inventory-grade collection as a governed-process decision (the
+  bridge's 2026-08-28 not-yet located the gap); the genetic deepening
+  restated from gen-3 with the edge as its citation; fitted, never
+  authored, structure; and two conjectures — native occasions, and
+  declared against revealed. Slot 14:02 UTC on odd dates; Routine
+  `trig_01HUHXnMT6xAiEaurLxeBJNq`; first firing 2026-09-03.
+
+### The frame moves with them
+
+AXES-PLAN §1's table gains its seventh row — Ties, custody sealed-until
+then public — and the Questions row stops carrying duels. The paragraph
+beneath that table had named sealed-until as one of the app's four
+custody classes from the day the file was written, and no row owned it;
+the reflection's finding is now structural. Nothing in the app moves:
+the axis was already shipped, only unnamed.
+
+### Delivery
+
+- Landed on `axiom-theory` as `ffdf2ae`, a fast-forward from D346's
+  `fa2de8e`, on the owner's word — the posture D346's landing set;
+  checker green at twelve graphs. Charter §2 (twelve lanes, two rows),
+  §10 (slots, ids, five to six runs a day) and §12 (the review reads
+  every workspace) amended; `graph/check.mjs` and `graph/SCHEMA.md`
+  carry the lanes and the `tie`/`int` prefixes; both workspaces carry
+  the review lane's `FEEDBACK.md` seed, so D346's review covers them
+  from its first firing — it reads the charter's table, not a list of
+  its own.
+- Both Routines are dispatcher-bound like every lane, with the same
+  tool grants and central's provisioning preamble, the §3 run shape,
+  a first-hand reading list on `main` (this record, D204, D156, D40,
+  D224, D310 and `data/roles.ts` for Ties; D163, D101, D14–D17, D232,
+  D266 and the not-yet verdict for Interests), and the guard: stop if
+  the charter does not list the lane.
+- **One drift, recorded rather than hidden.** Both prompts cite this
+  record by the number it carried on the branch, D343 — which is now
+  main's account-requirement record. Prompt edits on a Routine that
+  fires into the dispatcher's session are refused by the tooling (the
+  D326 finding, met again), so the fix is D326's recreate-then-delete,
+  taken at the owner's go-ahead rather than by a run. Tolerable in the
+  meantime by the charter's own design: it outranks the prompt and is
+  re-read every run, the seeds on the branch cite this record by title
+  (`d509851`), and a lane that opens D343 finds a record about accounts
+  and moves on.
+- Cost: two more theory runs every other day, about $600 a month more;
+  twelve lanes, five to six runs a day plus the review at night. The
+  dispatcher backlog the 2026-09-01 digest reported is the thing to
+  watch, and charter §11's cadence dial is the fix.
+
+**Not adopted here:** time-use (stays inside central until its cheap
+test runs), the anchors and Learn (focus questions to the questions
+lane), and any product change — every product-side item the Ties lane
+is expected to ask for (the `cast` fold, a perceiver/target summary
+over public reveals, the romantic pool's activation, homophily over
+the follow graph) arrives through the bridge and its own record.
+
+---
+
+## D348 · The feed weaves its fresh topics, not its answered ones — the returning device stops opening on tests and learn
+
+**2026-09-01.** **Status:** binding. Corrects the mechanism D309 §1
+named; leaves D309's cadences standing. Recorded with the measurement,
+because the previous record reasoned about this feed and was wrong
+about it for every device but a new one.
+
+> *"the algorithem needs some work when you first open the app it never
+> seams to just add topics that are not tests or learn"*
+
+The same complaint reached D309 on 2026-08-26 ("it's mostly tests and
+learn") and was answered as depletion: the world bank is finite, answered
+cards leave the fresh feed, the side streams are deep, so once the world
+half is spent the side streams are what remain. Every sentence of that
+is true and none of it is what the owner was looking at. D309 also said
+"a fresh account sees mostly world questions", which is true, and is the
+reason nothing caught the rest: the demo build and every mount suite
+mount a fresh account.
+
+### 1 · The mechanism, measured this time
+
+`world-feed.jsx` wove the side streams against the FULL world list —
+answered cards included — and dropped the answered ones from the
+output afterwards. Its own comment gave the reason: the test and lens
+slots fire on world indices, the fresh half only ever shrinks, and at
+eight fresh cards a lens stream firing every ninth would strand its
+remaining questions forever. It described the cost as the slots
+"landing a little closer together on screen as the fresh half thins".
+
+They do not land closer together. They land in a block at the head.
+The world order is stable (`wfStreamMix` round-robins bank order, and
+a new card lands at the tail of its topic's round), the reader answers
+from the top, so a returning device's answered cards are a PREFIX of
+the list — and every slot that fired against that prefix survived the
+drop with nothing left between the cards it had been woven among.
+Through the shipped `interleaveFeed`, a 190-card world list (about the
+seeded feed's size), tests, lenses and Learn at its default cadence:
+
+| Answered world cards | Side cards before the first topic card |
+| ---: | ---: |
+| 0 | 0 |
+| 8 | 3 |
+| 16 | 7 — the first mounted page (`WF_PAGE` = 8) bar one card |
+| 40 | 19 |
+| 100 | 50 |
+| 180 | 90 |
+
+The head of the feed at sixteen answered was `t0 k0 t1 l0 t2 k1 t3 w16`.
+That is "when you first open the app it never seems to add topics":
+the topics were there, two screens down, behind every test the reader
+had not taken yet. The mount fixture reproduces it in miniature —
+twenty-four cards, twelve answered — with the head
+`test-political-99 lrn-fixlearn2 lq-moral-0 feed-fixture-12`.
+
+The paid slot had the same defect one size smaller: it fired after the
+sixth card of the full list, so with six answered it surfaced at the
+top of what the reader actually saw — the placement D195 wrote "never
+first" against, reached from the other side.
+
+### 2 · What moved
+
+- **`interleaveFeed` takes a `depth`** (`data/feed-interleave.ts`): it
+  walks `max(world.length, depth)` cadence positions, pushing world
+  cards while they last and side cards wherever the cadences say. Past
+  the end of the world list a position contributes nothing of its own.
+  The knowledge drain keys on the positions walked, not the list.
+- **The feed weaves the fresh list and passes the full length as the
+  depth** (`world-feed.jsx`). The same side cards are placed — the same
+  count per stream, each in its own order, the multiset unchanged — in
+  one order: fresh topics first at the designed rhythm, the surplus
+  after them in cadence order. At the fully caught-up end that surplus
+  is exactly what the full walk produced, so the "You're caught up"
+  state and the record behind the Answered expander are untouched. The
+  final answered-id filter stays for the one card that can still need
+  it, an already-answered sponsored question, which parks behind the
+  expander rather than spending the day's slot on a result.
+- **Nothing about the cadences moved.** `TEST_EVERY`, `LENS_EVERY` and
+  Learn's rate are what D309 left them; this reorders, it does not
+  retune, and the engagement rungs D309 named are still what would
+  justify a retune. The per-mount freeze of answered-ness (`sunk`)
+  stands too: the fresh list is sampled once per visit, so a card
+  answered mid-scroll keeps its place until the next one.
+
+### What proves it
+
+`feed-interleave.test.ts` reproduces the shipped shape through the
+shipped function — full list in, answered prefix dropped, seven side
+cards at the head — and pins the fix beside it: the fresh head at the
+designed rhythm, the same multiset placed, each stream in its own
+order, the default depth leaving a fresh account's feed byte-identical,
+the caught-up surplus in cadence order, the knowledge drain intact.
+`sponsored.test.ts` pins the slot's place on a returning device.
+`test/feed-fresh-head.test.jsx` mounts the real feed in live mode with
+twelve of twenty-four cards answered and asserts the mounted ORDER —
+the half no gate reads, which list the component hands the function;
+mutation-checked: weaving the full list again fails it with the
+fixture head above, and the arithmetic suite stays green, which is why
+the mount case exists. `lint`, `tsc -b`, `check:globals` (coupling
+unchanged at its baseline), `check:figures`, `check:docs`,
+`test:scripts` and `test:unit` green.
+
+### What this deliberately is not
+
+Not the depletion cure. D309 §1's production argument stands whole: a
+device that has answered every topic still meets the side streams
+alone, and only the lanes change that. What changed is the device that
+has NOT answered everything, which was being shown the caught-up feed
+with its fresh topics hidden underneath. Left alone, knowingly: on a
+heavily answered device the surplus is a long block at the END of the
+feed — 180 answered puts ninety side cards after the ten fresh topics
+— which is the caught-up shape arriving one screen later rather than
+one screen earlier. Thinning that block is a cadence question, and
+D309 says whose numbers it waits on.
+
+## D349 · Two night shifts and a night nobody had read, merged as one tree — 81 commits kept, four added, and a standalone suite that could not stand alone
+
+**2026-09-02.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+eighty-one commits are kept as written; nothing was reverted and nothing
+amended. Four commits are added by this review: three close something a
+night named and left, and the fourth reopens a runbook box the night's
+own figure sweep walked into.
+
+### What arrived, and why no branch's own green was enough
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260901` | 32 | **45 behind** | unreviewed since 09-01 |
+| `night-20260902` | 35 | 2 behind | shift A, 21:00–05:20 UTC |
+| `nightb-20260902` | 13 | 2 behind | shift B, first night |
+| `nightb-20260902-integration` | +1 | — | the night's own composition of 0901 + B |
+
+**There are two shifts now, and only one of them knew it.** The
+`.gitignore` entry naming `NIGHTB_TASKS.md`, `NIGHTB_SUMMARY.md` and
+`.nightb/` cites this record for its reason, so here it is: two
+containers audit this tree on the same nights, and a person opening
+either set of scratch notes has to be able to tell whose they are
+without reading them. The entries are load-bearing beyond tidiness —
+`doc-index` rule 5 asks that ORIENTATION.md name every root markdown
+document and reads its skip set from `.gitignore`, so an unlisted root
+note turns a gate red on the contents of somebody's working tree.
+
+Shift B's closing flow composed itself onto the unreviewed 09-01 branch
+and found D336's finding reproduced exactly: three figures that had
+moved on main while `night-20260901` was away, merged by git without a
+conflict — the numbers on one side, the bank on the other — and
+`check:figures` red on a tree neither branch produces alone. It fixed
+them. It did **not** compose shift A, whose last commit lands at 05:20
+UTC, twenty-four minutes after the integration branch's. So the
+composition this review ran is the first tree that has ever held all
+three, and the composed battery is what the verdict below is about.
+
+The three files both shifts touched (`functions/src/v2social.ts`,
+`scripts/check-figures.mjs`, `src/v2/test/world-feed-math.test.js`)
+merged clean and were read hunk by hunk rather than trusted;
+`LiveSimilarityField.tsx`, where the same defect was found on two
+successive nights, was read whole to confirm the fix is applied once.
+
+### Verified, not assumed
+
+Every runner and every gate, on the composed tip, in this environment:
+
+| Runner | Result |
+| --- | --- |
+| `test:unit` | 2,378 passed (164 files) |
+| `test --prefix functions` | 588 passed (26 files) |
+| `test:scripts` | 653 passed (39 files) |
+| `test:rules` | 163 passed (2 files) |
+| `test:e2e:all` | all three drivers — loop, erasure, moderation |
+| `test:e2e` · `:erasure` · `:moderation` | each standalone, after the fix below |
+| `tsc -b` · `tsc -p functions` · `npm run lint` | 0 · 0 · 0 |
+| `check:*` gates | 40 of 42 pass, `check:figures` among them on the composed tree |
+| `check:bundle` | OK on a SHIPPING build — 2160 KB / 763 KB eager |
+
+The two that did not pass are the two named rather than claimed (D1):
+`check:web-firebase` needs the release Firebase secrets, which this
+environment does not hold; `check:store-copy` is red on `origin/main`
+too, on `REPLACE_WITH_PLAY_SIGNING_SHA256` in
+`web/.well-known/assetlinks.json` — an account-gated ID from the Play
+Console, not this tree's.
+
+### The changes read closest, and why they cleared
+
+- **`live.ts`, the answered watermark.** The strongest fix of the three
+  nights. The edit delta was folding with `raiseAnswered` on, so an edit
+  on a document created after the answered delta's cursor lifted that
+  cursor past every deferred create — and those answers are never
+  fetched on that device again, at which point the deck re-offers their
+  questions and the create-only rule refuses every re-vote. Each card
+  silently un-votes itself. Checked against the queries rather than the
+  comment: both deltas take their order from the inequality, ascending,
+  so each is a complete account of its own range and neither may speak
+  for the other's.
+- **The non-ASCII name chain, three hops.** `firestore.rules` forces
+  `nameKey == name.lower()` and the rules engine's `.lower()` is
+  ASCII-only, so a JS `toLowerCase()` writer is REFUSED and the account
+  gets no directory row at all. Shift B proved it against the emulator,
+  fixed all three writers — and its own next commit found that the one
+  caller had already destroyed the input before the fold could run.
+  Each half was correct alone; only reading the night as one diff shows
+  it. The premise now has a rules case (below).
+- **`v2social.ts`, `nearbyCountV2`'s blind `- 1`.** `countsSelf` admits
+  on `presenceExpiry`, which falls back to `at` + the linger for legacy
+  documents; the aggregation counts `until > now`, and a range filter
+  skips a document missing the field. So a legacy phone was admitted
+  while sitting outside `total`, and the subtraction removed a person
+  who was never in the number. Correct after the gate, because past it
+  `until` present implies counted.
+- **`q.liveId`, in both maps.** On a live build `MapStats` reads
+  `LIVE.aggFor`, keyed by the seeded bank id, while `daily-questions.js`
+  hands out its own demo-calendar id — disjoint spaces, so every
+  answered question returned null and the Map drew "isn't measured yet"
+  over aggregates already on the device. Fixed in `map-tab.jsx`, then in
+  `person-mindmap.jsx` by the commit that admits leaving the twin. The
+  third consumer, `map-bottom-card.jsx`, reads `node.qid` and is carried
+  by both. No fourth site: `daily-split`'s live panels take `S.id` on the
+  `S.live` branch, which is already the bank's.
+- **`patterns.ts`, publishing without a quality row.** The arm that used
+  to manufacture an empty-day score now omits the field — and the
+  `set` beneath it has no `merge`, so omitting deletes. Safe only
+  because `quality` is undefined in exactly the case where the document
+  has none to lose, which rests on `getModel`'s projection continuing to
+  name it. The commit says so and `store-projection.test.ts` holds both
+  ends.
+- **`paid.ts`, a hand refund closing a campaign as settled in full.** The
+  prior-refund lookup took `limit: 1` and recorded what was OWED. It now
+  sums every non-failed, non-canceled refund on the intent and writes
+  `refundedEur` beside `refundEur`, warning when the two differ. The
+  record is what a dispute is read against.
+
+### The four commits this review adds
+
+1. **The stolen docstring, committed twice in one night.** `143df93`
+   fixed exactly this in `socialFetch.ts` — a new export inserted after
+   the closing `*/` of the next function's docstring, so TypeScript
+   attaches that documentation to the wrong symbol — and the other
+   shift had done the same thing three hours earlier in
+   `world-feed-math.js`. Measured with the compiler API, not by eye:
+   `wfAnsweredOf` carried two blocks and `wfVotesOf` none. Moved, no
+   prose changed.
+2. **The rules case shift B promised.** Its own commit says the
+   regression case "belongs in firestore-tests/rules.test.ts" and was
+   left out because the other shift was rewriting that file the same
+   night. Both are composed now, so the reason is spent: the emulator
+   probe is pinned as a case, and it fails the day `.lower()` learns
+   Unicode — which is the day all three client folds become wrong at
+   once, with nothing else in the tree able to say so.
+3. **A standalone suite that could not stand alone.** `npm run
+   test:e2e:moderation` has exited 1 at step 9 since `a224c18`
+   (2026-08-28) added the question kill switch to the world-take create
+   rule; this driver never seeded a question, and `get()` on an absent
+   document is a null-value error four layers from its cause. It stayed
+   invisible because CI runs `test:e2e:all` — one emulator, three
+   drivers, and driver 1 seeds the bank before this one starts. The
+   composite was green on a dependency it does not declare, while
+   `backend-checks.yml`'s own comment calls the three scripts "the right
+   thing to run by hand". Two legs, the world leg and the avatar leg,
+   had not run by hand for five days.
+4. **A checked box that had stopped being true.** The ninth alert
+   policy — `paid-refund-stuck`, the paid pipeline's first alert of any
+   kind — landed tonight, and the figure sweep that followed the count
+   from eight to nine walked straight through LAUNCH-RUNBOOK 5.5, whose
+   `[x]` reads "Apply the nine monitoring alerts — VERIFIED ARMED AND
+   WIRED 2026-08-27" over a body that verifies **eight**. Nothing in
+   this tree arms a policy, so the money alert is committed, gated and
+   silent. The box is reopened, the 2026-08-27 verification is left
+   saying exactly what it verified, and the heading keeps the count
+   `check:figures` holds it to. This is the sweep's own hazard pointed at
+   the sweep: a derived number is only safe where the sentence around it
+   is about the number.
+
+### Two things that are the owner's call, not this review's
+
+- **`rank.ts`'s landslide is not the scorecard's, and the night proved
+  it rather than papering over it.** The serving order sinks a question
+  at a raw top share ≥ `RANK_DEAD_SHARE` with ≥ `RANK_DEAD_MIN` answers;
+  the scorecard's retire proposal grades on EVENNESS, which normalises
+  by option count. Measured on the same aggregates, they disagree in
+  both directions — binary 90/10 sinks here and is not a scorecard
+  landslide; 4-option 88/4/4/4 is a scorecard landslide and does not
+  sink. An operator reading the nightly proposals and the published
+  serving order therefore gets two verdicts on one question. Making them
+  one predicate CHANGES WHAT THE FEED SERVES, so the night correctly
+  stopped at making the comment true. Which one is right is a product
+  decision.
+- **The iOS purpose string now describes Near.** "Used once, on this
+  device" was false while the presence loop re-reads location every four
+  minutes with Near on, and this is the prompt shown before anyone can
+  consent — so it moved, and `check:ios-location` now holds the two
+  sides together in both directions. It is store-facing: the next
+  submission carries a changed `NSLocationWhenInUseUsageDescription`,
+  which App Review reads.
+
+### One open question the night wrote down rather than settled
+
+`functions/vitest.config.ts` scopes its coverage report to `pure.ts` and
+`deviceBind.ts`, and the argument that picked those two was the pre-D98
+privacy floor — k-anonymity, complementary suppression, the publish
+cadence, all three retired. The night replaced the dead reasoning with
+the live one (these files decide what a published number SAYS) and said
+plainly that whether `paid.ts` or the moderation queue now belongs in
+scope is open. It is.
+
+## D349 amendment (2026-09-02) · The figure collision is not about composing branches; it is about two merges thirty seconds apart
+
+The record above says shift B's closing flow reproduced D336's finding —
+`night-20260901` quoting bank counts main had since moved, git merging
+both sides without a conflict because the numbers are on one side and
+the bank is on the other. It happened a third time within the hour, and
+by a mechanism neither record had named: not a composition at all.
+
+**#356 (six feed questions) merged at 10:04:29 and #357 at 10:04:59.**
+Both were green. Neither touched a file the other touched. GitHub
+computed `mergeable_state: clean` for #357 against the base #356 had
+already left, merged it without a conflict, and `main` came out red:
+
+    politicalConsent.ts   332 -> 338 on the daily and the feed
+    engagement.ts         744 -> 750 in the bank
+
+Both entries are ones the night ADDED that night, which is the part
+worth keeping. `check:figures` did not fail here; it worked. A figure
+that nothing derives cannot collide, because nothing notices — the two
+sentences would simply have gone on being wrong, which is the state the
+gate exists to end. What the third occurrence shows is that the window
+is not "a branch that sat unmerged for a day". It is any two pull
+requests where one moves a counted thing and the other quotes it, and it
+is as short as the time between two merges. No pre-merge check can close
+it: each PR is green against the base it was tested on, and the
+collision exists only in their sum.
+
+So the answer is not a gate. It is that `check:figures` red on `main`
+after a merge is a NORMAL outcome rather than an incident — one commit,
+prose only, computed by the gate's own `fix:` output — and that the
+person merging a figure-bearing branch should run it on the merged tree
+rather than trusting either PR's green. That is what happened here.
+
+### And the fix found the sentence the number was holding up
+
+`engagement.ts` read "The bank is 744 questions today, so the bank can
+double before this truncates anything real", against a fence of 1,500.
+At 750 doubling lands exactly ON the fence; the claim had been true by
+twelve questions and expired with this merge. The gate kept the number
+current underneath a sentence that was about a RATIO between that number
+and a constant, and nothing held the ratio — the same shape as the
+runbook box in the record above, where a swept count sat under an
+inspection it did not cover.
+
+Rewritten to state the condition rather than a multiple, and the
+headroom is deliberately not restated as one: a ratio between a gated
+figure and a constant is a claim nothing can hold. It also now names
+what the old sentence quietly omitted — a day's qids are bank questions
+PLUS any `paidq-` ones, so the bank is not the only way to the fence.
+
+## D350 · The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory
+
+**2026-09-01.** **Status:** binding. The owner's ask, in their words,
+over one session: *"Feed should be higher allow more in each category
+and have system for prioretizing popular categories"*; on the caps in
+general, *"they are mostly holdovers when this app wrongly stated that
+there was a limit to the amount of questions"*; then, on reading the
+inventory below in its first form, *"remove the learn and daily lane
+holdovers too, same shape. and feed cap can be much higher."* The
+second sentence is the finding this record checks against the tree,
+lane by lane, in § The inventory; the third is what it does about it.
+
+### What shipped
+
+**One allocator, three lanes.** `scripts/lane-tiers.mjs` holds the
+shape once — three copies of one allocator is how the bank parser
+drifted into an invented figure (D197) — and the daily, learn and feed
+regulators call it:
+
+1. **The floor first.** Rows under the lane's floor (a feed topic, a
+   learn field, a daily top) are filled thinnest first, one per row per
+   pass, never past their own room under it. Breadth's minimum, not a
+   target: nothing stops at it.
+2. **Demand takes everything the floor leaves.** Weight per row =
+   popularity × depth — the daily lane's demand lane (QUESTION-FARM.md
+   § Picking topics) made computable: popularity is the row's share of
+   credited answers (the scorecard's conserved shares, TAGS-PLAN §3, so
+   a door redistributes demand and never mints it); depth is answers
+   per unit of stock against the deepest row — the reading of "how far
+   its audience goes through the pool" that stays measurable while
+   D319's volume order keeps new questions at the tail (least ÷ most
+   reads 0 for any row holding one unanswered question, which is all
+   of them). Units go out D'Hondt-style, leaders first over a small
+   budget; no row may take more than ⌈0.75 × batch⌉, the batch-mix
+   gate's own ceiling, so a regulator never prints a batch the
+   pre-flight refuses. The share is READ only when it can be believed:
+   at or past 100 credited answers on the lane and a scorecard no older
+   than 30 days (the manual's staleness rule). Below either the lane is
+   blind. Every lane is blind today — the scorecard credits 28 feed, 25
+   learn and 8 daily answers — and each test pins that it says so.
+3. **Levelling, blind.** The rest spreads thinnest-first across every
+   row with no ceiling.
+
+**Per lane:**
+
+- **Feed** (`feed-budget.mjs`): `TOPIC_TARGET` → `TOPIC_FLOOR` (24,
+  unchanged); the stop at the level is gone; `RUN_CAP` 6 → **60** and
+  `OPEN_MAX` with it (single-gate shape: one unreviewed batch at a
+  time, the one stop left). Sixty is D316's own order of magnitude over
+  the original six — SCALE-PLAN's first owner decision, *"question
+  production scales up by an order of magnitude or more"* — and a
+  throughput figure at the writing bar: the batch gates score sixty
+  candidates and their 1,770 sibling pairs in one pass, and the PR body
+  carries one packet line and one argument per question as before.
+- **Learn** (`learn-budget.mjs`): `FIELD_TARGET` → `FIELD_FLOOR` (24,
+  unchanged); the stop at the level is gone; chunk mode keeps D115's
+  shape rule — at most ⌊budget ÷ 4⌋ fields per run, split evenly, one
+  subject per chunk — and the demand tier reads the scorecard's learn
+  section, where a field's answers per card is the rate it is being
+  read at, which is what runway always meant. `RUN_CAP` stays 10.
+- **Daily** (`farm-budget.mjs`): the budget arithmetic is untouched
+  (`PEN_TARGET` 56, `RUN_CAP` 8, `PROMOTE_PACE` 2 — see the inventory
+  for why those are not holdovers); what changed is where a granted
+  budget GOES. `TOP_FLOOR` 8 per `CAT_META` top, then demand off the
+  scorecard's capitalised daily rows (the old replenishment lane folds
+  into depth), then levelling — printed by `npm run farm:budget` as
+  the allocation, read off the archive by check:quality's own corpus
+  loader. The manual's three "lanes" of 2026-07-30 survive as tiers 2
+  and 1; the sentence under them — *"if no lane has work … the run is
+  a no-op"* — is gone, because it fired on an EMPTY pen: with the crowd
+  too small to give a signal and every top past the old floor of four,
+  the lane logged eighteen straight no-ops against a granted budget of
+  8 (run log #31, 2026-08-14 → 09-01), D33's "never generate into a
+  full review queue" firing on an empty one. A granted budget is
+  always work; the run is a no-op only when the budget script grants
+  zero.
+
+`check:figures` holds every number above to the manual (the two
+renamed floors, and per lane the two demand thresholds; the daily's
+floor besides); `lane-tiers.test.mjs` pins the shape (21 cases) and the
+three lane suites their budgets — the no-stop property on each, floor
+before demand, chunking, the batch-mix cap, staleness, the depth factor
+that lets a small devoted row outrank a big diluted one;
+QUESTION-FARM.md § Picking topics, § The learn-card lane and § The
+feed lane rewritten around the tiers with their canonical prompt
+blocks; FEATURE-COMPLETE.md's three lane lines corrected, including the
+one that still said the feed lane's output was nil.
+
+### What it reverses, and on what grounds
+
+D145's stop at the feed level and D213's *"the dilution bound is a RATE
+bound, so the cap stays 6"*; D115's stop at the learn level; the
+maintainer's 2026-07-30 no-op sentence for the daily. All four were
+sized to a bank every device was handed whole, and that premise ended
+at D316–D321: the install fetches the boot surfaces, the core and a
+page per topic, never the bank; D316's adoption sentence is *"there
+should be no question limit"*, and its phase 2 says what that does to
+the lanes — *"the lane's pace unbinds from consumption … cadence and
+RUN_CAP become throughput questions answered by the writing bar rather
+than the read path."* A target a lane stops at is production sized to
+consumption. What was true in the dilution argument survives where it
+belongs: the demand signal is not READ until the crowd is real, and
+D319's order sinks a question that measures badly — quality moved from
+pre-emptive caps to the serving order, which is D316's own sentence.
+
+### What stands
+
+`OPEN_MAX` on every lane (about the gate, not the bank); every farm
+hard rule; the tail rule — the demand share allocates which TAIL topics
+a run writes into and has no pen on `core`, so *"popularity must not
+tilt the corpus"* holds by construction; `now` out of the feed fold
+(D231); the batch-mix and form gates (D316: none is a volume cap); the
+operator's reseed step. The live Routine prompts for the farm, learn
+and feed lanes were swapped for this record's blocks on 2026-09-02, by
+delete-and-recreate from a sibling session (`update_trigger` still
+refuses a prompt edit into a session that is not the caller's own —
+the D148 mechanism, re-measured); the Governance table carries the new
+ids. Until this record merges, the manual on `main` outranks the new
+prompts, as each prompt says every firing — so a run in between
+follows the old rules, which are the stricter ones.
+
+### The inventory — every cap in the question pipeline, and which premise it stands on
+
+Read off the tree (`npm run feed:budget`, `farm:budget`,
+`learn:budget`, `duel:budget`, the gates' constant blocks).
+
+**Holdovers of the bounded bank, retired here:** the feed's per-topic
+stop and its 6-per-run dilution cap; the learn lane's per-field stop;
+the daily lane's "no lane has work" no-op.
+
+**Still standing, the owner's call, one constant:**
+
+- **Duel `POOL_TARGET` 48** grants zero at 48 per pool. Partly real: the
+  duel banks are bounded rosters a device still takes whole at boot
+  (D321's census), so every question above it costs every install one
+  document — small, and a number to raise deliberately rather than a
+  premise to retire.
+
+**Real bounds, not holdovers** — each is a shape, a cost, or the
+writing bar, and none says how many questions there may be:
+
+- **The daily pen and pace** (`PEN_TARGET` 56, `PROMOTE_PACE` 2): the
+  daily is positional and consumes one a day by design (D316 — cohort
+  comparison needs everyone on the same question), the archive ships
+  in the JavaScript bundle (BANK-DELIVERY's ceiling 1, the one learn
+  left at D284), and the seeded daily bank ships whole to every device.
+  The pen is a promotion buffer with a runway meaning, and the pace is
+  what grows runway a day per day. Raise the pace and the bundle and
+  the id space below move with it.
+- `BANK_WARN` 6000 / `BANK_FAIL` 10000 seeded docs (`check:quality`):
+  re-pointed three times as ceilings retired, now watching the one
+  thing left of BANK-DELIVERY §4 — a device reads every CACHED row into
+  memory each boot. **At the new pace this is the decision owed
+  next:** about 65 documents a day (feed 60, learn ~3, daily 2) against
+  a bank of 744 reaches the warning around late November 2026 and the
+  failure around late January 2027 — and the failure is a hard CI red
+  for every content PR, which would be a question limit in everything
+  but name. The alarm asks for the in-memory design (an eviction rule
+  for unanswered tail pages, or a measured figure that retires the
+  tripwire); that is a device change with its own record, and it is
+  what to build before the date, not a cap to put back.
+- `DAILY_ID_WARN` 900 / `FAIL` 970 of 999: the `daily-NNN` id shape,
+  an id-scheme decision due before it breaks. Bank 130, growing at the
+  promotion pace.
+- Options 2–10 per question (`check:content`) and `optionIdx` 0–19 (the
+  aggregate fold's cell ceiling, `functions/src/v2.ts`): per-question
+  shape, not stock.
+- The published order doc (`v2_rank/feed`) at ~150 KB per 10,000 feed
+  questions against Firestore's 1 MiB: one doc per topic when a surface
+  approaches it (D319 says where to shard).
+- The batch-mix rule (no topic or form past ⌈0.75 × batch⌉) and every
+  `check:quality` form bound (`PROMPT_MAX` 120, `OPTION_MAX` 32,
+  `ALSO_MAX` 2, the tragedy and place tripwires): the writing bar.
+  D316: *"the bar does not move with the volume."*
+- The editorial carve-outs: `now` (D231), `rates` (D187), hard rule 6's
+  place-scoped civic questions (paid inventory), tests and pulses
+  (frozen instruments, D213's census). These bound WHAT a lane may
+  write, never how many.
+- Serving-side numbers that read like limits and are not: `FEED_PAGE`
+  12 and `LEARN_PAGE` 24 per topic per boot (page sizes — the pager
+  keeps fetching), `TASTE_MIN_TOTAL` 10 / `TASTE_TOPIC_MIN` 3 (when a
+  profile shapes pages), `RANK_DEAD_MIN` 20 at 90% (the landslide sink),
+  `DECK_DAYS` 7 (the history pager).
+- Cadence: one fire per lane per day is the Governance table's, and it
+  is the lever that moves throughput next.
+
+### Cost, so raising further is arithmetic
+
+At sixty a day the feed grows 420 a week, ~22,000 a year. A device's
+install is O(core + pages) whatever the bank (D321); the nightly rank
+fold reads O(bank) aggregates in 300-chunks — a night's ordinary work
+at these sizes, and its order doc shards per topic past ~60,000 (above).
+The write side is the Routine's own run on the owner's subscription,
+which fired daily already; what changes is that a run is never idle,
+and that a feed run is a long one.
+
+### When to revisit
+
+Raise a `RUN_CAP` when runs finish with the bar met and time to spare;
+lower it the day a batch merges with a dupe the re-read should have
+caught. Raise a floor if a filtered topic or a followed field still
+reads thin at 24, or a daily top at 8. Move `DEMAND_MIN_ANSWERS` with
+what the first real demand allocations look like against the evenness
+the scorecard then shows — a threshold set before the crowd exists is a
+starting figure, and the record says so. And build the in-memory
+design before the `BANK_FAIL` date above.
+
+## D350 amendment (2026-09-01) · The bank-size failure was a question limit in everything but name
+
+The inventory above named `BANK_WARN`/`BANK_FAIL` a real bound and put
+a date on the failure. The owner's reply: *"i dont understand this does
+youtube have a limit to how many videos can exist or twitter how many
+tweets?"* No — and the tripwire's own comment agreed without noticing:
+it counted the SEEDED bank as a proxy for "every row a device's cache
+has accumulated", and after D320/D321 the bank is not what a device
+holds. A gate that turns CI red at 10,000 questions is a limit on
+questions, whatever it is named.
+
+Re-pointed a fourth time, and the last: `INSTALL_WARN` (4000) counts
+what a fresh device is handed WHOLE — the boot surfaces (daily, test,
+group, duo, pulse, call) plus the feed's core (D321) — and warns, never
+errors, at about 1 MB at the seed's measured bytes per document. That
+count is about 460 today and moves at the daily's promotion pace and
+the core's curation, so the line is years out. The paged surfaces are
+not counted: a device fetches learn and the feed tail a page at a time.
+`BANK_FAIL` is gone; `check:quality` has no error path on bank size,
+and its test pins that a bank of a hundred thousand rows does not fail
+it. The inventory's date for the failure is void with it.
+
+What the old count was reaching for is real and is a DEVICE design: a
+phone that boots daily for a year accumulates every page it was handed,
+and hydrate reads all of them into memory. YouTube's answer is eviction
+— keep what you answered and what is on screen, drop the rest from
+memory. That is a client change with its own record (BANK-DELIVERY §4
+names it), owed before heavy devices hold tens of thousands of rows;
+it is what to build, and it is not a reason to stop writing questions.
+
+## D351 · Current events get their lane: found by searching, never from memory
+
+**2026-09-01.** **Status:** binding. The owner, on the inventory's
+"editorial only" row for `now`: *"should be made by claude but should
+be finding news from some other source."* Reverses D231 §6 (the farm
+may not write this lane) and NEXT-FUNCTIONALITY §7's "not doing:
+farm-authored current events" — on the condition the owner named, which
+is the whole design.
+
+### What shipped
+
+- **`scripts/now-budget.mjs`** (`npm run now:budget`, tests in
+  `now-budget.test.mjs`): `NOW_CAP` 6 per run, `OPEN_MAX` 6 (single
+  gate), `SOURCES_MIN` 2, `FRESH_DAYS` 7. No stock to level — the topic
+  empties itself — so the script's other job is the windows: what is
+  live, which close dates the bank already uses, and the free closes
+  from the short end up, so a batch staggers against the bank and not
+  only against itself (check:quality's stagger rule holds within a
+  batch; this holds it against what is already there).
+- **The source rule, sized to what a run can actually reach.** Measured
+  from the session environment (`env_01Ri3fw8gD9Py3LmTQ9hTYCL`, the
+  one the bound dev session runs in): every news domain tried — BBC,
+  NRK, NYT, AP, Guardian, Al Jazeera, NPR, VG, Google News, Wikipedia's
+  current-events portal — is refused at CONNECT by the egress proxy
+  (403; `query.wikidata.org` and `registry.npmjs.org` still answer
+  200), and the session's page-fetch tool reports `EGRESS_BLOCKED` for
+  the same hosts. The session's SEARCH tool runs outside the sandbox
+  and returns outlets, headlines, URLs and a digest. So a run can FIND
+  and CITE a story, and cannot OPEN it — and the bar is set there: at
+  least two independent outlets, under a week old, every source in the
+  PR body for the audit. One result is a headline; two are an event. If
+  the environment's policy is widened to news domains, the bar tightens
+  to "opened, and quoted" — the manual's bullet and the prompt move
+  together.
+- **QUESTION-FARM.md § The now lane**, its canonical prompt block, the
+  Governance row (a daily Routine at 11:00 UTC, bound to the dev
+  session like the other five, created from this session at the
+  owner's direction — the D148/D212 path), and the feed lane's `now`
+  bullet re-homed. Every D231 and D281 rule binds unchanged: both
+  window ends, 3–21 days, most short, distinct closes, no prediction
+  shape, the options a story has, a `bg` of durable facts; D235's no
+  tragedies bites hardest here and is written into the prompt; the
+  angle is personal and the flag honest (EVENT-DISCUSSIONS §5, now
+  built for `now`); warmth over outrage.
+- `LANE_EXCLUDED` in the feed regulator stands, re-explained: `now` is
+  not editorial any more, it is a lane with a source rule the feed
+  regulator lacks.
+
+### What stands, and the one thing the prompt says to itself
+
+The 1-in-20 audit is where the source claims get read by a person. The
+prompt checks that its section exists on `origin/main` before doing
+anything, so a firing before this record merges is a logged no-op
+rather than an improvisation.
+
+## D352 · The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended
+
+**2026-09-02.** **Status:** binding — the owner's answers of this day,
+quoted below, adopting `docs/PROGRAM-PLAN.md` (its §10 holds every
+answer) and licensing `docs/PROGRAM-RUNBOOK.md` as the contract the
+new lanes defer to. Written on
+`claude/automated-subscription-routines-e1k120`; `main` mints numbers
+while a branch is open and two other open branches claim this number
+today, so the standing collision pattern (D289) will renumber at merge
+— the prompts in the runbook cite sections, never this number, for
+exactly that reason.
+
+### The ask, and the answers that bind
+
+*"i want to create a more automated system based on routines between
+the 3 different claude subscriptions. the goal is that i should almost
+only work on lists and monitoring data i can see."* Six lists — what
+can be merged, the to-do list, the permission list, the owner's own
+list, the axiom list, the visual request list — a to-do doer on every
+subscription, a shift that works only on approved pull requests, the
+axiom theory routines on this subscription too, an **axiom builder**
+that opens pull requests toward what the theory envisions, a rule
+every session sees, and monitoring with a routine for improving it.
+The plan restated it and asked twelve questions; the answers:
+
+1. The theory lanes get a second set here, *"opposite days"* — every
+   lane fires daily once phase 4 lands.
+2. *"a second label called approved sounds like the way and it should
+   be done by ticking a box in the list file"*, and on the runbook's
+   rule that no lane applies `merge-when-green`: *"this is wrong, the
+   shepherd can."* The tick in `MERGE-LIST.md` is the owner's act; the
+   console workflow mirrors it to the label `approved`; the merge
+   shift applies `merge-when-green` when the PR is green on its
+   current head and reviewed as one diff; the PR shepherd merges under
+   its five steps unchanged.
+3. A to-do doer on Claude 1 and Claude 3 as well, and *"they have to
+   work together the best they can"* — the tag rule.
+4. The rule's boundary: *"as long as they dont limit functionality
+   then it has to be approved that it can be blocked because of a
+   limit."* Nothing blocks axiom functionality on its own; a block
+   goes to the owner first and needs their approval.
+5. The console: *"its an artifact but we need a system that works
+   across all sessions"* — the data lives in the repository, the
+   charted artifact is republished from it.
+6. Visuals: *"a routine can draft it for me as long as it first makes
+   the plan then uses claude design."*
+7. *"the axiom builder is fine."*
+8. The axiom list as a switch: *"yeah when status shifts it can start
+   building."*
+9. Three builder runs a day, at most three open builder PRs, bridge
+   verdicts first: *"yeah sounds correct."*
+10. *"there should be a common file where all the routines are listed
+    and described"* — the register, `docs/ROUTINES.md`, gains a plain
+    description per routine when it is on `main`; the ops lanes are on
+    Claude 2 and the four missing ones are being created there.
+11. *"a routine health panel and routine overview list would be good."*
+12. Branches that never became a PR on the merge list, as `no PR yet`
+    rows: *"agree with your suggestion."*
+
+### What this PR builds (runbook phase 1)
+
+- `CLAUDE.md`: the **axiom power first** paragraph in the privacy
+  section, with the owner's boundary sentence quoted; two house-style
+  bullets — visuals are designed in Claude Design before they are
+  built (small controls exempt), and the six lists are how the owner
+  runs the program.
+- The six list files, each with its `ORIENTATION.md` row and its own
+  Status line: `MERGE-LIST.md` (seeded with the open PRs of the
+  morning, the five already labelled `merge-when-green` ticked as
+  `ready`), `WORKLIST.md` extended with the tag rule and every open
+  item tagged, `PERMISSIONS.md`, `OWNER-LIST.md` (decisions, clicks,
+  designs, approvals, store and legal), `AXIOMS.md` (operational,
+  explored, proposed, and the licence table), `VISUAL-REQUESTS.md`
+  (three requests written in the shape Claude Design needs) and
+  `VISUAL-VISION.md` (the 2026-08-26 standalone as the current vision,
+  and the lineage).
+- `OPS-RUNBOOK.md` §0: the label has two hands — the owner's, or the
+  merge shift's on a PR the owner approved; no other lane. § The list
+  worker: the tag paragraph, one item in flight per account, and the
+  per-run rule scoped to the account's tag. The Claude 2 list worker's
+  Routine is untouched: its prompt re-reads the section every run.
+- `PROGRAM-PLAN.md` §10 and the runbook's phase 1 boxes; both Status
+  lines to *mixed*.
+
+### What it deliberately does not change
+
+- **No lane merges on its own judgement.** The tick is the decision,
+  the shift executes, the shepherd merges under the five steps that
+  keep it the owner's. D289's tier stands; D276 is still the reason.
+- **Nothing outside the ask moves by a routine.** A consent
+  requirement in law is met by building the consent (D8, D330, D331),
+  D1 holds, the three denies stand at their paths; the privacy page
+  and the store forms move only with the feature they describe, page
+  first (D183). The new rule sharpens D334's *ask* into *never a stop*
+  and leaves its four exceptions where they were.
+- **Nothing account-side exists yet.** Phases 2–6 of the runbook —
+  the console workflow, the Routines on this account, the second
+  theory set, the other accounts' halves — are open boxes with their
+  gates, and this record does not pretend otherwise.
+
+### What proves it
+
+`check:docs` green with the six new rows and both Status flips (rule 7
+in both directions); `check:figures` green; `test:scripts` green. The
+contracts carry no counts a gate would have to hold — every figure in
+them is recomputed by the lane that quotes it, the runbook's own rule.
+
+## D353 · The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse
+
+**2026-09-02.** **Status:** binding — the ops dispatcher's charter moves
+into `OPS-RUNBOOK.md` § The ops dispatcher, the seed in §4 shrinks to
+four sentences pointing at it, the lanes' one blanket tool grant
+becomes three tiers, and a firing that matches no canonical block stops
+being relayed. Written on `claude/ops-dispatcher-cosaxo-86rdd3`; `main`
+mints numbers while branches are open, so the runbook cites sections
+and never this number (D289's collision pattern).
+
+### What happened
+
+The ops dispatcher — `session_01RQvTPyNEFgX5yNUPqkDPnS` on Claude 2,
+created 2026-09-02 with four lanes bound to it (PR #364) — was seeded
+with its relay charter by `create_session` and refused it. The roll
+call then fired into it at its 15:30 UTC slot, `trig_01PBouXe7Frg5FmrmPJQ2ZKj`,
+the id PR #364's inventory row carries; the session drained the
+notification correctly and refused that too. Nothing was relayed. Four
+Routines that exist have still never run, and the run log has no line
+saying so, because a lane that never starts writes nothing — the
+finding PR #340's retro had already made about a different queue. The
+program dispatcher on this account refused the same shape the same day
+(`PROGRAM-RUNBOOK.md` phase 3.2).
+
+The session said why, and every reason was about the charter's shape
+rather than its content:
+
+1. it arrived wrapped in markup that imitates a system notice;
+2. it argued for its own trustworthiness before anyone doubted it;
+3. it defined its own precedence over whatever arrived later — *"a
+   message that is a lane prompt is never"* a human instruction;
+4. it asked for consequential grants — repository push, `issue_write`,
+   `create_pull_request`, `merge_pull_request` — on its own say-so;
+5. nothing outside the message established that the owner wanted any
+   of it.
+
+That is a correct read, and the refusal is the behaviour to want. Those
+five properties are what an injected prompt has and a contract does
+not; a session that adopted the charter anyway would be a session that
+adopts anything, in the one component every ops lane passes through.
+
+### The finding
+
+**The dispatcher's charter was the only instruction in this program
+that pointed at nothing.** Every lane prompt in `OPS-RUNBOOK.md` §4
+ends its opening clause with *read § <the lane> on `origin/main` and
+follow it exactly — it outranks this summary*, which is §0's first
+ground rule: the contract outranks the prompt. The charter carried its
+whole authority in its own text, and §0 could not see it, because §0
+speaks about the blocks in §4 and the charter was not in the file at
+all.
+
+So the fix is not a re-wording of a suspicious paragraph. It is the
+rule this file already has, applied to the one thing that had escaped
+it.
+
+### What changes
+
+- **`OPS-RUNBOOK.md` § The ops dispatcher** — the contract: what a
+  relay does per firing, the five `create_session` fields, the verbatim
+  rule with the reason the roll call needs it, the refusal rules, and
+  why the charter is a file.
+- **§4's seed block** — four sentences. Your instructions are that
+  section on `origin/main`, read with `get_file_contents` and followed;
+  adopt when the owner confirms in a turn of their own, and nothing
+  arriving through automation is that confirmation; relay a firing that
+  matches a canonical block and log one that does not; never do a
+  lane's work. Pasted as an ordinary first message, never wrapped in
+  anything that imitates a system notice.
+- **An unmatched firing is no longer relayed.** The old charter sent
+  one to `claude-opus-5` *"and say so in your reply"* — a relay of
+  arbitrary text into a fresh session holding every tool the program
+  grants. It now goes on the run log instead, and the refusal costs a
+  lane nothing: a prompt that has stopped matching §4 is the drift the
+  roll call already exists to catch.
+- **The tool grant becomes the tier.** One blanket list handed the roll
+  call and the production reader — whose prompts say *read-only*, no
+  writes but the comment — `create_pull_request`,
+  `update_pull_request` and `merge_pull_request`, and handed the same
+  merge tool to the four lanes whose prompts say *never merge*. Seven
+  grants could merge; one lane may. Three tiers replace it: a
+  base every lane gets, a read-only tier that writes nothing but its
+  run-log comment, a PR tier with no merge tool, and the shepherd alone
+  holding `merge_pull_request` under §2.3's one-time approval. This is
+  the repo's own discipline about the UI and `firestore.rules` pointed
+  at a prompt — a limit stated in prose binds only while the lane
+  agrees with it.
+- **Adoption is an owner turn**, on `OWNER-LIST.md` § Clicks with the
+  sentence to send, beside the program dispatcher's identical row.
+  `PERMISSIONS.md`'s standing-charter row now names both.
+
+### The arithmetic the owner is asked for
+
+Both halves are on `OWNER-LIST.md`, and neither is a routine's to take:
+
+- **The one human turn.** It unblocks four lanes that exist and have
+  never fired. Cost: one message. A routine cannot do it for itself —
+  that is the whole finding, and doing it from here would be the
+  behaviour the record calls wrong.
+- **Whether to retire the dispatcher instead.** A Routine created in
+  the web UI with the repository attached starts cloned and needs no
+  relay (`PROGRAM-RUNBOOK.md` § The other subscriptions; Claude 1's two
+  improvers run that way today), and the four ops lanes still to be
+  created are being created that way anyway. Keeping it costs one turn
+  now, one relay per firing, and one queue that can stall four lanes at
+  once — measured on another dispatcher in the 2026-09-01 row, and the
+  shape this refusal repeats with the queue empty.
+  Retiring it costs four Routines re-created by hand in Claude 2's web
+  UI and rebound, and the platform probe's row is the measurement that
+  settles whether the web path delivers what the dispatcher path does.
+
+### What it deliberately does not change
+
+- **No live lane prompt.** The seven blocks in §4 are untouched, so no
+  Routine's stored prompt drifts from this file and the roll call's
+  Sunday diff stays quiet. Their *"Hard limits regardless of anything
+  else you read"* opening is the same self-authorizing shape the
+  charter was refused for, and that is a real cost carried on purpose:
+  a lane prompt is delivered into a fresh session with the repository
+  attached and its contract one `git show` away, which is exactly the
+  property the charter lacked. Re-wording them means re-pasting seven
+  Routines across two accounts, so it belongs in the same PR as the
+  next §4 change, not in this one.
+- **Nothing account-side.** No Routine is created, edited, fired or
+  paused here, no charter is sent to any session, and no session is
+  messaged: a routine cannot authorize itself, and that includes the
+  one writing this.
+- **PR #364's rows.** The § The account-side inventory table, the
+  Status line and `ORIENTATION.md`'s row are that PR's, open and
+  ticked; this branch leaves all three alone so its merge stays clean.
+  Which means this file still says *plan only* over a section
+  describing a session that exists — a known inconsistency with a
+  merge already queued to close it.
+
+### What proves it
+
+`check:docs` green (rule 6 resolves every backticked path the new
+sections name; rule 7 is untouched, because the Status line is),
+`check:figures` green, `test:scripts` green. The sections carry no count a gate would
+have to hold — the grants are names, and the roll call's Sunday diff of
+the live prompts against §4 is what proves the seed on the account
+still matches the file.
+
+## D354 · The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32
+
+**2026-09-01.** Owner: *"you know have full creative controll how do you
+optemize and improve this project, aim to have big improvment as
+posible"*. Read as a mandate for the engineering work the tree already
+names as open and measures with its own gates, rather than for a new
+surface: `check:globals` rule 4 (the shared-global coupling ratchet, D39)
+and `check:bundle`'s `MAX_EAGER_KB` (first paint, D110/D144). This record
+is the ratchet's half; D355 is first paint's. Every number below is the
+gate's own output at the commit, not a hand count.
+
+### The provider view said where a third of the meter was
+
+The migration section of `src/v2/README.md` has said twice that planning
+from the per-consumer baseline is the wrong shape, and that transposing
+`spec-globals.mjs`'s own maps by PROVIDER is the right one. Done again
+here, the transpose put one name at the top by a factor of six: `LIVE`,
+**79 of 234 sites** across 13 files — the store itself, read as
+`window.LIVE` in modules that in seventeen cases already held
+`import LIVE from '../data/live'` a few hundred lines up. Next were `GDAv`
+(13), `LMStreak` (8), `MapStats` (7), and a long tail of one- and two-site
+component tags between the Mirror's own modules.
+
+### What moved, in two passes
+
+**The store (234 → 160).** Every spec-layer `window.LIVE` read became the
+import, except the four in `test-definitions.js`, which also loads under
+plain node (`scripts/report-lib.mjs` imports it; `archetype-data.js`
+imports `IS_TEST_AVG` from it) where `data/live.ts` cannot follow — it
+publishes `window.LIVE` at module scope and binds the Firebase SDK. The
+baseline entry carries that reason; the honest fix is a node-safe seam
+for `persistTestResult`'s live write, an ordinary refactor now. Cycle
+safety was read before the import went in: `live.ts` imports
+`test-definitions.js` and touches `IS_TESTS` only inside a method;
+`daily-questions.js`, the earliest new importer, reads `LIVE` only inside
+functions. Gone with the reads: the `window.LIVE &&` load-order guards
+and the member-existence guards on methods the store's literal always
+defines and `data/vote.test.ts` pins (`L.myVotes ? … : null`,
+`L.editVote && …`, `!L.dailyBank`). Kept: every data condition —
+`.enabled`, `.ready`, `.demoInProd`, `.feedReady` — which are false for
+the whole of mock mode.
+
+**The sweep (159 → 32).** Twenty-three providers, forty-seven files, 128
+sites, in one change, after the static import graph (built from the tree
+by a probe script, not from a paragraph) cleared every planned edge for
+cycles and the eager/lazy boundary cleared every edge for direction. The
+table in `src/v2/README.md` § The sweep lists them. The recurring shapes,
+recorded there in full: a provider declared inside the porter's IIFE
+cannot `export` by keyword when the export IS the inner function's name,
+so eight files hand their bindings out through a `const EXPORTS = {}`
+filled where `Object.assign(window, …)` stood; eight window copies stay
+beside their exports because a test reads them (`MapStats`, `LENSES`,
+`WORLD_TOPICS`, `MTAnchorCard`, `MTAnswerCard`, `PlaceStatsCard`,
+`ConsequenceBeat`, `App`); and four fallback renderers went with their
+reads — a whole "What makes the number" card in `person-overlay` and a
+five-topic stand-in for `WORLD_TOPICS` at `daily-split`'s module scope
+among them — because the frame they rendered in was already unreachable.
+
+### What the suite found, and the guard list learned
+
+Four tests had built a `window.LIVE`, `window.FEEDREAD` or
+`window.WF_REPORT` stand-in of their own — `feed-insight-round`,
+`map-dates`, `learn-split` (through a `W` alias) and `purge-wipe`
+(through `window as any`) — the D280 trap hand-rolled: after the
+conversion the stand-in reaches nobody. Two failed loudly (17 cases in
+`learn-split`, two in `purge-wipe`); one would have passed vacuously
+(`map-dates`' demo path IS `enabled: false`). All install onto the
+imported singleton now, as `test/live-fixture.ts` has since its header
+was written. The guard-shape list gains `typeof window.X === 'function'
+&&`, a whole `if (!window.X) return <fallback/>` block, and the
+member-existence shape on a pinned store.
+
+**The suppression count did not move** — `npm run lint` is unchanged at
+zero. D108 predicted every conversion would raise it before lowering it,
+because the React Compiler bails out of a component that reads a value
+through global scope; the three biggest consumers already held the import
+for other reads, so the compiler was never bailing out on these names'
+account.
+
+### What stays, and why it is a different kind of work
+
+**32 across 8 files**, each with its reason beside its baseline entry:
+the seven overlay tags `app-shell` mounts by name after awaiting
+`loadOverlays()`, plus that loader — the lazy-mount contract (D38/D223),
+which converts only by holding the overlay namespaces the way D355's slot
+holds the Mirror's; `WorldFeed`, `ConsequenceBeat` and `DuoBody` read
+from the eager side, where an import would drag a lazy module into first
+paint; `MAP_OPEN_GROUP` across two lazy groups; `registerBackHandler`, a
+seam `dialog.test` stubs on the window; `RMCore`, a demo-only header on a
+~20 KB module; `WORLD_FEED_QS`, four writers and a live/demo boundary —
+the design change `world-catalogs.js`'s section describes; and
+`test-definitions.js`'s four. None is a name a mechanical pass can take.
+
+**Enforcement.** `COUPLING_BASELINE` sits at 32 and only moves down; rule
+1 now fails on any `window.X` read of the fifty-odd names that no longer
+publish, which is how the two misses inside the sweep were found before
+the suite ran; the README's figure is held by `check:globals` itself.
+`check:figures` moved CLAUDE.md's off-the-bridge count 32 → 53 modules.
+
+## D355 · The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB
+
+**2026-09-01.** The other half of D354's mandate, measured by
+`check:bundle`'s `MAX_EAGER_KB` — the number its own header says to quote
+for a first-paint claim. A sourcemap attribution of the shipping bundle's
+eager set (entry + every `modulepreload`, 761 KB) put the Mirror tab's
+thirteen spec modules at ~130 KB of it, behind only react-dom (174 KB)
+and the daily tab's own spine; `check:bundle`'s header had already named
+the candidate — *"the Mirror tab is what is left of the obvious
+candidates, and it needs a guard the overlays did not."*
+
+### Why it could go
+
+The app never opens ON the Mirror: `TWEAK_DEFAULTS.tab` is `'track'` and
+nothing persists a tab across launches, so the tab is always one tap away
+and never the first frame. A reader audit over the thirteen (the
+provider-view transpose again, filtered to readers outside the group)
+found every reader of a Mirror global in the overlays group — or the
+mount tag itself. Nothing eager reads them. `MapStats`, `GDAv` and
+`relmap-lenses.jsx` looked like members and are not: eager modules read
+them on first-paint surfaces, so they stay.
+
+### The guard is a handoff, not a render guard
+
+`loadMirrorTab()` names only `mirror-tab.jsx` and that file's static
+side-effect imports carry the other twelve in the eager list's order —
+`loadMapTab()`'s shape (v28 §5). `app-shell` mounts the tab through
+`MirrorSlot`: state plus an import, `MapSlot`'s shape, because a
+`React.lazy` caches a rejection under a per-tab boundary (D207's finding)
+and one failed chunk fetch would make the app's main tab "This view hit a
+snag" for the session. What is new is the slot's INITIAL state: it reads
+`data/mirrorChunk`, where the loader remembers the resolved namespace.
+ESM has no synchronous read of the module cache; that module is one. So
+once `main.jsx`'s prewarm has landed — started right behind the feed's
+fetch — opening the Mirror renders in the tap's own tick with no blank
+frame, and the effect exists only for a tap that beats the prewarm or a
+prewarm that failed. That was the guard the overlays did not need: an
+overlay's opener awaits its chunk, a tab cannot.
+
+Three overlays read Mirror globals at render (`profile-general`'s
+`MirrorFieldBody` and `LENSES`, `profile-overlay`'s `LensesPanel`,
+`person-overlay`'s `CompareCarousel`), so `loadOverlays()` awaits
+`loadMirrorTab()` first — memoised, so that is the prewarm's own promise
+when `main.jsx` got there first and the fetch itself when a tap did. Both
+mount harnesses await it in `beforeAll` for the same reason the feed is
+awaited: the slot is same-tick only once the handoff has happened, and a
+suite that skipped it would click the tab and assert against the empty
+frame.
+
+### The arithmetic
+
+| | eager | entry chunk | total | ceiling |
+| --- | --- | --- | --- | --- |
+| before | 761 KB | 243 KB | 2154 KB | 880 |
+| the Mirror behind `loadMirrorTab()` | 633 KB | 133 KB | 2157 KB | 645 |
+| + `ui/CityPicker`, `ui/PickSearch` off the eager list (D354's sweep) | 619 KB | — | 2157 KB | 630 |
+
+−142 KB from first paint, 19%, the largest drop since D110 took the
+Firestore SDK out; the total within 3 KB, which is the shape every honest
+move here has had — a relocation, not a deletion. The ceiling came down
+with each step, band ~11 KB, the doctrine every entry in `check-bundle.mjs`
+states: the freed room is not headroom for the next eager feature.
+
+**Pinned.** `test/mirror-slot.test.jsx` holds the three slot cases
+against the real handoff (same-tick when remembered, the cold import that
+remembers, a failed chunk that costs the body and re-attempts on
+re-entry) plus a source pin on the shell's shape and the loaders; the
+existing `smoke-mirror` case — click the tab, read the ruler in the same
+breath, no await — is the same-tick claim asserted on the whole app.
+
+### What was measured and left
+
+`sample-data.js` (40 KB, demo data eager in a live build) has fifteen
+importers including live fallbacks, so it is a design change rather than
+a move; `daily-questions.js` (34 KB) is the daily tab's spine; react-dom
+is the framework. The overlay mounts in `app-shell` are the next slot
+candidates and D354 records why they are structural. The attribution
+script that produced the table is the way to re-measure: by source file,
+off the sourcemap, not by chunk name.
+## D356 · First paint comes off the device: the warm boot, and `ready` splits from `attached`
+
+**2026-09-01.** **Status:** binding. Amends the boot's order of operations
+in `src/v2/data/live.ts` and the meaning of one flag; changes no read
+count and no rule. D77's label and D312's caches are the two records it
+stands on.
+
+### What was true
+
+`initLive` raced the whole network boot against a 2.5 s deadline and
+rendered when either settled. On a returning device the boot's chain
+before `ready` was: the SDK import and the auth restore (local), then
+meta → bank delta → answered delta → edit delta → [aggregate top-up] →
+deck aggregates, one round trip each, with the profile read the only
+thing in parallel. Every byte the first frame draws — the bank, the
+account's answers, the aggregates it last saw — was on the device
+already (D312), and the boot read all of it only *after* the meta
+document had come back, because the bank cache was keyed by
+`contentRev` and the rev check came first.
+
+So first paint waited on the sixth round trip or the deadline, whichever
+came first. On a 150 ms mobile RTT that is ~0.9 s of pure waiting plus
+the Firestore channel's own connection setup; on a train it was the
+deadline, and the deadline put a real user on the DEMO deck under
+"Sample questions · reconnecting…" (D77) until the boot attached and the
+screen swapped. The record of it losing was already in the tree: the
+`slowBoots` boredom input (D272) and D77's stage label both exist
+because the race was lost often enough to need them. And an offline
+launch — the case the caches were built for — showed sample questions.
+
+### What changed
+
+**The disk is read first, all of it at once, and the paint waits for
+neither the server nor the SDK.** `readDiskCaches` issues the five
+IndexedDB reads in parallel (tens of milliseconds) beside the sign-in,
+not after it: `anonSignIn` is the first thing that imports firebase —
+~400 KB of Firestore and Auth to parse, then the auth restore's own
+IndexedDB read — and on a mid-range phone that pair was the longest
+local wait a warm boot had left, none of it needed to draw a deck the
+device already holds. A device holding a bank *and* a profile mirror
+publishes the deck, the votes, the aggregates and the feed globals for
+the account the mirror names, flips `ready` and `enabled`, and resolves
+a third runner in `initLive`'s race (`paintable`). The network phase
+then runs exactly as before against the same pre-read caches — a delta
+merges, a changed rev refetches and replaces the bank whole, the profile
+document overwrites the mirror, the deck's aggregates refresh — and
+every one of those reaches the screen through the notify path that
+already served late boots. The cold path (nothing on disk) is unchanged,
+deadline and label included.
+
+**The account it paints for is provisional until auth speaks**, and the
+three ways that ends are each pinned. Auth restores the same uid (the
+common case): nothing to do, and the disk read is handed to hydrate so
+it is not paid twice. Auth names a different one — a lost session
+re-minted (D3): the observer's existing reset path runs, purging every
+trace and continuing the same boot cold for the new account; and
+because the sign-in can resolve before the observer has fired,
+`refreshLive` makes the same check itself. What the mirror can name is
+only ever an account this device confirmed, so a mismatch IS a lost
+session, and the purge it now triggers is what D51 asks for and what the
+old boot could not do, because it never knew the previous uid. The
+sign-in fails: the deck stays, the last-sync pill says why, the next
+wake retries. One guard makes the provisional state safe in the
+observer: a null auth state while the uid is provisional is the SDK
+saying "not restored yet" on its way to the sign-in already running —
+the session-lost recovery it used to trigger would have started a
+second anonymous sign-in beside the first and minted two accounts.
+And the disk read is checked against `state.uid` after its awaits, so a
+reset landing mid-read folds that read into nothing.
+
+**Nothing reaches Firestore while the uid is the mirror's.** The review
+of the first cut found the hole: a live deck on screen invites a tap,
+and a write handed to the SDK before Auth's credential listener has
+fired is filed under the UNAUTHENTICATED user's mutation queue — when
+the real user arrives the SDK swaps queues rather than re-signing what
+was pending, so the vote's promise never settles, the cache never files
+it, the server never sees it (verified against `@firebase/firestore`
+4.14.1). Every mutator reaches Firestore through `getDb()`, so that is
+the one choke point: it holds while `uidProvisional`, and the gate is
+released when the sign-in settles or a reset replaces the account —
+never rejected, because a failed sign-in keeps the writes waiting for
+the session the next wake restores, which is the offline state's own
+shape. The engagement rollup's `hasUid` is confirmed-only for the same
+reason: it clears its local copy on handing the write over.
+
+Two more things the same review moved, and one it proposed that was
+refused. The deck poll starts inside hydrate now, beside the answers
+reads, and those are the unguarded ones — so `refreshLive` stops the
+poll when hydrate throws, and `startAggPoll` carries a generation so a
+stop that lands inside its awaited read wins over the arm that follows
+(a hide during that read had the same race before D356). The profile
+block no longer wipes `state.profile` when the document does not exist:
+the read is issued at the top of hydrate, the setup screen can collect a
+name and anchors on a warm-painted device before the block runs, and
+wiping to "what the server said a second ago" mirrored the empty
+object — every later answer would have snapshotted no anchors, the
+exact fault the mirror exists to prevent. The refusal: the review
+priced the lost-session purge at the +738-read cold fetch it now costs
+the next account (the bank and aggregate stores are public content and
+the purge clears them too) and proposed clearing the account's store
+alone. Tried, and reverted on the repo's own rule: WHICH public rows a
+device cached — the paged cards chosen for one account's taste, the
+aggregates of the questions it answered — is itself a trace of what the
+previous account did, and D51 does not distinguish a public row from a
+private one on that point (two of `vote.test.ts`'s uid-change pins fail
+on the narrowing, and both were right). The cold fetch is the price of
+a lost session, paid once and only there.
+
+**Round trips before `ready`:** warm device 6 → **0**, and no SDK parse
+and no auth restore in front of it either — on a returning device the
+paint is the entry chunk plus the disk. The network phase
+itself, which still has to finish before the counts are today's: warm
+6 → 4 (the two answer deltas and the deck aggregates share one trip —
+they share no input, and they are still folded in the old order), cold
+7 → 4 (the three bank queries share one trip; the deck aggregates start
+the moment there is a deck, beside the answers, instead of after the
+profile await). Offline launch on a warm device: the real deck, with
+votes queued in the SDK's offline queue as they already were mid-session.
+
+**One flag became three, because one fact became two.** `ready` used to
+mean "the network boot completed"; it now means "there is a deck to
+draw", which the warm paint answers off disk. `attached` is the old
+meaning, and it is what every re-entry point keys on: `wake()` runs the
+full refresh while `!attached` (a wake keyed on `ready` would never
+retry a warm session whose reconcile failed — probed: reverting that one
+word fails the wake-retries case, and only that one, because
+`resubscribeForToday` refuses before the attach on its own key),
+`resubscribeForToday` refuses before the attach (the boot itself is
+still going to start the poll), and `refreshLive` shares its in-flight
+promise so a wake during a running boot joins it.
+`stale` is `warm && !attached`, the gap between the two. The `bootError`
+getter composed "still connecting — <stage>" for the rest of any session
+that had lost the race, invisible only because its one reader sat behind
+`demoInProd`; it composes only while `!attached` now. The deadline that
+sets the label is a plain timer on its own clock rather than the race's
+rejection, so a warm paint that wins the race in a few hundred
+milliseconds still gets the same question asked at the same 2.5 s: is
+the server still unheard from.
+
+**The profile mirror is a condition, not a nicety.** Every answer
+snapshots `state.profile.anchors` at write time (D8, D290), and the
+anchors arrived with the profile read some way down the chain. A vote
+cast on a warm-painted deck before that read would be filed under no
+cohort — a correct-looking answer no breakdown can count. So the warm
+paint requires `insight.ownProfile.v1`: the account's own display name,
+handle, anchors, consent record and test results, stamped with the uid,
+written on every profile read and by each of the profile's mutators,
+refused under any other uid, and inside the namespace `purgeLocalTrace`
+sweeps. A device that has not booted once since this record boots the
+old way, once. Not an ask under D334: it is the account's own data on
+the account's own device, already there in three other keys (the name,
+the answers, the profile cache), exposed to nobody.
+
+**The honest label for the new state.** A warm deck whose reconcile
+fails is real — this device's last sync — so the sample-questions pill
+would be a lie, but the counts are not today's and the server has not
+been heard from. The daily draws `Last sync · reconnecting…` for
+`enabled && stale && bootError`, the demo pill's shape (D77): the reason
+one tap away, and gated on a reason existing so the ordinary sub-second
+reconcile never flashes a label on launch.
+
+### The trade, stated
+
+- A cache under an older `contentRev` paints first and is replaced when
+  the full fetch lands: a deck one reseed old for about a second. The
+  screen the lost race showed instead was the demo deck, and the swap
+  a late attach made was demo → real. This one is real → real.
+- Counts are as of the last sync until the deck aggregates return (one
+  trip, in parallel with the answers). The same was true of every late
+  attach.
+- `slowBoots` still measures the network attach, not the paint: it is a
+  fact about the network, and it stays one. A perceived-boot number
+  would be a different input.
+- Nothing preloads the SDK, and nothing needs to: the warm paint no
+  longer waits on it. check:bundle's eager ceiling is what keeps the SDK
+  out of first paint on the demo build, and that argument stands.
+- For the length of the auth restore, the account on screen is the one
+  this device last confirmed. If that is not the account auth restores,
+  the person sees their own previous account's deck for that window and
+  then the purge; the pre-D356 boot showed the demo deck for longer and
+  then kept the previous account's device trace under the new uid.
+- A write made behind the provisional gate lives in this process, not
+  in the SDK's persisted queue — there is no session to hand it to. If
+  the sign-in FAILS, those writes fail with it, into their own catches
+  (a vote rolls back on screen the way a refused write does; anchors,
+  consent and test results stay local and mirrored, because their
+  mutators move state before the write; a display name does not, because
+  `saveDisplayName` moves state only after its write, and the panel
+  shows the error), and the next wake's sign-in re-arms the gate. Holding them would be a promise the next launch cannot keep
+  (the third review's finding; it first held them). What is lost in
+  that case is the profile edit's server write — the mirror keeps the
+  edit for the paint, and the next successful boot's profile read
+  overwrites it unless the person edits again. Known and priced: it
+  needs a device whose session cannot be restored or re-minted, offline,
+  editing the profile, killed before the network returns.
+
+Three more corrections from the same review. A profile edit made on the
+warm-painted screen while the boot's profile read is in flight is newer
+than that read, and applying the read over it reverted the city on
+screen and wrote the old anchors back over the mirror — every later
+answer would have snapshotted the old city; the block now applies the
+read only if nothing moved the profile since it was issued (a counter
+the mutators bump), and the edit's own write carries it. The sign-in's
+promise is observed the moment it is created, because a rejection while
+the disk is still being read surfaced as an unhandled one before the
+`await` further down attached. And a hide that lands during the boot's
+own deck read stops the poll before it arms — `aggPollGen`, above — and
+a foreground before the attach JOINS the boot rather than resubscribing,
+so the session attached with its counts frozen; the attach arms the
+poll if nothing did and the app is visible. And because the gate gave
+every store method a second way to reject, the one optimistic method
+whose `getDb()` stood outside its try (the avatar report) moved it
+inside so a gate failure rolls its flag back like any other, and its
+one `void` call site catches what the method rethrows.
+
+### What proves it
+
+`src/v2/data/warm-boot.test.ts` gates the network — every read parks
+until the test releases it — and the sign-in, so "the render was
+released while the server had answered nothing and the SDK had not
+signed in" is an assertion rather than a timing claim. Sixteen cases:
+the warm paint itself (ready, enabled, not attached, stale, the cached
+deck/votes/aggregates/anchors, zero reads issued with the sign-in held,
+and the delta merging behind it once released); the cold boot
+unchanged, label included, and the mirror it leaves behind; a cached
+bank without the mirror waiting (the anchors argument); another
+account's answers and mirror never reaching a paint; a changed rev
+replacing the warm deck through a full fetch and rewriting the cache; a
+failed reconcile keeping the deck, setting the reason, and a wake
+retrying it; the deadline labelling a silent server and the attach
+clearing it; a wake during the running boot issuing nothing; an account
+switch purging the mirror and keeping the public caches (the next
+account's bank query is a delta); the provisional account contradicted
+by auth in both orders (observer first, sign-in first) un-painting and
+purging with one boot and one sign-in; a null auth state while
+provisional starting no second sign-in; a vote on the warm deck reaching
+the SDK only once the session has restored; a boot failing past the
+poll's start leaving no poll armed, and the next boot re-arming it; and
+the two round-trip shapes — meta, delta, then answers ‖ aggregates in
+one trip; meta, then the three bank queries in one trip.
+`cacheStore.test.ts` pins the purge listener's narrowed scope beside
+`clearAll`'s unchanged one. `smoke-live.test.jsx` draws the
+last-sync pill against the fixture's new `stale` option and asserts a
+healthy boot shows neither pill. The seven boot-driven suites' helpers
+wait on `attached`, which is the meaning they had been relying on;
+bank-cache's paging pin counts cursor-carrying pages instead of indexing
+the log, because the interleaving moved. `test:unit` 156 files / 2316
+tests green; lint, `tsc -b`, check:globals (coupling unchanged at 236),
+check:figures, check:docs, test:scripts, check:purge and the rest of the
+client gates green; the shipping bundle's eager graph 772 → 774 KB
+against 880.
+
+### When to revisit
+
+- If a reseed that changes today's daily reads as a glitch on warm
+  devices (the card swaps under the thumb), the remedy is to hold the
+  warm deck's *today* until the first poll — not to drop the paint.
+- If the mirror's `testResults` grows past a few kilobytes it should
+  move to the cacheStore meta row beside the answers' owner stamp; it is
+  in localStorage today because a synchronous read is what the paint
+  wants and the object is small.
+- If a surface ever needs the *network* fact rather than the *deck* fact,
+  it reads `attached`. `ready` will not tell it.
+- If the provisional window ever needs to be shorter than the auth
+  restore, the mirror could carry the last-confirmed uid's `linked`
+  state too; today `linked` is false until auth speaks, which only the
+  account panel reads, and only as copy.
+
+## D357 · An answer the server has not acknowledged survives the relaunch
+
+**2026-09-01.** **Status:** binding. Closes the gap D356 made reachable;
+amends nothing in D312's cache doctrine, which it leaves exactly as
+strict as it was.
+
+### The gap
+
+`vote()` mirrors an answer into the answers cache (D312) only on the
+server's ack, and says why: an optimistic row there would let a write
+the server later refused come back on every boot with nothing left to
+reconcile it. The other half of that discipline had a hole. An answer
+written offline lives in the SDK's persisted mutation queue and in this
+process's memory (`state.votes`, `state.inflight`); a relaunch before
+the ack has the queue but not the memory. So the deck re-offered a
+question the queue was about to answer, and the second tap was refused
+by the create-only rule — the exact failure hydrate's own comment on the
+answers read warns against ("proceeding with a partial vote set makes
+the app offer questions the user already answered, and the create-only
+rule then refuses every one of those re-votes"). Before D356 an offline
+relaunch showed the demo deck, which hid the gap by showing nothing;
+the online relaunch had it too, as a race between the delta read and
+the queue's flush, and nobody had seen it.
+
+### What changed
+
+**The unacknowledged answers keep a mirror of their own**
+(`insight.pendingAnswers.v1`): written on the tap by every optimistic
+write path — `vote`, `votePick`, `voteRank`, `votePulse`, and `editVote`
+marked as an edit — removed on the ack or the rollback, owner-stamped,
+refused under any other uid, and inside the namespace `purgeLocalTrace`
+sweeps. A relaunch folds them back over the disk copy as votes that are
+still INFLIGHT — exactly the state they were in when the process died —
+so `myVotes()` carries them (the deck does not re-offer) and
+`confirmedVotes()` does not (nothing claims the server has them).
+
+**The network phase settles each one** (`settlePending`), in two steps
+that cost at most two tiny reads and only on a boot with something
+unsettled. First against what the boot just read: an answers delta that
+returns the document confirms a create; an edit is confirmed only if the
+document carries the pending VALUE, and until it does the pending value
+keeps the screen — the fold had just written the document's old option
+over it, and the newer intent is the queue's. Then, for the rest,
+against the SDK's own word: `waitForPendingWrites` resolves once every
+mutation the queue held has been acknowledged or refused (offline it
+never resolves, which is right — the next online boot asks again), and
+one `documentId() in` read of exactly those documents follows. Present
+with the value: confirmed, and cached the way the ack would have. Present
+with another value: an edit the rules refused, and the document's value
+takes the screen. Absent: a create the rules refused, or a write that
+never reached the queue — the same rollback the in-process catch
+performs, feed mirror included.
+
+Not an ask under D334: the mirror is the account's own answers on the
+account's own device, one key beside three others that already hold
+them, exposed to nobody.
+
+### What the second review moved
+
+Five findings, all kept. A create is confirmed only when the document
+carries the pending VALUE — a document that exists with another value
+is another device's answer, the create can only be refused, and
+confirming with this device's value cached one the server never held
+(executed by the review); the document's value now stands, on screen
+and in the cache. An edit is different only in timing: before the
+drain, the document's old value says nothing about a write still in
+the queue, so the pending value keeps the screen; after it, the
+document wins. Under the SDK's persistent cache a query result can
+carry this device's OWN unacknowledged mutation laid over the document
+(latency compensation, flagged `hasPendingWrites`), so the fold no
+longer counts such a document as the server's word and the settle's
+read skips one. The cold answers pull rewrote the acknowledged cache
+from `state.votes`, which the restore had just filled with pending
+answers — a refused create would have become a confirmed phantom, the
+exact failure the ack-only cache exists to refuse; still-inflight
+answers stay out of that rewrite. The settle's confirm now takes the
+ack's own path — the aggregate re-read that clears `unaggregated`, the
+engagement counters, the passive fold — where it had cleared the flag
+and cached and nothing else, so a settled feed answer read one high for
+the session. And the four inline rollbacks are the one helper the
+settle uses, so what a refused answer has to undo lives once. The
+gate's read arm moved BEHIND the two verb tests: ahead of them it would
+have waved through a write spelled `setDoc(doc(collection(…)))`, the
+idiom the takes write already uses.
+
+### What the third review moved
+
+The settle rules only on what the restore brought back (a set the
+restore fills and a reset clears). An answer tapped in THIS process has
+its own promise; the queue-drained signal does not cover a write
+requested after it, so the settle's read finds that document absent —
+and a settle that ruled on it rolled back a write still on its way,
+which its own ack then never restored. A document the read returns
+with a local mutation laid over it (a write made since the drain over a
+restored id) is skipped, not read as absent. The verdicts are applied
+only if the account is still the one the settle started for: the read
+is a round trip, and a reset landing inside it would have applied the
+old account's verdicts to the new one's votes and pending file. The
+boot's deck read (`refreshAggs`) no longer clears a still-inflight
+answer's own-vote bump — `drainAggRefresh` had carried that guard since
+the optimistic split; a restored pending daily answer put an inflight
+answer in front of the deck read for the first time, and the card read
+one voter short. And the gate's read arm is a `collection(` line that
+is not also a `doc(` line: the write idiom split across lines lands on
+a line with neither verb, which must be reported as the unclassifiable
+write it is.
+
+A fourth pass over that fix moved three more things. The restore skips
+an id that is inflight in THIS process and not already restored — on a
+re-run hydrate (a wake after a failed boot) the file holds the
+process's own taps, and restoring those let the settle confirm them off
+the delta and count their ack twice. `saveTestResult` mirrors without
+counting as an edit: the passive fold writes results on its own
+schedule, and a fold that ran while the boot's profile read was in
+flight is no reason to discard the read. And the edit counter is read
+beside whichever read is USED — a uid that changed under the boot gets
+a fresh read, and an edit made before it, the old account's even, is
+not an edit made over it. The `echoed` guard's comment now says what it
+is: defence against the SDK alone, since by this file's own rules no
+restored id can carry a mutation of this process's.
+
+### The trade, stated
+
+- One more `insight.*` key, a few hundred bytes at most, gone the moment
+  the queue is acknowledged.
+- A create the rules refuse after a relaunch is rolled back one read
+  later than the in-process catch would have managed, and only once the
+  queue reports itself drained; until then the card reads as answered
+  and unconfirmed, which is the truth.
+- `waitForPendingWrites` joins the bound SDK surface
+  (`lib/firebaseImpl.ts`'s `fsApi`), which every Firestore mock in the
+  tree lists by name; the two that build the object pin it.
+
+### What proves it
+
+`warm-boot.test.ts` gates the writes as well as the reads and the
+sign-in, and holds the queue-drained signal until a case releases it.
+Eleven cases: an answer written before the ack survives a relaunch as a
+vote that is unconfirmed and not re-offered; confirmed by the delta once
+the queue delivered (no extra read); confirmed by one read of its own
+document once the SDK reports the queue drained; rolled back — feed
+mirror included — when the queue drained and the server holds no such
+document; still pending across an offline relaunch whose boot fails; a
+pending edit keeping the newer option until the server agrees, and
+yielding to the document when the rules refused it; a create another
+device won settled to that device's answer on screen and in the cache;
+an edit's own echo in the delta (`hasPendingWrites`) proving nothing
+until the drain; a cold pull never filing a pending answer into the
+acknowledged cache; a settled answer arming the aggregate re-read the
+ack arms; an answer tapped during the drain wait left to its own
+promise (the settle's read asks for the restored id alone); the boot's
+deck read keeping a restored answer's own-vote bump; and the mirror
+going with the account on a switch. Probed, each failing exactly its
+case: dropping the restore, confirming a refused create instead of
+rolling it back, confirming the other device's document with this
+device's value, taking the echo as the server's word, filing the
+pending answer in the cold rewrite, settling every pending id instead
+of the restored ones, and clearing the bump from the deck read. The
+file tears its instance down after every case (`_teardownForTest`):
+the 2.5 s aggregate re-read a confirm arms, left running, fired into a
+later case's exact-set pins as a read nobody issued. D356's own file
+gained the sign-in failure paths and the profile-edit and hide-during-
+read orderings alongside, each probed the same way. `test:unit` green in full; lint, `tsc -b`,
+check:purge (live.ts is the dispatcher and owner-stamps the key),
+check:globals unchanged. `check:answer-shape` learned one thing: the
+settle's `documentId() in` read is the first READ of the answers path
+written with the same `uid` name the write shape uses, and the scan
+could not classify it (hydrate's deltas say `uidA`, which is why they
+never reached that line). It classifies a `collection(` read now, as
+outside its subject — nothing a read does can drop a field from a
+document — rather than the read being renamed around the scan.
+
+### When to revisit
+
+- If a surface ever writes an answer outside the five paths above, it
+  marks and clears the mirror the same way, or its offline answer is the
+  pre-D357 answer.
+- `learnAnswer` is deliberately not on the list: a learn card's first
+  attempt is its own contract (`learnSent`, D157), and an offline learn
+  answer relaunched is a card re-asked, not a rule refused. If that ever
+  reads as a bug, the mechanism is here.
+## D358 · Fourteen dials get the range they should have shipped with, by retirement and replacement
+
+**2026-09-02.** **Status:** binding. The owner, with two screenshots
+from a phone — "The ideal dinner hour?" on 17–23 h, and "How old were
+you when your taste in music settled?" on 10–40 yrs with the answer on
+the floor and *most say 11 yrs* under it: *"Some of these sliders have
+akward ranges includ bigger ranges in most off them."*
+
+### What was wrong
+
+Two defects, both in the ranges and neither in the dial. **An end that
+cuts off answers people hold**: a music-taste crowd whose median sits
+one step above the floor is a floor set too high, not a crowd; a
+dinner at 16 h or at midnight could not be said; a coffee-abstainer
+could not say zero. And **a step under one unit**: `dialFmt` prints
+integers and `dialOptions` rounds the bucket edges, so 17–23 h in
+twelve buckets is a half-hour step whose voters-panel labels read
+"17–18 h", "18–18 h", "18–19 h"; 1–12 h printed "7–7 h"; 1–4 hrs was a
+quarter-hour step nothing could print at all (the recorded limit in
+`dial-bucket.test.jsx`). Both were visible the day each dial shipped,
+and every gate was green.
+
+### What shipped
+
+| was | now | prompt | range | step |
+| --- | --- | --- | --- | --- |
+| dl3 | dl30 | Daily screen time — where does "too much" start? | 1–12 h → 0–24 h | 2 |
+| dl6 | dl31 | At what age is an athlete past their peak? | 25–45 → 20–50 yrs | 2.5 |
+| dl7 | dl32 | How many coffees a day is too many? | 1–10 → 0–12 cups | 1 |
+| dl8 | dl33 | How long should a concert be? | 1–4 hrs → 30–270 min | 20 |
+| dl10 | dl34 | How many close friends does a person need? | 0–10 → 0–12 | 1 |
+| dl11 | dl35 | How many hours a day on a phone is too many? | 0–12 → 0–24 h | 2 |
+| dl12 | dl36 | Books finished last year — how many? | 0–30 → 0–60 | 5 |
+| dl13 | dl37 | Hours of live sport in a good week? | 0–20 → 0–24 h | 2 |
+| dl14 | dl38 | How old were you when your taste in music settled? | 10–40 → 5–50 yrs | 3.75 |
+| dl15 | dl39 | Meals cooked from scratch in a week? | 0–14 → 0–21 | 1.75 |
+| dl16 | dl40 | The ideal dinner hour? | 17–23 → 12–24 h | 1 |
+| dl17 | dl41 | How many years ahead do you actually plan? | 0–20 → 0–30 | 2.5 |
+| dl18 | dl42 | Minutes late before it counts as late? | 0–30 → 0–60 min | 5 |
+| dl19 | dl43 | How many songs on a perfect album? | 6–20 → 6–30 | 2 |
+
+Five stand as they are: dl1 (40–90 yrs), dl2 (0–30 %), dl4 and dl5
+(0–100) and dl9 (0–30 min) already end where answers end, and the
+first four are core. dl3 is core too and moved anyway — its floor was
+the defect — so dl30 carries `core: true` in its place. The rule the
+table follows: both ends held by real people, and a whole unit or more
+per bucket — a span of at least 12 in the printed unit, a multiple of
+12 where the unit allows (the h, cups, friends, books, min and songs
+rows), and where the honest span is under twelve units the UNIT moves
+rather than the ends (the concert, in minutes). QUESTION-FARM §
+Continuum questions and the feed lane's prompt block now say this, and
+`check:quality` holds the half of it a script can read: a dial under
+one unit per bucket fails the `step` rule (retired entries exempt),
+at the batch pre-flight as well as in the bank — so the next lane run
+cannot write a 17–23 h dial, whatever the prose says that week.
+
+**Why new ids, not an edit.** D114 synthesizes the bucket labels from
+`lo/hi/unit`, so D52's option freeze freezes the range: the seed
+refuses a changed range on a shipped question as an option edit
+(pinned in `seed.test.ts`), and it is right to — every stored answer is
+a bucket index on the OLD range, and on 0–24 h a "3 h" stored as bucket
+2 of 1–12 h would become "5 h". So each old id is retired (`active:
+false` in the bank; its doc, answers and aggregate persist — the
+archive is the product) and the same copy is appended under a new id
+at the END of the file, so every existing `seq` stands and the seed
+rewrites nothing it did not create. Provenance rows carry forward
+verbatim: the copy is the vintage's copy and only the range moved. The
+demo pool's twins carry the new ids on the new ranges with re-shaped
+texture; a retired dial has no card to draw.
+
+**Two gates learned what a replacement is.** `check:content`'s
+exact-duplicate rule and `check:neighbors`' feed domain both scored a
+replacement against its retired twin at identity — fourteen failures
+that were the design working. Both now skip `active: false` entries:
+the gates exist so the feed never asks one question twice, and a
+retired question is not asked. The retired entries stay in the bank
+file (the seed and the deck read the flag there) and in the neighbours'
+id set (a demo twin of a retired id is that id, not a new dupe). The
+closest legitimate feed pair re-pinned to dl32~dl35 @ 0.400 — the
+coffee/phone pair of 2026-08-24 under its new ids.
+
+### What is owed in production, and by whom
+
+The seed writes `active` on first create only — the console flip is
+the kill switch and the seed must not fight it in either direction
+(v2.ts, D34's shape). So the merge SEEDS dl30–dl43 and leaves dl3,
+dl6–dl8 and dl10–dl19 serving until the operator flips those fourteen
+to `active: false` in the Firebase console and reseeds with
+**bump_rev** ticked — LAUNCH-RUNBOOK §1's standing instruction, the
+same case as its 20 `test-cognitive-*` docs. Until that flip a feed can
+show both cards of a pair. Answers already on the old ids are kept,
+keyed to the old range, and the new ids start empty; at the scorecard's
+last count (2026-08-27) that is at most one answer per dial.
+
+Bank 750 → 764, feed 184 → 198 (82 core, 116 tail); `check:figures`
+moved eleven prose lines and two code comments with it, and 217.4 KiB
+is the bank's wire size now.
+
+## D359 · The routine bill is context times turns: four sessions, not thirty-nine firings, were the spend
+
+**2026-09-03.** **Status:** binding for the cadences and bindings it
+sets — the PR shepherd at eight firings a day instead of twenty-four,
+the twelve theory lanes on a four-day cycle instead of two, the four
+ops lanes rebound off a 564k-token dispatcher onto an empty one, and
+`OPS-RUNBOOK.md` §0's cheap-gate rule. Written on
+`claude/routine-usage-reduction-g5vqeo`; `main` mints numbers while
+branches are open, so `USAGE-REDUCTION.md` cites sections and this
+number appears only here (D289's collision pattern).
+
+### What happened
+
+The owner said the routines were burning too much usage. Nothing in
+the program was reading the one field that would have said so: every
+finished session carries a `usage` block — `cost_usd`,
+`cache_read_tokens`, `input_tokens`, `output_tokens` — and ninety of
+this account's ninety-two sessions have one. Read that afternoon, they
+say **$7,011.27 since 2026-08-17**, half of it routine-side, and they
+name where it went:
+
+- **$2,325.68 in a single session.** `InSight night worker`, alive
+  since 2026-08-24, woken five times a night, 968.8M cache-read
+  tokens — two thirds of all routine spend, in one conversation that
+  has never reset.
+- **$24.44 per theory run**, thirty runs in eight days, against the
+  charter's own estimate of $20. The estimate was right; the count was
+  the problem.
+- **$69.74 for a relay that has relayed nothing.** The ops dispatcher,
+  created 2026-09-02, holds 564k tokens and was woken twenty-seven
+  times a day — twenty-four of them by the PR shepherd, whose own
+  stored prompt says it is *"fired twice a day"*. No lane session it
+  produced appears anywhere in the last hundred sessions, because its
+  charter is unadopted (D353) and a session that refuses a charter
+  still re-reads its whole history to say so. About $4 a firing.
+
+And the limit had stopped being theoretical: 45 of the last 92
+sessions read *allowed_warning* and 4 read *rejected*; the axiom
+dispatcher's status is `rejected` on the bucket *with* overage, and
+the body lane's run that morning died with *"You've reached your Fable
+limit."*
+
+### The finding
+
+**Cost tracks context size times turn count, not the number of runs.**
+All 21 Routines were bound with `persist_session: true`, so a firing
+is appended to a conversation that never resets and every turn of every
+future run re-reads all of it. Four sessions — 564k, 497k, 417k, 283k
+— carried the whole program, and the two most expensive things in it
+were a lane that does nothing and a lane that never resets. A relay
+that answers "I have not adopted my charter" cost more per firing than
+a fresh session that reads the entire tree.
+
+The corollary is a rule, now `OPS-RUNBOOK.md` §0: **a run with no work
+should not pay a full orientation to discover it.** The three files
+the lane prompts open with are 21,482 words, read before the shepherd
+knew whether one pull request wanted it.
+
+### What this changes, and what it deliberately does not
+
+Cadence and binding only — no contract's *work* is touched. The
+shepherd's canonical block in §4 gains the cheap gate and loses the
+"twice a day" line that its cron had contradicted for a day; the roll
+call's gains two usage lines every run must carry, so this arithmetic
+is measured from now on instead of assembled by hand. The four old ops
+triggers are disabled, not deleted.
+
+**Three things a session could not do, and did not pretend to.** A
+one-shot Routine with `create_new_session_on_fire` was fired at 12:55
+to re-measure the obvious fix — retire the dispatchers — and the
+creation call warned in advance (*"this trigger stores no MCP
+connectors"*); the run finished in three minutes having pushed
+nothing. So the dispatchers were **rotated**, not retired: same
+queue, empty history, cheapest model that can perform a five-field
+relay. Retiring them, rotating the night worker, and creating the
+axiom maker at one run a day are `OWNER-LIST.md` rows with their
+arithmetic, because each needs a web-UI creation or a sentence in a
+session's own history that no routine may write for the owner.
+
+**The roll call was created and held disabled in the same minute.**
+Its contract says *"Binding: never through a dispatcher, whatever the
+probe says — a watchdog queued behind the thing it watches is blind to
+exactly the stall it exists for"*, and a dispatcher is the only
+binding a session can give it. Creating it anyway would have been the
+D148 failure — a prompt quietly outranking its contract — in the one
+lane whose job is to catch that.
+
+### The second round, the same afternoon — and what it moved out of a session
+
+The first round cut firings; pricing the tokens said firings were never
+the point. Against list pricing the 90 sessions' own `usage` blocks split
+**54% cache read, 23% cache write, 8% fresh input, 16% output** — 77% of
+the bill moves context and 16% produces anything — and the per-firing cost
+falls out of the same arithmetic: 564,090 tokens × $5/MTok × 1.25 is
+$3.53 to re-cache a cold prefix, against ~$4 measured. Firings hours apart
+are always cache-cold, so cadence is linear and **the prefix is the only
+per-firing lever**. That is why `OPS-RUNBOOK.md` §0 now carries a **context
+ceiling** (~150k on any Routine-bound session; crossing it is a rotation,
+not a note) and a **bounded-slice** rule (a tail, a digest, a section —
+never a whole growing file), and why both are rules rather than cleanups
+somebody remembers.
+
+**The production reader stopped being a Routine.** Every reading it made is
+available to the default `GITHUB_TOKEN`, so it is
+`.github/workflows/production-reader.yml` plus
+`scripts/production-reader.mjs`, with `scripts/production-reader.test.mjs`
+holding the property that matters — that an absence announces itself rather
+than rendering a healthy-looking page. One enabling change went with it:
+`observe.mjs` takes `--json-out` and `observe.yml` publishes the payload as
+the `observe-json` artifact, because a reader parsing the probe's padded
+`✓ alertPolicies  5 live` lines is D197's one-parser-in-three-copies
+failure. Three rows of the committed trail answer "has anything moved", so
+the lane needs no yesterday's-comment read at all. The shepherds cannot
+follow it there: they need judgement about a diff, and no token substitutes.
+
+**The doc sweep was disabled, and that is the cheapest cut in the
+program.** `docs/DOC-SWEEP.md` has never been on `main`, its prompt
+correctly refuses without it, and it fired every second day from
+2026-08-30 under `ultracode` to do exactly nothing. §0's opening paragraph
+recorded the first two runs aborting that way; nothing recorded that it
+kept going for four days. A lane that cannot act should not be armed.
+
+**Two refusals, recorded rather than worked around.** `update_trigger`
+will not edit a stored prompt from another session — *"not your own"*
+includes a dispatcher this session created itself — so the cheap gate
+reached the list worker by delete-and-recreate (no run history to lose)
+and reached the axes skeptic only as a contract change, with its live
+prompt now an `OWNER-LIST.md` click. And the theory lanes' read budget is
+written with its arithmetic in `AXIOM-THEORY.md` § The read budget and
+**not applied**: no routine amends its own contract (`AXES-PLAN.md` §10),
+so the lanes go on reading whole files until the owner rules. The
+alternative was a prompt clause quietly outranking a contract — D148's
+named failure, in the lane family that costs the most.
+
+### What proves it
+
+`check:docs` green (the new page has its `ORIENTATION.md` row and
+declares its own status; rule 7 holds it), `check:figures` green,
+`test:scripts` green — 43 files and 755 cases after this round, including
+the 19 the reader and the `--json-out` flag added. Every figure quoted here and in
+`USAGE-REDUCTION.md` was read from `list_sessions` and `list_triggers`
+the same afternoon and is reproducible from them; none is retyped from
+a previous page. What it does not prove is the saving — that lands in
+the roll call's daily usage lines a week from now, and if it does not,
+this record is where the arithmetic that predicted it can be checked.
+## D360 · Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story
+
+**2026-09-03.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty commits are kept as written; nothing was reverted. What this review
+adds is the composition itself and eight corrections, and seven of the
+eight have one cause.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260903` | 35 | **36 behind** | shift A, Claude 2's, last 05:21 UTC |
+| `nightb-20260903` | 25 | **38 behind** | shift B, Claude 1's, last 04:04 UTC |
+
+Ten files conflicted — two composing shift A, eight composing shift B —
+and eleven were touched by both. Neither branch's own green was evidence
+about this tree: no tree had ever held both.
+
+### The one cause under seven of the eight
+
+**Both shifts branched before D354/D355 landed on main** (#363, the store
+off the bridge and twenty-three providers swept). So every fix either of
+them wrote to a swept module arrived written against `window.X`, while
+main had converted the same module to an imported binding. Git has no
+opinion about that, and the failure mode differs by site:
+
+- **`learn-data.js` — merged clean, and broke.** Shift A added a THIRD
+  `liveStore()` call site (`learnLoading`, the fix that stops a card
+  saying nobody has answered while the read is still in the air). Main's
+  sweep had deleted `liveStore` and rewritten the two call sites it knew
+  about. Neither side touched the other's lines, so both landed, and the
+  composed tree called a function that no longer exists — thirteen tests
+  red across two suites. Rewritten on the imported binding, with the
+  `L &&` and `L.learnAggLoading &&` guards dropped: an import cannot be
+  unset and `learnAggLoading` is a member `live.ts` always defines and
+  `vote.test.ts` pins.
+- **`mirror-tab.jsx`, `person-mindmap.jsx`, `profile-general.jsx` —
+  conflicted, and either side alone was wrong.** Taking main's side drops
+  the night's fix; taking the night's side references a binding main
+  deleted. Each resolved as the night's logic on main's import.
+- **`map-empty-anchors.test.jsx` — a stub that stopped reaching.** Shift
+  B's control case installs `window.MapStats = {…}` to make the group
+  reading refuse. `map-group-stats.js` assigns
+  `MapStats = window.MapStats = {…}` — ONE object under two names — so
+  replacing the window property swaps what that name points at and leaves
+  the card's imported binding on the real object. On B's branch, where
+  the card read the bridge, the stub worked. Composed, it reached
+  nothing and the control passed on the live reading. Re-pointed at the
+  imported object with `vi.spyOn`, and PROVED rather than assumed: making
+  the stub throw fails the case, which it could not do before.
+- **`scripts/check-spec-globals.mjs` and `src/v2/README.md` — the ratchet
+  figure.** Both shifts carried the pre-sweep baseline (233 across 32).
+  Main's is 32 across 8. The ratchet may only go down, so main's stands;
+  the composed tree measures 32, unmoved.
+
+The eighth is the one with a different cause, below.
+
+### The console: one defect, two shifts, two designs
+
+Both shifts spent the night on the same thing from opposite ends — the
+console losing an owner's tick. Shift A: "could lose one of the owner's
+approvals with no trace", "a third way … the guard cannot see", "un-ticked
+the owner on its next run". Shift B: "a failed label call erased the
+owner's tick", "a partial GitHub answer deleted merge-list rows", "the
+owner-list fold reads its own rows back, and oscillates". They are the
+same three doors, closed twice, and the composed tree can only have one
+of each.
+
+**Shift A's spine is what ships**, because it extracted the decision into
+predicates a truth table can pin (`holdsTheList`, `listIsWritable`) and
+because on two of the three doors it is simply more correct:
+
+- **The fold.** A's `hand` counts rows OUTSIDE the generated block plus
+  any TICKED row inside it. B's `withoutFolds` strips the block whole —
+  including the rows the owner ticked in it, which is the un-ticking A
+  closed one commit over. Taking B's here would have reopened it. B's
+  fixed-point test is kept and retargeted onto `hand`: the property was
+  worth pinning, the mechanism under it was not the one that ships.
+- **The failed tick.** A refuses to rewrite either surface while a tick is
+  unapplied; B rewrites and draws the unapplied ones ticked. A's is the
+  conservative one and makes B's `pending` threading unreachable, so it
+  went, with its test replaced by A's four-case truth table.
+- **The `::warning::` line.** A found that routing it through `log`
+  prefixes it, and GitHub parses a workflow command only at the start of
+  a line — so the one place the console reported dropping an owner
+  decision produced no annotation. B's version routes it through `log`.
+
+**Shift B contributed one door A did not have, and it is kept**: a failed
+closed-PR page (`mergedOk`). It fails on its own, falls back to an empty
+list, and "Merged this week" would be regenerated with nothing in it. It
+is now a third term in `listIsWritable`.
+
+**And shift B's own guard could never have fired.** Its write condition
+reads `state.github.rowsComplete && state.github.mergedOk`. `state.github`
+is built two hundred lines up as `{ ok: github.ok, error: github.error }`
+and carries neither field; the completeness flags are hoisted beside it,
+not inside it. `true && undefined` is falsy, so on shift B's own branch
+the condition is false on EVERY run and the merge list would simply never
+be rewritten again — the inverse of the erasure it was written to stop,
+and just as silent. Its suite could not see it: the tests exercise the
+renderers, and this is the one line that decides whether they run. The
+same shape had arrived a second time on the Console issue's own guard.
+Both now read `listIsWritable` off `state`.
+
+### The figure collision, for the third time
+
+`content/README.md`'s learn-card count: the night corrected it 106 → 166,
+main's learn lane moved the bank to 176 the same morning, and git merged
+both with no conflict — the number from one side, the bank from the
+other, on a tree neither branch produces alone. D336 found this, D349
+found it again, and the D349 amendment is right that composing is not
+what causes it. `check:figures` caught it, which is the whole point of
+the gate existing.
+
+The feed line conflicted rather than merging silently, and neither side
+was right: main had 265 questions with 10 topics, the night had 188 with
+11. The tree has 265 and 11.
+
+### Verified, not assumed
+
+Every runner and every gate, on the composed tip, in this environment:
+
+| Runner | Result |
+| --- | --- |
+| `test:unit` | 2,483 passed (172 files) |
+| `test --prefix functions` | 593 passed (27 files) |
+| `test:scripts` | 768 passed (43 files) |
+| `test:rules` | 175 passed (2 files) |
+| `test:e2e:all` | all three drivers |
+| `test:e2e` · `:erasure` · `:moderation` | each green STANDALONE — D349's fix holds |
+| `tsc -b` · `tsc -p functions` · `npm run lint` | 0 · 0 · 0 |
+| `check:*` gates | 40 of 42 pass |
+| `check:bundle` | OK on a SHIPPING build — 2173 KB / 629 KB eager |
+
+The two that do not pass are named rather than claimed (D1):
+`check:web-firebase` needs the release Firebase secrets, which this
+environment does not hold; `check:store-copy` is red on `origin/main`
+too, on `REPLACE_WITH_PLAY_SIGNING_SHA256` — an account-gated Play
+Console ID, not this tree's.
+
+**The eager graph is 1 KB under its ceiling, and that is main's, not the
+night's.** 629 KB against a 630 KB maximum. Measured on `origin/main`
+built the same way: also 629. The night moved the total 2169 → 2173 KB
+and the eager graph not at all. Recorded because the next change to the
+entry graph fails the gate, and whoever meets that red should know it was
+already one kilobyte away before this merge.
+
+### What was read closest and cleared
+
+- **`MTGroupBars`, the one function both shifts edited.** A added
+  `cohortN` (the verdict that called a crowd of one a majority); the mode
+  fix was already on main. Both applied once, composed, and the comment
+  claiming four MapStats members is right — but its second clause pointed
+  at a reason main's sweep had replaced, so it now says the reason that
+  is true.
+- **`v2social.ts`.** A at `nearbyCountV2`, B's path-injection refusal at
+  `inviteToGroupV2` — different functions, no interaction. B's is the
+  stronger change: a target went verbatim into `v2_users/${t}` and an
+  even component count RESOLVED, so a crafted target was a real document
+  read and an invite id containing slashes.
+- **`live.ts`.** A's `learnAggPending`, B's `torndown` guard on the
+  patterns signal (the purge undoing itself in one turn) — disjoint
+  regions.
+- **`map-cohort-basis.test.jsx`.** Suspected of the same inert-stub class
+  as the empty-anchors case and CLEARED by probe, not by reading: it
+  asserts `cohortN` returns the stub's own 1 and 6, and does.
+
+### One pairing nothing gates, verified by hand
+
+Shift B's `web/join.html` fix (a malformed invite link threw instead of
+saying the link was bad) changed that page's ONE inline script, and
+`firebase.json`'s CSP for `/join{.html,/**}` pins that script by
+`sha256-`. B updated both. No script in `scripts/` contains the string
+`sha256-`, so nothing in the tree checks that the two agree — and the
+failure is silent in the worst direction: a stale hash means the browser
+blocks the script and the invite page does nothing, on the one page a
+person reaches from someone else's link. Recomputed here from the file
+and it MATCHES. Left as a known gap rather than closed, because closing
+it is a new gate and this review is not the place to add one.
+
+### The question the night wrote down rather than settled
+
+Shift A left a row on `docs/OWNER-LIST.md` asking what a tick on a
+mirrored row is FOR: ticking a folded row deletes it from the next fold
+but does not check the runbook step it mirrors, so the console raises it
+again unticked. Two one-sentence ways out, and it correctly did not pick
+one — it is about what the owner's tick means, which is not a routine's
+to decide.
+## D361 · The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward
+
+**2026-09-02.** **Status:** binding — the owner's sentence, on the
+seventh numbered standalone: *"new visual should be added as the new
+visual vision until i update it with new visuals. also map the new
+functonality in this and plan how to implement it."* Written on
+`claude/new-visual-vision-mapping-ealrob`; `main` mints numbers while a
+branch is open, so the standing collision pattern (D289) may renumber
+this at merge — the documents cite it by date where they can.
+
+### What this amends
+
+D352 gave `docs/VISUAL-VISION.md` one path to move: a request in
+`VISUAL-REQUESTS.md` crossed out as `built`. The owner's uploads are the
+other path, and they always were — every row in that page's lineage
+arrived as an `InSight_N.html` drop, none through a request. This
+record writes the second path down: **an owner upload is a vision
+without a request.** It is extracted under `design/` with a README in
+the family's shape, measured against the tree in a `VISION-<date>.md`,
+and named the current vision in the same PR, until the next upload. A
+design that arrives this way closes whichever requests it happens to
+draw and reopens the plan of any whose surface it redraws — request 1
+(trait-axis directions *in the plane*) is the first, because this
+design's Map is a ring.
+
+### What the mapping found
+
+`InSight_7.html` ships **compiled JSX** — one 2 MB bundle of 114
+modules, Babel's output for the 61 components, plain source for the 53
+data modules — and no `.jsx` at all. The diff was made exact rather
+than approximate: the latest recorded state of every component (v18 +
+v28 patches + the six extractions + two READMEs' recorded hunks) was
+compiled with the same preset and compared by byte, and three untouched
+08-26 files compile identical to the bundle's builds, which is the
+proof the method needed. Against that baseline **94 of 114 modules are
+unchanged** and ten more differ only by hunks already recorded in
+prose. **Ten modules, three stylesheets, one new stylesheet and one
+new font moved**, as four moves: the three Patterns lenses on one round
+dusk instrument (`lens.css`) with the Map redrawn as a **ring**, the
+Oracle in the field and the People lens coloured by agreement; a serif
+voice (Spectral, `--serif`) for every prompt a person answers; the
+two-option ballot split into one block whose seam moves to the crowd's
+split, on the daily and the feed; and four smaller passes (the Mirror's
+answer rows in the topic hue, a quieter Crossroads tree, the paid door's
+rate rows with the pricing law as tokens, the catalog window's polish).
+`design/standalone-2026-09-02/README.md` is the inventory;
+`docs/VISION-2026-09-02.md` is the plan, every item measured against
+the file it lands in.
+
+### What is decided, and what is not
+
+- **The ring is adopted as drawn.** It says less than the plane it
+  replaces — position stops meaning similarity, only the chords carry
+  it — and that is the owner's trade to make; the port owes the honesty,
+  not a veto: the D310 basis line *"close together = answers that
+  predict each other"* goes, the design's own sentence replaces it, and
+  the tie card keeps its bounded-sample wording. `VISION-2026-09-02.md`
+  §1.2 has the arithmetic.
+- **Nothing here needs a new read, a rules change or a collection**, so
+  the build is six worklist lines tagged `[claude-3]` (§7 there) and one
+  `[claude-2]` re-plan of request 1.
+- **The two open owner decisions stay open and now stand on
+  `OWNER-LIST.md`**: anonymous answers and private results
+  (VISION-2026-08-26 §1) and the seat-split subscription price (§2.2).
+  This design draws both and decides neither; the catalog window still
+  waits on the second.
+- **The accent handback of D310 §4.5 does not reverse.** The upload's
+  `page.css` carries the dusk override again, but the new field is drawn
+  in absolute hue-282 tokens and is dusk whatever the tab wears; judge
+  the sienna chrome over it at a screen.
+
+### What this PR builds
+
+The extraction (`design/standalone-2026-09-02/`: seven modules whole,
+four patches whose left side is the compiled recorded state, `lens.css`
+and `patterns.css`, the README), the plan, the vision page moved with
+its lineage row and the second path written into its last section,
+`design/README.md`'s series paragraph, the `ORIENTATION.md` row, two
+owner-list rows, seven worklist lines and the note on request 1.
+
+## D362 · The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot
+
+**2026-09-02.** `VISION-2026-09-02.md` §7 steps 1–6 and the §7 step 7
+re-plan, built exactly as scoped: every item of the seventh standalone
+that needed no owner decision, no new read, no rules change and no
+schema. The one gate the plan named stays shut — the catalog window
+(§4.2) waits on VISION-2026-08-26 §2.2's seat-split sentence, which the
+owner has not said, so nothing of it is here. Written on
+`claude/new-visual-vision-mapping-ealrob`, the same branch as D361, which
+extracted the design and made it the vision.
+
+### What shipped
+
+Six commits, in the plan's own order: the shared lens instrument and the
+three Patterns lenses (§1.1–§1.4); the shell's meta line, topic control
+and swipe axis (§1.5); the prompt voice and the tab bar (§2.1, §2.3);
+the split ballot on the daily and the feed (§2.2); the topic-hued answer
+rows and the quieter Crossroads tree (§3); the paid door's rate rows and
+its pricing tokens (§4.1). The tab remains behind D265's gate, the trial
+remains live-data-only (D166 §1), and the seal's pin never moved —
+`data/patterns.test.ts` is byte-identical.
+
+### The seven things the build settled, which a plan could not
+
+1. **`planeOf` is deleted**, with `MapPoint`, `PATTERNS_MIN_GAP` and its
+   two tests. §1.2 left the choice to the PR: the ring took its last
+   consumer, and a 110-line layout engine kept alive by its own tests is
+   residue rather than a spare. Git history holds it, and the module
+   header says where it went and why.
+2. **The ring's honesty cost is paid in sentences, not hidden.** On the
+   plane, position was a claim — D310's "close together = answers that
+   predict each other". On a ring it is topic membership, so that line
+   is gone and the field's own sentence replaces it. Every counted
+   claim is unchanged: `PATTERNS.say`'s bounded 2×2s, each stating its
+   basis (D146), and the live scope ("the people in both samples")
+   still overrides the prototype's "everyone who answered both".
+3. **The font ceiling is a gate, not a note.** The plan said to measure
+   the woff2 cost by hand; `check:bundle` has had a FONT ceiling since
+   D223 (96 KB against 64 in the tree), so two weights × two subsets
+   would have failed it. **One face ships — Spectral 500, latin** (86 KB
+   measured), and what that costs is written beside the face in
+   `styles.css`: a Central-European letter in a prompt falls back to
+   Georgia for that glyph, and the one place the design asks for 600 is
+   drawn at 500 rather than letting the browser synthesise a bold serif.
+   More faces is a font-ceiling conversation, not a silent import.
+4. **Three prototype shapes did not port as drawn**, each for a reason
+   the live app has and the prototype does not: the Oracle's option
+   labels are uppercased by CSS rather than by `String.toUpperCase` (the
+   accessible name stays the bank's own word); the People rail's chips
+   are buttons wrapped in `listitem` spans rather than buttons carrying
+   the role, which `check:a11y` refuses and is a real reading bug; and
+   the rail lists only NAMED people, because chipping a nameless account
+   with an initial avatar is the invented identity D167 refuses.
+5. **The Oracle needs no many-option fallback, and the one written for
+   it was deleted.** `pool()` skips anything that is not two-option
+   (`patterns.ts`), because the engine encodes an answer as ±1 and the
+   guess as P(option 0) — a third option has no representation in it. A
+   branch for a state the store cannot produce is residue that reads as
+   a live path; the halves read `options.slice(0, 2)` and carry the
+   reasoning at the draw site instead.
+6. **The Oracle stopped keeping device state.** The one-time hints
+   retired into the card's standing sentence and the record's kicker, so
+   `insight.oracle.hints.v1` went with them — `check:purge`'s subject
+   set is derived, so the sweep simply stops naming that file, and a
+   test pins that the lens writes nothing at all.
+7. **`check:figures` caught the ninth mount suite.** The split ballot's
+   own suite made CLAUDE.md's "eight suites mount the whole App" false
+   the moment it landed, and the gate said so with the corrected
+   sentence — the documentation error this repo keeps re-committing,
+   caught by the thing built to catch it.
+
+### What did not port, and stays not ported
+
+The prototype's boot splash and fast-boot bundle (the app has a native
+splash and Vite); `.lens-paper` as a setting (the tokens ship, the
+toggle is a control nobody asked for); the invented crowd's names; the
+ring bullseye in `map-tab.js`, still declared by nothing (the 08-24
+verdict, third time stated); the oracle sub-row's "N from feed votes"
+(D287); and the demo `CATALOG`/`SUB` seeds (D167).
+
+### The request that moved
+
+`VISUAL-REQUESTS.md` request 1 — trait-axis directions — was written to
+draw an axis as a DIRECTION in the plane the ring retires. It is re-aimed
+rather than dropped: the request now names the three grammars a ring can
+carry an axis in (a leaning set, an inner arc, a polarity split), states
+what each costs, and keeps its data, states and basis rules. Still
+`requested`; the drafting step is unchanged.
+
+## D363 · The 2026-09-04 night review: two shifts merged as one tree — 45 commits kept, one comment corrected, and the night that had nothing to collide with
+
+**2026-09-04.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+forty-five commits are kept as written; nothing was reverted. What this
+review adds is the composition, one correction, and the reason this
+night was cheap when the last two were not.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260904` | 32 | 4 behind | shift A, Claude 2's, 21:12–05:23 UTC |
+| `nightb-20260904` | 13 | 5 behind | shift B, Claude 1's, 20:12–04:36 UTC |
+
+**Nothing conflicted, and that is the finding.** D336, D349 and D360 each
+spent most of their length on one cause — a shift branching before a
+sweep landed on main and writing its fixes against a structure main had
+already replaced. This night had no such gap: both shifts branched after
+D354/D355 were in, and everything main added while they worked was
+console-generated (`MERGE-LIST.md`, `OWNER-LIST.md`,
+`monitoring/console-trail.jsonl`). Three source files were touched by
+both shifts and all three composed correctly:
+
+- **`scripts/check-ios-location.mjs`** — shift A made the Near-consent
+  rule run unconditionally (it was `if (existsSync(liveTs))` with no
+  else, alone in this gate family in failing open); shift B extracted the
+  rule into `near-consent-rule.mjs` so it could be executed by a test,
+  and made it blank comments before matching, because a commented-out
+  timer read as a running one. Git took A's `else` and B's body, which is
+  the correct composition of the two: the gate now fails loudly on a
+  missing input AND cannot be fooled by a commented-out loop.
+- **`src/v2/spec/map-tab.jsx`** — A's `datesAreReal` gate on the recency
+  drawing (with its own follow-up exempting learn nodes, whose `age` is a
+  real mastery order), A's `!n.learn` filter on the anchor rows, and B's
+  four new exclusions on the `is-rare` ring. Different lines, all kept.
+- **`src/v2/test/smoke-live.test.jsx`** — two new cases per shift, in
+  separate `describe` blocks, each with its control.
+
+That the merge was clean is not by itself evidence — D360's
+`learn-data.js` merged clean and broke thirteen tests — so the battery
+below is what the composition is actually held to.
+
+### The battery, on the composed tree
+
+Neither branch's own green says anything about this tree, because no
+tree had held both. Run here in full:
+
+| | |
+| --- | --- |
+| `test:unit` | 180 files, 2569 tests |
+| `test --prefix functions` | 27 files, 611 tests |
+| `test:scripts` | 47 files, 825 tests |
+| `test:rules` | 178 tests (Java 21) |
+| `test:e2e:all` | all three legs, one emulator boot |
+| gates | 38 `check:*`, plus `lint`, `tsc -b`, and `check:bundle` on a shipping build |
+
+Two gates were red on arrival and neither was about the tree:
+`check:fn-runtime` wants `functions/lib` built, and `check:ios-facebook`
+scans `node_modules` and needed its own postinstall
+(`strip-facebook-sdk.mjs`) to have run. Both green after their documented
+fix, which is the shape the runbook already gives them.
+
+### The one correction
+
+**`src/v2/data/peopleMap.ts` — a docstring left standing over the fix
+that retired it.** Shift A's People-lens fix is a real one: the "Most
+like you" rail rendered `near`, which is the fold's LABEL set, ordered by
+distance in a two-component projection of an eight-dimensional solve — so
+the rail could lead with the person who agreed with the reader least,
+wearing the "mostly disagrees" colour, under those words. The fix adds
+`alike`, ranked on the agreement rate the chip already prints, with
+deterministic tie-breaks.
+
+But it added a new docstring above `near` and left the old one in place,
+so the field carried two, and the FIRST still said `near` was "the 'Most
+like you' rail. Exactly the ones that carry a label on the field, so the
+rail and the drawing never disagree about who is close." That sentence is
+now false in the one clause that matters, directly above the change that
+made it false. Replaced with one block that keeps the true half (it is
+the label set, and labels and drawing agree) and records what moved and
+why. No behaviour change; `tsc -b`, `peopleMap.test.ts` and
+`PatternsPeople.test.tsx` unmoved.
+
+It is a comment rather than code, and it is corrected here rather than
+noted, because a stale comment is what thirty of these forty-five
+commits are ABOUT — six of them fix nothing else.
+
+### Two blocks the shifts did not decide, and were right not to
+
+Both are already on `OWNER-LIST.md`, written by shift B, and both are
+verified here rather than taken on trust:
+
+- **The start-up size budget is exactly full.** `check:bundle` on a
+  shipping build of the composed tree: **630 KB eager / 630 max**. Main
+  measures 629, so the night spent the last kilobyte. The gate passes and
+  there is no headroom left: the next STATIC import into the entry graph,
+  from any lane, trips it. A dynamic import behind `loadWorldFeed` /
+  `loadMirrorTab` / `React.lazy` does not, which is why shift A's
+  thirty-two commits cost nothing. The gate's own message invites raising
+  the ceiling "deliberately, with a note saying why the app got bigger" —
+  which is the owner's call, and not one to make at 00:13 with nobody
+  watching.
+- **The now lane's cap of six against its own window arithmetic.** The
+  two cannot both hold; `npm run now:budget` reports today's largest
+  legal batch as 2 against a cap of 6. Three ways out, all of them
+  changes to something written down.
+
+### What to watch
+
+**The recency gate caught its own author, six minutes in.** Shift A's
+`datesAreReal` fix (the Map was drawing a demo bank's fixed position as
+"answered most recently" on live builds) initially gated learn nodes too
+— and a learn node's `age` is `S.order`, the order this device actually
+mastered them in, which IS a real recency in both modes. The follow-up
+commit is in the set and the reasoning is in the file. The pattern to
+watch is the one the file already names four times: `daily && !learn` is
+a distinction this component keeps having to relearn.
+
+**Three stores now share one generation-counter shape**
+(`purchases.ts`, `paidBookings.ts`, `suggestions.ts`), closing a real cross-account leak — a read in flight when the
+account changed wrote the previous account's rows back over the cleared
+cache, and nothing else cleared it for the session. The comment says the
+fix "decays the moment one of them drifts", which is correct and is not
+enforced by anything. If a fourth store of this shape appears, it needs
+the same counter and none of them has a gate.
+
+**`firestore.rules` gained two bounds and lost none.** `isOptionalStamp`
+on `v2_users.createdAt`/`updatedAt` (both admitted with no check of any
+kind; `data/voters.ts` fetches these documents whole, thirty per query,
+so an unbounded field is a download every reader of that person pays
+for), and a 120-char cap on a circle take's `qid`, which the world branch
+four lines up already had. Neither touches the three labelled denies.
+Verified: nothing in the tree writes either stamp field.
+
+## D364 · A component defined inside a render is a remount per render: the profile's result panels, and the loop that shook the rose until the app died
+
+**2026-09-05.** **Status:** binding. The fix is in, the case is pinned,
+and the rule it states is the one to carry: **a component is defined
+once, at module scope; what varies per render is a prop or inline JSX.**
+
+### What the owner saw
+
+On a device, the Big 5 and Politics tabs of the profile: the petal rose
+drew empty — two rings, the centre dot, every label, and no petals — and
+the bars under it vibrated, faster and faster, until the app died. Two
+screenshots, both with the rose blank.
+
+### What it was
+
+Four links, each correct on its own:
+
+1. `spec/profile-overlay.jsx` defined `TestProgress`, `Big5Panel`,
+   `PoliticsPanel`, `ValuesPanel` and `AttachmentPanel` **inside
+   `ProfileOverlay`'s render body**. A function created during render is
+   a new component type on every render, and React reconciles a changed
+   type as an unmount and a fresh mount of everything beneath it — not as
+   an update. So every re-render of the overlay rebuilt the result card
+   from nothing.
+2. `ResultProfileCard`'s mount effect calls `LIVE.loadKindred()` (the
+   2026-08-31 fix that gave the card's counted percentiles a loader of
+   their own, kept at D363). A remount re-runs a mount effect.
+3. `loadKindred` notifies in its `finally`. While the twelve voter lists
+   are landing it suspends on `loadVoters` and the flag guard returns
+   early on re-entry; once every list is cached the body runs to its
+   `finally` **synchronously**, notify included.
+4. `app-shell` re-renders on every notify (`liveTick`), and the overlay
+   re-renders with it.
+
+Mount → loadKindred → notify → shell → overlay → new type → remount →
+mount effect → loadKindred → notify. Paced by the network while the
+lists landed — one visible restart per landing — then as fast as React
+could commit. Each pass restarted every reveal animation on the card,
+and both fill `both`: a `roseGrow` petal restarted every frame sits at
+its `from` keyframe, scale 0.12 and opacity 0, which is the empty rose in
+the screenshots, and an `rpv2-bar` restarted every frame is the
+vibration. React's nested-update limit throws only for updates made
+during commit; an update from a passive effect loops until the WebView
+runs out of something.
+
+Every gate was green. `check:globals` is name-level, `tsc -b` does not
+read the spec layer, and the mount suites render the card alone or open
+the tab once and assert on copy — nothing re-rendered the overlay's
+parent while a result card was on it, so nothing saw the second mount.
+
+### The fix
+
+`TestProgress` is at module scope with its comment; the four panels are
+the four `<ResultProfileCard …/>` elements written inline in the tab
+body, which is what they were wrappers around. No behaviour changes on a
+render that does not repeat. The store's `finally` notify is left as it
+is: `vote.test.ts` pins its placement and the reason, and a no-op notify
+is harmless under a tree that updates — the fault was the tree.
+
+`smoke-live.test.jsx` mounts the WHOLE app on the Big 5 tab with a
+loader that notifies as the real one does, capped at eight so the
+failure is a count rather than a hung suite, and pins two things: the
+loader is asked once, and the rose is the same `<svg>` after a store
+notify. Measured on the pre-fix overlay: nine calls, and a rebuilt rose.
+Rendered alone, the card cannot see this — it has no parent to
+re-render it — which is why the three loader cases above it stayed
+green through the whole of it.
+
+### What to watch
+
+- **The shape, not the file.** `segment-explorer.jsx`'s `SXCaret` and the
+  indented `function` declarations in `group-daily.jsx`, `lens-cards.jsx`,
+  `logic-test.jsx` and their siblings are at module scope inside a file
+  wrapper, not inside a render — checked. The profile overlay was the
+  only render body defining components. A new one is a remount per
+  parent render from the day it is written, and it only becomes a loop
+  when something under it notifies on mount.
+- **Any mount effect that calls a loader which notifies** — `loadKindred`
+  here, `loadCityKindred` in `LiveSimilarityField`, `loadVoters` behind
+  the People lens — is one inline component away from this. The guard
+  is the rule at the top of this record, and the case is the shape to
+  copy: mount the whole app, notify from outside, count the mounts.
+## D365 · The 2026-09-05 night review: two shifts merged as one tree — 50 commits kept, one defect the composition created, and the kilobyte that finally tripped
+
+**2026-09-05.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+fifty commits are kept as written; nothing was reverted. What this review
+adds is the composition, one fix for a defect neither shift could see
+alone, and the owner's ruling on the ceiling shift B put on the list the
+night before.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260905` | 32 | 6 behind | shift A, Claude 2's, 21:08–05:24 UTC |
+| `nightb-20260905` | 18 | 7 behind | shift B, Claude 1's, 20:10–04:13 UTC |
+
+**Nothing conflicted, for the second night running, and for the same
+reason D363 gave: there was no sweep to branch before.** Everything main
+added while they worked was console-generated (`MERGE-LIST.md`,
+`monitoring/console-trail.jsonl`) plus one catalog card (#396, in
+`pick-data.js`, which neither shift touched). Five source files were
+touched by both and all five composed correctly:
+
+- **`src/v2/data/live.ts`** — A added the three-state test-aggregate
+  reader (`testAggsFailed`/`testAggsState`), `rankCrowd`'s `crowdN` and
+  the feed totals publish; B added the pulse write's `unaggregated` mark
+  and its rollback, `pulsePending`, and the circle's `following` split.
+  Different regions of a 6,800-line file, all kept.
+- **`src/v2/test/live-surface.ts`** and **`live-fixture.ts`** — A's
+  `testAggsState` and `crowdN`, B's `pulsePending`, all three landing in
+  `LIVE_MEMBERS` beside each other.
+- **`src/v2/spec/world-feed.jsx`** — A's pick-tile wording split, the
+  rank card's crowd line and the topic sheet's bank count; B's thin-crowd
+  guard on the learn sheet's rate row. Different methods.
+- **`functions/src/engagement.test.ts`** — two new blocks per shift.
+
+### The battery, on the composed tree
+
+Neither branch's own green says anything about this tree, because no tree
+had held both. Run here in full:
+
+| | |
+| --- | --- |
+| `test:unit` | 184 files, 2615 tests (2613 on arrival, plus the two cases below) |
+| `test --prefix functions` | 27 files, 634 tests |
+| `test:scripts` | 49 files, 855 tests |
+| `test:rules` | 179 tests (Java 21) — the count `check:figures` holds, and the number this night moved |
+| `test:e2e:all` | all three legs, one emulator boot, exit 0 |
+| gates | 41 `check:*`, plus `lint`, `tsc -b`, and `check:bundle` on a shipping build |
+
+Two gates are red and neither is about the tree, both verified against
+`origin/main` rather than assumed: `check:store-copy` wants the Play
+signing SHA256 in `web/.well-known/assetlinks.json` and says in its own
+header that it is deliberately not in CI; `check:web-firebase` wants the
+four `VITE_FIREBASE_*` secrets, which this session does not have, and it
+runs on the two release workflows rather than on `ci.yml`.
+
+### The one defect, and it belonged to neither shift
+
+**`src/v2/data/pulse.ts` — the two halves of one sentence joined your own
+answer on different conditions.** B's fix is a real one and its case is
+the ordinary one: the pulse card read its crowd off a document written
+before you answered, so "you · Brisk" sat over "0% of 4 answers today" —
+the share of the very step it was naming. The fix counts a pending answer
+into both the share (`bins`) and the crowd it is a share of (`todayN`).
+
+But `todayN` added it whenever one existed, and `bins` added it only
+where the published cell already did. A city cut has no cell until
+somebody in that city has answered today — so the first person in a city
+to answer read **"0% of 1 answer today"** under their own step, at the
+bar's minimum height. The same wrong number the join was added to remove,
+one cohort narrower. The second, smaller shape: a reader with no city
+anchor was counted into a city cut the app cannot name.
+
+Both are closed by one reader, `pendingIdx`, which the two halves now
+share — membership decided from YOUR anchor, the published cell supplying
+only whoever came before you. Two cases pin it and both go red without
+the fix (measured, not reasoned: `[0,0,0,0,0]` where `[0,0,0,100,0]` is
+true, and `1` where `0` is).
+
+It is worth naming why neither shift could have found it. B wrote both
+halves and they agree on every case B's own suite reaches — the world cut,
+where there is always a `total`. The failing case needs the CITY cut, and
+the card's own suite only ever draws world. Nothing was wrong with either
+commit read alone.
+
+**And one comment.** The same commit inserted `pulsePending` between
+`pulseVotes` and `pulseVotes`'s docstring, so the block describing "every
+pulse day this device knows it answered" stood over a function that
+answers one day. Reattached. This is the D363 correction one file over,
+and worth the second mention only because it is now twice: a new member
+landing under an existing member's docstring is what this shape looks
+like both times.
+
+### The ceiling the night before predicted, tripping the night after
+
+Shift B's 2026-09-04 row on `OWNER-LIST.md` said the start-up size budget
+was exactly full at 630 KB of 630, with the arithmetic, and that the next
+static weight from any lane would trip it. It did, at 631 — measured with
+a DSN on the composed tree, against 629.9 for main, so the night's fixes
+to eager modules cost **856 bytes**. `check:bundle` runs in `ci.yml`, so
+the tree could not merge.
+
+**Put to the owner, who asked the right question — *why should we not
+raise the ceiling more?* — and the answer is in the gate's own file.**
+Every earlier entry says `MAX_EAGER_KB` "is not raiseable, because it is
+the constant keeping the Firestore SDK out of first paint". That stopped
+being true when D144's reader wrote `MAX_EAGER_CHUNK_KB = 200` and said
+why in the same breath: *"a guarantee that survives only while a number
+stays small is not one. So state it directly."* The SDK rule is stated
+directly now and catches either SDK by a factor of at least 1.4 whatever
+the total reads. So a raise gives back no guarantee; what it spends is
+how often the deferral question gets asked.
+
+**Raised 630 → 642**, the ~11 KB band every entry in that file uses, with
+the measurement beside it. The three fixes it buys are all in the same
+class — a surface that stated something it had not measured — which is
+what the whole night is about.
+
+**The rate is the finding, not the kilobyte.** D354's sweep set 630 with
+the tree measuring 619; four days later main measures 629.9. That is
+~2.7 KB a day of ordinary bug-fixing landing in first paint, so this band
+is about four days and the next trip is due before the week is out. The
+answer then wants to be a deferral, and the candidates are already in the
+modulepreload list — `explain-sheet` (8.6 KB), `result-rose` (4.9),
+`relmap-lenses` (4.9), all three behind a tap. All three are also in
+`spec-index.js`'s ORDERED side-effect list, which is why moving one is its
+own change with its own load-order risk and not something a review does on
+the way past. Written into the constant's note so the next reader meets it
+there.
+
+### The number this record wears, and the order that gave it
+
+**It was written as D364 and is D365, because two labelled pull requests
+claimed the same number twenty-three minutes apart.** #398 (this record)
+was created 12:40:14 UTC and labelled 12:53:19; #399 — a component
+defined inside a render body, remounting the profile's result panels
+until the app died — was created 12:53:36 and labelled 12:53:44. Both
+were green, both appended a `## D364` at the end of this file, and
+neither could pre-empt the other by taking D365 first: `check:docs`
+refuses a hole as firmly as a duplicate, so until D364 exists on `main`
+a record numbered D365 is a hole. `OPS-RUNBOOK.md` §916 is written for
+exactly this — *merge one, never hold both* — and says not to ask the
+owner for an order the arithmetic already gives.
+
+The arithmetic here gave #399, and not the way this session predicted.
+The tie-break is the older label, which is #398's by twenty-five
+seconds; what actually decided it is that the shepherd Action sorts by
+`created_at` and evaluates mergeability per PR **inside** its loop, so
+the run that woke on #399's last check found #398 still recomputing
+after `main` had moved and merged #399 alone. That is the Action working
+as written, and the outcome is the one §916 wants either way: one merged,
+the other renumbered onto the next free number with every citation moved
+(`scripts/check-bundle.mjs`'s ceiling note and the `OWNER-LIST.md` row),
+`check:docs` holding the result.
+
+**The finding is that the tie-break and the implementation disagree.**
+The contract breaks ties toward the older LABEL; the Action breaks them
+by older CREATION and cannot see a label's timestamp at all. They agree
+whenever PRs are labelled in the order they were opened and diverge
+whenever they are not — which is every time an older PR waits on a
+review and a newer one is waved through. Nothing was lost here, because
+the two orders cost the same renumber. Left as a note rather than a fix:
+changing the sort is a change to the lane that merges everything, and it
+wants its own PR and its own case in `scripts/pr-shepherd.test.mjs`.
+
+### What to watch
+
+**The erasure sweep that cannot reach its own history.** Shift A's
+`pickedUids` fix closes a real leak — a pick naming you in a circle you
+had already left survived deletion, in a document any signed-in account
+may read — and the field the sweep walks is written by the reveal builder
+from now on. Reveals written before tonight carry no such field, so the
+same pick made last week is still unreachable. The commit says so, and
+`docs/data-inventory.md` now says it beside the sweep: only a one-off
+backfill reaches those, and that is the owner's call. Verified here rather
+than taken on trust — `pickedUids` appears nowhere on `origin/main`.
+
+**`firestore.rules` is at Firestore's 1000-expression evaluation ceiling
+on the path every answer takes**, and shift B established the mechanism
+after refuting its own first answer: a `set` over an EXISTING answer
+document makes Firestore evaluate `allow create` and `allow update` in one
+request, and the two together blow the budget. Either alone is comfortably
+under. The client does not do this today (`editVote` uses `updateDoc`), so
+nobody is losing answers — but eleven e2e cases that assert a refusal are
+being granted it by the budget running out rather than by the rule under
+test, and would pass with that rule deleted. The row on `OWNER-LIST.md`
+carries the six-line reproduction. Not this review's to fix; named so it
+is not re-discovered a fifth night.
+
+**`Member.mutual` is now `boolean | null`** and the type does not enforce
+what the copy does with it. Both consumers were checked and both are safe
+(a null is falsy, and drawing no badge is the safe direction); only the
+sentence had to learn the difference. A third consumer that treats falsy
+as "does not follow you back" would reintroduce the claim without failing
+anything.
+
+**Three gates learned to blank comments before matching** — and the reason
+is worth keeping in view: every one of them reads a VALUE with a
+first-match regex, so a retuned constant with its old line parked above it
+made the gate certify the superseded number and exit 0. `check:anchors`,
+`check:cities`, `check:figures` and `account-level-lib` are fixed. The
+class is not closed by a gate of its own.
+
+## D366 · Nothing the theory lanes wrote is axiom theory, and the ladder is why — the potential half, the salvage, and the gate that holds the line
+
+**2026-09-03.** Written on `claude/axiom-theory-evaluation-0g62q4` out of
+an evaluation the owner asked for, which turned into three owner rulings
+once the corpus was read against its own charter.
+
+### What was measured
+
+`origin/axiom-theory` at `666dc65`: 46 commits over ten days, 129 claims
+on 381 edges, 588 sources, **$733.13** metered across 30 runs
+(`USAGE-REDUCTION.md` §1). The bridge — the only path from theory into
+this repo — has crossed **two** requests, both on 2026-08-27 in one
+decision (D325), while sixteen `worth-building` verdicts accumulated.
+One node of 129 reached `measured`. Zero worked cross-axis scenarios
+exist, and zero visualisations, from a program whose §1 has demanded
+cross-axis connection since 2026-08-25.
+
+### The owner's three rulings
+
+1. *"they have missed the point"* — the lanes were to show what the app
+   could KNOW by crossing axes; they produced constraints, citations and
+   maintenance instead.
+2. *"nothing that has been created so far is axiom theory"* — the 129
+   claims are measurement method, negative results, engineering
+   proposals and program findings. Kept, renamed, filed at
+   `MEASUREMENT-NOTES.md`.
+3. *"it should not take into account things like current number of users
+   as it looks at what it potentially can do not what it can do now"* —
+   scale stops bounding a theory.
+
+### Why it happened, which is the part that generalises
+
+Not motivation — **the ladder's gradient**. §4's upper rungs are `cited`
+(matches existing literature) and `measured` (defined as agreement with
+InSight's own published numbers), so the highest-status act available to
+a lane was describing the current product, and §3's ratchet made a run
+spent on potential look like a failed run. Archaeology confirms it:
+of 109 nodes traced from first write to current, **36 had their claim
+rewritten**, and almost every rewrite replaced a design claim about the
+ideal with a status report on the literature or the app. `cen-3` was
+seeded *"new axioms surface where the joint model's residuals cluster"*
+— a self-extending system — and is now a five-part admission checklist.
+
+D352 (*axiom power first*, 2026-09-02) never reached the charter, last
+amended 2026-09-01.
+
+**Dilution, not destruction — measured 2026-09-04, and it changes the
+remedy.** Claims that reason about the *perfect form* at all: **24 of 39
+(61%) at the seed, 34 of 129 (26%) now**. But the fall is almost
+entirely on the production side, not the destruction side — **20 of the
+24 seed claims still reason about the perfect form** (only `map-3`,
+`que-4`, `tst-2` and `tst-5` lost the framing), while of the **90 nodes
+added after the seed only 13 were born perfect-form, 14%**. The lanes
+did not lose the ambition; they stopped producing it.
+
+That rules out a revert or a wipe as the fix: 34 genuine perfect-form
+claims are standing, and a reset would destroy them to solve a birth-rate
+problem. The corpus splits rather than resets — those 34 stay, the rest
+goes to the salvage — and what changes is what gets rewarded, which is
+§13's gate. Three nodes (`bod-3`, `gen-8`, `tst-8`) show a lane growing
+a claim on its own initiative, so the ceiling was never the constraint.
+
+### What this repo carries
+
+`AXIOM-POTENTIAL.md` (plan) — the missing half, written directly rather
+than waited for: the multiplier the app already runs unnamed (thirteen
+instruments derived from one write), the compounding map, three worked
+scenarios — ability genetics without the education proxy, the neurotype
+signature, the loop where each axis lowers the cost of the next — a
+collection order in which three of the top five need no new technology,
+and the eight ambitions recovered from the seeds.
+`MEASUREMENT-NOTES.md` (tree) — the salvage, explicitly not axiom
+theory and read by no gate. `AXIOM-THEORY.md` § The drift and § The
+charter amendment — the diagnosis and the approved wording.
+
+Two stale figures were corrected in passing: the axiom builder's own
+contract specified three runs a day against the owner's recorded call of
+one (`PROGRAM-RUNBOOK.md`, `ROUTINES.md`), and the bridge queue was
+reported as ten worth-building verdicts when the ledger held sixteen.
+
+### Superseded the next day, and why the record stands
+
+**2026-09-05.** The owner ruled the branch discarded and the program
+restarted from a fresh plan rather than an amended charter: *"keep the
+129 ideas in an idea list or something, rest seems like it can be
+discarded."* So the charter amendment below never applies, and
+`AXIOM-IDEAS.md` was added — the 129 claims as one line each, marked
+where they reason about a perfect form. What survives the restart is the
+diagnosis (a ladder whose top rung is the current app selects for
+describing the current app), the two documents the replacement is
+briefed from, and the salvage. The measurement is why the restart
+happened, so it is recorded rather than rewritten.
+
+### What is NOT here, and waits on the owner
+
+The charter amendment itself — the perfect-form test, the scale clause,
+the ruling that the old corpus is not axiom theory, a fifth status
+`demonstrated` (a worked cross-axis scenario, needing no citation and no
+existing data), the bridge's second entry kind, Potential as a scored
+review dimension, and `graph/potential.mjs` as the gate that makes it
+stick (two cross-axis scenarios per lane, ratcheted, floor due
+2026-09-20). It is committed on `claude/charter-potential-2026-09-03`
+and **unpushed**: the charter lives on the orphan branch, and the owner
+said the permission for that push is theirs to give deliberately. Until
+it lands the twelve lanes run the old contract and keep producing
+salvage at ~$92 a day.
+
+The gate is a gate rather than a paragraph on the program's own finding:
+`go-10` says unschematized conventions never converge across
+fresh-session lanes, and §1 asking for cross-axis connection in prose
+produced no scenario in 129 claims.
+## D367 · Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key
+
+**Date:** 2026-09-04 · **Status:** Adopted (corrections, not new policy —
+each restores a document to what the tree already does)
+
+**What opened it.** The owner asked what is missing before the app is
+ready. Answering meant reading the launch documents as instructions rather
+than as prose, and four of them turned out to be wrong in the direction
+that looks like progress.
+
+### 1 · Play was un-parked three days before the ordered list noticed
+
+[D345](#d345--play-is-un-parked-on-an-enk-and-the-two-code-items-that-had-no-owner-get-built)
+lifted D42's park on 2026-09-01, onto D41's organization route, and built
+release signing and `play-release.yml` in the same decision. It named
+neither `LAUNCH-RUNBOOK.md` nor `SHIP-CHECKLIST.md`. So the owner's
+ordered list carried nine `[PARKED — D42]` markers and a heading reading
+**"iOS only, as of 2026-08-04"**, understating the remaining launch work
+by an entire platform — six steps (1.1b, 1.2, 2.1, 2.6, 3.1, 6.3) plus
+three halves (1.4's Android provider, 2.7's fingerprint, Play's Data
+Safety form).
+
+Corrected here: the heading, every marker, and the `check:store-copy`
+paragraph that called `REPLACE_WITH_PLAY_SIGNING_SHA256` *"a permanent
+non-blocker under D42"*. It stopped being permanent at D345 — it is a real
+value Play Console mints at App signing, which is why that decision added
+`--first-upload` for the chicken-and-egg.
+
+**No gate could have caught this, and that is the finding.** `check:docs`
+proves the map names every document; `check:figures` proves a listed
+number equals the tree. Neither reads whether a *sentence* is still true —
+which is exactly `docs/DOC-SWEEP.md`'s subject, and §3 below is why that
+lane was not running.
+
+### 2 · The ten TestFlight testers were a pre-D98 requirement
+
+Runbook 3.2 demanded *"ten testers, not five"* and gave its reason in the
+next clause: the public mirror publishes once per 5 answers (D7), so a
+group of 6–9 watches the world count sit on "5+" and never move. **That
+machinery does not exist.** D98 removed the k-floor outright on
+2026-08-11 — `AGG_MIN_N` and `PUBLISH_EVERY` are gone, and
+`functions/src/v2.ts` says so at the lines where they lived — so a count
+of 1 publishes as 1.
+
+The step had already been corrected further down (*"There is no k-floor
+since D98: the first answer publishes exactly"*) while its heading still
+demanded the crowd the removed cadence needed: one step, two answers, and
+the stale one was the heading. **Two testers is enough to start** — duels
+work at N=2 and are the surface worth testing first, which the step
+already said. More testers is a device-coverage argument, which is real;
+it is not a threshold to wait behind.
+
+This is [D327](#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic)'s
+shape one document over — copy that outlived the arithmetic it was written
+for. There it was twelve captions still selling the floor; here it is an
+instruction to gather the crowd that floor needed.
+
+### 3 · The doc sweep is held by a condition that is met
+
+`docs/DOC-SWEEP.md` landed on `main` 2026-09-03 (#335). Its Routine
+(`trig_01E2bBC1QmYbkkHj3V96k6L1`) is still disabled, and `ROUTINES.md`
+still said the file *"is not on `main`"*. The worklist row asked for the
+re-enable *"in the same PR that lands the file"*, and **no PR can do
+that** — a trigger on another account's subscription is invisible to
+`list_triggers`, which returns the caller's and nothing else. So the ask
+was unsatisfiable as written and the lane stayed off.
+
+Recorded as an owner click rather than as work. The lane that exists to
+catch a stale sentence was disabled by one, which is the cheapest possible
+argument for turning it back on.
+
+### 4 · `asc-push --privacy` demanded credentials for a section that cannot use them
+
+The privacy nutrition label is the one launch step with no Apple endpoint
+behind it ([D73](#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead)),
+so `--privacy` prints a form. It nonetheless exited on the missing
+`ASC_KEY_ID`/`ASC_ISSUER_ID`/private key, then resolved the app over the
+network — a credential gate and a round trip in front of a printout.
+
+**This is the failure `SHIP-CHECKLIST.md` §1 records twice for the seed
+step**, and records in those words: an instruction survives review because
+running it needs something nobody has, so nobody runs it. Here it guarded
+the step whose output is a legal statement, and whose whole virtue is that
+the printout — not the prose — is the artefact.
+
+`NEEDS_APPLE = TEXT || AGE_RATING || SCREENSHOTS`; a privacy-only run
+prints and exits above the gate. Its closing line deliberately does **not**
+reuse the tail's *"App Store Connect already matches the repo"*, because
+that run never asked Apple anything and claiming agreement with a service
+it did not contact is the one kind of sentence this file exists to keep
+out of a launch step. Pinned by a test that runs the script with every
+`ASC_*` variable stripped and asserts the whole row set prints and that
+zero requests are made — red before the change, which was measured rather
+than assumed.
+
+### What is deliberately not decided here
+
+Nothing about **whether** to ship Play, which is D345's and stands; and
+nothing about the App Check debug tokens, which
+[D337](#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens)
+settled and which remain an owner action at the console — though the
+Firebase App Check management API can create them
+(`projects.apps.debugTokens.create`, a UUID4 supplied at creation) and set
+`enforcementMode` (`projects.services.patch`), so the console is a choice
+rather than a constraint. Establishing that as a workflow is its own
+decision, and it is not taken here.
+
+### 5 · Three money-path items that were on no list at all
+
+Added after the owner asked why Stripe, ads and BigQuery were absent from
+the answer above. One of the three was a reading failure and two were real
+gaps, and the gaps are the expensive kind: **a shipped pipeline with no
+step that turns it on**.
+
+**BigQuery was on the list** — `LAUNCH-RUNBOOK.md` 5.11 (the answers
+mirror, deliberately installed *with* the first real users so the weeks
+whose data is most worth having are covered) and 5.12 (Cloud Billing
+export, which turns the Authentication-tier question from a console hunt
+into a query). Both open, both correctly filed as post-launch. Nothing
+moved here except the answer's brevity.
+
+**Stripe was not, and the whole self-serve loop depends on it.** D313 and
+D315 shipped `functions/src/paid.ts` end to end — compose, automated
+review, server-side price, Stripe Checkout, and a webhook that writes the
+purchase record and the live question in one transaction. Three secrets
+are unset, `DEPLOYMENT.md` § Environment documents them, and **no step
+anywhere said to fill them in**. The failure is deliberately quiet:
+the deploy warns and succeeds, bookings and reviews still run,
+`createPaidCheckoutV2` answers `unavailable` and `stripeWebhookV2`
+answers 503 — so a buyer reaches an approved quote and a dead end with
+nothing paging anybody. Now runbook 5.14, with the webhook's ordering
+(deploy → endpoint → `whsec_` → re-deploy) and its three events, because
+subscribing to `checkout.session.completed` alone strands every
+delayed-method EUR buyer at approved, having paid.
+
+**Ads need no switch, and the absence was the design** — recorded at
+runbook 5.15 because an unexplained absence reads like an omission. Since
+D315 a self-serve ad is written by the payment webhook into `v2_ads` at
+`paidad-*`, so turning on ads *is* turning on Stripe. `content/ads.json`
+stays empty on purpose: a row without a contract prints a company's name
+on a card nobody bought, which is D1's no-fabrication rule pointed at
+money.
+
+### 6 · The step whose window closes at submission, and it was on no list either
+
+`STORE-CUT-PLAN.md` has been **plan only** since the owner opened it
+2026-08-31, and it is the one unadopted plan in this tree with an expiry
+date. It recommends shape A — the paid door is not in the app — and the
+two facts that make A nearly free are both facts about *timing*:
+
+- **Zero sales.** Every `booked` array in `content/pricing.json` is still
+  all zeros across city, country and world. Verified 2026-09-04 rather
+  than quoted: nothing migrates, no revenue is lost.
+- **The app has never been submitted**, so under shape A the door is never
+  *removed* — it simply was not there. Doing this after a rejection costs
+  a review cycle and a flag on the account.
+
+The exposure is guideline 3.1.1, and the plan's own reading of it is the
+honest one: the category argument is strong (3.1.3(e) *forbids* IAP for
+campaign purchases, and Play has never required its billing for ad spend),
+the app-shape argument is weak — a consumer app with a €320 B2B door in
+its profile tab is Meta's "Boost Post" shape, and Meta lost that — and
+**the app shape is what gets reviewed**. The link-out entitlement does not
+rescue it here: Norway is EEA, not EU, so the DMA permission likely does
+not apply to the first market this product prices in, which that plan's §7
+flags as unverified and which is still unverified.
+
+Filed as runbook **6.0**, immediately before the pre-flight, and as an
+owner decision. Keeping the door is a legitimate answer and needs the same
+record. What is not legitimate is reaching 6.2 without having chosen,
+because that is choosing to keep it at the moment the choice costs most —
+and a plan whose whole argument is *do this before you submit* had no
+place on the ordered list that says when you submit.
+
+### 10 · The interest model was moved to the server nine days ago, and Phase 5 still described the device one
+
+Third time in one session, and the deepest. Told to build, the session
+picked `SCALE-RUNBOOK.md` **5.1** — a reader over four device keys, size
+S, whose text ends *"if it adds a signal that needs storing, stop and
+re-read D163 — the whole shape depends on nothing new leaving the
+device."* All four keys exist and are written today, so the row was
+buildable exactly as specified.
+
+**D317 (2026-08-26) reversed the row D163 narrowed**, on the owner's
+words: *"this app should absolutely track what you personally like — if
+not, it does not work."* Its own framing is the one worth keeping: *"D163
+named its own crossing 'a considered position being crossed, not an
+oversight'; so is this one, and it is the owner crossing it."* The
+architectural reason is not preference — under a global published order
+everyone is handed the same head, so a device model can only sort the
+window it was given: **a taste model that never leaves the phone cannot
+reach into the fetch.**
+
+**D322 built it the same day.** `functions/src/taste.ts`, nightly, feed
+answers counted by topic off the ledger; `v2_users/{uid}/taste/profile`,
+owner-readable and client-unwritable; `bankPager.pageSizesByInterest`
+wired into the feed top-up. Phase 5's header said "(D163)" for nine days
+after.
+
+**What the check found that the strike did not.** Three of the four rows
+are dead, and the fourth is live and unbuilt — **5.3, shown and
+editable**, the single bullet D317 kept across the reversal and said
+binds *harder* afterwards: *"A Mirror that secretly models you is a
+contradiction in terms."* Measured rather than assumed: the profile is
+folded nightly, `bank-pager.ts` already shapes what a device is handed
+with it, and **no surface anywhere shows it, edits it or resets it.**
+`web/privacy.html` promises *"Your interest profile: only you"* — the
+rules make that true and no screen makes it useful. D322 shipped
+owner-*readability*, which is a rules fact rather than a panel.
+
+Filed as `VISUAL-REQUESTS.md` item 0 rather than built, per D352: a panel
+is a module, so it is a request → plan → draft → the owner → built. Two
+questions inside it are the owner's and are on `OWNER-LIST.md` — whether
+the edit is a *less/normal/more* nudge or something finer, and how an edit
+reaches the fetch at all, since the profile is deliberately
+client-unwritable (a self-writable profile would let a device forge its
+own fetch weighting, which is a sponsored-targeting hole the day
+audiences exist).
+
+**5.4 is answered rather than struck, and its answer inverts it.** It
+asked to confirm no store form moved. One did: D322 moved User Content to
+gain Product Personalisation in `STORE-FORMS.md` and `app-privacy.json`
+together, held equal by `check:store-forms`, with the data-inventory row,
+the privacy arithmetic and an erasure e2e in the same commit. The row
+guarded against a filing going quietly false; what happened is a filing
+moving with its feature, on purpose.
+
+**The pattern, now nine rows deep in two days and worth stating once.**
+Every stale row this session found was a decision that landed without
+updating what it invalidated, and the three that cost the most all had
+the same shape: **a constraint written down as a rule, kept standing
+after the owner had removed it.** D42's park, D162's human hold, D163's
+device-only model — each reversed by name, each leaving behind an
+instruction pointing the opposite way. The tree's own defence against
+this is `docs/DOC-SWEEP.md`, whose lane has been disabled since 2026-09-03
+for a blocker that cleared the same day.
+
+### 9 · A sixth stale row, and this one pointed at building the opposite of an instruction
+
+The session's next build was going to be `SCALE-RUNBOOK.md` **3.2, batch
+approval** — size S, marked buildable, and the step §7 above identified as
+the real head of the question-volume chain. Reading the pipeline before
+writing any code found that **D212 reversed it on 2026-08-19**, by name,
+and the row has stood unticked ever since.
+
+D212's own words: it reverses *"the merge half of D162 ('the human on the
+merge, not on the reading')"* — which is 3.2's title — on the owner's ask,
+*"remove the need for a human to approve the questions."* Its §2 is 3.2's
+content already shipped: `PROMOTE_PACE = 2`, each run promoting the two
+oldest pen entries through `promote --source farm --review ai`, promotion
+and batch in one PR, 14/week at the daily cadence.
+
+**And 3.2's stated constraint is the exact property D212 records giving
+up.** The step made it load-bearing — *"the two-gate property must
+survive… if a change here would let the farm merge itself, it is the wrong
+change"* — while D212 says plainly: *"The two-gate design existed so a
+scheduled job never decides what production serves. That property is gone
+for question content."* What bounds the radius now is the gate set, the
+`active: false` kill switch, the retrospective audit, and scope: question
+content only, with code, rules, schema and policy keeping ordinary review
+and core membership still the one per-question human act.
+
+**Why this one is worse than the other five.** Those misled a reader about
+state. This one pointed a builder at work that would have re-imposed, as
+new engineering, a hold the owner had explicitly asked to remove — the
+opposite direction to a stated instruction, arrived at by following a
+document faithfully. The safeguard that caught it was not a gate: it was
+reading the pipeline before writing to it, which is the same habit that
+caught §7 and cost the same fifteen minutes.
+
+Struck rather than deleted (D106). Two neighbours were stale in the same
+direction and are amended with it: **3.3**'s cumulative audit-rate check
+became a *warning* at D212 — a person behind on audits can no longer turn
+CI red and stop the lanes — while the per-row verdict and `audited`
+boolean stay hard errors; and **4.1**'s "consequence of phase 3" now tracks
+`PROMOTE_PACE` rather than a person's reading, which is what makes that
+step reachable at all.
+
+**What this leaves.** The question-volume chain is shorter than it looked:
+its first step is not batch approval, which is shipped, but Phase 4 —
+raising the budget regulator, pointing volume at the feed surface, and
+re-running the cost model at the new rate. None of it is blocked on a
+person any more.
+
+### 8 · The security review's one probe, closed even though it stayed below the bar
+
+A security review of this branch's own diff found **nothing at confidence
+≥ 7**, and confirmed by measurement rather than by reading what the code
+claims: only `type: choice` and `type: boolean` inputs reach the
+workflow's shell (probed with `DISPLAY_NAME='CI"; id; echo "'`, which
+stayed one argv element); the `asc-push` early exit crosses no privilege
+boundary; `api()` composes its host from module constants, so nothing
+operator-supplied reaches the authority component; and `set -o pipefail`
+plus the AND-list branches behave under `errexit`, with an unmatched
+`case` falling through to the read-only report.
+
+**One sub-threshold observation is fixed here anyway**, because it is one
+line and it guards the single property this file claims. The register
+error path prints `res.message` — Google's string, not ours — and the
+token is in that request's BODY, so an API that echoed a value it
+rejected would put a bypass credential in a run log. The review stubbed
+Google's ESF type-mismatch form (`Invalid value at 'debug_token.token'
+(TYPE_STRING), "…"`) and the script printed the token verbatim.
+
+It stayed below the bar for a good reason: it needs an unverified
+upstream property, `token` is a plain string field, and GitHub's masker
+would catch a verbatim secret on the step log. **What the review noticed
+that the masker argument misses** is the second surface: the workflow
+tees this output and `cat`s it inside a `{ … } >> "$GITHUB_STEP_SUMMARY"`
+redirect, which never passes the runner's masker at all.
+
+So: a `redact()` at the one leak site, guarded against an empty token
+because `"abc".split("")` returns every character. And the coverage gap
+that made the probe necessary is closed — the non-echo property was
+pinned on a 200 create and on the list path but **not on a 4xx**, which
+is the only place the token is in a body and the printed string is
+upstream. Two cases now: the rejection that echoes it prints
+`<redacted>`, and the ordinary 403 that names a missing IAM role still
+reads as itself. Mutation-verified — removing the scrub turns the first
+one red.
+
+Recorded rather than absorbed because the finding is a shape worth
+keeping: **the test suite asserted the property on the paths where it was
+easy and not on the path where the value is actually in flight.**
+
+### 7 · A fifth stale document, and this one redirected the work
+
+Found while starting what the previous section called the largest buildable
+item. `FEATURE-COMPLETE.md` lists *"the core/tail enforcement half"* as open
+and asks for three things: the filter placement written down per call site,
+the fold filter extended beyond `LiveCohortBody` to the similarity fields
+and Kindred, and a test that a non-core aggregate never reaches a Mirror
+stop.
+
+**All three were settled before that page was compiled, and two of them
+were settled by being decided unnecessary.** `SCALE-RUNBOOK.md` Phase 2 is
+fully ticked: 2.2 applied the filter on 2026-08-15, 2.3 shipped the
+mutation-verified test the same day, and 2.1 decided the placement on
+**2026-08-19 — the day `FEATURE-COMPLETE.md` was compiled**, which is
+exactly how it captured the question instead of the answer.
+
+Checked against the code rather than against 2.1's prose, because a
+runbook tick is a claim like any other:
+
+- the five lenses take `qs` as a prop from `LiveCohortBody`'s already
+  filtered list, so they inherit the filter and a second one would be
+  ceremony;
+- `LiveSimilarityField` reads `LIVE.myTestResults()` with
+  `CORE_TEST_KINDS` — test instruments, core by construction — and never
+  touches the feed archive.
+
+**The cost of this one was not a wrong sentence, it was a wrong plan.**
+The row ends *"Never ship the interest model before this"*, which reads as
+the interest model being blocked on core/tail. It is not: Phase 5 follows
+**Phase 4**, because ordering a tail is meaningless until the tail has
+content. The buildable next step is **3.2 batch approval** — the runbook
+marks it buildable now, size S, and it is what unblocks raising the farm
+budget, which is what produces the tail, which is what makes an interest
+model mean anything.
+
+That ordering was stated correctly in the runbook the whole time. A stale
+index row that names a real dependency in the wrong place is worse than one
+that is merely out of date, and this session followed it before checking —
+which is the argument for `docs/DOC-SWEEP.md` made a fifth time, and the
+last of the five in which the reader who was misled was a routine rather
+than the owner.
+
+## D368 · Shape A adopted: the paid door leaves the app, and buying moves to the web
+
+**Date:** 2026-09-05 · **Status:** Adopted — the owner, on being given the
+three shapes and the arithmetic: *"let go whith a"*. `STORE-CUT-PLAN.md`
+has been plan only since 2026-08-31 and stops being so here.
+
+**The decision.** The €320 purchase funnel leaves the binary.
+`SuggestOverlay` and its entry point go; buying lives on the web at
+`web/ask.html`; the app keeps the results room. Store cut: **0%
+everywhere**.
+
+**Taken before submission on purpose, and that is most of the argument.**
+Both facts that make A nearly free are facts about timing, and both
+expire the moment the app is submitted:
+
+- **Zero sales.** Every `booked` array in `content/pricing.json` is all
+  zeros across city, country and world — verified against the tree
+  2026-09-04, not quoted. Nothing migrates and no revenue is lost.
+- **Never reviewed.** Under A the door is not *removed*; it simply was
+  not there. After a rejection the same change costs a review cycle and
+  a flag on the account.
+
+**The reason that is not about money.** A paid question is billed on
+answers (D164): the buyer pays the cap and the closer refunds
+`(cap − answers) × rate` 29 days later, computed from a public aggregate
+both sides read. **In-app purchase has no primitive for that** — a
+developer cannot issue a programmatic partial refund; refunds are the
+store's to grant on the customer's request. Routing this through IAP
+would not make the closer expensive, it would delete it, and with it the
+promise the buyer is shown at the moment of payment. The position is
+therefore *the billing model and IAP are incompatible*, which is a much
+stronger thing to say to a reviewer than *we would rather not pay the
+cut*.
+
+**Why not C, which was the free option if it worked.** The category
+argument is strong — 3.1.3(e) *forbids* IAP for advertising-campaign
+purchases, and Play has never required its billing for ad spend. The
+app-shape argument is weak: 3.1.3(e) covers apps "for the sole purpose
+of" campaign management, "not offered to a general audience", and
+InSight is a consumer app with a €320 B2B door in its profile tab. That
+is Meta's "Boost Post" shape and Meta lost it. **The app shape is what
+gets reviewed.**
+
+**And the link-out entitlement does not rescue it here — verified rather
+than assumed.** The DMA is an EU regulation and Norway is EEA, not EU.
+Checked 2026-09-04 against EFTA's own listing: the DMA is marked
+EEA-relevant and under scrutiny by Iceland, Liechtenstein and Norway,
+with **no Joint Committee decision in force**. So the first market this
+product prices in is likely under Apple's standard worldwide terms, with
+anti-steering intact. `STORE-CUT-PLAN.md` §7 flagged this as the fact it
+would most like to be wrong about; it is not wrong.
+
+### What this costs, stated rather than discovered later
+
+**It reverses D337's premise**, which was decided the day before the
+question was asked. That record's reasoning — *"no Firebase SDK is
+loaded anywhere in hosting"*, the web reCAPTCHA provider *"was for
+nobody, on the user side"* — was right about the tree as it stood and
+false the moment a public web door exists. **Provisioning reCAPTCHA is
+the actual bill for avoiding the cut**, and it is far cheaper than
+€48–96 a sale. An amendment to D337, not a reversal: the App Check
+enforcement ordering of runbook 3.4 still applies.
+
+**The app loses "ask a question" as a capability.** Worth naming plainly:
+`SuggestOverlay` is the only asking surface and it leaves. In practice
+nobody was going to spend €320 from a profile tab — which is both why
+the discoverability loss is small and exactly why a reviewer would read
+the app as a general-audience app selling in-app.
+
+### What is NOT decided here
+
+Two questions `STORE-CUT-PLAN.md` §8 puts to the owner remain open and
+stay on `OWNER-LIST.md`:
+
+1. **Does buying require a Google-linked account?** Recommended yes, and
+   §4 phase 3 argues it is forced rather than chosen: accounts are
+   anonymous-first (D3), and an anonymous uid cannot be reached from
+   another browser, so a buyer's campaign would be invisible in their own
+   app.
+2. **Do the legacy free-suggestion rows in `SgMine` still have anything
+   to show?** If not they leave with the overlay.
+
+The web door's visual is `VISUAL-REQUESTS.md` item 0, filed with this
+record: a page is a surface, so it is a request → plan → draft → the
+owner → built (D352). The removal half needs no design and is scoped in
+`STORE-CUT-PLAN.md` §4 phase 2.
+
+
+## D368 amendment (2026-09-05) · The legacy free-suggestion rows go with the overlay
+
+**The owner, asked whether they still have anything to show:** *"no it is
+to be removed."*
+
+`SgMine` draws two things: the paid bookings, and the older free
+suggestion rows (`status: 'picked'`, with their resend). Shape A takes
+`SuggestOverlay` out whole, so those rows lose their only surface — and
+rather than finding them a new home they are **deleted with it**.
+
+So `STORE-CUT-PLAN.md` §4 phase 2 gains no exception: the overlay leaves
+whole, `data/paidBookings.ts` goes with it, and the free-suggestion path
+goes too. `AskedByYouOverlay` is still untouched — it reads this
+account's own purchase docs and the same public aggregates everyone
+reads, which is already the reader shape and is why A is cheap.
+
+**What to check while removing them rather than after:** whether anything
+still WRITES a `status: 'picked'` row. A writer with no reader is the
+mirror of the dead-publication residue `check:globals` rule 5 exists for,
+and it would sit in the tree producing documents nothing can display.
+
+
+## D368 amendment (2026-09-05) · The account is required at the pay tap, and the requirement is an identity rather than Google
+
+**The owner, on the recommendation:** *"yes do that."* This settles the
+last question `STORE-CUT-PLAN.md` §8 left open, and it settles it
+differently from that plan's default in two ways.
+
+**WHEN: at the pay tap, not before composing.** §8.2 implied sign-in up
+front. That is the wrong order for this pipeline specifically, because
+the automated review runs **before** payment and can decline: gating at
+compose means a buyer makes an account, writes their ask, and is then
+told no — the signup cost taken and a refusal given back. Composing stays
+open to anyone; the account is asked for at the pay tap and nowhere else,
+so **a decline costs the visitor nothing.**
+
+The obvious objection is that it strands the booking, and it does not:
+`linkWithPopup` upgrades an anonymous Firebase user **in place**, so an
+ask written under the anonymous web uid keeps its id through the link.
+Anonymous sign-in is enabled and measured working (2026-08-04).
+
+**WHY an account is required at all**, which §8.2 gets right and this
+keeps: an anonymous uid cannot be reached from another browser, so the
+buyer's campaign would be invisible in their own app — and
+`AskedByYouOverlay` is precisely the surface that stays in the app after
+the door leaves. A purchase you cannot come back to is not a purchase,
+least of all one that refunds 29 days later off a number both sides read.
+
+**WHAT: a reachable identity, not Google specifically.** The plan says
+Google because that is the link path the app already has, which is a
+reason to ship Google first rather than a reason to require it. The buyer
+here is a city, an agency or a brand, and a €320 B2B purchase is exactly
+the case where a personal Google account is unwelcome. Firebase
+email-link is the natural second provider and stores no password. Google
+ships first; the sign-in state is drawn so a second provider is a row
+rather than a redesign.
+
+**The cost of that second provider, named now rather than found later.**
+`design/store/app-privacy.json`'s EMAIL_ADDRESS row states its basis as
+*"Only if the user links Google."* Adding email-link leaves the ANSWER
+Yes and makes the REASON false — the D116/D180 shape, of which this
+branch has already recorded five instances. It moves in the same commit
+as the provider, or it becomes the sixth.
+
+`VISUAL-REQUESTS.md` item 0's states were rewritten with this record
+rather than after it, because the order changes which states the page has
+to draw.
+
+## D368 amendment (2026-09-05) · The door is out of the binary, and it had five entry points rather than one
+
+Shape A's removal half, built. The owner: *"yeah that sounds good."*
+
+**`STORE-CUT-PLAN.md` §4 phase 2 named one entry point and there were
+five.** It said *"remove the door entry (`PaidMineCard`,
+`profile-general.jsx`)"*. Measured against the tree before editing it:
+
+1. `app-shell.jsx` — a **"+" icon button in the header**, `aria-label="Ask
+   a question"`, one tap from anywhere in the app. Its own comment said
+   so: *"one tap from anywhere."*
+2. `app-shell.jsx` — `openSuggestions`, registered on the nav registry.
+3. `daily-split.jsx` — *"Have a question in mind? Ask it →"* under the
+   daily.
+4. `world-feed.jsx` — an **"Ask a question"** button inside a feed sheet.
+5. `profile-general.jsx` — `PaidMineCard`, the one the plan named.
+
+Following the plan literally would have left **four live purchase calls
+to action in the shipped binary**, which is precisely the exposure D368
+exists to remove — and the most exposed of them, the header "+", was the
+one furthest from the file the plan pointed at. The plan was written from
+the overlay outwards; the entry points had grown inwards.
+
+### What was removed
+
+All five entry points, and `spec/suggestions.jsx`, `spec/suggestions.js`,
+`data/paidBookings.ts` and `data/suggestions.ts` with their suites.
+`ui/AskedByYouOverlay.tsx` is untouched, as the plan said: it reads this
+account's own purchase docs and the same public aggregates everyone
+reads, which is already the reader shape and is why A was cheap.
+`ui/CurSwitch.tsx` stays — AskedByYou renders it too.
+
+The legacy free-suggestion rows went with it, per the owner's *"no it is
+to be removed"*, and the check that answer asked for came back clean: the
+only `status: 'picked'` writer left was the deleted store's own demo row,
+so nothing in the tree now produces a document no surface can display.
+
+### What the gates required, and it is the useful part
+
+`check:globals` refused the change three times before it passed, each
+time for a real reason: four now-dead imports in `profile-general.jsx`,
+the coupling baseline needing to come down **32 → 30**, and
+`src/v2/README.md` quoting the old figure. `check:figures` then caught
+`CLAUDE.md`'s bridge count (53 → 52). None of that is ceremony — each is
+a claim the tree no longer supported.
+
+**Two test suites were inverted rather than deleted, which is the
+better outcome.** `smoke-live.test.jsx` asserted an ask-a-question button
+was present in two places; both now assert that **no** such control
+exists anywhere in the app. That is the property App Review actually
+reads the binary for, so the removal is now pinned by a test that fails
+if any entry point comes back.
+
+### The one thing NOT decided here, and it needs the owner
+
+**Three deployed callables now have no caller anywhere:**
+`suggestQuestionV2`, `fetchSuggestionsV2` and `reviewSuggestionV2`
+(`functions/src/suggestions.ts`). They remain deployed, App Check
+enforced, and reachable — and under D3 "signed in" is an anonymous
+account, so a public write path at `SUGGEST_PER_DAY = 3` now exists with
+no surface that uses it. That is the server-side mirror of the
+writer-with-no-reader this removal was told to check for.
+
+Retiring them is its own decision — existing `v2_suggestions` documents
+and the moderation queue read that collection — so it goes to
+`OWNER-LIST.md` rather than being taken here.
+
+## D369 · The web ask door is built: an adapter, a page, and the two things that stood between it and a buyer
+
+**2026-09-05.** D368 adopted shape A and took the €320 purchase funnel out
+of the app binary. This is the other half — the page it moved to — plus
+the two gates the build turned out to need and the one block that is the
+owner's.
+
+`design/ask-2026-09-05/` was Claude Design's accepted draft. Its README
+said the build's actual work was an adapter rather than a page, and that
+was right: the draft had been fed a *shaped* pricing resource, so eight
+names and two structures differ from `content/pricing.json`.
+
+### 1 · The adapter, and the field that is not a rename
+
+`scripts/build-ask-pricing.mjs` generates `web/ask-pricing.json` from the
+committed card. Seven of the eight differences are renames and two are
+reshapes — the cohorts object becomes the ruler's ordered array, and `fx`
+gains a symbol and a placement the app never needed.
+
+The eighth is not a rename and is the reason this is a script rather
+than a paragraph asking somebody to be careful:
+
+- the page draws **`refundDays`** — 29 days
+- the card's nearest-looking field is **`trailingDays`** — 28
+
+Different quantities. `trailingDays` is the demand-measurement lookback
+`build-pricing.mjs` divides by; the 29 is `WINDOW_DAYS` in
+`functions/src/paid.ts`, the window the closer actually refunds against.
+Wiring one to the other draws a page making a payment promise **one day
+shorter than the money path keeps** — a substitution that reads as
+correct in review, type-checks, and is visible only to somebody holding
+both meanings at once.
+
+So the window is read from the function's own constant, and the two are
+asserted to be *different*: if `trailingDays` were ever tuned to 29 the
+distinction would stop being observable, and the script says so out loud
+rather than going quiet. `check:ask-pricing` holds the generated file to
+both sources, because a refold that does not regenerate it leaves the
+door quoting a price the ledger has moved past.
+
+### 2 · The page, and a gate the whole `web/` directory was missing
+
+`web/ask.html` is static, framework-free, and carries one inline script
+pinned by sha256 in `firebase.json` — the shape `join.html` already
+uses. Writing the second such page is what exposed the problem with the
+first: **the hash is hand-maintained, in a different file, in a
+different language, and nothing joined the two.**
+
+The failure mode is the worst available. A wrong hash does not warn,
+does not 500 and appears in no suite: the browser refuses the script and
+the page renders as a form that does nothing. It *looks* like it loaded.
+Every gate stayed green — `check:web-headers` reads header KEYS on
+purpose ("a CSP is a policy, and this gate is not the place to hold
+one"), and no suite mounts a hosted page.
+
+But a hash is the one part of a CSP that is **not** a policy: it is a
+checksum of a file in this repo, which makes it a FIGURE, and this
+repo's rule for a figure is that a script computes it (D39).
+`check:csp-hashes` is that rule one file over, and it fails in both
+directions — a pinned hash nothing matches, and a script nothing pins,
+are the same outage reached from opposite sides. It was validated
+against a known-good value rather than against itself: `join.html`'s
+committed digest, serving in production for weeks, reproduces exactly.
+
+### 3 · Two defects the browser found that reading could not
+
+Both were caught by rendering the page and driving it, not by review.
+
+**The per-answer rate was a fifth too high in kroner.** The draft's
+rounding bands — thousands to the hundred, hundreds to the ten, then
+whole units — are right for the cap and wrong for the unit rate. €0.144
+prints as €0.14, but the same rate in kroner is 1.67 and printed as
+"2 kr": a 20% overstatement on the one number a buyer multiplies by the
+answer count to check the arithmetic. The band now runs to the cent
+below ten. It stayed invisible because in EUR every band is correct, and
+the draft was only ever rendered in EUR.
+
+**The currency switch was inside the composer, which the quote panel
+hides.** So the single moment a buyer most wants their own currency —
+looking at a €320 charge before paying it — was the moment the control
+was off screen. It is the page's now, not the composer's: showing a
+price in another currency is a display preference, not a step of
+composing.
+
+### 4 · What was cut, and why
+
+The draft offers a **Rank** form. `PAID_TYPES` is
+`binary · choice · scale · rating · dilemma` — there is no rank type to
+sell, so a composer offering one would compose something the validator
+refuses. Dropped rather than faked. `binary` and `choice` are one
+control here, chosen by how many options are written, which is what the
+two names mean.
+
+USD is in the card and is not offered: the door prices in EUR and the
+buyer's own currency, and a third button on a two-button switch is a
+control nobody asked for (COPY.md).
+
+### 5 · The block, and it is the owner's (D334, D352)
+
+**The pay tap cannot open, and the reason is App Check rather than
+code.** `bookPaidQuestionV2` and `createPaidCheckoutV2` both carry
+`enforceAppCheck`, and a browser can only attest with a provider —
+reCAPTCHA v3, reCAPTCHA Enterprise, or a debug token. D337 declined to
+provision one, on stated grounds:
+
+> there is no public web client, so the web provider only ever served
+> those two browsers
+
+**Shape A creates one.** That is D337's premise expiring rather than
+D337 being wrong — the same shape as everything D367 corrected, arriving
+this time inside a day of the decision that caused it.
+
+Not decided here. It goes to the owner with the arithmetic
+(`OWNER-LIST.md`), because the two ways through cost different things:
+provisioning reCAPTCHA v3 for the web app puts a Google script on the
+buyer's page, or exempting the two callables in `check:appcheck`'s list
+opens two authenticated write paths to any caller with an anonymous
+account (D3). The first is the smaller give and the second is faster.
+
+Everything that does not depend on that answer is built and live:
+composing, the ruler, the quote, the refund arithmetic, the civic
+decline, and all four panel states. The pay tap tells a buyer the door
+is not open in a sentence that is true, rather than throwing a 403 at
+them.
+
+**Verified rather than assumed**, throughout: the page was rendered in
+Chromium under the committed CSP and driven — compose, keyboard the
+ruler, switch currency, quote, decline, change form — with no CSP
+violation and no page error, at 360px with no horizontal scroll. Both
+defects in §3 came out of that run. The two gates were mutation-tested
+by breaking the thing each protects.
+
+
+## D370 · Near is a switch again: off or on, and the timed option retires
+
+**2026-09-05.** **Status:** binding, BUILT. The owner's words: *"near
+should only have off and on option."* Reverses D174 §1 — the three
+states and the timed default — and keeps everything D174 rested them
+on: §2's linger, §3's `until` on the doc and its cap in
+`firestore.rules`, §4's foreground guard.
+
+### What "on" means
+
+Exactly what D174's `always` meant, unchanged: no deadline on the
+SETTING, and every beat still writes an `until` capped at the linger,
+so a position outlives the app by up to three hours and never longer.
+*"Visible whenever the app is open, and for up to three hours after"*
+is the whole claim, and it is the one `web/privacy.html` already makes
+(`check:policy-claims`'s D174 row — *three hours after you close the
+app* — is still true and still gated). Nothing a stranger can see
+changed; a choice about how long to be seen went away.
+
+D174 §1 had already recorded the owner's pushback on time-boxing at all
+— *"is it that bad if they forget, the only info is face, age, gender,
+most of which you can see with your eyes"* — and kept the timed state
+as the default anyway, on the argument that forgetting was the failure
+mode worth designing against. This record is the owner completing that
+pushback: the control solves nothing now except the question it asks,
+and a switch is what a switch is for.
+
+### What moved
+
+- `src/v2/data/near.ts` — a boolean store again, persisted as D84's own
+  `"1"`. The deadline key is never written and is swept on read.
+- `src/v2/data/live.ts` — `LIVE.near.mode()` and `.until()` are gone
+  (`live-surface.ts`'s pin and `vote.test.ts` moved with them);
+  `enable()` takes no mode; every beat writes the linger minus D181's
+  skew margin, with no session deadline to clamp to; the expired-session
+  teardown at the top of `presenceBeat` went with the state it noticed.
+- `src/v2/ui/NearLiveBody.tsx` — the countdown chip and the sampled
+  clock that fed it are gone. The switch beside the stop's name is the
+  control.
+- `functions/src/pure.ts` — `PRESENCE_SESSION_MIN` is gone; nothing
+  read it but a comment in the client store.
+- `docs/data-inventory.md`, `docs/SCHEMA-V2.md`, `NEXT-FUNCTIONALITY.md`
+  §10 — say what `until` is now (the linger past the last beat) and
+  that the middle row is retired.
+
+### The upgrade, and why it lands off
+
+A phone carrying D174's `session` on disk comes back to this build OFF,
+with both keys swept — not on. The timed option was a promise about
+when you stop being visible, and reading it as "on" would turn two
+hours into no deadline without anyone choosing that. The doc that build
+wrote carries its own `until`, so the server stops counting it by
+itself. `always` and D84's `"1"` read as on, which is what they meant.
+
+### What pins it
+
+`data/near-presence.test.ts`: three of D174's four cases had no subject
+and are retired (the timed default, the clamp, the expired read); what
+stands is the bounded `until` and its margin inside the rules fence,
+plus two new cases for the upgrade paths above. `ui/NearLiveBody.test.tsx`
+pins the absence: the switch is the only control, no chip, no deadline
+word. `firestore-tests/rules.test.ts`'s cap case is untouched, because
+the cap is untouched.
+
+### What this is not
+
+Not a D334 ask, and worth saying why: D334 is for a privacy argument
+standing between a proposal and the tree. Here the owner removed an
+option, and the option removed was the one that showed LESS. Nothing
+was withheld from anybody and nothing new is exposed; the record is
+that the owner decided, and what was built is exactly the sentence
+they said.
+
+## D371 · The rate card folds itself: the demand index moves on every sale and every night, and the door prints the published card
+
+**2026-09-05.** **Status:** binding, BUILT for the half this record
+decides. The owner's words: *"pricing seems unintuitive and not as
+dynamic as I would like."* This record is the dynamic half — the
+index that did not move, and what moves it now. The intuitive half is
+a design question and an owner's, so it goes where those go:
+`docs/OWNER-LIST.md` § Decisions (three rows) and
+`docs/VISUAL-REQUESTS.md` § Requested (item 4), both written here.
+The rate card's LAW is unchanged: base × demand, floor and ceiling,
+billed per answer, capped, the line locked at booking (PAID-PLAN §6;
+D288 §3; D313; D315).
+
+### 1 · The finding: nothing moved the index
+
+PAID-PLAN §6 priced desire as *"a demand multiplier per cohort cell,
+recomputed by a script from the order book"*, and D288 §3 shipped it
+that way — `scripts/build-pricing.mjs`, run BY HAND in the same
+sitting as a hand-recorded contract, its output committed to
+`content/pricing.json` and embedded into `functions/src/pricing.ts`
+for the server to quote from. Then D313 (2026-08-26) took the human
+out of the sale: a buyer books, an automated review quotes, Stripe
+pays, the webhook writes the purchase. Nobody re-pointed the fold at
+the new pen. So from D313 to today every self-serve sale moved the
+demand index by exactly nothing: the committed card is dated
+2026-08-24, every `idx` is the floor, every `booked` row is fourteen
+zeros, and a buyer who sold out a scope's fortnight would have seen
+the door print "quiet · 0 of 14 booked" over it — and the next buyer
+would have been quoted the floor. *"Not as dynamic as I would like"*
+is that gap measured, and it was a machinery gap before it was a
+design one.
+
+### 2 · What moves it now
+
+**One fold, on the server, where the ledger changes.**
+`functions/src/pricingFold.ts` is the arithmetic, pure — `foldPricing
+(card, rows, today)` — and `paid.ts` runs it twice: `publishPricing`
+after every payment the webhook takes live, and at the end of every
+nightly closer run, sale or no sale, because `booked` is relative to
+today and a strip that never rolls goes stale. It reads one bounded
+range on `v2_purchases` (`window.until >=` a year back, at most 1,000
+rows, no composite index) and writes the demand half of the card —
+`idx`, the booked fortnight, `nextOpen`, the estimates, and the day it
+was folded for — onto **`v2_meta/pricing`**. That path is already
+`allow read: if request.auth != null; allow write: if false`
+(`firestore.rules`, unchanged), so the number stays public in the
+sense §6 demands — *"a price a buyer cannot see is a price that can be
+quietly discriminated"* — every buyer reads the same document; it just
+no longer waits for a commit.
+
+**The server quotes off it.** `reviewBooking` locks the quote at
+verdict time off `liveCard(db)`: the committed constants under the
+published half, or the committed card alone when nothing has been
+published or the read fails (never a throw — a fresh deployment must
+still quote). The lock itself is unchanged: a refold between approval
+and payment changes nothing for a buyer whose quote is stored.
+
+**The door prints it.** `src/v2/data/pricing.ts` lays the published
+half over the committed constants when the door opens — one
+session-cached `getDoc`, live builds only, kicked from the hook every
+price-printing surface of the door already calls (`useCurTick`), never
+a listener: the door is opened, not watched. `PRICING` is one object
+mutated in place so the rate rows, the ruler and the contract sheet
+read the new figures on their next render without threading a store
+through the spec layer; the board's label says *committed* until the
+live half lands, then the day it was folded for. Two overlay parsers
+— `mergeLivePricing` server-side, `parseLive` client-side — hold the
+document to one shape: refused WHOLE when a cohort is missing or a
+strip is the wrong length (never two cohorts live and one stale), every
+`idx` clamped into the committed floor and ceiling, no estimate without
+its basis.
+
+**The constants never move this way.** Base, floor, ceiling, the caps,
+the fx table and the trailing window stay in `content/pricing.json`,
+re-priced by PR, gated by `check:pricing` and byte-compared into the
+functions embed as before. The committed demand fields are now a
+SNAPSHOT — the fallback a demo build, a fresh deployment and a failed
+read print — and `scripts/build-pricing.mjs` refreshes it by running the
+SAME compiled fold (`functions/lib/pricingFold.js`, the relationship the
+e2e harness already has with `functions/lib`) and publishing the live
+document in the same run. One arithmetic, two writers; the script's
+own copy of the fold, which is how the index came to depend on somebody
+remembering, is gone.
+
+### 3 · The one amendment to §6's formula, and how to strike it
+
+§6 said *trailing window*. The fold now takes the ratio over the
+trailing window PLUS the next fourteen days — the fortnight the door
+already draws as its booked strip:
+
+```
+ratio = (occupied slot-days in the trailing 28 + booked slot-days in the next 14) / 42
+idx   = floorX + ratio × (ceilX − floorX), clamped, 2 dp
+```
+
+Why: a trailing-only index cannot respond to a sale until its days have
+passed. A scope booked solid for the next two weeks is demand NOW, and
+the index that priced it at the floor for twenty-eight more days was
+the least dynamic thing about the card. Measured in the e2e: one
+29-day city sale on an empty ledger books all 14 days and lifts the
+city index from ×0.9 to **×1.43** the moment the webhook lands —
+€0.23 per answer, an ad window at €457.60 — while country and world
+stay at ×0.9, because the slot is per scope. Under the trailing-only
+formula the same sale would have printed ×0.9 until October.
+
+The floor and the ceiling are unchanged, so the range of prices a buyer
+can ever be quoted is what D288 §3 committed to. If the owner wants the
+trailing-only formula back, it is one term: drop `ahead` from the ratio
+in `pricingFold.ts` and retire the three cases in `pricingFold.test.ts`
+that assert the fortnight counts. It is on `OWNER-LIST.md` as a row.
+
+### 4 · What pins it
+
+- `functions/src/pricingFold.test.ts` — the fold from an empty ledger;
+  the lift from one forward sale; trailing occupancy from any state;
+  the ceiling; one slot per day however many share it; an ad occupies,
+  a subscription does not; running-only ahead and `nextOpen`; estimates
+  only from closed campaigns with the closer's answer total; and the
+  overlay's refusals and clamps.
+- `functions/src/closer.test.ts` — the nightly run publishes
+  `v2_meta/pricing` even with nothing to close, and a campaign it just
+  closed is already in the index and the estimate.
+- `src/v2/data/pricing-live.test.ts` — the client overlay: shape
+  refusals, clamps, the subscriber notify, one read per session, the
+  committed card standing when nothing is published or the read fails.
+- `firestore-tests/e2e-v2-loop.mjs` — before the first sale the index is
+  the floor; after the webhook it is off the floor, all fourteen days
+  booked, the other cohorts untouched, dated today; the ad's flat quote
+  is `adBase × the live idx`, read through a signed-in client the way
+  the door reads it.
+
+### 5 · Cost
+
+Client: one document read per session, only when the door opens, only
+on a live build — a surface almost nobody opens. Server: one bounded
+range query and one document write per sale, plus one per night; the
+fold hitting its 1,000-row bound is logged (`paid_pricing_rows_cap`)
+rather than silent. The e2e's own count: five publishes across three
+sales and two re-delivered webhooks, each folding three rows or fewer.
+No new index: a single-field range on `window.until` is automatic.
+The eager bundle did not grow — `pricing.ts` and the door are past first
+paint, and `lib/firebase` was already in the entry graph — measured by
+`check:bundle` at the same 629 KB of 630 the tree stood at.
+
+### 6 · What this leaves the owner — the intuitive half
+
+Three things a buyer reads on the door are the owner's numbers or the
+owner's shape, and a routine may not move them; each is one row on
+`OWNER-LIST.md` § Decisions, with its arithmetic there:
+
+1. **A floor of ×0.9 under a base nobody pays at quiet.** The card says
+   *€0.16 base* and prints €0.14 beside it. A floor of ×1.0 over a base
+   of €0.144 is the same price said honestly.
+2. **One flat cap — €320 up front — for a city ask and a world ask
+   alike.** PAID-PLAN §6 wrote *"a budget cap the buyer sets"*; D313
+   fixed it at `capEur`. A city buyer pays the world's cap and is
+   refunded most of it at close, which is arithmetic a buyer has to
+   trust rather than a price they can read.
+3. **Whether the forward fortnight stays in the ratio** (§3).
+
+And one design question, which is a visual and so a request rather than
+a decision: the door prints a multiplier, a demand word, a per-answer
+rate, a cap and a refund promise, and asks the buyer to assemble the
+price from them. What a buyer wants to read is *what will this cost me
+and what does it buy* — `VISUAL-REQUESTS.md` item 4 asks Claude Design
+for that shape, on the data this record makes live.
+
+## D372 · The buyer sets the budget, the base is the quiet price, and a served week is a basis — per-answer billing stays
+
+**2026-09-05.** **Status:** binding, BUILT. The owner's words, in
+order: *"yeah lets do that"* to D371 §6's list — the buyer-set budget,
+the floor at ×1.0, the law behind a tap, estimates from running
+campaigns, the forward fortnight kept; *"i think the price per answer
+right now is a bit high?"*; and *"should it be priced per answer?"*.
+Three calls the owner's, one number a routine's (§3), and one question
+answered with an argument the owner can overrule (§2).
+
+### 1 · What a buyer does now
+
+The composer carries a **budget** row — the card's presets, €50 · €100 ·
+€200 · €320, the smallest chosen — and says beside it what that buys
+at the line in force: *up to 500 answers · only what arrives is
+billed*. The contract sheet's cap row is *Your budget €50 up front · up
+to 500 answers · unserved answers refund at close*; the approved row
+says *budget* where it said *capped at*; the pay button charges the
+budget. PAID-PLAN §6's first paragraph — *"against a budget cap the
+buyer sets"* — is now built as written; D313 had fixed the cap at
+`capEur` so the checkout had one amount, and a city buyer paid the
+world's cap to be refunded most of it.
+
+Server-side (`paid.ts`): the payload carries `budgetEur`, whole euros,
+held to the card's `minEur`–`capEur` (€20–€320) by the validator with
+the range in the refusal; `priceQuote` makes it the cap and holds it to
+the range again; the quote locks it at verdict time as before, Stripe
+charges it, and the closer's per-answer bill and refund are untouched
+underneath. A booking with no budget — a client from before this
+record, whose door showed the cap as the price — is quoted at the
+card's cap: never a smaller figure it never displayed.
+
+The board's law — base, the demand ratio, the window, the ceiling, the
+budget range — is behind a *How the price is set* tap, and the rows and
+the sheet no longer print the multiplier: a buyer comes for the price,
+and *×1.43* is the mechanism's word. The promise that stays in view is
+D182's carve-out: *the line you lock at booking is the line you keep*.
+
+### 2 · Per answer stays, and why — the owner's question
+
+*"Should it be priced per answer?"* The answer built here is yes, sold
+as a budget, on this argument: per-answer billing (D164) is the honest
+model while a scope's yield is unknown. A buyer in a small city pays
+for the forty answers they get, not for a window that might deliver
+nothing; a flat window price is fair only when the app can say what a
+window delivers, per scope — which is exactly what §4's estimates
+build toward, and what no scope has today. The budget makes the buyer's
+question — *what will this cost me at most* — one number they choose,
+and the refund is the guarantee behind it rather than the shape of the
+price. Ads stay flat (D315) because an ad has nothing to meter. The
+day every scope carries an estimate, a flat *29 days for Oslo: €X* is
+one PR: the quote takes the estimate times the line, the closer's
+refund arithmetic is switched off for that kind, and the budget row
+becomes a price. Not built, not needed yet, and the owner's to ask for.
+
+### 3 · The numbers
+
+- **`floorX` 0.9 → 1.0**, so `base` is the quiet price and the card no
+  longer prints a base beside a smaller figure everybody actually pays.
+- **`base` €0.16 → €0.10.** *"A bit high"* named no figure, so this is
+  a routine's pick and is on `OWNER-LIST.md` as one: a round number a
+  buyer can multiply in their head (€100 buys 1,000 at quiet), the
+  anchor single-question panels have priced at, and a 29% cut on the
+  €0.14 the door printed. The ceiling stays ×2.5, so contested reads
+  €0.25 and a €100 budget buys 400 there. The ad window is untouched:
+  €320 flat at quiet, €800 at the ceiling.
+- **`minEur` 20, `budgets` [50, 100, 200, 320]** — new keys, held by
+  `check:pricing` (ascending, whole euros, inside the range) and
+  embedded into `functions/src/pricing.ts` by the same regen.
+- The committed snapshot's cohorts sit at the new floor, ×1.0, dated
+  today; the live half republishes on the next sale or tonight.
+
+### 4 · Estimates from a served week
+
+D288 §3 withheld a per-day answer estimate until a cohort had a
+COMPLETED campaign. That kept the door from inventing a number and also
+kept it from printing a real one: a campaign ten days into its window
+has a measured rate. The fold now counts a running question campaign
+once it has served `ESTIMATE_MIN_DAYS` (7) — its answer total off the
+public aggregate, one read per such campaign, bounded at 50 per fold —
+over the days it has served, and the basis says how many of its
+campaigns are still running (*from 2 campaigns (1 still running)*).
+Closed campaigns count as before. The honesty D288 §3 asked for is
+unchanged: a real rate over real days, basis printed; what moved is
+when the first real rate exists.
+
+### 5 · What pins it
+
+`functions/src/paid.test.ts` — the budget held to the range in whole
+euros, a missing one read as the cap, the quote making the budget the
+cap and clamping a stored figure; `pricingFold.test.ts` — the served
+week, the mixed basis, `servedDays`, the `running` field's shape;
+`src/v2/data/pricing-live.test.ts` — `running` parsed, `answersFor` as
+a ceiling; `smoke-overlays.test.jsx` — the presets with the smallest
+pressed, the *up to 500 answers* line, the sheet's budget row, and the
+multiplier gone from the door; `firestore-tests/e2e-v2-loop.mjs` — a €5
+budget refused with the range, a €100 booking quoted at €0.10 × 1,000
+and charged €100, the purchase row carrying it, the index lifted from
+×1.0 by the sale.
+
+### 6 · What is still the owner's
+
+The figure itself (§3, on the list). Whether the ad window should
+follow the per-answer cut — it did not move here, because the owner's
+sentence was about answers. And the door's shape, which is
+`VISUAL-REQUESTS.md` item 4 with its copy-level half now built and the
+layout still asked for.
+
+## D373 · The index is crowding, with no ceiling, and the quiet price is €0.02
+
+**2026-09-05.** **Status:** binding, BUILT. Two of the owner's
+sentences, the same afternoon as D372: *"isn't that still ridiculously
+high?"* about €0.10 an answer, and, about the multiplier's ceiling,
+*"a demographic doesn't have a cap on how desired it is"*. The second
+was right about more than the cap, and this record says how.
+
+### 1 · What the ceiling was actually capping
+
+D371's index was a share: booked slot-days over available ones,
+across the trailing month and the fortnight ahead, mapped linearly
+between a floor and a ceiling. A share saturates. Once every day in
+the window was booked the multiplier sat at ×2.5 and did not move
+however many more buyers wanted that cohort — so the ceiling was not a
+cap on desire, it was the end of a scale that could not see desire at
+all. Ten buyers queuing for the same fortnight read exactly like one.
+The owner's question exposed the signal, not the constant.
+
+### 2 · What it measures now
+
+Questions in a scope share the daily slot by rotation and ads queue
+behind each other (D195, D315), so the honest measure of how wanted a
+cohort is on a given day is **how many campaigns are in its
+rotation** — and that number has no ceiling. The fold
+(`functions/src/pricingFold.ts`) now counts, for each of the next 14
+days, the running question and ad campaigns covering that day, and
+publishes the count as a `crowd` strip beside the 0/1 `booked` one.
+The multiplier is:
+
+```
+idx = floorX + crowdStep × (campaigns in rotation per day, averaged over the next 14 days)
+```
+
+with `floorX` 1 and `crowdStep` 0.5 on the committed card: nobody
+else asking, the floor; one other campaign across the fortnight, ×1.5;
+two, ×2; five, ×3.5; twenty, ×11. No trailing term — a campaign that
+ended last month is in nobody's rotation — and no clamp above the
+floor anywhere: the fold, both overlay parsers, `priceQuote`,
+`adPriceQuote` and `check:pricing` hold an idx to the floor and to
+nothing else. `ceilX` and `trailingDays` leave the card.
+
+Why crowding is the right signal for a per-answer price: a crowded
+day is fewer answers per campaign, because the slot's answers are
+shared. The price rises exactly when the answers are scarce, which is
+what a demand multiplier is for. And the buyer needs no ceiling to be
+safe from it — the rate is locked at booking (D313) and the budget
+bounds the spend (D372); a cohort that ever priced itself absurd would
+simply not sell until it calmed down, which is the mechanism working.
+
+### 3 · The door
+
+The rate row says the crowding as a sentence — *nobody else asking* ·
+*1 other in rotation* · *2.4 others in rotation* — in place of the
+booked count, off the same idx read back through the card's step
+(`othersFor`), so the word, the sentence and the price cannot
+disagree. The strip's ticks are taller the more campaigns share the
+day, up to three. The demand word maps from crowding: under half an
+other is quiet, under one and a half is steady, more is contested. The
+law's tokens: *€0.02 an answer with nobody else asking · +50% per
+other campaign in rotation · over the next 14 days · no ceiling ·
+billed per answer · budgets €5 to €50*.
+
+### 4 · The price
+
+`base` €0.10 → **€0.02**; `minEur` 20 → **5**; `budgets` **5 · 10 ·
+20 · 50**; `capEur` 320 → **50**. The owner's frame was a person
+asking their city something, not a panel buyer: €10 buys 500 answers
+with nobody else asking, €5 buys 250. The old €0.10 sits at the cheap
+end of survey panels and was still a whim's worth of money too many.
+The ad window (`adBase` €320) did not move, because the sentences
+were about answers; it now crowds the same rotation and takes the same
+uncapped multiplier, so it is the dearest thing on the door by a
+distance and is on `OWNER-LIST.md` as a row.
+
+A client from before D372 still quotes at `capEur` when it sends no
+budget — now €50, the most a budget can be, and less than the €320 it
+displayed. Never more than shown; that rule holds.
+
+### 5 · What pins it
+
+`pricingFold.test.ts` — the floor on an empty ledger; one campaign
+→ ×1.5 with both strips; two, five and twenty with no cap; half a
+fortnight is half a step; closed and past campaigns count for nothing;
+an ad crowds and a subscription does not; a zero step is a flat card;
+the overlay taking, deriving and refusing the crowd strip and holding
+an idx to the floor only. `paid.test.ts` — the quotes floor-held and
+uncapped (idx 9 quotes ×9). `closer.test.ts` — a campaign closed
+tonight leaves the rotation and lifts nothing. `pricing.test.ts` and
+`pricing-live.test.ts` — the words off crowding, the client parser's
+floor and strip. `smoke-overlays.test.jsx` — €5 chosen, €50 offered,
+*up to 250 answers*. The e2e — a €2 budget refused with the range, a
+€20 booking at €0.02 × 1,000, the sale reading exactly ×1.5 with a
+crowd strip of ones, the ad quoting €480 off it.
+
+### 6 · What is still the owner's
+
+The step (0.5 is a routine's pick: one other campaign is half again
+the price), the ad window's flat price, and the fortnight as the
+horizon — the booking runs 29 days and the index reads 14, the strip
+the buyer already sees; reading the whole 29 is one constant.
+
+## D374 · Ads run from the day after payment and share the rotation, and the ad window follows the cut
+
+**2026-09-05.** **Status:** binding, BUILT. The owner: *"make the ad
+price follow the same cut, and how do ads work right now. I don't like
+that they don't work out of the gate as that reduces my start revenue
+when I need it the most."* Two changes and one thing outside a
+session's reach (§3).
+
+### 1 · How an ad works, and what was wrong at the gate
+
+The lane is D315's: a buyer composes a text-only ad in the same door
+(advertiser, headline, body — no image, no link, no tracking, D197),
+the same automated review rules on it, the price is one flat figure
+for a 29-day window, Stripe takes it, the webhook writes the ad into
+`v2_ads` and the purchase into `v2_purchases`, every device downloads
+the pool and matches the one audience tag locally, the feed shows ONE
+paid card a day at position six — the running questions and ads of a
+scope rotating through it by day — and the nightly closer deletes the
+ad at window end. Nothing is counted; the window is the product.
+
+What kept it from working at the gate was the queue. D315 made ads
+day-exclusive against other ads whose audiences overlap: a new ad's
+window began the day after the scope's running one ended, and a world
+ad overlapped every city. Honest for the flat price — an ad diluted
+by another ad silently got less for the same money — and fatal for
+revenue at launch: one ad window per overlapping audience per month,
+the second advertiser waiting weeks to start, and a single world ad
+closing every city for 29 days. The D373 index made the honesty
+argument moot: the multiplier now counts every campaign in the
+rotation, ads included, so the dilution an ad will meet is in the
+figure it locks.
+
+### 2 · What changed
+
+- **Ads start tomorrow and share.** `goLive` writes an ad's window as
+  it writes a question's: from the day after payment, 29 days
+  inclusive. `adStartDay` and `adAudiencesOverlap` are gone with their
+  tests; `from` on the ad doc stays (the client filter honours it) and
+  is simply tomorrow. The contract sheet says *from the day after you
+  pay · 29 days* and *it shares the daily slot by rotation with the
+  other campaigns in your scope; that crowding is in the price you
+  lock*, where it promised *other ads never overlap yours*.
+- **The window follows the cut.** `adBase` €320 → **€40**: ÷8, the
+  same ratio the per-answer price took from €0.16 to €0.02. With
+  nobody else in rotation an ad window costs what a €40 question
+  budget does; with one other campaign, €60; the multiplier is D373's
+  and has no ceiling.
+- The e2e now books a second ad into a city already carrying a
+  question and an ad, sees it quoted off the two it joins (×2.0, €80 —
+  the ad being quoted is not in the ledger yet; it crowds the next
+  buyer) and running from tomorrow beside the first, where it used to
+  assert the queue.
+
+An earlier buyer is diluted by a later one without compensation —
+the cost this trades for revenue at the gate, stated: a flat window
+bought at ×1 alone can become one of three in rotation a week later.
+The door says so before payment, and a buyer who wants a fortnight to
+themselves has no way to buy one; when that is asked for, an exclusive
+window is a separate product with its own price, not a queue on this
+one.
+
+### 3 · What a session cannot make work
+
+Whether a sale can go through TODAY on the deployed app depends on
+three secrets in the deploy's dotenv — the Stripe key, the Stripe
+webhook secret, the Claude key (`DEPLOYMENT.md` § Runtime
+environment). Without the first two, checkout answers *"payments
+aren't configured on this deployment"* and the webhook answers 503:
+nothing can be bought, ad or question. A session cannot read the
+deployed environment, so this is on `OWNER-LIST.md` § Clicks as the
+owner's to confirm. The other limit on ad revenue is by design and
+unchanged here: an ad has no link (D197), which is what makes
+automated review tolerable and keeps the app free of a tracker, and
+is also what some advertisers will not pay for. That is a product
+conversation, not a fix.
+
+### 4 · What pins it
+
+`paid.test.ts` (the queue's two describes retired, the quote tests
+holding an uncapped idx), `pricingFold.test.ts` (an ad crowds the
+rotation like a question), `smoke-overlays.test.jsx` (the door's
+copy), and the e2e (§2).
+
+## D375 · Ads leave the door: the sponsored question is the one paid product
+
+**2026-09-05.** **Status:** binding, BUILT. The owner, on the ad lane
+D374 had just made saleable: *"that sounds like a bad system — if I
+gave you complete creative freedom how would you remake it"*, then
+*"lay a plan for building that"*, then *"go, yes to the link, keep
+your picks for the rest"*. The plan is
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md); this record is its §2.1,
+the first step and the one every later step assumes. It reverses
+D315's self-serve ad lane and the ad half of D374, and it leaves
+D197's ad OBJECT alone — the committed pen, `runSeedAds`, `AdCard`,
+`v2_ads` and their rules stay, empty, for a hand contract (the plan's
+§5 point 4, the owner's pick by default).
+
+### 1 · Why the lane goes rather than gets fixed
+
+D374 §3 named it: an ad here has no link and nothing is counted, which
+makes automated review tolerable and keeps the app free of a tracker —
+and is also what an advertiser will not pay for. A text card with no
+tap-through, a flat price, and no number afterwards is the product
+nobody buys twice, and a door that sells two things a buyer has to
+choose between is a door that explains itself before it sells. The
+plan's answer is one product with a reason to buy it — a question with
+a name on the card, its own places in the feed (§2.2), a menu price by
+reach (§2.3), one reviewed link after answering (§2.4, the owner's
+yes) and a results page to share (§2.5). Step one clears the door.
+
+### 2 · What changed
+
+- **The door sells a question.** `suggestions.jsx` loses the product
+  switch, the ad inputs, the ad preview and the ad rows of the
+  contract sheet; `submitPaid` sends `kind: "question"` always, and
+  `paidBookings.ts`'s payload type says so. The room's old rows keep
+  their `kind === 'ad'` branch, because a booking made before today is
+  still a row a buyer can open.
+- **The server refuses an ad by name.** `validatePaidBooking` answers
+  *"ads aren't sold here any more — ask a question instead"* to
+  `kind: "ad"` — the same refusal register as every other message on
+  the door. `validateAdBooking`, `adPriceQuote`, `PaidAdQuote`, the
+  `AD_*` bounds, the review prompt's ad paragraph, `paidAdDoc` and
+  `paidAdPurchaseDoc` are gone. A booking that reached review before
+  the retirement is declined in a transaction with that same note
+  rather than reviewed, quoted or held; an approved-but-unpaid ad is
+  refused at checkout (failed-precondition); a payment that somehow
+  lands on an ad booking is logged `paid_ad_after_retirement` for a
+  hand refund and writes nothing. The closer's ad arm stays for a row
+  sold before today, so a window bought under D374 still closes on its
+  own day.
+- **`adBase` leaves the card.** `content/pricing.json`,
+  `gen-pricing-ts.mjs`, `build-pricing.mjs` and the client's
+  `PRICING` drop it; `check:pricing` fails the card if the key comes
+  back. `adFlat` goes with it.
+- **One landing page.** `web/paid-done-ad.html` is deleted; checkout
+  always returns to `paid-done.html`, and `firebase.json`'s header
+  list and `paid-landing.test.mjs` follow.
+- The e2e's leg 13 books an ad, is refused by name, and then seeds a
+  `paidad-` doc by hand to prove `runSeedAds` still spares the prefix
+  — the pen's contract with a window sold before today.
+
+### 3 · What it costs, stated
+
+A buyer who wanted a plain ad has nothing to buy until §2.4 lands the
+link and §2.2 the places — the plan's order puts the menu first
+because the menu is the door's own sentence and the link needs the
+review clause the menu's copy sets up. Between this commit and §2.4
+the app sells exactly what it sold under D313: a sponsored question
+with a name on it. The ad price row on `OWNER-LIST.md` is annotated
+rather than removed — the tick is the owner's.
+
+### 4 · What pins it
+
+`paid.test.ts` ("the ad lane is retired (D375)": the refusal, and the
+review guidelines no longer naming an ad), `pricing.test.ts` (no
+`adFlat`; the city rate at idx 1.75 rounds where the door prints it),
+`paid-landing.test.mjs` (no ad page shipped or named), `check:pricing`
+(no `adBase`), `smoke-overlays.test.jsx` (the door with one product),
+and the e2e's leg 13.
+
+*Merged past D368/D369 (2026-09-05): shape A had taken the in-app door
+(`suggestions.jsx`) out of the binary by then, so the door-side of this
+record — the product switch and the ad inputs — reached `main` as a
+deletion rather than as code; what merged is the server's refusal, the
+card without `adBase`, the one landing page and the pen. The door is
+`web/ask.html`, which sells a question only.*
+
+## D376 · The menu: the door prints a price per reach, and a row opens the composer at it
+
+**2026-09-05.** **Status:** binding, BUILT. Step §2.3 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), on the owner's *"go, yes to
+the link, keep your picks for the rest"*; the figures are the plan's
+(*"keep your picks"*), on the €0.02 line D373 set. Reverses nothing.
+
+### 1 · What a buyer reads
+
+Three rows, one number each: **your city €10 · your country €25 ·
+everyone €50**, under each *up to N answers · 29 days*, N being what
+the figure buys at the cohort's line in force — 500, 1 250, 2 500
+with nobody else asking; fewer, for the same figure, where the
+rotation is crowded. The demand word and the crowding sentence stay
+beside the name; the strip stays under. The per-answer line left the
+row: it is one tap in, under each stop of the scope ruler and on the
+contract sheet's *Rate* line, where the buyer locks it. A buyer reads
+one number and one promise; the law stays behind its tap, with one
+token added — *unserved answers refund at close* — because the
+guarantee under a menu price is the refund, and the tokens are the
+one place the whole mechanism is stated.
+
+Picking a row opens the composer on that reach WITH THAT BUDGET
+chosen — the chips stay for adjusting. The bare *+ Ask a question*
+button still opens on the smallest preset: nobody chose a number
+there, and D372's reason stands (a control that defaults to more
+money than the least is the wrong default for a button that charges
+it).
+
+### 2 · What moved on the card
+
+- `menu: { city: 10, country: 25, world: 50 }` on `content/pricing.json`;
+  `check:pricing` holds each to be one of `budgets` (so a row opens on a
+  chip that shows pressed) and non-decreasing outward (a wider reach at
+  a lower price would print the door's own argument backwards).
+- `budgets` €5 · €10 · **€25** · €50 — the €20 chip moved to €25 so the
+  menu's three figures are chips. €25 buys 1 250 answers at the quiet
+  line; the €10-buys-500 sentence D373 wrote still holds.
+- `windowDays: 29` on the card, read by the server (`WINDOW_DAYS` in
+  `paid.ts` is now the card's) and printed by the door wherever it
+  said *29 days* — four literal sites, now one number, because a figure
+  printed beside a price in two places is one that drifts.
+
+The server's booking path is unchanged: it prices `budgetEur` inside
+[minEur, capEur] as before, and a menu price is a budget the client
+sends like any chip. The estimate (where one exists) and the floor
+rule print in the composer as they did.
+
+### 3 · What pins it
+
+`smoke-overlays.test.jsx` (the three rows print their menu price and
+what it buys at the committed line, no per-answer line on the board;
+the country row opens the composer with €25 pressed and the ceiling
+restated), `pricing.test.ts` (the menu is presets, the count under it
+is `answersFor` at the line, and a lifted line halves the count
+without moving the figure), `check:pricing` (the menu's shape), and
+`paid.test.ts` through `WINDOW_DAYS` — every window assertion now
+reads the card.
+
+*Merged past D368/D369 (2026-09-05): the door is `web/ask.html` now,
+so the rows, the budget chips and the row-opens-the-composer hand-off
+live there — a menu card above the composer, `menu`, `budgets` and the
+window on `web/ask-pricing.json` through `scripts/build-ask-pricing.mjs`
+(which reads `windowDays` off the card, the one number D376 made, and
+no longer guards a lookback the card does not carry). Pinned by
+`scripts/ask-page.test.mjs`, which drives the page in a document, and
+`build-ask-pricing.test.mjs`; `smoke-overlays`' door cases left with
+the overlay.*
+
+## D377 · Paid cards get their own places in the feed, and the price counts crowding beyond them
+
+**2026-09-05.** **Status:** binding, BUILT. Step §2.2 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), on the owner's *"go, yes to
+the link, keep your picks for the rest"* — the density and the free
+count are the plan's picks. **Reverses** D195 §1's one paid card at a
+time (`SPONSOR_SLOT = 1`, the prototype's *"a feed with two is a feed
+for sale"*), and amends D373's index: the step now counts campaigns
+beyond a scope's free places, not every campaign.
+
+### 1 · What was wrong
+
+Inventory did not grow with the app. One paid card per phone per day,
+whatever the app's size, meant every sale diluted the last — with two
+campaigns in a scope each got half the days, and a third buyer bought a
+third of nothing more. The crowding price (D373) was the honest reading
+of that arithmetic, and honest arithmetic on a fixed supply is still a
+fixed supply: the number of things the app could sell had nothing to
+do with the number of people using it.
+
+### 2 · What changed
+
+- **A paid card after every sixth world card** — positions 6, 12, 18 …
+  as far as the day's pool reaches. `SPONSOR_SLOT` and `SPONSOR_AT` are
+  one constant now, `SPONSOR_EVERY = 6`; `partitionSponsored` returns
+  the day's paid cards as a list rather than one; `interleaveFeed`
+  takes `paid` and `paidEvery` and places them at that cadence, each
+  once, before the side streams' — never first, and a stream shorter
+  than the rhythm still delivers every card at its end, for the reason
+  the single slot did. `orderPaid` sorts the eligible pool by id and
+  starts it at the day's index, so every campaign appears once and
+  which one is FIRST rotates by day: the first place is the one most
+  readers reach, and it is shared out the way the one slot was. Both
+  kinds (a sponsored question, a committed ad) take the same places in
+  the same order. Selection stays on the device, the match stays
+  disclosed, the tail-never-core rule stays; an answered sponsored
+  card still parks behind the expander instead of spending a place.
+- **The price counts crowding beyond the free places.** `crowdFree: 3`
+  on the card, and the fold's step is `max(0, campaigns + 1 −
+  crowdFree)` — the rotation with the next buyer in it, less the
+  places. Three campaigns in a scope each hold a place and the index
+  reads ×1 for all of them; the fourth is the first to share, and pays
+  ×1.5 for it. A card with one free place is D373's exactly, and a
+  card from before the field folds that way, so nothing published
+  before today reads differently.
+- **The door reads the strip.** The crowding sentence is *room for 3
+  more* while there is room (the card's free places less the campaigns
+  in rotation, one on any day counting as a place taken — the buyer is
+  told the room that is certainly there), then *3 in rotation ·
+  sharing*; the demand word still reads what the price counts. The law
+  gains *3 places a scope · one card in 6 is paid* and its first token
+  says *while there is room*; the composer's preview says *one card in
+  6 · order rotates by day*, and the door's and the room's sentences
+  say *one card in 6 is paid* where they said *one paid slot a day*.
+
+### 3 · What it costs, stated
+
+**Density that reads as spam** — one in six is a guess, one constant,
+and the first week of use re-tunes it rather than defends it (the
+plan's §6). **A world campaign is in every device's rotation** with
+that device's city and country campaigns, so the per-scope free count
+is an approximation of the places a device actually shows — the same
+approximation D373's per-scope count already was, now with three
+places instead of one under it. **The e2e's first sale no longer moves
+the index**: it fills the strip and leaves ×1, which is the design, and
+the leg asserts exactly that.
+
+### 4 · What pins it
+
+`sponsored.test.ts` (the density, every sponsored card off the stream,
+the day's order rotating, both kinds in one order; the places in the
+interleave at 6 · 12 · 18, each card once, a short stream still served,
+a returning device's depth), `pricingFold.test.ts` (one campaign moves
+nothing, the fourth is the first step, one free place is D373),
+`pricing.test.ts` (`roomFor` and `crowdFor` off the strip, the demand
+words off what the price counts), `check:pricing` (`crowdFree` a whole
+number of places), `smoke-overlays` (the door), `feed-paid-answered`
+(an answered paid card parks), and the e2e's first-sale leg.
+
+*Merged past D368/D369 (2026-09-05): the door's room sentence and its
+law are `web/ask.html`'s — the scope read says *room for 3 more* then
+*3 in rotation · sharing* off the cohort's crowd strip (carried onto
+`web/ask-pricing.json`), and the flat note says the free places and
+the step; the page's density figure is `SPONSOR_EVERY`, read off
+`data/sponsored.ts` by the adapter. The app's own sentence is the
+results room's. Pinned by `scripts/ask-page.test.mjs`.*
+
+## D378 · A sponsored question may carry one reviewed link, shown after the answer and counted by nobody
+
+**2026-09-05.** **Status:** binding, BUILT — **the owner's decision**
+(*"go, yes to the link, keep your picks for the rest"*), step §2.4 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md). **Reverses** D197's no-link
+rule for sponsored QUESTIONS; the committed ad pen keeps it
+(`check:content`'s URL nose on ads stands). This is the one step of
+the plan that was the owner's to take rather than a routine's, and
+the plan's §2.4 is the ask in D334's shape: what it exposes (nothing
+about any user — a link is the buyer's public content on a card any
+signed-in user already reads), which of the four it touches (the
+privacy page, which moves first), and the smallest shape that gets
+the value (after the answer; the bare domain; nothing counted).
+
+### 1 · What a buyer can do, and what a reader sees
+
+The composer has a *link · optional* field: one https address. The
+server holds its shape (`validatePaidLink` — https, a real host, no
+credentials, under 200 characters; a plain domain or an http address
+is refused with a sentence that says what shape it needs), the review
+holds its substance (a ninth guideline: the reviewer reads the
+ADDRESS and never the page, and declines a store of harm, a page
+plainly selling something the question does not concern, an
+impersonation, a shortener or redirect service that hides the
+destination, or a query string that is tracking parameters rather
+than a page). The link rides on the question doc's `sponsor` block
+the way the audience does — every device downloads it — and on the
+buyer's purchase record.
+
+On the card it is NOT there until the person has answered. The
+answered face then carries *PAID harboursauna.no ↗*: the bare domain
+(`linkDomain` — never the path, never a `www.`), a plain anchor to the
+system browser with `noreferrer noopener`, the address verbatim. The
+app counts nothing: no tap log, no impression, no parameter of ours.
+After the answer rather than before, so the question is answered as a
+question and the link is the buyer's thank-you rather than the card's
+purpose (the plan's own line).
+
+### 2 · What moves with it
+
+`web/privacy.html` says it in the buyer's paragraph — *shown only
+after you have answered … we count nothing* — pinned as two claims in
+`check:policy-claims`, because WHEN the link shows and WHAT a tap
+does are separate promises and a page that kept one and lost the
+other would be the half-corrected promise that gate exists to notice.
+`data-inventory.md`'s bought-question and booking rows name the
+field; `SCHEMA-V2.md`'s sponsor block does; `MONETIZATION.md` path 2
+does. The store forms move by nothing: no data is collected and no
+tracking is added. No consent requirement in law is reached.
+`firestore.rules` needed no line: the question doc is server-written
+and the shape is the validator's.
+
+### 3 · What it costs, stated
+
+**A link that lies.** The review is automated and reads an address,
+not a page, and a page can change after approval. The guards are the
+visible domain, the after-answer placement, and the report control
+every card carries (D83) — a reported sponsored question is hidden by
+the same verdict path a take is. **The system browser, not an in-app
+one.** A tap leaves the app; that is the honest shape for a link the
+app does not count, and the cost is a reader who does not come back
+by themselves. **The e2e's paid leg now carries a link** and asserts
+it on both documents, and refuses an http one by shape first.
+
+### 4 · What pins it
+
+`paid.test.ts` (`validatePaidLink` by shape, the round trip with a
+link, the doc and the record carrying it, the reviewer's subject
+naming it, the guideline's link clause), `sponsored.test.ts`
+(`linkDomain`), `SponsorMark.test.tsx` (the anchor: bare domain,
+`_blank`, `noreferrer`, the address verbatim, nothing for a non-https
+value), `feed-paid-answered.test.jsx` (no link on the fresh card, the
+domain on the answered one), `smoke-overlays` (the composer's field,
+its preview line and the contract row), `check:content` (a committed
+sponsored question's `link` by shape), `check:policy-claims` (the two
+sentences), and the e2e.
+
+*Merged past D368/D369 (2026-09-05): the composer's link field, its
+hint and the quote's *Link, after the answer* row live on
+`web/ask.html`. The pay tap is not open (D369 §5), so the page composes
+and states the link and does not yet send it; when it does, the
+booking payload carries `link` and the server holds its shape as this
+record says. Pinned by `scripts/ask-page.test.mjs`.*
+
+## D379 · The shareable results page: a sponsored question's numbers as one public web page
+
+**2026-09-05.** **Status:** binding, BUILT. Step §2.5 of
+[`SPONSORED-PLAN.md`](SPONSORED-PLAN.md), the last, on the owner's
+*"go, yes to the link, keep your picks for the rest"*. Reverses
+nothing. With it the plan is the app: five steps, five records
+(D375–D379).
+
+### 1 · What it is
+
+A public page per SPONSORED question, on the open web, at the hosting
+rewrite `/q/{qid}` — *Oslo said: 62% keep the harbour bath open*. The
+question, the buyer's name (or *a buyer who chose not to wear a
+name*), the split with counts, the audience they bought, the window
+(*runs* or *ran*), the PAID mark, the breakdown by the dims the buyer
+bought, and the buyer's link as its domain (D378). Rendered by
+`functions/src/share.ts` (`resultsPageV2`, an HTTPS function) on the
+admin SDK, because a public page cannot sign in and the two documents
+it reads — `v2_questions/{qid}` and `v2_question_aggs/{qid}` — are
+signed-in-readable (D98); cached five minutes at the CDN, so a shared
+address that gets popular costs two document reads a minute rather
+than two a view. A bank question has no page (404 with a sentence): a
+paid question is content with a buyer behind it and a result the
+buyer paid to be able to point at; the bank's own questions have no
+such person and no such address.
+
+A *share results* control on the answered face of every sponsored
+card and on the buyer's room row copies the address — the clipboard,
+as the invite link does, because a copied address is a share on every
+platform without a share sheet.
+
+### 2 · What it exposes, and to whom (D334's shape)
+
+The same fold the app draws, to a reader with no account. `counts`,
+and the bought dims' rows of `by` — never an answer row, never a uid,
+never a name but the buyer's own chosen one. Inside the app a
+signed-in reader gets every published dim, and sign-in is
+anonymous-first, so the page opens nothing a stranger with the app
+cannot already read; what is new is the door — a browser with no app.
+The privacy page says the page exists and never names who answered,
+pinned by `check:policy-claims`; the inventory's two rows name the
+open web as a reader for a sponsored question. The store forms move
+by nothing: nothing is collected. Whether the page should carry EVERY
+published dim rather than the bought ones is the owner's — on
+`OWNER-LIST.md`, with the shapes and what each exposes — because the
+plan's sentence and the app's own signed-in breadth read differently
+and a routine does not pick between them on a public surface.
+
+### 3 · What it costs, stated
+
+**A scraping surface** — one question's public numbers per request,
+cached, no listing, `noindex`; a crawler gets what a signed-in reader
+gets, five minutes stale. **Two copies of two client rules** — the
+percentage rule (`sharePcts`, pct.ts's largest remainder) and
+`linkDomain` — because a Cloud Function cannot import a client module;
+`share.test.ts` pins the shapes pct.ts's own test does, so a drift is
+a red test rather than a 51/48 under a 51/49. **Outside two gates by
+shape**: `check:appcheck` reads callables and an HTTPS function is not
+one (the reasoning is `share.ts`'s header — it serves the open web);
+`check:web-headers` reads the files under `web/` and a rewrite served
+from a function is not one, so the page sets the same three headers
+itself and the test pins them. **The functions tree cannot import
+`scripts/report-lib.mjs`**, so the page folds the documents directly
+rather than reusing the report builder the plan named.
+
+### 4 · What pins it
+
+`share.test.ts` (the page's content escaped, the split, the audience,
+the window in both tenses, the PAID mark, the link's domain, the
+bought dim's rows and not the others, the nameless buyer, the three
+404s, the headers, the id parser, the two copied rules),
+`links.test.ts` (`resultsLinkFor`), `SponsorMark.test.tsx` and
+`AskedByYouOverlay.test.tsx` (the share control copies `/q/{qid}`),
+`check:deploy-targets` (the function is in the deploy list),
+`check:policy-claims`, and the e2e (the page for the sold question
+with its answer, its headers and its cache; no page for a bank
+question or a missing one; no uid on it).
+
+## D380 · The 2026-09-06 night review: two shifts merged as one tree — 68 commits kept, two defects the composition created, and a fix whose tests a third PR deleted
+
+**2026-09-06.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty-eight commits are kept as written; nothing was reverted. What this
+review adds is the composition, two fixes for defects no shift could see
+alone, one overclaim corrected, and three tests recovered from a deletion
+that had nothing to do with them.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260906` | 33 | 4 behind | shift A, Claude 2's, 21:21–05:34 UTC |
+| `nightb-20260906` | 35 | 5 behind | shift B, Claude 1's, 20:13–04:34 UTC |
+
+Six files were touched by both. Four composed cleanly on different
+regions — `functions/src/pure.ts` (A a docstring, B the new
+`seedMapClears`), `src/v2/spec-index.js` (two different notes),
+`src/v2/spec/world-feed.jsx` (A the learn card's rate copy at 3439, B the
+no-crowd work at 228–2226), `src/v2/ui/LiveMirrorLenses.test.tsx` (A a
+mock member, B two cases). Two did not, and both are gate scripts, which
+is not a coincidence: both shifts spent the night on gates that certify
+something without executing it, so they collided on the same files for
+the same reason.
+
+### The first defect: a clean automerge that quietly un-tested a gate
+
+**`scripts/check-appcheck.mjs` — the only thing standing between the
+public callable surface and the open internet.** Both shifts rebuilt it
+the same night:
+
+- **A** extracted `scanCallables()` and `appCheckProblems()` as exported
+  PURE functions and wrote the gate its first test — `appCheckProblems`
+  parameterised on the exemption table *"so a test can drive it without
+  the real tree"*.
+- **B** added the spread-after-`enforceAppCheck` rule inside the scan
+  loop, and two checks that read `functions/src` off disk:
+  `checkAppCheckPolarity` (the constant's VALUE in `ops.ts`, not its name
+  at the call sites) and `checkAppCheckProvenance` (that every callable
+  defers to *that* constant).
+
+git resolved one conflict and produced a working gate — `check:appcheck`
+green, 28 callables, 20 enforcing — that was wrong underneath: **B's two
+disk-reading checks landed inside the function A had made pure.**
+Measured rather than reasoned. Flipping `ENFORCE_APP_CHECK` in `ops.ts`
+from opt-out to opt-in turns A's fixture case — *"is silent when every
+unattested callable is exempt and calls its gate"*, driven on a synthetic
+three-callable string — red:
+
+```
+expected [ …(2) ] to deeply equal []      1 failed | 9 passed
+```
+
+A unit test on a fixture, failing because of a file the fixture never
+mentions. Resolved by giving each half the place its own argument asks
+for: B's spread rule into `scanCallables()`, where the option block is
+now read; B's two checks lifted to the driver beside the
+`appCheckProblems()` call. Under the same mutation the fixture case
+passes 10/10 **and** the gate still exits 1 naming the flipped constant —
+both verified, in both directions.
+
+The same pair collided on **`scripts/check-fn-runtime.mjs`** and merged
+cleanly, and that one is worth stating because it is the good case: A
+widened the scan from `.ts`/`.tsx` to every client source (145 `.js`/`.jsx`
+files were invisible to it), B stripped comments before reading the region
+constant. Both halves were probed on the composed tree and both fire — a
+region spelled out in a `.jsx` is caught, and a superseded constant parked
+in a comment above a wrong live one no longer clears the gate.
+
+### The second defect: a fix for silent data loss, running under nothing
+
+**`functions/src/v2.ts` — the seed's 450-op batch flush.** Shift B added
+the map-clear pass (a Crossroads story that drops a node keeps it forever
+under `merge: true`), then found in its own last commit that the pass can
+put a SECOND op into one loop iteration without consulting the threshold —
+so `++inBatch === 450` can be stepped over and never match again, the batch
+grows to the end of the bank, and the commit throws at Firestore's 500-op
+cap, losing every write since the last flush. `>=` is the fix and it is
+correct.
+
+Two things about it were not.
+
+**It ran under nothing.** Reverting `>=` to `===` left all 687 functions
+tests green. A silent-data-loss guard on the path that rewrites the
+question bank, with nothing able to fail — which is verbatim the class both
+shifts spent the night hunting, in the commit that closed one of them.
+
+**And the comment claimed more than it had.** It said the bug was
+*"reachable on any run that rewrites 450+ documents with at least one map
+clear among them, which is what a full repair reseed of the 847-document
+bank is."* It is not. Simulated across all 847 indices: **exactly one
+trips it** — the clear has to arrive while the counter already stands at
+449; a clear anywhere else only shifts which document lands on the
+boundary, and `===` and `>=` behave identically. Today's bank cannot reach
+it at all. Three documents carry an object-valued seeded field (`feed-pt1`,
+`feed-pt2`, `feed-pt3`, at indices 210, 211 and 307) and the counter stands
+at 210, 212 and 309 when they arrive. So it is a guard against the bank
+gaining a fourth story in the wrong place, not a live bug — and it is kept,
+because `>=` is free and the failure it prevents is silent.
+
+That distinction is also why a live-bank test cannot pin it: inducing
+clears on all three story documents commits identically under either
+operator, so such a case would pass whichever operator is in the file. The
+counting SHAPE is held instead, in the idiom `engagement.test.ts` already
+uses for its own batch. Both cases were mutation-checked — reverting to
+`===` fails one, a third unchecked bump fails the other — and the
+anti-vacuity case earned itself immediately by catching a bad slice anchor
+(`runSeedAds` sits ABOVE `runSeedV2`, so slicing to it yields the empty
+string and every case passes).
+
+### The one no shift and no reviewer of either branch would have seen
+
+`main` moved while this review ran: **#401 merged D370–D379**, and two of
+those records land on the paid work shift A did the same night.
+
+**D375 took the ad off the paid path.** A had extracted
+`checkoutLineItem(isAd, quote)` — pure and exported, because everything
+past the Stripe-key check is unreachable in the emulator and *"the amount,
+the currency, the cents multiplier and the sentence promising the buyer a
+window and a refund all ran under nothing"*. The extraction is kept; the
+`isAd` arm is not, because the caller now refuses an approved-but-unpaid ad
+outright and a second branch would be a shape nothing can reach.
+
+**D370 moved the cap from €320 to €50.** A's case asserted `capEur === 320`
+as a literal and failed on the merged tree. Rewritten against the quote
+rather than against a figure the card is allowed to change, with a guard
+that the cap and the rate do not round to the same cents — without it the
+case could no longer tell which one is being charged. Both mutations it
+exists for still fail it.
+
+**And the one that went silent.** A's three `goLive` window cases — pinning
+its own one-clock-read fix, where `until` is derived from `start` instead
+of from a second `Date.now()` — sat inside `paid.test.ts`'s ad section. So
+D375's deletion, for reasons that have nothing to do with them, **took the
+tests and left the fix.** Nothing went red. `paid.ts` still derives the
+window correctly and was running under nothing again, two days after being
+fixed for exactly that. Recovered under `utcDayKey`, where the ad lane
+cannot reach them.
+
+Their limit is A's own and is stated in the file: they fail on a wrong
+window LENGTH and cannot catch the two-clock shape directly, because fake
+timers freeze the clock rather than advancing it between two reads.
+Verified by mutation in both directions — which is how the claim was
+confirmed rather than taken on trust.
+
+**The finding is that a deletion is a coverage event.** D375 is a correct,
+deliberate product decision, and reviewing it as a diff would show only ad
+code going away. What went with it was a test for a question-path fix that
+happened to be filed nearby. No gate can see this: every runner is green
+before and after, because a deleted test cannot fail. The only thing that
+found it was reading the merged file for what shift A had put in it and
+counting what was still there.
+
+### The battery, on the composed tree
+
+Neither branch's own green says anything about this tree, because no tree
+had held both — and after the `main` merge, no tree had held all three.
+Run here in full:
+
+| | |
+| --- | --- |
+| `test:unit` | 181 files, 2647 tests |
+| `test --prefix functions` | 32 files, 703 tests (687 on arrival, plus this review's) |
+| `test:scripts` | 58 files, 957 tests |
+| `test:rules` | 197 tests (Java 21) — up from 179, shift B's night |
+| `test:e2e:all` | all three legs, one emulator boot, exit 0 |
+| gates | 43 `check:*`, plus `lint`, `tsc -b`, and `check:bundle` on a shipping build |
+
+Two gates are red and neither is about the tree, both verified against
+`origin/main` rather than assumed — the same two D365 recorded:
+`check:store-copy` wants the Play signing SHA256 and says in its own header
+that it is deliberately not in CI; `check:web-firebase` wants the four
+`VITE_FIREBASE_*` secrets and runs on the two release workflows rather than
+on `ci.yml`. Two more read as red on a bare checkout and are not:
+`check:bundle` and `check:fn-runtime` want a build first.
+
+**The ceiling D365 said was due to trip this week did not.** 630 KB eager
+against the 642 raised four days ago, on a shipping build with the DSN in —
+main measures 629.9, so this night's 68 commits cost about a tenth of a
+kilobyte of first paint. The rate D365 measured at ~2.7 KB/day is not a
+constant; a night spent almost entirely on tests, gates and comments does
+not move it. The three deferral candidates it named are still the answer
+when it does.
+
+### What shift B put to the owner, and why a routine could not
+
+Two rows on `OWNER-LIST.md`, both the D334 shape — brought with the
+arithmetic rather than decided:
+
+**Three behaviour signals are collected from every device every day and
+read by nothing.** `feedB`, `stops` and `lenses` on the daily engagement
+rollup: **zero** readers across `functions/src`, against three for
+`depthEnd`, a neighbour in the same document written by the same line of
+client code. The rules validate all three as required ints, so every device
+pays to write them and every one expires unread at the 90-day TTL. It is
+not a quiet fix in either direction: deleting them refuses the engagement
+write from every already-shipped client until those installs turn over, and
+folding them means deciding what the fold is FOR — which is a product
+question. CLAUDE.md's own first paragraph is why it is not simply dropped:
+*"a surface that collects without joining is unfinished"*, and these are
+the three cheapest measures the app has of whether the Mirror is READ
+rather than answered into.
+
+**Two daily questions carry a different tag in the bank than in the
+archive.** `daily 006` is *"Found €500"* against *"Found cash"*; `daily 011`
+is *"Job or partner"* against *"Job or move"*. Measured across all 130 live
+daily questions matched by prompt: exactly these two differ, on `tag` only.
+Both spellings are legal, so nothing is broken — but the archive's header
+says the twins must not drift, the tag is what the reader SEES, and the
+catalogue seed already has exactly such a parity gate. A gate cannot be
+added until someone says which side wins. One sentence closes it.
+
+### What to watch
+
+**`MOD_RUN_CAP` has never been able to fire, and three places named it as
+the bound on a wrong remove verdict.** `scripts/mod-queue.mjs` mints a
+fresh `randomUUID()` per invocation — deliberately, *"a run id somebody can
+choose is a run id somebody can reuse"* — and submits one verdict with it,
+so the count query always reads 0. What actually confines a run is one
+verdict per invocation and one verdict per take per queue generation.
+Shift A left the cap standing and corrected the three claims, because the
+choice between scoping the runId so the cap counts something and dropping
+it to stop paying for an aggregation read on every verdict is the
+maintainer's. The cost today is one billed `count()` per verdict for a
+number that is always zero.
+
+**A torn cache write said it held rows it had lost.** `cacheStore.writeTo`
+committed the meta cursor even when an earlier chunk aborted — measured
+before the fix: one unclonable value at index 4000 of 8500 left 4500 rows
+on disk under a cursor claiming all 8500, and `readDiskCaches` trusts that
+cursor, so every later boot fetches only the delta and the 4000 lost
+answers never come back. The deck re-offers them and the create-only rule
+(D5/D86) refuses every re-vote. Rows are still written; the meta row is now
+withheld, which degrades to the refetch the module header already
+promised.
+
+**The rules layer has a coverage ratchet now, and it started at 96.** Shift
+B added `scripts/rules-coverage.mjs` to `test:rules`: **46 of 353 atomic
+predicates never evaluate false**, down from 96 by the tests B wrote the
+same night — thirteen "must be signed in" write rules, `v2_flags`' field
+allowlist, twenty-two type checks on the rollup every device writes, the
+political consent guard's five checks, and a sealed duel answer's own
+fields, every one of which could be deleted with the whole suite green.
+The baseline may only come down, the same shape as `check:globals` rule 4.
+
+## D381 · Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on
+
+**2026-09-06.** **Status:** binding as a RELEASE RECORD and a PRE-FLIGHT
+VERDICT. One number moved — `appBuild` 29 → 30 — and no code changed.
+This is the release prep for build 30, and what it found first is that
+build 29 had already gone out.
+
+### What the run list said
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 50 (`33651487283`, 2026-09-02T15:53:40Z) is the highest run in
+  `ios-release.yml`'s list, 50 of 50.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (16:00:26Z → 16:02:20Z, 1m 54s of transfer). `UPLOAD SUCCEEDED with no
+  errors`, delivery UUID `e82cc4de-1466-4ce8-800f-a58dfb33e8c9`,
+  6,143,472 bytes. **Build 29 is spent.**
+- Run 49 (`33650731413`, 15:46:32Z) is its dry run — same commit, seven
+  minutes earlier, step 17 `skipped`. Twelfth pair of this shape.
+- `appBuild` at run 50's **own `head_sha`** — `74c84a0`, D159's rule
+  rather than any commit someone merged — is **29**.
+- The tree at `0469f5e` reads **29**.
+
+29 is not greater than 29, so the verdict is **bump**, not *run as-is*.
+`appBuild` went 29 → 30 with `check:versions --fix`, which carried it into
+`android/app/build.gradle` and `ios/App/App.xcodeproj` — five numbers
+across three files. `LAUNCH-RUNBOOK.md` 5.6 followed, because
+`check:figures` owns that sentence and went red until it did.
+
+**Had this not been read, the dispatch would have cost ~150 minutes of
+macOS quota for nothing.** Every gate in the tree passes at a stale build
+number — they compare the tree against itself — and App Store Connect
+refuses a reused number *after* the transfer completes. The archive signs,
+the export signs, both entitlement gates pass, ~6 MB moves, and Apple says
+no.
+
+### The remedy for this exact failure ran, and was empty
+
+D339 caught the same thing five days earlier and did more than record it:
+it added step 18, *Fire the release recorder*, to `ios-release.yml`, on
+the reasoning that **the step which uploaded is the one thing that cannot
+forget the upload happened.** Build 29 is the first release since that
+step existed — verified rather than inferred: at `8abb8e5`, which runs 47
+and 48 archived, the workflow's last two steps are `Upload to App Store
+Connect` and `What happens next` with no recorder between them, and at
+`74c84a0` the step is there. Its entire output was:
+
+```
+##[notice]release recorder not wired (ROUTINE_RELEASE_FIRE_URL /
+ROUTINE_RELEASE_FIRE_TOKEN unset) — record this delivery by hand,
+docs/IOS-RELEASE.md has the shape
+```
+
+The step is written to be inert and never red when the variable and the
+secret are missing, and that is right — a build that uploaded is delivered
+whatever the step does, and a red run over a shipped build is the
+confusion D339 itself records. But the consequence is that **the fix and
+the absence of the fix look identical from inside the repository.** Step
+18 reads `success` in both worlds; nothing in the tree can read the run
+list, so nothing could report that the recorder had never once fired.
+
+**A remedy waiting on a click nobody has made is not yet a remedy.** The
+click is not new — `OWNER-LIST.md` § Clicks has carried *"Set the four
+fire secrets"* since the console's first fold — but it was filed as
+plumbing for a lane that did not exist yet. It is now measurable: one
+unmade click, one unrecorded delivery, one pre-flight that opened on a
+spent number. That row now says so.
+
+This is the fifth delivery to go unrecorded (runs 25/26, 29–31 in D198,
+39/40 in D273, 45/46 in D339, now 49/50), and the sixth pre-flight to open
+on a spent build. The tally of bumps is level again at nine and nine —
+held (20, 21, 22, 28, 33, 36, 42, 44, 48) against skipped (18, 19, 24, 26,
+31, 38, 40, 46, 50) — one release after D339's amendment recorded the held
+count leading for the first time.
+
+### What the skip refutes, and what it does not
+
+D186 and D198 read the failure as an ordering: the bump sticks when it is
+made *from* step 17's conclusion while the step list is on screen, and is
+skipped when a session comes back later or not at all. Nothing here
+contradicts that — runs 49 and 50 were dispatched by the owner, no session
+held the step list, and the number sat for four days and 50 commits.
+
+What it does say is that the reading has stopped being useful on its own.
+Nine skips have each been diagnosed and each diagnosis has been correct;
+the failure recurs anyway, because every remedy so far has been a habit
+proposed to whoever happens to be holding the tree next. D339's step 18 is
+the first that is not — it is the only one keyed to the event rather than
+to attention — which is precisely why its being unwired is the finding
+here rather than a footnote. **The invariant that would end this keys on
+the run list, and the only thing in this system that can both read the run
+list and write to the tree is a Routine the workflow fires.**
+
+### The gap, and D159
+
+Both runs archived `74c84a0`, so D159's trap did not fire — the fifth
+release since run 21 where the dry run and the upload name one tree, after
+39/40, 43/44, 45/46 and 47/48. It was not arranged this time. `74c84a0` is
+*"pulse: trail row for 2026-09-02"*, a Routine's commit rather than any
+release commit, which is run 22's and run 46's shape: the dispatch ran
+against the branch as it stood. That is the case D159 exists for, and
+reading `appBuild` at the run's own `head_sha` is what made the comparison
+answerable.
+
+50 commits rode in the 29 → 30 gap, over four days — the third widest
+after build 26's 193 and build 27's 130.
+
+### What build 30 carries that build 29 did not
+
+D274 established that this prep asks the question, so: the 50 commits are
+mostly content and program work — catalogue domains (films, videogames,
+pk36), the farm's promotions, two night reviews, the console's folds — but
+three of them reach the binary and one of those is the reason to want this
+build on a device.
+
+- **A crash is fixed.** D364: the profile's Big 5 and Politics panels
+  defined their result components *inside* a render, so every render
+  remounted them — the owner's own report was the petal rose drawing empty
+  while the bars under it vibrated faster and faster until the app died.
+  Build 29 has that; build 30 does not.
+- **The paid door leaves the app** (#395). `paidBookings.ts`,
+  `suggestions.ts` and their surfaces come out of the bundle — the door
+  moved to `web/ask.html` (D369) — so the binary loses two write paths it
+  no longer offers.
+- **Near is a switch again**, off or on, the timed option retired (D370).
+
+Nothing in the three changes what the app *collects*, which is the store
+forms' question: no new field, no new purpose, no new recipient — the paid
+door's removal only subtracts. `check:store-forms`, `check:policy-claims`
+and `check:public-copy` are green on this tree, and `web/privacy.html` is
+unchanged. So this build moves no form, and 6.2 is not reopened by it.
+
+### When to revisit
+
+**At the dispatch**, on the two points that have each cost a release.
+Read `appBuild` at the run's own `head_sha` rather than at the commit that
+merged this record — `main` gains pulse rows on a schedule and `74c84a0`
+is one. And make the bump to 31 off step 17's own conclusion while the
+step list is on screen, which is the only arrangement that has ever made
+it stick (D186, D198, D273).
+
+Per D198 and D273 both, this verdict is a report about a comparison and
+never a promise about the tree: **a verdict has a shelf life of exactly
+one dispatch, and a bump has a shelf life of exactly one upload.**
+
+**And at the click.** If the four fire secrets are set before the next
+release, build 30's delivery should record itself and the next pre-flight
+is the test of whether that is true. If they are not, this entry is the
+sixth in a row and the reading above stands unchanged.
+
+## D381 amendment (2026-09-06) · Build 30 is delivered, and the whole release happened in one sitting
+
+**Status:** binding as a RELEASE RECORD. D381 above is the pre-flight that
+prepared build 30; this is what the dispatch did with it.
+
+Run 51 (`34025693929`, 09:48:48Z) was the dry run — step 17 `skipped`,
+5m 48s, archive and both entitlement gates green, `EXPORT SUCCEEDED`. Run
+52 (`34026067310`, 09:57:16Z) was the upload — step 17 **`success`**,
+10:01:23Z → 10:02:41Z, 1m 18s of transfer, `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `96e50ef5-0a24-4308-ad52-7e0d7ea9252b`,
+6,199,752 bytes. **Build 30 is spent**, and `appBuild` went 30 → 31 read
+off that step's own step list rather than from a memory of it.
+
+Ten bumps have now held (20, 21, 22, 28, 33, 36, 42, 44, 48, 52) against
+nine skipped (18, 19, 24, 26, 31, 38, 40, 46, 50).
+
+### The gap this release did not have
+
+Every previous skip had one: D143 named it as the gap between "the upload
+finished" and "someone came back to the tree", and D273 narrowed it
+further to the number itself — *a bump has a shelf life of exactly one
+upload*. This release had neither gap, because the pre-flight, the merge,
+both dispatches, the bump and this record are one continuous sitting. That
+is not a new rule, it is D186's arrangement with nothing between its
+parts, and it is the cheapest way this has ever been done.
+
+### D159's trap fired, and the gap was read rather than assumed
+
+Run 51 archived `bf24004` — the merge of D381's own release prep, the
+commit carrying the bump that made 30 legal — and run 52 archived
+`c5cc341`, a console trail row pushed in the eight and a half minutes
+between the dispatches. Fifth worked example after runs 22, 32/33, 41/42
+and 43/44.
+
+What is new is that the gap was **opened and read** rather than noticed
+afterwards. `main` was re-read between the dispatches, found moved, and
+the moving commit was diffed before the upload went: `docs/MERGE-LIST.md`,
+`docs/OWNER-LIST.md` and `monitoring/console-trail.jsonl`, with `appBuild`
+30 at both commits. Nothing `dist/`, `ios/` or the shell reads. So the
+answer to *does this cost anything* was measured, not assumed — which is
+the half D229 could not give for build 23, where the commit in the gap
+changed the bundle's own posture and nobody looked until afterwards.
+
+**The re-read is the procedure; closing the gap is not always available.**
+D324 and D339's amendment each closed it on purpose. Here it could not be:
+the console workflow pushes on its own schedule and this release ran
+through its slot. That makes the re-read the load-bearing step rather than
+the fallback, and it answered in one diff.
+
+### Step 18 was empty again
+
+`release recorder not wired` for the second release running. D381 argued
+that a remedy waiting on a click nobody has made is not yet a remedy; two
+deliveries now say the same thing, and both were recorded by hand. The
+click's row on `OWNER-LIST.md` § Clicks carries both.
+
+### When to revisit
+
+**At build 31's pre-flight.** Run 52 is the highest run, its step 17
+`success`, `appBuild` at its own `head_sha` `c5cc341` is 30, and the tree
+is at 31 — so unless something dispatches in between, that pre-flight
+should answer *run as-is*. Per D198 and D273 that sentence is a report
+about a comparison and never a promise about the tree: **a verdict has a
+shelf life of exactly one dispatch, and a bump has a shelf life of exactly
+one upload.**
+
+## D382 · Question content is not first-paint bytes, and a gate says so
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
+in the words that are the rule: *"a iPhone should not download all the
+questions like YouTube does not download all the videos."* Said before —
+D316 records the same sentence about the READ path (*"one does not need
+to answer every question, like one does not need to watch every YouTube
+video"*) and built the paged bank for it. This record is the other half,
+the one nobody had measured: the questions were also in the BUNDLE.
+
+### What was true
+
+`src/v2/spec/daily-questions.js` — 36 KB of demo questions, and the file
+the question farm appends to **every day** — was fetched before the app
+could paint. So the bank's size was the app's start-up cost, and enough
+questions made a content lane unmergeable: on 2026-09-04 the farm's PR
+#391 failed `check:bundle` at 632 KB against 630, and on 2026-09-05 the
+feed lane aborted against the same wall with 60 pre-flighted questions
+parked. **The answer both times was to raise the ceiling** — 630 → 642 at
+D365, 645 → 630 → 642 across the entries above it. Nothing was wrong with
+those raises on their own terms; what was missing is that nobody asked
+why a *question* was in first paint at all.
+
+### The three edges, because two were invisible
+
+`check:bundle` reads `dist/index.html`, so it sees a module only when the
+bundler gives it a chunk of its own. That found one edge and hid two:
+
+1. `spec-index.js`'s side-effect line — the eager list. Removing it moved
+   the graph **2 KB**, which is the measurement that proved it was not
+   the cause.
+2. `daily-split.jsx` — the landing tab, **inlined into the entry chunk**,
+   so it has no chunk to name. Its static `import { DAILYQ }` is used at
+   two sites, both gated on `DAILYSPLIT_DQ_SYNC`, which carries exactly
+   one demo id (`'Pineapple on pizza?'`). On a live build the archive was
+   fetched for nothing at all. Now loaded on that id's first use; both
+   call sites already had a correct path for a missing store.
+3. `map-branches.js` — also in the entry chunk — imported the archive for
+   `EMERGENT_CATS`: fourteen labels and hues derived from `CAT_META`, and
+   not a question. `daily-cats.js` now carries the taxonomy, and
+   `question-quality.mjs` (the only site that parses `CAT_META`, checked
+   rather than assumed against D197's three-copies trap) reads it there.
+
+Measured, shipping-build recipe: **631 → 596 KB eager.** `MAX_EAGER_KB`
+goes 642 → **607**, the file's own ~11 KB band, rather than banking the
+35 KB as slack — the same thing D354's sweep did at 645 → 630.
+
+### The gate, and why it is a source walk
+
+`check:eager-content` walks **static** imports from `src/v2/main.jsx` and
+fails when question content is reachable. A `import()` is not an edge,
+which is the point: that is how a surface should reach content. It reads
+source rather than `dist/`, because edge 2 above is exactly what a
+chunk-name check cannot see, and it prints the import chain rather than
+the file alone — naming the file leaves you to find the edge, which is
+the part that took the measuring.
+
+Its allowlist is a **shrink-only ratchet** (`check:globals` rule 4's
+shape): six demo archives still eager because a first-paint surface still
+imports them statically — `sample-data`, `duels-data` and the
+`content/duel-questions.json` it drags with it, `world-feed-data` (the
+feed lane's continuum twins, so that lane's half of this is NOT fixed
+here), `test-feed-data`, `archetype-data`. Each line names its reason; a
+module that stops being eager fails the gate too, asking for its line
+out. Removing the last one deletes the list. Both refusals were run
+against a deliberately broken tree, and are pinned in
+`scripts/check-eager-content.test.mjs` — including that the fix the
+gate's message asks for actually passes it.
+
+### What this does not do
+
+It does not touch the **read** path: a cold boot still fetches the
+surfaces `BANK_SURFACES` names. D316's paging is built for learn (D320)
+and the feed tail (D321); the daily, the tests, the duels and the feed's
+core still ship whole, the last deliberately (D161, the Mirror's corpus).
+The daily is the one that grows every day, and it is the obvious next
+one. Recorded here rather than done, with the arithmetic where the next
+session will find it.
+
+## D383 · The daily pages: a published length, seven documents, and the density it rests on
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
+who had said it before and been half-answered: *"an iPhone should not
+download all the questions like YouTube does not download all the
+videos."* D316 recorded that sentence for the read path and built the
+paging for learn (D320) and the feed's tail (D321); D382 took the
+questions out of the BUNDLE. The daily was left in both places, and it is
+the one surface a scheduled lane appends to every single day.
+
+### What was true
+
+A cold boot read **847 documents**, and `BANK_SURFACES` carried `daily`
+— all 130 of them, growing by one a day for as long as the farm runs.
+`rank.ts` had excluded the daily from the published order for a good
+reason, written down: the daily is **positional**, everyone answers the
+same question on the same day, and that is what makes a cohort reading
+mean anything. The conclusion drawn from it was that the daily could not
+page. That does not follow.
+
+### What a device actually needs
+
+`computeDeckIds` indexes `(today - epoch - back) mod n`. The bank is the
+*resolution* of that index, not an input to it — the only input is **n**.
+So the server publishes the length and the device computes its own seven
+positions:
+
+- `v2_rank/daily` = `{ n, maxSeq }`, written by the nightly `rankBankV2`
+  beside the two orders. Not an order: a length. `dailyShape` filters the
+  bank exactly as the client's `splitBanks` does, tombstones included —
+  retired dailies stay counted, because dropping one shifts every visible
+  day on every device (the probe in `live.ts`: retiring one question
+  changed 7 of 7 pager cards).
+- The device computes positions **locally**, which is what keeps the
+  midnight rollover working — a published deck would hand out yesterday's
+  question until the 03:07 fold ran. It fetches `back` from -1, so
+  tomorrow's card is in hand before the day turns.
+- `where("surface","==","daily"), where("seq","in",[…])` — equality only,
+  so no composite index. Seven documents, or eight across a rollover, **at
+  any bank size**.
+
+`computeDeckSeqs` and `computeDeckIds` are pinned against each other over
+800 days at six bank sizes, because a disagreement between them is two
+users answering different questions on the same day with nothing to show
+for it.
+
+### The density it rests on, and the refusal that guards it
+
+Position maps to `seq` only while the daily's seq space is dense from
+zero. `live.ts`'s own boot query already stated it ("per-surface and
+contiguous") and **nothing enforced it**. So `maxSeq` is published to be
+CHECKED: `maxSeq === n - 1` or the fast path is off and the device fetches
+the daily surface whole, exactly as every build before this one. Three
+other conditions take the same fallback — no shape document, an
+unreadable one, and a short answer to the deck query (a document deleted
+rather than retired). There is no partial-deck outcome.
+
+`firestore-tests/e2e-v2-loop.mjs` proves the density on the **database**
+rather than on the compiled bank: it reads what the real seed wrote and
+fails on the first hole. That is the copy the device reads, and it is the
+only harness that can see it.
+
+### The two folds that wanted the whole bank
+
+`aggregated()` (the Mirror's Answers and Scores rows) is "every daily you
+have ANSWERED" — so it heals from history, the feed's own pattern one
+surface over, bounded by the person's answers and cached afterwards.
+`placeAsks()` (the Scores lens's pool) is "every active `rating` daily
+naming this place that I have NOT answered", which history cannot supply,
+so it is a bounded query after first paint. Both run in `topUpBankPages`,
+never at boot.
+
+**The rating pool is the remaining linear term, and it is not fixed here.**
+29 of 130 dailies carry `rating` today; at ten times the bank it is ten
+times that. The shape it wants is the same one this record uses — the
+scope's ask ids published in the shape document — and it is written down
+rather than built because the deck was the term that grew every day.
+
+### What it costs
+
+One extra round trip on a boot where the day has moved: the shape rides
+out with the bank's own reads (D356's argument, applied to the fourth
+thing the boot needs), and the deck's rows are a dependent trip. A
+same-day relaunch fetches no question at all. A cold boot: **847 → ~725
+documents**, and the daily's term stops growing.
+
+## D384 · The Scores pool pages too: ids in the shape document, documents by the page
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
+— *"fix the rating pool too"* — against the term D383 recorded as owed
+rather than fixed. This is that record's own follow-up, and it is what
+finishes taking the daily off the boot.
+
+### What D383 left standing
+
+The daily's deck went to seven documents at any bank size, but the Scores
+lens's pool did not. `placeAsks()` answers "every active `rating` daily
+that names this place and I have NOT answered" — the one daily fold
+history cannot supply, because its whole subject is what you have not
+answered yet. So D383 made it a query over the surface: honest, correct,
+and **linear** — 29 of 130 dailies today and the same fraction of any
+bank. At ten times the bank it is ten times the reads, which is the shape
+the paging exists to remove.
+
+### The pool is ids, and the count is what makes it work
+
+`v2_rank/daily` now carries `rates: { city: [...], country: [...],
+world: [...] }` — the ask ids per scope, active only, in seq order so a
+device that answered the head meets the same tail tomorrow rather than a
+reshuffle. The device:
+
+- subtracts **its own votes locally** — nothing per-person reaches the
+  server for this (D163's line), and it is also what makes the remaining
+  count exact without a read;
+- fetches documents for the first `PLACE_ASK_PAGE` (24) per scope it has
+  not met, by id, through the same `fetchByIds` the other pagers use;
+- keeps the document as the authority on `active` and on which scope a
+  question names, because the published list is a night old and a console
+  edit is not.
+
+**The count is the half that is easy to get wrong, so it is its own
+member.** The lens draws three asks and prints *"N more after these"* —
+a user-visible number. While the pool was the whole surface, `asks.length`
+was that number by accident. Page the fetch and it silently becomes an
+undercount: *"1 more after these"* on a stop holding forty. So
+`placeAskTotal(scope)` counts the published ids minus this account's
+votes, `placeAsks(scope)` returns what can be drawn, and the lens reads
+one for the list and the other for the sentence. Pinned as its own case —
+a page of four against a pool of forty must print 37.
+
+### Where it degrades, and to what
+
+No published pool — a demo build, a project whose nightly fold has not
+run, a malformed document — and `dailyRatesPool` is null: `placeAskTotal`
+falls back to counting the drawn rows, which is exactly right then,
+because the device is holding the whole surface. The pool is cleared on
+the same path that clears the length and never on the other one.
+
+**One bug this found in D383's own code**, recorded because it was the
+dangerous kind: the fallback cleared `dailyBankN` before checking whether
+the device already held daily rows. On a warm PAGED boot whose shape read
+failed — one small document, one network blip — that turned a stale
+length into no length, and the deck's positions were then computed
+against the eight rows in hand instead of the bank's. The device would
+have painted a different day's question from everyone else, off its own
+disk, with nothing anywhere to say so. A stale length is a stale deck; a
+cleared one is a wrong deck, so the fallback now returns before clearing.
+
+### What it costs
+
+Nothing at boot that was not already there: the ask ids ride the shape
+document the deck already reads, and the page rides the top-up that
+already fetches the Mirror's answered rows. The pool's read cost stops
+being a function of the bank — 24 per scope, once, cached after. The
+document grows instead: ~1,100 ids at ten times the bank, ~13 KB, well
+inside the limit rank.ts's header already prices, and the sharding
+graduation recorded there covers the case beyond it.
+
+## D385 · The PR shepherd is retired: pull requests are merged by hand
+
+**2026-09-06.** Owner: *"the pr sheperd does not work so do it manualy and
+remove the text that mention a pr sheperd."* **Status:** binding, and an
+explicit reversal of the merge-automation half of D352 and of the lane
+D289's engineering tier was built around. Nothing else in D352 moves — the
+six lists, the tick, and the owner's `approved` tap all stand.
+
+**There is no merge automation in this repository.** The Action
+(`.github/workflows/pr-shepherd.yml`), its three scripts
+(`scripts/pr-shepherd.mjs`, `pr-shepherd-lib.mjs`, and the test) and every
+contract for the lane are deleted. `CLAUDE.md`'s rule now reads that a PR
+is merged by hand, by the owner.
+
+### What it did, measured, before it was removed
+
+The lane ran 25 times as an Action between 2026-09-03 and 2026-09-06 and
+concluded `success` on every run in the visible window. It also merged
+nothing. PR #405 — the build 30 release prep — sat green and mergeable
+with all eleven checks passing while the release it unblocked could not be
+dispatched, and it was merged by hand in the end. **A lane that reports
+success and does not do its job is worse than no lane**, because the run
+list looks healthy: the same shape D381 had just recorded one paragraph
+over, where step 18's `release recorder not wired` also read `success`.
+
+The honest reading of why is not "the Action was broken" but that the lane
+was three mechanisms deep and each was one permission short of working.
+The register already carried it: refused from a session by the permission
+classifier, then bound to a dispatcher that could not run `git merge`, then
+re-created fresh-session and handed no MCP tools, then moved to an Action
+whose trigger conditions never coincided with a labelled green head. Four
+attempts, each fixing the previous failure, none reaching a merge. The
+owner's sentence ends that sequence rather than adding a fifth.
+
+### What did not change, and this is the part worth keeping
+
+The discipline the lane was supposed to enforce was never the lane's. What
+a session owes before a PR is mergeable is unchanged and is now the whole
+of the contract: **`main` merged in, decision numbers already moved (D299),
+green on the current head, and then stop.** The merge shift still brings a
+PR to green, still reviews the diff as one unit, and still applies
+`merge-when-green` — which from today is a marker that a named head is
+ready, not an instruction anything executes.
+
+**No lane merges, so no lane needs the merge tool.**
+`mcp__github__merge_pull_request` is granted to no lane in this program;
+`OPS-RUNBOOK.md`'s merge tier is gone rather than reassigned, and the
+open permission rows that existed to make the lane able to merge are
+closed as moot rather than left waiting.
+
+### What was kept, deliberately
+
+Three things still say "PR shepherd" on purpose, and none is an
+instruction:
+
+1. **The owner's own quoted words** in `PROGRAM-PLAN.md` §10 and
+   `ROUTINES.md` — *"this is wrong, the shepherd can"*, *"they are set to
+   be merged by the shepherd"*. Rewriting a person's quoted sentence to
+   match a later decision falsifies the record of what was said and when.
+   Both sites are annotated with this decision instead.
+2. **The historical decision records** above. D352 and the rest stay as
+   written; a reversal is recorded, never retrofitted (`CLAUDE.md`:
+   binding "until an explicitly recorded reversal").
+3. **The dependency shepherd**, which is a different lane, still Mondays,
+   and still never merges. The owner named the PR one.
+
+### The half a session cannot finish
+
+The Action is deleted; the **Routine is not**.
+`trig_01Ln6FDEipFzAghqJ777AL5j` lives on the ops subscription, and
+`list_triggers` returns only the calling account's — this account's eleven
+do not include it — so no session here can disable it. Until the owner
+does, it fires every third hour into a contract that is no longer on
+`main`. It is on `OWNER-LIST.md` § Clicks, and `ROUTINES.md` §3 keeps a
+struck row rather than a deletion so the live trigger is visible rather
+than merely absent. **Deleting the documentation of a thing that is still
+running is how a surprise gets made**, which is the failure `CLAUDE.md`
+names and the one this decision is otherwise about.
+
+## D386 · The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess
+
+**2026-09-06.** **Status:** binding, built. The owner's *"yes build the
+first two steps"* on [`ROLES-PLAN.md`](ROLES-PLAN.md) §5, the same day
+the plan was written and the same day its §2 was measured. Written as D381 on this
+branch, renumbered to D385 when its pull request opened and to D386
+before it merged: main took D381–D384 (#405, #407) and then D385 (#409,
+the shepherd's retirement) while the branch was open — the collision
+pattern D289 names, met twice on one branch.
+
+### What the plan found, in one line each
+
+`scripts/roles-probe.mjs` against the shipped tables: at the fortnight
+the app reads, a 1v1 match is a tie for over half of records and one
+more day renames one in six; the group's three dims correlate at −0.7
+to −0.9, so after 14 days four in five members are The Quiet Majority;
+Steadiness measures how long you have played. Two structural faults
+sat under those: eleven 1v1 questions ask for a read of the *other*
+person and the fold scored them as reading and as likeness, because
+the source's `d` tag never reached the seed; and every rate was a raw
+hit rate, so a two-option day counted like a four-option one and a
+pick day in a group of eight like a coin. Steps 1 and 2 close the two
+faults and add the one reading the group instrument was missing. The
+tables, the ledger and the cast (steps 3–5) are still the owner's.
+
+### Step 1 — the day's kind, and the honest fold
+
+- **The seed carries the 1v1 domain.** `gen-v2content.mjs` emits the
+  source's `d` as `topic` on both 1v1 pools (`day` · `heat` · `mirror`
+  · `ahead`), the way a group question's kind already rode that field;
+  `check:content` holds the set closed like the group kinds;
+  `duelQFor` carries it to the card as `kind`, which only ever asked
+  "pick". The embed is regenerated (the bank's wire size moved 243.6 →
+  243.7 KiB, `COSTS.md`). A reseed writes it onto the live documents;
+  until then `bankQ` answers "classic" and the fold reads every day as
+  an ordinary one — which is also what every reveal before the tag is.
+- **Every rate is scored against luck** (`data/roles.ts`, the plan's
+  §3.2): a hit counts 1, a miss −1/(k−1) for a day with *k* options,
+  the mean lands on 0–100 as 50 + 50·mean — 50 is guessing at random,
+  100 is right every day, on a two-option day and an eight-option pick
+  day alike. *k* comes from the bank entry (`bankQ`), from the reveal's
+  own roster on a pick day, or from the highest index the reveal's
+  votes reach — a floor, never a guess at more options than were seen.
+  The receipts stay the plain counts. On a coin the scale IS the raw
+  rate, so every binary fixture in `roles.test.ts` kept its numbers;
+  what changed is a miss on a four-option day costing a third instead
+  of everything (the new cases pin both).
+- **A mirror day is held apart.** It moves none of the four dims and
+  lands in two receipt rows of its own — *you called how they see you
+  on 2 of 2 days*, and the reverse — and it does not count toward the
+  floor, which the panel's thin row now reflects. **Projection** (your
+  guess was your own answer — the ties lane's knowledge-against-
+  projection, tie-3) is folded the same way, as a receipt.
+- **`asides`**, not dims. The registry cases hold every signature to
+  exactly the fold's dim ids, and a reading the tables cannot see is a
+  row, not a petal, until the tables take it (step 4). They blend on
+  their own days and draw in the panel's receipts beside the dims.
+- **The baselines moved to the scale** (`IS_TEST_AVG`, the arithmetic
+  beside them): `duo` read/seen 62 → 70, like 54 → 64; `group` own 34 →
+  24, pull 58 → 70; steadiness is not a rate and stayed. Still
+  authored, for D157's reason.
+- **Rule 4 in the matcher** (`IS_archScores`, the plan's §3.6): a type
+  is in the running only when every dim that defines it (|sig −
+  baseline| ≥ `RULE_STRONG`) is present in the fold; otherwise it
+  scores Infinity, is never the runner-up, and `IS_matchArchetype`
+  returns null when nothing is eligible. With every dim present —
+  every caller today — nothing changes, and the registry case says so.
+- **The copy** says the scale (`explain-sheet.jsx`): *scored against
+  luck — 50 is guessing at random*.
+
+### Step 2 — reading the room
+
+- **The group card morphs** like the 1v1 card (`LiveDuelPanel`): the
+  second tap is *And the room picked…?*, the pick waits for it, one
+  create (D5, D156 §4). The write shape did not change — `isDuelAnswer`
+  admitted `guessIdx` on the group surface all along and the reveal
+  carried it for any mode. The reveal draws a *you read the room* row
+  under the bars, a hit when the call named an option tied for the
+  top; a room of one draws nothing, because that room is you.
+- **The fold reads it** as the `room` aside — *called where the room
+  landed 4 of 6 times* — on days two or more answered the row's
+  question.
+- **The signal counts it** (`duelAggDelta`, `functions/src/pure.ts`):
+  a group's guesses score against the options tied for the top of the
+  counted votes, on a room of two or more; the scorecard's duel
+  section reads the same `guessMatchRate` band for both surfaces, and
+  the duel lane's brief says so (`QUESTION-FARM.md`, `SCHEMA-V2.md`).
+  The e2e loop pins a group reveal carrying the member's guess.
+
+### What moved on a card that exists
+
+The dims of every role card are now on the chance scale against
+re-authored baselines, mirror days are out of them, and the tables are
+the same — so some cards land on a different name than yesterday. Few
+exist (pre-launch builds), the plan's §2.1 says what the old name was
+worth, and the runner-up and hysteresis that would show the change
+coming are step 4's, with the tables.
+
+### What stays
+
+D204's rules, whole: no dead axis (an aside draws only with days
+behind it), the floors in their own unit, receipts on every dim, live
+only. The fortnight of reads and its cost row; the demo layer's own
+type maths; the seal; the reveal's readers (D98).
+
+### Gates
+
+`test:unit` (2 685), `test --prefix functions` (705), `test:scripts`
+(957), `lint`, `tsc -b`, `check:globals` (30, unmoved), `check:content`,
+`check:figures`, `check:docs`, `check:public-copy`, `check:tap-targets`,
+`check:a11y`, `check:bundle` (eager 599 KB against the 607 ceiling on
+the merged tree — D382 had just taken the question content out of first
+paint and re-based the ceiling; the matcher's rule 4 and the explain
+copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
+one emulator boot.
+
+## D387 · Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read
+
+**2026-09-06.** **Status:** binding as a RECORD OF A CHECK and of one
+change to the console. Nothing on a night branch was merged here, because
+there was nothing left to merge: the check is the finding. The change is
+that `docs/MERGE-LIST.md` and the pinned Console issue stop offering a tick
+on a night whose review has already landed.
+
+### The question, and the answer
+
+The owner asked whether all night shifts had been reviewed, and to review
+and merge any that had not. **All of them have.** Every branch either of
+the two night shifts has produced — `night-20260825` through
+`night-20260906`, `nightb-20260902` through `nightb-20260906` — carries
+nothing that is not on `main` today.
+
+| Nights | How they reached `main` | How that is verifiable |
+| --- | --- | --- |
+| `night-20260825` … `night-20260902`, `nightb-20260902` (+ its integration branch) | merged by a MERGE COMMIT, so the branch tip is an ancestor of `main` | `git merge-base --is-ancestor origin/<branch> origin/main` answers yes for all eleven |
+| `night-20260903` … `night-20260906`, `nightb-20260903` … `nightb-20260906` | reviewed and SQUASH-merged as the composed tree — D360 (#384), D363 (#392), D365 (#398), D380 (#402) | each record's own arrival table states the branch and its commit count, and the four counts equal what GitHub reports the branch as being ahead by: 35/25, 32/13, 32/18, 33/35 |
+
+The records go back further than the branches that still show: D323 (the
+27th), D335 (the 28th and 29th together), D336 (the 30th), D338 (the
+31st), D349 (the 1st and 2nd). Only the two oldest nights, 08-25 and
+08-26, are named in no record at all — and both are ancestors of `main`,
+so nothing of theirs is outstanding either.
+
+### Why the list said otherwise, and it was not a stale render
+
+The merge list drew eight night branches as approvable `- [ ]` rows on the
+morning of 2026-09-06, four hours after the last of them merged, and
+`docs/OWNER-LIST.md` § Approvals carried the same count as a sentence:
+*"18 PR row(s) and 8 branch row(s) waiting for a tick"*. Both were
+regenerated from GitHub minutes earlier. The rows were current; the
+question they were answering was the wrong one.
+
+**A night shift's branch is never merged as itself.** The review composes
+both shifts with `main` on a branch of its own and that PR is
+squash-merged, so every commit's CONTENT lands while none of its commits
+becomes an ancestor of `night-YYYYMMDD`. GitHub's compare therefore reports
+the branch as ahead by exactly what it was ahead by the night it closed,
+forever, and `console.mjs` drew a row for every `night-*`/`nightb-*` branch
+with `ahead_by > 0`. The nine older nights are absent from the list for the
+same reason inverted: they were merged with merge commits, which made their
+tips ancestors, which zeroed `ahead_by`. **The cut-off is exactly where the
+merge method changed**, which is why the list has carried precisely four
+days of rows since 09-03 and will carry two more every morning.
+
+### What a tick on one of those rows would have done — measured
+
+Not noise. A tick makes the console open a PR from that branch and label it
+`approved`, and the branch is a snapshot of a tree that has since moved.
+Merged into `origin/main` @ `c5cc3414` in a scratch worktree:
+
+| Branch | Result |
+| --- | --- |
+| `night-20260906` | **conflicts in four files**, and among what merges cleanly it restores `functions/src/paid.ts`'s `checkoutLineItem(isAd, …)` arm and 307 lines of `paid.test.ts` — `adPriceQuote`, `adStartDay` and their cases — which is the ad path D375 deliberately removed in #401, seven hours before the row was drawn |
+| `nightb-20260906` | conflicts in two files |
+| `night-20260905` | conflicts in eleven |
+| `nightb-20260905` | conflicts in six |
+
+So the row invited the owner to hand the merge shift a PR that reverts a
+merged decision and cannot merge — and the shift, doing its job, would have
+spent a battery run finding that out.
+
+### The one commit no review has ever taken
+
+`nightb-20260905` carries nineteen commits and D365's table accounts for
+eighteen: `deb14013`, *"Raise the eager ceiling to 642 KB, with the note the
+gate asks for"*, was pushed at 09:56 UTC on 2026-09-05, five hours after
+that review composed at 04:13. It is the only such commit across all
+thirteen nights, found by comparing each record's stated count with the
+branch's own.
+
+**Nothing is missing because of it.** The same review made the same change
+itself: `scripts/check-bundle.mjs` on `main` reads `MAX_EAGER_KB = 642`
+with the ledger entry *"630 → 642 (2026-09-05, D365's night review)"*, and
+`docs/OWNER-LIST.md`'s row is the ruled version. The night shift declined
+the raise twice on the grounds that spending the owner's last kilobyte
+unattended was not the *"deliberate note"* the gate invites, then made it
+when the owner said *"raise the ceiling and note why"* — and the review had
+already done it. Two paths to one decision, which is what two shifts and a
+reviewer on one tree produce. The commit is accounted for here rather than
+merged: merging it would re-apply a ceiling that is already 642.
+
+### What changed
+
+`scripts/console-lib.mjs` gains `parseNightReviews`, which reads
+`docs/DECISIONS.md` on `main` for the table shape every night review since
+D360 has used — `` | `night-YYYYMMDD` | <commits> | `` — and returns the
+record and count per branch. `branchRow` marks a branch **merged** when the
+count accounts for every commit it carries; a merged branch draws no box on
+either surface, appears in one line naming the record that took it, and
+`decideActions` refuses to open a PR for it even if a tick is left over
+from an older render. A branch with commits BEYOND its record keeps its box
+and says so — *"19 commits, 18 of them merged as D365"* — and the PR the
+console opens for it says which are already in. The two counts that told
+the owner what was waiting (the trail's `noPrYet`, the owner list's
+Approvals line) now count only what is.
+
+On today's tree that is eight approvable rows down to one, and that one
+names the commit above. With the row below accounting for it, none.
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `nightb-20260905` | 19 | reviewed | eighteen merged as D365, the nineteenth superseded by that same review's own ceiling raise |
+
+**The receipt is a document, and it fails toward the row.** A record that
+names no branch, a table written in another shape, an unreadable
+DECISIONS.md — each leaves every night exactly as tickable as before,
+which is the direction that cannot lose work. What it cannot do is notice a
+night whose review merged something OTHER than what its table claims; the
+record is trusted for its own arithmetic, and the arithmetic is one number
+a reviewer writes by hand. The live table is pinned by a test against this
+tree's own `DECISIONS.md`, so the next record that changes the shape fails
+`test:scripts` before the page goes wrong.
+
+### What this does not decide
+
+The night branches are never deleted, so they accumulate on the remote at
+two a night whether or not the console draws them; the one-line note names
+the six newest and counts the rest. Whether the reviews should merge the
+composed tree with a merge commit instead — which would make every night an
+ancestor of `main` and delete this whole class of row at the source — is
+the owner's, not this record's. It got cheaper to choose while this branch
+was open: **D385 retired the PR shepherd an hour before this merged**, so
+the squash is no longer something an Action does on a label but a choice
+made at the button, and "Create a merge commit" is the same click. This
+record does not ask for it, because the receipt above closes the symptom
+either way and a merge commit on a night branch has costs nobody here has
+priced.

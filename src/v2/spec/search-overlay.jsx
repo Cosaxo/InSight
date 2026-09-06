@@ -11,6 +11,11 @@ import React from 'react';
 // arrive with THIS group, not with that one. loadOverlays calls
 // installSubtopicStock() for the same reason.
 import { SUBTOPICS } from './world-subtopics.js';
+// Both deferred with this file (search-overlay moved into loadOverlays at
+// D223), so neither reaches the first frame — world-catalogs is already
+// pulled in by loadWorldFeed for the same reason.
+import { WF_CATALOGS } from './world-catalogs.js';
+import { wfAnsweredOf, wfPcts, wfVotesOf } from './world-feed-math.js';
 import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
@@ -27,6 +32,7 @@ import NAV from '../data/nav';
 // not first paint, and a real import is one less name resolved at render
 // time (check:globals rule 4).
 import LivePeopleSearch from '../ui/LivePeopleSearch.tsx';
+import { WORLD_TOPICS } from './world-feed-data.js';
 
 const { useState: useSrchState, useEffect: useSrchEffect, useMemo: useSrchMemo, useRef: useSrchRef } = React;
 
@@ -56,12 +62,18 @@ function srchQScore(q, query, topicLabel) {
   if (t >= 0) best = Math.max(best, 3 + t);
   return best;
 }
+// The feed's own counter, not a fork of it. This was a stale copy that
+// knew about `rank` and `rate` and nothing else, so `dial`, `field` and
+// `pick` — which carry no `options` — scored 0 in both orderings below.
 function srchQVotes(q) {
-  return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : (q.options || []).reduce((a, o) => a + o.count, 0);
+  return wfVotesOf(q, (WF_CATALOGS[q.catalog] || {}).picks || 0);
 }
+// The feed's own predicate, not a fork of it. This was the feed's TAIL
+// with the live branch cut off, so an answer that exists only on the
+// server — another device, or a page fetched after boot — read as
+// unanswered in both orderings below and on the row itself.
 function srchAnswered(q, votes) {
-  const v = votes[q.id];
-  return q.type === 'rank' ? !!(v && v.order) : v != null;
+  return wfAnsweredOf(q, votes, LIVE.myVotes ? () => LIVE.myVotes() : null);
 }
 // what you said, in the fewest words that still mean something
 function srchMyPick(q, votes) {
@@ -95,11 +107,20 @@ function SrchHit({ glyph, title, sub, q, onClick }) {
 }
 
 // answered rows carry a silent meter instead of a badge: how big your side was
+//
+// The feed's own share, not a fork of it — the third helper in this file to
+// need that sentence, after `srchQVotes` and `srchAnswered` above. It
+// divided `o.count` by the sum of `o.count`, and a live card's counts have
+// the viewer's own vote SUBTRACTED (data/live.ts's feedCounts says so; the
+// feed adds it back with `wfPcts`). So this meter drew a share of a
+// population the reader was not in: a true 62.5% came out at 60.9%, and
+// when you were the only voter your side was 100% and the bar drew at its
+// 4% floor — "almost nobody agreed with you", about a crowd of one, which
+// is you.
 function SrchShare({ q, votes, color }) {
   const v = votes[q.id];
   if (typeof v !== 'number' || !q.options || !q.options[v]) return null;
-  const total = q.options.reduce((a, o) => a + o.count, 0) || 1;
-  const share = Math.max(0.04, Math.min(1, q.options[v].count / total));
+  const share = Math.max(0.04, Math.min(1, wfPcts(q.options.map((o) => o.count || 0), v).p[v] / 100));
   return (
     <span aria-hidden="true" style={{ width: 40, height: 4, borderRadius: 999, background: 'color-mix(in oklch, ' + color + ' 16%, var(--surface-3))', flexShrink: 0, overflow: 'hidden', display: 'block' }}>
       <span style={{ display: 'block', height: '100%', width: (share * 100).toFixed(1) + '%', background: color, borderRadius: 999 }}></span>
@@ -153,7 +174,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
   const query = q.trim().toLowerCase();
   const D = IS_DATA;
-  const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
+  const TOPIC = useSrchMemo(() => Object.fromEntries(WORLD_TOPICS.map((t) => [t.id, t])), []);
   const ST = SUBTOPICS;
 
   // the label a question wears — the leaf if it has one, else its topic
