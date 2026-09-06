@@ -247,6 +247,20 @@ export function isFeedQid(id: string): boolean {
   return FEED_ID_LANES.some((p) => id.startsWith(p));
 }
 
+// The daily's lanes — one today, declared the same way and for the same
+// reason the feed's are. The daily became a paged surface at D383, so
+// "which of my answers are dailies?" is now a question the store asks on
+// every boot, and the wrong answer is silent: an answered daily that no
+// longer resolves to a document is an answer the Mirror cannot name.
+// scripts/feed-lanes.test.mjs holds this list to the generator's output
+// too, so a second lane fails there rather than shipping quietly.
+export const DAILY_ID_LANES = ["daily-"] as const;
+
+/** Whether a question id belongs to the daily surface. */
+export function isDailyQid(id: string): boolean {
+  return DAILY_ID_LANES.some((p) => id.startsWith(p));
+}
+
 export const DECK_DAYS = 7; // today + the recent past, like the demo pager
 export const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -522,6 +536,32 @@ export function computeDeckIds(
     const idx = (((today - DECK_EPOCH - back) % n) + n) % n;
     return questionIds[idx];
   });
+}
+
+/**
+ * The deck as POSITIONS rather than ids (D383) — the same arithmetic as
+ * `computeDeckIds`, for a device that no longer holds the daily bank.
+ *
+ * The two must agree exactly or two devices disagree about what today's
+ * question is, which is the one thing the daily cannot survive: a blind
+ * question is only worth comparing because everyone answered the same
+ * one. So this is the same expression, and `deck.test.ts` pins them
+ * against each other over a span of days rather than trusting that.
+ *
+ * A position is a `seq` only while the daily's seq space is dense from
+ * zero — live.ts's boot query already states it is ("per-surface and
+ * contiguous"), the server publishes `maxSeq` so a device can CHECK it,
+ * and the caller falls back to the whole-bank fetch when it does not
+ * hold. Nothing here assumes it; the caller does the checking.
+ */
+export function computeDeckSeqs(
+  n: number,
+  today: number,
+  deckDays = DECK_DAYS,
+): number[] {
+  if (!Number.isFinite(n) || n <= 0) return [];
+  return Array.from({ length: Math.min(deckDays, n) }, (_, back) =>
+    (((today - DECK_EPOCH - back) % n) + n) % n);
 }
 
 // The per-surface bank split, extracted from live.ts's refresh path so the

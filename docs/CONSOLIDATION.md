@@ -98,14 +98,20 @@ daily state.
 
 ## 2 · The floor: what survives any cut
 
-**Nineteen GitHub Actions workflows already run the mechanical half of
-the program on no subscription at all**, and four of them arrived by
+**Eighteen GitHub Actions workflows already run the mechanical half of
+the program on no subscription at all**, and three of them arrived by
 moving work off an account rather than by adding anything: the console
 (`console.yml`, D352), the production reader (`production-reader.yml`,
-D359), the PR shepherd (`pr-shepherd.yml`, 2026-09-04) and the App Check
-watch (`appcheck.yml`, D367). Each was a Claude lane; each is now a
-script that costs nothing from any bucket — and the fourth arrived the
-day after this page was written, which is the rule below working.
+D359) and the App Check watch (`appcheck.yml`, D367). Each was a Claude
+lane; each is now a script that costs nothing from any bucket.
+
+A fourth was moved and then **retired outright**: the PR shepherd ran as
+`pr-shepherd.yml` for two days and D385 deleted it, because merging
+turned out not to be mechanical at all — it is the owner's act, and a
+PR is now merged by hand. That is the rule below finding its own edge
+rather than failing: work that reads state and renders it moves to
+Actions; work that DECIDES something belongs to a person, and moving it
+first is how you find out which it was.
 
 The rule that produced them is the rule to keep applying: **anything
 that reads state and renders it belongs in Actions, not in a

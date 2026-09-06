@@ -1981,6 +1981,68 @@ describe("the feed dial keeps the value you slid (D218)", () => {
     expect(within(card).queryByText("0 cups")).toBeNull();
     expectNoBoundary("feed dial healed");
   });
+
+  // D86 ON A CONTINUUM (2026-09-06). The store has taken a moved bucket
+  // since D218 (setDial routes a repeat through editVote), but the
+  // answered card drew only the curve and the "Change" door excluded dials
+  // by name — so the owner, on a real device, could not change an answer
+  // the rules already allowed them to. The door is the whole fix, and
+  // these two cases are its two halves: the slider comes back at the
+  // value you hold and letting go moves the bucket; a refused move snaps
+  // back to the standing answer and says why.
+  it("Change re-opens the slider at the answer you hold, and letting go moves it", async () => {
+    // bucket 6 of a 1–10 dial shows as "6 cups" (dial-bucket.test.jsx
+    // pins that the shown value re-buckets to 6)
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "6"; }));
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    // answered: the curve stands, the slider does not, and the door is there
+    expect(within(card).queryByRole("slider")).toBeNull();
+    fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+    const slider = within(card).getByRole("slider");
+    // seeded at the standing answer, not at the middle of the range
+    expect(slider.getAttribute("aria-valuenow")).toBe("6");
+    expect(within(card).getByText("slide · let go to change")).toBeTruthy();
+    // one step right of 6 on 1–10 is 7 (the step floors at one whole unit)
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyDown(slider, { key: "Enter" });
+    // the bucket moved in the store — through editVote, since vote() is
+    // create-only and would have left "6" standing
+    const bucketOf7 = String(globalThis.WorldFeed.prototype.dialBucket(dialCard(), 7));
+    expect(bucketOf7).not.toBe("6");
+    expect(window.LIVE.myVotes()[DIAL_ID]).toBe(bucketOf7);
+    // …and the card shows the new value as yours, slider gone, door back
+    expect(within(card).queryByRole("slider")).toBeNull();
+    expect(within(card).getByText("you").previousSibling.textContent).toBe("7 cups");
+    expect(within(card).getByRole("button", { name: "Change" })).toBeTruthy();
+    expectNoBoundary("feed dial changed");
+  });
+
+  it("a refused change snaps back to the answer that stands, and says why", async () => {
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "6"; }));
+    await growFeed();
+    // the cooldown, as the store reports it: false, nothing sent
+    const refuse = vi.spyOn(window.LIVE, "editVote").mockReturnValue(false);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+      const card = screen.getByText(DIAL_PROMPT).parentElement;
+      fireEvent.click(within(card).getByRole("button", { name: "Change" }));
+      const slider = within(card).getByRole("slider");
+      fireEvent.keyDown(slider, { key: "ArrowRight" });
+      fireEvent.keyDown(slider, { key: "Enter" });
+      expect(refuse).toHaveBeenCalledTimes(1);
+      expect(window.LIVE.myVotes()[DIAL_ID]).toBe("6");
+      // the standing answer, not the one the server never heard — and the
+      // reason, in the slot the slider's instruction used
+      expect(within(card).getByText("you").previousSibling.textContent).toBe("6 cups");
+      expect(within(card).queryByText("7 cups")).toBeNull();
+      expect(within(card).getByText("One change a minute — try again shortly.")).toBeTruthy();
+      expectNoBoundary("feed dial refused");
+    } finally {
+      refuse.mockRestore();
+    }
+  });
 });
 
 // The demo persona must not become a live user's profile — on ANY mount.

@@ -38,7 +38,10 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
   options: string[]   (scale → the 5-point agree scale; rating → "1".."10";
                        pulse → exactly five steps; call → exactly two, and
                        index 0 is the call coming true)
-  topic, axis, test   metadata (test != null only on a test's own items)
+  topic, axis, test   metadata (test != null only on a test's own items;
+                       topic is the feed's topic id, a group question's kind
+                       us|pick|classic, and since D386 a 1v1 question's
+                       domain day|heat|mirror|ahead — the roles fold reads it)
   active: bool
   until?              feed only (D179): the UTC day after which the card
                       stops being SERVED. A client-side serving filter;
@@ -235,7 +238,9 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    counts only for bank-option questions
                                    (a pick's optionIdx indexes each
                                    group's own members — never summed);
-                                   guess fields only when a duo guessed.
+                                   guess fields when anyone guessed — a
+                                   duo at the partner's pick, a group at
+                                   the option the room landed on (D386).
                                    Same floor, crossing-based cadence
                                    (a reveal folds a batch), no
                                    timestamp. Never: gids, uids, names,
@@ -601,7 +606,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (851 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (911 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -674,7 +679,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (851 docs) caches in localStorage keyed by
+everything. The question bank (911 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 134
-questions of 851 seeded; the production backend is deployed. **Measured
+questions of 911 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -46,10 +46,12 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69), **and the address document was
-  uploaded 2026-08-30.** The *bostedsattest* arrived 23 days after the
-  declaration and went up the same day. 4.3b now waits on Apple's
-  verification, which gates only the EU-27 storefronts.
+- **Trader status: VERIFIED** (D69; closed 2026-09-06,
+  owner-confirmed). The *bostedsattest* arrived 23 days after the
+  declaration, went up the same day (2026-08-30), and Apple's
+  verification has since come back. The EU-27 storefronts are
+  unblocked; only the D69 address swap (home → ENK, once D345's
+  registration lands) remains, and it blocks nothing.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -207,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      851 questions land in `v2_questions` — idempotent and, since D34,
+      911 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -218,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **851** after the K=5 test expansion, D103's
+      and the bank is **911** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1094,7 +1096,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 851 seeded questions are live regardless.
+      working, not a leak — the 911 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1224,8 +1226,8 @@ That is a tester-count problem, not a workflow problem.
 
       `whatsNew` is sent separately and refused on a first release (D74),
       which is expected and reported as a skip rather than a failure.
-- [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
-      this repo knew about.** App Store Connect → **Business** → *Trader
+- [x] **4.3b EU trader status (Digital Services Act) — VERIFIED, closed
+      2026-09-06 (owner-confirmed).** App Store Connect → **Business** → *Trader
       Status*, or via the banner on the Apps list. Apple's wording: *"your
       trader status must be provided or your apps will be removed from the
       App Store in the EU."*
@@ -1268,10 +1270,20 @@ That is a tester-count problem, not a workflow problem.
       that the document arrived, not what it says.
 
       **Uploaded 2026-08-30**, through App Store Connect → **Business**
-      → *Trader Status*. **The step stays open anyway, and D74 is why:**
+      → *Trader Status*. **The step stayed open anyway, and D74 was why:**
       the upload is a fact, EU distribution being unblocked is not one
       yet. It closes when the console reports the status verified — that
-      is Apple's to run, not work in this file. If the document comes
+      is Apple's to run, not work in this file.
+
+      **CLOSED 2026-09-06: the console reports the status verified**
+      (owner-confirmed on the release thread — "verified a long time
+      ago"; the exact console date was not captured, so this records
+      when the file learned it, per D74's tick-after-the-fact rule).
+      The EU-27 storefronts are unblocked; nothing about trader status
+      remains open. What D69 left live is only the address SWAP: the
+      listing publishes the home address until the ENK's business
+      address (now in motion — D345 un-parked Play onto the ENK route)
+      replaces it in this same console form. If the document comes
       back instead, the open question is whether to send the
       fødselsnummer unmasked: Apple's wording asks only for records
       verifying **name and address**, so no part of the form needs it,
@@ -1584,7 +1596,7 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 29.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 31.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —

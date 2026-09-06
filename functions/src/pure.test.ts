@@ -1417,6 +1417,23 @@ describe("the duel question-level signal (D40 part 3)", () => {
     }
   });
 
+  it("scores a group's guesses against the option the room landed on (D386)", () => {
+    // Three votes, two on option 0. Guesses: 0 lands, 2 does not, one
+    // member did not guess at all.
+    const d = duelAggDelta([v(0, 0), v(0, 2), v(2)], "group", 4);
+    expect(d).toMatchObject({ total: 3, guessTotal: 2, guessMatches: 1 });
+  });
+
+  it("a tie for the top counts as a hit, and a room of one is no room", () => {
+    // 1–1: both options tied for the top, so a call on either landed.
+    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2)).toMatchObject({ guessTotal: 2, guessMatches: 2 });
+    // Only one counted vote: the guesser IS the room, so nothing is scored
+    // — otherwise calling your own answer would be a certain hit.
+    expect(duelAggDelta([v(0, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
+    // An out-of-range vote does not count toward the room either.
+    expect(duelAggDelta([v(0, 0), v(9, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
+  });
+
   it("scores duo guesses against the partner's actual pick", () => {
     // A picked 0 and guessed 1 — B did pick 1, so A called it. B picked 1
     // and guessed 1 — A picked 0, so B missed. Two guesses, one match.
