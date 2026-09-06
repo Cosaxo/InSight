@@ -323,7 +323,7 @@ export async function act(state, actions, log, api = gh) {
         // A partially-reviewed night keeps its box, so say which commits
         // are already in: the shift composes against main either way, but
         // reading a 19-commit PR as 19 new fixes is the mistake the row
-        // itself was drawn to prevent (D382).
+        // itself was drawn to prevent (D385).
         const already = state.rows.find((r) => r.key === a.key)?.reviewed;
         const inAlready = already ? ` ${already.commits} of them are already on \`main\`, merged as ${already.record}.` : "";
         const body = `Opened by the console workflow from a tick on \`docs/MERGE-LIST.md\` (D352): ${a.from}'s branch \`${a.branch}\`, ${b?.aheadBy ?? "?"} commits ahead of \`main\`.${inAlready} The merge shift brings it current, runs the battery, reviews the diff as one unit and hands it to the shepherd.\n\nwhat: ${a.from}'s work on \`${a.branch}\`\nhow: see the commits below and the branch's own summary\n\n${commits}`;
@@ -453,7 +453,7 @@ async function main() {
       // Branch rows still WAITING, not every branch row: this line said
       // "8 branch row(s) waiting for a tick" on 2026-09-06 with all eight
       // nights merged days earlier, and it is the sentence that sent the
-      // owner looking for an unreviewed night (D382).
+      // owner looking for an unreviewed night (D385).
       ? [`${state.rows.filter((r) => r.kind === "pr" && !r.selfMerge && r.stage === "new").length} PR row(s) and ${state.rows.filter((r) => r.kind === "branch" && r.stage !== "merged").length} branch row(s) waiting for a tick in \`docs/MERGE-LIST.md\` § Open (${state.today}).`]
       : [];
     writeFileSync(OWNER_LIST, foldOwnerList(ownerText, { Decisions: decisions, "Store and legal": launch, Approvals: approvals }));

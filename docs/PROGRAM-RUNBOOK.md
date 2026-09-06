@@ -528,7 +528,7 @@ API with `GITHUB_TOKEN` (open PRs with labels, checks and mergeability;
 branches matching `night-*`, `nightb-*` and the two improvers' names
 with no PR — a night whose review is recorded in `DECISIONS.md` is
 drawn without a box, because its branch stays ahead of `main` forever
-while carrying nothing new (D382); the run-log issues' last comment per lane; CI on `main`;
+while carrying nothing new (D385); the run-log issues' last comment per lane; CI on `main`;
 the last ten merges); `origin/axiom-theory` (`DIGEST.md`'s headline,
 `theory/review/SCORES.md`'s latest table, `graph/health.mjs`'s
 summary, `bridge/VERDICTS.md`'s open verdicts); `monitoring/

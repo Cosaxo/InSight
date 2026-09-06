@@ -40340,7 +40340,7 @@ release, build 30's delivery should record itself and the next pre-flight
 is the test of whether that is true. If they are not, this entry is the
 sixth in a row and the reading above stands unchanged.
 
-## D382 · Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read
+## D385 · Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read
 
 **2026-09-06.** **Status:** binding as a RECORD OF A CHECK and of one
 change to the console. Nothing on a night branch was merged here, because
