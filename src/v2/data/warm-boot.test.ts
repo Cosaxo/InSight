@@ -1407,3 +1407,47 @@ describe("the network phase's round trips", () => {
     expect(LIVE.dailyBank().map((x) => x.id)).toEqual(["q_1"]);
   });
 });
+
+// ── a retired daily stays in the array as a tombstone ───────────────────
+//
+// publishBank splits the daily lane from the UNFILTERED bank and every
+// other lane from the active one, because the daily deck is POSITIONAL:
+// computeDeckIds indexes `ids[(today - epoch - back) % n]`, so dropping
+// any element renumbers every visible day — today's card swaps and six
+// answered history cards render as unanswered.
+//
+// deck.test.ts names this rule and cannot see it: its case compares
+// `computeDeckIds(ids, today)` with `computeDeckIds(ids, today)` — the
+// same call twice, green for any implementation, and it never touches
+// live.ts, where the invariant actually lives. Measured: rebuilding the
+// daily lane from the ACTIVE bank instead leaves the whole unit run green.
+//
+// Two assertions, because the tombstone is only half the rule. The array
+// keeps the retired question; the DISPLAY is what must never offer it.
+// Pin one alone and the cheapest way to satisfy it is to break the other.
+describe("retiring a served daily", () => {
+  const bank = () =>
+    Array.from({ length: 10 }, (_, i) => q(`q_${i}`, i, i === 3 ? { active: false } : {}));
+
+  it("keeps it in the daily array, and never offers it", async () => {
+    h.bankDocs = bank();
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await releaseAll(LIVE);
+
+    // Every id, in seq order, the retired one INCLUDED and in place.
+    expect(
+      LIVE.dailyBank().map((x) => x.id),
+      "the retired daily was dropped from the array, which renumbers every visible day",
+    ).toEqual(["q_0", "q_1", "q_2", "q_3", "q_4", "q_5", "q_6", "q_7", "q_8", "q_9"]);
+
+    // …and the kill switch still kills, one layer up. The deck is a
+    // rolling seven-day window, so WHICH ids it holds depends on the date;
+    // that it excludes this one does not.
+    const offered = LIVE.deck().map((x) => x.id);
+    expect(offered, "the deck offered a retired question").not.toContain("q_3");
+    expect(offered.length, "the deck came up empty, so the line above proves nothing")
+      .toBeGreaterThan(0);
+  });
+});
