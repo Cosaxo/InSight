@@ -305,12 +305,12 @@ authorization can live in that session's history at all.
 
 Created 2026-09-02 19:55–20:05 UTC, so the seventeen above do not include
 them, and re-created 2026-09-03 against a dispatcher that starts empty
-(D359). Their contracts are `OPS-RUNBOOK.md` §§ The PR shepherd, The list
+(D359). Their contracts are `OPS-RUNBOOK.md` §§ The list
 worker, The roll call, The production reader.
 
 | Routine | Trigger id | Schedule (UTC) | Binding | State |
 | --- | --- | --- | --- | --- |
-| InSight PR shepherd (B) | `trig_01MuYGKG82KdEXnqNuXkdviz` | `55 */3 * * *` — eight a day, from twenty-four | ops dispatcher B `session_01XhD4kBN7fXgeBdFPZEyPY6` (`claude-haiku-4-5`) → fresh session | enabled |
+| ~~InSight PR shepherd (B)~~ | `trig_01MuYGKG82KdEXnqNuXkdviz` | — | — | **retired 2026-09-06 (D382)** — the merge lane is gone: its Action is deleted and no Routine replaces it. The trigger lives on the ops subscription, which no session here can disable, so the row stays until the owner does (`OWNER-LIST.md` § Clicks) |
 | InSight list worker (B) | `trig_01VH8PvZCaqKciAwzpxmfMYW` | `0 17 * * *` | same dispatcher | enabled |
 | InSight roll call (B) | `trig_017cQ4WECG5mHeFGFnmkVrYQ` | `30 15 * * *` | same dispatcher | **disabled** — § The roll call forbids a dispatcher binding and that is the only one a session can give it; the owner creates it in the web UI |
 | InSight production reader (B) | `trig_01FD7t9MySRfZd19BD9YyEDQ` | `40 6 * * *` | same dispatcher | **retired** — the lane is `.github/workflows/production-reader.yml`, which needs no account bucket |
@@ -446,15 +446,16 @@ owner's word that the ops Routines existed. D353 and PR #364 say what
 that word actually covered: **four** ops lanes were created on Claude 2
 — the roll call, the production reader, the release recorder and the
 list worker — bound to an ops dispatcher session
-(`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The PR shepherd is not among
-them.** So this section previously told a reader the shepherd was live
+(`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The merge lane was not among
+them.** So this section previously told a reader that lane was live
 and gave its next fire time; that was wrong, and the label on PR #365
 has had nothing to act on it from the first minute. PR #364 has since
 filled four rows of `OPS-RUNBOOK.md`'s inventory with real ids and
 written the reason into the rest: **three lanes could not be created
-from a session at all** — the shepherd, the pulse responder and the
-dependency shepherd were refused by the permission classifier, and are
-the owner's to create in Claude 2's web UI.
+from a session at all** — the merge lane, the pulse responder and the
+dependency shepherd were refused by the permission classifier. The
+merge lane was retired outright at D382; the other two are the owner's
+to create in Claude 2's web UI.
 
 The lesson is rule 2's, one rung up: **the owner's word establishes that
 a Routine exists, not which one.** Only `list_triggers` from the owning
@@ -471,7 +472,6 @@ transcribed id is a belief about the tree rather than about the account.
 
 | Lane | Trigger id | Fires (UTC) | Merge authority |
 | --- | --- | --- | --- |
-| **PR shepherd** | **none — refused from a session; the owner's to create in the web UI** | `20 6,16 * * *`, plus GitHub `pull_request` events — opened, ready_for_review, reopened, **labeled**, closed-and-merged, base `main` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner approved, only while the grant is intact |
 | Roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `30 15 * * *` | none — read-only |
 | Production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `40 6 * * *` | none — read-only |
 | List worker | `trig_01USe4xEhJ57MRjgThykdRzM` | `0 17 * * *` | never |
@@ -505,10 +505,10 @@ lane in this register any session can read the state of directly.
 read their trigger state. The ops program's run log is one issue titled
 **Ops run log**, created by the first lane that needs it — the doc
 sweep's precedent, issue #336. At **17:45 UTC on 2026-09-02** it still
-does not exist, and neither does `no-shepherd`, the label
-`OPS-RUNBOOK.md` §2.7 pairs with `merge-when-green`; the PR shepherd's
-06:20 and 16:20 slots have both passed with no comment on either
-labelled PR. On traces alone, no ops lane has completed a run.
+does not exist; the merge lane's 06:20 and 16:20 slots have both passed
+with no comment on either labelled PR. On traces alone, no ops lane has
+completed a run. (That lane was retired at D382 — it never merged
+anything in the four days it ran as an Action either.)
 
 **And the reason is written down rather than invisible**, which is the
 whole point of the exercise. **Both dispatchers refused their charters
@@ -524,9 +524,8 @@ therefore a Routine that exists and has never run:
 - **The program dispatcher** (Claude 3) refused the same shape the same
   day, so the **merge shift** and four siblings relay nothing either.
 - **The GitHub merge tool** has never been approved in the ops
-  dispatcher's own history, so even once it relays, the shepherd could
-  not merge (`OPS-RUNBOOK.md` §2.3) — and the shepherd has not been
-  created at all.
+  dispatcher's own history — moot since D382, which retired the merge
+  lane: no Routine in this register may merge, and none needs the tool.
 
 D353's fix is structural rather than another instruction: the charter
 moves into `OPS-RUNBOOK.md` § The ops dispatcher, where a session can
@@ -568,7 +567,7 @@ all.
 03 ·  night shift A audit 03:00–04:35
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
-06 ·  PR shepherd 06:20 · axiom builder 06:30 · production reader 06:40
+06 ·  axiom builder 06:30 · production reader 06:40
 07 ·  question farm 07:00 · merge shift 07:15
 08 ·  catalog question · theory readers 08:02 (even) · doc sweep 08:17 (odd) · dependency shepherd 08:30 (Mon)
 09 ·  learn lane (Mon/Thu) 09:00 · theory 09:02 · merge shift 09:15 · feed lane 09:30
@@ -578,7 +577,6 @@ all.
 13 ·  theory ties 13:02 (odd) · merge shift 13:15
 14 ·  console improver 14:00 (Sun) · theory interests 14:02 (odd)
 15 ·  merge shift 15:15 · roll call 15:30
-16 ·  PR shepherd 16:20
 17 ·  list worker 17:00 · merge shift 17:15 · console keeper 17:45
 18 ·  to-do doer (Claude 3) 18:00
 19 ·  merge shift 19:15
@@ -664,21 +662,23 @@ than either file's older half:
 3. **The merge shift** (Claude 3) applies **`merge-when-green`** once the
    PR is green on its current head and it has reviewed the diff as one
    unit.
-4. **The PR shepherd** squash-merges under its five steps, unchanged:
-   armed at a named sha, every commit it makes on the branch prefixed
-   `shepherd:`, and the grant spent the moment anyone else pushes after
-   arming.
+4. **The owner merges**, by hand on GitHub (D382). Nothing in this
+   register merges, and the label is a marker that a named head is
+   ready rather than an instruction any lane executes.
 
 **The rule that a lane may never apply the label is retired**, in the
-owner's words — *"this is wrong, the shepherd can"* — which is why step
-3 exists at all. What did not move is that no lane decides: the tick is
+owner's words of 2026-09-02 — *"this is wrong, the shepherd can"* —
+which is why step 3 exists at all. (The lane that quote licensed was
+itself retired at D382, for never merging anything; a lane may still
+apply the label, and the owner still merges.) What did not move is
+that no lane decides: the tick is
 upstream of every label, and a label applied without one is a lane
 acting outside its contract.
 
 `merge-when-green` on a PR predating D352 was the owner's own act under
-the older rule and still means what it meant. Whoever creates the PR
-shepherd inherits every PR already carrying one — a label is a standing
-instruction, not an event.
+the older rule and still means what it meant. A label already on a PR
+stays on it and still says the same thing to whoever next looks — a
+label is a standing statement, not an event.
 
 ### The three collision rules
 

@@ -2,7 +2,7 @@
 
 **Status: partly executed, 2026-09-03 (D359).** The owner read the
 arithmetic below and chose *overhead plus cadence*: the dispatcher
-overhead removed where a session may remove it, the PR shepherd
+overhead removed where a session may remove it, the merge lane
 re-paced from twenty-four firings a day to eight, the twelve theory
 lanes from every second day to every fourth. What a session cannot do
 from inside a session is in § 5, as owner rows, with what each is
@@ -87,7 +87,7 @@ The corollary is the rule now in `OPS-RUNBOOK.md` §0: a run with no
 work should not pay a full orientation to discover it. The three files
 the lane prompts open with — `CLAUDE.md`, `ORIENTATION.md` and
 `OPS-RUNBOOK.md` — are 21,482 words together (`wc -w`), read before
-the shepherd knew whether a single pull request wanted it.
+the merge lane knew whether a single pull request wanted it.
 
 ## 3 · What was cut, 2026-09-03
 
@@ -98,10 +98,10 @@ one holding 564k tokens.
 
 | What | Before | After | Worth |
 | --- | --- | --- | --- |
-| **PR shepherd cadence** | `55 * * * *`, 24 firings a day | `55 */3 * * *`, 8 | ~16 firings a day at ~$4 |
+| **Merge lane cadence** (retired, D382) | `55 * * * *`, 24 firings a day | `55 */3 * * *`, 8 | ~16 firings a day at ~$4 |
 | **The twelve theory lanes** | every 2nd day, 6.0 runs a day, 7 of them stacked on one date | every 4th day, 3.43 runs a day, spread 3 per date across a four-day cycle | ~$70 a day, and the daily burst no longer meets the five-hour window |
 | **The four ops lanes' binding** | the 564k dispatcher | a new dispatcher session opened empty (`session_01XhD4kBN7fXgeBdFPZEyPY6`), on `claude-haiku-4-5` — a relay is five fields and one line | ~$4 a firing → the cost of a short conversation |
-| **The shepherd's prompt** | contract, `CLAUDE.md` and `ORIENTATION.md` read before it knew if there was work | the cheap gate first; a no-op run reads nothing else | the orientation above, on every idle firing |
+| **The merge lane's prompt** | contract, `CLAUDE.md` and `ORIENTATION.md` read before it knew if there was work | the cheap gate first; a no-op run reads nothing else | the orientation above, on every idle firing |
 | **The roll call's prompt** | cost only in the Sunday ledger | every run names yesterday's metered total and any bound session past 150k context, with its cost per firing | this page cannot go stale unwatched |
 
 The old four ops triggers are **disabled, not deleted** — their run
@@ -265,7 +265,7 @@ What that round applied:
 | **The cheap gate reached the list worker and the axes skeptic** | `OPS-RUNBOOK.md` §4, `AXES-RUNBOOK.md` | the orientation read on every idle firing |
 | **The read budget was written for the theory lanes, and not applied** | `AXIOM-THEORY.md` § The read budget, `OWNER-LIST.md` | ~$8/run if taken; the charter is the owner's |
 
-**Why the reader could move and the shepherds could not.** Everything the
+**Why the reader could move and the session lanes could not.** Everything the
 reader read is available to the default `GITHUB_TOKEN`: two workflow runs,
 an artifact, a committed file. It needed one enabling change —
 `observe.mjs` now takes `--json-out` and `observe.yml` publishes the
@@ -273,7 +273,7 @@ payload as the `observe-json` artifact, because a reader that parses the
 probe's padded `✓ alertPolicies  5 live` lines is the
 one-parser-in-three-copies failure D197 recorded. Three rows of
 `pulse-trail.jsonl` answer "has anything moved" with no API call at all,
-so the lane does not even need yesterday's comment. The shepherds, by
+so the lane does not even need yesterday's comment. The session lanes, by
 contrast, need judgement about a diff; no token substitutes for that.
 
 **Two refusals worth having in writing.** A stored prompt cannot be edited

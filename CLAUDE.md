@@ -513,19 +513,16 @@ an emergency rules fix.
   [`docs/PROGRAM-PLAN.md`](docs/PROGRAM-PLAN.md) is why, and
   [`docs/PROGRAM-RUNBOOK.md`](docs/PROGRAM-RUNBOOK.md) is the contract
   every program lane defers to.
-- **A pull request is merged by the PR shepherd, not by hand.** The
-  owner's merge instruction is the `merge-when-green` label; the shepherd
-  Routine (`docs/OPS-RUNBOOK.md` § The PR shepherd, § 5 for what exists)
-  brings the branch current with `main`, moves colliding decision numbers,
-  waits for green and squash-merges. What a session owes it before the
-  label goes on: a green head with `main` already merged in and its
-  decision numbers already moved (D299) — and then no push, because a
-  commit by anyone but the shepherd after the label spends the grant.
-  `no-shepherd` is the opt-out. Neither label is a session's to apply on
-  its own judgement: the owner's word puts `merge-when-green` there —
-  applied directly, or as a tick on the PR's row in
-  [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md), which the merge shift turns
-  into the label once the PR is green on its current head (D352).
+- **A pull request is merged BY HAND, by the owner (D382).** There is no
+  merge automation in this repository and no label that merges anything.
+  What a session owes before a PR is mergeable is unchanged and is now
+  the whole of it: a green head with `main` already merged in and its
+  decision numbers already moved (D299). Then say so and stop — a
+  session does not merge its own work, and the owner's click is the
+  merge. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where the
+  owner tracks what is waiting, and a tick there is still how approval
+  is recorded (D352); what changed is that nothing downstream acts on
+  the tick, so the merge itself is a click on GitHub.
 - **A Routine you create, re-pace, rebind or retire is registered in
   [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
   subscriptions run scheduled lanes against this one repository and no
