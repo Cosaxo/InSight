@@ -31,7 +31,14 @@ function clientRegionFiles(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const full = resolve(dir, e.name);
     if (e.isDirectory()) out.push(...clientRegionFiles(full));
-    else if (/\.tsx?$/.test(e.name)) out.push(full);
+    // EVERY CLIENT SOURCE, not just the typed ones. This read `.ts`/`.tsx`
+    // while `src/` holds 145 `.js`/`.jsx` files — the spec layer is almost
+    // all of them — so `getFunctions(app, "europe-west1")` in any of those
+    // was invisible to the one rule that exists to stop a second copy of
+    // this value. Measured: the same line fails the gate in a `.ts` and
+    // passes in a `.jsx`. Every call site is typed today, which is what
+    // made the hole survivable and not what makes it safe.
+    else if (/\.(tsx?|jsx?)$/.test(e.name)) out.push(full);
   }
   return out;
 }
