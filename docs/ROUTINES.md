@@ -4,8 +4,10 @@
 > somebody's account right now. §2 and §3 were each verified against the
 > live account that owns them, both on 2026-09-02; §4 has no rows and no
 > owner yet; §5's lanes are their contracts plus what a decision record
-> says about them, with no id readable from any account here. Nothing
-> here is proposed.
+> says about them, with no id readable from any account here; §9 is the
+> cost shift, chartered 2026-09-06 (D393) and not yet created on any
+> account — the one section that IS proposed, and it says so in its
+> first line. Nothing else here is proposed.
 
 **Why this file exists.** Three claude.ai subscriptions work on this one
 repository — two of them running Routines that a session here has
@@ -564,7 +566,7 @@ all.
 00 ·  night B audit 00:00–01:35
 01 ·  night shift A audit 01:00–02:35
 02 ·  theory review 02:02 (odd)
-03 ·  night shift A audit 03:00–04:35
+03 ·  night shift A audit 03:00–04:35 · cost shift closing 03:05–05:35 (§9, once created)
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
 06 ·  axiom builder 06:30 · production reader 06:40
@@ -583,7 +585,7 @@ all.
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
 22 ·  (free — night B no longer fires here)
-23 ·  night shift A audit 23:00–00:35 · merge shift 23:15
+23 ·  night shift A audit 23:00–00:35 · merge shift 23:15 · cost shift auditors 23:50–02:20 (§9, once created)
 ```
 
 The two night shifts interleave on the hour by design — A on odd hours,
@@ -630,6 +632,8 @@ conflicts, so the clock above is about `main`, never about capacity.
 | `claude/doc-sweep-*` | session 2 doc sweep | one per run, dated UTC |
 | `claude/*-diag-<date>` | session 2 axes, doc sweep | the report fallback when a GitHub write is refused — `AXES-DIAG.md`, `DOC-SWEEP-DIAG.md` |
 | `axiom-theory` | session 2 theory lanes | orphan branch; never `main` |
+| `claude/cost-<YYYYMMDD>-<lens>` | the cost shift's four auditors (§9) — `reads`, `writes`, `shape`, `bill`; the closer pushes `closing:` commits onto them, the one push to another session's branch a contract here licenses | one per lens per night, cut from `origin/main`; never `main`, never another lens's, never a night shift's |
+| `claude/cost-diag-<lens>-<date>` | the cost shift | the report fallback when a GitHub write is refused — `COST-DIAG.md` |
 
 `nightb-*` does not match the glob `night-*`, which is what keeps either
 shift's branch enumeration from sweeping in the other's. `night-YYYYMMDD-b`
@@ -741,3 +745,60 @@ owners' to write.
   on Sundays. It writes nothing else and changes nothing. For the other
   two subscriptions, which cannot see this account's Routines at all, and
   for the console that joins the three.
+
+---
+
+## 9 · The cost shift — chartered 2026-09-06, not yet created on any account
+
+**Proposed, and this block says so** (rule 1 is why it is not a numbered
+account block: no `list_triggers` on any account returns these yet).
+The owner asked on 2026-09-06 for a nightly routine of four Opus
+ultracode sessions hunting unexpected cost and data-handling waste,
+with a Fable session at the end reviewing and adjusting their work.
+`COST-SHIFT.md` is the contract and D393 the record — both written
+before any Routine exists, so that the first fire finds its section
+(the doc sweep and the now lane each fired for days into a contract
+that was not on `main`; this lane will not).
+
+**Why it is not created from a session.** Measured, not assumed
+(`OPS-RUNBOOK.md` § Platform measurements, `USAGE-REDUCTION.md` §4): a
+Routine minted over MCP with a fresh session per fire starts its
+sessions with no clone and no tools, and the only other binding a
+session can give — a dispatcher relay — costs a relay's whole context
+per firing and needs a charter adopted by a human turn. A Routine
+created in the web UI with the repository attached starts cloned and
+needs neither (§2's improvers are the working example). So the owner
+creates five, in the account of their choice, and the session that
+next runs `list_triggers` there fills this table and
+`COST-SHIFT.md` §10 with the ids quoted from the tool response.
+
+| Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
+| --- | --- | --- | --- | --- | --- |
+| InSight cost shift — reads | — | `50 23 * * *` — nightly 23:50, 150 min | web UI, fresh session, `claude-opus-5`, ultracode | `claude/cost-<YYYYMMDD>-reads` — `src/v2/data/` and the `ui/` panels' read paths | never — no PR either; the closer opens it |
+| InSight cost shift — writes | — | same | same | `claude/cost-<YYYYMMDD>-writes` — `functions/src/`, `monitoring/` | same |
+| InSight cost shift — shape | — | same | same | `claude/cost-<YYYYMMDD>-shape` — `firestore.rules`, indexes, schema, document shapes, hosting | same |
+| InSight cost shift — bill | — | same | same | `claude/cost-<YYYYMMDD>-bill` — `scripts/cost-arith.mjs`, `scripts/pulse.test.mjs`, `monitoring/`, the workflows | same |
+| InSight cost shift — closing | — | `5 3 * * *` — nightly 03:05, 150 min | web UI, fresh session, `claude-fable-5-1` at max effort, ultracode for the batteries | `closing:` commits onto the night's four branches; one PR per branch, ready or draft by verdict | **never merges** — opens the PRs, the owner merges (D385) |
+
+**The account is the owner's call**, and `COST-SHIFT.md` §6 has the
+arithmetic: Claude 3's bucket is empty in the window and is the one
+recommended; Claude 1's carries night shift B at 00:00 and 04:00;
+this account's (§3) carries the night shift at 01:00, 03:00 and 05:00
+and has already read `rejected`. Whichever it is, the block above moves
+into that account's section in the PR that registers the ids, and the
+clock in §6 loses its "(once created)".
+
+**The overview, one sentence each**, for §8's list once they exist:
+
+- **InSight cost shift — reads / writes / shape / bill** — four Opus
+  sessions a night, one lens each over where the app's bill is paid,
+  that find what is unexpected or wasteful, measure it at five sizes,
+  build the fix or the redesign on a branch, prove it, and report. For
+  the owner, who asked for the app's data handling to be as efficient
+  as it can be made.
+- **InSight cost shift — closing** — the Fable session that reads the
+  four branches as a reviewer who did not write them, merges `main`
+  in, runs the battery, fixes and folds what that proves wrong, and
+  opens one pull request per branch with a verdict the owner can act
+  on in five minutes. For the owner's morning.
+
