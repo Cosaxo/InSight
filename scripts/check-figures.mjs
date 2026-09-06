@@ -284,6 +284,10 @@ const NOT_A_RUNNER = new Set([
   "test:e2e:moderation", // table's `test:e2e` row, not rows of their own
   "test:e2e:all",        // those three drivers on one emulator boot (D276)
   "test:coverage",       // test:unit again, instrumented
+  // test:rules again, with the coverage ratchet WRITING its baseline
+  // instead of asserting it. Not a suite: the same 179 tests, one flag on
+  // the step that follows them.
+  "test:rules:baseline",
 ]);
 const testRunners = (() => {
   const own = Object.keys(appPkg.scripts)
