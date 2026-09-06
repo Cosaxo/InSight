@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.5 - 6EE862FE-93F2-4D55-946E-8745EE2B3A88" tests="1" failures="0" time="290.126" timestamp="2026-09-06T22:50:45">
+    <testcase id="InSight device screens" name="InSight device screens" classname="InSight device screens" file="/Users/runner/work/InSight/InSight/.github/device-screens/ios-flow.yaml" time="290.065" timestamp="2026-09-06T22:50:45" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

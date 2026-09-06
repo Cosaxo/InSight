@@ -1,0 +1,21 @@
+maestro/2026-09-06_224953/xctest_runner_2026-09-06_225014.log
+maestro/2026-09-06_224953/InSight device screens/commands.json
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/01-daily.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/11-mirror-world.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/03-daily-1v1.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/07-mirror-groups.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/17-profile.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/02-daily-circle.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/04-mirror.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/09-mirror-city.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/14-mirror-world-scores.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/16-mirror-world-compare.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/12-mirror-world-answers.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/13-mirror-world-people.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/18-search.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/08-mirror-near.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/10-mirror-country.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/05-mirror-you.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/15-mirror-world-explore.png
+maestro/2026-09-06_224953/InSight device screens/takeScreenshot/06-mirror-circle.png
+maestro/2026-09-06_224953/InSight device screens/manifest.json

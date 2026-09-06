@@ -1,0 +1,6 @@
+GoogleService-Info.plist: present
+simulator: iPhone 17 Pro · iOS-26-5 (6EE862FE-93F2-4D55-946E-8745EE2B3A88)
+plist in the bundle: yes
+process: alive 11s after launch
+maestro screenshots collected: 18
+drive: success
