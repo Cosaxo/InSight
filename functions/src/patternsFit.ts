@@ -81,6 +81,22 @@ export interface PatternsUserState {
    * and an absent stamp means "fold it" — the old behaviour, once.
    */
   d?: string;
+  /**
+   * The person's CURRENT answers to every eligible item, qid → option
+   * index (D383). The candidate engine's substrate: a batch solve needs
+   * every observation every night, and the ledger keeps ninety days of
+   * aggregate EVENTS while the fit wants a person's current answer — so
+   * the nightly run compacts each day's entries into this map (an edit
+   * overwrites its key) and the fit reads people, not days. Derived from
+   * `v2_users/{uid}/answers/*`, which is the truth; ~1/50th its bytes;
+   * erased with the account by the same recursive delete.
+   *
+   * Optional because every state written before it existed has none —
+   * such a person contributes nothing to the candidate until they answer
+   * again, and their public answers can be re-compacted from the answers
+   * collection if that ever matters.
+   */
+  a?: Record<string, number>;
 }
 
 export interface PatternsObservation {

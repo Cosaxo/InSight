@@ -42,6 +42,11 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     // file, read method, write method, the field the guard reads
     ["taste.ts", "async getProfiles(", "async putProfiles(", "d"],
     ["patterns.ts", "async getUsers(", "async putUsers(", "d"],
+    // The answer map (D383): the compaction MERGES into what getUsers hands
+    // back, so a read that dropped it would refit the candidate on
+    // yesterday alone every night — with every unit test green, for the
+    // same reason as `d`.
+    ["patterns.ts", "async getUsers(", "async putUsers(", "a"],
   ];
 
   for (const [file, getFn, putFn, field] of cases) {
@@ -74,40 +79,42 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     });
   }
 
-  // The loadings document's own pair, which is the same shape with a
-  // sharper edge: `putModel` is a `set` with NO merge, so a field the
-  // write leaves out is DELETED rather than left alone. `quality` is
-  // omitted deliberately when a run has nothing to score — safe only
-  // because it is undefined in exactly the case where the document had
-  // none, which rests on `getModel` naming it. Drop it from that read and
-  // every run carries undefined, and the next replace erases the 90-day
-  // prequential series D325 calls the number any candidate engine must
-  // beat. Neither end could fail before this.
-  it("patterns.ts: getModel reads `quality` back off the snapshot", () => {
+  // The loadings document itself is read and written WHOLE since D383 —
+  // the fix for the hazard the two cases here used to pin. `getModel`
+  // named `k`, `q`, `lastDay`, `series` and `quality` one at a time, and
+  // `putModel` is a `set` with NO merge, so a field the read forgot was a
+  // field the next replace DELETED; `quality` nearly went that way. The
+  // document has since grown a second engine, item metadata and a device
+  // ridge, so the projection that cannot drop anything is `snap.data()`.
+  // These pin that it stays whole at both ends.
+  it("patterns.ts: getModel reads the document whole, not field by field", () => {
     const src = read("patterns.ts");
     const body = between(src, "async getModel(", "async putModel(");
     expect(body, "getModel moved or was renamed — this case is vacuous").not.toBe("");
-    // The ASSIGNMENT, not the name. Written as `.toContain('snap.get(\"quality\")')`
-    // this passed with the field replaced by `undefined`, because the line
-    // above it reads the same key for `series` — a vacuous assertion of
-    // exactly the kind this file exists to remove.
-    expect(
-      body,
-      "patterns.ts's getModel drops `quality`, so prevQuality is undefined on "
-      + "every run and putModel's non-merge set then erases the published series.",
-    ).toMatch(/quality:\s*snap\.get\("quality"\)/);
+    expect(body, "getModel went back to a field-by-field projection").toContain("snap.data()");
+    expect(body, "a projection of the quality block is the hazard this file exists for").not.toMatch(/quality:\s*snap\.get\("quality"\)/);
   });
 
-  it("patterns.ts: putModel still carries `quality` when it has one", () => {
+  it("patterns.ts: putModel writes the publication whole, with the server clock", () => {
     const src = read("patterns.ts");
-    const body = between(src, "async putModel(", "await modelRef.set");
+    const body = between(src, "async putModel(", "await db.collection(\"v2_meta\")");
     expect(body, "putModel moved or was renamed — this case is vacuous").not.toBe("");
-    const write = src.slice(src.indexOf("await modelRef.set"));
-    expect(
-      write,
-      "patterns.ts's model write no longer names `quality` at all — with no "
-      + "merge on this set, that removes it from the document every night.",
-    ).toContain("{ quality }");
+    expect(body).toContain("modelRef.set({ ...dropUndefined(pub), at: FieldValue.serverTimestamp() })");
+  });
+
+  // The scan the candidate engine reads people through (D383) projects the
+  // same four fields the per-uid read does — a fifth field added to one
+  // and not the other is the D197 shape, two copies of one reader.
+  it("patterns.ts: scanUsers and getUsers project the same fields", () => {
+    const src = read("patterns.ts");
+    const get = between(src, "async getUsers(", "return out;");
+    const scan = between(src, "async scanUsers(", "if (snap.size < PAGE) break;");
+    expect(get).not.toBe("");
+    expect(scan).not.toBe("");
+    for (const field of ["v", "n", "d", "a"]) {
+      expect(get, `getUsers dropped ${field}`).toContain(`get("${field}")`);
+      expect(scan, `scanUsers dropped ${field}`).toContain(`get("${field}")`);
+    }
   });
 
   // The velocity scan's own projection, added for the same reason and

@@ -65,7 +65,7 @@ Every constant below is sourced, not assumed:
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
 | One buyer's-room open | One `uid ==` list query over `v2_purchases`, sized by the buyer's own contract count — for almost every account that is zero rows, and for a buyer it is a handful | firestore.rules `v2_purchases` (D288 §3, PAID-PLAN §7). Session-cached like every owner list; the public split on each purchase card reads the sponsored question's own agg, which the feed already fetched. The pricing fold costs the SERVER nothing at runtime: `scripts/build-pricing.mjs` is operator-run at contract time, and the door reads the committed `content/pricing.json` |
-| The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
+| The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer — the write now carrying the person's compacted answer map (D383) — **plus one state read per fitted person per night** for the candidate engine's re-solve (charged as one read per MAU), one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1; the candidate and its scan D383). Measured BEFORE the fold shipped — the dated notes under the scenario table have the movement |
 | The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
 | One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D270). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
 | One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D272). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
@@ -98,11 +98,11 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.2 K | 1.0 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 179 K | 10.1 K | 1.16 | 0.00 | **1.16** |
-| Real traction | 5,000 | 2.2 M | 101 K | 23 | 0.00 | **23** |
-| Scale | 50,000 | 22.4 M | 1.0 M | 255 | 2.20 | **257** |
-| Hit | 500,000 | 224 M | 10.1 M | 2,568 | 43 | **2,611** |
+| Launch / TestFlight | 50 | 10.4 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 180 K | 10.1 K | 1.17 | 0.00 | **1.17** |
+| Real traction | 5,000 | 2.3 M | 101 K | 23 | 0.00 | **23** |
+| Scale | 50,000 | 22.5 M | 1.0 M | 256 | 2.20 | **258** |
+| Hit | 500,000 | 225 M | 10.1 M | 2,583 | 43 | **2,626** |
 
 > **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
 > wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
@@ -144,6 +144,20 @@ roughly double on the three operation lines.
 > in real time — a map redraws nightly. The named lever if the ledger
 > re-read ever matters: flag eligible entries at write time and query the
 > flag, dropping the term by the ineligible share.
+
+> **Re-measured 2026-09-06 (D383): the candidate engine's scan.** The
+> nightly run now re-solves a second engine over every fitted person's
+> compacted answer map, which is one `patterns/state` read per person who
+> has ever answered a core item — charged here as one read per MAU per
+> night (`PATTERNS_SCAN_READS_PER_MAU` × `B.mauMultiple`). Server reads
+> 30 → 33 per user-day; **$257 → $258 at 50 k and $2,611 → $2,626 at
+> 500 k**, reads/day +0.7% at every size. The compaction itself costs
+> nothing new: it rides the state write the online fit already makes for
+> each active person, and reads the ledger day that fit already reads.
+> The named lever if the scan ever matters: the item step needs only
+> per-item sufficient statistics, so the sweep can stream people through
+> them in pages and hold none — a memory shape, not a read count, and the
+> read count is the bill.
 
 > **The mount gate (D265, 2026-08-23) costs nothing on either side**, and
 > that is the reason it is shaped the way it is. The fit's nightly run

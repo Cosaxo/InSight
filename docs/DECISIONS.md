@@ -40429,3 +40429,143 @@ world the app lives in.
 
 Measured before the push: 707 functions tests (patternsFit at 27, the
 sweep at 20), `tsc` clean in `functions/`.
+
+## D383 · Two engines on one document: the person's answer map as the fit's substrate, a batch candidate scored beside the online fit, and a fortnight crossover
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §§2.2–2.4, §3 and
+§4.1 — *"yeah agree with those apply those and go with your
+recommendation"* — including the one row that page put on
+`OWNER-LIST.md` for the corpus: instrument items and multi-option
+questions join the fit. Built in one change because the three parts
+depend on each other: a batch engine needs every observation every
+night, which the ledger-day design cannot give and the answer map can;
+and a wider corpus is an encoding on that map, not a new engine.
+
+### The substrate
+
+`v2_users/{uid}/patterns/state` gains `a: {qid: optionIdx}` — the
+person's CURRENT answer to every item the candidate's corpus names,
+compacted by the nightly run from the same ledger day the online fit
+folds: last entry wins, so an edit overwrites its key, and the `fromIdx`
+machinery the online fold needs to tell an edit from a person is not
+needed by this reader at all. It rides the state write the online fit
+already makes (`putUsers`), under the same retry stamp `d`, and is
+erased with the account by the recursive delete that already takes the
+document. Read by nobody, like the vector beside it; derived from the
+answers subcollection, which is the truth, at ~1/50th its bytes (~40
+answers × ~24 bytes today, bounded by the corpus). **It starts empty at
+deploy**: a person's answers before this record are not in their map
+until they answer again. The path that fills history is a walk of each
+account's answers into the map — `replay.ts`'s posture for the
+aggregates, one read per answer once — recorded here and not built,
+because the basis counts say what the candidate has seen and the
+crossover rule refuses to promote it before it has seen enough.
+
+### The candidate
+
+`functions/src/patternsAls.ts` (pure): the shipped MODEL — `r = x −
+mean`, `r ≈ θ·L`, K = 8 — with a batch SOLVER: alternating ridge least
+squares over every answer map, three sweeps a night, warm-started from
+last night's published rows (a re-run from the same maps and prior is
+bit-identical), weighted-λ regularisation (λ = 0.15 × the row's
+observation count + 0.5, so an item with twenty answers stays shrunk and
+one with two thousand is free), item norms clamped at 1. Each night's
+solve is rotated onto the previous night's rows by orthogonal Procrustes
+(an 8×8 polar decomposition through a Jacobi eigen-solve — refused, as
+the identity, when the shared rows do not pin every direction), so a
+returning reader's map does not reshuffle for want of a basis. Measured
+in the reflection's probe: Pearson 0.95–0.99 against the generating
+geometry where the online fit scores 0.03, and 57–71% of the achievable
+predictive gain; pinned here by `patternsAls.test.ts`'s recovery case,
+which is `patternsFit.test.ts`'s two-factor world under D5's rule — the
+case the online engine cannot pass.
+
+**The corpus** (the owner's row): every option-shaped core item —
+two-option rows as before (`bin`, ±1); ordinal rows (`ord`: scale,
+rating, dial, the 160 instrument items among them) as the option index
+standardised by the item's own mean and sd, so a five-point scale and a
+ten-point rating weigh the same per answer; unordered picks (`opt`:
+choice, vote and the rest) as one pseudo-item per option, `qid~i`, ±1
+picked-or-not, centred by its own share. Compiled from the bank by one
+rule (`compileItems`); the two-option rows are exactly `PATTERNS_QIDS`,
+which is what lets the two engines be scored on one currency. Learn
+cards stay out — knowledge, not disposition — and so do pulse, call,
+catalog, rank and the sealed surfaces, which never had an option share
+to fold. D161 holds: every instrument item is served to everyone.
+**What is drawn does not change yet.** The Map draws two-option rows
+only, `readyPool` counts them only, and the client's `pool()` joins
+two-option questions only; the ordinal and one-hot rows carry `items`
+metadata so a device can encode its own answers into the same solve —
+the Oracle's and the People lens's — which is D384's, with the visuals
+D352 wants designed before an ordinal node or an ordinal guess is drawn.
+
+### The scorecard, made comparable
+
+The candidate is scored one step ahead on the online engine's own
+entries, in its fold order, revisions included: a revision is not scored
+but moves the marginal the way the online fold moves it (clamp and 0/0
+guard alike), and the marginal both engines guess from is ONE running
+number seeded from the online model's counts before the day. So
+`baselineBits` is bit-identical across the two scorecards and skill has
+one denominator — the first version of this scored the candidate against
+last night's mean and the two baselines disagreed by 0.4 bits on the
+first fixture, which would have made every crossover a comparison of
+denominators. The person's vector is re-solved at scoring time from the
+answers they had given before the day, which is what the device does,
+under each device ridge in `ALS_LAMBDAS_U = [0.5, 1, 2, 4]`; the best
+ridge over the owed days is the one the candidate publishes its scorecard
+at and the one it names as `lambdaU`, with the pooled bits under each in
+`lambdaSweep` for the reader.
+
+### The crossover
+
+Both engines publish every night: the engine's rows in `q`, the other's
+under `candidates.{sgd|als}` with the same shape and its own scorecard.
+The candidate wins a night when both scored at least the scorecard's
+floor of eight observations, its skill is strictly higher than the
+engine's, **and it is itself better than the coin** — the last clause
+because the online engine's within-day steps leave it a hair under the
+marginal on a fresh crowd, and a candidate with no model yet tied the
+coin and would have collected a streak off that. `PATTERNS_CROSSOVER_NIGHTS
+= 14` consecutive wins make it the engine: its rows move to `q`, rotated
+onto the rows devices were reading the night before over the keys both
+carry, the benched engine moves to `candidates` with its streak at zero,
+`crossedAt` is stamped and `patterns_crossover` is logged. The rule is
+symmetric: the online fit is the candidate the night after it loses and
+can win the rows back the same way. Nobody flips it — the D265 posture,
+pointed at the engine instead of the tab.
+
+### The store
+
+`v2_patterns/loadings` is read and written WHOLE. The field-by-field
+`getModel` this replaces is the shape that shipped the retry stamp dead
+(`store-projection.test.ts`), and the document has grown too many fields
+to name twice; the projection that cannot drop anything is `snap.data()`,
+normalised for the pre-D383 shape. The per-person read and write name
+`a` at both ends, and the scan the candidate reads people through
+(`scanUsers`, the collection group by path, 500 a page) projects the same
+four fields — all three pinned. `putModel` strips `undefined` before the
+write, because Firestore refuses it outright.
+
+### The arithmetic
+
+Reads: one state read per fitted person per night, charged as one per
+MAU — server reads 30 → 33 per user-day, **$257 → $258 at 50 k DAU and
+$2,611 → $2,626 at 500 k** (`COSTS.md`, re-measured; the compaction
+itself rides the write and the ledger read the online fit already pays).
+Memory: the scan holds each person's map, ~1 KB, 150 MB at 150 k fitted
+people; the item step needs only per-item sufficient statistics (an 8×8
+Gram and an 8-vector), so the sweep streams people through them the day
+the buffer is the wrong shape — recorded in `patterns.ts`'s header, not
+built. Compute: three sweeps × observations × 64 flops — seconds at
+launch, under a minute at 500 k DAU against a 480 s timeout. Document:
+the candidate block doubles the rows and adds a second scorecard, so the
+once-per-session read grows from ~11 KB toward ~60 KB with the wider
+corpus fitted; if that bites, the `candidates` block moves to its own
+document and the client never reads it — the named lever.
+
+Measured before the push: 729 functions tests (`patternsAls` at 17, the
+sweep at 27, the projection pin at 9), `tsc` clean in `functions/`,
+`check:monitoring`, `check:deploy-targets`, `check:appcheck`,
+`check:content`, `check:docs`, `check:figures`.

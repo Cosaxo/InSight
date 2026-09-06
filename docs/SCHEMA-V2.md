@@ -286,28 +286,70 @@ every score in the feature forgeable in one request. Existence is
 load-bearing too: firestore.rules refuses a call answer once this document
 exists, or a player reads the grade and then "predicts" it.
 
-v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1)
+v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
+                                   two engines since D383)
   k                                the vectors' length (8)
-  q {qid: {v: number[k], n, sum}}  one loading vector per CORE two-option
-                                   question (D161 — the eligible set
-                                   compiles from the bank): the streaming
-                                   fit's factorisation of the vote log.
-                                   n is the answers folded (the basis a
-                                   client states or refuses on); sum/n is
-                                   the running marginal the fit centres
-                                   by — the same figure the question's
-                                   public aggregate already carries
+  engine: "sgd"|"als"              which engine's rows are in `q`: the
+                                   shipped online fit (patternsFit.ts) or
+                                   the batch candidate (patternsAls.ts).
+                                   Whichever has won the last fortnight of
+                                   one-step-ahead skill owns the rows; the
+                                   other publishes under `candidates`
+  q {key: {v: number[k], n, sum,   one row per fitted item. Under the online
+     sd?}}                          engine: one per CORE two-option question
+                                   (D161 — the eligible set compiles from
+                                   the bank). Under the candidate: every
+                                   option-shaped core item — two-option
+                                   (`bin`), ordinal (`ord`: scale · rating
+                                   · dial, the instrument items included)
+                                   and one one-hot pseudo-item per option
+                                   of an unordered pick (`opt`, keyed
+                                   `qid~i`). n is the answers folded (the
+                                   basis a client states or refuses on);
+                                   sum/n is the mean the residual centres
+                                   by — for a two-option row the same
+                                   marginal the question's public aggregate
+                                   carries; `sd` is an ordinal row's spread
+  items? {key: {kind, qid, opt?,   the candidate's item metadata — how a
+     nOptions}}                     device encodes its own answer to each
+                                   row; absent while the online engine owns
+                                   `q`, whose rows are all two-option
+  lambdaU                          the device ridge the engine's scorecard
+                                   was measured at, for the phone's own
+                                   solve (estimateTheta) to read rather
+                                   than assume
+  quality, displacement, seeds     the engine's scorecard (D325): the
+                                   prequential series with the marginal-
+                                   only baseline and skill beside every
+                                   row (D382), publish-to-publish
+                                   displacement, and the loadings' distance
+                                   from their hash seeds (D382)
+  candidates {sgd?|als?: {q,       the OTHER engine, with the same rows and
+     items?, quality?,              scorecard, its streak of consecutive
+     displacement?, lambdaU,        winning nights, and (als) the pooled
+     streak, lambdaSweep?}}         bits under each device ridge tried
+  crossedAt?                       the day the engine last changed hands
   lastDay, folded, at              the last UTC day folded (idempotence),
                                    the last run's fold count, server clock
 read: signed-in · write: NOBODY — written once per night by fitPatternsV2
 (admin SDK), so D7's per-document write ceiling never hears about it. The
 device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
+Nothing per-person in it, under either engine.
 
-v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2)
-  v: number[k], n, at              the latent vector the nightly fold
+v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D383)
+  v: number[k], n, at              the latent vector the online fold
                                    carries this person's PUBLIC answers
                                    as, and how many it has folded
+  d                                the last UTC day folded into this doc —
+                                   the retry stamp
+  a: {qid: optionIdx}              the person's CURRENT answer to every
+                                   item the candidate's corpus names,
+                                   compacted nightly from the ledger day
+                                   (an edit overwrites its key). The batch
+                                   engine's substrate: it reads people, not
+                                   days. Derived from the answers
+                                   subcollection, ~1/50th its bytes
 read: NOBODY · write: NOBODY — the push/ shape; fitPatternsV2 (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
 

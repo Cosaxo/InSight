@@ -335,6 +335,14 @@ export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
 // composite index), which drops the term by the ineligible share.
 export const PATTERNS_READS_PER_LEDGER_ENTRY = 1;
 export const PATTERNS_USER_STATE_OPS = 1;
+// The candidate engine (D383) re-solves nightly over EVERY fitted person's
+// answer map — one state read per person who has ever answered a core
+// item, which the model charges as one read per MAU per night
+// (`B.mauMultiple` per DAU-day). Counted separately from the online fit's
+// active-user read above so the two terms can be told apart on the bill:
+// at 50 k DAU that is 150 k reads a night, $0.045, against the ledger
+// re-read's 200 k.
+export const PATTERNS_SCAN_READS_PER_MAU = 1;
 // The engagement digest (R1/D268): a THIRD nightly reader of the same
 // ledger entries. ENGAGEMENT-RUNBOOK 1.1's named decision, taken as a
 // separate scan because velocity's cursor window and the digest's
@@ -692,6 +700,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
       + B.worldAnswers * PATTERNS_READS_PER_LEDGER_ENTRY
       + PATTERNS_USER_STATE_OPS
+      + B.mauMultiple * PATTERNS_SCAN_READS_PER_MAU
       + B.worldAnswers * ENGAGEMENT_READS_PER_LEDGER_ENTRY
       + ENGAGEMENT_USER_STATE_OPS
       + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
