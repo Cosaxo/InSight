@@ -389,6 +389,18 @@ jobs:
         if: always()
         run: |
           xcrun simctl io "$UDID" screenshot results/ios/99-final.png || true
+          # Maestro's takeScreenshot files: where they land depends on the
+          # version — the working directory, the flow file's directory, or
+          # its own ~/.maestro/tests/<run>/ — and run 34058702498 (2.10.0,
+          # cwd results/ios) left none in the cwd. Take every PNG written
+          # since the launch capture from all three, keeping the names the
+          # flow gave them.
+          n=0
+          while IFS= read -r f; do
+            [ -e "results/ios/$(basename "$f")" ] || { cp "$f" "results/ios/$(basename "$f")"; n=$((n + 1)); }
+          done < <(find "$GITHUB_WORKSPACE/.github/device-screens" "$HOME/.maestro" "$GITHUB_WORKSPACE" -maxdepth 4 -name '*.png' \
+                     -newer results/ios/00-launch-3s.png -not -path '*/results/*' -not -path '*/node_modules/*' -not -path '*/build/*' 2>/dev/null)
+          echo "maestro screenshots collected: $n" >> results/ios/environment.txt
           xcrun simctl spawn "$UDID" log show --last 20m --style compact \
             --predicate 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"' 2>/dev/null \
             | tail -400 > results/ios/syslog.txt || true
