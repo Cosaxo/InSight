@@ -1,7 +1,14 @@
 # Algorithm reflection — the fit, the fold, the store, and what a rebuild would look like
 
-**Status: plan only — nothing on this page is built; §1 is a measurement
-and the rest is what follows from it.** Written 2026-09-06 against
+**Status: mixed — §1 is a measurement, and most of §6 is built.** The
+owner read this page the day it was written and said *"yeah agree with
+those apply those and go with your recommendation"*; the session that
+followed built §6's steps in order as D382–D386, taking the routine's own
+recommendation on the two rows it had put to the owner. The table at the
+foot of §6 says which steps are built, which are half built by design,
+and which are not started; the proposals themselves stand as written,
+because they are the reasoning the records point back to. Written
+2026-09-06 against
 `main` @ c5cc341 on the owner's ask to reflect, with full creative
 control, on how the algorithm, the database, the data structures and the
 pattern calculation should improve. Read [`MIRROR.md`](MIRROR.md) for the
@@ -686,6 +693,24 @@ Steps 1–4 are the engine's rescue and are independent of everything
 below them; 1 alone changes what the next scorecard reader will show.
 Step 5 waits on the owner's row. Step 6 is the largest cost lever on
 this page and needs 2 for its erasure arm.
+
+**Where each step stands** (2026-09-06, the same day — the owner's *"apply
+those"* on this page, D382–D386 the records). Not maintained by
+intention: a step that moves after this gets its own record, and the
+record is the truth.
+
+| # | Built | Record, and what differs from the row above |
+| --- | --- | --- |
+| 1 | yes | D382 — `baselineBits`, `skill`, `seedCos` on the scorecard |
+| 2 | yes | D383 — `a` on `v2_users/{uid}/patterns/state`, compacted from the ledger day; no separate `patternsState.ts`, the compaction lives in `patterns.ts` |
+| 3 | yes | D383 — `patternsAls.ts` (pure); `candidates` on the loadings doc; `candidateWon` needs skill > 0 AND > the engine's; the fortnight streak |
+| 4 | yes | D383 — orthogonal Procrustes onto the published basis; the displacement rides the aligned model |
+| 5 | yes | D383 (server: bin · ord · opt items, the 160 instrument items among them) and D384 (device: every kind is evidence). The owner's row, taken with the same words |
+| 6 | yes | D385 — `v2_patterns/sample-{qid}`, the erasure arm, Kindred · People · pair card reading it; the who-voted sheet and the City pass stay live |
+| 7 | **no** | not started — the three nightly folds still read the ledger separately; §4.2 stands as written |
+| 8 | yes | D384 — the posterior is computed and NOT used to shrink the guess (measured: helps at λ = 0.5, hurts at λ ≥ 2; `patternsMap.ts` says why); λ is published and swept nightly; the information rule, the owner's row |
+| 9 | half, by design | D386 — the metric and the alert, with the refusal half the row above missed; the overflow document waits on the alert's first firing |
+| 10 | two of three | D386 — three folds memoised (`WhosHere`'s needed none; the record says why) and the Circle's index. The client store's page eviction — D350's amendment — is not built |
 
 ## 7 · What this does not propose
 
