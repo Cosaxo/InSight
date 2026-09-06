@@ -2209,7 +2209,7 @@ describe("validRankOrder / foldRankOrder — the order fold's trust boundary (D2
   });
 });
 
-describe("honestAnchors (D402): you may withhold, you may not invent", () => {
+describe("honestAnchors (D406): you may withhold, you may not invent", () => {
   const PROFILE = { city: "Oslo", country: "NO", ageBand: "25-34", profession: "Ceramicist" };
 
   it("passes an honest claim through unchanged", () => {

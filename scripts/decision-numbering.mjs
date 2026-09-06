@@ -52,14 +52,14 @@
 // THE OTHER HALF IS A NOTE, and the first run of this file is why. A
 // citation left behind points at a number no record claims, which reads
 // like a fault worth failing on — so it was written as one, and it failed
-// on the record introducing it: D400 cites D387, D388 and D389 while
+// on the record introducing it: D404 cites D387, D388 and D389 while
 // naming the three pull requests holding them. That is not a partial
 // renumber. A hole and a citation into that hole are ONE fact seen twice —
 // this head does not have that number, because another head does — so
 // failing on the second while excusing the first just puts merge order
 // back under a different name. Both are reported together by
 // `unclaimedNumbers`, which names the citers when there are any, because
-// "D387 is unclaimed and D400 points at it" is the sentence a reader
+// "D387 is unclaimed and D404 points at it" is the sentence a reader
 // wants. What survives unrefused is a citation typo landing on a free
 // number; it prints every run, and the alternative was a gate that made
 // three open branches take turns.
@@ -105,7 +105,7 @@ export function numberingProblems(records) {
  *
  * Two sources: the gaps between the lowest and highest record, and every
  * citation landing on a number no record claims — including one ABOVE the
- * last record, so a lone `D400` in a tree ending at D390 is reported
+ * last record, so a lone `D404` in a tree ending at D390 is reported
  * rather than falling off the end.
  *
  * @param {{num:number, kind:string}[]} records
@@ -131,7 +131,7 @@ export function unclaimedNumbers(records, cited = null) {
 
   // Two sources, unioned: the gaps INSIDE the sequence, and every citation
   // landing outside it. Kept separate on purpose — extending the gap scan
-  // up to a stray `D400` in a tree ending at D390 would report D391..D399
+  // up to a stray `D404` in a tree ending at D390 would report D391..D399
   // as holes too, which is nine numbers nobody has anything to do with.
   const report = new Set(targets.keys());
   for (let n = nums[0]; n < nums[nums.length - 1]; n++) if (!have.has(n)) report.add(n);

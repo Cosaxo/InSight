@@ -100,7 +100,7 @@ describe("a citation into a hole is the SAME fact, so it is reported too", () =>
   // This block was written as a failure and lasted one run. A partial
   // renumber's other half is a reference left behind, pointing at a number
   // no record claims — which reads like a fault. Then the first run refused
-  // the record introducing it: D400 cites D387, D388 and D389, the three
+  // the record introducing it: D404 cites D387, D388 and D389, the three
   // pull requests holding them. A hole and a citation into that hole are
   // one fact seen twice — this head does not have that number, because
   // another head does — so failing on the second while excusing the first
@@ -125,7 +125,7 @@ describe("a citation into a hole is the SAME fact, so it is reported too", () =>
   });
 
   it("reports a citation ABOVE the last record, which no gap would reach", () => {
-    // The one case the hole scan alone cannot see: a typo'd D400 in a tree
+    // The one case the hole scan alone cannot see: a typo'd D404 in a tree
     // ending at D390 is past the end of the sequence, so without the
     // citation map it falls off and nothing ever mentions it.
     const out = unclaimedNumbers([rec(389, 1), rec(390, 2)], cited([[400, [390]]]));

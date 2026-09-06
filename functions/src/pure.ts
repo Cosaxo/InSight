@@ -856,7 +856,7 @@ function evictForNewBucket(
   return true;
 }
 
-// YOU MAY WITHHOLD AN ANCHOR; YOU MAY NOT INVENT ONE (D402).
+// YOU MAY WITHHOLD AN ANCHOR; YOU MAY NOT INVENT ONE (D406).
 //
 // The rules check that an answer's anchors are PLAUSIBLE — ten strings of
 // sane length — never that they are the author's. A hand-written client can
