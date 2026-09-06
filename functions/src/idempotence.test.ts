@@ -67,7 +67,12 @@ async function deliver(id: string, data: Doc) {
   await (onV2AnswerCreated as unknown as { run: (e: unknown) => Promise<void> }).run({
     id,
     params: { uid: "u1", qid: QID },
-    data: { exists: true, get: (f: string) => data[f] },
+    // `ref` because a real DocumentSnapshot carries one and the honest-anchor
+    // correction (D406) writes through it. The fake had no ref at all, which
+    // is the harness being thinner than the thing it stands in for — the
+    // trigger is not guarded against a missing ref on purpose, so a snapshot
+    // without one is a test-fixture bug and should read as one.
+    data: { exists: true, ref: ref(`v2_users/u1/answers/${QID}`), get: (f: string) => data[f] },
   });
 }
 
@@ -94,6 +99,13 @@ const pick = { surface: "daily", entity: 25, anchors: {} };
 
 beforeEach(() => {
   store.clear();
+  // The author's profile, which the create fold now reads (D406) to check
+  // the answer's cohort is the author's own. Every real answer follows a
+  // profile write — `saveAnchors` writes the profile, and Firestore keeps a
+  // client's writes in order — so a fixture without one was describing a
+  // state the app cannot produce. The anchors here match what `vote` claims,
+  // so these cases stay about idempotence and nothing else.
+  store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
 });
 
 describe("a redelivered event folds once (retry: true is at-least-once)", () => {
@@ -290,5 +302,60 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     // entry is a fold that will land again on the next delivery.
     await deliver("evt-1", vote);
     expect(store.has("v2_agg_events/evt-1")).toBe(true);
+  });
+});
+
+describe("an invented cohort is corrected, not folded (D406)", () => {
+  // firestore.rules can only check an answer's anchors are PLAUSIBLE — ten
+  // strings of sane length — never that they are the author's. A rule that
+  // compared them to the profile was built and measured, and it refuses two
+  // correct writes: the city the app blanks on purpose, and every answer
+  // from a second device holding a stale profile mirror (which `wake()` does
+  // not refresh, so the window is a whole session). So the check lives here.
+  it("folds the profile's cohort, not the claimed one", async () => {
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    await deliver("e-lie", {
+      surface: "daily", optionIdx: 1,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by.ageBand["25-34"], "the profile's band took the vote").toEqual({ "1": 1 });
+    expect(by.ageBand["55-64"], "the claimed band got a cell anyway").toBeUndefined();
+    expect(by.country.NO).toEqual({ "1": 1 });
+    expect(by.country.JP).toBeUndefined();
+
+    // …AND THE DOCUMENT, in the same case because beforeEach clears the
+    // store between them. The fold alone is not enough: live.ts's voter
+    // fold reads other users' anchors off their answer ROWS to say who
+    // someone is, so an invented cohort left on the document would stay on
+    // the screen even with the aggregate corrected.
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the answer kept the cohort it invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("writes NOTHING to the answer when the claim is honest", async () => {
+    // The cost shape: an honest client — every client this repo ships —
+    // pays one extra read and no write. The write is the liar's cost.
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    await deliver("e-true", vote);
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "an honest answer was rewritten for nothing").toBe(false);
+  });
+
+  it("keeps a WITHHELD anchor withheld rather than filling it in", async () => {
+    // answerAnchors(rates) blanks the city on a question that rates one when
+    // the city is unconfirmed. Filling it back in from the profile would
+    // rate a place on the unconfirmed claim that blanking exists to stop.
+    store.clear();
+    store.set("v2_users/u1", { anchors: { city: "Oslo", country: "NO" } });
+    await deliver("e-blank", {
+      surface: "daily", optionIdx: 0, anchors: { city: "", country: "NO" },
+    });
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "a withheld city was overwritten from the profile").toBe(false);
+    const by = store.get(AGG)?.by as Record<string, Record<string, unknown>>;
+    expect(by.city, "a blanked city still folded into a city cell").toBeUndefined();
   });
 });

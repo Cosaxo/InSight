@@ -191,6 +191,19 @@ const uid = cred.user.uid;
 // The city split is 5/5 across Oslo and Bergen by the end, so the
 // dimension D9 added is exercised through the whole pipeline rather than
 // only in the pure unit tests.
+// THE PROFILE IS WRITTEN FIRST, as the app writes it (D406). Anchors on an
+// answer are a SNAPSHOT of the author's profile, and since D406 the fold
+// checks that: a claimed anchor the profile does not carry is corrected
+// away, because firestore.rules can only check the anchors are plausible,
+// never that they are the author's. This suite used to write answers with
+// anchors and no profile at all — a state the client cannot produce, since
+// `answerAnchors()` reads `state.profile.anchors` and `saveAnchors` writes
+// the profile before any of it exists. So the shortcut was not just a
+// shortcut: it meant the profile-then-answer ordering the fold now depends
+// on had never been exercised end to end.
+await setDoc(doc(db, "v2_users", uid), {
+  anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+}, { mergeFields: ["anchors"] });
 await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
   qid: q0.id, surface: "daily", optionIdx: 1,
   answeredAt: serverTimestamp(),
@@ -255,6 +268,12 @@ for (let n = 0; n < 4; n++) {
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: {
+    ageBand: n % 2 === 0 ? "25-34" : "35-44",
+    country: "NO",
+    city: n < 2 ? "Oslo, NO" : "Bergen, NO",
+  } },
+    { mergeFields: ["anchors"] });   // the profile first (D406)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
     answeredAt: serverTimestamp(),
@@ -321,6 +340,12 @@ for (let m = 0; m < 5; m++) {
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: {
+    ageBand: m < 2 ? "25-34" : "35-44",
+    country: "NO",
+    city: m < 2 ? "Oslo, NO" : "Bergen, NO",
+  } },
+    { mergeFields: ["anchors"] });   // the profile first (D406)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(),
@@ -368,6 +393,8 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: { ageBand: "25-34", country: "Norway" } },
+    { mergeFields: ["anchors"] });   // the profile first (D406)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
@@ -461,6 +488,9 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid),
+    { anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" } },
+    { mergeFields: ["anchors"] });   // the profile first (D406)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 1,
     answeredAt: serverTimestamp(),

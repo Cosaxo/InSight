@@ -317,7 +317,16 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 //
 // The duel branch of the same trigger does ZERO — it is one blind
 // arrayUnion onto the group, deliberately ("one blind write, no read").
-export const TRIGGER_READS = { world: 2, duel: 0 };
+// THREE on the world path since D406, not two. The fold reads the AUTHOR'S
+// PROFILE alongside the ledger event and the published aggregate, because
+// the anchors on an answer are the client's claim about its own cohort and
+// firestore.rules can only check they are plausible, never that they are
+// the author's — honestAnchors() in functions/src/pure.ts has why the rule
+// that would check it cannot exist. It rides the existing `tx.getAll`, so
+// the cost is one billed read and NOT a second round trip: the lock window
+// on v2_question_aggs/{qid}, which is what D7's ~1-write/sec ceiling is
+// about, is unchanged.
+export const TRIGGER_READS = { world: 3, duel: 0 };
 
 // The daily velocity scan (D54) reads every ledger entry written since its
 // last run. One entry per world answer, so this is worldAnswers per user per

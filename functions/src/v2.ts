@@ -40,6 +40,7 @@ import {
   foldRankOrder,
   catalogEntityKey,
   foldAnchors,
+  honestAnchors,
   foldCanonAnchors,
   type OnBucketCap,
   type BucketTail,
@@ -985,6 +986,7 @@ export const onV2AnswerCreated = onDocumentCreated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    const profRef = db.collection("v2_users").doc(event.params.uid);
     // The cap's discards from the attempt that commits — reset per attempt,
     // logged once the transaction returns (logBucketCaps).
     const capped: BucketCapEvent[] = [];
@@ -1015,7 +1017,13 @@ export const onV2AnswerCreated = onDocumentCreated(
       //
       // Idempotency: Eventarc is at-least-once and retry is on — the
       // ledger makes redelivery a no-op instead of a double count.
-      const [seen, agg] = await tx.getAll(eventRef, pubRef);
+      // THE PROFILE RIDES THIS READ (D406). The anchors on an answer are
+      // the client's claim about its own cohort, and firestore.rules can
+      // only check they are plausible, never that they are the author's —
+      // honestAnchors() in pure.ts has why the rule that would check it
+      // cannot exist. One more billed read, no extra round trip, and the
+      // lock window on v2_question_aggs/{qid} is unchanged.
+      const [seen, agg, prof] = await tx.getAll(eventRef, pubRef, profRef);
       if (seen.exists) return;
       const counts: Record<string, number> =
         (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
@@ -1039,7 +1047,11 @@ export const onV2AnswerCreated = onDocumentCreated(
       // above and nothing more. What the cap then evicts or refuses goes
       // to the tail as blind increments after the hot write below.
       const storedBy = agg.exists ? (agg.get("by") as BreakdownCounts) : null;
-      const anchors = snap.get("anchors");
+      // What the answer SHOULD have said. Bound here rather than at each use
+      // so the cap's shard bound, the fold and the ledger entry all see the
+      // same thing, and the correction below compares against the claim.
+      const claimed = snap.get("anchors");
+      const anchors = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
       const flow = overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
       const by = breakdownFor(
         qid,
@@ -1054,7 +1066,23 @@ export const onV2AnswerCreated = onDocumentCreated(
       // create after an edit erases the flows. Emit-when-set: the common,
       // never-edited question's doc gains no key.
       const edits = agg.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx, undefined, snap.get("anchors")));
+      // AND THE DOCUMENT IS CORRECTED, not only the fold. The People lens
+      // reads other users' anchors off their answer rows to say who someone
+      // is, so a fold that quietly ignored an invented cohort would leave
+      // the invention on the screen. It also keeps D8's snapshot true, which
+      // the edit path depends on: onV2AnswerUpdated re-reads these anchors
+      // to retarget the -old/+new delta and must find the cells this create
+      // folded. Written ONLY when it differs, so an honest client pays one
+      // read and no write — the write is the liar's cost.
+      if (JSON.stringify(anchors) !== JSON.stringify(claimed ?? {})) {
+        logger.warn(
+          `[v2] answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+        );
+        tx.set(snap.ref, { anchors }, { merge: true });
+      }
+      // The ledger entry carries the anchors too, and the nightly passes
+      // read them — so it takes the honest set, not the claim.
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx, undefined, anchors));
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag

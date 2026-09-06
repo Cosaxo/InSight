@@ -107,6 +107,33 @@ const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m
 const seededQuestions = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
 const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 
+// WHAT A COLD BOOT ACTUALLY FETCHES, which is not the bank. `hydrate()`
+// pulls five surfaces up front; daily, feed and learn are paged (D383,
+// FEED_PAGE, LEARN_PAGE) and never ride the boot. COSTS.md's cold-boot row
+// said "the whole question bank" long after that stopped being true, and
+// this gate kept the number CURRENT as the bank grew — faithfully
+// maintaining a false sentence, which is worse than an unheld one. That is
+// the row's own history repeating: D67 added it because the file quoted a
+// 369-document bank at 389, and the fix held the wrong quantity.
+//
+// The surface list is READ FROM live.ts rather than repeated here. A second
+// copy is what D197 is about — one bank parser in three copies, and the one
+// with a try/catch reported an invented size instead of failing — so this
+// throws when it cannot find the list. A gate that guesses is not a gate.
+const bootSurfaces = (() => {
+  const live = read("src/v2/data/live.ts");
+  const m = live.match(/const BANK_SURFACES = \[([^\]]+)\]/);
+  if (!m) {
+    throw new Error(
+      "check-figures: could not find BANK_SURFACES in src/v2/data/live.ts. "
+      + "The cold-boot row is computed from it, so a rename must be followed "
+      + "here rather than left to report a stale number.",
+    );
+  }
+  return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+})();
+const bootQuestions = surfaces.filter((s) => bootSurfaces.includes(s)).length;
+
 // The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than
 // measured off the file, because the file is TypeScript around the data:
 // its bytes include a type annotation and whatever the generator's
@@ -1207,12 +1234,32 @@ const FIGURES = [
   // exists to prevent. These two are the INPUTS: they come from the tree
   // rather than from the model, they move on their own every promotion
   // cycle, and they are what the cold-boot row is computed from.
+  // The cold-boot row was ONE row quoting the bank twice — a read count and
+  // a `V2_QUESTIONS`, N docs half — and both said the boot fetched all of
+  // it. It is two rows now: what the boot fetches, and what the bank holds.
+  // The second half's entry went with the sentence rather than being
+  // retargeted, per this script's own advice when a figure stops being
+  // quoted; the bank's count is still held, by the bank row below.
   {
     file: "docs/COSTS.md",
-    what: "the question bank's document count (the cold-boot row)",
-    re: /\*\*\+(\d+) reads\*\* — the whole question bank/,
+    what: "what a cold boot fetches (the cold-boot row)",
+    re: /\*\*\+(\d+) reads\*\* — the five surfaces fetched up front/,
+    actual: bootQuestions,
+    fix: (n) => `"**+${n} reads** — the five surfaces fetched up front"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "the question bank's document count (the bank row)",
+    re: /the whole bank is (\d+) docs/,
     actual: seededQuestions,
-    fix: (n) => `"**+${n} reads** — the whole question bank"`,
+    fix: (n) => `"the whole bank is ${n} docs"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "the questions a cold boot does NOT fetch (the bank row)",
+    re: /(\d+) of them never ride the boot/,
+    actual: seededQuestions - bootQuestions,
+    fix: (n) => `"${n} of them never ride the boot"`,
   },
   {
     file: "docs/COSTS.md",
@@ -1233,13 +1280,6 @@ const FIGURES = [
   // caught in the same file the gate was already open in, which is the
   // argument for widening the read rather than trusting the neighbouring
   // sentence to be noticed.
-  {
-    file: "docs/COSTS.md",
-    what: "the question bank's document count (the cold-boot row, second half)",
-    re: /`V2_QUESTIONS`, (\d+) docs/,
-    actual: seededQuestions,
-    fix: (n) => `"\`V2_QUESTIONS\`, ${n} docs"`,
-  },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "the App Privacy row count (4.4, the nutrition label)",

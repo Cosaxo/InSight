@@ -131,3 +131,54 @@ describe("check:figures and the drift figure", () => {
     }
   });
 });
+
+describe("the cold-boot row is computed, not copied", () => {
+  // COSTS.md's cold-boot row said "+913 reads — the whole question bank"
+  // long after daily, feed and learn started paging, and this gate kept
+  // that number CURRENT as the bank grew: a gate faithfully maintaining a
+  // false sentence, which is worse than a sentence nobody holds. Someone
+  // reading the docs — including the session that eventually found it —
+  // saw "a phone downloads every question" and believed it, months after
+  // the work that stopped it.
+  //
+  // The fix computes the row from `BANK_SURFACES` in live.ts. These two
+  // cases are the two ways that can go wrong.
+
+  it("moves with the code when a surface leaves the boot", () => {
+    const live = join(tree, "src/v2/data/live.ts");
+    const before = readFileSync(live, "utf8");
+    try {
+      writeFileSync(live, before.replace(
+        /const BANK_SURFACES = \["test", "group", "duo", "pulse", "call"\];/,
+        'const BANK_SURFACES = ["test", "group", "duo", "pulse"];',
+      ));
+      const r = runGate(tree);
+      expect(r.code, "dropping a surface left the documented boot cost unchanged").toBe(1);
+      expect(r.out).toMatch(/what a cold boot fetches/);
+      // Both halves move, and in opposite directions — fewer fetched is
+      // more not fetched. A row that moved only one way would be arithmetic
+      // nobody checked.
+      expect(r.out).toMatch(/never ride the boot/);
+    } finally {
+      writeFileSync(live, before);
+    }
+  });
+
+  it("REFUSES rather than guesses when the list is renamed", () => {
+    // The D197 shape: one bank parser in three copies, and the copy with a
+    // try/catch reported an invented wire size instead of failing. A gate
+    // that cannot find its input must say so — silently computing zero
+    // would report a boot that fetches nothing, which is a number, looks
+    // like an answer, and is worse than red.
+    const live = join(tree, "src/v2/data/live.ts");
+    const before = readFileSync(live, "utf8");
+    try {
+      writeFileSync(live, before.replace("const BANK_SURFACES = ", "const RENAMED = "));
+      const r = runGate(tree);
+      expect(r.code).toBe(1);
+      expect(r.out).toMatch(/could not find BANK_SURFACES/);
+    } finally {
+      writeFileSync(live, before);
+    }
+  });
+});

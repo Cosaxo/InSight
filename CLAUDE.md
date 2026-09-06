@@ -526,7 +526,10 @@ an emergency rules fix.
   this repository and no label that merges anything. What a session owes
   before a PR is mergeable is unchanged and is still the whole of the
   contract: a green head with `main` already merged in and its decision
-  numbers already moved (D299). Then say so and stop — **unless the
+  numbers already moved (D299) — off a **collision** only, because since
+  D404 the hole a move leaves behind is a printed note rather than a
+  failure, so no pull request waits on another's merge to go green. Then
+  say so and stop — **unless the
   owner tells you to merge, in that session and about that head, which
   is the click**. What D385 retired was the unattended lane merging on a
   label, and its first phrasing read as forbidding the instruction too;

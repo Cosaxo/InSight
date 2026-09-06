@@ -20,6 +20,7 @@ import {
   revealMembersFor,
   breakdownBucket,
   foldAnchors,
+  honestAnchors,
   BREAKDOWN_MAX_BUCKETS,
   OVERFLOW_SHARDS,
   overflowShard,
@@ -2354,3 +2355,55 @@ describe("the breakdown cap's tail (D400)", () => {
   });
 });
 
+describe("honestAnchors (D406): you may withhold, you may not invent", () => {
+  const PROFILE = { city: "Oslo", country: "NO", ageBand: "25-34", profession: "Ceramicist" };
+
+  it("passes an honest claim through unchanged", () => {
+    expect(honestAnchors({ city: "Oslo", ageBand: "25-34" }, PROFILE))
+      .toEqual({ city: "Oslo", ageBand: "25-34" });
+  });
+
+  it("REPLACES an invented value with the profile's", () => {
+    // The whole point. A hand-written client filing its own answer under a
+    // cohort it liked is the only way this data can lie, and every Mirror
+    // cut is folded from it.
+    expect(honestAnchors({ city: "Tokyo", profession: "Surgeon" }, PROFILE))
+      .toEqual({ city: "Oslo", profession: "Ceramicist" });
+  });
+
+  it("KEEPS a withheld anchor withheld — the city-blanking the app does on purpose", () => {
+    // answerAnchors(rates) blanks the city on a question that rates one
+    // when the city is unconfirmed. Overwriting "" with the profile's city
+    // would undo a deliberate decision and rate a place on an unconfirmed
+    // claim, which is the thing that blanking exists to stop.
+    expect(honestAnchors({ city: "", country: "NO" }, PROFILE))
+      .toEqual({ city: "", country: "NO" });
+  });
+
+  it("treats null and undefined as withheld too", () => {
+    expect(honestAnchors({ city: null, country: undefined }, PROFILE))
+      .toEqual({ city: null, country: undefined });
+  });
+
+  it("DROPS a field the profile does not carry at all", () => {
+    // Inventing a whole anchor is the same act as changing one — and a key
+    // the profile has never held cannot be corrected to anything, so it
+    // goes rather than staying as the client wrote it.
+    expect(honestAnchors({ city: "Oslo", heightBand: "180-189" }, PROFILE))
+      .toEqual({ city: "Oslo" });
+  });
+
+  it("says nothing when there is no profile, and keeps withheld values", () => {
+    // A first answer written before any profile exists is legal and carries
+    // {} (D8). Anything non-empty claimed against no profile is invention.
+    expect(honestAnchors({}, null)).toEqual({});
+    expect(honestAnchors({ city: "Tokyo" }, null)).toEqual({});
+    expect(honestAnchors({ city: "" }, null)).toEqual({ city: "" });
+  });
+
+  it("survives junk on either side rather than throwing in the hot trigger", () => {
+    expect(honestAnchors(null, PROFILE)).toEqual({});
+    expect(honestAnchors("nope", PROFILE)).toEqual({});
+    expect(honestAnchors({ city: "Oslo" }, "nope")).toEqual({});
+  });
+});

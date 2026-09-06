@@ -42743,3 +42743,298 @@ The cadence dial first, by `update_trigger` on the owning account.
 Retiring the lane is disabling five Routines, a dated line in
 `ROUTINES.md` §9 and this record, and the contract's status line
 moved to *past* — the same shape D385 gave the merge lane.
+
+## D404 · A decision-number hole is reported, not refused — merge order stops being a gate
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
+— *"fix the gate so merge order doesn't matter"* — after it cost a
+morning three times over.
+
+### What was true
+
+`doc-index.mjs` rule 10 refused any hole in the decision sequence, with
+a reason that reads well: *"a hole is a renumber that shifted some
+records and not others, or a record that was written and lost. Records
+are amended here, never deleted, so there is no legitimate gap."*
+
+That is sound about `main` and wrong about a branch, and nothing in the
+predicate could tell the two apart. Measured today: three pull requests
+open at once claimed D387, D388 and D389. **Each one's own head has
+holes where the other two sit**, so each was red — in `check:docs` and
+in `test:scripts` — until the others merged. Decision numbers had come
+to imply a **merge order**, which nobody chose and which is invisible
+until you are in it.
+
+**It arrived by omission.** D385 retired the PR shepherd, and moving
+colliding decision numbers at merge time was part of what the shepherd
+did. With merges by hand, that work fell to whoever noticed — and the
+gate turned it into a queue.
+
+### What replaced it
+
+A hole was only ever a **proxy** for a partial renumber, and the half of
+that fault with teeth is still refused: **a record left behind at its
+old number** collides with whatever took it — a **duplicate**, which
+this module has failed on since 2026-08-26 and which is the case that
+actually happened (two records at D297). Two rows claiming one id makes
+every citation of that number ambiguous, and the next author reads the
+highest number and orphans a record.
+
+Holes are **reported** instead — `unclaimedNumbers()`, printed as a
+note — because "D387 is unclaimed" is worth reading. They are simply not
+a reason to refuse a tree.
+
+### The other half was written as a failure and lasted one run
+
+A partial renumber's second half is **a citation left behind**, pointing
+at a number no record claims. That was added here as a failure, using
+the citation map `citations()` already builds for the index — one map
+feeding the render and the gate, scoped to `DECISIONS.md`'s own bodies
+because a tree-wide scan would read every `D385` in a code comment as a
+claim about this file.
+
+**It failed on this record.** The first run refused the tree three
+times: D404 cites D387, D388 and D389 — the three pull requests holding
+them, named in the paragraph above explaining why the gate had to
+change.
+
+That is not a partial renumber, and the lesson is sharper than the rule
+was. **A hole and a citation into that hole are one fact seen twice** —
+this head does not have that number, because another head does. Failing
+on the second while excusing the first only puts merge order back under
+a different name. So both are reported together, and the note names the
+citers when there are any, because *"D387 is unclaimed and D404 points
+at it"* is the sentence a reader actually wants:
+
+```
+note: D387 (cited by D404), D388 (cited by D404), D389 (cited by D404)
+      unclaimed — an open branch is holding them, or a record was lost.
+```
+
+What that gives up is a citation typo landing on a free number: it
+prints every run instead of failing. The alternative was a gate that
+made three open branches take turns, which is the thing being removed.
+
+### Verified against the case that motivated it
+
+Not reasoned about. Each of the three open heads was checked out and the
+gate run on it, old code and new:
+
+| PR | claims | its own holes | old gate | new gate |
+| --- | --- | --- | --- | --- |
+| #408 | D387 | none | **OK** | OK |
+| #411 | D388 | D387 | **FAILED** | OK |
+| #415 | D389 | D387, D388 | **FAILED** | OK |
+
+That column is the merge order, drawn. Exactly one of the three could be
+green at a time, and it was always the **lowest-numbered** one — not
+because its work was ready first, but because nothing was sitting under
+it. #415 had to wait for two merges it has no relationship to.
+
+This branch is the fourth case: written as D387, moved to **D404**, the
+first number no open branch claims, leaving holes at D387, D388 and
+D389, one per pull request waiting. Under the rule being removed, the
+change fixing the problem could not pass its own gate until three
+unrelated merges landed first. The unit cases pin both directions.
+
+**The table aged in the hours it took to write this, which is the
+argument.** #408 merged, and so did #414 — whose own record took D388,
+the number #411 was holding. So #411 now carries a genuine
+**duplicate** (renumbered to D391, before merging main and not after —
+doing it the other way round is what corrupted D370–D372 across four
+source files and eight documents earlier the same day), and with it
+fixed its head has holes at D389 and D404 and is refused by the rule
+this record removes. The two halves land exactly where they should: the
+duplicate is caught, and the hole is the gate holding #411 hostage to
+#416 — itself. Numbers move on their own while pull requests are open;
+that is the condition, not the accident.
+
+### What this does not loosen
+
+Nothing about `main`'s history changed — records are still amended,
+never deleted, and a hole there still gets printed every run until its
+pull request lands. Duplicates still fail.
+
+## D405 · The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success
+
+**Decided:** 2026-09-06 · **Status:** binding. **This record replaces its
+own first version**, which said the opposite and was wrong.
+
+### What the first version claimed
+
+That the answer create rule sat at Firestore's hard ceiling of 1,000
+evaluated expressions per request; that the margin was gone; that "the
+next clause added to that rule breaks a real write, silently, and the
+failure will read as a permissions bug." It put an ASK on
+`OWNER-LIST.md` inviting the owner to trade away a guarantee — the
+per-anchor length validation — to buy headroom.
+
+**None of that was true.** Measured on the emulator by injecting copies
+of one anchor-length check into the create rule and asking whether a
+legitimate answer still lands:
+
+| extra checks injected | legitimate create |
+| --- | --- |
+| +0 | lands |
+| +80 | lands |
+| +200 | lands |
+| **+400** | **lands** |
+
+Four hundred more of the very check called too expensive, and the real
+path is still nowhere near the edge.
+
+### Where the ceiling IS reached, and why it does not matter
+
+Only on a `set` over an answer that already exists. That write evaluates
+the create rule and the update rule against one budget, and together they
+exceed it — so it is refused for running out rather than for being false.
+
+It is refused **either way**. Answers are create-only but for D86's one
+edit shape, and the client's edit path is `updateDoc`
+(`src/v2/data/live.ts`, the `editedAt` write) — checked, not assumed.
+Every `setDoc` on an answer in the client is a FIRST write. Nothing the
+app does reaches the failing path; the e2e reaches it three times a run
+on purpose, to prove the refusal, which is why it shows up in a log at
+all.
+
+### The mistake, which is the reusable part
+
+**The failing case was bisected; the passing case was never measured.**
+Stub a clause, re-run, see the denial clear — that identifies which
+clause tips a red path over. It says nothing about how far the green path
+is from the edge, and I read the first as the second. Every conclusion
+after that inherited the error, including a decision record and an ask
+put to the owner.
+
+The tell was available and ignored: a fresh create with all ten anchors
+passed in the very first probe, in the same table as the failures. A
+passing row in a table of failures is a measurement, not a footnote.
+
+**The rule this leaves:** when a limit is reached, measure the distance
+from the limit on the path that must keep working — not on the path that
+is already failing. A red path tells you what tipped it; only the green
+path tells you what the margin is.
+
+### What survives
+
+The three reductions the first version shipped, because each is free and
+none changes what the rules admit:
+
+- the surface discriminator ahead of `keys().hasOnly()` in all six answer
+  predicates;
+- `duelIndexSpace()` from three calls to one;
+- `isValidV2Anchors` in its two-use form.
+
+And the two negative rules cases `rules-coverage` demanded when the first
+of those stopped a `hasOnly` being exercised by accident. All of it is
+worth keeping; none of it was urgent, and the record should not have said
+it was.
+
+**What does NOT survive** is the ask. It invited the owner to weaken a
+guarantee to fix a problem that does not exist, which is the D352 process
+pointed at nothing. Withdrawn from `OWNER-LIST.md`.
+
+### One real finding, separated out
+
+Building the replacement surfaced something the ceiling story had
+buried. The rule checks that an answer's anchors are *plausible* — ten
+strings of sane length — never that they are **yours**. A client can
+attach any well-formed cohort it likes to its own answer: city Tokyo,
+profession Surgeon, and every Mirror cut that reads that snapshot reads
+the invention. Verified: with the rule comparing the snapshot to the
+profile document, that write is refused; as the tree stands, it lands.
+
+That is an integrity question about the app's central claim — the cuts
+the Mirror draws are only as honest as the anchors answers carry — and
+it is worth its own decision rather than a footnote to a wrong one. It
+costs one document read per answer, and it needs an answer for the case
+where a profile edit and an answer race (measured: the answer is refused
+until the profile write lands). `OWNER-LIST.md` carries it as that
+question instead.
+
+## D406 · You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
+after D405 surfaced it — *"fix the invented cohort thing too"*.
+
+### The hole
+
+`firestore.rules` checks that an answer's anchors are **plausible** — ten
+strings of sane length — and never that they are the **author's**. A
+hand-written client can file its own answer under any cohort it likes:
+city Tokyo, profession Surgeon. Two things read those anchors, and both
+believe them:
+
+- the **fold** (`functions/src/v2.ts` → `breakdownFor`/`foldAnchors`),
+  which builds the published aggregate every Mirror cut is drawn from;
+- the **People lens**, which reads other users' anchors off their answer
+  rows to say who someone is (`live.ts`, the voter fold — *"the People
+  lens says who someone is (profession, age band)"*).
+
+So an invention lands in the population's numbers and on a card
+describing a person.
+
+### The rule that would fix it, and why it is not this
+
+Built and measured: `allow create` comparing the answer's anchors to the
+author's profile document. It works — the invented cohort is refused —
+and it refuses **two writes that are correct**:
+
+1. **The blanked city.** `answerAnchors(rates)` deliberately empties the
+   city on a question that rates one when the city is unconfirmed. The
+   answer says `""` where the profile says `"Oslo"`. The divergence is
+   the app's own decision.
+2. **The stale mirror.** The profile is read at boot and on a failed
+   network phase; `wake()` does not re-read it. So a second device holds
+   a stale profile for the **whole session** after an edit elsewhere, and
+   every answer it writes would be refused for the duration.
+
+(2) settles it. The window is a session, not a moment, and the failure is
+a refused answer. **A rules-side equality check cannot be made correct
+here** in any form: a stale value is not empty, so no "or blank"
+allowance reaches it.
+
+### What replaced it
+
+`honestAnchors(claimed, profile)` in `pure.ts`, applied by the create
+fold:
+
+- an **empty, null or absent** value is *withheld* and kept exactly as
+  written — so the blanked city and the answer written before any profile
+  existed both survive untouched;
+- a **non-empty** value must be the profile's, or it is replaced by it;
+- a key the profile does not carry is **dropped** — inventing a whole
+  field is the same act as changing one.
+
+*A client may say less about itself than its profile does. It may not say
+something else.*
+
+The **document is corrected too**, not only the fold, because the People
+lens reads the row rather than the aggregate — and because D8's snapshot
+is what `onV2AnswerUpdated` re-reads to retarget the −old/+new delta, so
+a fold using one set and a document holding another would subtract from
+cells it never added to.
+
+### What it costs, and the shape of the cost
+
+The author's profile joins the **existing** `tx.getAll` in the fold's
+transaction: one more billed read, and **not** a second round trip — the
+lock window on `v2_question_aggs/{qid}`, which is what D7's ~1-write/sec
+ceiling is about, is unchanged. `TRIGGER_READS.world` moves 2 → 3, and
+`pulse.test.mjs`'s tripwire caught the change before this record existed,
+which is what it is for.
+
+The write back to the answer happens **only when the claim differs**, so
+an honest client — every client this repo ships — pays one read and no
+write. The write is the liar's cost, and it logs.
+
+### The e2e was describing a state the app cannot produce
+
+Fixing this turned up that `e2e-v2-loop.mjs` wrote answers carrying
+anchors **without ever writing a profile** — five sites. The client
+cannot do that: `answerAnchors()` reads `state.profile.anchors`, which is
+only non-empty after `saveAnchors` has written the profile. So the
+profile-then-answer ordering the fold now depends on had never been
+exercised end to end, in the suite whose whole job is the real loop. All
+five now write the profile first, and the run reports **zero**
+corrections.
