@@ -92,10 +92,11 @@ const LENSES = [
 type Lens = (typeof LENSES)[number]["id"];
 
 // The same ruler the daily and the mirror wear — one axis, stops on a scale.
-function Ruler({ lens, onLens }: { lens: Lens; onLens: (l: Lens) => void }): React.ReactElement {
+// `flush` drops its own margins when the folding wrapper below carries them.
+function Ruler({ lens, onLens, flush }: { lens: Lens; onLens: (l: Lens) => void; flush?: boolean }): React.ReactElement {
   const idx = Math.max(0, LENSES.findIndex((s) => s.id === lens));
   return (
-    <div style={{ margin: "-6px 0 -2px" }}>
+    <div style={{ margin: flush ? 0 : "-6px 0 -2px" }}>
       <div style={{ position: "relative", display: "flex", height: 50 }} role="tablist" aria-label="How wide this lens looks">
         <div style={{ position: "absolute", left: 6, right: 6, bottom: 21, height: 1, background: "color-mix(in oklch, var(--rule), transparent 30%)" }}></div>
         {LENSES.map((s, i) => {
@@ -118,25 +119,49 @@ function Ruler({ lens, onLens }: { lens: Lens; onLens: (l: Lens) => void }): Rea
   );
 }
 
-export default function PatternsTab(): React.ReactElement {
+export default function PatternsTab({ lens: lensProp, onLens, ruler = false, onDock }: {
+  /** The shell's lens (the header dial, 2026-09-06). The tab renders from
+   * its own state — the slide's direction has to land in the same commit
+   * as the lens — and adopts a differing prop one effect later; bare
+   * mounts (the test fixtures) simply never pass it. */
+  lens?: Lens;
+  onLens?: (l: Lens) => void;
+  /** Fold the in-flow ruler behind the header dial: away once scrolled
+   * past or once a lens is used, back on a pull at the top. Off for bare
+   * mounts, which have no header to dock into. */
+  ruler?: boolean;
+  onDock?: (docked: boolean) => void;
+} = {}): React.ReactElement {
   const version = usePatterns();
   // the incoming lens slides from the side you moved toward on the ruler
   // (2026-08-26) — the axis is a place, not a list, so a swap has a
   // direction. The direction rides IN the lens state (one object, one
   // set) rather than in a ref: the class reads it during render, and a
   // render-read ref is exactly what react-hooks/refs refuses. First
-  // mount keeps the plain fade: nothing was moved from.
-  const [lensSt, setLensSt] = React.useState<{ id: Lens; dir: "" | "l" | "r" }>({ id: "map", dir: "" });
+  // mount keeps the plain fade: nothing was moved from (and it seeds
+  // from the shell's lens, so a return to the tab lands where you left).
+  const [lensSt, setLensSt] = React.useState<{ id: Lens; dir: "" | "l" | "r" }>({ id: lensProp ?? "map", dir: "" });
   const lens = lensSt.id;
   // useCallback, not a plain closure: the swipe axis below holds this in
   // an effect, and a new identity every render would tear its listeners
   // down and re-add them on every render rather than on every lens change.
-  const setLens = React.useCallback((id: Lens): void => setLensSt((cur) => {
-    if (id === cur.id) return cur;
-    const a = LENSES.findIndex((s) => s.id === cur.id);
-    const b = LENSES.findIndex((s) => s.id === id);
-    return { id, dir: b > a ? "r" : "l" };
-  }), []);
+  const setLens = React.useCallback((id: Lens): void => {
+    setLensSt((cur) => {
+      if (id === cur.id) return cur;
+      const a = LENSES.findIndex((s) => s.id === cur.id);
+      const b = LENSES.findIndex((s) => s.id === id);
+      return { id, dir: b > a ? "r" : "l" };
+    });
+    onLens?.(id);
+  }, [onLens]);
+  // the header dial writes the prop; adopt it with a direction. One
+  // effect pass late on purpose — deriving during render is the
+  // set-state-in-render shape the hooks lint refuses, and the slide's
+  // second frame is not worth an exception.
+  React.useEffect(() => {
+    if (lensProp && lensProp !== lensSt.id) setLens(lensProp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lensSt.id is the compare target, not a trigger
+  }, [lensProp, setLens]);
   const [topic, setTopic] = React.useState("all");
   const [ppop, setPpop] = React.useState<PeoplePop>("world");
   // the explainer lives behind one ⓘ (2026-09-06) — it used to be a
@@ -146,15 +171,97 @@ export default function PatternsTab(): React.ReactElement {
   // Map still counts the links, beside the pool they hold across.)
   const [guide, setGuide] = React.useState(false);
 
+  const wrapRef = React.useRef<HTMLDivElement | null>(null);
+  const stackRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Docking, as on the daily (2026-09-06): the in-flow ruler starts on
+  // the page and folds away once it scrolls out of the body OR once a
+  // lens is used — the lenses fill the screen, so they rarely scroll,
+  // and a tap in one is the moment the ruler's job is done. The header
+  // dial takes over (`onDock`). A wheel-up or a 36px pull at the top
+  // brings it back. `hid` is the use-fold (it collapses the ruler);
+  // scrolled-past needs no collapse — the ruler is already off-screen —
+  // so it only reports. Capture phase because scroll does not bubble.
+  const [hid, setHid] = React.useState(false);
+  const rulerEl = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!ruler) return;
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    // the scroll host exists under the shell; a bare mount has none, and
+    // the use-fold below works without it
+    const host = wrap.closest(".app");
+    const body = () => wrap.closest(".app-body");
+    let scrolled = false;
+    let folded = false;
+    let last = false;
+    const push = () => {
+      const v = scrolled || folded;
+      if (v !== last) { last = v; onDock?.(v); }
+    };
+    const setFolded = (v: boolean) => {
+      if (folded === v) return;
+      folded = v;
+      setHid(v);
+      push();
+    };
+    const check = () => {
+      const el = rulerEl.current, sc = body();
+      if (!el || !sc) return;
+      const r = el.getBoundingClientRect(), s = sc.getBoundingClientRect();
+      // hysteresis: gone past the top edge docks, 8px back into view releases
+      scrolled = scrolled ? r.bottom <= s.top + 8 : r.bottom <= s.top + 1;
+      push();
+    };
+    const atTop = () => { const sc = body(); return !sc || sc.scrollTop <= 1; };
+    const inLens = (t: EventTarget | null) =>
+      !!(t instanceof Element && t.closest(".pt-stack"));
+    // after a tap or drag in a lens (pointerup, so the click lands before
+    // the layout moves under the finger)
+    const onUp = (e: Event) => { if (inLens(e.target)) setFolded(true); };
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      if (!folded && e.deltaY > 6 && inLens(e.target)) setFolded(true);
+      else if (folded && e.deltaY < -6 && atTop()) setFolded(false);
+    };
+    let ty = 0, tx = 0, top0 = false;
+    const onTS = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      ty = t.clientY; tx = t.clientX; top0 = atTop();
+    };
+    const onTM = (e: TouchEvent) => {
+      if (!folded || !top0) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const dy = t.clientY - ty, dx = Math.abs(t.clientX - tx);
+      if (dy > 36 && dx < dy * 0.6) setFolded(false);
+    };
+    const C = { capture: true, passive: true } as const;
+    const U = { capture: true } as const;
+    host?.addEventListener("scroll", check, C);
+    wrap.addEventListener("pointerup", onUp, C);
+    wrap.addEventListener("wheel", onWheel, C);
+    wrap.addEventListener("touchstart", onTS, C);
+    wrap.addEventListener("touchmove", onTM, C);
+    return () => {
+      host?.removeEventListener("scroll", check, U);
+      wrap.removeEventListener("pointerup", onUp, U);
+      wrap.removeEventListener("wheel", onWheel, U);
+      wrap.removeEventListener("touchstart", onTS, U);
+      wrap.removeEventListener("touchmove", onTM, U);
+      if (last) onDock?.(false);
+    };
+  }, [ruler, onDock]);
+
   // The lens body drags on the SAME horizontal axis as the daily's modes
   // and the mirror's stops (2026-09-02): the ruler is a place, so the
   // finger can walk it. Past the far end the axis continues into the
   // daily — `NAV.goNav` is D166's one licensed joint, used from the other
   // side, and it ANSWERS whether it navigated, so a refusal springs back
   // instead of leaving the stack where the finger left it. The near end
-  // has nowhere to go and always springs.
-  const wrapRef = React.useRef<HTMLDivElement | null>(null);
-  const stackRef = React.useRef<HTMLDivElement | null>(null);
+  // has nowhere to go and always springs. (wrapRef/stackRef are declared
+  // with the dock effect above — the two systems share the wrap.)
   React.useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -304,7 +411,19 @@ export default function PatternsTab(): React.ReactElement {
 
   return (
     <div ref={wrapRef} className={"pt-wrap" + (lens === "oracle" ? " pt-oracle" : "")} style={{ padding: "6px 16px 18px" }}>
-      <Ruler lens={lens} onLens={setLens} />
+      {ruler ? (
+        <div ref={rulerEl} aria-hidden={hid}
+          style={{
+            margin: hid ? "-6px 0 -8px" : "-6px 0 -2px",
+            height: hid ? 0 : 50, opacity: hid ? 0 : 1,
+            overflow: "hidden", pointerEvents: hid ? "none" : "auto",
+            transition: "height .32s cubic-bezier(.2,.8,.2,1), margin .32s cubic-bezier(.2,.8,.2,1), opacity .18s ease",
+          }}>
+          <Ruler lens={lens} onLens={setLens} flush />
+        </div>
+      ) : (
+        <Ruler lens={lens} onLens={setLens} />
+      )}
       <div className="pt-sub">
         {/* every lens's row leads with the one ⓘ (2026-09-06) — the
             legends, keys and explainer sentences render in the open lens

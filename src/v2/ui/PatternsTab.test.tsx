@@ -200,3 +200,57 @@ describe("the axis", () => {
     expect(screen.getByRole("tab", { name: "Question map" }).getAttribute("aria-selected")).toBe("true");
   });
 });
+
+// ── the header dial (2026-09-06): the shell holds the lens, the tab
+// reports every move, and the two can never disagree ──────────────────
+describe("the lifted lens", () => {
+  const mountWired = async (props: Record<string, unknown>) => {
+    const { default: PatternsTab } = await import("./PatternsTab");
+    return render(<PatternsTab {...props} />);
+  };
+
+  it("reports a swipe upstream and adopts the dial's own move", async () => {
+    const onLens = vi.fn();
+    const { container, rerender } = await mountWired({ lens: "map", onLens });
+    swipe(container.querySelector(".pt-wrap")!, -120); // map → people
+    expect(onLens).toHaveBeenCalledWith("people");
+    // the shell answers by moving the prop — the tab follows it, so the
+    // dial in the header and the in-page ruler agree
+    const { default: PatternsTab } = await import("./PatternsTab");
+    rerender(<PatternsTab lens="oracle" onLens={onLens} />);
+    expect(screen.getByRole("tab", { name: "Oracle" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("keeps its own state on a bare mount — the fixtures need no shell", async () => {
+    const { container } = await mountWired({});
+    swipe(container.querySelector(".pt-wrap")!, 120); // map → oracle, internally
+    expect(screen.getByRole("tab", { name: "Oracle" }).getAttribute("aria-selected")).toBe("true");
+  });
+});
+
+describe("the folding ruler (2026-09-06)", () => {
+  it("folds after a lens is used, tells the shell, and a pull at the top brings it back", async () => {
+    const onDock = vi.fn();
+    const { default: PatternsTab } = await import("./PatternsTab");
+    const { container } = render(<PatternsTab ruler onDock={onDock} />);
+    const rulerBox = () => container.querySelector(".pt-wrap > div[aria-hidden]")!;
+    expect(rulerBox().getAttribute("aria-hidden")).toBe("false");
+    // a tap that lands in the lens body is the ruler's cue to step aside
+    fireEvent.pointerUp(container.querySelector(".pt-stack")!);
+    expect(onDock).toHaveBeenLastCalledWith(true);
+    expect(rulerBox().getAttribute("aria-hidden")).toBe("true");
+    // a deliberate pull down at the top of the body brings it back
+    const at = (x: number, y: number) => ({ touches: [{ clientX: x, clientY: y }] });
+    fireEvent.touchStart(container.querySelector(".pt-wrap")!, at(160, 80));
+    fireEvent.touchMove(container.querySelector(".pt-wrap")!, at(160, 140));
+    expect(onDock).toHaveBeenLastCalledWith(false);
+    expect(rulerBox().getAttribute("aria-hidden")).toBe("false");
+  });
+
+  it("stays put without the ruler flag — bare mounts have no header to dock into", async () => {
+    const { default: PatternsTab } = await import("./PatternsTab");
+    const { container } = render(<PatternsTab />);
+    fireEvent.pointerUp(container.querySelector(".pt-stack")!);
+    expect(container.querySelector(".pt-wrap > div[aria-hidden]")).toBeNull();
+  });
+});
