@@ -123,7 +123,7 @@ export function checkHashes({ rules, readPage, pageExists }) {
   return problems;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const cfg = JSON.parse(readFileSync(join(root, "firebase.json"), "utf8"));
   const hosting = Array.isArray(cfg.hosting) ? cfg.hosting[0] : cfg.hosting;

@@ -116,3 +116,45 @@ describe("no gate reads a constant past a comment", () => {
     expect(RAW_MATCH.test(good) && !/stripComments/.test(good)).toBe(false);
   });
 });
+
+// ── a gate must actually RUN when it is run ─────────────────────────
+//
+// A second class, in the same file and for the same reason as the first:
+// the failure is a gate reporting nothing while the thing it exists to
+// catch is true.
+//
+// `import.meta.url === `file://${process.argv[1]}`` compares a URL against
+// a path. `import.meta.url` percent-encodes and `process.argv[1]` does
+// not, so on any checkout path containing a space — or any other character
+// a URL escapes — the guard is false, the whole check body behind it never
+// executes, and the script exits 0 having printed nothing. Not a wrong
+// answer: no answer, indistinguishable from a pass.
+//
+// Measured 2026-09-06 on two identical trees differing only in whether the
+// directory name contained a space, both carrying the defect
+// `check:account-level` exists to catch: exit 1 with the correct diagnosis
+// from the unspaced path, exit 0 and zero bytes of output from the spaced
+// one. Nine scripts carried it, one of them (`check-account-level`) on the
+// deploy path via backend-checks.yml, and one (`rules-coverage`) inside
+// `npm run test:rules`.
+//
+// The safe form was already the majority spelling here — thirteen scripts
+// used `resolve(process.argv[1]) === fileURLToPath(import.meta.url)` — so
+// this ratchet pins the majority rather than inventing a rule.
+describe("no gate hides behind a path-fragile main-module guard", () => {
+  it("finds the gates to check — vacuous otherwise", () => {
+    expect(gates.length).toBeGreaterThan(20);
+  });
+
+  it("nobody compares import.meta.url to a raw argv path", () => {
+    const offenders = gates
+      .filter((g) => /import\.meta\.url\s*===\s*`file:\/\/\$\{process\.argv\[1\]\}`/.test(g.src))
+      .map((g) => g.f);
+    expect(
+      offenders,
+      "a script's whole body sits behind a guard that is false on any path with a space "
+        + "— it will exit 0 having checked nothing. Use "
+        + "`process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)`.",
+    ).toEqual([]);
+  });
+});

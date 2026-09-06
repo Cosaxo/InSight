@@ -15,6 +15,8 @@
 //
 // Neither shows up in any test — the rules tests construct their own
 // claims, and the callable's tests never read the rules file.
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import {
   RULES,
@@ -77,7 +79,7 @@ export function checkAccountLevel(read = (p) => readFileSync(p, "utf8")) {
   return problems;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const problems = checkAccountLevel();
   if (problems.length) {
     console.error("check:account-level FAILED:");

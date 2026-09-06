@@ -27,6 +27,8 @@
 // pbxproj, Capacitor scaffolds MainActivity), so check-devicebind.test.mjs
 // feeds the checker a broken tree per link — otherwise an upstream format
 // change turns a real check into a vacuous one without failing.
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import { stripComments } from "./strip-comments.mjs";
 
@@ -168,7 +170,7 @@ export function checkDeviceBind(read = (p) => readFileSync(p, "utf8"), exists = 
   return problems;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const problems = checkDeviceBind();
   if (problems.length) {
     console.error("check:devicebind FAILED — a D29 bridge is not wired:");
