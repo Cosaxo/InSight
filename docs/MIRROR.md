@@ -587,8 +587,8 @@ reason anything is ever hidden) · D3 (anonymous-first, groups by invite
 code) · D5 (create-only answers, owner-written; the option is editable
 since D86, the cohort snapshot is not) · D8 (per-anchor breakdowns and
 the snapshot they read) · D9 (the city as the unit — its Near-fold undone
-by D111) · D32 (Learn's first attempt only) · D38 (why relmap stays
-eager) · D57 (server-scored logic) · D72 (the Map's mock typicality,
+by D111) · D32 (Learn's first attempt only) · D38 (why relmap was eager,
+until D200 took it off that graph — see §5) · D57 (server-scored logic) · D72 (the Map's mock typicality,
 refused for being invented rather than private) · D111 (Near is
 presence, City is its own stop) · D112 (the similarity surfaces: place
 score profiles and kindred by scores, default-on).

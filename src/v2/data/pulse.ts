@@ -446,13 +446,25 @@ function days(pid: string): PulseDay[] {
   });
 }
 
-const meanOf = (agg: DayAgg): number | null => {
-  let n = 0, sum = 0;
-  for (const [idx, c] of Object.entries(agg.counts || {})) {
+/**
+ * A count map's crowd and mean, with one unfolded answer of your own
+ * optionally joined in. Option indices are 0-based in storage and the
+ * scale is 1..5, hence the `+ 1`.
+ *
+ * `mineIdx` is `pendingIdx`'s answer: -1 for a day that is not today and
+ * for a viewer whose anchor puts them outside this cut.
+ */
+const meanOfCounts = (
+  counts: Record<string, number> | undefined,
+  mineIdx: number,
+): { n: number; mean: number | null } => {
+  let n = mineIdx >= 0 ? 1 : 0;
+  let sum = mineIdx >= 0 ? mineIdx + 1 : 0;
+  for (const [idx, c] of Object.entries(counts || {})) {
     n += c;
     sum += (Number(idx) + 1) * c;
   }
-  return n > 0 ? sum / n : null;
+  return { n, mean: n > 0 ? sum / n : null };
 };
 
 /**
@@ -478,18 +490,34 @@ const pendingIdx = (pid: string, scopeId: string): number => {
   return (scopeId === "city" ? a.city : a.country) ? pend : -1;
 };
 
-const cutOf = (agg: DayAgg, scopeId: string): { n: number; mean: number | null } => {
+/**
+ * One scope's cut of one day — THE ONLY PLACE THE PENDING JOIN HAPPENS.
+ *
+ * D365 fixed this join in `bins` and `todayN` and did not reach here, so
+ * the card printed "of 6 answers today" beside a trend whose last point
+ * read no answers, and on a first-in-city day the point was absent while
+ * the crowd beside it was one. That is the same defect a third time, in
+ * the same file, because the join was a line at each call site instead of
+ * a parameter on the one function they share. It is a parameter now: the
+ * caller says WHICH day it is asking about, and this decides the rest.
+ *
+ * Not gated on the cell existing, for the reason `bins` records: being
+ * the first in your city today is exactly the case where the published
+ * cell is absent and you are still in it. `pendingIdx` decides
+ * membership; the cell only supplies whoever came before you.
+ */
+const cutOf = (agg: DayAgg, scopeId: string, mineIdx = -1): { n: number; mean: number | null } => {
   if (scopeId === "world") {
-    const m = meanOf(agg);
-    return { n: agg.total || 0, mean: m };
+    // `n` stays the published total plus you — the world crowd is stated
+    // from `total`, not recounted from the bins.
+    return {
+      n: (agg.total || 0) + (mineIdx >= 0 ? 1 : 0),
+      mean: meanOfCounts(agg.counts, mineIdx).mean,
+    };
   }
   const a = LIVE.anchors() || {};
   const bucket = scopeId === "city" ? a.city : a.country;
-  const cell = bucket ? agg.by?.[scopeId]?.[bucket] : undefined;
-  if (!cell) return { n: 0, mean: null };
-  let n = 0, sum = 0;
-  for (const [idx, c] of Object.entries(cell)) { n += c; sum += (Number(idx) + 1) * c; }
-  return { n, mean: n > 0 ? sum / n : null };
+  return meanOfCounts(bucket ? agg.by?.[scopeId]?.[bucket] : undefined, mineIdx);
 };
 
 function scope(pid: string, id: string): PulseScope {
@@ -507,6 +535,9 @@ function scope(pid: string, id: string): PulseScope {
         ? (a.country ? bucketLabel("country", a.country) : "Your country")
         : "World";
     const cad = cadence(pid);
+    // Once, not once per day: it reads the store and the answer is the
+    // same for all 21. Only TODAY can carry an unfolded answer.
+    const mineIdx = pendingIdx(pid, id);
     const series: ScopeDay[] = Array.from({ length: DAYS }, (_, i) => {
       const d = dayAt(i);
       // An unscheduled day is absent for the crowd too. Everyone's cadence
@@ -515,7 +546,11 @@ function scope(pid: string, id: string): PulseScope {
       // the reader has no row for.
       if (!dueOn(cad, d)) return { i, n: 0, mean: null, placed: false, thin: false, scheduled: false };
       const agg = aggFor(pid, utcKey(d));
-      const cut = agg ? cutOf(agg, id) : { n: 0, mean: null };
+      // No document at all stays zero on the trend as it does on the card
+      // (`todayN`): an absent reading is what the "first answer today" arm
+      // is about, and a lone point drawn from your own vote would be a
+      // claim about a crowd nobody has read.
+      const cut = agg ? cutOf(agg, id, i === DAYS - 1 ? mineIdx : -1) : { n: 0, mean: null };
       return {
         i, n: cut.n,
         mean: cut.n > 0 ? cut.mean : null,
@@ -647,13 +682,13 @@ export const PULSE = {
     // The denominator the card prints beside the share above, so it joins
     // the same way — a crowd stated as "of 4" while the share was worked
     // out over five would be the same wrong number twice.
-    const pendN = pendingIdx(pid, id) >= 0 ? 1 : 0;
+    const mineIdx = pendingIdx(pid, id);
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     // No document at all is still zero, not one: the card's "first answer
     // today" arm is about an absent reading, and a pending answer with
     // nothing published yet is exactly that — you ARE the first.
     if (!agg) return 0;
-    return cutOf(agg, id).n + pendN;
+    return cutOf(agg, id, mineIdx).n;
   },
   mineToday(pid: string): number | null {
     // NOT `days(pid)[DAYS - 1].v` (D244). That fold nulls every day the

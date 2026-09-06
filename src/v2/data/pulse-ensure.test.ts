@@ -232,3 +232,118 @@ describe("trendReady — fetched-and-empty is not never-fetched", () => {
     expect(PULSE.default.trendReady("pulse-pace")).toBe(false);
   });
 });
+
+// ── the trend's last point and the card above it are one crowd ──
+//
+// D365 moved the pending join into `bins` and `todayN`. It did not reach
+// `scope()`, which builds the 21-day series the trend draws — so the card
+// said "of 6 answers today" over a line whose today read no answers, and
+// being first in your city put your own answer in the count while the
+// point for it was absent. The join now lives in `cutOf`, which is the one
+// function both readings share; these cases are what stops it splitting
+// again.
+describe("scope() — the day series joins your unfolded answer, today only", () => {
+  const last = (id: string) => PULSE.default.scope("pulse-pace", id).series[PULSE.DAYS - 1];
+
+  it("counts you into today's point, exactly as the card beside it does", async () => {
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    h.aggs[`pulse-pace_${today()}`] = { counts: { "0": 2, "1": 3 }, total: 5 };
+    h.pending["pulse-pace"] = 3;
+    await PULSE.ensureToday();
+
+    // Five published at steps 1 and 2, plus your own 4: (2 + 6 + 4) / 6.
+    expect(last("world").n, "the trend's today point dropped your answer").toBe(6);
+    expect(last("world").mean).toBeCloseTo(2, 6);
+    // THE PROPERTY, not a second spelling of the numbers above: the two
+    // readings are of one crowd, so they may not differ. Before the fix
+    // this was 5 against 6.
+    expect(last("world").n).toBe(PULSE.default.todayN("pulse-pace", "world"));
+  });
+
+  it("draws a point for a city where you are the first today", async () => {
+    // The count said one and the trend said none — over the same word.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    h.aggs[`pulse-pace_${today()}`] = {
+      counts: { "0": 2, "1": 3 },
+      total: 5,
+      by: { city: { "Bergen, NO": { "0": 2, "1": 3 } } },
+    } as DayAggDoc;
+    h.pending["pulse-pace"] = 3;
+    await PULSE.ensureToday();
+
+    expect(last("city").n).toBe(1);
+    expect(last("city").mean).toBe(4);
+    expect(last("city").n).toBe(PULSE.default.todayN("pulse-pace", "city"));
+    // Still under THIN, so counted and not placed — which is the honest
+    // pair, and different from the absent point the bug drew.
+    expect(last("city").placed).toBe(false);
+    expect(last("city").thin).toBe(true);
+  });
+
+  it("agrees with the card on every scope at once", async () => {
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    h.aggs[`pulse-pace_${today()}`] = {
+      counts: { "0": 2, "1": 3 },
+      total: 5,
+      by: { city: { "Oslo, NO": { "1": 1 } }, country: { NO: { "1": 1, "0": 1 } } },
+    } as DayAggDoc;
+    h.pending["pulse-pace"] = 2;
+    await PULSE.ensureToday();
+
+    for (const id of ["city", "country", "world"]) {
+      expect(last(id).n, `${id}: the trend and the card state one crowd`)
+        .toBe(PULSE.default.todayN("pulse-pace", id));
+    }
+    expect(last("city").n).toBe(2);
+    expect(last("country").n).toBe(3);
+    expect(last("world").n).toBe(6);
+  });
+
+  it("does not count you into a cohort you have no anchor for", async () => {
+    // Membership is `pendingIdx`'s call, and it is the same call the card
+    // makes — a reader with no city is in no city cut on either surface.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    h.aggs[`pulse-pace_${today()}`] = { counts: { "0": 2 }, total: 2 };
+    h.pending["pulse-pace"] = 3;
+    h.noCity = true;
+    await PULSE.ensureToday();
+
+    expect(last("city").n).toBe(0);
+    expect(last("city").mean).toBe(null);
+    expect(last("world").n).toBe(3);
+  });
+
+  it("joins TODAY and no other day in the window", async () => {
+    // The join is a statement about an answer written today. A pending
+    // answer added to every point would raise a three-week line by one.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    const y = new Date();
+    y.setUTCDate(y.getUTCDate() - 1);
+    const yKey = `${y.getUTCFullYear()}-${pad(y.getUTCMonth() + 1)}-${pad(y.getUTCDate())}`;
+    h.aggs[`pulse-pace_${yKey}`] = { counts: { "0": 4 }, total: 4 };
+    h.aggs[`pulse-pace_${today()}`] = { counts: { "0": 4 }, total: 4 };
+    h.pending["pulse-pace"] = 3;
+    await PULSE.ensureTrend("pulse-pace");
+    await PULSE.ensureToday();
+
+    const series = PULSE.default.scope("pulse-pace", "world").series;
+    expect(series[PULSE.DAYS - 2].n, "yesterday must not carry today's answer").toBe(4);
+    expect(series[PULSE.DAYS - 2].mean).toBe(1);
+    expect(series[PULSE.DAYS - 1].n).toBe(5);
+    // Every earlier day is empty, so nothing else moved either.
+    expect(series.slice(0, PULSE.DAYS - 2).every((d) => d.n === 0)).toBe(true);
+  });
+
+  it("leaves a day with no document alone, as the card does", async () => {
+    // `todayN` returns 0 for an absent reading on purpose — the card's
+    // "first answer today" arm is about exactly that — and a lone trend
+    // point drawn from your own vote would be a claim about a crowd
+    // nobody has read.
+    h.bank = [{ id: "pulse-pace", prompt: "What pace was today?", options: FIVE }];
+    h.pending["pulse-pace"] = 3;
+    await PULSE.ensureToday();
+
+    expect(last("world").n).toBe(0);
+    expect(last("world").n).toBe(PULSE.default.todayN("pulse-pace", "world"));
+  });
+});

@@ -1617,6 +1617,44 @@ function seedValueMatches(a: unknown, b: unknown): boolean {
 }
 
 /**
+ * Seeded fields whose stored MAP has keys the new payload does not — the
+ * ones that must be cleared before the merge, or they survive it.
+ *
+ * `batch.set(ref, payload, { merge: true })` merges map fields key by key
+ * rather than replacing them. Verified against the emulator, not assumed:
+ * storing `{a:1,b:2}` and merge-setting `{a:1}` reads back `{a:1,b:2}`,
+ * while an ARRAY in the same write is replaced wholesale. So a Crossroads
+ * story that drops a node keeps it forever, `seedDocMatches` keeps seeing
+ * the difference, and the seed rewrites that document on every run —
+ * churning `updatedAt`, which is the incremental cursor every returning
+ * device reads the bank with.
+ *
+ * The same defect as the field-level one recorded beside the caller
+ * ("`merge: true` cannot remove a field", D234's amendment), one level
+ * down. `nodes` and `endings` are the object-valued seeded fields today
+ * (D136); this asks the payload what shape it is rather than naming them,
+ * so a third one is covered on the day it lands.
+ */
+export function seedMapClears(
+  prior: Record<string, unknown> | null | undefined,
+  payload: Record<string, unknown>,
+): string[] {
+  if (!prior) return [];
+  const plain = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === "object" && !Array.isArray(v);
+  const out: string[] = [];
+  for (const f of SEEDED_FIELDS) {
+    const want = payload[f];
+    const have = prior[f];
+    // Only when BOTH sides are maps. A field that changed type, or that is
+    // being deleted outright, is already handled by the caller.
+    if (!plain(want) || !plain(have)) continue;
+    if (Object.keys(have).some((k) => !(k in want))) out.push(f);
+  }
+  return out;
+}
+
+/**
  * True when `existing` already carries every seeded field of `desired`.
  * `existing` is null/undefined for a doc that does not exist yet.
  *
@@ -1666,9 +1704,9 @@ export interface SeedOptionConflict {
   /**
    * Which frozen field changed. Absent means `options`, which is what every
    * conflict was until catalogue questions turned out to have none — see
-   * the `domain` arm below.
+   * the `domain` and `type` arms below.
    */
-  field?: "options" | "domain";
+  field?: "options" | "domain" | "type";
   stored: string[];
   desired: string[];
 }
@@ -1715,6 +1753,31 @@ export function seedOptionConflict(
   const dDesired = typeof desired.domain === "string" ? desired.domain : "";
   if (dStored !== dDesired) {
     return { qid, field: "domain", stored: [dStored || "(none)"], desired: [dDesired || "(none)"] };
+  }
+
+  // …AND THE TYPE, which is the outermost of the three: it decides what a
+  // stored answer even IS. `optionIdx` for vote/binary/choice, an order
+  // string for rank, `entity` for catalog, a bucket for dial. Change it on
+  // a question people have answered and every stored answer is re-read
+  // under the new rule — a catalogue key becomes an option index, a rank's
+  // order becomes nonsense, and the published aggregate is folded from
+  // then on as though it had always been the new form.
+  //
+  // Nothing else catches it. `options` is equal on both sides for a
+  // vote→catalog change (a catalog question ships `options: []`, so does
+  // an emptied vote), and `domain` is equal whenever neither side is a
+  // catalogue. It reaches the rules too: `isCatalogAnswer` gates on
+  // `type == "catalog"`, so a retyped question changes which answer shapes
+  // production accepts, silently and immediately.
+  //
+  // Same argument as `domain` one field over, and the same measurement
+  // behind it: across all 33 commits that have ever touched the feed bank,
+  // no existing question's type has changed once. This refuses something
+  // that has never legitimately happened, which is what a freeze is for.
+  const tStored = typeof stored.type === "string" ? stored.type : "";
+  const tDesired = typeof desired.type === "string" ? desired.type : "";
+  if (tStored !== tDesired) {
+    return { qid, field: "type", stored: [tStored || "(none)"], desired: [tDesired || "(none)"] };
   }
   return null;
 }

@@ -44,8 +44,12 @@ describe("which side the feed draws as the winner", () => {
     // Three render paths, each deciding `win` (or the numeral) from `c`.
     const wins = [...src.matchAll(/const win = c\[i\] === maxN;/g)];
     expect(wins.length, "a surface stopped deciding the winner from the counts").toBe(2);
+    // The no-crowd half of this condition moved into `noSplit`, which the
+    // bar FILL now reads too — it was drawing the split as geometry while
+    // this numeral suppressed it. The `c[i] === maxN` half is what this
+    // case is about and it is unchanged.
     expect(src, "the bars' numeral still picks its row off the rounded shares")
-      .toContain("{c[i] === maxN && !(q.live && q.noCountsYet)");
+      .toContain("{c[i] === maxN && !noSplit &&");
     // `maxN` has to be the counts' max, not a rename of the shares'. Four,
     // not three: `renderMeta` has had one since the sentence was corrected,
     // and it is the one the other three should have followed.

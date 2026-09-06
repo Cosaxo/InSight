@@ -34,6 +34,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripComments } from "./strip-comments.mjs";
+import { checkAppCheckPolarity, checkAppCheckProvenance } from "./appcheck-polarity.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(root, "functions", "src");
@@ -200,7 +201,23 @@ for (const file of readdirSync(SRC, { recursive: true })
     const next = rest.slice(1).search(/\n(?:export\s+)?const\s+\w+\s*=/);
     bodies.set(name, next === -1 ? rest : rest.slice(0, next + 1));
     if (/enforceAppCheck\s*:\s*ENFORCE_APP_CHECK\b/.test(opts)) {
-      enforcing.push({ name, where });
+      // …unless a spread comes AFTER it. Object literals take the last
+      // writer, so `{ enforceAppCheck: ENFORCE_APP_CHECK, ...OPTS }` reads
+      // correct to the regex above and enforces whatever OPTS says. Every
+      // call site today spreads first (`{ ...LIGHT_CALLABLE, region,
+      // enforceAppCheck: ENFORCE_APP_CHECK }`), which is the safe order, so
+      // this refuses a shape that does not exist rather than describing one
+      // that does.
+      const at = opts.search(/enforceAppCheck\s*:/);
+      if (/\.\.\./.test(opts.slice(at))) {
+        missing.push({
+          name,
+          where,
+          note: "spreads another options object AFTER enforceAppCheck, which wins",
+        });
+      } else {
+        enforcing.push({ name, where });
+      }
     } else if (/enforceAppCheck/.test(opts)) {
       // Present but not the shared constant — the one shape that looks
       // right and is not.
@@ -217,6 +234,30 @@ for (const file of readdirSync(SRC, { recursive: true })
 
 const found = enforcing.length + missing.length;
 const errors = [];
+
+// THE CONSTANT ITSELF, not just its name at the call sites.
+//
+// Everything above proves 20 callables all defer to `ENFORCE_APP_CHECK`.
+// None of it asks what that value is, so flipping the escape hatch in
+// ops.ts from opt-out to opt-in left this script printing "20 enforcing"
+// while production attested nothing. Verified by mutation; see
+// scripts/appcheck-polarity.mjs for why it is a truth table and not a
+// string match.
+errors.push(...checkAppCheckPolarity(readFileSync(join(SRC, "ops.ts"), "utf8")));
+
+// …and that every callable is deferring to THAT constant. The two checks
+// above are one indirection apart — this one matches the NAME at the call
+// site, that one grades the VALUE in ops.ts — and nothing joined them, so a
+// file that dropped the import and declared its own `const
+// ENFORCE_APP_CHECK = false` was tsc-clean and left this script printing
+// "20 enforcing". Measured against deviceBind.ts, restored after.
+errors.push(...checkAppCheckProvenance(
+  Object.fromEntries(
+    readdirSync(SRC)
+      .filter((f) => f.endsWith(".ts"))
+      .map((f) => [`functions/src/${f}`, readFileSync(join(SRC, f), "utf8")]),
+  ),
+));
 
 if (found !== onCallSites) {
   errors.push(

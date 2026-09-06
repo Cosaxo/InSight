@@ -57,8 +57,12 @@ import './spec/viz-primitives.jsx';
 // compare-breakdown.jsx stood here until D355 — the Mirror block below.
 // The relmap group SPLIT at D200, and the split is by consumer rather than
 // by size. relmap-lenses.jsx stays eager because it has a LIVE consumer —
-// vote-cuts.js reads window.RMLenses for the who-voted sheet's Type cut
-// (D146) — and it is the small one anyway. Its three siblings moved to
+// vote-cuts.js IMPORTS `RMLenses` (by name since D354's sweep; this note
+// said "reads window.RMLenses" until 2026-09-06, which was the mechanism
+// before that sweep and matters because an import pulls the module into
+// its consumer's chunk whatever this line does) and publishes VOTECUTS,
+// which daily-split.jsx reads for the who-voted sheet's cuts — the landing
+// screen, on the live path (D146) — and it is the small one anyway. Its three siblings moved to
 // loadOverlays: they are reachable only through the demo Circle field, and
 // a live build never renders that (Circle takes LiveCircleBody since D101).
 import './spec/relmap-lenses.jsx';

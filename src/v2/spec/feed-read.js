@@ -134,10 +134,31 @@ export let feedInsight;
     // about has to be the room the card above it drew. `o.count` comes from
     // `countsFor` (data/deck.ts), which SUBTRACTS the viewer's vote once the
     // trigger has folded it — the UI layer adds its own +1. So the card
-    // renders `wfPcts(counts, mine)`, which puts it back, and the cohort
-    // cells in `agg.by` contain it too. Without this line the baseline was
-    // the only population on the screen that nobody was counted in, and it
-    // decided both `roomWin` and `gap`.
+    // renders `wfPcts(counts, mine)`, which puts it back. Without this line
+    // the baseline was the only population on the screen that nobody was
+    // counted in, and it decided both `roomWin` and `gap`.
+    //
+    // AND THE COHORT CELLS BELOW DO NOT AGREE WITH IT FOR THE FIRST FEW
+    // SECONDS. This said they "contain it too", flatly, and that is true
+    // only after the trigger has folded your vote. `countsFor`
+    // (data/deck.ts) subtracts the viewer's vote back out `if (!ctx.pending
+    // && …)` — so while the write is unfolded there is nothing to subtract,
+    // `o.count` is the crowd without you, this line's `+ 1` puts you in the
+    // ROOM, and `agg.by`'s cells still do not have you. Your own cohort is
+    // short by one against a baseline that counts you, in the window
+    // immediately after you vote, which is the window this line renders in.
+    //
+    // What it costs is bounded but real: one vote inside a cell of
+    // MIN_CELL..n shifts that cell's share by up to 1/n, which can create
+    // or erase a `flip` against `roomWin` — and `FEEDREAD.log`'s majority
+    // bit is written to a permanent per-device record that feeds the
+    // Mirror's sparse gate and its with-the-crowd rate. Not fixed here: the
+    // join needs a per-question "is my vote folded yet" reader that the
+    // store does not export (`state.unaggregated` is internal;
+    // `pulsePending` is the pulse's own), and adding one moves the surface
+    // `data/vote.test.ts` pins. Written down rather than half-done —
+    // the fourth site of the D365 +1 mismatch, after `bins`/`todayN`,
+    // `scope()`'s day series, and the two above.
     //
     // What that produced: whenever your own vote made or changed the
     // leader — routine at the counts a question has in its first hours —
