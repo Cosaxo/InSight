@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-09-06T21:58:13Z",
+  "source": null,
+  "mode": null,
+  "target": null,
+  "profiles": {},
+  "screens": [],
+  "skipped": [],
+  "fatal": "Error: adb devices timed out after 30s\n    at Timeout._onTimeout (file:///home/runner/work/InSight/InSight/scripts/device-screens.mjs:220:54)\n    at listOnTimeout (node:internal/timers:585:17)\n    at process.processTimers (node:internal/timers:521:7)"
+}
