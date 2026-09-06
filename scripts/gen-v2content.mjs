@@ -137,6 +137,10 @@ export const CATALOG_FILES = {
   pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
   countries: "countries.txt", dogs: "dogs.txt", colors: "colors.txt",
   films: "films.txt", artists: "artists.txt", athletes: "athletes.txt",
+  // languages was absent from this map from its commit (#344) until
+  // 2026-09-06 — exactly the one-transcription drift the paragraph above
+  // exists to prevent: its cards (pk32/pk33/pk35) could never promote.
+  languages: "languages.txt", videogames: "videogames.txt",
 };
 
 // Catalogue picks run their own seq lane from here (D232, amended at

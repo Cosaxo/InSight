@@ -67,6 +67,32 @@ ORDER BY DESC(?links) LIMIT 2000`,
       return year ? `${name} (${year})` : name;
     },
   },
+  videogames: {
+    out: "videogames.txt",
+    what: "video games",
+    // Every video game (P31 Q7889) — the films shape exactly: one clean
+    // direct class, no occupation-ratio disease, year disambiguation for
+    // remakes ("Doom (1993)" / "Doom (2016)"). Two deltas from films,
+    // both measured 2026-09-06: the floor is 15 because 40 returns only
+    // 176 rows (under the stub refusal below; games' sitelink mass runs
+    // lower than films'), and the label service asks "en,mul" because
+    // Wikidata's multilingual-label migration has already eaten this
+    // domain's head — with plain "en", Minecraft, Tetris and Fortnite
+    // all came back as bare QIDs (the Q615/Messi failure, one domain
+    // over — see fetchAthletes' label note).
+    query: `SELECT DISTINCT ?item ?itemLabel (SAMPLE(YEAR(?pub)) AS ?year) ?links WHERE {
+  ?item wdt:P31 wd:Q7889 ; wikibase:sitelinks ?links .
+  FILTER(?links >= 15)
+  OPTIONAL { ?item wdt:P577 ?pub . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
+} GROUP BY ?item ?itemLabel ?links
+ORDER BY DESC(?links) LIMIT 3000`,
+    label: (b) => {
+      const name = b.itemLabel.value;
+      const year = b.year && b.year.value;
+      return year ? `${name} (${year})` : name;
+    },
+  },
   artists: {
     out: "artists.txt",
     what: "music artists",

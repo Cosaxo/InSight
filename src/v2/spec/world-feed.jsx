@@ -19,7 +19,7 @@ import { TEST_FEED_QS } from './test-feed-data.js';
 import { testFeedPool } from '../data/testFeed.ts';
 import { WORLD_CHANNELS, WORLD_TOPICS } from './world-feed-data.js';
 import PLACES from '../data/places';
-import { FILMS, ARTISTS, ATHLETES, EMOJI } from '../data/catalogs';
+import { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI } from '../data/catalogs';
 import POKEDEX from '../data/pokedex';
 // The live who-voted sheet, cohort-first (D125) — it owns the cohort
 // choice, the split drawn for it and the named roster underneath, which
@@ -1685,6 +1685,7 @@ class WorldFeed extends React.Component {
     return domain === 'films' ? FILMS
       : domain === 'artists' ? ARTISTS
       : domain === 'athletes' ? ATHLETES
+      : domain === 'videogames' ? VIDEOGAMES
       : domain === 'emoji' ? EMOJI
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
@@ -1738,7 +1739,7 @@ class WorldFeed extends React.Component {
       // were one would be the D1 shape of misleading. peek() is the
       // committed file already parsed; the one load it may kick is the
       // same fetch the picker itself pays on open.
-      const tiled = q.domain === 'films' || q.domain === 'artists' || q.domain === 'athletes';
+      const tiled = q.domain === 'films' || q.domain === 'artists' || q.domain === 'athletes' || q.domain === 'videogames';
       let head = [];
       if (tiled && store && store.peek) {
         head = (store.peek() || []).slice(0, 8).map((e) => ({ id: e.key, name: e.name }));
@@ -1794,7 +1795,7 @@ class WorldFeed extends React.Component {
     // it. The entity count renders only when the fold covers at least two
     // entries (the subtraction-leak rule the backend fold keeps) and steps
     // down like the vote counts do, so it never ticks per-answer.
-    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes', languages: 'languages' };
+    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes', videogames: 'games', languages: 'languages' };
     const foldNoun = nounOf[q.domain] || 'picks';
     const foldNote = c.restEntities >= 5
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`

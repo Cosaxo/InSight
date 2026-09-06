@@ -55,7 +55,7 @@ import {
   type CatalogSpec,
   type SeedOptionConflict,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, VIDEOGAME_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -291,6 +291,7 @@ export const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   films: { keys: FILM_KEYS },
   artists: { keys: ARTIST_KEYS },
   athletes: { keys: ATHLETE_KEYS },
+  videogames: { keys: VIDEOGAME_KEYS },
   // Unicode codepoints — sparse like QIDs, stable by Unicode policy.
   emoji: { keys: EMOJI_KEYS },
   elements: { max: CATALOG_MAX_ELEMENT },

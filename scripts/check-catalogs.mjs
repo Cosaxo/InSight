@@ -74,6 +74,7 @@ function parseCatalogue(file, label) {
 const films = parseCatalogue(join(root, "public", "films.txt"), "films.txt");
 const artists = parseCatalogue(join(root, "public", "artists.txt"), "artists.txt");
 const athletes = parseCatalogue(join(root, "public", "athletes.txt"), "athletes.txt");
+const videogames = parseCatalogue(join(root, "public", "videogames.txt"), "videogames.txt");
 const emoji = parseCatalogue(join(root, "public", "emoji.txt"), "emoji.txt");
 const countries = parseCatalogue(join(root, "public", "countries.txt"), "countries.txt");
 const dogs = parseCatalogue(join(root, "public", "dogs.txt"), "dogs.txt");
@@ -247,6 +248,7 @@ if (src !== null) {
     ["FILM_KEYS", films, "films.txt"],
     ["ARTIST_KEYS", artists, "artists.txt"],
     ["ATHLETE_KEYS", athletes, "athletes.txt"],
+    ["VIDEOGAME_KEYS", videogames, "videogames.txt"],
     ["EMOJI_KEYS", emoji, "emoji.txt"],
     ["COUNTRY_KEYS", countries, "countries.txt"],
     ["DOG_KEYS", dogs, "dogs.txt"],
@@ -278,6 +280,7 @@ console.log(
   `check:catalogs OK — films ${films.present ? films.keys.length : "absent"}, ` +
     `artists ${artists.present ? artists.keys.length : "absent"}, ` +
     `athletes ${athletes.present ? athletes.keys.length : "absent"}, ` +
+    `videogames ${videogames.present ? videogames.keys.length : "absent"}, ` +
     `emoji ${emoji.present ? emoji.keys.length : "absent"}, ` +
     `countries ${countries.present ? countries.keys.length : "absent"}, ` +
     `dogs ${dogs.present ? dogs.keys.length : "absent"}, ` +
