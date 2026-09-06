@@ -4004,6 +4004,55 @@ describe("rank answers (D233): an order, never an index", () => {
 // also asserts that a signed-in principal CAN read it. A new
 // `allow read: if request.auth != null` arm belongs in this list on the
 // commit that adds it.
+describe("the engagement rollup's field validation, which nothing exercised", () => {
+  // Twenty-two atomic predicates in this one rule — every `is int`, every
+  // bound — evaluated TRUE and never once false across the whole suite, so
+  // any of them could be deleted and everything would stay green. The
+  // rollup is written by every account every day and is the only document
+  // in the app a client writes with eleven numeric fields, so "the type
+  // checks are real" is worth more here than almost anywhere.
+  //
+  // A loop INSIDE one `it()`, unlike the sign-in block above: `check:figures`
+  // counts test DECLARATIONS, so this contributes one, which is what it is.
+  // The avatar token case two blocks down has the same shape for the same
+  // reason.
+  const DAY = "2026-09-03";
+  const ok = (over: Record<string, unknown> = {}) => ({
+    day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
+    answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
+    folded: false, build: 1, platform: "web",
+    expireAt: new Date(Date.now() + 86400000), ...over,
+  });
+  const ref = () => doc(asUser(OWNER), "v2_users", OWNER, "engagement", DAY);
+
+  it("takes a well-formed rollup and refuses every field out of shape", async () => {
+    // The control first. Without it every assertion below could be passing
+    // because the write is refused for some reason that has nothing to do
+    // with the field under test — the trap that cost two attempts on the
+    // avatar flag case earlier tonight.
+    await assertSucceeds(setDoc(ref(), ok()));
+    await seed(async (db) => {
+      await deleteDoc(doc(db, "v2_users", OWNER, "engagement", DAY));
+    });
+
+    for (const bad of [
+      { sessions: "1" }, { sessions: -1 }, { sessions: 301 },
+      { fgMin: "1" }, { fgMin: -1 }, { fgMin: 5 },
+      { quiet: "0" }, { quiet: -1 }, { quiet: 301 },
+      { dayparts: "1,0,0,0" }, { dayparts: [1, 0, 0] }, { dayparts: ["1", 0, 0, 0] },
+      { dayparts: [1, "0", 0, 0] }, { dayparts: [1, 0, "0", 0] }, { dayparts: [1, 0, 0, "0"] },
+      { answers: "1" }, { answers: -1 }, { answers: 2001 },
+      { feedB: "0" }, { feedB: -1 }, { feedB: 5 },
+      { depthEnd: "0" }, { depthEnd: -1 }, { depthEnd: 2 },
+      { stops: "0" }, { stops: -1 }, { stops: 2001 },
+      { lenses: "0" }, { lenses: -1 }, { lenses: 2001 },
+      { expireAt: 1735689600 },
+    ]) {
+      await assertFails(setDoc(ref(), ok(bad)));
+    }
+  });
+});
+
 describe("every write gated on sign-in refuses a signed-out client", () => {
   // THE OTHER HALF. The read block below counts sign-in-gated READ arms and
   // holds the number; its own note says the write side is unwritten. The
@@ -4045,7 +4094,16 @@ describe("every write gated on sign-in refuses a signed-out client", () => {
     setDoc(doc(asSignedOut(), "v2_users", OWNER, "engagement", DAY), {
       day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
       answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
-      folded: false, build: "1", platform: "web", expireAt: new Date(),
+      // `build` is an INT in the rule, and `expireAt` must be in the
+      // future — this payload said "1" and `new Date()` until the rollup
+      // block below was written and its control caught both. It changes
+      // nothing here (the sign-in clause short-circuits first, and the
+      // coverage report confirms this arm records a false either way), but
+      // this case's own note promises a well-formed payload, and a fixture
+      // that is refused twice over stops proving what it names the moment
+      // somebody deletes the clause it is here to hold.
+      folded: false, build: 1, platform: "web",
+      expireAt: new Date(Date.now() + 86400000),
     })));
   it("following refuses a signed-out create", () => refusesWrite(() =>
     setDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER), { at: serverTimestamp() })));
