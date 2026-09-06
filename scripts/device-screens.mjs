@@ -369,17 +369,46 @@ if (!android) {
   const profileId = `android-${slug(model)}`;
   report.source = `android:${device.serial()}`;
   report.target = `${model} · ${pkg}`;
-  console.log(`\n${model} — attaching to ${pkg}`);
-  const webview = await device.webView({ pkg }, { timeout: 90_000 });
-  const page = await webview.page();
-  const watcher = watch(page);
-  const size = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight, s: window.devicePixelRatio }));
+  console.log(`\n${model} — ${pkg}`);
+
+  // A COLD START PER SCENE, the way a phone does it: stop the app, wipe its
+  // data (localStorage with it — every scene is a first launch), start it,
+  // attach to the WebView it opens. Not a reload: the lane's fourth run
+  // attached fine and then lost the devtools target on `page.reload()` —
+  // "Target page, context or browser has been closed" — because the
+  // WebView's navigation replaces the target Playwright was holding. The
+  // attach itself can land on the shell's initial about:blank a moment
+  // before Capacitor loads the app, so it waits for the app's own URL and
+  // re-attaches if that first target goes away under it.
+  async function launch() {
+    await device.shell(`am force-stop ${pkg}`);
+    await device.shell(`pm clear ${pkg}`);
+    await device.shell(`am start -W -n ${pkg}/.MainActivity`);
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const webview = await device.webView({ pkg }, { timeout: 90_000 });
+        const page = await webview.page();
+        const deadline = Date.now() + 20_000;
+        while (!/localhost/.test(page.url()) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
+        if (page.isClosed()) throw new Error("the WebView target closed while the app was loading");
+        return page;
+      } catch (e) {
+        lastErr = e;
+        console.log(`    attach attempt ${attempt} failed: ${String(e.message || e).slice(0, 120)}`);
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+    throw lastErr;
+  }
+
+  const first = await launch();
+  const size = await first.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight, s: window.devicePixelRatio }));
+  console.log(`  WebView ${size.w}×${size.h} @${size.s}`);
   await runProfile(profileId, { label: model, width: size.w, height: size.h, scale: size.s }, {
     async open() {
-      // Same page, cold state: the shell's WebView is the only one there
-      // is, so "a fresh launch" is storage cleared and a reload.
-      await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* no storage */ } });
-      await page.reload({ waitUntil: "load" });
+      const page = await launch();
+      const watcher = watch(page);
       await waitReady(page);
       if (report.mode === null) {
         const m = await readMode(page);
