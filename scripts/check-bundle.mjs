@@ -872,7 +872,24 @@ const MAX_TOTAL_JS_KB = 2440;
 // nothing here does it on the way past. ~38 KB sits behind that one call
 // (passive-meter, result-card, type-marks, result-rose, explain-sheet),
 // which is three bands rather than one, so it is worth asking properly.
-const MAX_EAGER_KB = 642;
+// 642 → 607 (2026-09-06, D382): the eager-content sweep. 642 was granted
+// four days ago to fit a tree measuring 631, and 35 KB of that was
+// question CONTENT — `daily-questions.js`, the archive the farm lane
+// appends to EVERY DAY, held in first paint by three static edges (the
+// spec-index side-effect line, daily-split.jsx's import for one demo id,
+// and map-branches.js wanting only the category taxonomy). It measures
+// 596 with all three cut. Re-set to the file's own ~11 KB band rather
+// than banked as slack, which is what every entry above did after a
+// sweep — 645 → 630 followed D354's the same way.
+//
+// THE RATE WARNING ABOVE STILL STANDS, and this does not answer it: 11 KB
+// is still about four days of ordinary drift. What changed is that the
+// drift can no longer be a question. `check:eager-content` forbids the
+// content class outright, so this ceiling is back to measuring what it
+// was written to measure — code in first paint — and a content lane can
+// no longer be blocked by it. Raising this number to fit content is now a
+// gate failure somewhere else, which is the point.
+const MAX_EAGER_KB = 607;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
