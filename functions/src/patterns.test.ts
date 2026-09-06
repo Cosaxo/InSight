@@ -127,6 +127,10 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
 
 // two real eligible qids from the compiled bank, so the test moves with it
 const [CORE_A, CORE_B] = [...PATTERNS_QIDS];
+// A question the CANDIDATE's corpus names and the online engine's does
+// not — the D395 widening. Derived rather than named, so it moves with
+// the bank; 263 of them today.
+const [WIDE_ONLY] = [...PATTERNS_ITEM_QIDS].filter((q) => !PATTERNS_QIDS.has(q));
 const yesterday = utcDay(NOW, -1);
 const twoBack = utcDay(NOW, -2);
 
@@ -286,6 +290,39 @@ describe("idempotence and catch-up", () => {
     // …and the person the dead run never reached really was folded, so
     // this is a day that was scored rather than merely kept.
     expect(state.users.get("fresh")?.d).toBe(yesterday);
+  });
+
+  it("still drops the day when the only person the retry reached answered nothing it scores", async () => {
+    // WHERE `write.size` AND `score.n` CAME APART, which is what D395 did
+    // to the guard without anyone noticing. `write` holds everyone the
+    // fold loop TOUCHED, and since the corpus widened that includes a
+    // person whose only answer that day was a wider-corpus item: nothing
+    // scores them — they never enter `byUid` — but their map is merged
+    // and they are written.
+    //
+    // So one newcomer of that kind on a retried day made `write.size`
+    // non-zero while the day's score was still n: 0, and the fabricated
+    // "nobody answered" row went into the standing 90-day record for a day
+    // that HAD a scored answer, folded by the run that died. The record is
+    // world-readable and unrecomputable once the ledger day is consumed.
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "stamped", qid: CORE_A, optionIdx: 0 },
+        // Not in the online engine's corpus, so it scores nothing — but it
+        // IS in the candidate's, so the person is compacted and written.
+        { uid: "wideOnly", qid: WIDE_ONLY, optionIdx: 0 },
+      ],
+    });
+    state.users.set("stamped", { v: Array(8).fill(0), n: 1, d: yesterday });
+
+    await runPatternsFit(store, NOW);
+
+    const row = state.quality?.series.find((r) => r.day === yesterday);
+    expect(row, "a fabricated n: 0 row reached the standing record").toBeFalsy();
+    // The fixture has to be the one described, or the assertion above
+    // passes for the wrong reason: the wider-corpus person really was
+    // written, which is exactly what used to defeat the guard.
+    expect(state.users.get("wideOnly")?.d, "fixture: the wide-only person was not written").toBe(yesterday);
   });
 
   it("publishes NO scorecard when every owed day crashed and there is no prior", async () => {
