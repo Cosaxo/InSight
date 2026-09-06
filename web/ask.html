@@ -317,7 +317,10 @@
     <p>
       Prices come from <b id="provFile">content/pricing.json</b>, committed
       <b id="provDate">—</b> — the same file the app reads. Nobody is quoted a
-      number another buyer cannot see.
+      number another buyer cannot see. Your rate is confirmed when the
+      question is approved: this page prices off the committed card, and
+      the server re-reads demand at approval, so a busy scope can settle
+      higher than the figure above.
     </p>
     <p class="prov">
       <a href="/terms.html">Terms</a> ·
@@ -685,7 +688,7 @@
     $("panelKicker").textContent =
       state === "declined" ? "reviewed" :
       state === "held" ? "review is down" :
-      state === "paying" ? "card payment isn\u2019t live yet" : "quoted \u00b7 price locked";
+      state === "paying" ? "card payment isn\u2019t live yet" : "quoted \u00b7 locked when approved";
 
     $("quoteWell").hidden = state === "declined";
     $("quotePrompt").textContent = st.prompt;

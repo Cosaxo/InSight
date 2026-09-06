@@ -124,6 +124,30 @@ describe("the link (D378) and the quote", () => {
 //
 // Nothing pinned any of it: erasing the notice outright left all of
 // test:scripts green, because no case here had ever tapped Pay.
+describe("what the quote promises about its own price", () => {
+  it("does not call the quote locked before the question is approved", () => {
+    // The page prices off the COMMITTED card; the server re-reads demand
+    // when the question is approved and locks the quote there. Measured on
+    // the shipped fold at six concurrent city campaigns: the door offered
+    // 500 answers for €10 where the server locks 166 for the same €10, and
+    // the door's refund line promised money back that the server's quote
+    // pays at zero. Calling that "price locked" is the one word this page
+    // must not use.
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+    expect($("panelKicker").textContent, "the quote called itself locked").not.toMatch(/price locked/);
+    expect($("panelKicker").textContent).toMatch(/locked when approved/);
+    // …and the page says WHY, in its own provenance line rather than only
+    // in a kicker somebody may not read.
+    expect(sp(text()), "the page never says the rate is confirmed at approval")
+      .toMatch(/confirmed when the question is approved/);
+  });
+});
+
 describe("the pay tap (the door is not open)", () => {
   // The options matter: the quote button is disabled until a binary
   // question has two of them, so a case that skipped them would be
