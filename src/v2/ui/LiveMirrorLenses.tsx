@@ -920,11 +920,25 @@ function ScoresLens({ qs, shortName, scope }: {
     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         {/* The one thing the ruler, the tab and the rows do not already
-            say: who the raters are. With one crowd they ARE the subject
-            ("rates itself"); the moment the elsewhere ring draws, that
-            claim would be false for half the marks, so the line widens
-            with the card (docs/COPY.md — a claim, not a caption). */}
-        {anyAway ? <>How {shortName} is rated · best first</> : <>How {shortName} rates itself · best first</>}
+            say: who the raters are — and WHAT THEY RATED, which is the
+            half this line used to get wrong.
+            
+            It flipped to "How {shortName} IS RATED" the moment the ring
+            drew, on the reasoning that with two crowds the raters are no
+            longer the subject. True about who they are; false about what
+            they answered. Every `rates` question in the bank is written
+            SELF-REFERENTIALLY — "Rate the food where you live", "How safe
+            do you feel walking home at night" — deliberately, so one
+            question serves every city on earth and the cohort cell does
+            the scoping (docs/MIRROR.md §3). Nobody outside this place has
+            ever rated THIS place; the app never asks them to. So the ring
+            is a BASELINE — everywhere else answering the same question
+            about their own home — and "how Oslo is rated" was a claim
+            about Oslo that nothing measured (D146).
+            
+            The header now describes the dot, which is the card's subject
+            in both states, and the ring says what it is one line down. */}
+        How {shortName} rates itself · best first
       </div>
       {unconfirmed && (
         // The one sentence this card owes a reader whose scores are not in
@@ -1046,7 +1060,7 @@ function ScoresLens({ qs, shortName, scope }: {
                 : <>
                   {here ? <>{here.n.toLocaleString()} live there</> : <>none live there</>}
                   {" · "}
-                  {away ? <>{away.n.toLocaleString()} from elsewhere</> : <>none from elsewhere</>}
+                  {away ? <>{away.n.toLocaleString()} elsewhere</> : <>none elsewhere</>}
                   {yourLine ? <> · {yourLine}</> : <> · you have not rated it</>}
                 </>}
             </span>
@@ -1058,8 +1072,18 @@ function ScoresLens({ qs, shortName, scope }: {
         // about the viewer (D288 §2): your anchors decide your crowd, and
         // at your own stop your marks land with the locals whatever is
         // fore. The glyphs double as the key, so no legend line.
-        <div style={{ display: "flex", gap: 7, paddingTop: 2 }}>
-          {([["here", "live there", false], ["away", "from elsewhere", true]] as const).map(([id, label, ring]) => {
+        <div style={{ display: "flex", flexDirection: "column", gap: 7, paddingTop: 2 }}>
+          {/* WHAT THE RING MEASURED. A claim, not a caption — docs/COPY.md
+              §3 — and the only thing on this card that a reader cannot
+              work out from the shapes: the ring's people answered the same
+              question about THEIR OWN home, so it is a benchmark and not a
+              second opinion about this place. Drawn only when the ring is,
+              because with one crowd there is nothing to mistake. */}
+          <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.45 }}>
+            The ring is everywhere else rating their own place, not this one.
+          </div>
+          <div style={{ display: "flex", gap: 7 }}>
+          {([["here", "live there", false], ["away", "everywhere else", true]] as const).map(([id, label, ring]) => {
             const on = fore === id;
             return (
               <button key={id} className="press" onClick={() => setFore(id)} aria-pressed={on}
@@ -1076,6 +1100,7 @@ function ScoresLens({ qs, shortName, scope }: {
               </button>
             );
           })}
+          </div>
         </div>
       )}
       {/* The unanswered rest, under a hairline (D307) — the scale rows

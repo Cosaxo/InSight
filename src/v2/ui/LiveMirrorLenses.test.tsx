@@ -626,19 +626,37 @@ describe("Scores", () => {
 
   // ── D288 §2: the second crowd ──
   //
-  // "Live there" is the stop's own cell, "from elsewhere" is the globe
+  // "Live there" is the stop's own cell, "everywhere else" is the globe
   // minus it — both from reads the lens already makes. The single-crowd
   // card above is not a separate mode: it is what this card looks like
   // the moment nobody outside has scored anything.
+  //
+  // WHAT THE SECOND CROWD RATED is the thing this block used to have
+  // backwards. It asserted that the header flips to "How Oslo IS RATED"
+  // once the ring draws — but every `rates` question is written
+  // self-referentially ("Rate the food where you live"), so the ring's
+  // people rated THEIR OWN home and nobody outside Oslo has ever rated
+  // Oslo. The header now describes the dot in both states, and the ring
+  // says what it is in its own line.
 
   it("draws the elsewhere crowd the moment it exists, with both bases stated", () => {
     // city: two 3s and two 9s (mean 6) · elsewhere: two more 9s on top
     mount("scores", [{ ...RATED, all: [0, 0, 2, 0, 0, 0, 0, 0, 4, 0] }]);
     expect(screen.getByText(/4 live there/)).toBeTruthy();
-    expect(screen.getByText(/2 from elsewhere/)).toBeTruthy();
-    // the header stops claiming the raters are the subject
-    expect(screen.getByText(/How Oslo is rated/)).toBeTruthy();
-    expect(screen.queryByText(/rates itself/)).toBeNull();
+    expect(screen.getByText(/2 elsewhere/)).toBeTruthy();
+    // …and the header does NOT widen into a claim about the place: the
+    // ring is a benchmark, not a second opinion about Oslo.
+    expect(screen.getByText(/How Oslo rates itself/)).toBeTruthy();
+    expect(screen.queryByText(/Oslo is rated/)).toBeNull();
+    expect(screen.getByText(/rating their own place, not this one/)).toBeTruthy();
+  });
+
+  it("says nothing about a second crowd when there is not one", () => {
+    // The other direction, so the line above cannot be satisfied by
+    // printing it always: with one crowd there is nothing to mistake and
+    // the card must not explain a shape the reader cannot see.
+    mount("scores", [RATED]);
+    expect(screen.queryByText(/rating their own place/)).toBeNull();
   });
 
   it("keeps the single-crowd card when all answers are the stop's own", () => {
@@ -651,7 +669,7 @@ describe("Scores", () => {
   it("draws a ring-only row where only elsewhere has scored, absent dot and all", () => {
     mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], mine: -1 }]);
     expect(screen.getByText(/none live there/)).toBeTruthy();
-    expect(screen.getByText(/4 from elsewhere/)).toBeTruthy();
+    expect(screen.getByText(/4 elsewhere/)).toBeTruthy();
     // the row's number describes the crowd that exists
     expect(screen.getByText("6")).toBeTruthy();
   });
@@ -660,7 +678,7 @@ describe("Scores", () => {
     // city mean 6 (two 3s, two 9s) · elsewhere mean 9 (two 9s)
     mount("scores", [{ ...RATED, all: [0, 0, 2, 0, 0, 0, 0, 0, 4, 0], mine: -1 }]);
     expect(screen.getByText("6")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /from elsewhere/ }));
+    fireEvent.click(screen.getByRole("button", { name: /everywhere else/ }));
     expect(screen.getByText("9")).toBeTruthy();
     expect(screen.queryByText("6")).toBeNull();
   });
@@ -672,7 +690,7 @@ describe("Scores", () => {
     // far" on the line that had just counted four of them. Your vote is
     // never in the away crowd at your own stop.
     mount("scores", [{ ...RATED, all: [0, 0, 2, 0, 0, 0, 0, 0, 3, 0], mine: 8 }]);
-    fireEvent.click(screen.getByRole("button", { name: /from elsewhere/ }));
+    fireEvent.click(screen.getByRole("button", { name: /everywhere else/ }));
     expect(screen.queryByText(/the only answer here so far/)).toBeNull();
     // …and it still says something true about your answer against them.
     expect(screen.getByText(/above them|below them|exactly the average/)).toBeTruthy();
