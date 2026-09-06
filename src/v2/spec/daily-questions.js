@@ -10,6 +10,7 @@ import { sharePcts } from '../data/pct';
 // test-definitions.js, and neither of the three reads another's bindings
 // during evaluation, so the order they settle in cannot matter.
 import LIVE from '../data/live';
+import { CAT_META, catMeta, EMERGENT_CATS } from './daily-cats.js';
 
 // daily-questions.js — "Daily Question" feature data + persistent answer store.
 // A new question each day (type varies). Each question carries a plausible,
@@ -64,15 +65,11 @@ export let DAILYQ;
   // A question's path (e.g. ['Sport','Football']) is its tag AND where its
   // answer lands on your map. topWord → placement: a seedId reuses an existing
   // self-branch; the rest are topical branches that emerge as you answer.
-  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
   function pathKey(p) { return (p || []).join(' / '); }
-  const CAT_META = {
-    Body: { seedId: 'health', hue: 150 }, Skills: { seedId: 'craft', hue: 40 }, Interests: { seedId: 'interests', hue: 78 },
-    Home: { seedId: 'home', hue: 110 }, Story: { seedId: 'story', hue: 320 }, Goals: { seedId: 'goals', hue: 240 }, Values: { seedId: 'values', hue: 356 },
-    Sport: { hue: 18 }, Film: { hue: 265 }, Food: { hue: 35 }, Travel: { hue: 200 }, Mind: { hue: 255 }, Morals: { hue: 305 }, Music: { hue: 130 },
-  };
-  function catMeta(top) { const m = CAT_META[top] || { hue: 250 }; return { top, hue: m.hue, seedId: m.seedId || null, catId: m.seedId || ('top-' + slug(top)) }; }
-  const EMERGENT_CATS = Object.keys(CAT_META).filter((k) => !CAT_META[k].seedId).map((k) => ({ id: 'top-' + slug(k), label: k, hue: CAT_META[k].hue }));
+  // slug / CAT_META / catMeta / EMERGENT_CATS now live in daily-cats.js —
+  // map-branches.js needs the taxonomy and nothing else, and importing it
+  // from here dragged this file's archive into first paint. Re-exported
+  // below so every existing DAILYQ consumer is unchanged.
   // candidate branch paths per question: authored default (clearly top-voted) + a couple of alternates
   function buildCandidates(id, def, alts) {
     const r = rng(id + '|cat');
@@ -404,6 +401,42 @@ export let DAILYQ;
       cat: ['Food', 'Habits'], alts: [['Body', 'Balance'], ['Values', 'Treats']] },
     { type: 'choice', prompt: 'What do you follow most closely?', tag: 'Following', options: ['A sport', 'A show', 'An artist', 'A subject'], tone: 'light',
       cat: ['Interests', 'Following'], alts: [['Sport', 'Fandom'], ['Music', 'Fandom']] },
+    // farm 2026-09-04 — levelling above the floor (D350 tier 3), one per
+    // thinnest top: Story, Travel, Body, Film, Food, Goals, Interests, Music.
+    { type: 'choice', prompt: 'The advice you\u2019d give your younger self is mostly about\u2026', tag: 'Dear younger me', options: ['Courage', 'Patience', 'People', 'Money'], tone: 'deep',
+      cat: ['Story', 'Then and now'], alts: [['Mind', 'Self-knowledge'], ['Goals', 'Lessons']] },
+    { type: 'binary', prompt: 'Getting lost somewhere new: part of the fun, or the thing to avoid?', tag: 'Getting lost', options: ['Part of the fun', 'The thing to avoid'], tone: 'light',
+      cat: ['Travel', 'How you roam'], alts: [['Mind', 'Control'], ['Interests', 'Adventure']] },
+    { type: 'binary', prompt: 'Naps: a superpower, or a trap?', tag: 'Naps', options: ['A superpower', 'A trap'], tone: 'light',
+      cat: ['Body', 'Sleep'], alts: [['Mind', 'Rest'], ['Home', 'Afternoons']] },
+    { type: 'binary', prompt: 'Showing someone your favourite film: the joy, or the pressure?', tag: 'The screening', options: ['The joy', 'The pressure'], tone: 'light',
+      cat: ['Film', 'Sharing'], alts: [['Story', 'Sharing'], ['Mind', 'Stakes']] },
+    { type: 'binary', prompt: 'A dish you loved as a kid: still delicious, or best left in memory?', tag: 'Kid food', options: ['Still delicious', 'Leave it in memory'], tone: 'light',
+      cat: ['Food', 'Memory'], alts: [['Story', 'Then and now'], ['Home', 'Comfort']] },
+    { type: 'scale', prompt: 'Small steps beat big leaps.', tag: 'How you move', axis: 'small steps', tone: 'deep',
+      cat: ['Goals', 'Method'], alts: [['Skills', 'How you learn'], ['Mind', 'Patience']] },
+    { type: 'choice', prompt: 'A free evening class in anything. Which door?', tag: 'Evening class', options: ['Art', 'A language', 'Carpentry', 'Coding'], tone: 'light',
+      cat: ['Interests', 'Learning'], alts: [['Skills', 'Wishlist'], ['Goals', 'This year']] },
+    { type: 'binary', prompt: 'Digging backwards through the decades, or riding the new releases?', tag: 'Which way', options: ['Digging backwards', 'Riding the new'], tone: 'light',
+      cat: ['Music', 'Discovery'], alts: [['Interests', 'Curiosity'], ['Story', 'Eras']] },
+    // farm 2026-09-06 — the Sunday roll-up (the branch waited out the
+    // D365 ceiling): eight more levelled into the same thinnest tops.
+    { type: 'choice', prompt: 'The story your family retells about you is\u2026', tag: 'The retelling', options: ['Embarrassing', 'Heroic', 'Invented', 'Accurate'], tone: 'light',
+      cat: ['Story', 'Retellings'], alts: [['Home', 'Family'], ['Mind', 'Reputation']] },
+    { type: 'binary', prompt: 'Pack light and buy there, or pack for every weather?', tag: 'The suitcase', options: ['Pack light', 'Pack everything'], tone: 'light',
+      cat: ['Travel', 'In transit'], alts: [['Mind', 'Control'], ['Home', 'Stuff']] },
+    { type: 'binary', prompt: 'Barefoot at home: always, or never?', tag: 'Barefoot', options: ['Always', 'Never'], tone: 'light',
+      cat: ['Body', 'At home'], alts: [['Home', 'Comfort'], ['Body', 'Signals']] },
+    { type: 'choice', prompt: 'The film you claim to love but never finished is\u2026', tag: 'The unfinished', options: ['The long epic', 'The arthouse one', 'The classic', 'I finish everything'], tone: 'light',
+      cat: ['Film', 'Confessions'], alts: [['Story', 'Honesty'], ['Mind', 'Image']] },
+    { type: 'binary', prompt: 'Crusts on sandwiches: keep, or cut?', tag: 'Crusts', options: ['Keep', 'Cut'], tone: 'light',
+      cat: ['Food', 'Habits'], alts: [['Home', 'Kitchen rules'], ['Story', 'Then and now']] },
+    { type: 'binary', prompt: 'Fresh starts: January the first, or any random Tuesday?', tag: 'Fresh starts', options: ['January the first', 'Any random Tuesday'], tone: 'deep',
+      cat: ['Goals', 'Beginnings'], alts: [['Mind', 'Momentum'], ['Values', 'Rituals']] },
+    { type: 'scale', prompt: 'A hobby stops being fun once you\u2019re good at it.', tag: 'The curse of skill', axis: 'joy fades', tone: 'deep',
+      cat: ['Interests', 'Why we bother'], alts: [['Skills', 'Mastery'], ['Mind', 'Play']] },
+    { type: 'choice', prompt: 'Where does new music actually find you?', tag: 'The way in', options: ['Friends', 'Playlists', 'Radio', 'It just arrives'], tone: 'light',
+      cat: ['Music', 'Discovery'], alts: [['Interests', 'Curiosity'], ['Story', 'Eras']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
@@ -647,7 +680,22 @@ export let DAILYQ;
       // an aggregate already on the device.
       q.liveId = b.id;
       const v = votes[b.id];
-      if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
+      // RECONCILE, don't first-write-wins. This was `!(q.id in saved)`, so
+      // the first sync landed and every later one was ignored — and a D86
+      // edit is exactly a later one. The daily card then showed the new
+      // answer while the Map node kept the old: filed under the old
+      // option's typicality, listed under "where you differ", and
+      // permanent on that device, because nothing else ever writes this.
+      // The feed reconciles on every store notify (world-feed.jsx); this
+      // was the odd one out, not the convention.
+      //
+      // SAFE BECAUSE `saved` HOLDS NOTHING BUT CONFIRMED VALUES on a live
+      // build, which is the check this needed rather than the reasoning:
+      // its other writer is `DAILYQ.answer()`, whose only caller is
+      // `syncToMap`, gated on DAILYSPLIT_DQ_SYNC — one entry, the demo id
+      // `s1`. So there is no optimistic local value here for a stale
+      // confirmed one to overwrite. `votes` is `confirmedVotes()`.
+      if (v != null && saved[q.id] !== Number(v)) { saved[q.id] = Number(v); changed = true; }
       const agg = L.aggFor(b.id);
       const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
       if (agg && agg.counts && size) {

@@ -47,6 +47,7 @@ function bankFor(kind) {
 let ownProgress;
 let ownResult;
 let passiveStanding;
+let passiveCount;
 let live;
 let demoResults;
 
@@ -54,7 +55,7 @@ beforeAll(async () => {
   // Imported here rather than at the top because result-card.jsx injects a
   // <style> at module scope — it needs the jsdom document to exist first.
   ({ ownProgress, ownResult } = await import("../spec/result-card.jsx"));
-  ({ passiveStanding } = await import("../spec/passive-meter.jsx"));
+  ({ passiveStanding, passiveCount } = await import("../spec/passive-meter.jsx"));
   demoResults = JSON.parse(JSON.stringify(IS_TEST_RESULTS));
 });
 
@@ -94,6 +95,54 @@ function withVotes(kind, picks) {
   PASSIVE.poke();
   return bank;
 }
+
+describe("passiveCount — the number the ring, the sheet row and the card tag draw", () => {
+  it("reads the answers, not the device's tally of taps", () => {
+    // THE SAME FAILURE ONE COMPONENT OVER. `PASSIVE.done` counts
+    // `st.seen`, a localStorage map written at the moment of the tap, so on
+    // a SECOND DEVICE — or after a reinstall — it is empty for a profile
+    // the fold draws as complete. result-card.jsx switched to the fold and
+    // said why; the ring, the sheet row and the per-card tag did not, so
+    // inside passive-meter.jsx the colour came from the fold and the count
+    // came from the device.
+    //
+    // `withVotes` puts the answers in the STORE and never calls
+    // PASSIVE.record, which is exactly what a second device looks like:
+    // the answers are on the server, the tally is not on this disk.
+    withVotes("political", { 0: 4, 1: 0, 2: 3, 3: 1, 4: 2, 5: 4 });
+    expect(PASSIVE.done("political"), "the fixture is not a second device")
+      .toBe(0);
+    const c = passiveCount("political");
+    expect(c.done).toBe(6);
+    expect(c.needed).toBe(30);
+    expect(c.pct).toBe(20);
+    expect(c.full).toBe(false);
+  });
+
+  it("calls a fully answered instrument complete, on a device that never counted a tap", () => {
+    const picks = {};
+    for (let i = 0; i < IS_TESTS.political.questions.length; i++) picks[i] = 2;
+    withVotes("political", picks);
+    const c = passiveCount("political");
+    expect(c.done).toBe(30);
+    expect(c.pct).toBe(100);
+    expect(c.full, "a complete profile still read as incomplete").toBe(true);
+  });
+
+  it("falls back to the device tally where there is no fold — the demo build", () => {
+    // THE CONTROL, and not a courtesy: `ownProgress` returns null with LIVE
+    // off by design, because test-definitions.js's seeded stagger IS the
+    // demo's content. A reader that always took the fold would draw zero
+    // for every instrument in the demo.
+    expect(passiveCount("political")).toEqual({
+      done: PASSIVE.done("political"),
+      needed: PASSIVE.needed("political"),
+      pct: PASSIVE.pct("political"),
+      full: PASSIVE.complete("political"),
+    });
+    expect(passiveCount("political").needed).toBeGreaterThan(0);
+  });
+});
 
 describe("ownProgress — the number under the profile's progress bar", () => {
   it("counts answers given through the store, not zero", () => {

@@ -49,6 +49,7 @@
 // from standing docs (D234's amendment). Reported as a note, not a fail.
 
 import { readFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildEntries, loadContent } from "./gen-v2content.mjs";
@@ -104,7 +105,15 @@ function fieldsIn(src, startMarker, endMarker, at) {
   // Comments stripped first, and for the reason the SEEDED_FIELDS scan
   // gives: these blocks are more prose than code, and a field name written
   // in a comment would satisfy the check without reaching the object.
-  const region = src.slice(from, to).replace(/\/\/[^\n]*/g, "");
+  //
+  // BOTH KINDS. This stripped `//` only, so block-commenting a transport
+  // line kept its field in the set and the gate stayed green — while
+  // DELETING the same line failed correctly. That is the hole this gate's
+  // own header records three times over (D234, D281, D284: three fields
+  // that never reached Firestore). `strip-comments.mjs` handles both and
+  // preserves offsets; its header names the gates that needed exactly
+  // this.
+  const region = stripComments(src.slice(from, to));
   const keys = new Set();
   // `...(cond ? { name: … } : {})` — the emit-when-set idiom.
   for (const m of region.matchAll(/\{\s*([A-Za-z_$][\w$]*)\s*:/g)) keys.add(m[1]);
@@ -126,8 +135,8 @@ function seededFields() {
   const region = src.slice(from, to);
   // Strings only, and comments are stripped first: these blocks are mostly
   // prose, and a field name quoted inside a comment would satisfy the check
-  // without reaching the array.
-  const code = region.replace(/\/\/[^\n]*/g, "");
+  // without reaching the array. Both kinds, for the reason above.
+  const code = stripComments(region);
   return new Set([...code.matchAll(/"([\w$]+)"/g)].map((m) => m[1]));
 }
 

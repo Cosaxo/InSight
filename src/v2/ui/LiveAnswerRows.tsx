@@ -156,21 +156,47 @@ function ArStack({ pct, mine, tint }: { pct: number[]; mine: number; tint: strin
 }
 
 // ── expanded: one labelled bar per option ────────────────────────────
+//
+// A GRID, NOT A STACK OF FLEX ROWS (2026-09-06), and the reason is the
+// prototype's constants. `MABars` gave the label a fixed 104px and the
+// number a fixed 32px, sized for a mock at one width that printed a lone
+// percentage on one row and nothing on the others. Live prints the exact
+// COUNT on every row (below), so the port widened that column to 62px —
+// enough for "38% · 1,234" — and then a cohort of one drew a bar stopping
+// two-thirds of the way across the card with a lone "0" at the far right,
+// and a Yes/No question spent 104px of the row on three letters. The owner
+// saw the first of these and called the spacing weird, which it was.
+//
+// What the fixed widths were BUYING was that every row of one question
+// shares its columns, so the bars are comparable end to end. A grid keeps
+// that — one set of tracks, every row on them — and lets the two side
+// columns take the width this question's own labels and numbers need:
+// `fit-content(104px)` keeps the prototype's cap (a long option still
+// ellipsises at 104 rather than pushing the bars off the row), and `auto`
+// on the numbers is as wide as the widest thing printed there, which is
+// the share row's "NN% · count" and nothing more.
 function ArBars({ row, pct, tint, tintInk }: { row: AnswerRow; pct: number[]; tint: string; tintInk: string }) {
   const lead = topIdx(pct);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+    <div style={{
+      display: "grid", gridTemplateColumns: "fit-content(104px) minmax(0, 1fr) auto",
+      alignItems: "center", columnGap: 9, rowGap: 8, marginTop: 12,
+    }}>
       {row.options.map((o, i) => {
         const isMine = i === row.mine;
         return (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          // `display: contents`: the option stays one DOM unit — its label,
+          // bar and numbers under one element, which is what a test reads
+          // as "the row" — without being a box, so its three cells sit in
+          // the grid's shared tracks.
+          <div key={i} style={{ display: "contents" }}>
             <span style={{
-              width: 104, flexShrink: 0, textAlign: "right",
+              minWidth: 0, textAlign: "right",
               fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: isMine ? 800 : 500,
               color: isMine ? "var(--ink)" : "var(--ink-2)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>{o}</span>
-            <div style={{ flex: 1, height: 10, background: `color-mix(in oklch, ${tint} 9%, var(--surface-3))`, borderRadius: 999, overflow: "hidden" }}>
+            <div style={{ height: 10, background: `color-mix(in oklch, ${tint} 9%, var(--surface-3))`, borderRadius: 999, overflow: "hidden" }}>
               <div style={{
                 width: `${Math.max(pct[i], 1)}%`, height: "100%", borderRadius: 999,
                 background: isMine ? "var(--accent)" : i === lead ? tint : `color-mix(in oklch, ${tint} 34%, var(--surface-3))`,
@@ -183,7 +209,7 @@ function ArBars({ row, pct, tint, tintInk }: { row: AnswerRow; pct: number[]; ti
                 its own element rather than one interpolated string — a
                 share and a headcount are two readings, and a test that
                 wants one should not have to match around the other. */}
-            <span style={{ width: 62, flexShrink: 0, textAlign: "right", fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ textAlign: "right", whiteSpace: "nowrap", fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
               {(isMine || (row.mine < 0 && i === lead)) && (
                 <><span style={{ color: isMine ? "var(--accent-ink)" : tintInk }}>{pct[i]}%</span>{" · "}</>
               )}
@@ -335,7 +361,13 @@ function LiveAnswerRows({ rows, whom, emptyNote }: {
     .filter((r) => !picked || r.branch === picked)
     .sort((a, b) => (
       sort === "answers" ? b.n - a.n
-        : sort === "divisive" ? dOf.get(b.qid)! - dOf.get(a.qid)!
+        // Most divisive: the SAME tie-break, for the same reason, and it
+        // was missing. Divisiveness is normalised, so a 1-against-1 cell
+        // and a 500-against-500 cell are both exactly 1.0 — the maximum —
+        // and the thin one led the list on input order alone. It is the
+        // mirror image of the case the comment below describes, and the
+        // arm below is the only one that had the clause.
+        : sort === "divisive" ? dOf.get(b.qid)! - dOf.get(a.qid)! || b.n - a.n
           // Most agreed: least divisive first, but a question with a single
           // answer is 0 on this scale and would head the list saying
           // nothing. Ties break toward the bigger room.

@@ -268,3 +268,56 @@ describe("peopleFetchSet", () => {
     expect(set).not.toContain("weak");
   });
 });
+
+// ── "Most like you" ranked on pixels, not on likeness ──────────────
+//
+// The rail is labelled "Most like you", each chip prints "agrees X of Y",
+// and each chip is coloured by that number. It rendered `near` — this
+// fold's LABEL set, ordered by distance from your dot on the field.
+//
+// Position is components 0 and 1 of a unit-normalised EIGHT-dimensional
+// solve, so agreement living in the other six is discarded before the
+// distance is taken. The rail could therefore lead with the person who
+// agrees with you least, in the colour that says "mostly disagrees",
+// while the real match sat at the opposite rim.
+//
+// `alike` is the rail's own list now, ranked on the number the chip
+// already shows. `near` keeps the labels, where proximity is the right
+// answer because it is a layout problem.
+describe("the rail that says most like you", () => {
+  // Eleven questions whose loading sits on a latent dimension the field
+  // does NOT draw, and one on a dimension it does. Xena disagrees on the
+  // eleven and agrees on the drawn one; Yuri is the reverse.
+  const HIDDEN: PeopleItem[] = [
+    ...Array.from({ length: 11 }, (_, i) => item(`h${i}`, { L: [0, 0, 0.9] })),
+    item("shown", { L: [0.9, 0] }),
+  ];
+  const FETCH = HIDDEN.map((i) => i.qid);
+  const rowsHidden = (qid: string): PeopleRow[] | null =>
+    qid === "shown"
+      ? [row("xena", 1), row("yuri", 0)]
+      : [row("xena", 0), row("yuri", 1)];
+
+  it("ranks on agreement, not on where the dots landed", () => {
+    const f = foldPeople(HIDDEN, FETCH, rowsHidden);
+    const byName = Object.fromEntries(f.placed.map((p) => [p.name, p]));
+    // The premise, asserted rather than assumed: YURI agrees with one
+    // answer of twelve and XENA with eleven — and YURI is the NEARER dot,
+    // because the disagreement lives in dimensions the field does not
+    // draw. Measured on this fixture: YURI 16px from you, XENA 292px.
+    expect(byName.YURI.agree, "the fixture does not separate them").toBeLessThan(byName.XENA.agree);
+    const dist = (p: typeof byName.XENA) => Math.hypot(p.x - f.me.x, p.y - f.me.y);
+    expect(dist(byName.YURI), "the projection no longer hides the disagreement — pick a new fixture")
+      .toBeLessThan(dist(byName.XENA));
+    // …so the rail must lead with the one who agrees, not the one nearby.
+    expect(f.alike[0].name, "the rail crowned the person who agrees least").toBe("XENA");
+  });
+
+  it("leaves the label set ordered by distance, which is a layout question", () => {
+    // `near` is what places the names on the field without collisions, and
+    // proximity is the right answer there. Re-sorting it would have moved
+    // the labels rather than fixed the rail.
+    const f = foldPeople(HIDDEN, FETCH, rowsHidden);
+    expect(f.near[0]?.name, "the labels stopped being placed nearest-first").toBe("YURI");
+  });
+});

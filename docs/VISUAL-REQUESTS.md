@@ -36,6 +36,57 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ## Requested
 
+### 0b · The interest profile, shown and editable
+
+- **title · asked by** — *Your interests* · a session, 2026-09-04 (D367),
+  discharging the one row of `SCALE-RUNBOOK.md` Phase 5 that survived
+  D317's reversal.
+- **surface** — the profile overlay's General panel
+  (`src/v2/spec/profile-general.jsx`), below the account rows and beside
+  the trait web. Not a Mirror stop: this is a thing about the app's
+  behaviour toward you, not a reading of a population.
+- **data and basis** — `v2_users/{uid}/taste/profile` `{t, n, at}` —
+  per-topic feed-answer counts, folded nightly by `fitTasteV2`
+  (`functions/src/taste.ts`), owner-readable and client-unwritable. One
+  document GET; the same one `bank-pager.ts` already consults, so a
+  session-cached read costs nothing extra. The floors are the copy's
+  spine, not a footnote: under `TASTE_MIN_TOTAL` (10 answers) the profile
+  shapes **nothing** and the panel must say so rather than draw a shape
+  it is not using; a topic under `TASTE_TOPIC_MIN` (3) still pages at
+  max(4, a third of `FEED_PAGE`) — **never zero, because a cold topic has
+  to stay discoverable or the profile could never change.** That last
+  clause is the most reassuring true sentence available and should be
+  visible, not buried.
+- **states** — **empty**: fewer than 10 answers — "we are not shaping your
+  feed yet", with the count and what it takes. **loading**: the panel is
+  behind a tap, so a spinner is honest. **live**: topics ranked with their
+  counts, each editable, and a reset. **demo**: `LIVE.enabled` false means
+  no profile exists — say that, never draw an invented one (D1).
+- **interaction** — a tap opens it; each topic takes a *less / normal /
+  more* nudge rather than a number, because a raw weight invites a
+  precision the fold does not have; one reset returns every topic to
+  normal. **The edit has to reach the fetch or the panel is a placebo** —
+  and the profile document is deliberately client-unwritable (a
+  self-writable profile would let a device forge its own fetch weighting,
+  a sponsored-targeting hole the day audiences exist), so the write path
+  is a callable or a sibling override document, and **which one is a
+  design question this request is asking, not assuming.**
+- **vocabulary** — the 2026-09-02 standalone family (`design/`), the
+  serif prompt voice (D362), `src/v2/styles.css`, D302's two palettes,
+  topic hues as the answer rows use them. Copy under D182: the topic name
+  and its count carry it; no caption explaining a bar the reader is
+  looking at.
+- **constraints** — `check:bundle` (the profile overlay is not eager, so
+  this rides the lazy chunk), `check:tap-targets`, `check:a11y`, one
+  document read per open and none on the profile's first paint.
+- **why** — D317 kept exactly one of D163's bullets across the reversal
+  and said it binds harder afterwards: *"A Mirror that secretly models you
+  is a contradiction in terms."* Today the model is folded nightly and
+  already shapes which questions reach you, and there is nowhere to look
+  at it. `web/privacy.html` promises *"Your interest profile: only you"* —
+  the rules make that true, and no screen makes it useful.
+- **status** — `requested`
+
 ### 1 · Trait-axis directions on the patterns Map
 
 **Re-aimed 2026-09-02** at the ring the current vision draws
@@ -106,7 +157,8 @@ version is in this file's history.
 - **why** — *"the axes exist to be connected"* (charter §1); AXES-PLAN
   §2: "That is the owner's sentence, drawn, on data that publishes
   today."
-- **status** — `requested`.
+- **status** — `requested` (the copy-level half built at D372; the
+  shape is what remains).
 
 ### 2 · The corner doors for earned axes
 
@@ -162,10 +214,284 @@ version is in this file's history.
   (map-3, pat-5, pat-6; the 2026-09-01 digest, bridge item 2).
 - **status** — `requested`.
 
+### 4 · The buying door reads as a price, not a formula
+
+**Asked 2026-09-05** — the owner: *"pricing seems unintuitive."* D371
+made the numbers behind the door live; this request is for the shape
+that lets a buyer read them.
+
+- **asked by** — the owner, 2026-09-05; recorded at D371 §6.
+- **surface** — since D368 (shape A) the web ask door, `web/ask.html`
+  (item 0): the menu card (three rows, D376), the scope ruler, the
+  budget chips and the quote panel. This was filed against the in-app
+  "Ask a question" overlay (`src/v2/spec/suggestions.jsx`, built from
+  `design/standalone-2026-08-24/suggestions.jsx`), which left the
+  binary at D368; what it asked for holds one page over.
+- **what a buyer reads today, and has to assemble** — per cohort: a
+  demand word (*quiet · steady · contested*), the crowding as a sentence
+  (*nobody else asking · 1 other in rotation*; it was a booked count, *0 of 14
+  booked*), a fourteen-tick strip and — since D376 — the MENU price
+  for the reach (*€10 · up to 500 answers · 29 days*; until then a
+  per-answer rate, which now lives one tap in on the scope ruler and
+  the contract sheet); the law
+  (*€0.02 an answer with nobody else asking · +50% per other campaign
+  in rotation · over the next 14 days · no ceiling · billed per answer
+  · budgets €5 to €50 · unserved answers refund at close*) behind a
+  *How the price is set* tap since D372,
+  the crowding index since D373. In the composer a budget row (*€5 ·
+  €10 · €25 · €50* — the row's own price chosen when a row opened it,
+  the smallest from the bare button) says what it buys at the line
+  in force; the contract sheet says *Rate · locked at approval*, an
+  estimate where a campaign has a measured rate (D288 §3, a served week
+  since D372), and *Your budget €25 up front · up to 1 250 answers ·
+  unserved answers refund at close*.
+  D372 answered the arithmetic half of this request in copy and D376
+  the menu half (`SPONSORED-PLAN.md` §2.3: one price per reach, one
+  promise under it); what is still asked for is the SHAPE — the
+  buyer's one question, *what will this cost me, and what does it
+  buy*, as the thing the eye lands on, with the strip, the word and
+  the presets around it rather than a column of rows.
+- **data and basis** — everything the door prints is on the live card
+  (`v2_meta/pricing` over `content/pricing.json`, D371): per cohort the
+  idx, the booked strip, the next open day, and an estimate WITH its
+  basis or none. A forecast may render only where the card carries a
+  completed campaign (D288 §3's honesty), so the design needs a shape
+  for *no estimate yet* that is not a blank — the booked strip and the
+  open day are always real. (The flat ad lane printed its own figure
+  beside this until D375 retired it; one product now.)
+- **states** — committed card (before the live half lands, or a demo
+  build: the label says *committed*); live with an empty ledger (every
+  cohort at the floor, all open); live with demand (one or more
+  cohorts lifted, days booked, a sold-out strip of fourteen); with and
+  without an estimate; the composer's approved-quote and pay states,
+  where `fmtExact` prints the charged figure to the cent.
+- **interaction** — pick a cohort → the composer opens on it; the
+  scope ruler re-prices as the scope moves; currency switch (D288's
+  `CurSwitch`) reformats every figure with ≈ off EUR; the contract
+  sheet is the last read before money.
+- **vocabulary** — the 2026-09-02 standalone family (`design/
+  standalone-2026-09-02/`), `src/v2/styles.css`, D302's two palettes,
+  `COPY.md` (*visual > word > sentence*): the price is the visual; the
+  law can be one line behind a disclosure, not a token row a buyer
+  reads first. The claims that must stay claims (§3): *locked at
+  booking*, *billed per answer*, *the unserved part refunds*, and the
+  ≈ on any converted figure.
+- **constraints** — the overlay is past first paint (no eager bytes;
+  `check:bundle` stands at its ceiling); one read per open for the live
+  card and none for the committed one; tap targets
+  (`check:tap-targets`); the three OWNER-LIST rows D371 opened (the
+  floor, the cap's shape, the forward fortnight) may change the numbers
+  under this design — design for a buyer-set budget as one of the
+  states rather than assuming the flat cap.
+- **why** — MONETIZATION path 1 and PAID-PLAN §6: the door is the
+  product's one paid surface, and a price a buyer cannot read is a
+  price they do not pay.
+- **status** — `requested`.
+
+### 5 · The 1v1 and group profile — three instruments, and the pair's card
+
+**Asked 2026-09-06** — the owner: *"how could we make the 1v1 and
+groups profile better … assume you have full creative freedom."*
+`ROLES-PLAN.md` is the plan; this is the screen half of it, and it
+waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
+it is planned here.
+
+- **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
+  (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).
+- **surface** — three places, one vocabulary. (1) The profile
+  overlay's **Roles** subtab (`ui/LiveRolesPanel.tsx`, D204 — yours,
+  live only): today an average rose, a name, a line, a day count, and
+  one row per setting with receipts on tap. (2) The **1v1 daily
+  card's** done state (`ui/LiveDuelPanel.tsx`, D156): today the two
+  runs of dots under the day's answer. (3) The **person's page**
+  (`spec/person-overlay.jsx` — its *Play together* card, D310, draws
+  a pair type from demo data only).
+- **what it draws** — on the Roles tab: *you across 1v1s* (Insight ·
+  Legibility · Projection) with the rule that earns the name, the
+  runner-up when the match is close (*The Watcher · nearly The Mind
+  Reader — if sharper on them*), and the rarity; then one row per
+  pair carrying the PAIR's type (The Familiar, The One-Way — who is
+  ahead named, The Twins…) beside your role in it, the two runs, and
+  on tap the receipts and the domain rows (*everyday · under pressure
+  · how they see you*). Then *you in groups* (Independence · Reading
+  the room · Standing · Presence) the same way, one row per group
+  with the group's cast in miniature (request 6 is the full cast).
+  On the 1v1 card: the pair's type and line under the runs. On the
+  person's page: the pair's type and their role in each group you
+  share, from the record you both already see.
+- **data and basis** — `data/roles.ts` over the reveal documents the
+  duel panel already fetches (14 per room, `COSTS.md`'s Roles row) or
+  the per-member ledger the plan's §3.3 adds to the group document
+  (zero reads either way); the tables in `ROLES-PLAN.md` §3.4–§3.5;
+  every rate chance-scaled (§3.2: 50 is luck). Floors: a pair at 4
+  days both guessed, you-across-pairs at 6, a group at 3 days played,
+  Standing at 3 pick days with D224 snapshots, Reading the room at 3
+  guessed days. Below a floor a dim is absent and the types it
+  defines are out of the running; D1's empty state is the thin row
+  with its count, as today.
+- **states** — no settings (the sentence, as today); thin (the dashed
+  ring and *2 of 4 days both guessed*); one setting (no rows, the
+  card alone); several; a close match (the runner-up line present);
+  a setting whose history could not be read (*couldn't read this
+  one*, as today); demo: never — the tab is not there.
+- **interaction** — tap a row: receipts and domains; tap a pair's
+  type: the 1v1 card (`data/duelCue`, the daily ruler's licensed
+  exit); tap a name in a group's cast: their page; the ⓘ opens the
+  explain sheet's instrument entry; long press nothing.
+- **vocabulary** — the result card family (`spec/result-card.jsx`:
+  `TestRose`, `TypeMark`, the rule line, the nearly chips, the rarity
+  field); `RP_TESTS` hues (`--c-people` for a 1v1, `--c-groups` for a
+  group, new dims need hues); the 2026-09-02 standalone family and
+  `src/v2/styles.css`; D302's palettes; `COPY.md` — a type's line is
+  a claim about a person, true and kind at once (§3.5 of the plan).
+- **constraints** — the panel stays behind its `React.lazy` boundary
+  (first paint untouched; `check:bundle` at its band); zero new
+  reads; 44 px targets (`check:tap-targets`); the daily card's done
+  state must not grow a screen (D156: a finished circle collapses to
+  its content).
+- **why** — the ties axiom (D347, tie-1: the pair, the person across
+  pairs and the person in a group are three objects); CLAUDE.md's
+  first paragraph — a join nothing draws is unfinished, and the
+  pair's reading and the group's cast fold from data already on the
+  phone.
+- **status** — `requested` (waits on the plan's owner call).
+
+### 6 · The cast — the group as roles
+
+- **asked by** — the owner, 2026-09-06, through `ROLES-PLAN.md`
+  §2.6 and §3.8.
+- **surface** — the Mirror's **Groups** stop, **People** tab
+  (`ui/LiveGroupsMirrorBody.tsx`, `LgPeopleCard`): today a
+  constellation of the members, a likeness bar per member, and the
+  twin / breaks-ranks labels (D277). The prototype's
+  `spec/group-role-map.jsx` drew a cast from a scenario generator —
+  stars with earned roles orbiting, contested roles between rivals —
+  and is the reference for the idea, not the data.
+- **what it draws** — every member's role in THIS group (the same
+  fold that gives you yours, run for each uid): mark, first name,
+  type, line — *Anna · The Anchor · Where the room lands, you were
+  already standing*; and the crowns of the pick days where D224
+  snapshots exist: *Best advice · 3 of 4*. The twin and breaks-ranks
+  labels stay. A member under the floor is listed with their count,
+  not omitted.
+- **data and basis** — `groupRole` over the stop's own reveals (or the
+  ledger), per member; nominations from `pickUid` snapshots, counted
+  only when the counted votes agree (`groupPortrait`'s
+  `majorityPickUid` rule); the same floors as request 5. Zero reads
+  beyond the stop's own.
+- **states** — a group under the floor for everyone (today's People
+  card, unchanged); some members over it; crowns present or absent
+  (pre-D224 reveals carry none); demo: the demo body keeps its sample
+  people and never draws this.
+- **interaction** — tap a member: their page; tap a crown: the pick
+  day's reveal row; the constellation keeps its place above.
+- **vocabulary** — `LgPeopleCard` and the stop's tab row; `TypeMark`
+  at 20 px beside a name (the Kindred rows' shape, D156 §7); `COPY.md`
+  — a role is said to a person in front of their group.
+- **constraints** — `LiveGroupsMirrorBody` is a static import in
+  `mirror-tab`, so anything with weight goes behind `React.lazy` as
+  `LgField` and `GroupCompare` do; zero new reads; 44 px targets;
+  the floor is D1's line — no member wears a role the days do not
+  earn.
+- **why** — the group is a population the Mirror already draws; a
+  cast is the group reading itself, which is what a group stop is
+  for. Every input is public (D98) and already on screen with names.
+- **status** — `requested` (waits on the plan's owner call).
+
 ## Planned
 
 ## Drafted
 
 ## Designed
 
+
 ## Built
+
+### 0 · The web ask door — where a question is bought
+
+- **title · asked by** — *Ask InSight a question* · the owner, 2026-09-05,
+  adopting `STORE-CUT-PLAN.md` shape A (D368). **On the release path**:
+  the door leaves the app before submission, so this page is what
+  replaces it.
+- **surface** — `web/ask.html`, a standalone page on the hosting site
+  beside the `paid-done.html` / `paid-done-ad.html` / `paid-cancel.html`
+  pages Stripe already returns to. Entered from `web/home.html`, which
+  today says it is *"Deliberately NOT the app"* and becomes where the
+  door is found. **Not reachable from the app, and that is the entire
+  point** — a call to action inside the binary is what 3.1.1 polices.
+  The eight existing `web/` pages are the visual company it keeps:
+  home, join, privacy, terms, delete-account and the three Stripe
+  returns.
+- **data and basis** — the rate card prints off `content/pricing.json`,
+  fetched or inlined at deploy, never retyped: `capEur` **€320** is the
+  question cap, `adBase` **€320** the ad base before its index, plus the
+  per-cohort floor/ceiling indices, `fx` and `estimates`. Two callables
+  and **zero server changes** — `bookPaidQuestionV2` writes the ask and
+  an automated review rules on it, then `createPaidCheckoutV2` turns an
+  approved quote into a Stripe Checkout session. Both carry
+  `enforceAppCheck`.
+- **states, and the order matters (D368 amendment)** — **composing**, open
+  to anyone with no account at all: the composer IS the paid flow.
+  **quoted**: the price locked off the committed card — rate × index, the
+  cap, the 29-day window promise. **declined**: the automated review said
+  no, with a reason written to be shown — and because no account was ever
+  asked for, **a decline costs the visitor nothing**. **sign in**: raised
+  at the PAY tap, never before, because the review runs before payment and
+  can refuse; asking someone to make an account and then telling them no
+  is the worst available order. **paying**: hand off to Stripe.
+  **returned**: the three existing pages already handle it. **held**: an
+  API outage holds a booking, never declines it.
+
+  Two things the sign-in state must get right. It exists because an
+  anonymous uid cannot be reached from another browser, so the buyer's
+  campaign would be invisible in their own app — and
+  `AskedByYouOverlay` is exactly the surface that stays in the app after
+  the door leaves. **A purchase you cannot come back to is not a
+  purchase**, least of all one that refunds 29 days later. And it must
+  not lose the ask: `linkWithPopup` upgrades an anonymous user **in
+  place**, so a booking written under the anonymous web uid keeps its id
+  straight through the link.
+
+  **Google first, but not Google only.** The requirement is a reachable
+  identity, not a particular provider. Google ships first because it is
+  the path the app already has; the sign-in state should be drawn so a
+  second provider (Firebase email-link, no password to store) is a row
+  rather than a redesign — a city or an agency may well not want a
+  personal Google account against a €320 purchase.
+- **interaction** — a scope ruler with prices riding the same axis, so
+  moving the scope moves the number in one gesture; the composer, open
+  from the first visit; one pay tap, which is where the sign-in appears
+  and the only place it does. The refund promise is not fine print — the
+  buyer pays the cap and the closer refunds `(cap − answers) × rate` 29
+  days later off a public aggregate both sides read, and **that sentence
+  is the product's differentiator, not a disclaimer.**
+- **vocabulary** — it must read as InSight without pretending to be the
+  app: this is a sales surface, not a product surface. The 2026-09-02
+  standalone family in `design/`, the serif prompt voice (D362), D302's
+  two palettes. `web/` today loads **no** Firebase SDK and no app CSS, so
+  the page brings its own — it cannot inherit `src/v2/styles.css`.
+  Copy under D182.
+- **constraints** — **CSP is the one that bites**: `firebase.json` serves
+  `web/` under `default-src 'none'`, so this page needs its own header
+  block admitting the Firebase SDK and its endpoints, in the shape
+  `join.html`'s block already takes. App Check on a public web door needs
+  a **real reCAPTCHA provider**, which reverses D337's premise and is the
+  actual bill for avoiding the store cut — cheap against €48–96 a sale.
+  No app bundle impact at all, because it is not in the app.
+- **why** — `STORE-CUT-PLAN.md` §1: the product's billing model and IAP
+  are **incompatible**, not merely inconvenient. A developer cannot issue
+  a programmatic partial refund of an IAP, so routing this through the
+  store would not make the closer expensive — it would delete it, and
+  with it the promise shown at the moment of payment. That is a far
+  stronger thing to be able to say than a preference about fees.
+- **status** — `built` 2026-09-05 (D369). Drafted, extracted to
+  `design/ask-2026-09-05/`, and built the same day. The README's adapter
+  contract held exactly: `scripts/build-ask-pricing.mjs` generates
+  `web/ask-pricing.json` from the committed card, and `refundDays` comes
+  from `WINDOW_DAYS` rather than from `trailingDays` — the substitution
+  that would have shortened a payment promise by a day, now pinned by a
+  test that fails when the card's lookback moves. Two defects the draft
+  could not show came out of rendering it: the per-answer rate was a
+  fifth too high in kroner, and the currency switch sat inside the half
+  of the page the quote panel hides. **The pay tap is not open** — App
+  Check, not code, and the owner's call (D369 §5).

@@ -33,7 +33,7 @@
 // force attackers into exactly that slow, human-shaped posture — which
 // the device-bind month rule then prices per device.
 
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -451,6 +451,107 @@ const PAGE = 5000;
 // list — a 500-account cluster is a finding, not a log payload.
 const LOG_UID_CAP = 40;
 
+/**
+ * Read one window of the ledger and fold it, page by page.
+ *
+ * EXTRACTED so it can be executed, for the reason `volumeFlagged` above
+ * was: the whole `ledgerVelocityScan` body is unreachable from any test,
+ * so the paging loop could be broken with every suite green.
+ * Measured before this existed — widening `page.size < PAGE` to `<=`
+ * makes a full first page end the read, and all 607 functions tests
+ * stayed green. That turns every one of D28's four signals into a
+ * reading of an arbitrary 5,000-row prefix while the heartbeat below
+ * goes on logging a confident entry count, and it is also the source of
+ * the coverage line the owner is told to read before moving the account
+ * bar (accountLevel.ts).
+ *
+ * Folded PER PAGE rather than accumulated — the argument is at the call
+ * site, and it is a memory one: a 50k-DAU catch-up buffered as rows
+ * exceeds the instance and leaves the cursor unmoved, so the next run
+ * dies identically, forever.
+ */
+export async function scanLedgerWindow(
+  db: Firestore,
+  windowStart: number,
+): Promise<{ fold: WindowFold; maxAt: number }> {
+  const fold = emptyFold();
+  // Tracked here rather than reduced over `rows` at the end, for the same
+  // reason: there is no `rows` to reduce over any more.
+  let maxAt = windowStart;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  for (;;) {
+    let q = db
+      .collection("v2_agg_events")
+      .where("at", ">", Timestamp.fromMillis(windowStart))
+      .orderBy("at")
+      // `fromIdx` rides along because an edit's row carries it and
+      // nothing else does — the volume ceiling is about creates, and a
+      // field left out of the projection is a guard that is dead in
+      // production while the in-memory fake goes on proving it works
+      // (the note store-projection.test.ts exists for).
+      .select("uid", "qid", "at", "fromIdx")
+      .limit(PAGE);
+    if (cursor) q = q.startAfter(cursor);
+    const page = await q.get();
+    const pageRows: LedgerRow[] = [];
+    for (const d of page.docs) {
+      const uid = d.get("uid");
+      const at = d.get("at") as Timestamp | undefined;
+      // Entries without a uid predate D28's attribution field; they
+      // can still be inside the window shortly after that deploy.
+      if (typeof uid === "string" && uid && at) {
+        const atMs = at.toMillis();
+        pageRows.push({
+          uid, qid: String(d.get("qid") || ""), atMs,
+          ...(d.get("fromIdx") === undefined ? {} : { isEdit: true }),
+        });
+        if (atMs > maxAt) maxAt = atMs;
+      }
+    }
+    foldInto(fold, pageRows);
+    if (page.size < PAGE) break;
+    cursor = page.docs[page.docs.length - 1];
+  }
+  return { fold, maxAt };
+}
+
+/**
+ * One page of auth records, folded into the two things the scan reads from
+ * it: when each account was created, and which of them carry a usable
+ * device-bind level.
+ *
+ * PURE, and extracted for the reason the ledger reader was (the same shape
+ * one file over): the loop lived inside the scheduled handler, which no
+ * runner executes, so the filter below could be replaced with a coercion
+ * and the whole functions suite and every e2e stayed green — while its own
+ * comment names exactly what that costs.
+ *
+ * An ACTUAL integer only, matching what firestore.rules accepts —
+ * `get("db", 0) >= n` errors on a string or a boolean and denies. Coercing
+ * would overstate coverage: `Number(true)` is 1, so a malformed claim
+ * would count as a qualifying account on exactly the day this number is
+ * trusted, and the number is D37's flip decision — what share of real
+ * votes enforcement would refuse. A level ABOVE the ladder is kept rather
+ * than discarded: that is an account minted by a newer deploy than this
+ * code, which levelDef describes honestly.
+ *
+ * An unparseable creation time drops the account from the birth-cluster
+ * input rather than seeding it with NaN, which would make every span
+ * involving it NaN and the cluster silently unreportable.
+ */
+export function foldAuthPage(
+  users: readonly { uid: string; metadata: { creationTime: string }; customClaims?: Record<string, unknown> | null }[],
+  created: { uid: string; createdMs: number }[],
+  levels: Map<string, number>,
+): void {
+  for (const u of users) {
+    const ms = Date.parse(u.metadata.creationTime);
+    if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
+    const raw = u.customClaims?.db;
+    if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) levels.set(u.uid, raw);
+  }
+}
+
 export const ledgerVelocityScan = onSchedule(
   // Daily, off the top-of-hour herd. Cost at D7's own write ceiling
   // (~14k answers/day): one page-scan of the day's ledger entries plus
@@ -478,44 +579,7 @@ export const ledgerVelocityScan = onSchedule(
     // run re-reads the same capped window and dies identically, forever,
     // with D28's only detector silently dead. Folding per page keeps peak
     // live memory at one PAGE of rows plus the fold itself.
-    const fold = emptyFold();
-    // Tracked here rather than reduced over `rows` at the end, for the same
-    // reason: there is no `rows` to reduce over any more.
-    let maxAt = windowStart;
-    let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
-    for (;;) {
-      let q = db
-        .collection("v2_agg_events")
-        .where("at", ">", Timestamp.fromMillis(windowStart))
-        .orderBy("at")
-        // `fromIdx` rides along because an edit's row carries it and
-        // nothing else does — the volume ceiling is about creates, and a
-        // field left out of the projection is a guard that is dead in
-        // production while the in-memory fake goes on proving it works
-        // (the note store-projection.test.ts exists for).
-        .select("uid", "qid", "at", "fromIdx")
-        .limit(PAGE);
-      if (cursor) q = q.startAfter(cursor);
-      const page = await q.get();
-      const pageRows: LedgerRow[] = [];
-      for (const d of page.docs) {
-        const uid = d.get("uid");
-        const at = d.get("at") as Timestamp | undefined;
-        // Entries without a uid predate D28's attribution field; they
-        // can still be inside the window shortly after that deploy.
-        if (typeof uid === "string" && uid && at) {
-          const atMs = at.toMillis();
-          pageRows.push({
-            uid, qid: String(d.get("qid") || ""), atMs,
-            ...(d.get("fromIdx") === undefined ? {} : { isEdit: true }),
-          });
-          if (atMs > maxAt) maxAt = atMs;
-        }
-      }
-      foldInto(fold, pageRows);
-      if (page.size < PAGE) break;
-      cursor = page.docs[page.docs.length - 1];
-    }
+    const { fold, maxAt } = await scanLedgerWindow(db, windowStart);
 
     // Signals 1 + 2: per-uid volume and cadence.
     let volumeFlags = 0;
@@ -550,19 +614,7 @@ export const ledgerVelocityScan = onSchedule(
     const levels = new Map<string, number>();
     for (let i = 0; i < uids.length; i += 100) {
       const res = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
-      for (const u of res.users) {
-        const ms = Date.parse(u.metadata.creationTime);
-        if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
-        // An ACTUAL integer only, matching what firestore.rules accepts —
-        // `get("db", 0) >= n` errors on a string or a boolean and denies.
-        // Coercing would overstate coverage: `Number(true)` is 1, so a
-        // malformed claim would count as a qualifying account on exactly
-        // the day this number is trusted. A level ABOVE the ladder is kept
-        // rather than discarded: that is an account minted by a newer
-        // deploy than this code, which levelDef describes honestly.
-        const raw = u.customClaims?.db;
-        if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) levels.set(u.uid, raw);
-      }
+      foldAuthPage(res.users, created, levels);
     }
     const clusters = birthClusters(created);
     for (const c of clusters) {

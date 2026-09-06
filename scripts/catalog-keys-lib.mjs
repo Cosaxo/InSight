@@ -15,6 +15,7 @@ export const KEY_DOMAINS = [
   { constName: "FILM_KEYS", file: "films.txt" },
   { constName: "ARTIST_KEYS", file: "artists.txt" },
   { constName: "ATHLETE_KEYS", file: "athletes.txt" },
+  { constName: "VIDEOGAME_KEYS", file: "videogames.txt" },
   { constName: "EMOJI_KEYS", file: "emoji.txt" },
   { constName: "COUNTRY_KEYS", file: "countries.txt" },
   { constName: "DOG_KEYS", file: "dogs.txt" },

@@ -17,7 +17,8 @@
     "ios": "npx cap open ios",
     "android": "npx cap open android",
     "doctor": "npx cap doctor",
-    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests\"",
+    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests && node scripts/rules-coverage.mjs\"",
+    "test:rules:baseline": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests && node scripts/rules-coverage.mjs --update-coverage-baseline\"",
     "pretest:e2e": "npm run build --prefix functions",
     "test:e2e": "STRIPE_WEBHOOK_SECRET=whsec_e2e firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs\"",
     "pretest:e2e:erasure": "npm run build --prefix functions",
@@ -42,6 +43,7 @@
     "check:elements": "node scripts/check-elements.mjs",
     "build:elements": "node scripts/build-elements.mjs",
     "check:catalogs": "node scripts/check-catalogs.mjs",
+    "check:eager-content": "node scripts/check-eager-content.mjs",
     "check:logic-sync": "node scripts/check-logic-sync.mjs",
     "check:calls": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-calls.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
@@ -82,6 +84,7 @@
     "check:bundle": "node scripts/check-bundle.mjs",
     "check:web-firebase": "node scripts/check-web-firebase.mjs",
     "check:web-headers": "node scripts/check-web-headers.mjs",
+    "check:csp-hashes": "node scripts/check-csp-hashes.mjs",
     "check:fn-runtime": "node scripts/check-fn-runtime.mjs",
     "check:appcheck": "node scripts/check-appcheck.mjs",
     "check:versions": "node scripts/check-versions.mjs",
@@ -89,6 +92,8 @@
     "check:store-listing": "node scripts/check-store-listing.mjs",
     "check:policy-claims": "node scripts/check-policy-claims.mjs",
     "check:pricing": "node scripts/check-pricing.mjs",
+    "build:ask-pricing": "node scripts/build-ask-pricing.mjs",
+    "check:ask-pricing": "node scripts/build-ask-pricing.mjs --check",
     "build:pricing-ts": "node scripts/gen-pricing-ts.mjs --write",
     "check:public-copy": "node scripts/check-public-copy.mjs",
     "check:data-inventory": "node scripts/check-data-inventory.mjs",
@@ -156,5 +161,5 @@
   "overrides": {
     "tar": "^7.5.22"
   },
-  "appBuild": 29
+  "appBuild": 31
 }

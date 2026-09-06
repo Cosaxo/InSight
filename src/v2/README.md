@@ -467,8 +467,8 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **7**: 4 in `spec/`, plus three elsewhere. Every one of the
-seven is a deliberate keep (D250), each with its reason recorded beside it
+The baseline is **6**: 3 in `spec/`, plus three elsewhere. Every one of the
+six is a deliberate keep (D250), each with its reason recorded beside it
 in `BASELINE`. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
 sheet a real modal dialog, D35 gave the Basics editor's selects explicit
@@ -478,11 +478,13 @@ winning the accessible-name computation, so the chosen city never reached a
 screen reader), and D49 made the post-vote beat's Skip control a real
 button.
 
-What is left is **six `no-autofocus` findings** and **one
+What is left is **five `no-autofocus` findings** and **one
 `no-static-element-interactions`** in `src/dev/TweaksPanel.jsx`, the host-era debug
 panel rather than a user surface — which is behind a build-time flag, so a
 production build has no import of it at all. (The v18 sync retired one more autofocus
-with the relmap add-circle input it replaced by rename-in-place.)
+with the relmap add-circle input it replaced by rename-in-place. D368 retired
+another by deleting its file: the ask overlay's question field went out of the
+binary with the purchase funnel, so the entry was removed rather than fixed.)
 
 That sentence used to say "six `no-autofocus` findings and three
 div-with-onClick sites", and both halves were wrong in a way worth naming,
@@ -623,7 +625,7 @@ rule could have fired.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **30 across 7
+prints the current total on every run. The count today is **28 across 7
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

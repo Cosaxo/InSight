@@ -88,6 +88,30 @@ describe("check:ios-devicebind", () => {
     expect(out.join(" ")).toMatch(/registerPluginInstance/);
   });
 
+  it("catches a registration that is COMMENTED OUT, not only one deleted", () => {
+    // Every case in this file deleted a line, and every rule in the gate
+    // was a regex over raw source — so a registration commented out to
+    // chase something, and left that way, answered yes to "is it
+    // registered?". Measured on the real tree before the fix: both
+    // platforms' registrations commented out at once, and the gate printed
+    // "declared, registered and buildable" and exited 0. The gate now
+    // blanks comments first, as every sibling source-scanning gate does.
+    const out = run({
+      "ios/App/App/MainViewController.swift": GOOD["ios/App/App/MainViewController.swift"]
+        .replace("bridge?.registerPluginInstance", "// bridge?.registerPluginInstance"),
+    });
+    expect(out.join(" "), "a commented-out registration read as a live one").toMatch(/registerPluginInstance/);
+  });
+
+  it("catches a block-commented registration too", () => {
+    const out = run({
+      "ios/App/App/MainViewController.swift": GOOD["ios/App/App/MainViewController.swift"]
+        .replace("bridge?.registerPluginInstance(DeviceBindPlugin())",
+          "/* bridge?.registerPluginInstance(DeviceBindPlugin()) */"),
+    });
+    expect(out.join(" ")).toMatch(/registerPluginInstance/);
+  });
+
   it("catches an @objc method missing from pluginMethods", () => {
     // Capacitor 6+ routes by the declared list, so a method that exists in
     // Swift and not in pluginMethods fails at CALL time on a device — the
@@ -126,6 +150,28 @@ describe("check:devicebind · Android", () => {
     // bridge it was written to end.
     const out = run({ [A_PLUGIN]: GOOD[A_PLUGIN].replace("setNonce(nonce)", "build()") });
     expect(out.join(" ")).toMatch(/sets no nonce/);
+  });
+
+  it("catches a commented-out registerPlugin on Android as well", () => {
+    // Same hole, other platform, and the one with the extra failure mode:
+    // registerPlugin must run BEFORE super.onCreate, so this file is where
+    // a line gets moved and commented while someone works out an ordering.
+    const out = run({
+      [A_ACTIVITY]: GOOD[A_ACTIVITY].replace("registerPlugin(DeviceBindPlugin.class);",
+        "// registerPlugin(DeviceBindPlugin.class);"),
+    });
+    expect(out.join(" ")).toMatch(/registerPlugin/);
+  });
+
+  it("catches a commented-out nonce — the gate's own headline case", () => {
+    // Both halves of the nonce at once, each commented rather than deleted.
+    // Measured before the fix: exit 0, "declared, registered and buildable".
+    const out = run({
+      [A_PLUGIN]: GOOD[A_PLUGIN]
+        .replace(".setNonce(nonce)", "/* .setNonce(nonce) */")
+        .replace('out.put("nonce", nonce);', '// out.put("nonce", nonce);'),
+    });
+    expect(out.join(" "), "a commented-out nonce read as a live one").toMatch(/nonce/);
   });
 
   it("catches a nonce that never reaches JS", () => {

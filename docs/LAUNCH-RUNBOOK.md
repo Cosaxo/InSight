@@ -16,13 +16,17 @@ reasoning is not obvious, especially the App Check ordering (§ hardening)
 and the reveal/rules deploy order.
 
 State verified 2026-08-05: `npm run check:store-copy` reports **1**
-unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256` — a
-permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
-the count is zero**, which is a change from 2026-08-04: the Team ID and the
+unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256`.
+**It stopped being permanent at D345**: it was a non-blocker only while
+Play was parked, and it is now a real value that Play Console mints at
+App signing — which nothing can produce until something has been
+uploaded, so `--first-upload` excuses it for that one run and `--ios`
+still excuses it for an iOS build. **For an iOS launch the count is
+zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 845 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 134
+questions of 913 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -42,10 +46,12 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69), **and the address document was
-  uploaded 2026-08-30.** The *bostedsattest* arrived 23 days after the
-  declaration and went up the same day. 4.3b now waits on Apple's
-  verification, which gates only the EU-27 storefronts.
+- **Trader status: VERIFIED** (D69; closed 2026-09-06,
+  owner-confirmed). The *bostedsattest* arrived 23 days after the
+  declaration, went up the same day (2026-08-30), and Apple's
+  verification has since come back. The EU-27 storefronts are
+  unblocked; only the D69 address swap (home → ENK, once D345's
+  registration lands) remains, and it blocks nothing.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -58,19 +64,46 @@ Those two question counts are held by `npm run check:figures` against
 current by intention is the one documentation error this repo keeps
 re-committing (D39).
 
-> ## iOS only, as of 2026-08-04 (D42)
+> ## BOTH STORES, as of 2026-09-01 (D345) — this file said iOS only for three days after it stopped being true
 >
-> **Google Play is deferred**, and revisited after iOS has users rather
-> than on a date. Every Android step below is marked **[PARKED]** — left
-> in place, not deleted, because the shell still builds in CI and the work
-> is real when it is picked up.
+> **Play is un-parked**, onto D41's organization route: an ENK, a D-U-N-S,
+> and a Play Console organization account, which is exempt from the
+> closed-testing gate. The owner's word was *"yes, do both and i will go
+> for a ENK"*. The two code items that blocked any Android artifact at all
+> — release signing in `android/app/build.gradle` and
+> `.github/workflows/play-release.yml` — were built in the same decision,
+> so the Android steps below are **work, not backlog**.
 >
-> The reason is not only cost. The two routes onto Play move in opposite
-> directions over time: the organization account (D41) costs the same
-> whenever it is taken, while the 12-testers × 14-days route is brutal
-> cold and easy once you have users with Android phones. Deferring may
-> convert the expensive option into the cheap one, and retire D41 unused.
-> **Re-read D41 and D42 together at that moment; assume neither half.**
+> **Every step the park covered now reads `[UN-PARKED — D345]`**, so the
+> lift has a scope rather than a mood. They are: 1.1b, 1.2, 2.1, 2.6, 3.1,
+> 6.3, the Android half of 1.4, the Play half of 2.7, and Play's Data
+> Safety form.
+>
+> **This is the documentation error the tree keeps re-committing (D39),
+> in the file whose whole job is to say what is left.** D345 merged
+> 2026-09-01 and named neither this file nor `SHIP-CHECKLIST.md`, which is
+> canonical — so for three days the owner's ordered list understated the
+> remaining launch work by an entire platform, in the direction that looks
+> like progress. No gate could see it: `check:docs` proves the map names
+> every document, `check:figures` proves a listed number equals the tree,
+> and neither reads whether a sentence is still true. That gap is
+> `docs/DOC-SWEEP.md`'s subject, and this is the shape it exists to catch.
+>
+> **What D42's reasoning bought is still worth keeping**, because it is
+> why the route taken is the right one: the two paths onto Play move in
+> opposite directions over time — the organization account (D41) costs the
+> same whenever it is taken, while the 12-testers × 14-days route is
+> brutal cold and easy once you have users with Android phones. Choosing
+> the ENK **before** an installed base is choosing the branch D42 said was
+> right in exactly that case, so **D41 stands in full and nothing in it
+> needs re-deriving**. Two of its numbers are stale in the direction that
+> favours this choice: the gate is 12 testers rather than the 20 D41
+> launched at, and tester *engagement* is now checked as well as count.
+>
+> **The one thing still unverified is the one that costs money:** whether
+> Google's organization verification accepts an Enhetsregisteret-only ENK
+> or wants what Foretaksregisteret provides (~3,000 kr). **Check it in the
+> Play Console account-type flow before paying for a D-U-N-S expedite.**
 
 ## One clock you cannot compress
 
@@ -176,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      845 questions land in `v2_questions` — idempotent and, since D34,
+      913 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -187,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **845** after the K=5 test expansion, D103's
+      and the bank is **913** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -319,13 +352,13 @@ arithmetic.
       entitlement the App ID lacks, so a missing capability fails the
       *archive*, not just the feature — and an unused one is an entitlement
       to carry and a question to answer at review.
-- [ ] **1.1b [PARKED — D42] Register the ENK and apply for the D-U-N-S.**
+- [ ] **1.1b [UN-PARKED — D345] Register the ENK and apply for the D-U-N-S.**
       *Not being done: Play is deferred until iOS has users.* Notify Brønnøysundregistrene via Altinn; registration in
       Enhetsregisteret is free and yields the organisasjonsnummer a D-U-N-S
       application needs. The D-U-N-S itself is free from D&B, usually ~1–2
       weeks, quoted up to ~30 business days. Everything else on this list
       runs while it waits. `D41`.
-- [ ] **1.2 [PARKED — D42] Google Play Console account — as an
+- [ ] **1.2 [UN-PARKED — D345] Google Play Console account — as an
       *organization*, not personal** ($25 one-time, identity check). The organization type
       is exempt from the 12-testers × 14-days closed-testing gate; a
       personal account created after 2023-11-13 is not, and that is a 3–4
@@ -358,7 +391,7 @@ arithmetic.
       the proof.
 - [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
       (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
-      Integrity) is **[PARKED — D42]**. Do this on day 1 so the soak
+      Integrity) is **[UN-PARKED — D345]**. Do this on day 1 so the soak
       overlaps the rest of the work. **Register, do not enforce yet** —
       enforcement is step 3.4. Registering the web app is separate from
       setting the site key in the build; having one without the other
@@ -416,6 +449,17 @@ arithmetic.
       All three before 3.4, not after — the flip is what makes them
       load-bearing.
 
+      **Steps 2 and 3 no longer need the console (D367).** Actions →
+      **App Check** → `register-debug-token`, with the value already in the
+      `APPCHECK_DEBUG_TOKEN` secret: `scripts/appcheck.mjs` registers what
+      it is handed and deliberately cannot mint or echo one, so no token
+      passes through a run log. Step 1 — deciding the value — stays yours,
+      and that is the right split: a secret should be born where it is
+      going to live. Dispatch `report` first; it is read-only and prints
+      the app ids, the debug tokens by display name, and every service's
+      enforcement mode, which is the same reading this step used to need
+      two console pages for.
+
       **A debug token is a bypass, not an attestation.** Whoever holds it
       is past App Check. One per environment, in secrets, never in a build
       that reaches users — `shipsDebugToken` in `scripts/appcheck-guard.ts`
@@ -428,7 +472,7 @@ arithmetic.
 
 ## Phase 2 — Wire the native builds (needs Phase 1 accounts)
 
-- [ ] **2.1 [PARKED — D42] Android config.** Firebase Console → Project settings → Add app
+- [ ] **2.1 [UN-PARKED — D345] Android config.** Firebase Console → Project settings → Add app
       → Android, package `com.cosaxo.insight`. **Add the debug keystore
       SHA-1 first**, then download `google-services.json` → drop into
       `android/app/`. This also activates FCM for reveal pushes.
@@ -954,7 +998,7 @@ arithmetic.
       applies entitlements at signing time. Nothing else in the build said
       a word. The one time this gate has fired, it fired on this repo's own
       workflow rather than on a mistake from outside.
-- [ ] **2.6 [PARKED — D42] Android signing.** Generate the upload keystore **outside the
+- [ ] **2.6 [UN-PARKED — D345] Android signing.** Generate the upload keystore **outside the
       repo**, and **enrol in Play App Signing** so a lost upload key is
       recoverable. Before the first release commit run `git status
       --ignored` and confirm nothing sensitive is tracked — a `git add -A`
@@ -965,9 +1009,11 @@ arithmetic.
       remains.** `web/.well-known/apple-app-site-association` carries the real
       Team ID as of 2026-08-05 (`U2LVW456S7.com.cosaxo.insight`). The
       `assetlinks.json` SHA-256 comes from Play Console → Setup → App
-      signing and is **[PARKED — D42]**, so `check:store-copy` will keep
-      reporting that one placeholder: a known permanent non-blocker, not
-      an unfinished task.
+      signing. **[UN-PARKED — D345]**, so this is now an unfinished task
+      rather than the permanent non-blocker it was while Play was
+      deferred: `check:store-copy` reports it until the Play Console
+      issues the fingerprint, and `--first-upload` is the flag that
+      excuses it for the upload that mints it.
 
       **The hosting redeploy this step shared with 0.2 and 0.3 landed**
       (2026-08-20 — see 0.2), so the live AASA carries the Team ID and
@@ -985,7 +1031,7 @@ satisfying a gate. The App Check soak (3.4) is the one clock still in this
 phase. On the personal-account fallback, 3.1 is also where the 14 days
 start.
 
-- [ ] **3.1 [PARKED — D42] Upload a signed AAB to a Play testing track.** With the organization account (D41) this is testing, not a
+- [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track.** With the organization account (D41) this is testing, not a
       gate — no tester minimum, no 14-day clock, and no reason to wait for
       a headcount before uploading. Use it the way TestFlight is used in
       3.2: real installs on real Android hardware, duels first.
@@ -994,11 +1040,28 @@ start.
       upload is what starts the 14 days, and it needs **12+ testers who
       actually install** — churn mid-window resets nothing, but a drop
       below 12 pauses progress.
-- [ ] **3.2 TestFlight with ten testers, not five.** The public mirror
-      publishes once per 5 answers (D7), so a group of 6–9 watches the
-      world count sit on "5+" and never move — accurate, and it reads as
-      broken. Test **duels first**: they work at N=2, need no crowd, and
-      are the most distinctive surface in the product. `SHIP-CHECKLIST §3`.
+- [ ] **3.2 TestFlight — two testers is enough to start. THE "TEN" WAS
+      PRE-D98 AND IS RETIRED HERE.** This step read *"ten testers, not
+      five"* and gave the reason in its own next clause: *"the public
+      mirror publishes once per 5 answers (D7), so a group of 6–9 watches
+      the world count sit on '5+' and never move — accurate, and it reads
+      as broken."* **That machinery no longer exists.** D98 removed the
+      k-floor outright on 2026-08-11 — `AGG_MIN_N` and `PUBLISH_EVERY` are
+      gone, and `functions/src/v2.ts` says so where they used to live —
+      so a count of 1 is published as 1. The step even carried the
+      correction further down (*"There is no k-floor since D98: the first
+      answer publishes exactly"*) while its heading still demanded a
+      crowd the removed cadence needed. One step, two answers; D98's is
+      the live one.
+
+      **So the tester count is a bug-finding decision, not a threshold.**
+      Test **duels first**: they work at N=2, need no crowd, and are the
+      most distinctive surface in the product. Two phones exercise
+      everything that needs more than one person — the sealed duel and
+      its next-day reveal, cross-device push, a second name in the
+      who-voted sheet. Add testers to widen device and iOS coverage,
+      which is a real reason; do not wait on a headcount to start.
+      `SHIP-CHECKLIST §3`.
 
       **Build 1 is in TestFlight and an external group was submitted for
       Beta App Review 2026-08-07.** What is left here is people, not setup.
@@ -1033,7 +1096,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 845 seeded questions are live regardless.
+      working, not a leak — the 913 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1047,6 +1110,13 @@ start.
       callables already enforce in prod; `APPCHECK_ENFORCE=false` on the
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
+
+      **The flip is Actions → App Check → `enforce` (D367)**, service by
+      service, `apply` off first: the dry run prints the current mode and
+      the transition without touching anything. It is dispatch-only behind
+      the `production` environment, so it can only run from `main` — which
+      is the protection this step wants, given that the flip is the
+      irreversible direction. Read the soak metrics before, not after.
 
       **Two browsers break on this flip, and both are yours.** A dev
       browser and the screenshot job read production Firestore without
@@ -1156,8 +1226,8 @@ That is a tester-count problem, not a workflow problem.
 
       `whatsNew` is sent separately and refused on a first release (D74),
       which is expected and reported as a skip rather than a failure.
-- [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
-      this repo knew about.** App Store Connect → **Business** → *Trader
+- [x] **4.3b EU trader status (Digital Services Act) — VERIFIED, closed
+      2026-09-06 (owner-confirmed).** App Store Connect → **Business** → *Trader
       Status*, or via the banner on the Apps list. Apple's wording: *"your
       trader status must be provided or your apps will be removed from the
       App Store in the EU."*
@@ -1200,10 +1270,20 @@ That is a tester-count problem, not a workflow problem.
       that the document arrived, not what it says.
 
       **Uploaded 2026-08-30**, through App Store Connect → **Business**
-      → *Trader Status*. **The step stays open anyway, and D74 is why:**
+      → *Trader Status*. **The step stayed open anyway, and D74 was why:**
       the upload is a fact, EU distribution being unblocked is not one
       yet. It closes when the console reports the status verified — that
-      is Apple's to run, not work in this file. If the document comes
+      is Apple's to run, not work in this file.
+
+      **CLOSED 2026-09-06: the console reports the status verified**
+      (owner-confirmed on the release thread — "verified a long time
+      ago"; the exact console date was not captured, so this records
+      when the file learned it, per D74's tick-after-the-fact rule).
+      The EU-27 storefronts are unblocked; nothing about trader status
+      remains open. What D69 left live is only the address SWAP: the
+      listing publishes the home address until the ENK's business
+      address (now in motion — D345 un-parked Play onto the ENK route)
+      replaces it in this same console form. If the document comes
       back instead, the open question is whether to send the
       fødselsnummer unmasked: Apple's wording asks only for records
       verifying **name and address**, so no part of the form needs it,
@@ -1296,7 +1376,7 @@ That is a tester-count problem, not a workflow problem.
       D79; the reason used to be "no live free-text surface" and D78 part 1
       ended that).
 
-      *Play's Data Safety form is **[PARKED — D42]**.*
+      *Play's Data Safety form is **[UN-PARKED — D345]**.*
 
 - [x] **4.5 The age rating — pushed 2026-08-08, `messagingAndChat`
       re-pushed 08-09, and CONFIRMED in sync 2026-08-12.** All 22
@@ -1516,7 +1596,7 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 29.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 31.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -2020,7 +2100,152 @@ That is a tester-count problem, not a workflow problem.
       wishing the app served it live, that is the migration signal — and by
       then there is data worth migrating.
 
+- [ ] **5.14 The paid loop's three secrets and the Stripe webhook — the
+      whole self-serve money path, and it was on no list until D367.**
+      D313 and D315 shipped `functions/src/paid.ts` end to end: a buyer
+      composes in the app, an automated review rules on the ask, the price
+      comes off the committed rate card server-side, payment runs through
+      Stripe Checkout, and the paying webhook writes the purchase record
+      and the live question in one transaction. **Every one of those hops
+      is deployed and none of them can complete**, because three secrets
+      are unset. `DEPLOYMENT.md` § Environment has the table; what was
+      missing is any step that says to fill them in.
+
+      **The failure is deliberately quiet, which is why it needs a box.**
+      The deploy succeeds and logs a warning; bookings and reviews still
+      run. `createPaidCheckoutV2` answers `unavailable`, `stripeWebhookV2`
+      answers 503, and the closer records refund arithmetic without
+      executing it — so a buyer gets as far as an approved quote and then
+      into a dead end, and nothing pages anybody.
+
+      1. **`STRIPE_SECRET_KEY`** (GitHub → Secrets) — `sk_test_…` while
+         rehearsing, `sk_live_…` after. Checkout sessions and the closer's
+         refunds.
+      2. **`STRIPE_WEBHOOK_SECRET`** — and this one has an order to it.
+         Deploy first so `stripeWebhookV2` has a URL, add the Stripe
+         dashboard endpoint pointed at it, then store the `whsec_…` and
+         **re-run the deploy**, because the value only reaches the runtime
+         through the dotenv the deploy writes.
+
+         **Subscribe to all THREE events**, not just the obvious one:
+         `checkout.session.completed`,
+         `checkout.session.async_payment_succeeded` and
+         `checkout.session.async_payment_failed`. The checkout is created
+         without `payment_method_types`, so Stripe's dynamic methods
+         apply, and EUR's delayed ones (SEPA Direct Debit, bank transfer)
+         deliver `completed` with `payment_status: "unpaid"` and settle
+         hours or days later. Subscribing to `completed` alone leaves
+         every delayed-method buyer stuck at approved, having paid.
+      3. **`ANTHROPIC_API_KEY`** — the automated paid-question review.
+         Unset is **fail-open past the deterministic gates**, logged as
+         `paid_review_gates_only`: bookings still get approved, just
+         without the judgement half. That is the one of the three whose
+         absence does not stop the loop, which makes it the one to check
+         rather than assume.
+
+      **Rehearse on test keys before live ones.** The path has never run
+      against real Stripe, and the one alert that watches it
+      (`monitoring/paid-refund-stuck.json`, 5.5) is committed and not yet
+      armed — so today a stuck refund is silent twice over.
+
+      **This step does not decide WHETHER the door ships** — that is 6.0,
+      and it comes first. If 6.0 takes shape A the door leaves the binary
+      and these secrets are still needed, because the web side is what
+      keeps selling.
+
+- [ ] **5.15 Ads need no switch of their own, and that is the design.**
+      Recorded here because its absence reads like an omission. An ad is a
+      CARD that takes no answer and produces no data; a sponsored question
+      is a QUESTION that folds into the same public aggregate everyone
+      reads (D196 keeps the two apart on purpose). Since D315 a self-serve
+      ad is written by the payment webhook straight into `v2_ads` at
+      `paidad-*` ids — so **turning on ads is 5.14 and nothing else**.
+
+      `content/ads.json` is the committed pen for hand contracts and is
+      **empty deliberately**: writing a row there without a contract would
+      print a company's name on a card nobody bought, which is D1's
+      no-fabrication rule pointed at money. `check:content` holds the five
+      authoring rules — text only, no tap-through, a `until` window, at
+      most one audience tag matched on the device, and the app's own
+      disclosure band. Nothing here is a launch step; it is the answer to
+      "why is there no ads step".
+
 ## Phase 6 — Submit
+
+- [x] **6.0 THE PAID DOOR'S SHAPE — DECIDED 2026-09-05 (D368): shape A,
+      and the door is already out of the binary.** This was the step whose
+      window closes when you submit, and it was on no list until D367.
+      [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is **ADOPTED**, not plan —
+      the owner chose A on the arithmetic below, and the removal shipped
+      the same day.
+
+      **What the code did.** The plan named one entry point
+      (`PaidMineCard`); reading the tree found **five**, so following it
+      literally would have left four live purchase calls to action in the
+      binary — the header `"+"`, the daily's footer link, a feed sheet
+      button and the overlay itself. All five are gone, with both
+      `spec/suggestions.*`, `data/suggestions.ts` and `data/paidBookings.ts`;
+      two `smoke-live` assertions are inverted from present to absent, so
+      the door cannot come back without a red suite. `AskedByYouOverlay`
+      and `CurSwitch` are kept for the web page. Three callables now have
+      no caller — retiring them is an `OWNER-LIST.md` row, not free.
+
+      **What is still owed:** the web page itself. The design is extracted
+      at `design/ask-2026-09-05/`, and its README carries the adapter
+      contract — eight names differ from `content/pricing.json`, and
+      `refundDays` must come from `WINDOW_DAYS` in `functions/src/paid.ts`,
+      never from `trailingDays`. Not a submission blocker: the app ships
+      without a door either way, and the page is what turns the decision
+      into revenue.
+
+      **The reasoning is kept below as it was written**, per D106 — a
+      decision that stops being visible is one the next reader re-opens.
+      It recommends **shape A: the door is not in the app** — buying lives
+      on the web, the app keeps the results room — and gives two reasons
+      that are about timing rather than about money:
+
+      **Zero sales.** Every `booked` array in `content/pricing.json` is
+      still all zeros across city, country and world (verified 2026-09-04,
+      not assumed), so nothing migrates and no revenue is lost.
+
+      **The app has not been submitted.** The door has never been reviewed,
+      so under shape A it never has to be *removed*. Doing this after a
+      rejection costs a review cycle and a flag on the account.
+
+      **The risk it prices is a 3.1.1 anti-steering one, and it lands in
+      6.2.** The whole purchase funnel is in the binary today —
+      `SuggestOverlay` in `src/v2/spec/suggestions.jsx` is the rate card,
+      the scope ruler, the composer and the pay tap, entered from
+      `PaidMineCard` in the profile. D313's *"commerce stays on the web
+      side"* is true about where the payment form renders; the store rules
+      are about where the call to action lives, and that is the profile
+      tab. The category argument (3.1.3(e) forbids IAP for campaign
+      purchases; Play has never required its billing for ad spend) is
+      strong, and the app-shape argument is weak — a consumer app with a
+      €320 B2B door is Meta's "Boost Post" shape, and Meta lost it. **The
+      app shape is what gets reviewed.**
+
+      **And the link-out entitlement does not save it here**, which is the
+      load-bearing fact: Norway is EEA, not EU, so the DMA's link-out
+      permission likely does not apply to the first market this product
+      prices in. §7 of that plan flags it for verification and it is not
+      verified.
+
+      Shape A's build is small and scoped in §4 there — the overlay leaves
+      whole, `paidBookings.ts` goes with it, `AskedByYouOverlay` is
+      untouched because it already carries no purchase CTA. **It is a
+      decision, not a build**: record it in `DECISIONS.md` per
+      MONETIZATION.md's own rule, and the code follows in an afternoon.
+      Deciding to keep the door (shape C) is a legitimate answer and needs
+      the same record — what is not legitimate is arriving at 6.2 without
+      having chosen, because that is choosing C by default at the moment
+      it is most expensive.
+
+      *(§4's estimate held on the two counts it could check and missed the
+      one it could not: the overlay did leave whole and the code did take
+      an afternoon, but "the overlay" was four entry points short of the
+      door. A plan written from a module outwards cannot see what grew
+      inwards toward it — D368's third amendment.)*
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**
       ```bash
@@ -2090,7 +2315,7 @@ That is a tester-count problem, not a workflow problem.
       one it was trying to solve. `STORE-FORMS.md` has the reasoning; this
       was the third copy of the claim, after `SHIP-CHECKLIST` and the
       forms doc.
-- [ ] **6.3 [PARKED — D42] Apply for Play production access** — a three-section
+- [ ] **6.3 [UN-PARKED — D345] Apply for Play production access** — a three-section
       application, reviewed in up to ~7 days, then submit the production
       release. On the organization account (D41) nothing gates this but the
       application itself; on the personal fallback it cannot be filed until

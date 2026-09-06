@@ -496,6 +496,37 @@ describe("the side filter", () => {
     expect(screen.getByRole("button", { name: "Super Bowl · 1" })).toBeTruthy();
   });
 
+  it("says how many takes the chips cannot account for", async () => {
+    // Sides come from the voter list, which is the newest VOTER_FETCH_CAP
+    // answers; takes come from their own page. An author who answered
+    // outside that window has no side, so they count in "All" and in none
+    // of the chips — "All · 3 · Champions League final · 1 · Super Bowl ·
+    // 1" with no word about the third. The sibling panel in this same
+    // sheet says exactly this about its own bound, twice.
+    LIVE.social.takeList = [
+      wtake("w1", "u_named", "Ninety minutes of flow."),
+      wtake("w2", "u_me", "The halftime show alone."),
+      wtake("w3", "u_older", "Answered a long time ago."),
+    ];
+    LIVE.voterList = [
+      { uid: "u_named", optionIdx: 0 },
+      { uid: "u_me", optionIdx: 1 },
+    ];
+    sidePanel();
+    expect(screen.getByRole("button", { name: "All · 3" })).toBeTruthy();
+    expect(screen.getByText(/1 of these was written by someone whose answer is outside the newest/))
+      .toBeTruthy();
+  });
+
+  it("says nothing when every take has a side — the control", () => {
+    // A complete row stays a row of chips. Without this, printing the
+    // sentence unconditionally passes the case above and puts a caveat
+    // under every question in the app.
+    sidePanel();
+    expect(screen.getByRole("button", { name: "All · 2" })).toBeTruthy();
+    expect(screen.queryByText(/outside the newest/)).toBeNull();
+  });
+
   it("tapping the open side again returns to All", () => {
     sidePanel();
     const sb = () => screen.getByRole("button", { name: /^Super Bowl/ });

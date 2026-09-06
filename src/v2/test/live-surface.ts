@@ -35,6 +35,7 @@ export const LIVE_MEMBERS = [
   // lens's ask rows. From the bank, not the aggregates: an unanswered
   // rates question usually has no counts yet, which is the point.
   "placeAsks",
+  "placeAskTotal",
   "anchors", "appBuild",
   // Named who-voted (D98) — the app's only cross-user read, and the
   // reason the reversal was worth doing. On LIVE rather than LIVE.social
@@ -73,7 +74,7 @@ export const LIVE_MEMBERS = [
   // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
   // scores; `testFeedItems` and `myTestResults` are the fold's other two
   // ingredients, exposed so the typed layer never needs a bridge read.
-  "loadSimilarity", "similarityLoading", "kindredPeople",
+  "loadSimilarity", "similarityLoading", "testAggsState", "kindredState", "kindredPeople",
   "testFeedItems", "myTestResults",
   // D277 — the passive fold, persisted. Listed here rather than beside
   // saveTestResult because it is what makes the D112 score tier able to
@@ -149,6 +150,9 @@ export const LIVE_MEMBERS = [
   // The daily pulse (D139): the day-keyed create and the derived
   // day → optionIdx view over the hydrated vote mirror.
   "pulseQs",
+  // Today's pulse answer while the fold has not counted it yet, so the
+  // card can report a crowd the reader is actually in.
+  "pulsePending",
   "pulseVotes",
   // Crossroads' stories with their folded ending counts (D136). A story is
   // an ordinary bank question — real options, real fold, the ordinary vote
@@ -227,7 +231,9 @@ export const LIVE_SOCIAL_MEMBERS = [
 ];
 
 // LIVE.near's own members (D84), pinned like social's for the same reason.
+// `mode` and `until` were D174's timed state and left with it (D370): the
+// switch is `on`, and nothing else describes it.
 export const LIVE_NEAR_MEMBERS = [
-  "count", "disable", "enable", "lastError", "loadRoom", "mix", "mode", "on",
-  "refresh", "room", "roomLoading", "supported", "tooFew", "until", "updatedAt",
+  "count", "disable", "enable", "lastError", "loadRoom", "mix", "on",
+  "refresh", "room", "roomLoading", "supported", "tooFew", "updatedAt",
 ];

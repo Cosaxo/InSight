@@ -681,6 +681,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   // are first to answer can still have friends on it a moment later, and
   // the chip row is how you find that out — but there is no split to draw,
   // and a header claiming a count of zero is worse than saying so.
+  //
+  // AND THE NOTE ASKS WHETHER YOU ARE IN IT. `overallN` is the published
+  // aggregate's total and nothing else, so it is zero both when the
+  // question really is unanswered and in the seconds after YOUR answer
+  // before the trigger folds it — and the comment three lines up says this
+  // sheet's whole job is telling the empty states apart. "Nobody has
+  // answered this yet" over your own vote is the one reading it cannot
+  // afford to get wrong: the sentence directly contradicts the row above
+  // it, which is drawing your pick.
   if (!overallN) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
@@ -690,7 +699,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
         </div>
         {friendsOpen
           ? <LbFriends qid={qid} options={options} mine={mine} />
-          : <LbNote>Nobody has answered this yet.</LbNote>}
+          : <LbNote>{mine >= 0 ? "Just you so far." : "Nobody has answered this yet."}</LbNote>}
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildS,
   computeDeckIds,
+  computeDeckSeqs,
   countsFor,
   dayIndex,
   dayLabel,
@@ -286,6 +287,49 @@ describe("rankCrowdFor (D233): the crowd order, minus you", () => {
     // cannot, so this is corruption) skips the subtraction rather than
     // corrupting the remainder
     expect(rankCrowdFor({ pos: [0, 1, 2], total: 1 }, [0, 1], false)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("computeDeckSeqs (the paged deck, D383)", () => {
+  // THE PIN THAT MATTERS. A device holding the bank uses computeDeckIds; a
+  // device holding only the published length uses computeDeckSeqs and
+  // fetches those positions. If the two ever disagree, two users answer
+  // different questions on the same day and every cohort reading built on
+  // "we all answered this" quietly stops being true — with no error
+  // anywhere. So they are checked against each other, over a span, rather
+  // than each against a hand-written expectation.
+  it("agrees with computeDeckIds on every day of a year, at several bank sizes", () => {
+    for (const n of [1, 2, 7, 13, 130, 849]) {
+      const ids = Array.from({ length: n }, (_, i) => `q${i}`);
+      for (let d = DECK_EPOCH - 400; d < DECK_EPOCH + 400; d += 7) {
+        const bySeq = computeDeckSeqs(n, d).map((seq) => `q${seq}`);
+        expect(bySeq).toEqual(computeDeckIds(ids, d));
+      }
+    }
+  });
+
+  it("returns nothing for an empty or unusable bank, rather than a position", () => {
+    // The boot reads a published number; a missing or malformed document
+    // must degrade to "no deck", never to seq 0 for everyone.
+    expect(computeDeckSeqs(0, DECK_EPOCH)).toEqual([]);
+    expect(computeDeckSeqs(-3, DECK_EPOCH)).toEqual([]);
+    expect(computeDeckSeqs(NaN, DECK_EPOCH)).toEqual([]);
+  });
+
+  it("never asks for more positions than the bank holds", () => {
+    expect(computeDeckSeqs(3, DECK_EPOCH)).toHaveLength(3);
+    expect(computeDeckSeqs(30, DECK_EPOCH)).toHaveLength(DECK_DAYS);
+  });
+
+  it("stays in range on days far below the epoch", () => {
+    // The modulo is written twice in this repo and JS's % is signed; a
+    // negative position would read past the array and blank the deck.
+    for (let d = DECK_EPOCH - 1000; d < DECK_EPOCH; d += 37) {
+      for (const seq of computeDeckSeqs(130, d)) {
+        expect(seq).toBeGreaterThanOrEqual(0);
+        expect(seq).toBeLessThan(130);
+      }
+    }
   });
 });
 
@@ -568,14 +612,15 @@ describe("retiring a served question must not re-map the pager", () => {
   // filters them at display instead.
   const bank = (n: number) => Array.from({ length: n }, (_, i) => `daily-${String(i).padStart(3, "0")}`);
 
-  it("keeps every visible day when a retired question is kept as a tombstone", () => {
-    const ids = bank(90);
-    const today = DECK_EPOCH + 30;
-    const before = computeDeckIds(ids, today);
-    // Retired in place: the array keeps its length, the element stays.
-    const after = computeDeckIds(ids, today);
-    expect(after).toEqual(before);
-  });
+  // The tombstone half of this rule USED TO SIT HERE, and could not: it
+  // compared `computeDeckIds(ids, today)` with `computeDeckIds(ids, today)`
+  // — the same call twice, green for every implementation, and describing
+  // an array this layer never builds. Retiring in place is invisible to
+  // `computeDeckIds` by construction, so there is nothing here to assert;
+  // what has to hold is that live.ts BUILDS the array in place, and that
+  // pin now lives beside the code that does it (warm-boot.test.ts,
+  // "retiring a served daily"). What is left below is the half this layer
+  // really owns.
 
   it("…and REMOVING it instead moves every one of them", () => {
     // The behaviour this replaced, pinned so the reason the tombstone exists

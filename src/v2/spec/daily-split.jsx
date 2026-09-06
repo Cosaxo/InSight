@@ -7,7 +7,27 @@ import React from 'react';
 import { VOTECUTS } from './vote-cuts.js';
 import { navCoasting, OWNS_X } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
-import { DAILYQ } from './daily-questions.js';
+// daily-questions.js is NOT imported here, and the reason is measured.
+// This file is in the entry chunk, so a static import puts that module's
+// 36 KB demo archive — the file the question farm appends to every day —
+// into the bytes a phone fetches before it can paint anything. Both uses
+// below are gated on DAILYSPLIT_DQ_SYNC, which carries exactly one demo
+// id, so on a live build the archive is fetched for nothing at all.
+//
+// It is loaded on that id's first use instead. `dq()` returns the store
+// once it has landed and null before then; both call sites already have
+// a correct path for null (syncToMap does its write in the callback,
+// mapBranch falls through to the live arm and re-renders when the module
+// arrives), so the demo behaves as before one frame later and the live
+// build never pays.
+let DQ = null;
+let dqPending = false;
+function dq(onReady) {
+  if (DQ || dqPending) return DQ;
+  dqPending = true;
+  import('./daily-questions.js').then((m) => { DQ = m.DAILYQ; if (onReady) onReady(); });
+  return null;
+}
 import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
 // The store, through the module rather than through `window` — D39's
@@ -374,8 +394,13 @@ export class DailySplit extends React.Component {
   syncToMap(S, optId) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (!s) return;
-    const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-    if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
+    const write = () => {
+      const q = DQ.questions.find(x => x.prompt === s.prompt);
+      if (q && s.map[optId] != null) DQ.answer(q.id, s.map[optId]);
+    };
+    // A vote is a tap, so the one-frame wait for the module costs nothing
+    // visible; the write lands either way.
+    if (dq(write)) write();
   }
   // A refused edit (D86's one-change-a-minute cooldown) says why on the
   // meta line for a moment instead of silently snapping back.
@@ -402,13 +427,26 @@ export class DailySplit extends React.Component {
     if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
     // The consequence beat animates SIDES; ten steps of one scale are not
     // sides, so a rating goes straight to its result (D305).
-    this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating') ? S.id : null }));
+    this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', // …and never on a crowd that has published nothing: the beat's entire
+    // payload is a crowd claim ("100% chose X — you're with them"), and the
+    // only crowd there is at that moment is you. Gated HERE rather than at
+    // the render branch, because `st.beat` also gates the live Takes and
+    // Who-voted doors below (`st.beat !== S.id`) — skipping the render with
+    // `beat` still set would strand it and take both doors with it.
+    beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating' && !(S.live && S.noCountsYet)) ? S.id : null }));
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
     if (s) {
-      const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
-      if (q) return DAILYQ.categoryPath(q)[0];
+      // Null until the archive lands (see the note at the top of this
+      // file). Falling through then is not a wrong answer for the demo id
+      // either — the arms below resolve it too; the forceUpdate is what
+      // replaces that with the branch the user may have re-voted onto.
+      const D = dq(() => this.forceUpdate());
+      if (D) {
+        const q = D.questions.find(x => x.prompt === s.prompt);
+        if (q) return D.categoryPath(q)[0];
+      }
     }
     // THE LIVE ARM, and it has to come before the two demo maps below.
     // A live daily carries its subject in `branch` (D100) — one of the
@@ -720,6 +758,23 @@ export class DailySplit extends React.Component {
     // the COUNTS now — see `leads` under the shares — for the tie the
     // rounding creates rather than the one the rounding inverts.
     const rp = sharePcts(counts);
+    // NOTHING HAS PUBLISHED, SO NOTHING MAY BE DRAWN AS A SPLIT.
+    //
+    // `counts` is the published aggregate plus your own vote, so before the
+    // fold has landed anything it is `[…,1,…]` and `sharePcts` answers
+    // [100, 0]. The result stage then printed a 25px "100%" over your side
+    // and "0%" over the other, the tiles drew the same split as geometry,
+    // and one line lower `resultNote` said "You're first — the count lands
+    // in a moment". The front door stated a crowd conclusion and denied it
+    // in the same frame. This is the first voter after every UTC rotation.
+    //
+    // The feed has ruled on this state three times already — world-feed.jsx
+    // routes a floored card off the tiles, suppresses the numeral, and gates
+    // a duel's shares with the reason that drawing one without the other
+    // "would publish the split geometrically instead of numerically, which
+    // is the same disclosure in a different alphabet". The daily was the one
+    // answer surface with no such gate.
+    const floored = !!(S.live && S.noCountsYet);
     const myIdx = S.options.findIndex(o => o.id === myVote);
     // THE WINNER IS THE BIGGEST COUNT, not the biggest drawn percentage.
     // `rp` is rounded, so two different counts land on the same integer —
@@ -1031,7 +1086,7 @@ export class DailySplit extends React.Component {
                 } : {};
                 return h('div', { ...lp, style: { display: 'flex', flexDirection: 'column', gap: 9, padding: '2px 2px 0', transform: st.pressing ? 'scale(0.985)' : 'none', transition: 'transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: canChange ? 'pointer' : 'default' } },
                   h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8 } },
-                    h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, avg ? (Math.round(avg * 10) / 10).toFixed(1) : '—'),
+                    h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, (avg && !floored) ? (Math.round(avg * 10) / 10).toFixed(1) : '\u2014'),
                     h('span', { style: { fontWeight: 700, fontSize: 12.5, color: 'var(--ink-3)' } }, '/ ' + S.options.length + ' average'),
                     myIdx >= 0 && h('span', { style: { marginLeft: 'auto', fontWeight: 700, fontSize: 12.5, color: 'var(--ink-2)' } }, 'you said ' + (myIdx + 1))),
                   h(RatingRidge, { counts, mine: myIdx, color: topicCol, height: 64 }));
@@ -1053,7 +1108,7 @@ export class DailySplit extends React.Component {
                 'aria-label': o.label + ' \u2014 your vote. Hold to change it.',
               } : {};
               // the option tiles ARE the chart — each one's height is its share
-              return h('div', { key: o.id, ...lp, style: { flex: Math.max(rp[i], 9) + ' 1 0', minHeight: 46, minWidth: 0, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
+              return h('div', { key: o.id, ...lp, style: { flex: (floored ? 10 : Math.max(rp[i], 9)) + ' 1 0', minHeight: 46, minWidth: 0, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
               // a side reads bottom-up when the tiles are columns, so the
               // label sits under its own number rather than beside it
               h('div', { style: two
@@ -1073,7 +1128,7 @@ export class DailySplit extends React.Component {
                   }, S.friends.filter(f => f.opt === o.id).map(f =>
                     h('span', { key: f.name, title: f.name, style: { width: 8, height: 8, borderRadius: '50%', background: o.color, boxShadow: '0 0 0 1.5px color-mix(in oklch, var(--surface) 70%, transparent)' } })))),
                 // every side gets its number; only the winner gets the big one
-                h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: leads(i) ? 25 : 15, letterSpacing: '-0.03em', color: leads(i) ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
+                floored ? null : h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: leads(i) ? 25 : 15, letterSpacing: '-0.03em', color: leads(i) ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
             })),
             // one quiet meta line; the map-add confirmation pops in on its right and fades on its own
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 } },
@@ -1158,7 +1213,7 @@ export class DailySplit extends React.Component {
       (voted && st.condensed) && h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 15px', borderRadius: 999, border: LINE, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', animation: 'popIn .25s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('span', { style: { flex: 1, minWidth: 0, fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, S.text),
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
-          S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
+          S.options.map((o, i) => h('span', { key: o.id, title: floored ? o.label : o.label + ' \u00b7 ' + rp[i] + '%', style: { width: (floored ? 100 / S.options.length : rp[i]) + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
       // The pulses due today (D139, roster at D203): the fixed instruments
       // on the World day, compact, beside the blind daily — same contract
@@ -1223,9 +1278,9 @@ export class DailySplit extends React.Component {
       // docking into the header once scrolled past
       screen: h(F, null, this.dailyRuler(mode, accents, badges),
         // the sliding surface — swipes translate this, not the whole page
-        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
-        // quiet footer — the ask-a-question door (the paid path, D288 §1)
-        h('button', { onClick: () => NAV.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Ask it \u2192'))),
+        // The quiet footer's ask-a-question link stood here until D368 moved
+        // buying to the web; the daily now ends on the deck it draws.
+        h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body)),
     };
   }
 

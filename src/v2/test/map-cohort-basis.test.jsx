@@ -61,7 +61,13 @@ function installCell(inCell) {
   const agg = {
     total: 900,
     counts: { 0: 700, 1: 200 },
-    by: { ageBand: { "25-34": { 0: inCell } } },
+    // The WORK cell holds the same count as the age one, keyed by the
+    // derived field the dim actually uses (D328) — so a Work case reads
+    // the same denominator as an Age case and only the SENTENCE differs.
+    by: {
+      ageBand: { "25-34": { 0: inCell } },
+      jobField: { "Trades, construction & manufacturing": { 0: inCell } },
+    },
   };
   STUB.live = {
     enabled: true,
@@ -70,7 +76,11 @@ function installCell(inCell) {
     confirmedVotes: () => ({ [QID]: 0 }),
     myVotes: () => ({ [QID]: 0 }),
     aggFor: (qid) => (qid === QID ? agg : null),
-    anchors: () => ({ ageBand: "25-34" }),
+    anchors: () => ({
+      ageBand: "25-34",
+      profession: "Carpenter",
+      jobField: "Trades, construction & manufacturing",
+    }),
   };
   window.LIVE = STUB.live;
   window.dispatchEvent(new Event("insight-live-update"));
@@ -107,6 +117,43 @@ describe("the Map's cohort verdict states what it rests on", () => {
     expect(text, "the verdict still does not say how many answers it rests on").toMatch(/6 people your age/);
   });
 
+  it("names the FIELD as your side of a work cohort, not your job title", () => {
+    // D328 made the Work dim the derived `jobField`, so the six people are
+    // the whole trades-and-construction field. The sentence named the
+    // profession — "of 6 people in your line of work chose the same · you:
+    // Carpenter" — which reads as six carpenters. Age had already solved
+    // this by printing the BAND; Work keeps the profession as its headline
+    // (that claims no cohort) and states the field in the sentence that
+    // carries the number.
+    installCell(6);
+    const Card = window.MTAnswerCard;
+    const node = { id: "n1", qid: QID, aidx: 0, qtype: "binary", opts: ["Know", "Be known"], prompt: "Probe?", note: null };
+    const anchors = [{ id: "job", value: "Carpenter", self: "Trades, construction & manufacturing" }];
+    const { container } = render(
+      <Card node={node} cat={null} anchors={anchors} activeA="job" onFilter={() => {}}></Card>,
+    );
+    const text = container.textContent || "";
+    expect(text).toMatch(/in your line of work chose the same/);
+    expect(text, "the job title was named as the cohort's value")
+      .toMatch(/you: Trades, construction & manufacturing/);
+    expect(text).not.toMatch(/you: Carpenter/);
+  });
+
+  it("falls back to the profile's own value where the anchor carries no cohort value", () => {
+    // THE CONTROL, and the shape a profile written before D328 has: no
+    // derived field on the anchor, so the sentence says what it has rather
+    // than nothing. A reader that always took `self` would print an empty
+    // "you:" for every other anchor.
+    installCell(6);
+    const Card = window.MTAnswerCard;
+    const node = { id: "n1", qid: QID, aidx: 0, qtype: "binary", opts: ["Know", "Be known"], prompt: "Probe?", note: null };
+    const anchors = [{ id: "job", value: "Carpenter" }];
+    const { container } = render(
+      <Card node={node} cat={null} anchors={anchors} activeA="job" onFilter={() => {}}></Card>,
+    );
+    expect(container.textContent || "").toMatch(/you: Carpenter/);
+  });
+
   it("and cohortN really is what moves it, not the percentage", () => {
     // Both cases above draw a 100% reading — same counts, same option,
     // same anchor. Only the denominator differs, so nothing here can be
@@ -116,6 +163,60 @@ describe("the Map's cohort verdict states what it rests on", () => {
     expect(MapStats.cohortN(QID, "age", 2, 0)).toBe(1);
     installCell(6);
     expect(MapStats.dist(QID, "age", 2, 0)[0]).toBe(100);
+    expect(MapStats.cohortN(QID, "age", 2, 0)).toBe(6);
+  });
+});
+
+// ── THE OTHER HALF OF THE SAME DEFECT, one component down in the same file ──
+//
+// The fix above reached `MTVerdict`, which is the ANSWER card's reading.
+// `MTAnchorCard` — the anchor card's match headline, the big "N% of your
+// answers match people your age" with a bar under it — computes its own
+// percentage from `MapStats.mode()` and never asks `cohortN` at all. Same
+// floorless `typicality()` underneath, same You stop, same crowd of one.
+//
+// `noCohort` in that component is `rows.some((r) => r.gmode == null)`, which
+// catches a cohort that is EMPTY. It cannot catch one that is THIN, because
+// a cell holding a single answer returns a perfectly good mode — normally
+// the reader's own vote, folded into the reader's own age cell.
+const anchorCard = (inCell) => {
+  installCell(inCell);
+  const Card = window.MTAnchorCard;
+  expect(Card, "MTAnchorCard is not published — this file lost its target").toBeTruthy();
+  const items = [{ id: "n1", qid: QID, aidx: 0, qtype: "binary", opts: ["Know", "Be known"], prompt: "Probe?", note: null, daily: true }];
+  const anchor = { id: "age", value: "25-34", hue: 200, label: "Age" };
+  const { container } = render(
+    <Card anchor={anchor} items={items} onPick={() => {}} anchors={[anchor]} onAnchor={null}></Card>,
+  );
+  return container.textContent || "";
+};
+
+describe("the Map's anchor card states what its match headline rests on", () => {
+  it("does not print a match percentage over a cohort of one", () => {
+    // Arithmetically 100%, and the 100 is the reader's own vote and nothing
+    // else. On the You stop this reads "100% of your answers match people
+    // your age" over a full-width bar, about nobody.
+    const text = anchorCard(1);
+    expect(text, "a crowd of one was presented as a match percentage").not.toMatch(/100% ?of your answers match/i);
+  });
+
+  it("still draws the headline once there is a cohort — the control", () => {
+    // Without this, "never draws a headline" would satisfy the case above
+    // and cost the anchor card its entire reading, which is worse.
+    const text = anchorCard(6);
+    expect(text, "the control lost the match headline entirely").toMatch(/of your answers match/i);
+    expect(text).toMatch(/100%/);
+  });
+
+  it("and it is the denominator that moves it, not the share", () => {
+    // Both cases draw a 100% reading off the same counts, same option, same
+    // anchor. Only the basis differs, so neither case can be passing on the
+    // percentage.
+    installCell(1);
+    expect(MapStats.mode(QID, "age", 2, 0)).toBe(0);
+    expect(MapStats.cohortN(QID, "age", 2, 0)).toBe(1);
+    installCell(6);
+    expect(MapStats.mode(QID, "age", 2, 0)).toBe(0);
     expect(MapStats.cohortN(QID, "age", 2, 0)).toBe(6);
   });
 });

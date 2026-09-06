@@ -439,14 +439,11 @@ for (const name of [...defined].sort()) {
 // deadline here and inventing one would be the kind of figure this repo
 // keeps having to correct. The contract is only the direction.
 const COUPLING_BASELINE = {
-  "src/v2/spec/app-shell.jsx": 14,
+  "src/v2/spec/app-shell.jsx": 12,
   "src/v2/spec/daily-split.jsx": 6,
   "src/v2/spec/mirror-field-pops.jsx": 1,
   "src/v2/spec/search-overlay.jsx": 3,
   "src/v2/spec/segment-explorer.jsx": 1,
-  // test-definitions.js is the one reader of `window.LIVE` left after D354,
-  // and its four sites stay on purpose: the module also loads under plain
-  // node (scripts/report-lib.mjs), where data/live.ts cannot follow it.
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/world-feed.jsx": 1,
 };

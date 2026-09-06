@@ -22,6 +22,7 @@ import {
   cadenceSignal,
   emptyFold,
   foldInto,
+  scanLedgerWindow,
   foldWindow,
   volumeFlagged,
   isAggregateSurface,
@@ -31,6 +32,7 @@ import {
   refusedAt,
   type DayCounts,
   type LedgerRow,
+  foldAuthPage,
 } from "./velocity";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKeyOf } from "./pure";
@@ -458,5 +460,151 @@ describe("bindCoverage", () => {
     // Below a tenth of a percent it does read as zero, accepted: the flip
     // decision does not turn on the fourth significant figure.
     expect(pct(1, 100000)).toBe(0);
+  });
+});
+
+// ── the window scan, run ────────────────────────────────────────────
+//
+// Everything above tests the pure fold and the pure signals, thoroughly.
+// What none of it reaches is the READ that feeds them: the whole
+// `ledgerVelocityScan` body is unreachable from any test, so its paging
+// loop could be broken with every suite green.
+//
+// Measured before `scanLedgerWindow` was extracted: widening
+// `page.size < PAGE` to `<=` makes a full first page end the read, and all
+// 607 functions tests stayed green. That turns each of D28's four signals
+// — impossible volume, scripted cadence, birth clusters, per-question
+// bursts — into a reading of an arbitrary 5,000-row prefix, while the
+// heartbeat goes on logging a confident entry count. It is also the source
+// of the coverage line the owner is told to read before moving the account
+// bar.
+//
+// The fake is `ledger.test.ts`'s and `engagement.test.ts`'s: a document
+// carries ONLY the projected fields, which is what makes a field left out
+// of the `select` undefined at every reader.
+describe("scanLedgerWindow, run", () => {
+  type Doc = { get: (f: string) => unknown };
+  function fakeDb(rows: Record<string, unknown>[], pageSize: number) {
+    const asked: { limit: number; projection: string[] } = { limit: 0, projection: [] };
+    let from = 0;
+    const docOf = (r: Record<string, unknown>): Doc => ({
+      get: (f: string) => (asked.projection.includes(f) ? r[f] : undefined),
+    });
+    const query = {
+      where: () => query,
+      orderBy: () => query,
+      select: (...f: string[]) => { asked.projection = f; return query; },
+      limit: (n: number) => { asked.limit = n; return query; },
+      startAfter: (d: Doc) => { from = rows.findIndex((r) => r.uid === d.get("uid")) + 1; return query; },
+      async get() {
+        const slice = rows.slice(from, from + pageSize);
+        return { size: slice.length, docs: slice.map(docOf) };
+      },
+    };
+    return {
+      db: { collection: () => query } as unknown as Parameters<typeof scanLedgerWindow>[0],
+      asked,
+    };
+  }
+  const ts = (ms: number) => ({ toMillis: () => ms });
+  const t0 = Date.parse("2026-09-03T10:00:00Z");
+
+  it("keeps reading past a full page", async () => {
+    // The page size is a module constant, so a full page has to be a real
+    // one: 5,000 rows and then 3. A loop that ends on a full page folds
+    // 5,000 and reports a confident number for the day.
+    const PAGE = 5000;
+    const rows = Array.from({ length: PAGE + 3 }, (_, i) => ({
+      uid: `u${i}`, qid: "q", at: ts(t0 + i),
+    }));
+    const { fold } = await scanLedgerWindow(fakeDb(rows, PAGE).db, t0 - 1);
+    expect(fold.entries, "the window was truncated to one page — every signal reads a prefix")
+      .toBe(PAGE + 3);
+  });
+
+  it("counts an edit apart from a first answer, which is what the ceiling is about", async () => {
+    // `fromIdx` rides the projection because an edit's row carries it and
+    // nothing else does. Drop it and every edit reads as a create, which
+    // is the volume ceiling's whole subject.
+    const { db } = fakeDb([
+      { uid: "u1", qid: "q1", at: ts(t0) },
+      { uid: "u1", qid: "q1", at: ts(t0 + 1000), fromIdx: 0 },
+    ], 5000);
+    const { fold } = await scanLedgerWindow(db, t0 - 1);
+    expect(fold.entries).toBe(2);
+    expect(fold.createsPerUid.get("u1"), "an edit was counted as a first answer").toBe(1);
+  });
+
+  it("skips a row with no uid, and still advances the high-water mark", async () => {
+    // Entries without a uid predate D28's attribution field. They must not
+    // fold, and they must not stall the cursor either.
+    const { db } = fakeDb([
+      { uid: "u1", qid: "q1", at: ts(t0) },
+      { qid: "q2", at: ts(t0 + 5000) },
+    ], 5000);
+    const { fold, maxAt } = await scanLedgerWindow(db, t0 - 1);
+    expect(fold.entries, "an unattributed row was folded").toBe(1);
+    expect(maxAt, "the high-water mark is not the newest row this read saw").toBe(t0);
+  });
+
+  it("asks for the four fields the fold needs, and a page worth a round trip", async () => {
+    const { db, asked } = fakeDb([], 5000);
+    await scanLedgerWindow(db, t0);
+    expect(asked.projection.sort(), "the projection dropped a field the fold reads")
+      .toEqual(["at", "fromIdx", "qid", "uid"]);
+    expect(asked.limit,
+      "a page this small makes thousands of round trips over one window").toBeGreaterThanOrEqual(500);
+  });
+});
+
+describe("foldAuthPage — what the coverage number is allowed to count", () => {
+  const rec = (uid: string, db: unknown, creationTime = "2026-09-01T00:00:00Z") =>
+    ({ uid, metadata: { creationTime }, customClaims: db === undefined ? null : { db } });
+
+  it("counts a real integer level and nothing that merely looks like one", () => {
+    // The comment this loop carries names the cost exactly: `Number(true)`
+    // is 1, so a coerced claim would count as a qualifying account on the
+    // day the coverage number is trusted — and that number is D37's flip
+    // decision, what share of real votes enforcement would refuse.
+    // firestore.rules is the other half: `get("db", 0) >= n` errors on a
+    // string or a boolean and denies, so a coerced claim here would count
+    // an account the rules refuse.
+    const created: { uid: string; createdMs: number }[] = [];
+    const levels = new Map<string, number>();
+    foldAuthPage([
+      rec("real", 1),
+      rec("bool", true),
+      rec("str", "1"),
+      rec("frac", 1.5),
+      rec("zero", 0),
+      rec("neg", -1),
+      rec("none", undefined),
+    ], created, levels);
+    expect([...levels.keys()]).toEqual(["real"]);
+    expect(levels.get("real")).toBe(1);
+  });
+
+  it("keeps a level above the ladder — that is a newer deploy, not a bad claim", () => {
+    const levels = new Map<string, number>();
+    foldAuthPage([rec("ahead", 99)], [], levels);
+    expect(levels.get("ahead")).toBe(99);
+  });
+
+  it("drops an unparseable creation time instead of seeding NaN into the clusters", () => {
+    // A NaN in `created` makes every span involving it NaN, so the birth
+    // clusters this feeds go silently unreportable rather than wrong.
+    const created: { uid: string; createdMs: number }[] = [];
+    foldAuthPage([rec("ok", 1), rec("bad", 1, "not a date")], created, new Map());
+    expect(created.map((c) => c.uid)).toEqual(["ok"]);
+    expect(created.every((c) => Number.isFinite(c.createdMs))).toBe(true);
+  });
+
+  it("appends across pages rather than replacing — the loop calls it per 100", () => {
+    const created: { uid: string; createdMs: number }[] = [];
+    const levels = new Map<string, number>();
+    foldAuthPage([rec("a", 1)], created, levels);
+    foldAuthPage([rec("b", 2)], created, levels);
+    expect(created.map((c) => c.uid)).toEqual(["a", "b"]);
+    expect([...levels.keys()]).toEqual(["a", "b"]);
   });
 });

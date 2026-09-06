@@ -15,7 +15,9 @@
 //     the caches are an optimisation, and an exotic environment must not
 //     grow an error budget line;
 //   - an unclonable value counts and reports ONCE per session, the §2.1
-//     throttle one box over.
+//     throttle one box over;
+//   - a chunk that FAILS mid-write withholds the cursor, so the cache
+//     cannot claim rows it lost.
 
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
@@ -190,5 +192,46 @@ describe("cacheStore", () => {
     // …and the store still works for clonable values afterwards.
     await cs.write("aggs", [["q_3", { total: 1 }]]);
     expect((await cs.readAll("aggs")).get("q_3")).toEqual({ total: 1 });
+  });
+
+  // The header's whole promise about torn writes: rows may be lost, a
+  // CURSOR OVER ROWS THAT ARE NOT THERE may not. Without this the loop
+  // reached the last chunk and committed the meta row anyway — measured on
+  // this fixture at 4500 of 8500 rows under a cursor saying 8500 — and
+  // readDiskCaches trusts that cursor forever after: the boot fetches only
+  // the delta, the lost answers never return, the deck re-offers them and
+  // the create-only rule refuses every re-vote. Nothing else in the tree
+  // tests "meta present, rows missing" for any store.
+  it("withholds the cursor when a chunk of a bulk write fails", async () => {
+    const cs = await freshStore();
+    const rows: Array<[string, unknown]> = [];
+    // Past WRITE_CHUNK (4000) so this really is the chunked path, with the
+    // unclonable value in the SECOND chunk — the first commits, so the
+    // failure cannot be mistaken for the whole write being refused.
+    for (let i = 0; i < 8500; i++) rows.push([`q_${i}`, i === 4000 ? () => 0 : String(i % 4)]);
+    await cs.write("answers", rows, {
+      meta: [["answers", { uid: "u", maxTs: 999999, maxEditTs: 0 }]],
+    });
+
+    const landed = await cs.readAll("answers");
+    expect(cs.cacheStoreFailures(), "the fixture did not produce a write failure").toBe(1);
+    expect(landed.size, "the fixture did not tear the write").toBeLessThan(rows.length);
+    expect(
+      await cs.readMeta("answers"),
+      "a cursor was committed over rows that are not on disk",
+    ).toBeNull();
+  });
+
+  // The other direction, so the fix above cannot be "never write meta":
+  // this is the same chunked path with every value clonable.
+  it("still commits the cursor when every chunk lands", async () => {
+    const cs = await freshStore();
+    const rows: Array<[string, unknown]> = [];
+    for (let i = 0; i < 8500; i++) rows.push([`q_${i}`, String(i % 4)]);
+    await cs.write("answers", rows, {
+      meta: [["answers", { uid: "u", maxTs: 999999, maxEditTs: 0 }]],
+    });
+    expect((await cs.readAll("answers")).size).toBe(rows.length);
+    expect(await cs.readMeta("answers")).toEqual({ uid: "u", maxTs: 999999, maxEditTs: 0 });
   });
 });

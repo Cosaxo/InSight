@@ -10,6 +10,9 @@
 //
 // The db stand-in follows contention.test.ts's precedent — the real
 // Firestore is not needed to prove which writes a function chooses to make.
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { logger } from "firebase-functions";
 import { FieldValue } from "firebase-admin/firestore";
@@ -337,5 +340,75 @@ describe("runSeedV2 refuses option-set edits to live questions (D58)", () => {
     await expect(runSeedV2(db)).rejects.toThrow();
     const line = String(info.mock.calls[0][0]);
     expect(line).toContain(`${V2_QUESTIONS.length - 1} unchanged`);
+  });
+});
+
+// The 450-op batch flush, and why it is `>=` rather than `===`.
+//
+// WHY THIS IS A SOURCE PIN AND NOT A RUN. The map-clear pass (D136 stories
+// whose `nodes` map lost a key) adds a SECOND batch op inside one loop
+// iteration, WITHOUT consulting the flush threshold. So the counter can
+// step over 450 instead of landing on it, and an equality then never
+// matches again: the batch grows to the end of the bank and the commit
+// throws at Firestore's 500-op cap, losing every write since the last
+// flush.
+//
+// It needs the clear to arrive while the counter already stands at 449 —
+// one index on an 847-document run — and today's bank cannot produce it:
+// exactly three documents carry an object-valued seeded field, at indices
+// 210, 211 and 307. Driving runSeedV2 with clears induced on all three
+// commits identically under `===` and under `>=`, so a live-bank case
+// would pass whichever operator is in the file and prove nothing. The
+// counting shape is what has to be held instead — engagement.test.ts pins
+// its own batch the same way and for the same reason.
+const here = dirname(fileURLToPath(import.meta.url));
+
+describe("the seed's batch flush survives a two-op iteration", () => {
+  const src = readFileSync(resolve(here, "v2.ts"), "utf8");
+  // To the NEXT top-level declaration, which is `seedContentV2`.
+  // `runSeedAds` is the neighbour on the other side — it sits ABOVE
+  // runSeedV2 in this file, so slicing to it yields the empty string and
+  // every case below passes vacuously. Caught by the anti-vacuity case,
+  // which is the entire reason it is written first.
+  const body = src.slice(
+    src.indexOf("export async function runSeedV2("),
+    src.indexOf("export const seedContentV2 ="),
+  );
+
+  it("has a loop body to read at all", () => {
+    // Anti-vacuity, first: every case below narrows a string, and an empty
+    // string satisfies most ways of asking about one.
+    expect(body, "runSeedV2 moved or was renamed — the cases below are vacuous").not.toBe("");
+    expect(body).toContain("inBatch");
+  });
+
+  it("flushes on `>=`, never on `===`", () => {
+    expect(
+      body,
+      "the seed's batch flush is an equality again. The map-clear pass can "
+      + "step the counter from 449 to 451 in one iteration, and an equality "
+      + "that is stepped over never matches again — the batch then grows "
+      + "past Firestore's 500-op cap and the commit throws, losing every "
+      + "write since the last flush.",
+    ).toContain("if (++inBatch >= 450) {");
+    expect(body).not.toMatch(/\+\+inBatch\s*===\s*450/);
+  });
+
+  it("still adds at most two ops per iteration, which is what 450 leaves room for", () => {
+    // The arithmetic the threshold rests on: 450 + the most one iteration
+    // can add must stay under 500. A THIRD unchecked write per document
+    // would put the worst case at 452 — still safe — but the counting
+    // would have drifted from this reasoning again, which is the failure
+    // that produced this block.
+    const loop = body.slice(body.indexOf("for (let i = 0; i < V2_QUESTIONS.length; i++)"));
+    expect(loop, "the seed's write loop moved — this case is vacuous").not.toBe("");
+    const bumps = [...loop.matchAll(/inBatch\+\+|\+\+inBatch/g)].length;
+    expect(
+      bumps,
+      "runSeedV2's loop gained or lost an inBatch bump. 450 + (bumps per "
+      + "iteration) must stay under Firestore's 500-op batch cap, and the "
+      + "flush condition has to tolerate the counter stepping past it.",
+    ).toBe(2);
+    expect(450 + bumps).toBeLessThan(500);
   });
 });
