@@ -327,6 +327,17 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
       ["insight_inbound_impressions", "senderUid", "order", "ASCENDING"],
       // phase 2 — reveal documents this account is a member of.
       ["reveals", "members", "arrayConfig", "CONTAINS"],
+      // phase 2b — reveal documents this account is NAMED IN BY SOMEONE
+      // ELSE'S PICK. Its own sibling, added by the same fix and walked by
+      // the same phase, and it was missing from this list: dropping the
+      // override left every runner green (measured — 12/12 here, and the
+      // unit, functions and scripts suites too), while deleteAccount's
+      // second pass would throw FAILED_PRECONDITION in production. The
+      // failure this case's message describes is not hypothetical for
+      // this one: it is the pass that removes an erased person's uid from
+      // reveals where only a groupmate's pick names them, and
+      // `web/privacy.html` promises that removal in writing.
+      ["reveals", "pickedUids", "arrayConfig", "CONTAINS"],
     ];
     for (const [group, field, kind, want] of sweeps) {
       const o = override(group, field);
