@@ -568,9 +568,16 @@
       });
       box.appendChild(b);
     });
+    // "IN THE FEED" WAS THE WRONG DENOMINATOR. The cadence places a paid
+    // card after every Nth ORDINARY QUESTION (the generator's own comment
+    // says so: "a paid card after every this many world cards"), and the
+    // feed also carries test cards, lenses and knowledge cards between
+    // them. Measured on the shipped rhythm over a sixty-card feed with the
+    // places full: one card in nine or ten, not one in six. A buyer prices
+    // exposure off this sentence.
     $("menuNote").textContent =
       "Billed per answer at the line you lock, up to your budget; unserved answers refund at close. "
-      + "One card in " + st.P.paidEvery + " in the feed is paid, and each says PAID.";
+      + "One paid card after every " + st.P.paidEvery + " ordinary questions, and each says PAID.";
   }
 
   function drawBudgets() {
@@ -827,8 +834,8 @@
       $("provFile").textContent = P.source;
       $("provDate").textContent = P.committed;
       $("placesLine").textContent =
-        "Every answer on InSight is public. One card in " + P.paidEvery
-        + " in the feed is paid, and a sponsored question is labelled as one wherever it appears.";
+        "Every answer on InSight is public. One paid card follows every " + P.paidEvery
+        + " ordinary questions, and a sponsored question is labelled as one wherever it appears.";
       drawCurrencies();
       draw();
     })

@@ -45,7 +45,11 @@ describe("the menu (D376)", () => {
     expect(rows.map((r) => sp(r.querySelector(".buys").textContent))).toEqual([
       "up to 500 answers · 29 days", "up to 1 250 answers · 29 days", "up to 2 500 answers · 29 days",
     ]);
-    expect($("menuNote").textContent).toMatch(/One card in 6 in the feed is paid/);
+    // The DENOMINATOR is the claim: the cadence counts ordinary questions,
+    // not feed cards, and the feed carries tests, lenses and knowledge
+    // cards between them (one in nine or ten of the feed, measured).
+    expect($("menuNote").textContent).toMatch(/One paid card after every 6 ordinary questions/);
+    expect($("menuNote").textContent, "the old, wrong denominator came back").not.toMatch(/in the feed is paid/);
   });
 
   it("a row opens the composer on that reach at that budget, the chips still there to adjust", () => {
