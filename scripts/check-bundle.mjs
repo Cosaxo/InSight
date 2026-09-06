@@ -889,7 +889,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // was written to measure — code in first paint — and a content lane can
 // no longer be blocked by it. Raising this number to fit content is now a
 // gate failure somewhere else, which is the point.
-// 607 → 552 (2026-09-06, D385): the second eager-content sweep, and the one
+// 607 → 552 (2026-09-06, D388): the second eager-content sweep, and the one
 // that finishes the job the first started. 607 was set when the DAILY lane's
 // archive came out; this takes the other two lanes with a bundled write
 // surface out with it — the feed's demo pool (its continuum twins are

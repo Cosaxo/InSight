@@ -40577,7 +40577,7 @@ document grows instead: ~1,100 ids at ten times the bank, ~13 KB, well
 inside the limit rank.ts's header already prices, and the sharding
 graduation recorded there covers the case beyond it.
 
-## D385 · The other two lanes leave first paint, and three stale notes are why they were still there
+## D388 · The other two lanes leave first paint, and three stale notes are why they were still there
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
 on being told the daily's archive was out and the feed's twins were not:
