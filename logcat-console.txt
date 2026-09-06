@@ -1,0 +1,300 @@
+09-06 22:15:10.483 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:10.484 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 54208397, pluginId: App, methodName: addListener
+09-06 22:15:10.484 V/Capacitor( 3528): callback: 54208397, pluginId: App, methodName: addListener, methodData: {"eventName":"backButton"}
+09-06 22:15:10.486 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:10.486 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 54208398, pluginId: App, methodName: addListener
+09-06 22:15:10.486 V/Capacitor( 3528): callback: 54208398, pluginId: App, methodName: addListener, methodData: {"eventName":"appUrlOpen"}
+09-06 22:15:10.487 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:10.487 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 54208399, pluginId: Keyboard, methodName: addListener
+09-06 22:15:10.487 V/Capacitor( 3528): callback: 54208399, pluginId: Keyboard, methodName: addListener, methodData: {"eventName":"keyboardDidHide"}
+09-06 22:15:10.488 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:10.488 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 54208400, pluginId: SplashScreen, methodName: hide
+09-06 22:15:10.488 V/Capacitor( 3528): callback: 54208400, pluginId: SplashScreen, methodName: hide, methodData: {}
+09-06 22:15:10.492 I/Capacitor/Console( 3528): File:  - Line 333 - Msg: undefined
+09-06 22:15:10.497 D/Capacitor( 3528): Handling local request: https://localhost/assets/duo-daily-CM6WSSmN.js
+09-06 22:15:10.512 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-feed-Bv_Xv4Fx.js
+09-06 22:15:10.527 D/Capacitor( 3528): Handling local request: https://localhost/assets/search-overlay-Asop0R7f.js
+09-06 22:15:10.528 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-math-DYpSY5ub.js
+09-06 22:15:10.529 D/Capacitor( 3528): Handling local request: https://localhost/assets/PersonRow-CCKE_pIK.js
+09-06 22:15:10.529 D/Capacitor( 3528): Handling local request: https://localhost/assets/Avatar-D_rvYwnk.js
+09-06 22:15:10.531 D/Capacitor( 3528): Handling local request: https://localhost/assets/consequence-beat-CKmgsTsH.js
+09-06 22:15:10.535 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-general-DAtWBIHx.js
+09-06 22:15:10.538 D/Capacitor( 3528): Handling local request: https://localhost/assets/logic-test-DEM5k1ph.js
+09-06 22:15:10.540 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-DBdRd7ne.js
+09-06 22:15:10.541 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-DjjbEwDL.js
+09-06 22:15:10.541 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-CWMP2pII.js
+09-06 22:15:10.541 D/Capacitor( 3528): Handling local request: https://localhost/assets/topicSheet-C9vpHtQH.js
+09-06 22:15:10.542 D/Capacitor( 3528): Handling local request: https://localhost/assets/EmptyField-Dlsb7RJI.js
+09-06 22:15:10.542 D/Capacitor( 3528): Handling local request: https://localhost/assets/SponsorShare-ND_RFm7s.js
+09-06 22:15:10.542 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-DK_pCAv-.js
+09-06 22:15:10.543 D/Capacitor( 3528): Handling local request: https://localhost/assets/LiveTakesPanel-aRKe8RK2.js
+09-06 22:15:10.543 D/Capacitor( 3528): Handling local request: https://localhost/assets/LiveBreakdownPanel-icGffo4o.js
+09-06 22:15:10.571 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-overlay-BlOBsvcy.js
+09-06 22:15:10.572 D/Capacitor( 3528): Handling local request: https://localhost/assets/purchases-BDnxj191.js
+09-06 22:15:10.622 D/Capacitor( 3528): Handling local request: https://localhost/assets/person-mindmap-74nNhZfy.js
+09-06 22:15:10.646 D/Capacitor( 3528): Handling local request: https://localhost/assets/person-overlay-DmVZS3F_.js
+09-06 22:15:10.648 D/Capacitor( 3528): Handling local request: https://localhost/assets/roles-CXRKUItJ.js
+09-06 22:15:10.655 D/Capacitor( 3528): Handling local request: https://localhost/assets/city-overlay-CenFbmqH.js
+09-06 22:15:10.659 D/Capacitor( 3528): Handling local request: https://localhost/assets/logic-test-E3TykA8D.js
+09-06 22:15:11.647 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:13.704 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:13.936 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:14.072 D/Capacitor( 3528): Handling local request: https://localhost/assets/TraitWebCard-CkgWbbKc.js
+09-06 22:15:15.791 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:16.108 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:17.957 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:18.273 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:18.891 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:18.906 D/Capacitor( 3528): Handling local request: https://localhost/
+09-06 22:15:18.945 D/Capacitor( 3528): Handling local request: https://localhost/assets/jsx-runtime-D-oznMWL.js
+09-06 22:15:18.946 D/Capacitor( 3528): Handling local request: https://localhost/assets/dist-CSYigKfH.js
+09-06 22:15:18.949 D/Capacitor( 3528): Handling local request: https://localhost/assets/sample-data-ZM-xBl-j.js
+09-06 22:15:18.950 D/Capacitor( 3528): Handling local request: https://localhost/assets/react-DgE16qTy.js
+09-06 22:15:18.950 D/Capacitor( 3528): Handling local request: https://localhost/assets/react-dom-DaDbkoAt.js
+09-06 22:15:18.951 D/Capacitor( 3528): Handling local request: https://localhost/assets/client-ByAXiocW.js
+09-06 22:15:18.952 D/Capacitor( 3528): Handling local request: https://localhost/assets/preload-helper-DeiOTZKJ.js
+09-06 22:15:18.952 D/Capacitor( 3528): Handling local request: https://localhost/assets/index-DLzzjXtE.js
+09-06 22:15:18.952 D/Capacitor( 3528): Handling local request: https://localhost/assets/duels-data-BXpaUDPL.js
+09-06 22:15:18.953 D/Capacitor( 3528): Handling local request: https://localhost/assets/follows-CvOMJbVs.js
+09-06 22:15:18.953 D/Capacitor( 3528): Handling local request: https://localhost/assets/firebase-DwmUbSsh.js
+09-06 22:15:18.954 D/Capacitor( 3528): Handling local request: https://localhost/assets/test-definitions-DmPUjxlQ.js
+09-06 22:15:18.954 D/Capacitor( 3528): Handling local request: https://localhost/assets/live-Bvm_o3YU.js
+09-06 22:15:18.955 D/Capacitor( 3528): Handling local request: https://localhost/assets/primitives-CpKvPOkc.js
+09-06 22:15:18.955 D/Capacitor( 3528): Handling local request: https://localhost/assets/reveal-clock-DxKiCx67.js
+09-06 22:15:18.956 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-palette-_56CLpQu.js
+09-06 22:15:18.957 D/Capacitor( 3528): Handling local request: https://localhost/assets/group-daily-DzEeF7sy.js
+09-06 22:15:18.957 D/Capacitor( 3528): Handling local request: https://localhost/assets/links-D2ZEb7ya.js
+09-06 22:15:18.958 D/Capacitor( 3528): Handling local request: https://localhost/assets/cohortLabels-TsmCRl0F.js
+09-06 22:15:18.958 D/Capacitor( 3528): Handling local request: https://localhost/assets/region-CiCZ5-9u.js
+09-06 22:15:18.958 D/Capacitor( 3528): Handling local request: https://localhost/assets/mapCue-2TbYFuYl.js
+09-06 22:15:18.961 D/Capacitor( 3528): Handling local request: https://localhost/assets/explain-sheet-CTljXAvD.js
+09-06 22:15:18.961 D/Capacitor( 3528): Handling local request: https://localhost/assets/feed-read-NEBVVurH.js
+09-06 22:15:18.961 D/Capacitor( 3528): Handling local request: https://localhost/assets/haptics-BtJ3YgJP.js
+09-06 22:15:18.962 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-anchors-DEnwcbEE.js
+09-06 22:15:18.962 D/Capacitor( 3528): Handling local request: https://localhost/assets/daily-cats-iCic0ZdX.js
+09-06 22:15:18.962 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-group-stats-DzMqErb8.js
+09-06 22:15:18.963 D/Capacitor( 3528): Handling local request: https://localhost/assets/testNorms-Cy4cLS8k.js
+09-06 22:15:18.963 D/Capacitor( 3528): Handling local request: https://localhost/assets/cohort-Bibg8ie7.js
+09-06 22:15:18.963 D/Capacitor( 3528): Handling local request: https://localhost/assets/result-rose-BlvhRyyn.js
+09-06 22:15:18.963 D/Capacitor( 3528): Handling local request: https://localhost/assets/nav-DR7toD4R.js
+09-06 22:15:18.964 D/Capacitor( 3528): Handling local request: https://localhost/assets/sentry-1nBrXtRM.js
+09-06 22:15:18.964 D/Capacitor( 3528): Handling local request: https://localhost/assets/engagement-BwqGCeUl.js
+09-06 22:15:18.964 D/Capacitor( 3528): Handling local request: https://localhost/assets/type-marks-CVz-agn4.js
+09-06 22:15:18.964 D/Capacitor( 3528): Handling local request: https://localhost/assets/passive-meter-qZU-68gS.js
+09-06 22:15:18.964 D/Capacitor( 3528): Handling local request: https://localhost/assets/read-run-DRWkfpyl.js
+09-06 22:15:18.965 D/Capacitor( 3528): Handling local request: https://localhost/assets/relmap-lenses-DnN_3TId.js
+09-06 22:15:18.965 D/Capacitor( 3528): Handling local request: https://localhost/assets/scenes-DUzJHUwd.js
+09-06 22:15:18.965 D/Capacitor( 3528): Handling local request: https://localhost/assets/swipe-back-Bdnwp_z8.js
+09-06 22:15:18.966 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-data-rR1qqQre.js
+09-06 22:15:18.966 D/Capacitor( 3528): Handling local request: https://localhost/assets/viz-primitives-DdsrAGjy.js
+09-06 22:15:18.966 D/Capacitor( 3528): Handling local request: https://localhost/assets/test-feed-data-ByUxuCMU.js
+09-06 22:15:18.966 D/Capacitor( 3528): Handling local request: https://localhost/assets/RatingRidge-COG1zgEB.js
+09-06 22:15:18.966 D/Capacitor( 3528): Handling local request: https://localhost/assets/index-BV27OU4O.css
+09-06 22:15:19.134 D/Capacitor( 3528): Handling local request: https://localhost/assets/mirror-tab-BH2YSn0p.js
+09-06 22:15:19.137 D/Capacitor( 3528): Handling local request: https://localhost/assets/compare-breakdown-CEqyt2vr.js
+09-06 22:15:19.141 D/Capacitor( 3528): Handling local request: https://localhost/assets/mirror-field-pops-JyAc8jIa.js
+09-06 22:15:19.142 D/Capacitor( 3528): Handling local request: https://localhost/assets/daily-questions-AugBnOic.js
+09-06 22:15:19.144 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-people-BVyio2iG.js
+09-06 22:15:19.146 D/Capacitor( 3528): Handling local request: https://localhost/assets/place-stats-DkQZFVqb.js
+09-06 22:15:19.146 D/Capacitor( 3528): Handling local request: https://localhost/assets/place-stats-DpLUN26H.js
+09-06 22:15:19.146 D/Capacitor( 3528): Handling local request: https://localhost/assets/lens-cards-q5_9_cpF.js
+09-06 22:15:19.147 D/Capacitor( 3528): Handling local request: https://localhost/assets/lensRowScroll-B2AgyZSh.js
+09-06 22:15:19.148 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-bits-CxNcfkKs.js
+09-06 22:15:19.148 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-social-z9AUuxw2.js
+09-06 22:15:19.148 D/Capacitor( 3528): Handling local request: https://localhost/assets/lens-defs-DPqxOBzh.js
+09-06 22:15:19.149 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-progress--ZtvoTvs.js
+09-06 22:15:19.150 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-data-32jDTqWZ.js
+09-06 22:15:19.150 D/Capacitor( 3528): Handling local request: https://localhost/assets/walkthrough-O10EwLLd.js
+09-06 22:15:19.151 D/Capacitor( 3528): Handling local request: https://localhost/assets/pick-data-CrvE3zyZ.js
+09-06 22:15:19.189 D/Capacitor( 3528): Handling local request: https://localhost/fonts/59fb8d78-b2d2-4b61-ae53-4ba0db542eba.woff2
+09-06 22:15:19.190 D/Capacitor( 3528): Handling local request: https://localhost/fonts/09efe0ee-8628-46d3-b071-4ac2b22a0955.woff2
+09-06 22:15:19.221 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:19.223 D/Capacitor( 3528): Handling local request: https://localhost/assets/esm-CMekO2CJ.js
+09-06 22:15:19.229 D/Capacitor( 3528): Handling local request: https://localhost/assets/esm-MlV3_AQ-.js
+09-06 22:15:19.230 D/Capacitor( 3528): Handling local request: https://localhost/assets/esm-8u4WCMSz.js
+09-06 22:15:19.267 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-catalogs-C51uANGi.js
+09-06 22:15:19.274 D/Capacitor( 3528): Handling local request: https://localhost/assets/profileSetup-DBcWtalG.js
+09-06 22:15:19.275 D/Capacitor( 3528): Handling local request: https://localhost/assets/handles-DNM1h6vX.js
+09-06 22:15:19.275 D/Capacitor( 3528): Handling local request: https://localhost/assets/cityAnchor-DGls1nJd.js
+09-06 22:15:19.282 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-vitals-D_pa147w.js
+09-06 22:15:19.303 D/Capacitor( 3528): Handling local request: https://localhost/assets/relmap-B-Q60GQE.js
+09-06 22:15:19.306 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-tab-Fiul2oT2.js
+09-06 22:15:19.309 D/Capacitor( 3528): Handling local request: https://localhost/assets/foresight-CoG4qffB.js
+09-06 22:15:19.310 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-chiprow-BwoFX03a.js
+09-06 22:15:19.311 D/Capacitor( 3528): Handling local request: https://localhost/assets/PulseTrends-CsYyOumF.js
+09-06 22:15:19.313 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:19.313 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 50856591, pluginId: App, methodName: addListener
+09-06 22:15:19.314 V/Capacitor( 3528): callback: 50856591, pluginId: App, methodName: addListener, methodData: {"eventName":"appUrlOpen"}
+09-06 22:15:19.314 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:19.314 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 50856592, pluginId: App, methodName: addListener
+09-06 22:15:19.315 V/Capacitor( 3528): callback: 50856592, pluginId: App, methodName: addListener, methodData: {"eventName":"backButton"}
+09-06 22:15:19.315 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:19.315 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 50856593, pluginId: Keyboard, methodName: addListener
+09-06 22:15:19.315 V/Capacitor( 3528): callback: 50856593, pluginId: Keyboard, methodName: addListener, methodData: {"eventName":"keyboardDidHide"}
+09-06 22:15:19.316 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:19.316 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 50856594, pluginId: SplashScreen, methodName: hide
+09-06 22:15:19.316 V/Capacitor( 3528): callback: 50856594, pluginId: SplashScreen, methodName: hide, methodData: {}
+09-06 22:15:19.319 D/Capacitor( 3528): Handling local request: https://localhost/assets/place-stats-D5ebp9RO.js
+09-06 22:15:19.320 I/Capacitor/Console( 3528): File:  - Line 333 - Msg: undefined
+09-06 22:15:19.327 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-subtopics-DrcFaV9r.js
+09-06 22:15:19.331 D/Capacitor( 3528): Handling local request: https://localhost/assets/duo-daily-CM6WSSmN.js
+09-06 22:15:19.333 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-feed-Bv_Xv4Fx.js
+09-06 22:15:19.336 D/Capacitor( 3528): Handling local request: https://localhost/assets/search-overlay-Asop0R7f.js
+09-06 22:15:19.338 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-math-DYpSY5ub.js
+09-06 22:15:19.338 D/Capacitor( 3528): Handling local request: https://localhost/assets/PersonRow-CCKE_pIK.js
+09-06 22:15:19.339 D/Capacitor( 3528): Handling local request: https://localhost/assets/Avatar-D_rvYwnk.js
+09-06 22:15:19.345 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-general-DAtWBIHx.js
+09-06 22:15:19.347 D/Capacitor( 3528): Handling local request: https://localhost/assets/logic-test-DEM5k1ph.js
+09-06 22:15:19.348 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-DBdRd7ne.js
+09-06 22:15:19.350 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-DjjbEwDL.js
+09-06 22:15:19.352 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-CWMP2pII.js
+09-06 22:15:19.353 D/Capacitor( 3528): Handling local request: https://localhost/assets/topicSheet-C9vpHtQH.js
+09-06 22:15:19.364 D/Capacitor( 3528): Handling local request: https://localhost/assets/EmptyField-Dlsb7RJI.js
+09-06 22:15:19.365 D/Capacitor( 3528): Handling local request: https://localhost/assets/consequence-beat-CKmgsTsH.js
+09-06 22:15:19.382 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-overlay-BlOBsvcy.js
+09-06 22:15:19.384 D/Capacitor( 3528): Handling local request: https://localhost/assets/purchases-BDnxj191.js
+09-06 22:15:19.390 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-DK_pCAv-.js
+09-06 22:15:19.392 D/Capacitor( 3528): Handling local request: https://localhost/assets/SponsorShare-ND_RFm7s.js
+09-06 22:15:19.396 D/Capacitor( 3528): Handling local request: https://localhost/assets/LiveBreakdownPanel-icGffo4o.js
+09-06 22:15:19.398 D/Capacitor( 3528): Handling local request: https://localhost/assets/LiveTakesPanel-aRKe8RK2.js
+09-06 22:15:19.407 D/Capacitor( 3528): Handling local request: https://localhost/assets/person-mindmap-74nNhZfy.js
+09-06 22:15:19.478 D/Capacitor( 3528): Handling local request: https://localhost/assets/person-overlay-DmVZS3F_.js
+09-06 22:15:19.479 D/Capacitor( 3528): Handling local request: https://localhost/assets/roles-CXRKUItJ.js
+09-06 22:15:19.493 D/Capacitor( 3528): Handling local request: https://localhost/assets/city-overlay-CenFbmqH.js
+09-06 22:15:19.498 D/Capacitor( 3528): Handling local request: https://localhost/assets/logic-test-E3TykA8D.js
+09-06 22:15:20.425 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:22.422 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:22.664 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:22.870 D/InputMethodManager( 3528): showSoftInput() view=com.getcapacitor.CapacitorWebView{d043718 VFEDHVC.. .F...... 0,0-1080,2337 #7f0800da app:id/webview aid=1073741824} flags=0 reason=SHOW_SOFT_INPUT
+09-06 22:15:24.348 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:24.896 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:25.326 V/Capacitor/KeyboardPlugin( 3528): Notifying listeners for event keyboardWillShow
+09-06 22:15:25.326 D/Capacitor/KeyboardPlugin( 3528): No listeners found for event keyboardWillShow
+09-06 22:15:25.395 V/Capacitor/KeyboardPlugin( 3528): Notifying listeners for event keyboardDidShow
+09-06 22:15:25.395 D/Capacitor/KeyboardPlugin( 3528): No listeners found for event keyboardDidShow
+09-06 22:15:26.083 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:26.089 D/Capacitor( 3528): Handling local request: https://localhost/
+09-06 22:15:26.107 D/Capacitor( 3528): Handling local request: https://localhost/assets/index-DLzzjXtE.js
+09-06 22:15:26.109 D/Capacitor( 3528): Handling local request: https://localhost/assets/jsx-runtime-D-oznMWL.js
+09-06 22:15:26.112 D/Capacitor( 3528): Handling local request: https://localhost/assets/preload-helper-DeiOTZKJ.js
+09-06 22:15:26.115 D/Capacitor( 3528): Handling local request: https://localhost/assets/follows-CvOMJbVs.js
+09-06 22:15:26.117 D/Capacitor( 3528): Handling local request: https://localhost/assets/sample-data-ZM-xBl-j.js
+09-06 22:15:26.122 D/Capacitor( 3528): Handling local request: https://localhost/assets/duels-data-BXpaUDPL.js
+09-06 22:15:26.126 D/Capacitor( 3528): Handling local request: https://localhost/assets/dist-CSYigKfH.js
+09-06 22:15:26.132 D/Capacitor( 3528): Handling local request: https://localhost/assets/react-DgE16qTy.js
+09-06 22:15:26.135 D/Capacitor( 3528): Handling local request: https://localhost/assets/react-dom-DaDbkoAt.js
+09-06 22:15:26.138 D/Capacitor( 3528): Handling local request: https://localhost/assets/client-ByAXiocW.js
+09-06 22:15:26.141 D/Capacitor( 3528): Handling local request: https://localhost/assets/sentry-1nBrXtRM.js
+09-06 22:15:26.144 D/Capacitor( 3528): Handling local request: https://localhost/assets/firebase-DwmUbSsh.js
+09-06 22:15:26.146 D/Capacitor( 3528): Handling local request: https://localhost/assets/region-CiCZ5-9u.js
+09-06 22:15:26.149 D/Capacitor( 3528): Handling local request: https://localhost/assets/cohort-Bibg8ie7.js
+09-06 22:15:26.152 D/Capacitor( 3528): Handling local request: https://localhost/assets/engagement-BwqGCeUl.js
+09-06 22:15:26.155 D/Capacitor( 3528): Handling local request: https://localhost/assets/test-definitions-DmPUjxlQ.js
+09-06 22:15:26.158 D/Capacitor( 3528): Handling local request: https://localhost/assets/live-Bvm_o3YU.js
+09-06 22:15:26.162 D/Capacitor( 3528): Handling local request: https://localhost/assets/primitives-CpKvPOkc.js
+09-06 22:15:26.165 D/Capacitor( 3528): Handling local request: https://localhost/assets/nav-DR7toD4R.js
+09-06 22:15:26.167 D/Capacitor( 3528): Handling local request: https://localhost/assets/reveal-clock-DxKiCx67.js
+09-06 22:15:26.169 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-palette-_56CLpQu.js
+09-06 22:15:26.172 D/Capacitor( 3528): Handling local request: https://localhost/assets/group-daily-DzEeF7sy.js
+09-06 22:15:26.174 D/Capacitor( 3528): Handling local request: https://localhost/assets/links-D2ZEb7ya.js
+09-06 22:15:26.176 D/Capacitor( 3528): Handling local request: https://localhost/assets/cohortLabels-TsmCRl0F.js
+09-06 22:15:26.181 D/Capacitor( 3528): Handling local request: https://localhost/assets/mapCue-2TbYFuYl.js
+09-06 22:15:26.183 D/Capacitor( 3528): Handling local request: https://localhost/assets/explain-sheet-CTljXAvD.js
+09-06 22:15:26.188 D/Capacitor( 3528): Handling local request: https://localhost/assets/feed-read-NEBVVurH.js
+09-06 22:15:26.190 D/Capacitor( 3528): Handling local request: https://localhost/assets/haptics-BtJ3YgJP.js
+09-06 22:15:26.192 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-anchors-DEnwcbEE.js
+09-06 22:15:26.198 D/Capacitor( 3528): Handling local request: https://localhost/assets/daily-cats-iCic0ZdX.js
+09-06 22:15:26.200 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-group-stats-DzMqErb8.js
+09-06 22:15:26.202 D/Capacitor( 3528): Handling local request: https://localhost/assets/testNorms-Cy4cLS8k.js
+09-06 22:15:26.204 D/Capacitor( 3528): Handling local request: https://localhost/assets/result-rose-BlvhRyyn.js
+09-06 22:15:26.209 D/Capacitor( 3528): Handling local request: https://localhost/assets/type-marks-CVz-agn4.js
+09-06 22:15:26.212 D/Capacitor( 3528): Handling local request: https://localhost/assets/passive-meter-qZU-68gS.js
+09-06 22:15:26.214 D/Capacitor( 3528): Handling local request: https://localhost/assets/read-run-DRWkfpyl.js
+09-06 22:15:26.216 D/Capacitor( 3528): Handling local request: https://localhost/assets/relmap-lenses-DnN_3TId.js
+09-06 22:15:26.218 D/Capacitor( 3528): Handling local request: https://localhost/assets/scenes-DUzJHUwd.js
+09-06 22:15:26.221 D/Capacitor( 3528): Handling local request: https://localhost/assets/swipe-back-Bdnwp_z8.js
+09-06 22:15:26.223 D/Capacitor( 3528): Handling local request: https://localhost/assets/test-feed-data-ByUxuCMU.js
+09-06 22:15:26.225 D/Capacitor( 3528): Handling local request: https://localhost/assets/viz-primitives-DdsrAGjy.js
+09-06 22:15:26.227 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-data-rR1qqQre.js
+09-06 22:15:26.229 D/Capacitor( 3528): Handling local request: https://localhost/assets/RatingRidge-COG1zgEB.js
+09-06 22:15:26.232 D/Capacitor( 3528): Handling local request: https://localhost/assets/index-BV27OU4O.css
+09-06 22:15:26.336 V/Capacitor/KeyboardPlugin( 3528): Notifying listeners for event keyboardWillHide
+09-06 22:15:26.336 D/Capacitor/KeyboardPlugin( 3528): No listeners found for event keyboardWillHide
+09-06 22:15:26.387 V/Capacitor/KeyboardPlugin( 3528): Notifying listeners for event keyboardDidHide
+09-06 22:15:26.387 D/Capacitor/KeyboardPlugin( 3528): No listeners found for event keyboardDidHide
+09-06 22:15:26.658 D/Capacitor( 3528): Handling local request: https://localhost/assets/mirror-tab-BH2YSn0p.js
+09-06 22:15:26.674 D/Capacitor( 3528): Handling local request: https://localhost/assets/compare-breakdown-CEqyt2vr.js
+09-06 22:15:26.678 D/Capacitor( 3528): Handling local request: https://localhost/assets/mirror-field-pops-JyAc8jIa.js
+09-06 22:15:26.678 D/Capacitor( 3528): Handling local request: https://localhost/assets/daily-questions-AugBnOic.js
+09-06 22:15:26.695 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-people-BVyio2iG.js
+09-06 22:15:26.697 D/Capacitor( 3528): Handling local request: https://localhost/assets/place-stats-DkQZFVqb.js
+09-06 22:15:26.700 D/Capacitor( 3528): Handling local request: https://localhost/assets/lens-cards-q5_9_cpF.js
+09-06 22:15:26.701 D/Capacitor( 3528): Handling local request: https://localhost/assets/lens-defs-DPqxOBzh.js
+09-06 22:15:26.703 D/Capacitor( 3528): Handling local request: https://localhost/assets/lensRowScroll-B2AgyZSh.js
+09-06 22:15:26.703 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-bits-CxNcfkKs.js
+09-06 22:15:26.703 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-social-z9AUuxw2.js
+09-06 22:15:26.704 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-progress--ZtvoTvs.js
+09-06 22:15:26.707 D/Capacitor( 3528): Handling local request: https://localhost/assets/place-stats-DpLUN26H.js
+09-06 22:15:26.708 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-data-32jDTqWZ.js
+09-06 22:15:26.715 D/Capacitor( 3528): Handling local request: https://localhost/assets/walkthrough-O10EwLLd.js
+09-06 22:15:26.715 D/Capacitor( 3528): Handling local request: https://localhost/assets/pick-data-CrvE3zyZ.js
+09-06 22:15:26.891 D/Capacitor( 3528): Handling local request: https://localhost/fonts/59fb8d78-b2d2-4b61-ae53-4ba0db542eba.woff2
+09-06 22:15:26.900 D/Capacitor( 3528): Handling local request: https://localhost/fonts/09efe0ee-8628-46d3-b071-4ac2b22a0955.woff2
+09-06 22:15:26.959 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:26.967 D/Capacitor( 3528): Handling local request: https://localhost/assets/esm-CMekO2CJ.js
+09-06 22:15:26.994 D/Capacitor( 3528): Handling local request: https://localhost/assets/esm-MlV3_AQ-.js
+09-06 22:15:26.995 D/Capacitor( 3528): Handling local request: https://localhost/assets/esm-8u4WCMSz.js
+09-06 22:15:27.147 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-catalogs-C51uANGi.js
+09-06 22:15:27.220 D/Capacitor( 3528): Handling local request: https://localhost/assets/profileSetup-DBcWtalG.js
+09-06 22:15:27.230 D/Capacitor( 3528): Handling local request: https://localhost/assets/cityAnchor-DGls1nJd.js
+09-06 22:15:27.230 D/Capacitor( 3528): Handling local request: https://localhost/assets/handles-DNM1h6vX.js
+09-06 22:15:27.232 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-vitals-D_pa147w.js
+09-06 22:15:27.268 D/Capacitor( 3528): Handling local request: https://localhost/assets/relmap-B-Q60GQE.js
+09-06 22:15:27.275 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-tab-Fiul2oT2.js
+09-06 22:15:27.278 D/Capacitor( 3528): Handling local request: https://localhost/assets/foresight-CoG4qffB.js
+09-06 22:15:27.283 D/Capacitor( 3528): Handling local request: https://localhost/assets/map-chiprow-BwoFX03a.js
+09-06 22:15:27.288 D/Capacitor( 3528): Handling local request: https://localhost/assets/PulseTrends-CsYyOumF.js
+09-06 22:15:27.336 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:27.338 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 107157496, pluginId: App, methodName: addListener
+09-06 22:15:27.338 V/Capacitor( 3528): callback: 107157496, pluginId: App, methodName: addListener, methodData: {"eventName":"backButton"}
+09-06 22:15:27.339 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:27.340 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 107157497, pluginId: App, methodName: addListener
+09-06 22:15:27.341 V/Capacitor( 3528): callback: 107157497, pluginId: App, methodName: addListener, methodData: {"eventName":"appUrlOpen"}
+09-06 22:15:27.341 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:27.343 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 107157498, pluginId: SplashScreen, methodName: hide
+09-06 22:15:27.343 V/Capacitor( 3528): callback: 107157498, pluginId: SplashScreen, methodName: hide, methodData: {}
+09-06 22:15:27.360 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-subtopics-DrcFaV9r.js
+09-06 22:15:27.362 I/Capacitor/Console( 3528): File:  - Line 349 - Msg: [object Object]
+09-06 22:15:27.362 V/Capacitor/Plugin( 3528): To native (Capacitor plugin): callbackId: 107157499, pluginId: Keyboard, methodName: addListener
+09-06 22:15:27.362 V/Capacitor( 3528): callback: 107157499, pluginId: Keyboard, methodName: addListener, methodData: {"eventName":"keyboardDidHide"}
+09-06 22:15:27.362 I/Capacitor/Console( 3528): File:  - Line 333 - Msg: undefined
+09-06 22:15:27.378 D/Capacitor( 3528): Handling local request: https://localhost/assets/place-stats-D5ebp9RO.js
+09-06 22:15:27.389 D/Capacitor( 3528): Handling local request: https://localhost/assets/duo-daily-CM6WSSmN.js
+09-06 22:15:27.394 D/Capacitor( 3528): Handling local request: https://localhost/assets/learn-feed-Bv_Xv4Fx.js
+09-06 22:15:27.401 D/Capacitor( 3528): Handling local request: https://localhost/assets/search-overlay-Asop0R7f.js
+09-06 22:15:27.405 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-math-DYpSY5ub.js
+09-06 22:15:27.406 D/Capacitor( 3528): Handling local request: https://localhost/assets/PersonRow-CCKE_pIK.js
+09-06 22:15:27.415 D/Capacitor( 3528): Handling local request: https://localhost/assets/Avatar-D_rvYwnk.js
+09-06 22:15:27.423 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-general-DAtWBIHx.js
+09-06 22:15:27.423 D/Capacitor( 3528): Handling local request: https://localhost/assets/logic-test-DEM5k1ph.js
+09-06 22:15:27.426 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-DBdRd7ne.js
+09-06 22:15:27.428 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-DjjbEwDL.js
+09-06 22:15:27.436 D/Capacitor( 3528): Handling local request: https://localhost/assets/index.esm-CWMP2pII.js
+09-06 22:15:27.436 D/Capacitor( 3528): Handling local request: https://localhost/assets/topicSheet-C9vpHtQH.js
+09-06 22:15:27.437 D/Capacitor( 3528): Handling local request: https://localhost/assets/EmptyField-Dlsb7RJI.js
+09-06 22:15:27.437 D/Capacitor( 3528): Handling local request: https://localhost/assets/consequence-beat-CKmgsTsH.js
+09-06 22:15:27.453 D/Capacitor( 3528): Handling local request: https://localhost/assets/profile-overlay-BlOBsvcy.js
+09-06 22:15:27.454 D/Capacitor( 3528): Handling local request: https://localhost/assets/purchases-BDnxj191.js
+09-06 22:15:27.455 D/Capacitor( 3528): Handling local request: https://localhost/assets/world-feed-DK_pCAv-.js
+09-06 22:15:27.466 D/Capacitor( 3528): Handling local request: https://localhost/assets/SponsorShare-ND_RFm7s.js
+09-06 22:15:27.468 D/Capacitor( 3528): Handling local request: https://localhost/assets/LiveBreakdownPanel-icGffo4o.js
+09-06 22:15:27.468 D/Capacitor( 3528): Handling local request: https://localhost/assets/LiveTakesPanel-aRKe8RK2.js
+09-06 22:15:27.468 D/Capacitor( 3528): Handling local request: https://localhost/assets/person-mindmap-74nNhZfy.js
+09-06 22:15:27.611 D/Capacitor( 3528): Handling local request: https://localhost/assets/person-overlay-DmVZS3F_.js
+09-06 22:15:27.614 D/Capacitor( 3528): Handling local request: https://localhost/assets/roles-CXRKUItJ.js
+09-06 22:15:27.715 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:27.719 D/Capacitor( 3528): Handling local request: https://localhost/assets/city-overlay-CenFbmqH.js
+09-06 22:15:27.739 D/Capacitor( 3528): Handling local request: https://localhost/assets/logic-test-E3TykA8D.js
+09-06 22:15:29.738 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:29.990 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
+09-06 22:15:30.134 D/Capacitor( 3528): Handling local request: https://localhost/favicon.svg
