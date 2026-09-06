@@ -287,6 +287,61 @@ export const logicStartV2 = onCall(
   },
 );
 
+/**
+ * How one submitted score is RANKED and whether it FOLDS — the four
+ * decisions that decide what every "sharper than X% of N verified
+ * players" sentence rests on.
+ *
+ * PURE, and extracted because none of it ran: the callable it lived in is
+ * reached only through the emulator, and that leg starts an attempt and
+ * submits immediately. All four mutated green across the functions suite
+ * AND all three e2e suites — the era check widened so a 12-item histogram
+ * ranks a 25-item score, the curve pinned to 12 items for a 25-item form,
+ * the first-attempt gate dropped so every re-verification re-folds into
+ * the published norms, and the fold made unconditional.
+ *
+ * THE ERA STAMP IS THE LOAD-BEARING PART. A histogram from another
+ * form-length era ranks nothing and folds nothing — the first
+ * current-era submit starts the count fresh — because a score out of 25
+ * has no meaning against a distribution of scores out of 12.
+ *
+ * D32's rule, one line down: a re-verification is measured but never
+ * counted, so no account can push the population toward itself by taking
+ * the test again. `alreadyCounted` is the attempt's own carry of that
+ * flag, and `logicStartV2` is what carries it forward across attempts.
+ *
+ * `prevNorms` comes back out so the caller can fold the difficulty stats
+ * against the same era-checked population, in lockstep.
+ */
+export function rankAndFold(a: {
+  items: number;
+  score: number;
+  stored: LogicNorms | null;
+  alreadyCounted: boolean;
+}): {
+  pctile: number;
+  source: "measured" | "model";
+  countsNorms: boolean;
+  norms: LogicNorms | null;
+  /** How many verified players the measured reading rests on — null when
+   * the reading is the model's, which rests on nobody. The published
+   * sentence is "sharper than X% of N", so the N travels with the X. */
+  n: number | null;
+} {
+  const sameEra = a.stored != null && a.stored.items === LOGIC_ITEMS;
+  const prevNorms = sameEra ? a.stored : null;
+  const isCurrentEra = a.items === LOGIC_ITEMS;
+  const measured = isCurrentEra ? measuredPctile(prevNorms, a.score) : null;
+  const countsNorms = !a.alreadyCounted && isCurrentEra;
+  return {
+    pctile: measured ? measured.pctile : logicPctileFor(a.score / a.items, a.items),
+    source: measured ? "measured" : "model",
+    countsNorms,
+    norms: countsNorms ? { ...foldNorms(prevNorms, a.score), items: LOGIC_ITEMS } : null,
+    n: measured ? measured.n : null,
+  };
+}
+
 export const logicSubmitV2 = onCall(
   { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
@@ -325,18 +380,12 @@ export const logicSubmitV2 = onCall(
       const privRef = db.collection("v2_logic_norms_private").doc("global");
       const privSnap = await tx.get(privRef);
       const stored = privSnap.exists ? (privSnap.data() as LogicNorms) : null;
-      // A histogram from another form-length era ranks nothing and folds
-      // nothing — the first current-era submit starts the count fresh.
-      const sameEra = stored != null && stored.items === LOGIC_ITEMS;
-      const prevNorms = sameEra ? stored : null;
-      const isCurrentEra = items === LOGIC_ITEMS;
-      const measured = isCurrentEra ? measuredPctile(prevNorms, score) : null;
-      const pctile = measured ? measured.pctile : logicPctileFor(score / items, items);
-      const source = measured ? "measured" : "model";
-      const countsNorms = attempt.normsCounted !== true && isCurrentEra;
-      const norms: LogicNorms | null = countsNorms
-        ? { ...foldNorms(prevNorms, score), items: LOGIC_ITEMS }
-        : null;
+      const { pctile, source, countsNorms, norms, n: measuredN } = rankAndFold({
+        items,
+        score,
+        stored,
+        alreadyCounted: attempt.normsCounted === true,
+      });
       // The difficulty stats advance in lockstep with the histogram (same
       // first-attempt gate, same era stamp) — reads still precede every
       // write, as transactions require.
@@ -376,7 +425,7 @@ export const logicSubmitV2 = onCall(
               pctile,
               durationMs,
               source,
-              ...(measured ? { n: measured.n } : {}),
+              ...(measuredN != null ? { n: measuredN } : {}),
               when: now,
             },
           },
@@ -402,7 +451,7 @@ export const logicSubmitV2 = onCall(
         pctile,
         durationMs,
         source,
-        ...(measured ? { n: measured.n } : {}),
+        ...(measuredN != null ? { n: measuredN } : {}),
         seed: attempt.seed,
         gv: attempt.gv,
       };
