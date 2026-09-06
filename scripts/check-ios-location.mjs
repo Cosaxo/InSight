@@ -57,6 +57,7 @@
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { nearConsentMismatch } from "./near-consent-rule.mjs";
+import { stripXmlComments } from "./strip-comments.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -102,7 +103,22 @@ if (!existsSync(plistPath)) {
   console.error(`check:ios-location: ${PLIST} is missing.`);
   process.exit(1);
 }
-const plist = readFileSync(plistPath, "utf8");
+// COMMENTS OFF FIRST. `plistValue` scans for `<key>NAME</key>` with
+// `indexOf`, so a key inside `<!-- … -->` read exactly like a live one and
+// every rule below inherited it. Measured, each restored: wrapping the
+// WhenInUse purpose string in a comment left this gate printing "both
+// purpose strings present and identical" at exit 0, while DELETING the
+// same key failed correctly — on the gate whose absence returns ITMS-90683
+// by email one spent build number later. The same for rule 4, where a
+// commented-out benign `UIBackgroundModes` parked above a live one
+// declaring `location` printed "no background location mode".
+//
+// The reader's own header reasoned about comments and picked the wrong
+// half: it worries about one sitting BETWEEN a key and its value, not
+// about the key being inside one. `near-consent-rule.mjs` — the one rule
+// in this file that was fixed for this exact class on 2026-09-04 — is one
+// import away.
+const plist = stripXmlComments(readFileSync(plistPath, "utf8"));
 
 // 1 · Both purpose strings present and non-empty.
 const strings = {};

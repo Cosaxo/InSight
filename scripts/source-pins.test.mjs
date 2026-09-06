@@ -1,4 +1,4 @@
-// source-pins.test.mjs — no gate may read a constant past a comment.
+// source-pins.test.mjs — no gate may read past a comment.
 //
 // A gate that cross-reads a value out of another file does it with
 // `readFileSync(...).match(/NAME = (\d+)/)`, and `.match` returns the FIRST
@@ -73,6 +73,37 @@ describe("no gate reads a constant past a comment", () => {
       expect(g, `${f} vanished — this ratchet no longer covers it`).toBeTruthy();
       expect(g.src, `${f} stopped importing the stripper`)
         .toContain('from "./strip-comments.mjs"');
+    }
+  });
+
+  it("every gate that reads the iOS plist strips XML comments first", () => {
+    // THE SAME DEFECT IN A SECOND SYNTAX. `check-ios-location`'s reader
+    // scanned for `<key>NAME</key>` with `indexOf` over raw bytes, so a key
+    // inside `<!-- … -->` read exactly like a live one; `check-store-forms`
+    // tolerated a comment BETWEEN key and value while reading the first
+    // `<key>` wherever it was. Measured, each restored: commenting out the
+    // WhenInUse purpose string left check:ios-location at exit 0 (deleting
+    // it correctly failed), and commenting out
+    // `NSLocationDefaultAccuracyReduced` left BOTH gates at exit 0 with the
+    // store label still asserted against a key not in the shipped app.
+    //
+    // One is the gate whose absence returns ITMS-90683 by email a build
+    // number later; the other is a store attestation, which CLAUDE.md puts
+    // outside the D334 ask. `check-policy-claims` and `check-public-copy`
+    // had already met this and strip; these two never did.
+    // Gates that look up a KEY's value, not every gate that opens the file.
+    // The direction matters and it is not symmetric: a gate reading a
+    // required value must not read a commented-out one as live, while a
+    // gate scanning for a FORBIDDEN pattern (check-store-copy, hunting
+    // unfilled placeholders) must not have comments stripped — that would
+    // hide a placeholder rather than report it, and the safe direction
+    // there is noise. Same distinction the deploy-targets rule makes about
+    // its own `--only` list.
+    const readers = gates.filter((g) => /Info\.plist/.test(g.src) && /<key>/.test(g.src));
+    expect(readers.length, "no gate reads a plist key — this rule went vacuous").toBeGreaterThan(1);
+    for (const g of readers) {
+      expect(g.src, `${g.f} reads Info.plist without stripping XML comments`)
+        .toMatch(/stripXmlComments\(/);
     }
   });
 
