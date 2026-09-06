@@ -1,0 +1,156 @@
+{
+  "capturedAt": "2026-09-06T22:13:19Z",
+  "source": "android:emulator-5554",
+  "mode": "demo",
+  "target": "sdk_gphone64_x86_64 · com.cosaxo.insight",
+  "profiles": {
+    "android-sdk-gphone64-x86-64": {
+      "label": "sdk_gphone64_x86_64",
+      "width": 412,
+      "height": 839,
+      "scale": 2.625
+    }
+  },
+  "screens": [
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily",
+      "n": "01",
+      "id": "daily",
+      "file": "android-sdk-gphone64-x86-64/01-daily.png",
+      "checks": {
+        "vw": 412,
+        "vh": 839,
+        "textChars": 1280,
+        "boundary": false,
+        "overflowX": false,
+        "clipped": [],
+        "offscreen": [],
+        "brokenImages": [],
+        "fontsFailed": 0,
+        "fontStatus": "loaded"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-reveal",
+      "n": "02",
+      "id": "daily-reveal",
+      "file": "android-sdk-gphone64-x86-64/02-daily-reveal.png",
+      "checks": {
+        "vw": 412,
+        "vh": 839,
+        "textChars": 1324,
+        "boundary": false,
+        "overflowX": false,
+        "clipped": [],
+        "offscreen": [],
+        "brokenImages": [],
+        "fontsFailed": 0,
+        "fontStatus": "loaded"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-feed",
+      "n": "03",
+      "id": "daily-feed-1",
+      "file": "android-sdk-gphone64-x86-64/03-daily-feed-1.png",
+      "checks": {
+        "vw": 412,
+        "vh": 839,
+        "textChars": 1280,
+        "boundary": false,
+        "overflowX": false,
+        "clipped": [],
+        "offscreen": [],
+        "brokenImages": [],
+        "fontsFailed": 0,
+        "fontStatus": "loaded"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-feed",
+      "n": "04",
+      "id": "daily-feed-2",
+      "file": "android-sdk-gphone64-x86-64/04-daily-feed-2.png",
+      "checks": {
+        "vw": 412,
+        "vh": 839,
+        "textChars": 1280,
+        "boundary": false,
+        "overflowX": false,
+        "clipped": [],
+        "offscreen": [],
+        "brokenImages": [],
+        "fontsFailed": 0,
+        "fontStatus": "loaded"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-circle",
+      "n": "05",
+      "id": "daily-circle",
+      "file": "android-sdk-gphone64-x86-64/05-daily-circle.png",
+      "checks": {
+        "vw": 412,
+        "vh": 839,
+        "textChars": 920,
+        "boundary": false,
+        "overflowX": false,
+        "clipped": [],
+        "offscreen": [],
+        "brokenImages": [],
+        "fontsFailed": 0,
+        "fontStatus": "loaded"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false
+    },
+    {
+      "profile": "android-sdk-gphone64-x86-64",
+      "scene": "daily-1v1",
+      "n": "06",
+      "id": "daily-1v1",
+      "file": "android-sdk-gphone64-x86-64/06-daily-1v1.png",
+      "checks": {
+        "vw": 412,
+        "vh": 839,
+        "textChars": 1759,
+        "boundary": false,
+        "overflowX": false,
+        "clipped": [],
+        "offscreen": [],
+        "brokenImages": [],
+        "fontsFailed": 0,
+        "fontStatus": "loaded"
+      },
+      "pageErrors": [],
+      "consoleErrors": [],
+      "failedRequests": [],
+      "unchanged": false
+    }
+  ],
+  "skipped": [],
+  "fatal": "page.screenshot: Target page, context or browser has been closed\nCall log:\n  - taking page screenshot\n\n    at Object.snap (/home/runner/work/InSight/InSight/scripts/device-screens.mjs:297:32)\n    at async runProfile (/home/runner/work/InSight/InSight/scripts/device-screens.mjs:329:21)\n    at async file:///home/runner/work/InSight/InSight/scripts/device-screens.mjs:486:3"
+}

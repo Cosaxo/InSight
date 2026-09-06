@@ -1,0 +1,17 @@
+
+sdk_gphone64_x86_64 (emulator-5554) — com.cosaxo.insight
+  WebView 412×839 @2.625
+  ✓ android-sdk-gphone64-x86-64/01-daily.png
+  ✓ android-sdk-gphone64-x86-64/02-daily-reveal.png
+  ✓ android-sdk-gphone64-x86-64/03-daily-feed-1.png
+  ✓ android-sdk-gphone64-x86-64/04-daily-feed-2.png
+  ✓ android-sdk-gphone64-x86-64/05-daily-circle.png
+  ✓ android-sdk-gphone64-x86-64/06-daily-1v1.png
+
+device-screens: the run ended early — page.screenshot: Target page, context or browser has been closed
+Call log:
+  - taking page screenshot
+
+
+device-screens: mode = DEMO · 6 screens · 1 hard / 0 soft finding(s)
+  → /home/runner/work/InSight/InSight/results/android/report.md
