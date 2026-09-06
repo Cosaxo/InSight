@@ -155,6 +155,29 @@ describe("the paid places in the stream", () => {
     expect(woven.map((x) => x.id)).toEqual(["feed-w0", "feed-paid-a", "feed-paid-b"]);
   });
 
+  it("does NOT stack the campaigns that found no place at the end of the feed", () => {
+    // The rescue above is for a feed too short for the cadence to fire at
+    // all. Past that it was unbounded, and demand reaches it: measured on
+    // the shipped cadences with a 60-card world, 12 concurrent campaigns
+    // ended the feed with 2 paid cards in a row, 20 with 10, and 100 with
+    // NINETY — an ad break at the bottom of the stream, under a density
+    // the seller's page calls one card in six.
+    const world = Array.from({ length: 30 }, (_, i) => q(`feed-w${i}`));
+    const paid = Array.from({ length: 20 }, (_, i) => q(`feed-paid-${i}`, { sponsor: { buyer: "X" } }));
+    const woven = interleaveFeed(world, { tests: [], lenses: [], paid, paidEvery: SPONSOR_EVERY });
+    const isPaid = (x: { id: string }) => x.id.startsWith("feed-paid-");
+    // Five places in thirty cards, and five cards take them.
+    expect(woven.filter(isPaid), "the cadence stopped placing cards").toHaveLength(
+      Math.floor(world.length / SPONSOR_EVERY),
+    );
+    // NEVER TWO IN A ROW. One at the end is the cadence's own last place
+    // (position 30 of 30), which is a place the reader scrolled to; two
+    // in a row can only be the tail dumping what found no place.
+    let run = 0, longest = 0;
+    for (const x of woven) { run = isPaid(x) ? run + 1 : 0; longest = Math.max(longest, run); }
+    expect(longest, "paid cards were stacked back to back").toBeLessThanOrEqual(1);
+  });
+
   it("changes nothing when there is no paid card", () => {
     const world = Array.from({ length: 12 }, (_, i) => q(`feed-w${i}`));
     const before = interleaveFeed(world, { tests: [], lenses: [] });

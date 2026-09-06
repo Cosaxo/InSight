@@ -163,7 +163,25 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   // anyone with a heavily muted feed, which is the measurement asymmetry
   // billing-on-answers exists to avoid. They land at the end, not at the
   // top: a paid card must never be the first thing in the stream.
-  while (pi < paid.length) out.push(paid[pi++]);
+  //
+  // SCOPED TO THAT CASE, and it was not. The condition is the same one
+  // the knowledge stream carries one line up — a feed too short for the
+  // cadence to fire even once — because past that the tail stops being a
+  // rescue and becomes a dump. Measured on the shipped cadences with a
+  // 60-card world: at 12 concurrent campaigns the feed ends in a run of 2
+  // paid cards, at 20 a run of 10, at 100 a run of NINETY. The header
+  // three files over says "the density is the cap … one greppable number
+  // rather than something demand can quietly inflate", and this line was
+  // where demand inflated it without limit.
+  //
+  // What a campaign with no place gets is nothing IN THIS BUILD, which is
+  // what that same header already promises: "a campaign lands at most
+  // once per feed build, and how many the feed carries is how far the
+  // reader scrolls, never how many the bank holds". Billing is per answer,
+  // so a card nobody was shown bills nobody — where ninety cards stacked
+  // at the end of a feed are shown to nobody either, and read as an ad
+  // break.
+  if (paidEvery && positions < paidEvery) while (pi < paid.length) out.push(paid[pi++]);
   return out;
 }
 
