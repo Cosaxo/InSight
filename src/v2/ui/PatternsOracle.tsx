@@ -1,21 +1,29 @@
-// The Oracle lens (D215) — ONE INSTRUMENT, no card. Ported from the
-// 2026-08-20 standalone's oracle.jsx (design/standalone-2026-08-20/):
-// the guess is an ink disc sealed on the seam between the two option
-// tiles; on your tap it travels to the option it called, and each tile
-// fills to the probability the oracle gave it. So:
-//   confidence = a HEIGHT (the fill) and a SIZE (the sealed disc),
-//   evidence   = ink density — a cold-start guess is a faint outline,
-//   the call   = a POSITION, your pick = the accent edge,
+// The Oracle lens (D215, redrawn 2026-09-02) — the guess in the same
+// round dusk field the two maps draw into (patterns.css, the .ln-* block).
+// Ported from the 2026-09-02 standalone's oracle.jsx
+// (design/standalone-2026-09-02/): the two options are the two HALVES of
+// the field, and the guess is a disc sealed on the seam between them. On
+// your tap it travels to the half it called, and that half fills from the
+// bottom to how sure it was. So:
+//   confidence = the fill's HEIGHT and the disc's SIZE (and a word under it),
+//   evidence   = ink density — a cold-start guess is a faint disc,
+//   the call   = a POSITION, your pick = the "you" tag on its half,
 //   the verdict= the disc's glyph on landing: solid when it had you,
-//                broken open to a RING when you broke it.
-// No percentage is printed anywhere. One line is available on demand:
-// press the landed disc for its single strongest piece of evidence (a
-// real crowd reading with its basis — PATTERNS.tell, D146); press a
-// ledger mark to recall that question. Nothing stands.
+//                broken open to a RING when you broke it — and said in
+//                words below, so nothing has to be decoded.
+// No percentage is printed anywhere. Press "Why?" for its working; press a
+// ledger mark to recall that question.
+//
+// THE ONE-TIME HINTS RETIRED WITH THE REDESIGN (and their
+// `insight.oracle.hints.v1` key with them — check:purge's subject set is
+// derived, so the sweep simply stops having this reader): the card's own
+// standing sentence says what the disc means before the tap and what the
+// verdict means after it, and the record's kicker says the marks. A legend
+// that is always true beats three that are shown once.
 //
 // The live wiring keeps every discipline the shipped lens had: the guess
-// is SEALED before the tiles will take a tap (PATTERNS.seal, pinned in
-// patterns.test.ts — a tile without a seal behind it does nothing), the
+// is SEALED before a half will take a tap (PATTERNS.seal, pinned in
+// patterns.test.ts — a side without a seal behind it does nothing), the
 // vote lands through LIVE.vote like any other answer, and the grade reads
 // the store's own record. The prototype's "Start over" is not ported: a
 // live answer cannot be unanswered, so the done state says what the pool
@@ -57,35 +65,27 @@ const orH = (bits: number, base: number, span: number): number =>
 // how a crowd leans, in words rather than a number
 const orWord = (p: number): string =>
   p >= 0.78 ? "nearly always" : p >= 0.62 ? "mostly" : p >= 0.54 ? "more often than not" : "still mostly";
+// how sure the oracle was, in words — the fill's height says the same thing
+const orSure = (c: number): string =>
+  c >= 0.82 ? "sure" : c >= 0.68 ? "fairly sure" : c >= 0.57 ? "leaning" : "guessing";
 
-// the legends: one-time lines, each shown once and never again, so the
-// instrument teaches its own grammar without ever standing there
-// explaining it. Account state like any insight.* key: purgeLocalTrace
-// sweeps it, and the listener drops the in-memory copy WITHOUT writing it
-// back (check:purge).
-const OR_HINT_LS = "insight.oracle.hints.v1";
-let hintCache: Record<string, 1> | null = null;
-const orHints = (): Record<string, 1> => {
-  if (!hintCache) {
-    try { hintCache = (JSON.parse(localStorage.getItem(OR_HINT_LS) || "{}") || {}) as Record<string, 1>; }
-    catch { hintCache = {}; }
-  }
-  return hintCache;
-};
-const orSeen = (k: string): void => {
-  try {
-    const h = orHints();
-    if (h[k]) return;
-    h[k] = 1;
-    localStorage.setItem(OR_HINT_LS, JSON.stringify(h));
-  } catch { /* best-effort — in-memory is right */ }
-};
-window.addEventListener("insight:local-purge", () => { hintCache = null; });
-const OR_HINT: Record<string, string> = {
-  seal: "Its guess is sealed — a bigger disc means surer, a fainter one means less to go on.",
-  reveal: "It moved to the side it called, and each tile filled to how sure it was. Solid disc: it had you. Ring: you broke it.",
-  ledger: "Your record is below — a mark up where you broke the guess, a tick down where it had you. Press one to recall it.",
-};
+// the field: a 280 box, the seam down the middle, a seat either side
+const OR_S = 280, OR_C = 140;
+const orSeat = (i: number): number => (i === 0 ? OR_C - 64 : OR_C + 64);
+/**
+ * The called half fills from the bottom to the oracle's confidence: the
+ * region of that half-disc below the water line, as one path. `conf` is a
+ * fraction of the field's height, so the fill IS the number without
+ * printing it.
+ */
+function orFillPath(side: number, conf: number): string {
+  const R = OR_C;
+  const y0 = OR_S - conf * OR_S;
+  const dx = Math.sqrt(Math.max(0, R * R - (y0 - R) * (y0 - R)));
+  const x1 = side === 0 ? R - dx : R + dx;
+  const sweep = side === 0 ? 0 : 1;
+  return `M ${R} ${y0.toFixed(1)} L ${x1.toFixed(1)} ${y0.toFixed(1)} A ${R} ${R} 0 0 ${sweep} ${R} ${2 * R} Z`;
+}
 
 // (the viewer's-side helper that stood here moved into PATTERNS.working —
 // the engine resolves evidence sides now, so the UI never re-derives them)
@@ -226,7 +226,6 @@ export default function PatternsOracle({ items }: {
   const [landed, setLanded] = React.useState(false); // the verdict has resolved
   const [why, setWhy] = React.useState(false);
   const [sel, setSel] = React.useState<number | null>(null); // a recalled ledger mark
-  const [hints, setHints] = React.useState<Record<string, 1>>(() => ({ ...orHints() }));
   const [work, setWork] = React.useState<Working | null | "pending">(null);
 
   const qOf = React.useCallback(
@@ -261,13 +260,17 @@ export default function PatternsOracle({ items }: {
     setWork("pending");
     void PATTERNS.working(rec.qid)
       .then((w) => { if (on) setWork(w); })
-      .catch(() => { if (on) setWork({ rows: [], hadEv: (rec.ev ?? []).length > 0 }); });
+      // The whole call rejecting is the same fact as one crossing's read
+      // rejecting, so it is reported the same way rather than falling
+      // through to a sentence about sample sizes.
+      .catch(() => {
+        if (on) setWork({ rows: [], hadEv: (rec.ev ?? []).length > 0, thin: false, weak: false, failed: true });
+      });
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rec names the sealed record
   }, [why, rec?.qid]);
 
   const next = () => {
-    if (hintKey) { orSeen(hintKey); setHints({ ...orHints() }); }
     setRec(null);
     setWhy(false);
     setSel(null);
@@ -293,10 +296,7 @@ export default function PatternsOracle({ items }: {
   const q = curItem.q;
   const t = orTopic(q.cat);
   const tint = t ? (WPAL.c(t.color) as string) : null;
-  const th = t ? orHue(t.color) : null; // the un-picked tile wears this at reveal
-  // the disc rides to the centre of the tile it called — exact, gap included
-  const seat = (i: number) =>
-    i === 0 ? "calc((100% - var(--or-gap)) / 4)" : "calc(100% - (100% - var(--or-gap)) / 4)";
+  const th = t ? orHue(t.color) : null; // the working's bars wear the topic
   const brokeIt = rec != null && rec.mine != null && rec.pred !== rec.mine;
   const conf = rec
     ? (rec.pred === 0 ? rec.p0 : 1 - rec.p0)
@@ -306,127 +306,201 @@ export default function PatternsOracle({ items }: {
   // question's own base rate (see OR_MASS_FULL above)
   const mass = Math.abs(2 * p0 - 1 - curItem.marginal);
   const sol = Math.min(1, Math.pow(Math.max(0, mass) / OR_MASS_FULL, OR_MASS_GAMMA));
-  const dsty: React.CSSProperties & Record<string, string> = {
-    "--d": Math.round(21 + Math.min(1, Math.max(0, (conf - 0.5) / 0.45)) * 25) + "px",
-    "--or-ink": "color-mix(in oklab, var(--ink), var(--surface-2) " + Math.round((1 - sol) * 88) + "%)",
-    "--or-edge": "color-mix(in oklab, var(--ink), var(--surface-2) " + Math.round((1 - sol) * 38) + "%)",
-  };
-  if (rec) dsty.left = seat(rec.pred);
+  // the disc: 15–26 by confidence, its ink 0.35–1 by evidence. Both are
+  // public before the tap — only the SIDE is sealed, so nothing leaks.
+  const dR = 15 + Math.min(1, Math.max(0, (conf - 0.5) / 0.45)) * 11;
+  const discX = rec ? orSeat(rec.pred) : OR_C;
+  const discY = OR_C + 18;
+  const discOp = 0.35 + 0.65 * sol;
   const rc = sel != null ? log[sel] : null;
   const rq = rc ? qOf(rc.qid) : undefined;
-  // one legend at a time, in the same slot as the on-demand lines, and
-  // only until it has been read once
-  const hintKey = !rec ? (hints.seal ? null : "seal") : !hints.reveal ? "reveal" : !hints.ledger ? "ledger" : null;
-  const hint = hintKey && !rc && !why ? OR_HINT[hintKey] : null;
 
   const answer = (i: number) => {
     if (!pre) return; // no seal, no tap — the guess must exist first
     LIVE.vote(q.id, q.options[i]?.id ?? String(i));
     const g = PATTERNS.grade(q.id);
-    if (g && g.mine != null) {
-      if (!hints.seal) { orSeen("seal"); setHints({ ...orHints() }); }
-      setRec(g);
-    }
+    if (g && g.mine != null) setRec(g);
   };
 
   return (
     <div className="or-lens">
-      <div key={q.id} className="or-head fade-in">
-        {t && <span className="pt-cat or-tag" style={{ background: WPAL.wash(tint, 16) as string, color: WPAL.ink(t.color) as string }}>{t.label}</span>}
-        <p className="or-prompt">{q.text}</p>
-      </div>
-      {/* the prototype advanced on a tap anywhere here; that was a
-          clickable <div> a keyboard can never reach (the a11y ratchet's
-          exact case), and Next already does the job — so the instrument
-          is a labeled group and only real controls take input */}
-      {/* --d rides here for the tiles' dashed seat (patterns.css): the seat
-          is drawn at the disc's own size, identical both sides — the SIZE
-          is public before the tap (it is the disc's), only the side is
-          sealed, so nothing leaks (2026-08-26) */}
-      <div key={q.id + "-inst"} className={"or-inst" + (rec ? " is-live" : "")} role="group"
-        style={{ "--d": dsty["--d"] } as React.CSSProperties}
-        aria-label={rec
-          ? "It called " + (q.options[rec.pred]?.label ?? "") + "; you said " + (rec.mine != null ? q.options[rec.mine]?.label ?? "" : "")
-          : "Its guess is sealed — pick a side"}>
-        {q.options.map((op, i) => rec ? (
-          <div key={op.id} className={"or-tile" + (i === rec.mine ? " is-mine" : "")}
-            style={i !== rec.mine && th != null
-              ? { "--or-fill": `oklch(0.92 0.04 ${th})`, "--or-edge": `oklch(0.56 0.09 ${th})` } as React.CSSProperties
-              : undefined}>
-            <span className="or-fill" style={{ "--p": Math.round((i === rec.pred ? conf : 1 - conf) * 100) + "%" } as React.CSSProperties}></span>
-            <span className="or-lab">{op.label}</span>
+      <div key={q.id} className="card ln-card fade-in"
+        style={{ padding: "14px 16px 12px", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {t && <span className="pt-cat" style={{ background: WPAL.wash(tint, 16) as string, color: WPAL.ink(t.color) as string }}>{t.label}</span>}
+          <span className="pt-kick">Question {log.length + 1}</span>
+          {rec ? (
+            <button onClick={next} className="tap44"
+              style={{ marginLeft: "auto", border: "none", background: "var(--ink)", color: "var(--surface)", borderRadius: 999, padding: "6px 14px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.01em", WebkitAppearance: "none" }}>
+              Next →
+            </button>
+          ) : <span className="or-sealed" style={{ marginLeft: "auto" }}>sealed</span>}
+        </div>
+        <p style={{ margin: "8px 0 0", fontFamily: "var(--serif)", fontSize: 21, fontWeight: 500, lineHeight: 1.2, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{q.text}</p>
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginTop: 10 }}>
+          <div className="ln-field" style={{ flex: "1 1 0px", width: "auto", minHeight: 190, maxHeight: 300, maxWidth: "100%", aspectRatio: "1 / 1" }}>
+            {/* the prototype advanced on a tap anywhere in the field; that
+                was a clickable <div> a keyboard can never reach (the a11y
+                ratchet's exact case, D215), and "Next →" already does the
+                job — so the field is a labelled group and only real
+                controls take input. Pre-vote the two halves ARE controls:
+                each is a <button> wrapping its half-disc hit path. */}
+            <svg className="ln-svg" viewBox={`0 0 ${OR_S} ${OR_S}`} role="group"
+              aria-label={rec
+                ? "It called " + (q.options[rec.pred]?.label ?? "") + "; you said " + (rec.mine != null ? q.options[rec.mine]?.label ?? "" : "")
+                : "Its guess is sealed — pick a side"}>
+              {rec && <path key={"f" + rec.qid} className="or2-fill" d={orFillPath(rec.pred, conf)} fill="var(--ln-beacon)"></path>}
+              <line x1={OR_C} y1="22" x2={OR_C} y2={OR_S - 22} stroke="var(--ln-ring)" strokeWidth="1" strokeDasharray="3 4"></line>
+              {/* The halves ARE the options, and they can be because the
+                  pool is two-option BY CONSTRUCTION: patterns.ts's
+                  `pool()` skips anything else (`q.options.length !== 2`),
+                  since the engine encodes an answer as ±1 and the guess as
+                  P(option 0) — a third option has no representation
+                  anywhere in it. Sliced rather than guarded by a fallback
+                  screen: a branch for a state the store cannot produce is
+                  residue that reads as a live path, and if that filter
+                  ever loosens, this is where the reader lands. */}
+              {q.options.slice(0, 2).map((op, i) => {
+                const cx = orSeat(i);
+                const mine = rec != null && rec.mine === i;
+                const called = rec != null && rec.pred === i;
+                const half = i === 0
+                  ? "M 140 0 A 140 140 0 0 0 140 280 Z"
+                  : "M 140 0 A 140 140 0 0 1 140 280 Z";
+                const inner = (
+                  <>
+                    <path d={half} fill="transparent"></path>
+                    {/* uppercased by CSS, not by String.toUpperCase: the
+                        accessible name and the DOM text stay the option's
+                        real label, so a screen reader reads the word the
+                        bank wrote and no locale gets its casing mangled */}
+                    <text x={cx} y="70" fill={called || !rec ? "var(--ln-ink)" : "var(--ln-sub)"} textAnchor="middle"
+                      style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase" }}>{op.label}</text>
+                    {!rec && <text x={cx} y="88" fill="var(--ln-sub)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 600 }}>tap to pick</text>}
+                    {mine && (
+                      <g>
+                        <rect x={cx - 16} y="80" width="32" height="16" rx="8" fill="var(--ln-beacon)"></rect>
+                        <text x={cx} y="88" fill="var(--ln-halo)" textAnchor="middle" dominantBaseline="central"
+                          style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em" }}>YOU</text>
+                      </g>
+                    )}
+                  </>
+                );
+                return rec ? <g key={op.id}>{inner}</g> : (
+                  <g key={op.id} className="or2-half" role="button" tabIndex={0}
+                    aria-label={op.label} aria-disabled={!pre}
+                    onClick={() => answer(i)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); answer(i); } }}>
+                    {inner}
+                  </g>
+                );
+              })}
+              {rec && (
+                <g style={{ pointerEvents: "none" }}>
+                  <circle cx={OR_C} cy={discY} r={dR} fill="none" stroke="var(--ln-ring)" strokeWidth="1.2" strokeDasharray="3 4"></circle>
+                  <text x={OR_C} y={discY + dR + 16} fill="var(--ln-sub)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 700 }}>sealed here</text>
+                </g>
+              )}
+              <g className="or2-disc" style={{ transform: `translate(${discX}px, ${discY}px)`, pointerEvents: "none" }}>
+                {!rec && <circle className="ln-pulse" cx="0" cy="0" r={dR} fill="none" stroke="var(--ln-beacon)" strokeWidth="1.5"></circle>}
+                <circle cx="0" cy="0" r={dR + 10} fill="var(--ln-beacon)" opacity={rec ? 0.18 : 0.1}></circle>
+                {landed && brokeIt ? (
+                  <circle cx="0" cy="0" r={dR - 3} fill="none" stroke="var(--ln-beacon)" strokeWidth={Math.max(4, dR * 0.34)} opacity={discOp}></circle>
+                ) : (
+                  <circle cx="0" cy="0" r={dR} fill="var(--ln-beacon)" opacity={discOp}></circle>
+                )}
+                <text x="0" y={dR + 26} fill="var(--ln-ink)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".1em" }}>
+                  {rec ? "ITS GUESS" : "SEALED GUESS"}
+                </text>
+                <text x="0" y={dR + 40} fill="var(--ln-sub)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 600 }}>
+                  {sol < 0.15 ? "nothing to go on" : orSure(conf)}
+                </text>
+              </g>
+            </svg>
           </div>
-        ) : (
-          <button key={op.id} className="or-tile" disabled={!pre} onClick={() => answer(i)}>
-            <span className="or-lab">{op.label}</span>
-          </button>
-        ))}
-        {rec ? (
-          <button className={"or-disc is-out" + (landed && brokeIt ? " is-ring" : "") + (why ? " is-asked" : "") + (landed && !hints.why ? " is-hint" : "")} style={dsty}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSel(null);
-              setWhy(!why);
-              if (!hints.why) { orSeen("why"); setHints({ ...orHints() }); }
-            }}
-            aria-label={why ? "Hide the evidence" : "Why it called " + (q.options[rec.pred]?.label ?? "")}></button>
-        ) : <span className="or-disc" style={dsty} aria-hidden="true"></span>}
-      </div>
-      {rc && rq && (
-        <div className="or-aside">{"“" + rq.q.text + "”"} — it called <b>{rq.q.options[rc.pred]?.label}</b>. {rc.pred === rc.mine ? "You did too." : <>You said <b>{rc.mine != null ? rq.q.options[rc.mine]?.label : ""}</b>.</>}</div>
-      )}
-      {why && !rc && rec && (
-        // the working (2026-08-26): the sealed call rebuilt in the open —
-        // one row per evidence answer, its bar the crowd split it
-        // contributed, the hairline the coin, ink weighted by its pull.
-        // Three empty states, each its own truth: still fetching; a call
-        // your answers never moved (the prototype says "guessed at the
-        // coin" — live the call falls back to the crowd's own lean, so
-        // that is what the line says); and evidence real but below the
-        // 12-in-both-samples floor, which is thinness, not absence.
-        <div className="or-proof">
-          <span className="or-proof-kick">its working</span>
-          {work === "pending" ? (
-            <span className="or-ev-none">Reading the crowd…</span>
-          ) : work && work.rows.length ? work.rows.map((r, k) => {
-            const evq = qOf(r.evId);
-            if (!evq) return null;
-            const wmax = work.rows[0].w || 1;
-            const evFill = th != null ? `oklch(0.78 0.07 ${th})` : "color-mix(in oklab, var(--ink), var(--surface-2) 35%)";
-            return (
-              <div className="or-ev" key={r.evId} style={{ animationDelay: `${k * 80}ms` }}>
-                <span className="or-ev-q">You said <b>{evq.q.options[r.side]?.label}</b>{" — "}{"“" + evq.q.text + "”"}</span>
-                <span className="or-ev-row">
-                  <span className="or-ev-bar"><i style={{ width: `${Math.round(r.share * 100)}%`, background: evFill, opacity: 0.55 + 0.45 * Math.min(1, r.w / wmax) }}></i><em></em></span>
-                  <span className="or-ev-word">{orWord(r.share)} pick <b>{q.options[rec.pred]?.label}</b> · {r.n} in both samples</span>
-                </span>
-              </div>
-            );
-          }) : work && !work.hadEv ? (
-            <span className="or-ev-none">Nothing in your answers pointed either way here — the call is the crowd’s own lean, and the faint ink says so.</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12 }}>
+          {rec ? (
+            <p className="or2-verdict" style={{ flex: 1, margin: 0 }}>
+              It called <b>{q.options[rec.pred]?.label}</b>, {orSure(conf)}. You said {rec.mine != null ? q.options[rec.mine]?.label : ""}.{" "}
+              {landed ? (brokeIt ? <b>You broke it.</b> : <b>It had you.</b>) : "…"}
+              {landed && <span style={{ color: "var(--ink-3)" }}> {brokeIt ? "A broken ring means you surprised it." : "A solid disc means it had you."}</span>}
+            </p>
           ) : (
-            <span className="or-ev-none">The answers that moved it don’t have enough shared voters to count in the open — under 12 in both samples.</span>
+            <p className="or2-verdict" style={{ flex: 1, margin: 0 }}>
+              It guessed your side before you answer, sealed until you tap a half.{" "}
+              <span style={{ color: "var(--ink-3)" }}>A bigger disc means it is surer; a fainter one has little to go on.</span>
+            </p>
           )}
-          <span className="or-proof-base">sealed before your tap · counted only from answers you’d already given · the mark is the coin</span>
+          {rec && (
+            <button className="tap44" onClick={() => { setSel(null); setWhy(!why); }}
+              aria-label={why ? "Hide the evidence" : "Why it called " + (q.options[rec.pred]?.label ?? "")}
+              style={{ flex: "none", border: "none", background: "none", padding: "2px 0", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, color: "var(--accent-ink)", WebkitAppearance: "none" }}>
+              {why ? "Hide" : "Why? →"}
+            </button>
+          )}
         </div>
-      )}
-      {hint && <div className="or-aside is-hint">{hint}</div>}
-      <OrLedger log={log} qOf={qOf} sel={sel} onPick={(k) => { setSel(k); setWhy(false); }}></OrLedger>
-      {/* the ledger's standing key (2026-08-26) — the one-time hint taught
-          it; this keeps it true after the hint is gone */}
-      {log.length > 0 && (
-        <div className="or-cap" aria-hidden="true">
-          <i className="or-cap-up"></i><span>you broke its guess</span>
-          <span className="or-cap-dot">·</span>
-          <i className="or-cap-dn"></i><span>it had you</span>
-          <span className="or-cap-dot">·</span>
-          <span>tap to recall</span>
+        {rc && rq && (
+          <div className="or-aside" style={{ marginTop: 10 }}>{"“" + rq.q.text + "”"} — it called <b>{rq.q.options[rc.pred]?.label}</b>. {rc.pred === rc.mine ? "You did too." : <>You said <b>{rc.mine != null ? rq.q.options[rc.mine]?.label : ""}</b>.</>}</div>
+        )}
+        {why && !rc && rec && (
+          // the working (2026-08-26): the sealed call rebuilt in the open —
+          // one row per evidence answer, its bar the crowd split it
+          // contributed, the hairline the coin, ink weighted by its pull.
+          // FIVE empty states, each its own truth: still fetching; a call
+          // your answers never moved (the prototype says "guessed at the
+          // coin" — live the call falls back to the crowd's own lean, so
+          // that is what the line says); a read that refused; evidence
+          // with plenty of voters but no lean past 0.54, which is the
+          // ordinary way a row drops out; and evidence real but below the
+          // 12-in-both-samples floor, which is thinness, not absence.
+          //
+          // It said three, and printed the last sentence for the middle
+          // two as well — naming a sample size of "under 12" over crossings
+          // of forty and over reads that never happened.
+          <div className="or-proof" style={{ marginTop: 10 }}>
+            <span className="or-proof-kick">its working</span>
+            {work === "pending" ? (
+              <span className="or-ev-none">Reading the crowd…</span>
+            ) : work && work.rows.length ? work.rows.map((r, k) => {
+              const evq = qOf(r.evId);
+              if (!evq) return null;
+              const wmax = work.rows[0].w || 1;
+              const evFill = th != null ? `oklch(0.78 0.07 ${th})` : "color-mix(in oklab, var(--ink), var(--surface-2) 35%)";
+              return (
+                <div className="or-ev" key={r.evId} style={{ animationDelay: `${k * 80}ms` }}>
+                  <span className="or-ev-q">You said <b>{evq.q.options[r.side]?.label}</b>{" — "}{"“" + evq.q.text + "”"}</span>
+                  <span className="or-ev-row">
+                    <span className="or-ev-bar"><i style={{ width: `${Math.round(r.share * 100)}%`, background: evFill, opacity: 0.55 + 0.45 * Math.min(1, r.w / wmax) }}></i><em></em></span>
+                    <span className="or-ev-word">{orWord(r.share)} pick <b>{q.options[rec.pred]?.label}</b> · {r.n} in both samples</span>
+                  </span>
+                </div>
+              );
+            }) : work && !work.hadEv ? (
+              <span className="or-ev-none">Nothing in your answers pointed either way here — the call is the crowd’s own lean, and the faint ink says so.</span>
+            ) : work && work.failed ? (
+              // Not a fact about the crowd. This used to print the sample
+              // sentence, so a refused read read as a thin one.
+              <span className="or-ev-none">Couldn’t read the crowd for this one — open it again to retry.</span>
+            ) : work && work.weak && !work.thin ? (
+              // The ORDINARY case, and the one the old sentence described
+              // as a sample size: plenty of people, no lean worth printing.
+              <span className="or-ev-none">Nothing your answers moved leaned far enough here to show as a row.</span>
+            ) : (
+              <span className="or-ev-none">The answers that moved it don’t have enough shared voters to count in the open — under 12 in both samples.</span>
+            )}
+            <span className="or-proof-base">sealed before your tap · counted only from answers you’d already given · the mark is the coin</span>
+          </div>
+        )}
+        {/* the record, with its key in the kicker — the standing legend the
+            one-time hints used to teach (2026-09-02) */}
+        <div style={{ flex: "none", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--rule)" }}>
+          <div className="pt-kick">
+            Your record · {log.length} answer{log.length === 1 ? "" : "s"} ·{" "}
+            <span style={{ fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>up = you broke it, tick = it had you</span>
+          </div>
+          <OrLedger log={log} qOf={qOf} sel={sel} onPick={(k) => { setSel(k); setWhy(false); }}></OrLedger>
         </div>
-      )}
-      <div className="or-foot">
-        {rec
-          ? <button className="or-next" onClick={next}>Next</button>
-          : <span className="or-sealed">sealed</span>}
       </div>
     </div>
   );

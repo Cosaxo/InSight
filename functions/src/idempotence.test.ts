@@ -72,10 +72,14 @@ async function deliver(id: string, data: Doc) {
 }
 
 /** One update delivery: the same answer doc, optionIdx moved. */
-async function deliverEdit(id: string, from: number, to: number) {
+async function deliverEdit(id: string, from: number, to: number, anchors?: Doc) {
   const doc = (optionIdx: number) => ({
     exists: true,
-    get: (f: string) => ({ surface: "daily", optionIdx } as Doc)[f],
+    // The anchors snapshot is FROZEN by rules, so the real edit event
+    // carries the same one the create did — and the breakdown retarget
+    // reads it off the `after` document. Optional here so the cases that
+    // are only about counts stay as small as they were.
+    get: (f: string) => ({ surface: "daily", optionIdx, ...(anchors ? { anchors } : {}) } as Doc)[f],
   });
   await (onV2AnswerUpdated as unknown as { run: (e: unknown) => Promise<void> }).run({
     id,
@@ -180,6 +184,105 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     expect(entry!.optionIdx).toBe(0);
     // …and a CREATE carries none: its absence is the marker.
     expect(store.get("v2_agg_events/evt-1")).not.toHaveProperty("fromIdx");
+  });
+
+  it("an edit that arrives before its create THROWS, so Eventarc redelivers", async () => {
+    // Eventarc orders nothing between a document's create and update
+    // deliveries, so the edit can land first. `retargetCounts` refuses
+    // (the old option holds no votes) and the trigger throws, which under
+    // `retry: true` is the whole recovery: the edit comes back after the
+    // create folded.
+    //
+    // Returning instead would be SILENT and permanent — Eventarc marks the
+    // delivery done, and that voter's option never moves on any question,
+    // for as long as the app runs. Swapping the throw for a `return` left
+    // the whole functions suite, tsc and test:scripts green, and the
+    // emulator cannot reach it: a healthy emulator never delivers out of
+    // order.
+    await expect(
+      deliverEdit("edit-1", 1, 0),
+      "an edit before its create was accepted and dropped",
+    ).rejects.toThrow(/before its create/);
+    // …and nothing was written, so the redelivery is a clean replay
+    // rather than one guarded by a ledger entry for a fold that never was.
+    expect(store.has("v2_agg_events/edit-1")).toBe(false);
+    expect(store.has(AGG)).toBe(false);
+  });
+
+  it("an editedAt-only rewrite folds nothing at all", async () => {
+    // Same option to the same option: a stamp, not a move. The early
+    // return is what keeps it out of the published edit matrix — without
+    // it the fold writes a DIAGONAL cell, the one shape pure.ts states
+    // cannot occur, into a matrix readers take as "people who changed
+    // their mind". Green everywhere when removed; the e2e only ever edits
+    // to a different index.
+    await deliver("evt-1", vote);
+    await deliverEdit("edit-1", 1, 1);
+    expect(store.has("v2_agg_events/edit-1"), "a stamp was folded as a move").toBe(false);
+    const edits = (store.get(AGG)?.edits as Doc) || {};
+    expect(Object.keys(edits), "an editedAt-only rewrite reached the edit matrix").toEqual([]);
+    // The counts are untouched, which is the reader-visible half.
+    expect((store.get(AGG)?.counts as Doc)["1"]).toBe(1);
+  });
+
+  // ── the D86 invariants, moved off the emulator ──────────────────────
+  //
+  // These four are not about idempotence; they are the edit arm's core
+  // promises, and until now the ONLY thing that executed them was
+  // `firestore-tests/e2e-v2-loop.mjs` — Java 21, a full emulator boot and
+  // several minutes. Each one mutated green in the fast runner, in a file
+  // that already builds exactly the state each needs. One line each.
+  it("an edit does not add a person to the question's population", async () => {
+    // The D86 headline: an edit MOVES a vote. If `total` climbed with it,
+    // every "N people answered" on the question would drift upward every
+    // time somebody changed their mind, and no recount exists.
+    await deliver("evt-1", vote);
+    await deliver("evt-2", { ...vote, optionIdx: 1 });
+    await deliverEdit("edit-1", 1, 0);
+    expect(store.get(AGG)?.total, "an edit was counted as a new answer").toBe(2);
+  });
+
+  it("an edit moves inside the breakdown cells too, not just the totals", async () => {
+    // The anchors an answer snapshots are frozen, so an edit lands in
+    // exactly the cells the create folded into. Without the retarget the
+    // headline number moves and every cut of it — by age, by country —
+    // keeps the old option: the same question reads two different ways
+    // depending on which lens you open.
+    await deliver("evt-1", vote); // optionIdx 1, country NO, ageBand 25-34
+    await deliverEdit("edit-1", 1, 0, vote.anchors);
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by?.country?.NO?.["0"], "the country cut kept the old option").toBe(1);
+    expect(by?.country?.NO?.["1"]).toBeUndefined();
+  });
+
+  it("the create after an edit keeps the published edit matrix", async () => {
+    // The create arm republishes the whole document, so it has to carry
+    // the edits matrix forward — otherwise the next person to answer wipes
+    // the record of everyone who ever changed their mind.
+    await deliver("evt-1", vote);
+    await deliverEdit("edit-1", 1, 0);
+    expect(store.get(AGG)?.edits, "the edit matrix was not published").toBeTruthy();
+    await deliver("evt-2", vote);
+    expect(
+      store.get(AGG)?.edits,
+      "a later answer erased the whole edit matrix",
+    ).toBeTruthy();
+  });
+
+  it("the rank arm accumulates positions rather than republishing the last answer's", async () => {
+    // `pos` is a running sum the client turns into the crowd's order. If
+    // each answer overwrote it, the published order would be whatever the
+    // most recent person happened to say, while the count beside it
+    // climbed — a crowd order with one voter in it, labelled with the
+    // crowd's size.
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("evt-1", rank);
+    await deliver("evt-2", rank);
+    expect(store.get(AGG)?.total).toBe(2);
+    const pos = store.get(AGG)?.pos as number[];
+    expect(pos.reduce((a, b) => a + b, 0), "positions stopped accumulating").toBe(
+      2 * (0 + 1 + 2),
+    );
   });
 
   it("marks the ledger in the same transaction as the fold", async () => {

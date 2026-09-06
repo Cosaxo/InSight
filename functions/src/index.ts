@@ -323,17 +323,38 @@ export const deleteAccount = onCall(
     // delete, which turns "too talkative" into an account that can never
     // finish deleting itself.
     try {
-      // The take ids are COLLECTED as they are deleted, because a flag is
-      // keyed by the take it names and once the take is gone nothing can
-      // find its flags again. Same paging as deleteQueryDocs, which cannot
-      // hand back what it removed.
-      const takeIds: string[] = [];
+      // FLAGS FIRST, THEN THE TAKES THEY NAME — per page.
+      //
+      // This collected the ids as it deleted, and swept their flags after
+      // the whole loop, on the reasoning that "once the take is gone
+      // nothing can find its flags again". True, and that is exactly the
+      // problem: it made the phase depend on state it had already
+      // destroyed. One transient failure anywhere after the loop, then the
+      // user's own retry, and the takes are gone, so the ids come back
+      // empty and their flags are unreachable forever — while the retry
+      // returns `ok` and deletes the auth user, so there is no third run.
+      // Verified against the real handler: the surviving document was a
+      // flag whose id contains the erased uid, in a collection with no TTL
+      // whose counts rank the moderation queue.
+      //
+      // Sweeping each page's flags while its takes still exist makes the
+      // phase resumable: at any failure point, whatever is left is still
+      // queryable by `authorUid`.
       for (;;) {
         const snap = await db.collection("v2_takes")
           .where("authorUid", "==", uid).limit(400).get();
         if (snap.empty) break;
+        const ids = snap.docs.map((d) => d.id);
+        // Chunked at ten because `in` is a bounded operator, and over ids
+        // rather than a prefix match, which Firestore has no way to
+        // express on a suffix.
+        for (let i = 0; i < ids.length; i += 10) {
+          await deleteQueryDocs(
+            db.collection("v2_flags").where("takeId", "in", ids.slice(i, i + 10)),
+          );
+        }
         const batch = db.batch();
-        snap.docs.forEach((d) => { takeIds.push(d.id); batch.delete(d.ref); });
+        snap.docs.forEach((d) => batch.delete(d.ref));
         await batch.commit();
         if (snap.docs.length < 400) break;
       }
@@ -343,23 +364,36 @@ export const deleteAccount = onCall(
       //
       // A flag carries the uid of whoever cast it, and separately the thing
       // it reports. Sweeping only the author left every report AGAINST this
-      // account standing: an avatar flag carries `target: {uid}` outright,
-      // and a flag on a world take carries `takeId: "{qid}_{uid}"`, because
-      // a world take's id IS qid_uid. Nothing else reaches them —
-      // clearFlagsFor only runs for targets the moderation queue actually
-      // considers, and the queue's floor is MOD_QUEUE_MIN_FLAGS, so one or
-      // two reports on a departed account's face or take were residue
-      // forever. In the one collection whose stated posture is that erasure
-      // takes "their takes and flags".
+      // account standing: clearFlagsFor only runs for targets the
+      // moderation queue actually considers, and the queue's floor is
+      // MOD_QUEUE_MIN_FLAGS, so one or two reports on a departed account's
+      // face were residue forever. In the one collection whose stated
+      // posture is that erasure takes "their takes and flags".
+      //
+      // WHAT THIS REACHES IS AVATAR FLAGS, AND ONLY THOSE. The paragraph
+      // here used to say it reached a flag on a world take as well, "since
+      // a world take's id IS qid_uid" — which is true of the id and says
+      // nothing about this query. `isTakeFlag()` in firestore.rules pins a
+      // take flag's fields to exactly ["takeId", "gid", "uid", "at"]: there
+      // is no `target` on one, so this equality cannot match a take flag,
+      // ever. The `target` field exists only on the avatar arm, which
+      // carries it (the rule's own note) so the rule can reach the avatar
+      // document without doing string surgery on an id.
+      //
+      // The reachable residue is therefore: report cast on a world take →
+      // the author deletes their own take (permitted, "your speech stays
+      // yours to withdraw") → the flag is orphaned → the author erases.
+      // The takes loop above finds no take, so `takeId in ids` never names
+      // it, and this cannot see it. Confirmed against the real callable in
+      // the emulator, not reasoned. Closing it needs either a `target` on
+      // take flags (a rules change, and one that must stay OPTIONAL: a
+      // released ruleset applies instantly while installed clients update
+      // over weeks, so requiring the field would refuse every report from
+      // an app already on a phone) or a trigger that clears a take's flags
+      // when the take is deleted, which is what the queue build's own
+      // `settled` sweep already does for targets that clear the floor.
+      // Neither is a comment's call — see the night list.
       await deleteQueryDocs(db.collection("v2_flags").where("target", "==", uid));
-      // Chunked at ten because `in` is a bounded operator, and over the ids
-      // just collected rather than a prefix match, which Firestore has no
-      // way to express on a suffix.
-      for (let i = 0; i < takeIds.length; i += 10) {
-        await deleteQueryDocs(
-          db.collection("v2_flags").where("takeId", "in", takeIds.slice(i, i + 10)),
-        );
-      }
       // The face, both halves (D178). The document is one delete; the
       // BYTES are the first thing this function has ever had to remove
       // from Storage, and the reason storage.rules could keep its retired
@@ -386,13 +420,24 @@ export const deleteAccount = onCall(
       // The mix cache next door needs no such sweep: it holds ranked type
       // NAMES and a count, nothing keyed by a uid.
       //
-      // Best-effort by construction, and that is honest rather than
-      // convenient: the cache is derived, expires on its own within
-      // minutes, and a failure here must not fail the phase that deletes
-      // the source of truth.
+      // Best-effort, and now actually so. That sentence stood here with
+      // nothing making it true: there is no inner try in this phase, so a
+      // failed delete of one derived cache document pushed the whole phase
+      // onto `failed` and refused the auth delete — exactly what the
+      // sentence says must not happen. Reordering the clears BEFORE the
+      // presence delete (below) would have made that worse, since the
+      // source of truth would then survive the failure too.
+      //
+      // The catch is what the comment always claimed: the cache is
+      // derived, it expires on its own within minutes, and losing one
+      // sweep of it must not keep an account alive.
+      // …and the same ordering rule, for the same reason: the room caches
+      // are found through the presence document's own cell, so they are
+      // cleared BEFORE it is deleted. Deleting first made the sweep
+      // unrepeatable — a retry read no cell and could never find the
+      // rosters again, leaving the erased uid listed in a room.
       const pres = await db.collection("v2_presence").doc(uid).get();
       const presCell = pres.get("cell");
-      await db.collection("v2_presence").doc(uid).delete();
       if (typeof presCell === "string" && presCell) {
         // NINE, not one. The cache is keyed by the CALLER's cell while its
         // roster is folded over that cell's whole 3x3 neighbourhood
@@ -409,11 +454,16 @@ export const deleteAccount = onCall(
         // the whole edge case handled by using it rather than deriving the
         // block here.
         const stale = presenceNeighbors(presCell);
-        await Promise.all(
-          (stale.length ? stale : [presCell])
-            .map((c) => db.collection("v2_presence_room").doc(c).delete()),
-        );
+        try {
+          await Promise.all(
+            (stale.length ? stale : [presCell])
+              .map((c) => db.collection("v2_presence_room").doc(c).delete()),
+          );
+        } catch (err) {
+          logger.warn("[deleteAccount] presence room cache sweep failed:", err);
+        }
       }
+      await db.collection("v2_presence").doc(uid).delete();
       // …and the queue's copy of the text, which the take's deletion does
       // not take with it. Must run AFTER the takes are gone — it identifies
       // its targets by their take being absent. See deleteOrphanedModQueue.
@@ -610,6 +660,36 @@ export const deleteAccount = onCall(
           revealCursor = page.docs[page.docs.length - 1];
         }
       }
+      // …and the groups this account OWNS but is no longer in, which the
+      // membership query above cannot see. Exactly the gap 1c-bis exists to
+      // close for reveals, one field over: leaveGroupV2 removes a uid from
+      // memberUids and memberNames and deliberately leaves `ownerUid`
+      // standing (D45 — leaving is not an erasure request), so an account
+      // that created a circle and later left it keeps its raw uid on a
+      // document firestore.rules serves whole to every current member, and
+      // to everyone they invite afterwards, forever.
+      //
+      // docs/data-inventory.md enumerates what survives an erasure as a
+      // closed set of three, and web/privacy.html promises in writing that
+      // "two things intentionally survive, and neither can identify you".
+      // This was in neither list, which makes it a defect against a written
+      // promise rather than a judgement call.
+      //
+      // Single-field equality, so no composite index is needed. It runs
+      // AFTER the member loop deliberately: that loop deletes the field for
+      // every group it touches, so those documents no longer match this
+      // query and are not written twice. NOT_FOUND is tolerated for the
+      // same reason it is above — a group deleted underneath us is the
+      // outcome we wanted, and failing here would refuse the auth delete.
+      const owned = await db.collection("v2_groups").where("ownerUid", "==", uid).get();
+      for (const g of owned.docs) {
+        try {
+          await g.ref.update({ ownerUid: FieldValue.delete() });
+        } catch (err) {
+          if ((err as { code?: number | string }).code !== 5
+            && (err as { code?: string }).code !== "not-found") throw err;
+        }
+      }
     } catch (err) {
       logger.error("[deleteAccount] v2 group scrub failed:", err);
       failed.push("v2Groups");
@@ -698,6 +778,47 @@ export const deleteAccount = onCall(
       if (pass >= PASS_CAP) {
         throw new Error(
           `reveal scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
+        );
+      }
+
+      // …AND THE REVEALS THAT NAME YOU WITHOUT LISTING YOU.
+      //
+      // The pass above walks `members`, which is membership at REVEAL
+      // time. A pick answer copies the picked uid into
+      // `votes.<voter>.pickUid`, validated against membership at ANSWER
+      // time. Answer on a pick day, leave the circle before that night's
+      // reveal, and the two disagree: the uid is in the document, in no
+      // array the query above can see, and the document is readable by any
+      // signed-in account. `web/privacy.html` says deletion removes "your
+      // picks and name inside past group reveals".
+      //
+      // `pickedUids` is written by the reveal builder for exactly this,
+      // and the uid is removed from it in the same write that clears the
+      // pick — otherwise this loop would re-find the same page until
+      // PASS_CAP and throw.
+      for (pass = 0; pass < PASS_CAP; pass++) {
+        const page = await db.collectionGroup("reveals")
+          .where("pickedUids", "array-contains", uid).limit(PAGE).get();
+        if (page.empty) break;
+        let batch = db.batch();
+        let ops = 0;
+        for (const r of page.docs) {
+          batch.update(r.ref, {
+            ...pickUidScrub(r),
+            pickedUids: FieldValue.arrayRemove(uid),
+          });
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+        scrubbed += page.size;
+      }
+      if (pass >= PASS_CAP) {
+        throw new Error(
+          `pick scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
         );
       }
       counts.reveals = scrubbed;
@@ -1164,3 +1285,8 @@ export {
 // LEDGER_RETENTION_DAYS. This repairs the breakdown too, at any age, and
 // is the safety net every later projection change rests on.
 export { rebuildAggregateV2 } from "./replay";
+// D379: the shareable results page — a public web page per sponsored
+// question at the hosting rewrite /q/{qid}, rendered here on the admin
+// SDK off the two public documents. onRequest, and no App Check, because
+// it serves the open web; the reasoning is share.ts's header.
+export { resultsPageV2 } from "./share";

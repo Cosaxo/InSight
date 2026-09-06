@@ -71,11 +71,12 @@ describe("Crossroads · the card", () => {
 
     // Three forks in, the ending is named and its line is drawn.
     expect(PATHS.walkOf(st.id)).toBe("AAA");
-    // getAllBy, deliberately: the ending's name appears TWICE by design —
-    // once as the heading under the tree, once as the label on the tree's
-    // own end node — and a getBy here would fail on the second one as
-    // though something were wrong.
-    expect(screen.getAllByText(st.endings["AAA"].name).length).toBe(2);
+    // ONCE since 2026-09-02: the ending's name is the heading under the
+    // tree. It used to be drawn on the tree's end node as well, squeezed
+    // against the right edge of the field, and the design moved it into
+    // the card where it can be read — so this counts one, and a second
+    // copy reappearing on the field is a regression rather than a design.
+    expect(screen.getAllByText(st.endings["AAA"].name).length).toBe(1);
     expect(screen.getByText(st.endings["AAA"].line)).toBeTruthy();
     // …and the tree with it, labelled for a screen reader by where it ends.
     expect(screen.getByRole("img", { name: new RegExp(st.endings["AAA"].name) })).toBeTruthy();
@@ -95,7 +96,7 @@ describe("Crossroads · the card", () => {
     expect(screen.getByText(st.nodes["B"].q)).toBeTruthy();
     choose(st.nodes["B"].a[0].t);
     choose(st.nodes["BA"].a[0].t);
-    expect(screen.getAllByText(st.endings["BAA"].name).length).toBe(2);
+    expect(screen.getAllByText(st.endings["BAA"].name).length).toBe(1);
 
     // "Walk again" stood here and is gone (D211): a re-walk moved the
     // recorded result, so a finished card offers no way back in — no redo
@@ -199,18 +200,55 @@ describe("Crossroads · live", () => {
   it("reads the crowd out of the counts, not out of an authored share", () => {
     render(<PathsCard q={STORY} />);
     walk3();
-    // 40 of 100 ended at AAA. The demo pool's own AAA share is nowhere near
-    // this, so a card that had fallen back would print a different number
-    // rather than no number — which is why the assertion is on the value.
-    expect(screen.getByText("you and 40% ended here")).toBeTruthy();
-    expect(screen.getByText("1 in 3 walks your road")).toBeTruthy();
+    // 40 of 100 ended at AAA — AND YOU, which is 41 of 101. The published
+    // aggregate excludes the reader's own ending until the fold has run,
+    // and the card was dividing by it: it said "1 in 3" where the true
+    // reading is "1 in 2", always in the direction that flatters. The demo
+    // pool's own AAA share is nowhere near either, so a card that had
+    // fallen back would print a different number rather than no number —
+    // which is why the assertion is on the value.
+    expect(screen.getByText("you and 41% ended here")).toBeTruthy();
+    expect(screen.getByText("1 in 2 walks your road")).toBeTruthy();
   });
 
-  it("says first-to-end-here while the crowd holds nobody at your ending", () => {
-    // The fold that will count this walk is still in flight (or nobody
-    // ever follows): a crowd exists, none of it at your ending. The card
-    // printed "you and 0% ended here" and "1 in Infinity walks your road"
-    // to the person standing there — from a device, verbatim (D211).
+  it("counts you at an ending the crowd never reached, instead of calling you first", () => {
+    // The reading that used to be impossible. 60 others finished, none at
+    // AAA, and the card said "you're the first to end here" — which was the
+    // literal truth about the AGGREGATE and false about the room: you are
+    // standing at that ending. One of 61 is 2%, and that is what it says.
+    render(<PathsCard q={{ ...STORY, counts: [0, 5, 10, 5, 20, 5, 10, 5], total: 60 }} />);
+    walk3();
+    expect(screen.getByText("you and 2% ended here")).toBeTruthy();
+    expect(screen.getByText("1 in 61 walks your road")).toBeTruthy();
+    expect(screen.queryByText(/first to end here/)).toBeNull();
+  });
+
+  it("still says <1% rather than 0% when your own share rounds away", () => {
+    // The guard the case above used to cover, with a fixture that can still
+    // reach it: alone at an ending among 300 others is 1 in 301, which
+    // rounds to zero per cent. "you and 0% ended here", to the person
+    // standing there, is the failure D211 named.
+    const counts = [0, 40, 40, 40, 45, 45, 45, 45];
+    render(<PathsCard q={{ ...STORY, counts, total: counts.reduce((a, b) => a + b, 0) }} />);
+    walk3();
+    expect(screen.getByText("you and <1% ended here")).toBeTruthy();
+    expect(screen.queryByText(/you and 0% ended here/)).toBeNull();
+    expect(screen.queryByText(/Infinity/)).toBeNull();
+  });
+
+  it("says first-to-end-here only while the vote is still in flight", () => {
+    // D211's sentence, and it now has ONE reading rather than two. It used
+    // to cover both the transient — the window between finishing a walk and
+    // the vote being stored — and the permanent case of a walk nobody else
+    // ever followed. The second is gone: you are counted in your own share,
+    // so a finished walk is never at zero. The first remains, and this is
+    // it, reproduced by holding the write: `LIVE.vote` does not record, so
+    // `myVotes()` has nothing to fold back in.
+    //
+    // It matters because the alternative was "you and 0% ended here" and
+    // "1 in Infinity walks your road", printed to the person standing
+    // there — from a device, verbatim (D211).
+    LIVE.vote.mockImplementationOnce(() => {});
     render(<PathsCard q={{ ...STORY, counts: [0, 5, 10, 5, 20, 5, 10, 5], total: 60 }} />);
     walk3();
     expect(screen.getByText("you’re the first to end here")).toBeTruthy();
@@ -227,7 +265,7 @@ describe("Crossroads · live", () => {
     votes["feed-pt1"] = "4";                       // BAA
     render(<PathsCard q={STORY} />);
     expect(PATHS.walkOf(STORY.id)).toBe("");
-    expect(screen.getAllByText("End BAA").length).toBe(2);
+    expect(screen.getAllByText("End BAA").length).toBe(1);
   });
 
   it("offers no redo over a standing answer — a walk is final (D211)", () => {
@@ -237,7 +275,7 @@ describe("Crossroads · live", () => {
     // way back in: the ending stands and no fork is on offer.
     votes["feed-pt1"] = "4";
     render(<PathsCard q={STORY} />);
-    expect(screen.getAllByText("End BAA").length).toBe(2);
+    expect(screen.getAllByText("End BAA").length).toBe(1);
     expect(screen.queryByRole("button", { name: "Walk again" })).toBeNull();
     expect(screen.queryByRole("button", { name: "_ left" })).toBeNull();
     expect(LIVE.vote).not.toHaveBeenCalled();
@@ -257,7 +295,7 @@ describe("Crossroads · live", () => {
     expect(LIVE.vote).not.toHaveBeenCalled();
     expect(LIVE.editVote).not.toHaveBeenCalled();
     expect(PATHS.walkOf(STORY.id)).toBe("");
-    expect(screen.getAllByText("End BAA").length).toBe(2);
+    expect(screen.getAllByText("End BAA").length).toBe(1);
     expect(screen.queryByText("End AAA")).toBeNull();
   });
 
@@ -310,7 +348,7 @@ describe("Crossroads · the Map branch", () => {
     const tree = pathsMapTree();
     expect(tree.nodes).toHaveLength(1);
     expect(tree.nodes[0].ans).toBe("End AAA");
-    expect(tree.nodes[0].note).toBe("1 in 3"); // 40 of 100 → 1 in 2.5 → 3
+    expect(tree.nodes[0].note).toBe("1 in 2"); // 40 of 100 AND YOU → 41/101 → 1 in 2.46 → 2
   });
 
   it("live: a story nobody has answered into claims no rarity", () => {
@@ -332,7 +370,7 @@ describe("Crossroads · the Map branch", () => {
     const node = pathsMapTree().nodes[0];
     const { container } = render(<MTPathsCard node={node} />);
     expect(container.textContent).toContain("Live Story");
-    expect(container.textContent).toContain("1 in 3 walks this road");
+    expect(container.textContent).toContain("1 in 2 walks this road");
     expect(container.querySelector("svg")).not.toBeNull();
   });
 });

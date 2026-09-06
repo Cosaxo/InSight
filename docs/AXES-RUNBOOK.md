@@ -41,7 +41,7 @@ remembered:
 Three Routines, extending the five in `docs/QUESTION-FARM.md`
 § Scheduled runs. Same governance, restated where it differs:
 
-| Lane | Proposed schedule (UTC) | Contract | May edit | Merge authority |
+| Lane | Schedule (UTC) | Contract | May edit | Merge authority |
 | --- | --- | --- | --- | --- |
 | **Axes build** | `0 11 * * 2` — weekly, Tue 11:00 | § The build lane | the files its step names, plus ticking that step's own checkbox here in the same PR | **never merges** — skeptic then owner |
 | **Axes skeptic** | `0 11 * * 3` — weekly, Wed 11:00 | § The skeptic lane | nothing — review comments and the run log only | n/a |
@@ -278,7 +278,7 @@ Mandatory reporting: whatever the outcome — PR opened or advanced, no-op, or a
 The skeptic lane's canonical prompt:
 
 ```
-You are running InSight's AXES SKEPTIC lane — a scheduled weekly job, the day after the build lane. Your container starts EMPTY and its git is read-only until you provision it — do this first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", and run the clone command its result gives (plus register_repo_root if instructed). Read docs/AXES-RUNBOOK.md § The skeptic lane on origin/main and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
+You are running InSight's AXES SKEPTIC lane — a scheduled weekly job, the day after the build lane. THE CHEAP GATE COMES FIRST (docs/OPS-RUNBOOK.md §0, the no-op gate): before provisioning anything and before reading any contract, list the open claude/axes-* pull requests with your GitHub tools; if there are none, write the no-op on the run log and stop — a run with nothing to review needs neither a clone nor a runbook. Only a run WITH a PR to review goes on: your container starts EMPTY and its git is read-only until you provision it — do that next: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", and run the clone command its result gives (plus register_repo_root if instructed). Read docs/AXES-RUNBOOK.md § The skeptic lane on origin/main and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
 
 The job in one sentence: find the open axes program PRs (claude/axes-* branches); if none, the run is a logged no-op; for each one, review it as a session that did not write it — read the runbook step first and the diff second; hunt what stays green while being wrong (assertions that cannot fail, fakes that cannot see where a number lands, publications nothing pins — D276 in docs/DECISIONS.md is the checklist's source); check the custody surface (new read paths, UI claims firestore.rules does not make true, missing same-PR paperwork: inventory row, store form, privacy sentence, COSTS line, erasure arm); ask whether the step's named gate proves the step or something easier that resembles it; then leave findings as PR review comments with file and line, and a one-line verdict — clean, or findings listed — on the run log.
 

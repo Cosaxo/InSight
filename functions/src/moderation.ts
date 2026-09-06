@@ -36,7 +36,23 @@ const REGION = FUNCTIONS_REGION;
 // Drafted in docs/MODERATION.md as open questions; live here as the
 // operator-tunable answers until the maintainer settles them.
 const MOD_QUEUE_MIN_FLAGS = 3;
-const MOD_QUEUE_SIZE = 25;
+export const MOD_QUEUE_SIZE = 25;
+// THE CAP CANNOT FIRE, and three places named it as the bound on a wrong
+// remove verdict. `scripts/mod-queue.mjs` mints a fresh `randomUUID()` per
+// invocation — deliberately, because "a run id somebody can choose is a
+// run id somebody can reuse" — and submits exactly one verdict with it. So
+// the count query below always counts 0, on every verdict, forever.
+//
+// What actually confines a run is the pair the caller and this file form:
+// one verdict per invocation, typed by a person who read the text, and one
+// verdict per take per queue generation (the `already-exists` guard in the
+// transaction). The queue itself holds MOD_QUEUE_SIZE entries.
+//
+// Left standing rather than removed, because the choice between the two
+// ways to make it honest is the maintainer's: scope the runId to a session
+// so the cap counts something, or drop it and stop paying for the
+// aggregation read on every verdict. Recorded either way — the cost today
+// is one billed count() per verdict for a number that is always zero.
 const MOD_RUN_CAP = 50;
 // How many over-threshold takes the build will CONSIDER to fill those 25.
 //
@@ -71,8 +87,10 @@ export const MOD_QUEUE_PER_AUTHOR = 5;
 // deviation is recorded in D83 rather than papered over. Until the
 // low-privilege Routine lands (still blocked, docs/MODERATION.md), the
 // only verdict source is a MOD_UIDS operator acting by hand — a remove
-// verdict now actually hides, so the blast radius of a wrong one is real
-// and bounded by MOD_RUN_CAP.
+// verdict now actually hides, so the blast radius of a wrong one is real.
+// What bounds it is ONE VERDICT PER INVOCATION on the caller's side and
+// one verdict per take per queue generation on this one; MOD_RUN_CAP does
+// not, and this comment said it did — see the cap's own note.
 export const MOD_ADVISORY = false;
 
 function modUids(): string[] {

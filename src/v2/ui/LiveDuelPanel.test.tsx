@@ -252,7 +252,10 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
   });
 
-  it("seals on the first tap in a group, where there is nothing to guess", async () => {
+  it("a group answers, then reads the room — and still writes once (D386)", async () => {
+    // Until D386 a group sealed on the first tap: there was nothing to
+    // guess. Now the second tap is a call on where the room will land,
+    // and the pick waits for it exactly as a duo's does — one create.
     const calls: Array<[string, number, number | undefined]> = [];
     LIVE.social.voteDuel = async (gid: string, idx: number, guess?: number) => {
       calls.push([gid, idx, guess]);
@@ -260,8 +263,11 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
     render(<LiveDuelPanel mode="group" />);
     fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
+    expect(calls, "the pick wrote before the call on the room existed").toEqual([]);
+    expect(screen.getByText(/And the room picked…\?/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tea" }));
     await vi.waitFor(() => expect(calls.length).toBe(1));
-    expect(calls[0]).toEqual(["g1", 0, undefined]);
+    expect(calls[0]).toEqual(["g1", 0, 1]);
   });
 });
 
@@ -278,6 +284,27 @@ describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
     // placeholder is the only thing that says so.
     expect(screen.getByPlaceholderText(/Name or @handle/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /copy invite link/i })).toBeTruthy();
+  });
+
+  it("does not count it as one to play, or dot the rail for it", () => {
+    // `todayQ` returns a question for any room whatever its membership, so
+    // a 1v1 whose partner has not joined was owed an answer for ever: the
+    // header said "1 to play" and the rail marked it "still to play",
+    // directly above a card reading "Waiting for someone" with no options
+    // on it. The prototype excluded an unaccepted partner from both.
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/Waiting for someone/i), "the fixture is not the solo state").toBeTruthy();
+    expect(screen.queryByText(/to play/), "a room that cannot be played was counted").toBeNull();
+    expect(screen.queryByLabelText(/still to play/), "the rail dotted a room with nobody in it").toBeNull();
+  });
+
+  it("still counts a real 1v1 you have not answered — the control", () => {
+    // Without this, excluding everything passes the case above and the
+    // header stops counting the days you actually owe.
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me", "u_them"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/1 to play/)).toBeTruthy();
   });
 
   it("renders nothing when LIVE is off", () => {
@@ -846,12 +873,18 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
   });
 
+  // Dates RELATIVE TO NOW, not literals. The labels are a claim about how
+  // long ago a day was, so a fixture pinned to August could only ever be
+  // right on the day it was written — and it stayed green for months
+  // because the labels ignored the date entirely, which is the defect.
+  const dayAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+
   it("browses back to a day through its dot, and back to today", () => {
     LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
     LIVE.social.bankQ = () => ({ prompt: "Coffee or tea?", options: ["Coffee", "Tea"] });
     LIVE.social.revealHistory = () => [
-      { day: "2026-08-13", qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } },
-      { day: "2026-08-12", qid: "duo-000", votes: { u_me: { optionIdx: 1 } }, names: { u_me: "Me" } },
+      { day: dayAgo(1), qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } },
+      { day: dayAgo(2), qid: "duo-000", votes: { u_me: { optionIdx: 1 } }, names: { u_me: "Me" } },
     ];
     render(<LiveDuelPanel mode="duo" />);
 
@@ -863,6 +896,31 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     fireEvent.click(screen.getByRole("button", { name: "‹ today" }));
     expect(screen.queryByText(/2 days ago · revealed/)).toBeNull();
     expect(screen.getByText("you said")).toBeTruthy();
+  });
+
+  it("counts a skipped day, rather than labelling by dot position", () => {
+    // revealHistory COMPACTS. A day where only one of them played has no
+    // reveal doc at all, so it is absent from the list rather than present
+    // as a hole — and the dots index the list. Before this, the second dot
+    // said "2 days ago" about a day five days old, and so did the card it
+    // opened; every entry behind a gap was wrong by the size of the gap.
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+    LIVE.social.bankQ = () => ({ prompt: "Coffee or tea?", options: ["Coffee", "Tea"] });
+    LIVE.social.revealHistory = () => [
+      { day: dayAgo(1), qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } },
+      // three days missing between these two
+      { day: dayAgo(5), qid: "duo-000", votes: { u_me: { optionIdx: 1 } }, names: { u_me: "Me" } },
+    ];
+    render(<LiveDuelPanel mode="duo" />);
+
+    const dot = screen.getByRole("button", { name: /5 days ago — revealed/i });
+    expect(dot, "the second dot is still labelled by its position").toBeTruthy();
+    fireEvent.click(dot);
+    expect(
+      screen.getByText(/5 days ago · revealed/),
+      "the card disagreed with the dot, or both counted positions",
+    ).toBeTruthy();
+    expect(screen.queryByText(/2 days ago · revealed/)).toBeNull();
   });
 });
 
@@ -1041,6 +1099,30 @@ describe("LiveDuelPanel · a tapped invite link", () => {
     // The circle's half of the consent is a member tapping Let in, and
     // the asker is told that rather than left to wonder.
     expect(await screen.findByText(/has to let you in/i)).toBeTruthy();
+  });
+
+  // …AND WHEN THE LINK ARRIVES WITH THE SCREEN ALREADY OPEN.
+  //
+  // The panel read the stash once, in a `useState` initializer, which is
+  // right for the ordinary case — the deep link opens the app and the panel
+  // mounts after it. It is silently wrong for the other one: an invite
+  // tapped while the Circle screen is already up stashes a code and
+  // navigates to the tab the user is already on, so nothing remounts, the
+  // initializer never runs again, and the invitation sits unread in
+  // sessionStorage until something else happens to remount the panel.
+  // Reproduced end to end before the subscription existed.
+  it("shows an invitation that arrives while the screen is already open", async () => {
+    const { stashJoinCode } = await import("../data/links");
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.queryByText(/An invitation/i), "the case started with one already pending").toBeNull();
+
+    // The deep-link boot path, minus the navigation it does not need here:
+    // the user is already on this tab, which is the whole point.
+    stashJoinCode("ABCD2345");
+
+    expect(await screen.findByText(/An invitation/i), "an invite arriving on an open screen was swallowed").toBeTruthy();
+    // …and it is still read-and-clear: the stash must not keep re-firing it.
+    expect(sessionStorage.getItem("insight.pendingJoin")).toBeNull();
   });
 
   // The one shortcut, and it is the circle having already consented:

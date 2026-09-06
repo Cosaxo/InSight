@@ -156,6 +156,219 @@ checker's path set, nine seeded `FEEDBACK.md` files — landed on
 staged on a branch first because a change to a lane's contract passes
 the owner (D289 §4). The first review is the Routine's first firing.
 
+## The drift — the lanes theorize the current app, not the perfect form
+
+**Found 2026-09-03, on the owner's reading of the corpus.** The owner's
+words: *"they have missed the point… what we should have envisioned is
+if we could have found out what genes were connected to certain things
+like intelligence, what people with ADHD or autism's main traits are…
+and how other data can be discovered and made stronger by it"* — and,
+naming the mechanism: *"most is wrong like database for example does not
+talk about the theoretical perfect database for axiom theory but instead
+improvements to the current database, this goes for all the axioms."*
+
+Both readings check out against the branch, and the second is the one
+with a fixable cause.
+
+**The evidence.** The review lane scored the questions lane
+**Connected = 2**, the lowest cell in its table. `gen-4` rules that
+*"discovery genetics stays out of scope"* — the genetic lane scoping out
+the owner's own question by name. Of sixteen `worth-building` bridge
+requests, fourteen are folds, fields and audits over what already ships
+(a fold cursor, a serving-design stamp, a replay audit); **two** propose
+new measurement, and **none** proposes a cross-axis capability. Across
+ten days and 129 claims the corpus contains **zero** worked scenarios of
+what the app could know, and zero visualisations — from a program whose
+map lane theorizes how to draw things.
+
+**The cause is the ladder, not the lanes.** §1 already says what the
+owner wants, in the owner's own 2026-08-26 words: *each axiom's purpose
+is to create data and data-connections as powerful and useful as
+possible, or to make another axiom's data stronger and more useful.*
+§4 then makes that clause unreachable:
+
+- **`cited`** requires named external sources. A claim like *"our logic
+  instrument crossed with imported genomes would measure ability
+  genetics without the education proxy"* has no source, because it
+  describes a dataset that does not exist.
+- **`measured`** requires agreement with *"InSight's own published
+  numbers readable from `main`"* — so the ladder's **top rung is
+  literally the current app**. The only way to reach it is to say
+  something true about what already ships.
+- **§3's ratchet** demands every run move a status or prune, so a run
+  spent on potential looks like a failed run.
+
+A lane maximizing its status therefore drifts, run by run, from the
+perfect form toward describing and improving the product. The database
+lane is the clean case: its `THEORY.md` opens by promising *"the
+perfect, most efficient and most useful database"*, its graph records
+*"none yet measured"*, and all three of its bridge requests are current
+-app maintenance. **The drift is the ladder's gradient, not a choice.**
+
+**D352 never reached the charter.** *Axiom power first* was recorded
+2026-09-02 — a limitation is a design problem to be solved around that
+power, never a reason to shrink it. `CHARTER.md` was last amended
+2026-09-01 and contains no reference to it. Every lane has been running
+against a contract the owner's own decision superseded.
+
+[`AXIOM-POTENTIAL.md`](AXIOM-POTENTIAL.md) is the missing half, written
+directly rather than waited for.
+
+## The charter amendment — superseded 2026-09-05 by the restart
+
+**Status: not applied, and now moot.** The wording below was approved on
+2026-09-03 to fix the charter the twelve lanes ran under. On 2026-09-05
+the owner ruled instead that the branch is discarded and the program
+restarts from a fresh plan — so there is no charter left to amend, and
+the rules below reach the new lanes through their standing prompt rather
+than through `CHARTER.md`. It is kept because the five clauses are the
+diagnosis turned into rules, and a restart that does not carry them
+rebuilds the same gradient: the perfect-form test, scale as no
+constraint, a status for capability claims that needs no citation, a
+route for potential entries, and a mechanical check rather than a
+paragraph. `graph/potential.mjs` exists on the unpushed branch
+`claude/charter-potential-2026-09-03` if the shape is ever wanted.
+
+## The wording, as approved 2026-09-03
+
+The owner's direction, given on this evaluation: *"Both and make sure it
+never drifts again and all should be the potential."* No routine may
+amend the charter (`AXES-PLAN.md` §10), and this one is not amended by a
+routine: it is the owner's word, recorded here, in the shape D346's
+review amendment used. Five sections change, and the fifth is a gate,
+because **a rule this program does not mechanically check is a rule it
+has already been shown not to keep** — `go-10`, its own finding, in the
+lane that wrote it.
+
+**§1 gains D352.** Appended:
+
+> **Axiom power first (D352, the owner, 2026-09-02).** What the axes can
+> measure and connect is the first priority. A limitation — privacy,
+> cost, the schema, a store form, a refusal already written down — is a
+> design problem to be solved AROUND that power, never a reason to
+> shrink it, and never a claim in place of one. A theory whose run
+> produced only limits produced nothing.
+
+**§1 gains the perfect-form test**, the answer to the drift:
+
+> A claim belongs in the graph only if it would still be worth making
+> if the current app did not exist. A statement that describes, audits
+> or improves what ships is not theory — it is a bridge request, and it
+> goes to `REQUESTS.md` where requests live. The test in one question:
+> *would this claim survive the product being rewritten from scratch?*
+
+**§4 gains a fifth rung, off the current-app axis entirely:**
+
+> **demonstrated** — a worked cross-axis scenario: what becomes
+> knowable when two or more axes cross, what it would take to get
+> there, and what it makes the other axes worth. It requires **no
+> citation and no existing data**, because it is a claim about
+> capability rather than about the world or the product. It is not
+> below `cited`; it is the other axis of the ladder, and a lane with no
+> `demonstrated` node is failing §1 however many `cited` nodes it
+> holds.
+
+**§3 gains the run requirement:**
+
+> Every run advances at least one `demonstrated` scenario — added,
+> deepened, or crossed into another axis. A run that produced only
+> current-app increments has not met the ratchet, whatever its node
+> count.
+
+**§8 widens the bridge.** Today a lane may only file *data to track,
+gather or compute*, which is why fourteen of sixteen requests are
+maintenance. It gains a second entry kind:
+
+> A **potential entry** — a capability the crossing would unlock,
+> filed whether or not the data exists yet. Central rules on these as
+> on any other, and a `worth-building` potential entry names the
+> collection it waits on.
+
+**§1 gains the scale clause** (the owner, 2026-09-03 — *"it should not
+take into account things like current number of users as it looks at
+what it potentially can do, not what it can do now"*):
+
+> **Scale is not a constraint.** A theory assumes its axis **fully
+> populated** — everyone who could supply it does, at whatever depth and
+> cadence the perfect form asks for. Current user count, answers per
+> day, the length of the bank this month, what the crowd can support
+> this year: none of these bound a theory. A claim that holds only at
+> today's N is a measurement of today, not a theory of the perfect form.
+> Where a design genuinely needs scale, that is a **requirement it
+> generates** — stated as what the axis needs, never as a reason to want
+> less.
+
+This clause has specific work to do, because scale-boundedness is
+already in the corpus and reads as rigour: `db-8` bounds the read side
+by *"population times a small, effort-bounded number of answers per
+person-day"*, `pat-6` turns engine choice into a data-volume crossover,
+and `gen-21` — the one `measured` node — is measured against the bank as
+it stands today. Each is a fine engineering observation and none is a
+theory of a perfect form.
+
+**§2 gains the ruling that names what exists** (the owner, 2026-09-03 —
+*"nothing that has been created so far is axiom theory"*):
+
+> The 129 claims written between 2026-08-25 and 2026-09-03 are **not
+> axiom theories**. They are measurement method, negative results,
+> engineering proposals for the shipped product, and findings about
+> running this program — kept, and extracted to
+> `docs/MEASUREMENT-NOTES.md` on `main` under that name. No lane may
+> cite them as its axiom or treat them as a base to extend; a lane's
+> axiom theory starts from §1's perfect-form test and §4's
+> `demonstrated` rung. What is useful in the old corpus reaches the
+> product the way anything else does — through the bridge, as a
+> request, labelled as what it is.
+
+**§12 gains a scored dimension.** The review lane scores **Potential**
+0–10 beside its six: how much of the run went to what becomes possible
+versus what already exists — with the evidence line naming the
+`demonstrated` nodes counted. A lane whose runs are all maintenance
+scores low however rigorous they are.
+
+**§13 is new — the gate, so it cannot drift again.** `graph/potential.mjs`,
+run by the checker and by the review lane:
+
+> Every lane carries at least **two** `demonstrated` nodes, each naming
+> at least **two** axes; the count may only rise. A lane whose last
+> three runs added no `demonstrated` node fails, and the failure names
+> the lane. A `demonstrated` node whose axes are all one axis is not
+> cross-axis and does not count.
+
+## The read budget — a charter amendment to approve, not a rule this page sets
+
+**Proposed 2026-09-03, unapplied.** The charter is canonical for how the
+lanes behave and no routine may amend it (`AXES-PLAN.md` §10: no lane edits
+its own contract), so this section is the arithmetic and the wording, and
+the row on `OWNER-LIST.md` is the decision.
+
+**What was measured.** A theory run costs **$24.44** against the charter's
+own $20 estimate, and 77% of every dollar this account meters goes on
+cache reads and cache writes rather than output (`USAGE-REDUCTION.md`
+§§ 1–2). The lanes' inputs are what get read, and they grow every run: the
+branch is 1.27MB, `theory/genetic/graph.json` alone is 132KB and its
+`THEORY.md` 36KB, and `theory/central/` is chartered to read **every**
+lane's `graph.json` and `THEORY.md` — which is why central is the most
+expensive lane on the account at $39.47 a run. Nothing about that trend
+stops on its own: the ratchet adds nodes, the graphs get bigger, and every
+byte is billed once to write the cache and again on every later turn.
+
+**The wording proposed for §3's orient step**, as a refinement of what it
+already says rather than a new rule:
+
+> Orient from a **bounded** slice: the last twenty `LOG.md` rows rather
+> than the file; `node graph/health.mjs --json` for structure rather than a
+> sibling's whole `graph.json`; a sibling's `THEORY.md` by the headings the
+> step needs. Your own `graph.json` is read whole — it is what you write.
+> A run that needs more names what it needed in its log row.
+
+**What it would not change.** The ratchet, the citation ladder, the
+adversarial pass, the subagent floor (*never any model below opus*), and
+central's licence to read across lanes — only how much of each sibling it
+reads to do it. And it is not a cost rule dressed as a quality rule: a lane
+that genuinely needs a whole graph says so in its log, which is also how
+the review lane would notice the budget hurting the work.
+
 ## The owner's controls
 
 Pause any lane in the claude.ai Routines UI; re-pace with one

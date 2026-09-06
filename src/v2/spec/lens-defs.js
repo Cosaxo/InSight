@@ -249,6 +249,17 @@ export const LENSES = (function () {
   // weight of the typical-person prior in your own score. Nonzero only in
   // demo mode, where a half-answered lens still needs to draw something.
   const PRIOR_W = () => (liveOn() ? 0 : 2);
+  // …and whether there is a typical person to DRAW AGAINST at all, which is
+  // the same question one step out. `d.demo` is an authored number from the
+  // prototype's population; live mode measures no such thing, so on a real
+  // account there is nothing behind a tick labelled "most people".
+  //
+  // This existed for `score()` (above, weightless in live) and not for the
+  // cards, which read `d.demo` directly at four sites. So the prior was
+  // taken OUT of your score for exactly this reason and left in as the
+  // thing your score was drawn against — the header of lens-cards.jsx
+  // states the reason and the cards did the opposite.
+  const typicalKnown = () => !liveOn();
 
   let st = load();
   function load() {
@@ -340,7 +351,7 @@ export const LENSES = (function () {
   // window.LIVE read for a fact this store already owns. It is the LENS
   // store's mode, not a general "is the app live" check — that stays
   // window.LIVE.enabled.
-  return { KEYS, all: window.IS_LENSES, get, needed, done, pct, complete, seedCount, nextIdx, score, typical, answer, record, subscribe, mapped, reset, liveOn, poke: notify };
+  return { KEYS, all: window.IS_LENSES, get, needed, done, pct, complete, seedCount, nextIdx, score, typical, typicalKnown, answer, record, subscribe, mapped, reset, liveOn, poke: notify };
 })();
 // ── the lenses' own questions, for the World feed ───────────────────────────
 // Deliberately thinner than TEST_FEED_QS: the core tests still own the feed.

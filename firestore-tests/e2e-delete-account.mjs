@@ -83,6 +83,16 @@ const SHARED = "grp_shared";
 // left behind in this group's reveals therefore survived erasure until the
 // collection-group sweep (phase 1c-bis) went looking for it directly.
 const LEFT = "grp_left";
+// A circle this account CREATED and then left. Phase 1c's membership query
+// cannot see it and leaveGroupV2 deliberately leaves `ownerUid` standing, so
+// until the owner-sweep existed the deleted account's raw uid stayed on a
+// document every current member is served in full. `LEFT` above cannot catch
+// this: it is owned by OTHER, on purpose, as the control that erasure does
+// not scrub somebody else's ownership.
+const OWNED_LEFT = "grp_owned_left";
+// A circle the doomed account is NOT a member of, whose reveal names them
+// only through somebody else's pick — see the seed below.
+const PICKED_ONLY = "grp_picked_only";
 
 // ── seed every phase deleteAccount claims to wipe ──
 // Written with admin, because most of these paths are no longer
@@ -254,6 +264,32 @@ await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
   votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0, pickUid: uid } },
   names: { [uid]: "Doomed", [OTHER]: "Survivor" },
   members: [uid, OTHER],
+});
+
+// THE SHAPE THE MEMBERS SWEEP CANNOT SEE. A pick answer copies the picked
+// uid into `votes.<voter>.pickUid`, checked against membership at ANSWER
+// time; `members` is membership at REVEAL time. Answer on a pick day, leave
+// before that night's reveal, and the uid is in the document and in no array
+// the erasure query walks. Every other reveal seeded here lists the account
+// in `members`, so this is the only one that can catch it.
+await adb.doc(`v2_groups/${PICKED_ONLY}`).set({
+  name: "PickedOnly", mode: "group", ownerUid: OTHER, memberUids: [OTHER],
+  memberNames: { [OTHER]: "Survivor" }, streak: 1,
+});
+await adb.doc(`v2_groups/${PICKED_ONLY}/reveals/${DAY}`).set({
+  day: DAY, qid: "group-pick",
+  votes: { [OTHER]: { optionIdx: 0, pickUid: uid } },
+  names: { [OTHER]: "Survivor" },
+  members: [OTHER],
+  pickedUids: [uid],
+});
+
+// the same shape one field over: OWNED by the doomed account, and left. No
+// membership, no name, no reveal — the whole point is that `ownerUid` is the
+// only thing here that names them, so nothing else can make the case pass.
+await adb.doc(`v2_groups/${OWNED_LEFT}`).set({
+  name: "OwnedLeft", mode: "group", ownerUid: uid, memberUids: [OTHER],
+  memberNames: { [OTHER]: "Survivor" }, streak: 2,
 });
 
 // takes, flags, and the moderation queue's COPY of a take's text
@@ -539,6 +575,15 @@ if (!(leftReveal.get("names") || {})[uid])
   fail("leaveGroupV2 rewrote a past reveal — leaving is not erasure (see index.ts phase 1c-bis)");
 ok("left a group: membership gone, the shared reveal deliberately untouched");
 
+// …and the pick that names them in a circle they are not in is really there
+// before the call, or the assertion after it proves nothing.
+const pickedBefore = await adb.doc(`v2_groups/${PICKED_ONLY}/reveals/${DAY}`).get();
+if (pickedBefore.get("votes")?.[OTHER]?.pickUid !== uid)
+  fail("fixture: the picked-only reveal does not name the doomed account");
+if ((pickedBefore.get("members") || []).includes(uid))
+  fail("fixture: the picked-only reveal lists the account in members — the members sweep would catch it");
+ok("seeded a reveal that names the account only through someone else's pick");
+
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
 if (!res.data?.ok) fail("deleteAccount did not report ok: " + JSON.stringify(res.data));
@@ -554,6 +599,22 @@ try {
 }
 if (stillThere) fail("the auth user still exists after deleteAccount");
 ok("auth user is gone");
+
+// ── the pick that named the account in a circle it never belonged to ──
+const pickedAfter = await adb.doc(`v2_groups/${PICKED_ONLY}/reveals/${DAY}`).get();
+if (!pickedAfter.exists)
+  fail("the picked-only reveal was deleted outright — it is someone else's record of their day");
+if (pickedAfter.get("votes")?.[OTHER]?.pickUid !== undefined)
+  fail("a pick naming the erased account survived in a reveal it was not a member of — web/privacy.html promises it does not");
+if ((pickedAfter.get("pickedUids") || []).includes(uid))
+  fail("the erased uid is still in the reveal's pickedUids index");
+// …and the rest of that reveal is untouched: it is the OTHER account's
+// record of a day they played, and erasure is not a licence to rewrite it.
+if (pickedAfter.get("votes")?.[OTHER]?.optionIdx !== 0)
+  fail("the pick scrub removed more than the pick — the other voter's own answer is gone");
+if (!(pickedAfter.get("names") || {})[OTHER])
+  fail("the pick scrub removed the other member's name");
+ok("a pick naming the erased account is gone, and the rest of that reveal is intact");
 
 // ── every seeded phase must be gone ──
 for (const [path, label] of [
@@ -574,9 +635,18 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
-  // Flags that NAME them, which the author-only sweep could not see: a
-  // report on their take (keyed `{qid}_{uid}`, since a world take's id is
-  // its author's) and a report on their face (`target: {uid}`).
+  // Flags that NAME them, which the author-only sweep could not see.
+  //
+  // TWO ROWS, TWO DIFFERENT SWEEPS, and the note here used to imply one:
+  // it said the take flag was reached "keyed `{qid}_{uid}`, since a world
+  // take's id is its author's", which describes the id and not any query
+  // this suite exercises. `MY_TAKE` still EXISTS when erasure runs, so
+  // this row is taken by the takes loop's `where("takeId","in", ids)`.
+  // Only the FACE row exercises `where("target","==", uid)` — measured by
+  // neutering that query, which leaves this row green and the face row
+  // red. The uncovered case is a flag on a take the author deleted first;
+  // nothing reaches it (see the sweep's own note in functions/src/index.ts)
+  // and nothing here pretends to.
   [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
   [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
@@ -742,6 +812,19 @@ if (!members.includes(OTHER)) fail("the surviving member was removed from the sh
 // so a leftover ownerUid publishes the deleted account's raw uid to the
 // circle forever.
 if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+
+// …and the same field on a circle they created and LEFT, which the
+// membership query above never visits. The assertion above passes on the
+// member-following sweep alone; only this one fails without the owner sweep.
+const ownedLeft = await adb.doc(`v2_groups/${OWNED_LEFT}`).get();
+if (!ownedLeft.exists) fail("the OWNED_LEFT group was deleted — it still had another member");
+if (ownedLeft.get("ownerUid") === uid) {
+  fail("the deleted user's uid survives as ownerUid on a circle they created and left");
+}
+if (!(ownedLeft.get("memberUids") || []).includes(OTHER)) {
+  fail("erasure removed the surviving member from a group the deleted account merely owned");
+}
+if (ownedLeft.get("name") !== "OwnedLeft") fail("erasure damaged an owned-and-left group's own fields");
 if (shared.get("name") !== "Shared") fail("erasure damaged the surviving group's own fields");
 
 const reveal = await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).get();

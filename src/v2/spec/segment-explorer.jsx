@@ -24,6 +24,7 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 //     and full-scale bars made a ranking look like four identical rows.
 //   · the picker is ONE LINE until tapped. Expanded, it's dimension tabs over
 //     a single chip row — never a wall of four rows.
+const EXPORTS = {};
 (function () {
   const { useState, useMemo } = React;
 
@@ -444,5 +445,6 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
     );
   }
 
-  Object.assign(window, { SegmentExplorer });
+  Object.assign(EXPORTS, { SegmentExplorer });
 })();
+export const { SegmentExplorer } = EXPORTS;

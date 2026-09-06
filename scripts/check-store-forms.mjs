@@ -72,6 +72,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { stripXmlComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // The idiom check-policy-claims.mjs already uses: run as a gate, import as
@@ -188,7 +189,15 @@ for (const t of proseTypes) {
 // must say so; if it stops asking, the label must stop saying so. Neither
 // direction can drift now, and this file no longer has an opinion about
 // which one is right.
-const plist = readFileSync(join(root, "ios/App/App/Info.plist"), "utf8");
+// Comments off first — the pattern below tolerates a comment BETWEEN the
+// key and its value, and that is the wrong half. It reads the first
+// `<key>` wherever it is, so commenting the whole pair out left this gate
+// printing "Precise Location declared, matching the plist" at exit 0 while
+// the key it names was not in the shipped app. Store forms are one of the
+// four things CLAUDE.md puts outside the D334 ask, so this one is not a
+// preference. Same class, same tool, as `check-ios-location`, which reads
+// the same file.
+const plist = stripXmlComments(readFileSync(join(root, "ios/App/App/Info.plist"), "utf8"));
 // `<key>X</key>` followed by `<true/>` or `<false/>`, whitespace and
 // comments between them. Reduced accuracy TRUE means the app deliberately
 // asks for a coarse fix.
@@ -213,6 +222,50 @@ if (reduced === undefined) {
     + "    safer direction, but it is still two files disagreeing about one\n"
     + "    attestation — decide which is right and move the other.",
   );
+}
+
+// …AND THE FILE THE FORMS ARE ANSWERED FROM.
+//
+// The two rules above hold app-privacy.json to the plist, and they were
+// both green while `docs/data-inventory.md` — which calls itself "the
+// audited list the store forms are answered from" — still said the app
+// declares Coarse location and that FINE is "capped at maxSdkVersion 30".
+// D175 uncapped it. So the forms were right, the source they are supposed
+// to be derived from was not, and anyone re-answering a form from it would
+// have under-declared: the direction SHIP-CHECKLIST calls the one that
+// gets an app pulled.
+//
+// That paragraph is itself a record of the SAME error made once before,
+// in the same direction. Twice is a pattern, and a pattern is what a gate
+// is for.
+if (reduced === "false") {
+  const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
+  // The CONCLUSION, not the whole paragraph. That paragraph is partly a
+  // record of the two times this went wrong, so it quotes the wordings it
+  // replaced — and a rule reading the whole thing fires on the history it
+  // is written to prevent repeating. Measured: it did, on the very commit
+  // that corrected it.
+  const para = /What is true today[\s\S]{0,1500}?App Functionality, optional\.\*\*/.exec(inv)?.[0];
+  if (!para) {
+    errors.push(
+      "docs/data-inventory.md: could not find the Location paragraph's "
+      + "\"What is true today\" conclusion. It is what a store form is answered from, "
+      + "so this rule cannot be silently skipped — fix the pattern.",
+    );
+  } else if (!/\bPrecise\b/.test(para)) {
+    errors.push(
+      "iOS asks for a PRECISE fix, and docs/data-inventory.md's Location "
+      + "paragraph does not say Precise. The store forms are answered FROM "
+      + "that file, so it under-declares even while the forms are right — "
+      + "which is exactly what that paragraph's own history records.",
+    );
+  } else if (/maxSdkVersion=?.?30/.test(para)) {
+    errors.push(
+      "docs/data-inventory.md still describes ACCESS_FINE_LOCATION as capped "
+      + "at maxSdkVersion 30. D175 uncapped it, and the manifest line says so "
+      + "in its own comment.",
+    );
+  }
 }
 
 if (privacy.tracking?.used !== false) {

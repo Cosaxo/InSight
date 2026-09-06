@@ -231,6 +231,12 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
 function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   const names = g.memberNames || {};
   if (!P.people.length) {
+    // `P.people` is built only from reveals, so with none read yet it is
+    // empty — and this explained that emptiness as a fact about the
+    // circle ("places are taken from the first shared reveal") while the
+    // reveals were still arriving. The Answers tab beside it already says
+    // "Reading the days…" on the identical state; this one did not ask.
+    if (LIVE.social.revealHistoryLoading(g.id)) return <LgEmpty>Reading the days…</LgEmpty>;
     return (
       <LgEmpty>
         {(g.memberUids || []).length > 1
@@ -340,6 +346,23 @@ function LiveGroupsMirrorBody() {
   // sentence (D146): the portrait's own with-the-majority count.
   const soWhat = (() => {
     if (groups.length < 2) return null;
+    // NOT WHILE A CIRCLE IS STILL BEING READ. `revealHistory()` answers
+    // `[]` for "never fetched", "in flight" and "genuinely nothing
+    // revealed" alike — its own docstring says so — so a circle with
+    // fifteen days of history reads as `daysPlayed: 0` and is dropped by
+    // the MIN_GROUP filter below while it is on the wire. The loader is a
+    // sequential fan-out over every group, so that is not an edge case:
+    // it is what the first visit looks like.
+    //
+    // What the reader saw was a superlative that changed its mind. "The
+    // Crew runs most like you — with it on 2 of the 3 days you played",
+    // then a different circle a round trip later, once the one with
+    // fifteen days landed. A crown handed to the wrong circle is worse
+    // than a beat of nothing, so the sentence waits for the field.
+    //
+    // The check this file already makes one screen down, for the current
+    // group's own empty state; the fold simply never asked it.
+    if (groups.some((x) => LIVE.social.revealHistoryLoading(x.id))) return null;
     const scored = groups
       .map((x) => ({ x, p: groupPortrait(S.revealHistory(x.id) as unknown as PortraitReveal[], LIVE.uid) }))
       .filter((r) => r.p.daysPlayed >= MIN_GROUP);

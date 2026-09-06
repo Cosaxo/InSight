@@ -17,9 +17,9 @@ import { TEST_FEED_QS } from './test-feed-data.js';
 // live build's bank items arrive through data/testFeed.ts, which is where
 // the story of why that is not a `window` read lives (D280).
 import { testFeedPool } from '../data/testFeed.ts';
-import { WORLD_CHANNELS } from './world-feed-data.js';
+import { WORLD_CHANNELS, WORLD_TOPICS } from './world-feed-data.js';
 import PLACES from '../data/places';
-import { FILMS, ARTISTS, ATHLETES, EMOJI } from '../data/catalogs';
+import { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI } from '../data/catalogs';
 import POKEDEX from '../data/pokedex';
 // The live who-voted sheet, cohort-first (D125) — it owns the cohort
 // choice, the split drawn for it and the named roster underneath, which
@@ -53,10 +53,11 @@ import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
-import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
+import { SPONSOR_EVERY, partitionSponsored } from '../data/sponsored.ts';
 import { askWindow } from '../data/askWindow.ts';
 import { utcDayIndex } from '../data/deck.ts';
-import SponsorMark from '../ui/SponsorMark.tsx';
+import SponsorMark, { SponsorLink } from '../ui/SponsorMark.tsx';
+import { SponsorShare } from '../ui/SponsorShare.tsx';
 import AdCard from '../ui/AdCard.tsx';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
@@ -70,11 +71,25 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 // below (in the D39 baseline); convert them on touch, never re-add one.
 import ELEMENTS_CATALOG from '../data/elements.ts';
 import { COUNTRIES, DOGS, COLORS, LANGUAGES } from '../data/catalogs.ts';
-// Imported for the D89 gate rather than read off window — same meter
-// reasoning as the imports above. The window.LIVE reads elsewhere in this
-// file predate the ratchet; new ones may not join them.
+// Imported rather than read off window — same meter reasoning as the
+// imports above. Every LIVE read in this file goes through this binding
+// since D354. The `window.LIVE &&` existence guards it took with it were
+// load-order guards an import makes unreachable; the member-existence
+// guards (`L.myVotes ? … : null`, `L.editVote && …`) guarded methods the
+// store's literal always defines (the surface pin in data/vote.test.ts).
+// The data conditions — `.enabled`, `.demoInProd` — stayed.
 import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
+// D354's sweep: the feed's own group members and the eager passive tag as
+// imports. learn-bits and learn-social ride this same chunk (loadWorldFeed
+// lists them ahead of this file), consequence-beat too; PickSearch is the
+// pick card's typed picker. Every `window.X ?` beside these was a
+// load-order guard, and there is no frame in which an import is unset.
+import { PassiveTag } from './passive-meter.jsx';
+import { LMStreak, LMFriends } from './learn-bits.jsx';
+import { ConsequenceBeat } from './consequence-beat.jsx';
+import { LEARN_SOCIAL } from './learn-social.js';
+import PickSearch from '../ui/PickSearch';
 import { PASSIVE } from './passive-progress.js';
 // Crossroads (D136). Imported, not read off window — rule 4 refuses new
 // coupling. The ESM graph carries it and its store into THIS chunk, which
@@ -91,6 +106,9 @@ import LiveReadGame from '../ui/LiveReadGame.tsx';
 // which is the rule pct.ts retired for drawing a smaller count at a larger
 // percentage.
 import { sharePcts } from '../data/pct.ts';
+// What the BANK holds per topic, where a live build has published it —
+// the topic sheet's count. See its use for why the pool cannot answer.
+import { feedTopicTotal } from '../data/bankPager.ts';
 import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
@@ -116,7 +134,7 @@ const WF_PASS_LS = 'insight.feedPass.v1';
 const WF_DEFER_LS = 'insight.feedDefer.v1';
 // where a vote lands on your Mirror — the ripple line after answering
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
-const WF_TOPICS = window.WORLD_TOPICS || [];
+const WF_TOPICS = WORLD_TOPICS;
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
 const WF_CHANNELS = WORLD_CHANNELS;
 const WF_CHAN_SET = Object.fromEntries(WF_CHANNELS.map((id) => [id, true]));
@@ -211,6 +229,14 @@ function WfCount({ to, animate, dur = 650, delay = 180 }) {
 // stay readable without a second palette. Splits derive deterministically from
 // sides get distinct hues rotated off the topic's — one lightness+chroma tier,
 // the same family the daily uses, so the feed and the daily read as one product
+// A live card whose aggregate has not landed — so there is no split, and
+// anything that DRAWS one is drawing your own vote back at you as the
+// crowd. Written out by hand at three sites in this file and a fourth in
+// daily-split.jsx, and the consequence beat was the copy that never got
+// written: it replayed 100% on your own option with "you're with them"
+// under it, on the one card that has nothing to be with.
+function wfNoCrowd(q) { return !!(q.live && q.noCountsYet); }
+
 function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
 function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }
 // every who-voted cut in one place (vote-cuts.js): demographics, then the four
@@ -304,6 +330,21 @@ const wfFrAv = (f, D, k) => (
 );
 const wfFrNone = (txt) => <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>{txt}</div>;
 
+// The nine shapes a feed card can take, in the words a reader would use.
+// Drawn in the kicker beside the topic (2026-09-02) — a card announces
+// what it is asking for rather than making you discover it on tap.
+const WF_FORM_WORD = {
+  duel: 'this or that',
+  rank: 'rank',
+  rate: 'rate',
+  dial: 'dial',
+  field: 'place it',
+  know: 'learn',
+  pick: 'pick one',
+  predict: 'predict',
+  read: 'read the room',
+};
+
 class WorldFeed extends React.Component {
   state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
 
@@ -363,9 +404,8 @@ class WorldFeed extends React.Component {
     // mirror. Absence from myVotes() alone is not evidence of a rollback:
     // during a partial hydrate the store is legitimately incomplete, and
     // trusting it would mass-un-vote the whole feed.
-    this._unsubLive = window.LIVE && window.LIVE.subscribe
-      ? window.LIVE.subscribe(() => {
-        const mine = (window.LIVE.myVotes && window.LIVE.myVotes()) || {};
+    this._unsubLive = LIVE.subscribe(() => {
+        const mine = LIVE.myVotes() || {};
         const mirror = wfLoad();
         this.setState((s) => {
           let changed = false;
@@ -424,8 +464,7 @@ class WorldFeed extends React.Component {
           }
           return changed ? { votes } : null;
         });
-      })
-      : null;
+      });
     this._unsubSubs = SUBTOPICS.subscribe(() => this.forceUpdate());
     this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = LEARN_FEED.subscribe(() => this.forceUpdate());
@@ -623,13 +662,13 @@ class WorldFeed extends React.Component {
     // first-vote celebrations below: the beat, the ripple and the reveal
     // haptic are "your vote landed" moments, not "your vote moved" ones.
     let editing = false, refused = false;
-    if (q.live && window.LIVE && typeof val === 'number') {
-      const L = window.LIVE;
-      const prior = L.myVotes ? L.myVotes()[id] : null;
+    if (q.live && typeof val === 'number') {
+      const L = LIVE;
+      const prior = L.myVotes()[id];
       if (prior != null) {
         editing = true;
         if (Number(prior) === val) refused = true; // re-picked the standing vote
-        else if (!(L.editVote && L.editVote(id, String(val)))) {
+        else if (!L.editVote(id, String(val))) {
           refused = true;
           this.holdNote(id);
         }
@@ -678,7 +717,10 @@ class WorldFeed extends React.Component {
       wfSave(votes);
       // …and the beat replays the split as a scene, so it is the same
       // fabrication on a selfOnly card that the bars would be.
-      const beat = (!editing && this.props.beats !== false && window.ConsequenceBeat && !selfOnly) ? id : s.beat;
+      // …and `wfNoCrowd` for the same reason one clause along: a live card
+      // whose counts have not arrived has no split to replay either, which
+      // daily-split.jsx has gated its own beat on since it had one.
+      const beat = (!editing && this.props.beats !== false && !selfOnly && !wfNoCrowd(q)) ? id : s.beat;
       // Ask for a reason once, while the vote is warm, and only if this
       // question has none of your takes yet. Demo cards only: a live card
       // shows no takes, so there would be nowhere for the answer to go —
@@ -885,7 +927,24 @@ class WorldFeed extends React.Component {
     const total = dist.reduce((a, b) => a + b, 0);
     if (!total) return (q.lo + q.hi) / 2;
     let acc = 0;
-    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketMid(q, i); }
+    // `dialBucketShown`, NOT `dialBucketMid` — the same correction
+    // `dialVal` carries, and the reason is written out in full above it:
+    // when (hi-lo)/12 is a whole number every midpoint ends in .5 and
+    // half-up rounding lands on the TOP EDGE of its own bucket. So your
+    // own answer went through the corrected function and the crowd's
+    // through the raw midpoint, one line apart on the same card: you say
+    // 3 h, the card says "most say 4 h", out of the SAME bucket.
+    //
+    // That reasoning was written when the fix went into `dialVal`, and
+    // this is the other half of it. NO COUNT HERE, deliberately: the
+    // sentence carried over said "22 bucket-readings across the four
+    // dials whose step is a whole unit", which was the figure for the
+    // dial the original fix was measured on — the shipped bank now has 19
+    // dials, ONE with a whole-unit step, and 212 bucket-readings where
+    // the midpoint and the shown value differ. A count in a comment is
+    // the documentation error this repo keeps re-committing, and
+    // `dial-bucket.test.jsx` holds the real relationship off the tree.
+    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketShown(q, i); }
     return (q.lo + q.hi) / 2;
   }
   // one by-cell (optionIdx → count) read as a dial: how many, and where
@@ -923,13 +982,21 @@ class WorldFeed extends React.Component {
       if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
         val = this.dialBucketShown(q, Number(prior));
+        this.holdNote(q.id);
       }
     }
     this._fresh = q.id;
     this.setState((s) => {
       const votes = { ...s.votes, [q.id]: val };
       wfSave(votes);
-      return { votes };
+      // The control was let go, so edit mode is over either way (setVote's
+      // rule for an option tap) — and the drag's own frac goes with it, so
+      // the next "Change" seeds the slider from the answer that STANDS
+      // rather than from wherever the last drag ended, which differs
+      // whenever that drag was refused and snapped back.
+      const editFor = { ...s.editFor }; delete editFor[q.id];
+      const dialPend = { ...(s.dialPend || {}) }; delete dialPend[q.id];
+      return { votes, editFor, dialPend };
     });
   }
 
@@ -959,9 +1026,17 @@ class WorldFeed extends React.Component {
     const lo = q.lo, hi = q.hi;
     const endTxt = q.ends || [this.dialFmt(q, lo), this.dialFmt(q, hi)];
     const ends = { display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' };
-    if (v == null) {
+    // D86 ON A CONTINUUM (2026-09-06). "Change" re-opens the CONTROL,
+    // seeded at the answer you hold, because a dial has no option rows to
+    // re-open. The store has taken a moved bucket since D218 — setDial
+    // routes a repeat through editVote — but the answered card drew only
+    // the curve, so nothing on screen could reach that path. The owner's
+    // report was "I can't change my answer here", on a card whose edit
+    // already worked one layer down; the door was the whole bug.
+    const editing = v != null && !!this.state.editFor[q.id];
+    if (v == null || editing) {
       const pend = (this.state.dialPend || {})[q.id];
-      const frac = pend != null ? pend : 0.5;
+      const frac = pend != null ? pend : editing ? (v - lo) / (hi - lo) : 0.5;
       const move = (e) => {
         const r = e.currentTarget.getBoundingClientRect();
         const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -1003,7 +1078,7 @@ class WorldFeed extends React.Component {
             <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 6, marginTop: -3, borderRadius: 999, background: WPAL.wash(T.color, 12, 'var(--surface-3)') }}></span>
             <span style={{ position: 'absolute', top: '50%', left: (frac * 100) + '%', transform: 'translate(-50%,-50%)', width: 28, height: 28, borderRadius: '50%', boxSizing: 'border-box', background: pend != null ? T.color : 'var(--surface)', border: pend != null ? '3px solid var(--surface)' : '2px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.25)', transition: 'background 0.15s' }}></span>
           </div>
-          <div style={ends}><span>{endTxt[0]}</span><span style={{ fontWeight: 500 }}>slide · let go to answer</span><span>{endTxt[1]}</span></div>
+          <div style={ends}><span>{endTxt[0]}</span><span style={{ fontWeight: 500 }}>{editing ? 'slide · let go to change' : 'slide · let go to answer'}</span><span>{endTxt[1]}</span></div>
         </div>
       );
     }
@@ -1015,20 +1090,39 @@ class WorldFeed extends React.Component {
     const path = this.dialPath(dist, W, H);
     const frac = (v - lo) / (hi - lo);
     const medFrac = (med - lo) / (hi - lo);
+    // NO COUNTS, NO CROWD. `dialDist` adds your own bucket back so the
+    // curve is never empty right after you answer — which on a card
+    // nobody else has answered leaves a distribution of exactly ONE, and
+    // the dial drew it as a full-height curve labelled "How everyone
+    // answered", with a dashed median and a "most say" line quoting your
+    // own number back at you as the crowd's.
+    //
+    // `noCountsYet` is the flag for this and every other shape on this
+    // card already reads it — the tiles suppress their percentages and
+    // draw `renderFloorNote`, the bars the same. The dial path never
+    // asked. So it asks now, and says the same thing they do. (Two line
+    // numbers stood here and pointed at `renderMeta` instead; grep the
+    // name, which is what a citation is for.)
+    const noCrowd = wfNoCrowd(q);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: WPAL.ink(T.color), fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, v)}</span>
           <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>you</span>
-          <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>
+          {noCrowd ? null : <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>}
         </div>
-        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
-          <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>
-          <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>
-          <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>
-          <circle cx={frac * W} cy={this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
+        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={noCrowd ? 'Where you answered, ' + endTxt[0] + ' to ' + endTxt[1] : 'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
+          {noCrowd ? null : <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>}
+          {noCrowd ? null : <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>}
+          {noCrowd ? null : <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>}
+          <line x1={0} y1={H - 1} x2={W} y2={H - 1} stroke="var(--rule)" strokeWidth="1"></line>
+          <circle cx={frac * W} cy={noCrowd ? H - 8 : this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
         </svg>
-        <div style={ends}><span>{endTxt[0]}</span><span>{endTxt[1]}</span></div>
+        {/* a refused change (D86's one-a-minute cooldown) says why in the
+            slot the slider's instruction used, the same sentence the
+            option cards put on their meta line */}
+        <div style={ends}><span>{endTxt[0]}</span>{this.state.editHold === q.id && <span style={{ fontWeight: 500 }}>One change a minute — try again shortly.</span>}<span>{endTxt[1]}</span></div>
+        {noCrowd ? this.renderFloorNote(big) : null}
       </div>
     );
   }
@@ -1047,13 +1141,18 @@ class WorldFeed extends React.Component {
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
         const m = this.fieldCellMid(Number(prior));
         x = m.x; y = m.y;
+        this.holdNote(q.id);
       }
     }
     this._fresh = q.id;
     this.setState((s) => {
       const votes = { ...s.votes, [q.id]: { x, y } };
       wfSave(votes);
-      return { votes };
+      // the dot was placed, so edit mode is over — setDial's rule, and the
+      // pending ring goes with it for the same reason its frac does
+      const editFor = { ...s.editFor }; delete editFor[q.id];
+      const fieldPend = { ...(s.fieldPend || {}) }; delete fieldPend[q.id];
+      return { votes, editFor, fieldPend };
     });
   }
 
@@ -1113,7 +1212,11 @@ class WorldFeed extends React.Component {
 
   renderField(q, T, big) {
     const v = this.fieldVal(q);
-    const done = v != null;
+    // renderDial's door, field-shaped: while you are changing, the plane
+    // takes a tap again and your standing dot stays drawn, so what you are
+    // moving is on screen while you move it.
+    const editing = v != null && !!this.state.editFor[q.id];
+    const done = v != null && !editing;
     const fresh = this._fresh === q.id;
     const dots = done ? (q.live ? this.fieldDots(q) : this.fieldCloud(q)) : [];
     const lab = (t, style) => <span style={{ position: 'absolute', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 650, color: 'var(--ink-3)', letterSpacing: '0.02em', pointerEvents: 'none', ...style }}>{t}</span>;
@@ -1148,9 +1251,13 @@ class WorldFeed extends React.Component {
           {lab(q.ay[0], { bottom: 7, left: '50%', transform: 'translateX(8px)' })}
           {pend && <span style={{ position: 'absolute', left: pend.x + '%', top: pend.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', border: '2px dashed ' + T.color, opacity: 0.7 }}></span>}
           {done && dots.map(([x, y], i) => <span key={i} style={{ position: 'absolute', left: x + '%', top: y + '%', width: 7, height: 7, margin: '-3.5px 0 0 -3.5px', borderRadius: '50%', background: T.color, opacity: 0.38, animation: fresh ? 'popIn .4s ' + (i * 14) + 'ms cubic-bezier(0.2,0.8,0.2,1) backwards' : 'none' }}></span>)}
-          {done && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)', animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}></span>}
+          {(done || editing) && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)', animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}></span>}
         </div>
-        {!done && <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>tap where you land</span>}
+        {!done
+          ? <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>tap where you land</span>
+          : this.state.editHold === q.id
+            ? <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>One change a minute — try again shortly.</span>
+            : null}
       </div>
     );
   }
@@ -1537,21 +1644,33 @@ class WorldFeed extends React.Component {
                 first-tries-only rule is invisible on a re-serve — which is
                 how a reader ends up looking at a tick beside "0 people ·
                 0%" on the option they just picked. */}
-            {window.LIVE && window.LIVE.enabled ? (
+            {LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-                {src === 'measured'
-                  ? (() => {
-                    const n = tally ? tally.total : 0;
-                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
-                    if (n === 1) return 'Yours is the only answer so far.';
-                    return 'From ' + n.toLocaleString() + ' first tries.';
-                  })()
-                  : 'You’re the first.'}
+                {/* THREE SOURCES, NOT TWO. This branched on 'measured'
+                    alone, so 'loading' — a crowd read still in the air —
+                    fell into the same arm as 'none' and the footer under
+                    the answer you just tapped said "You're the first."
+                    about a card thousands have answered.
+
+                    D125's fourth source was added for exactly this and
+                    reached the who-knows-this sheet and the Map's learn
+                    card; this line is the one its commit message named
+                    and its diff did not touch. */}
+                {src === 'loading'
+                  ? 'Counting\u2026'
+                  : src === 'measured'
+                    ? (() => {
+                      const n = tally ? tally.total : 0;
+                      if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
+                      if (n === 1) return 'Yours is the only answer so far.';
+                      return 'From ' + n.toLocaleString() + ' first tries.';
+                    })()
+                    : 'You’re the first.'}
               </div>
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
             {this.opts.reveal ? this.renderKnowInsight(q, T) : null}
-            {window.LMFriends ? <LMFriends card={card} col={T.color}></LMFriends> : null}
+            <LMFriends card={card} col={T.color}></LMFriends>
           </div>
         ) : null}
       </div>
@@ -1584,8 +1703,8 @@ class WorldFeed extends React.Component {
   //
   // LIVE and PICKS are the IMPORTED bindings, not `window.*`. This seam
   // landed on main while this file was coming off the bridge (D249), and
-  // the header above is explicit that new window.LIVE reads may not join
-  // the ones that predate the ratchet. `return PICKS` for the same reason
+  // the header above is explicit that no window.LIVE read may join it
+  // (there are none left since D354). `return PICKS` for the same reason
   // the `PK ?` guards below are gone: an imported binding cannot be unset,
   // so the fallbacks they guarded are unreachable (D108).
   pickSrc(q) {
@@ -1609,6 +1728,7 @@ class WorldFeed extends React.Component {
     return domain === 'films' ? FILMS
       : domain === 'artists' ? ARTISTS
       : domain === 'athletes' ? ATHLETES
+      : domain === 'videogames' ? VIDEOGAMES
       : domain === 'emoji' ? EMOJI
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
@@ -1662,7 +1782,7 @@ class WorldFeed extends React.Component {
       // were one would be the D1 shape of misleading. peek() is the
       // committed file already parsed; the one load it may kick is the
       // same fetch the picker itself pays on open.
-      const tiled = q.domain === 'films' || q.domain === 'artists' || q.domain === 'athletes';
+      const tiled = q.domain === 'films' || q.domain === 'artists' || q.domain === 'athletes' || q.domain === 'videogames';
       let head = [];
       if (tiled && store && store.peek) {
         head = (store.peek() || []).slice(0, 8).map((e) => ({ id: e.key, name: e.name }));
@@ -1683,10 +1803,14 @@ class WorldFeed extends React.Component {
         </div>
       );
     }
-    // The reveal is a canon, not a split: top entities above the floor,
-    // everyone else in one bucket. Your own pick always shows to YOU — it
-    // is your own answer, no floor applies — and when it is below the floor
-    // the copy says so instead of pretending it counted. Segment chips
+    // The reveal is a canon, not a split: a top board and everyone else in
+    // one bucket. Your own pick always shows to YOU — it is your own
+    // answer — and when it is not on that board the copy says which
+    // absence it is: "below the floor" on a demo card, where a floor
+    // really is applied, and "not on the board" on a live one, where since
+    // D98 there is no floor and the pick is counted exactly like any
+    // other. This paragraph said "above the floor" and "below the floor"
+    // for both, which is the pre-D98 model. Segment chips
     // (D17) reorder the SAME board by one cohort's counts — a segment
     // never surfaces entities the global board suppressed.
     const PK = this.pickSrc(q);
@@ -1714,19 +1838,30 @@ class WorldFeed extends React.Component {
     // it. The entity count renders only when the fold covers at least two
     // entries (the subtraction-leak rule the backend fold keeps) and steps
     // down like the vote counts do, so it never ticks per-answer.
-    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes', languages: 'languages' };
+    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes', videogames: 'games', languages: 'languages' };
     const foldNoun = nounOf[q.domain] || 'picks';
     const foldNote = c.restEntities >= 5
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
       : c.restEntities >= 2 ? ` votes across a few other ${foldNoun}` : '';
     const foldWhy = foldNote && c.restBelowFloor ? ' — none with 5 yet' : '';
+    // THE TILE'S ABSENT-COUNT WORDING SPLITS ON `q.live`, like the ghost
+    // row further down. `count` is null whenever the pick is not in the
+    // board's top N — TOP_N is 10 over catalogues of a thousand entries, so
+    // that is the ORDINARY case, not an edge. On a demo card there really
+    // is a floor (`pick-data.js` filters on AGG_MIN_N) and "below the
+    // floor" is true. Post-D98 the live board has no floor at all —
+    // `LIVE.pickCanon`'s docstring says the tail "is simply everything
+    // outside the top N" — so the same words are a false claim about a
+    // real, exactly-counted number. The ghost row already made this split
+    // and said why (COPY.md §3); the tile was not moved with it, so one
+    // card said both things about the same pick.
     const TOPN = PK.TOP_N;
     const tile = (ent, nm, label, strong, count, rank) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
         <span aria-hidden="true" style={{ width: '100%', height: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}></span>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, lineHeight: 1.2, textWrap: 'pretty', color: 'var(--ink)' }}>{nm || '\u2026'}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : 'below the floor'}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : (q.live ? 'not on the board' : 'below the floor')}</span>
       </div>
     );
     const chip = (label, active, onTap) => (
@@ -1938,10 +2073,19 @@ class WorldFeed extends React.Component {
     // LIVE.editVote instead of the create-only vote().
     const editing = mine != null && !!this.state.editFor[q.id];
     if (mine == null || editing) {
+      // one split ballot, the daily's own grammar (2026-09-02): two sides
+      // side by side divided by a hairline seam — the seam is what moves
+      // to the crowd's split once you vote — and three or more stack as
+      // rows inside the same block. The dot carries the option's hue; the
+      // ground is neutral, so the revealed tiles are the payoff.
+      const two = q.options.length === 2;
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: two ? '1fr 1fr' : '1fr', gap: 2, height: two ? (big ? 84 : 68) : undefined, borderRadius: big ? 20 : 16, overflow: 'hidden', background: 'var(--rule)', border: WF_LINE }}>
           {q.options.map((o, i) => (
-            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ border: (editing && mine === i ? '1.5px' : '1px') + ' solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))', borderRadius: big ? 16 : 12, background: 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface))', boxShadow: 'none', padding: big ? '15px 16px' : '11px 14px', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, color: 'var(--ink)', WebkitAppearance: 'none' }}>{o.label}{editing && mine === i && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{' · your pick'}</span>}</button>
+            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ minHeight: big ? 52 : 44, border: 'none', borderRadius: 0, background: editing && mine === i ? 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface-2))' : 'var(--surface-2)', boxShadow: 'none', padding: big ? '0 16px' : '0 13px', display: 'flex', flexDirection: two ? 'column' : 'row', alignItems: two ? 'flex-start' : 'center', justifyContent: 'center', gap: two ? 7 : 11, textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, letterSpacing: '-0.01em', color: 'var(--ink)', WebkitAppearance: 'none' }}>
+              <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: this.opts.v2 ? T.color : wfOpt(T.color, i, q.options.length), flexShrink: 0 }}></span>
+              <span style={{ textWrap: 'pretty' }}>{o.label}{editing && mine === i && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{' · your pick'}</span>}</span>
+            </button>
           ))}
         </div>
       );
@@ -1952,7 +2096,7 @@ class WorldFeed extends React.Component {
     // selfOnly card (a live session's lens question — D50) is the same
     // problem wearing authored counts: numbers exist, a measurement does
     // not, so it takes the bars path too.
-    const floored = !!(q.live && q.noCountsYet) || !!q.selfOnly;
+    const floored = wfNoCrowd(q) || !!q.selfOnly;
     return this.opts.reveal && !floored
       ? this.renderVoteTiles(q, T, big)
       : this.renderVoteBars(q, T, big);
@@ -1965,15 +2109,28 @@ class WorldFeed extends React.Component {
     const mine = this.state.votes[q.id];
     const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     const n = q.options.length;
     const v2 = this.opts.v2;
     const sides = q.live ? [] : this.friendSides(q, q.options.map((o) => o.count));
-    // one row budget per option, so two options do not tower over four
-    const H = (big ? 58 : 46) * n + (n - 1) * 7;
+    // one row budget per option, so two options do not tower over four.
+    // Two sides keep the ballot's own row: the seam sits at the crowd's
+    // split, so their share is a width and the height is fixed.
+    const two = n === 2;
+    const H = two ? (big ? 112 : 92) : (big ? 58 : 46) * n + (n - 1) * 7;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 9, animation: !v2 && fresh ? 'popIn .32s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, height: H }}>
+        <div style={{ display: 'flex', flexDirection: two ? 'row' : 'column', gap: 7, height: H }}>
           {q.options.map((o, i) => {
             // v2: one hue per card. Tint strength tracks share, so 52/48 reads
             // as 52/48 and not as two differently-coloured teams.
@@ -1981,13 +2138,17 @@ class WorldFeed extends React.Component {
             const tint = 8 + 24 * (p[i] / (maxP || 1));
             const isMine = mine === i;
             const fr = sides.filter((f) => f.oi === i);
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             return (
-              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 }}>
-                    <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
-                    {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>{'· you'}</span>}
+              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, minWidth: 0, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
+                <div style={two
+                  ? { height: '100%', display: 'flex', flexDirection: 'column-reverse', alignItems: 'flex-start', justifyContent: 'center', gap: 3, padding: big ? '0 16px' : '0 12px' }
+                  : { height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, flex: two ? 'none' : 1, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? (two ? 16 : 19) : (two ? 13.5 : 15), letterSpacing: '-0.02em' }}>{o.label}</span>
+                    {/* your mark is a stamp, not a footnote — "· you" beside
+                        a label read as punctuation at a glance */}
+                    {isMine && <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: 'var(--ink)', color: 'var(--surface-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>you</span>}
                   </div>
                   {/* Friend marks: DEMO CARDS ONLY (the `sides` gate above —
                       WF_FRIENDS are invented, and on a live card this would
@@ -2025,7 +2186,7 @@ class WorldFeed extends React.Component {
   // the ONLY place the count appears. Suppressing it there would delete the
   // scale of the vote from every real card.
   footInstead(q) {
-    return this.opts.v2 && !q.live && !(window.LIVE && window.LIVE.demoInProd);
+    return this.opts.v2 && !q.live && !LIVE.demoInProd;
   }
 
   // The v2 footer: exactly ONE line under the result, in priority order —
@@ -2061,12 +2222,21 @@ class WorldFeed extends React.Component {
   // question about counts: two different counts can round to the same
   // integer, so reading it off the percentages told a voter whose option
   // had strictly fewer votes that they were "with the majority".
+  //
+  // AND AT ONE VOTE THERE IS NO SIDE TO BE ON. `wfPcts` counts you, so a
+  // total of 1 is your own vote and nothing else — and the line told you
+  // that you were "with the majority" of yourself. It is the same claim
+  // the consequence beat and the bars were making one method over, in the
+  // one sentence small enough to look harmless: a majority needs somebody
+  // to be in it besides the reader. The scale still prints; only the side
+  // it claims you are on goes away.
   renderMeta(q, T, big, total, c, mine) {
     const maxN = Math.max(...c);
+    const alone = total <= 1;
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog')}</span>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (alone ? '' : (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog'))}</span>
         {rip && <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
@@ -2075,27 +2245,45 @@ class WorldFeed extends React.Component {
   renderVoteBars(q, T, big) {
     const mine = this.state.votes[q.id];
     const counts = q.options.map((o) => o.count);
-    const { p } = wfPcts(counts, mine);
-    const maxP = Math.max(...p);
+    const { p, c } = wfPcts(counts, mine);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     const fresh = this._fresh === q.id;
     // selfOnly (D50): the fill width IS the share in a different alphabet
     // (D11's phrase, same reasoning), so it is gated together with the
     // numeral — the option rows stay, carrying only the label and your pick.
-    const noCrowd = !!q.selfOnly;
+    //
+    // Named for what it is. It was `noCrowd`, which is also this file's
+    // word for a live card whose aggregate has not landed — two meanings,
+    // one name, and the fill below asked this one while the numeral beside
+    // it asked the other. So a fresh live card suppressed its percentage
+    // and drew the bar to that percentage's width anyway: the split
+    // published geometrically while being withheld numerically, which is
+    // the failure the comment above already names. `noSplit` is both.
+    const selfOnly = !!q.selfOnly;
+    const noSplit = selfOnly || wfNoCrowd(q);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 7, animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
         {q.options.map((o, i) => (
           <div key={i} style={{ position: 'relative', border: mine === i ? '1px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : WF_LINE, borderRadius: big ? 14 : 11, background: 'var(--surface)', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (noCrowd ? 0 : p[i]) + '%', background: WPAL.wash(T.color, mine === i ? 30 : 15), animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
+            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (noSplit ? 0 : p[i]) + '%', background: WPAL.wash(T.color, mine === i ? 30 : 15), animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {c[i] === maxN && !noSplit && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
-        {q.live && q.noCountsYet && mine != null && this.renderFloorNote(big)}
-        {noCrowd && mine != null && this.renderSelfNote(q, T, big)}
+        {wfNoCrowd(q) && mine != null && this.renderFloorNote(big)}
+        {selfOnly && mine != null && this.renderSelfNote(q, T, big)}
       </div>
     );
   }
@@ -2103,15 +2291,24 @@ class WorldFeed extends React.Component {
   renderDuel(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
-    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const fresh = this._fresh === q.id;
     const v2 = this.opts.v2;
-    const maxP = Math.max(...p);
+    // THE LEADER IS A QUESTION ABOUT COUNTS, NOT ABOUT THE DRAWN SHARES.
+    // `world-feed-math.js` states it and gives the case: sharePcts "does
+    // not guarantee distinctness, so two different counts can print the
+    // same integer. [449, 451, 100] draws [45, 45, 10]." `renderMeta` was
+    // converted to `c` for exactly this — it is why a voter whose option
+    // had strictly fewer votes stopped being told they were "with the
+    // majority". The three places that decide the winner's STYLING were
+    // not, so on 449 vs 451 both sides still got the winner's weight, size
+    // and ink, on the same card whose sentence had been corrected.
+    const maxN = Math.max(...c);
     // Below the floor there is no share to draw, and the fill height IS the
     // share — so the fill and the numeral are gated together. Drawing one
     // without the other would publish the split geometrically instead of
     // numerically, which is the same disclosure in a different alphabet.
-    const shares = mine != null && !(q.live && q.noCountsYet);
+    const shares = mine != null && !wfNoCrowd(q);
     // Label band at the top; the numeral rides the water line below it. Two things
     // keep them from ever meeting, at any tile height or percentage:
     //   1. the band reserves lines for what the labels ACTUALLY need (shared across
@@ -2130,7 +2327,7 @@ class WorldFeed extends React.Component {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {q.options.map((o, i) => {
             const chosen = mine === i;
-            const win = p[i] === maxP;
+            const win = c[i] === maxN;
             // v2 drops the generated tile art for one quiet ground — the fill
             // is the only ink that moves, so it has to be the only thing there
             const bg = v2 ? 'var(--surface-2)' : wfTileArt(T.color, q.id);
@@ -2218,7 +2415,23 @@ class WorldFeed extends React.Component {
       );
     }
     const matches = order.filter((it, pos) => q.crowd[it] === pos + 1).length;
-    const matchLine = <>You matched the crowd on {matches} of {q.items.length}</>;
+    // …and WHICH crowd. This card was the only answered live card with no
+    // count anywhere on it: the daily prints its votes, the feed prints
+    // its votes, the pick card prints "everyone else · N", and `renderEngage`
+    // — the one place a live card's count is drawn — returns early for
+    // rank. The crowd order exists the moment ONE other person has ranked,
+    // so "the crowd" could be a single stranger, unlabelled (D146).
+    //
+    // `crowdN`, not `q.votes`: the viewer's own order is subtracted out of
+    // the crowd when their fold has landed, so the total would overstate
+    // it by one. The demo arm has always printed its own basis.
+    const crowdN = q.live ? q.crowdN : 0;
+    const matchLine = (
+      <>
+        You matched the crowd on {matches} of {q.items.length}
+        {crowdN > 0 ? ' \u00b7 from ' + wfFmt(crowdN) + (crowdN === 1 ? ' other ranking' : ' other rankings') : ''}
+      </>
+    );
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 9 : 7, animation: v2 ? 'none' : 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         {order.map((it, pos) => {
@@ -2300,7 +2513,7 @@ class WorldFeed extends React.Component {
     // live build dropped into the mock fallback, where the synthetic
     // splits and the fake named people below would both be lies — and a
     // REAL takes composer beside fake results would be worse still.
-    if (window.LIVE && window.LIVE.demoInProd) return null;
+    if (LIVE.demoInProd) return null;
     // A selfOnly card (a lens question against a bank with no lens rows —
     // D50; seeded banks serve lens cards live now, D91) has no crowd
     // behind it: takes, who-voted and the votes-count footer would all be
@@ -2333,14 +2546,20 @@ class WorldFeed extends React.Component {
               <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"></path></svg>
               Takes
             </button>
-            {/* D86: re-open the options on an answered plain vote. The
-                guard is the option-vote shape itself — catalog picks
+            {/* D86: re-open the answer on an answered card. An option vote
+                re-opens its rows; a dial or a field re-opens its CONTROL,
+                seeded at the answer you hold (renderDial, renderField).
+                The guard is the answer's own shape — catalog picks
                 (entity objects), ranks and know cards never store a
                 number here, and their server docs refuse edits anyway.
-                Continuum cards are excluded by NAME: a live dial stores a
-                raw number locally, but its change path is re-answering
-                the control, not re-opening option rows it never had. */}
-            {q.options && q.type !== 'dial' && q.type !== 'field' && typeof this.state.votes[q.id] === 'number' && !this.state.editFor[q.id] && (
+                The continuum cards were excluded here BY NAME until
+                2026-09-06, on the reasoning that their change path was
+                "re-answering the control" — a control the answered card
+                never offered again, so the edit the store and the rules
+                already accepted had no door on screen. */}
+            {(q.type === 'dial' ? this.dialVal(q) != null
+              : q.type === 'field' ? this.fieldVal(q) != null
+                : q.options && typeof this.state.votes[q.id] === 'number') && !this.state.editFor[q.id] && (
               <button className="press" onClick={() => this.setState((s) => ({ editFor: { ...s.editFor, [q.id]: true } }))} style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5 }}>
                 <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                 Change
@@ -2424,8 +2643,12 @@ class WorldFeed extends React.Component {
   // winner outright. Tapping it opens the full breakdown at that cut.
   //
   // Live questions only, and only above the floor — feedInsight returns null
-  // for anything it cannot say from real, already-k-floored data, and this
-  // renders nothing rather than inventing a line to fill the space.
+  // for anything it cannot say, and this renders nothing rather than
+  // inventing a line to fill the space. The floor is feedInsight's own
+  // (`MIN_CELL`, matching the two sibling lines below); this said
+  // "already-k-floored data", and D98 left no floor on the server at all,
+  // so for as long as that stood the only floor named anywhere was one
+  // that had been deleted.
   // the rate card's surprise: the cut that sits furthest from the score you gave.
   // Tapping it opens the breakdown already switched to that cut.
   renderRateInsight(q, T, big) {
@@ -2648,11 +2871,13 @@ class WorldFeed extends React.Component {
     //
     // The honest replacement is the thing D96 part 3 already made true and
     // never showed anyone: a live build runs EVERY subject its bank stocks,
-    // always on. So this names them, counts them out of the same pool the
-    // feed is built from, and gives each the mute the chip row has. Every
+    // always on. So this names them, counts them out of the bank the feed
+    // is served from, and gives each the mute the chip row has. Every
     // number here is measured — questions in the bank, and how many of them
     // you have answered. No member counts, no vibes, nothing this build
-    // cannot source.
+    // cannot source. (Out of the bank, not the pool: see the count below —
+    // it read the pool until the night of 2026-09-05, and the pool has
+    // been a page since D321.)
     //
     // Channels only, not scenes and leaves: those two have a follow to
     // remove and surfaces that own it (the profile's scenes card, search),
@@ -2684,8 +2909,31 @@ class WorldFeed extends React.Component {
         if (done) s.done++;
       });
     });
+    // THE BANK'S COUNT WHERE THE PUBLISHED ORDER CARRIES ONE, the pool's
+    // otherwise — the same rule LEARN.total() follows, and here for the
+    // same reported failure. Since D321 the feed's pool is core plus at
+    // most FEED_PAGE tail rows per topic per boot, so counting it claimed
+    // what the device had fetched. MEASURED on today's bank, first boot:
+    // every topic under-reads, `fav` at 12 of 24 and `music` at 15 of 24,
+    // and it heals only as later boots pull the next page. The published
+    // count is MEMBERSHIP (rank.ts's
+    // `carry`, home ∪ also) because that is what this row means and what
+    // the mute below acts on; the client cannot compute it, since it sees
+    // `also` only on the questions it already holds.
+    //
+    // `done` stays the pool's, and is not the same kind of number: the
+    // pager heals history by id, so every feed question this account has
+    // answered is fetched back into the pool whatever page it was on.
+    // What you have answered is therefore fully in the pool even when
+    // what there is to answer is not.
+    //
+    // Null (a demo build, or before the order loads) falls through to the
+    // pool, which in a demo build IS the whole bank.
     const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
-      .map((t) => ({ ...t, ...(stock[t.id] || { n: 0, done: 0 }) }))
+      .map((t) => {
+        const s = stock[t.id] || { n: 0, done: 0 };
+        return { ...t, ...s, n: feedTopicTotal(t.id) ?? s.n };
+      })
       .filter((t) => t.n > 0);
     const topicRow = (t) => {
       const on = catsOn[t.id] !== false;
@@ -2794,7 +3042,7 @@ class WorldFeed extends React.Component {
         </div>
         {/* the in-reach way into the ask-a-question door (the paid path,
             D288 §1) — the rail's + adds topics, this proposes a question */}
-        <button className="press" onClick={() => { this.setState({ sheet: null }); NAV.openSuggestions(); }} style={{ marginTop: 14, padding: '11px 0', border: '0.5px solid var(--rule)', background: 'var(--surface-2)', borderRadius: 14, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)', WebkitAppearance: 'none' }}>Ask a question</button>
+        
       </div>
     );
   }
@@ -2818,7 +3066,11 @@ class WorldFeed extends React.Component {
       // D149: no row at all when nothing has been measured. "Crowd — null%"
       // and "Our estimate" are both worse than the sheet simply not
       // carrying a line about a crowd that has not answered yet.
-      if (kr.pct != null) rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
+      // …and no row when the only measurement is a single first try, which
+      // on a card the reader has answered is their own. "Crowd — 100% get
+      // this right" over one person is the same fabrication D149 removed
+      // the estimate for, with a number that looks measured.
+      if (kr.pct != null && !(kr.src === 'measured' && ((LEARN_COUNTS(kn) || {}).total || 0) < 2)) rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
       rows.push(['On your map', 'Knowledge']);
     } else {
       const scene = q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
@@ -3096,8 +3348,8 @@ class WorldFeed extends React.Component {
   // `friends` is absent here on purpose: a named who-voted at world scale
   // is what D1 rules out. It stays a demo-only dimension.
   liveBy(q) {
-    if (!q.live || !window.LIVE || !window.LIVE.aggFor) return null;
-    const agg = window.LIVE.aggFor(q.id);
+    if (!q.live) return null;
+    const agg = LIVE.aggFor(q.id);
     const by = agg && agg.by;
     return by && Object.keys(by).length ? by : null;
   }
@@ -3247,8 +3499,7 @@ class WorldFeed extends React.Component {
     const rate = LEARN_RATE(card);
     const p = rate.pct;
     const r = this.knowOf(q);
-    const S = window.LEARN_SOCIAL;
-    const seen = S ? S.onCard(card) : [];
+    const seen = LEARN_SOCIAL.onCard(card);
     const rows = dim === 'friends' ? [] : (() => { const gs = WF_GRP(dim, axis); return gs.map((g, i) => ({ ...g, rate: wfKnowRate(q.id, WF_CUTKEY(dim, axis) + ':' + g.label, p, wfKnowBias(dim, axis, gs.length, i)) })).sort((a, b) => b.rate - a.rate); })();
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
@@ -3257,8 +3508,14 @@ class WorldFeed extends React.Component {
           {/* D149: the estimate is gone from live builds, so the three
               cases here are a measurement, the demo's authored figure, and
               a live card nobody else has answered \u2014 which says so rather
-              than printing a number nobody measured. */}
-          <span style={{ flex: 1, minWidth: 0 }}>{p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
+              than printing a number nobody measured.
+
+              `rate.src === 'estimate'` alone, not `live &&` it: an
+              estimate only EXISTS where the build is not live, so the
+              conjunction could never be true and the demo's authored
+              figure printed unhedged. The Map's learn card carried the
+              same dead condition. */}
+          <span style={{ flex: 1, minWidth: 0 }}>{rate.src === 'loading' ? 'Counting\u2026' : p == null ? 'Nobody else has answered this one yet' : rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
           {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
         </div>
         {/* The cuts' honest absence, in the sheet that was built to hold
@@ -3816,7 +4073,12 @@ class WorldFeed extends React.Component {
             question is in every other respect an ordinary question. */}
         {q.sponsor
           ? <SponsorMark sponsor={q.sponsor} until={q.until}></SponsorMark>
-          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? WPAL.ink(T.color) : 'var(--ink-2)', background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>}
+          // The kicker names the topic; when it is NOT a sponsor mark it
+          // also names the card's FORM in words (2026-09-02) — "this or
+          // that", "rank", "place it". The feed serves nine shapes and a
+          // reader met each one by discovering it; a sponsor mark keeps
+          // the pill it needs and says nothing else.
+          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: mk ? 12.5 : 10.5, fontWeight: mk ? 600 : 800, letterSpacing: mk ? 0 : '.09em', textTransform: mk ? 'none' : 'uppercase', color: WPAL.ink(T.color), background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: mk ? `0.5px solid color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'none', borderRadius: 999, padding: mk ? '4px 12px 4px 10px' : 0, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}{!mk && q.type && q.type !== 'vote' ? <span style={{ color: 'var(--ink-3)' }}>{'\u00b7 ' + (WF_FORM_WORD[q.type] || q.type)}</span> : null}</span>}
         {bgText ? (
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         ) : (
@@ -3825,7 +4087,7 @@ class WorldFeed extends React.Component {
         {/* A real deadline outranks the decorative one — never both (D231). */}
         {win ? this.renderWindow(T, win) : (F.closing && this.renderClock(T))}
         <span style={{ flex: 1 }}></span>
-        {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}
+        <PassiveTag q={q} answered={answered}></PassiveTag>
       </div>
     );
     const snap = !compact && !focus;
@@ -3876,7 +4138,11 @@ class WorldFeed extends React.Component {
         {/* the bare skin has no box to compete with, so the question can carry
             the card on its own — it steps up a size and tightens accordingly,
             and steps back down when `hier` gives the daily the top of the page */}
-        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap || focus ? 800 : 750, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 24.5 : 30) : (this.opts.hier ? 22 : 26)) : focus ? 20 : 16.5, lineHeight: snap ? 1.14 : focus ? 1.2 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.7 : -0.5) : focus ? -0.4 : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
+        {/* the prompt voice (2026-09-02): a question a person answers is
+            set in the serif, and only where it IS the card — snap and
+            focus. A row prompt stays sans: at 16.5px in a list it is a
+            label for a card, not the card. */}
+        <div style={{ fontFamily: snap || focus ? 'var(--serif)' : 'var(--sans)', fontWeight: snap || focus ? 500 : 600, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 26 : 30) : (this.opts.hier ? 23 : 26)) : focus ? 22 : 16.5, lineHeight: snap ? 1.18 : focus ? 1.22 : 1.25, letterSpacing: snap || focus ? '-0.01em' : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}
@@ -3902,6 +4168,16 @@ class WorldFeed extends React.Component {
             style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{mk ? 'later' : 'skip'}</button>
         )}
         {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
+        {/* The buyer's link (D378), after the answer and only then — the
+            card's one way off-app, as its bare domain, nothing counted —
+            and beside it the results page's address (D379), the same
+            numbers as one page anyone can open. */}
+        {answered && q.sponsor ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {q.sponsor.link ? <SponsorLink link={q.sponsor.link}></SponsorLink> : null}
+            <SponsorShare qid={q.id}></SponsorShare>
+          </div>
+        ) : null}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
       </div>
     );
@@ -4062,17 +4338,17 @@ class WorldFeed extends React.Component {
     // carries the full length: the same side cards land, at the designed
     // rhythm among the fresh topics, with the surplus after them — which
     // at the fully caught-up end is exactly what the full walk produced.
-    // The paid slot (D195). Every sponsored card leaves the ordinary
-    // stream and at most ONE comes back, at a fixed depth — the cap is the
-    // unit of sale, so it has to be a property of the code rather than of
-    // how many the bank happens to hold. The match runs HERE, on the
-    // device, against anchors the device already has: the server is never
-    // asked who should see what.
-    // ONE paid slot, and both kinds compete for it (D197): a sponsored
-    // QUESTION (path 2 — answered like any other, folds into the public
-    // aggregate) and an AD (path 3 — text, no answer, no data). They
-    // rotate together by day, so a week with one of each splits the days
-    // rather than giving the question every one of them.
+    // The paid places (D195, D377). Every sponsored card leaves the
+    // ordinary stream and comes back in the day's order, one after every
+    // SPONSOR_EVERY-th world card — the density is the unit of sale, so
+    // it has to be a property of the code rather than of how many the
+    // bank happens to hold; until D377 at most ONE came back, at a fixed
+    // depth. The match runs HERE, on the device, against anchors the
+    // device already has: the server is never asked who should see what.
+    // Both kinds take the same places (D197): a sponsored QUESTION (path
+    // 2 — answered like any other, folds into the public aggregate) and
+    // an AD (path 3 — text, no answer, no data). They rotate together by
+    // day, so a week with one of each alternates which comes first.
     const paidSplit = partitionSponsored(
       sorted,
       (LIVE.enabled && LIVE.anchors()) || {},
@@ -4088,25 +4364,24 @@ class WorldFeed extends React.Component {
     const kqs = kEvery ? this.knowQs(Math.ceil(ordered.length / kEvery) + 1, cats) : [];
     // The cadences, their coprimality and the empty-feed drain all live in
     // data/feed-interleave.ts, which is where the test now reaches them.
-    // The slot carries whichever kind won the day. An ad is not a question,
-    // so it rides as `{ id, ad }` and the render loop dispatches on it —
-    // renderCard's apparatus (options, who-voted, takes, the insight line)
-    // has nothing to say about a card that asks nothing.
-    const paidCard = paidSplit.ad
-      ? { id: paidSplit.ad.id, ad: paidSplit.ad }
-      : paidSplit.sponsored;
+    // Each place carries whichever kind the day's order put there. An ad
+    // is not a question, so it rides as `{ id, ad }` and the render loop
+    // dispatches on it — renderCard's apparatus (options, who-voted,
+    // takes, the insight line) has nothing to say about a card that asks
+    // nothing.
+    const paidCards = paidSplit.paid.map((p) => (p.kind === 'ad' ? { id: p.ad.id, ad: p.ad } : p.question));
     const dropWorld = new Set(worldSplit.done.map((q) => q.id));
     const woven = interleaveFeed(ordered.filter((q) => !dropWorld.has(q.id)), {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
-      sponsored: paidCard, sponsorAt: SPONSOR_AT,
+      paid: paidCards, paidEvery: SPONSOR_EVERY,
       depth: ordered.length,
     });
-    // The one answered world card that can still be in the weave is the
-    // paid one: partitionSponsored picks it off the full list, so a
+    // The only answered world cards that can still be in the weave are
+    // paid ones: partitionSponsored orders them off the full list, so a
     // sponsored question the viewer has already answered parks behind the
     // Answered expander like every other answered card instead of
-    // spending the day's slot on a result. Stream cards never match a
-    // world id, so this touches nothing else.
+    // spending a place on a result. Stream cards never match a world id,
+    // so this touches nothing else.
     const feedList = woven.filter((q) => !dropWorld.has(q.id));
     // Read by the two growth checks above, which run outside render and so
     // cannot see this local. Assigned rather than derived there because the

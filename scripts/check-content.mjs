@@ -206,8 +206,17 @@ for (const q of entries) {
     if (!s || typeof s !== "object" || Array.isArray(s)) {
       errors.push(`${q.id}: sponsor must be an object`);
     } else {
-      const extra = Object.keys(s).filter((k) => !["buyer", "audience"].includes(k));
-      if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer and audience. No colour, no logo, no link`);
+      const extra = Object.keys(s).filter((k) => !["buyer", "audience", "link"].includes(k));
+      if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer, audience and link. No colour, no logo, no creative`);
+      // The buyer's one link (D378): an https address, shown as its bare
+      // domain after a person has answered. Shape only — a committed
+      // sponsored question is a hand contract, and its link was read by
+      // a person; the self-serve path's is read by the review.
+      if (s.link !== undefined) {
+        let ok = false;
+        try { const u = new URL(String(s.link)); ok = u.protocol === "https:" && !u.username && !u.password && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(u.hostname); } catch { ok = false; }
+        if (!ok) errors.push(`${q.id}: sponsor.link must be one https address with a real site name — got ${JSON.stringify(s.link)}`);
+      }
       // The buyer NAME is the buyer's choice since D228 — individuals may
       // buy a question, and printing a person's name on every serve is
       // theirs to want or to refuse. What stays non-optional is the PAID
@@ -419,8 +428,16 @@ for (const q of entries) {
 }
 
 // ---- duplicate prompts within a surface read as the same question twice.
+// A retired entry (`active: false`) is not read at all, and its REPLACEMENT
+// carries the same prompt by design: a shipped dial's range is frozen with
+// its bucket labels (D114), so widening one means retiring the id and
+// appending a new one with the prompt unchanged (D358 did fourteen). The
+// retired entry stays in the bank — the seed and the deck read the flag
+// there — and stays out of this rule; check:neighbors makes the same
+// exclusion for the same reason.
 const promptsBySurface = new Map();
 for (const q of entries) {
+  if (q.active === false) continue;
   const key = `${q.surface}\u0000${q.prompt}`;
   if (promptsBySurface.has(key)) {
     errors.push(`${q.id}: duplicate prompt within ${q.surface} (also ${promptsBySurface.get(key)})`);
@@ -455,6 +472,18 @@ for (const q of entries) {
 for (const q of entries) {
   if (q.surface === "group" && !["us", "pick", "classic"].includes(q.topic)) {
     errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic`);
+  }
+}
+
+// ---- 1v1 domains are a closed set too (D386). The roles fold reads the
+// day's kind off this field — a `mirror` day is a read of the OTHER person
+// and is held apart from likeness and insight — so a 1v1 question with no
+// domain, or a new word nobody taught the fold, would be scored as
+// something it is not. Both pools, since they share the surface.
+const DUO_DOMAINS = ["day", "heat", "mirror", "ahead"];
+for (const q of entries) {
+  if (q.surface === "duo" && !DUO_DOMAINS.includes(q.topic)) {
+    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead`);
   }
 }
 

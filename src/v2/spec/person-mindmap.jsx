@@ -19,6 +19,8 @@ import { MTSwipeRow } from './map-bottom-card.jsx';
 import { MapTabLayout } from './map-layout.js';
 import { MAP_GROUPS } from './map-groups.js';
 import { MTBranchChips } from './map-chiprow.jsx';
+import { MapStats } from './map-group-stats.js';
+import { MapLens } from './map-branches.js';
 
 // InSight — PersonMindMap: a read-only map of someone else's answers, grown
 // from the SAME daily-question pool as your own map: same branches, same
@@ -65,7 +67,7 @@ const PMM_POOLS = {
 // ── their node set — the real question pool, answered deterministically ─────
 function pmmBuild(p) {
   const D = DAILYQ;
-  const seedCats = (window.MapLens ? window.MapLens.CATS : []).slice();
+  const seedCats = MapLens.CATS.slice();
   const seed = String(p.id || p.init || p.name || 'x');
   const H = (s) => pmmHash(seed + '|' + s);
   const nodes = [];
@@ -88,10 +90,28 @@ function pmmBuild(p) {
     // returns null for every question, so `typ` and `maj` both fell back
     // to the deterministic hash and this map placed nobody by any real
     // agreement. Falls back on a demo build, where the demo id is the only
-    // id there is.
+    // id there is. (MapStats is the imported binding since D354's sweep.)
     const qid = q.liveId || q.id;
-    const gd = window.MapStats ? window.MapStats.dist(qid, 'all', n, mineIdx) : null;
-    const majIdx = gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
+    // ASK for the mode, exactly as map-tab does. `gd` is ROUNDED, and two
+    // different counts can print the same integer — so `indexOf(max)`
+    // breaks a real tie by INDEX, and `maj` below is what marks a dot a
+    // rare take. Counts [449, 451, 100] print [45, 45, 10]: index 0 wins
+    // by two votes it did not get, the person is drawn answering the
+    // option that lost, and the card says "a rare take" under an answer
+    // 451 people in 1000 gave.
+    //
+    // Dead here until today: while `dist` was asked with the demo id it
+    // returned null for every live question and this line always fell to
+    // the hash. The commit that fixed the id woke the tie defect in the
+    // block it edited — the same activation the Map's own twin recorded
+    // one file over, and the same fix, which this file did not get.
+    //
+    // Demo-identical: `mode()` there is `dist(...).indexOf(max)` on the
+    // same arguments, so nothing about the demo map moves.
+    const gd = MapStats.dist(qid, 'all', n, mineIdx);
+    const asked = MapStats.mode(qid, 'all', n, mineIdx);
+    const majIdx = asked != null ? asked
+      : gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
     let aidx;
     if (mineIdx != null && H('agree' + q.id) < agreeP) aidx = mineIdx;
     else {

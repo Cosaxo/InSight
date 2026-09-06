@@ -71,8 +71,9 @@ which stopped being true at D98.
 the low-privilege Routine and the maintainer's answers to the open
 questions at the end. Until the Routine lands, the only verdict source
 is a MOD_UIDS operator acting by hand — with enforcement live, that hand
-now really hides, bounded per run by `MOD_RUN_CAP`. The policy and
-threat model below remain the contract.
+now really hides, bounded by one verdict per invocation and one verdict
+per take per queue generation. The policy and threat model below remain
+the contract.
 
 ## The job in one sentence
 
@@ -126,11 +127,13 @@ npm run mod:queue -- --escalate <takeId>
 npm run mod:queue -- --remove <takeId> --line H3
 ```
 
-**One verdict per invocation, deliberately.** `MOD_RUN_CAP` bounds a run's
-blast radius on the server and the caller keeps the matching shape — there
-is no bulk mode and no "remove everything over N flags", because a tool
-that can clear the queue in one command is a tool that eventually will, and
-confinement is the whole of D22's design. The `runId` is generated per
+**One verdict per invocation, deliberately.** This IS the blast-radius
+bound — there is no bulk mode and no "remove everything over N flags",
+because a tool that can clear the queue in one command is a tool that
+eventually will, and confinement is the whole of D22's design. (`MOD_RUN_CAP`
+was described here as the bound and is not: the per-invocation `runId`
+below means the server's per-run counter always reads zero. See the cap's
+own note in `functions/src/moderation.ts`.) The `runId` is generated per
 invocation rather than accepted as a flag: one somebody can choose is one
 somebody can reuse.
 

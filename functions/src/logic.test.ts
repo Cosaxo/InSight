@@ -16,6 +16,7 @@ import {
   logicPctile,
   logicPctileFor,
   measuredPctile,
+  rankAndFold,
   nextStartsToday,
   scoreLogicPicks,
   validLogicPicks,
@@ -68,6 +69,26 @@ describe("canStartLogic", () => {
   it("an open attempt can be restarted (crash recovery) — it just costs a start", () => {
     expect(canStartLogic(attempt({ startsToday: 1 }), NOW).ok).toBe(true);
     expect(nextStartsToday(attempt({ startsToday: 1 }), NOW)).toBe(2);
+  });
+
+  it("keeps the start cap at the value whose reasoning is written down", () => {
+    // The case below proves the cap BINDS — but it states the bound
+    // relative to the constant, so it moves with it. Measured: this can be
+    // set to a million with all 593 functions tests green, and no check
+    // gate names it.
+    //
+    // logic.ts: "Starting an attempt previews a fresh form, so unfinished
+    // restarts are a preview channel — bounded per UTC day rather than
+    // closed, because a crashed app must be able to start again." That
+    // preview channel is the surface the unscored answer key is one of
+    // D98's three denies for, so the bound is what keeps a preview from
+    // becoming a way to read the key by repetition.
+    expect(LOGIC_MAX_STARTS_PER_DAY,
+      "the per-day start cap moved — re-read logic.ts's reasoning and change this line deliberately").toBe(3);
+    // …and it is a bound, not a closure: a crashed app must be able to
+    // start again, which is the other half of the same sentence.
+    expect(LOGIC_MAX_STARTS_PER_DAY,
+      "the preview channel is closed, not bounded — a crashed app cannot start again").toBeGreaterThan(1);
   });
 
   it("the per-day start cap holds, and resets on the next UTC day", () => {
@@ -200,6 +221,16 @@ describe("measuredPctile (D60)", () => {
   it("stays null below the floor — the model keeps the job", () => {
     expect(measuredPctile(null, 8)).toBeNull();
     expect(measuredPctile({ n: LOGIC_NORMS_MIN_N - 1, b0: LOGIC_NORMS_MIN_N - 1 }, 12)).toBeNull();
+    // …and the floor itself, which this line cannot pin because it builds
+    // its fixture from the constant. Measured: 100 -> 2 leaves all 617
+    // functions tests green. Above this floor the app publishes
+    // `source: "measured"` with an `n`, and the client says "sharper than
+    // X% of N verified players" — at 2 that sentence is published from two
+    // people. The constant's own docblock says "one constant; lowering it
+    // is a recorded decision, not a tweak", which is the standard the
+    // start-cap case in this same file already applies literally.
+    expect(LOGIC_NORMS_MIN_N,
+      "the norms floor moved — lowering it is a recorded decision, not a tweak").toBe(100);
   });
 
   it("at the floor: strictly-below share, ties not beaten", () => {
@@ -225,5 +256,79 @@ describe("measuredPctile (D60)", () => {
 describe("administration arithmetic", () => {
   it("the deadline covers 25 capped items plus one item of slack", () => {
     expect(LOGIC_DEADLINE_MS).toBe(26 * 90_000);
+  });
+});
+
+// ── how a submitted score is ranked, and whether it counts ──────────────
+//
+// The four decisions behind every "sharper than X% of N verified players"
+// sentence. They lived inside the callable, which only the emulator
+// reaches and which the e2e drives by starting an attempt and submitting
+// at once — so all four mutated GREEN across the functions suite and all
+// three e2e suites.
+describe("rankAndFold", () => {
+  const hist = (items: number, n: number) => ({ items, n, bins: Array.from({ length: 26 }, (_, i) => (i === 10 ? n : 0)) } as never);
+
+  it("refuses a histogram from another form-length era, and starts the count fresh", () => {
+    // A score out of 25 has no meaning against a distribution of scores
+    // out of 12. Widening this makes the app rank a 25-item score against
+    // a 12-item population and publish the result as measured.
+    const out = rankAndFold({ items: LOGIC_ITEMS, score: 20, stored: hist(12, 900), alreadyCounted: false });
+    expect(out.source, "a foreign-era histogram was used to rank").toBe("model");
+    expect(out.norms, "the fold must start fresh, not extend the old era").not.toBeNull();
+    expect(out.norms!.items).toBe(LOGIC_ITEMS);
+    expect(out.norms!.n).toBe(1);
+  });
+
+  it("ranks against a same-era histogram, and says the reading is measured", () => {
+    // THE CONTROL. Without it, refusing every histogram passes the case
+    // above and the app never publishes a measured percentile at all.
+    const out = rankAndFold({ items: LOGIC_ITEMS, score: 20, stored: hist(LOGIC_ITEMS, 900), alreadyCounted: false });
+    expect(out.source).toBe("measured");
+    expect(out.norms!.n).toBe(901);
+  });
+
+  it("scores a form against ITS OWN length when there is no measured population", () => {
+    // The model curve is length-aware (logic-score's 12- and 25-item
+    // curves). Pinning it to 12 for a 25-item form scores a player on the
+    // wrong distribution, silently — the D53 curve against the D61 form.
+    const short = rankAndFold({ items: 12, score: 6, stored: null, alreadyCounted: false });
+    const long = rankAndFold({ items: LOGIC_ITEMS, score: 12.5, stored: null, alreadyCounted: false });
+    // Same fraction of the form, different curve, so different percentiles.
+    expect(short.source).toBe("model");
+    expect(long.source).toBe("model");
+    expect(short.pctile).not.toBe(long.pctile);
+  });
+
+  it("does not fold a form from a retired era into the current histogram", () => {
+    const out = rankAndFold({ items: 12, score: 6, stored: hist(LOGIC_ITEMS, 900), alreadyCounted: false });
+    expect(out.countsNorms, "a 12-item score was folded into the 25-item population").toBe(false);
+    expect(out.norms).toBeNull();
+  });
+
+  it("carries the measured population's size beside the reading", () => {
+    // The published sentence is "sharper than X% of N verified players",
+    // so the N travels with the X — and the caller writes it onto the
+    // result only when there IS a measured population. A model reading
+    // rests on nobody and must carry no N at all.
+    const measured = rankAndFold({ items: LOGIC_ITEMS, score: 20, stored: hist(LOGIC_ITEMS, 900), alreadyCounted: false });
+    expect(measured.n).toBe(900);
+    const model = rankAndFold({ items: LOGIC_ITEMS, score: 20, stored: null, alreadyCounted: false });
+    expect(model.source).toBe("model");
+    expect(model.n, "a model reading claimed a population").toBeNull();
+  });
+
+  it("measures a re-verification and never counts it — D32's rule", () => {
+    // The population every published claim is measured against. Without
+    // this gate an account can push it toward itself by taking the test
+    // again, and the gate is carried on the attempt by logicStartV2.
+    const again = rankAndFold({ items: LOGIC_ITEMS, score: 20, stored: hist(LOGIC_ITEMS, 900), alreadyCounted: true });
+    expect(again.source, "a re-verification stopped being measured").toBe("measured");
+    expect(again.countsNorms).toBe(false);
+    expect(again.norms).toBeNull();
+    // …and a first attempt on the same data does count, or the case above
+    // proves only that nothing ever folds.
+    const first = rankAndFold({ items: LOGIC_ITEMS, score: 20, stored: hist(LOGIC_ITEMS, 900), alreadyCounted: false });
+    expect(first.countsNorms).toBe(true);
   });
 });

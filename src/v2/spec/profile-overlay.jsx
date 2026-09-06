@@ -33,6 +33,8 @@ import { pushBackLayer } from '../data/backLayers';
 // the display form comes from the same pure module the account sheet's
 // panel uses, so "@olaf" is spelled one way everywhere.
 import { atHandle } from '../data/handles.ts';
+import { LensesPanel } from './lens-cards.jsx';
+import { GeneralPanel } from './profile-general.jsx';
 
 // The Roles tab (D204), behind a lazy boundary. When Roles shipped this
 // file was eager (spec-index imported it at top level) and MAX_EAGER_KB
@@ -79,11 +81,102 @@ function AccountSheet({ onClose }) {
   );
 }
 
+// ── one tab per test — the unified "results profile" card ──
+//
+// WHAT USED TO BE HERE: a "Take this test →" button, shown whenever the
+// test had no stored result. D121 removed it along with the sit-down
+// flow behind it — the instruments fill from the feed and only from the
+// feed — and a tab whose whole content was a button to a screen that no
+// longer exists is worse than the empty one it was covering for.
+//
+// What stands in its place is the same page one step earlier: the
+// instrument's own progress, its axes, and which of them are still too
+// thin to read. Not a nudge — a reading of where the profile has got to,
+// which is the only honest thing to show before there is a type.
+//
+// AT MODULE SCOPE, NOT INSIDE ProfileOverlay (D364). This and the four
+// result panels below it were defined inside the overlay's render body
+// until 2026-09-05, which hands React a NEW component type on every
+// render of the overlay — and a new type is an unmount and a fresh mount
+// of everything under it, not an update. The overlay re-renders whenever
+// the shell does, and the shell re-renders on every store notify
+// (app-shell's `liveTick`). ResultProfileCard's mount effect calls
+// `LIVE.loadKindred()`, whose `finally` notifies. So on a live build:
+// mount → loadKindred → notify → shell → overlay → new type → remount →
+// mount effect → loadKindred… Each pass restarted every reveal animation
+// on the card (the petals' `roseGrow` and the rows' `rpv2-bar` both fill
+// `both`, so a restarted petal sits at scale 0.12 / opacity 0 — the rose
+// drew EMPTY while it shook), paced by the network while the twelve
+// voter lists were landing and then, once every list was cached and the
+// loader ran to its `finally` synchronously, as fast as React could
+// commit — the "vibrating faster and faster, then the app dies" the
+// owner reported from the Big 5 and Politics tabs. A component is
+// defined once; what varies per render is passed as props or written
+// inline as JSX.
+function TestProgress({ k }) {
+  const p = ownProgress(k);
+  if (!p || p.ready) return null;
+  // This card is the state BEFORE there is a type, so the flat category
+  // accent was the only colour it could wear — `(RP_TESTS[k]||{}).banner`,
+  // which is the same TEST_HUE value `col` falls back to. D230 gave the
+  // partial fold a colour of its own, so the card can wear where you
+  // actually stand: tapping a two-tone row in the profiles sheet through
+  // to here now lands on the same two tones instead of on the family hue.
+  const { col: hue, sp } = passiveStanding(k);
+  const pct = Math.round((p.answered / Math.max(1, p.total)) * 100);
+  return (
+    <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ height: 3, background: `color-mix(in oklch, ${hue} 14%, var(--surface-3))` }}>
+        {/* deep base with the runner-up's lighter tone laid on its right —
+            the progress pill's own construction (passive-meter.jsx), at
+            bar scale, so the two read as one thing */}
+        <div style={{ height: '100%', width: `${pct}%`, display: 'flex', background: sp ? sp.deep : hue }}>
+          {sp ? <span style={{ marginLeft: 'auto', width: ((1 - sp.ratio) * 100).toFixed(1) + '%', background: sp.lift }}></span> : null}
+        </div>
+      </div>
+      <div style={{ padding: '15px 18px 17px' }}>
+        <div className="kicker" style={{ color: hue }}>{(RP_TESTS[k] || {}).kicker || 'Filling in'}</div>
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', marginTop: 4, letterSpacing: '-0.01em' }}>
+          {p.answered} of {p.total} answered
+        </div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 7 }}>
+          {/* Says where the answers come from, because there is no longer
+              anywhere else they could. */}
+          Marked cards in the feed fill this in. There is no sitting down
+          for it — answer them when they come.
+        </div>
+        {/* The axes, and which are still a coin flip. An axis with one
+            answer behind it lands on an extreme more often than not, so
+            the card refuses a TYPE until every one of them has two —
+            and naming them is what makes the refusal legible instead of
+            looking like a stall. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 14 }}>
+          {p.dims.map((d) => (
+            <div key={d.dim} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ width: 96, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
+              <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
+                <span style={{ display: 'block', height: '100%', width: `${Math.round((d.n / Math.max(1, d.items)) * 100)}%`, background: hue, opacity: 0.75 }}></span>
+              </span>
+              <span style={{ width: 40, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{d.n}/{d.items}</span>
+            </div>
+          ))}
+        </div>
+        {!!p.thin.length && (
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
+            Still thin: {p.thin.join(', ')}. Your type appears once every
+            side of this has at least two answers behind it.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // `lensBoxed` left the signature with the v28 §10 teardown (this branch);
 // the Roles panel and the LIVE read arrived with D204 (main). The merge
 // keeps both changes.
 function ProfileOverlay({ onClose, me }) {
-  const L = window.LIVE || {};
+  const L = LIVE;
   const dims = [
     { label: 'Openness', v: me.personality.O },
     { label: 'Conscientiousness', v: me.personality.C },
@@ -149,106 +242,18 @@ function ProfileOverlay({ onClose, me }) {
   };
   const meta = labels[top.label];
 
-  // ── one tab per test — the unified "results profile" card ──
-  //
-  // WHAT USED TO BE HERE: a "Take this test →" button, shown whenever the
-  // test had no stored result. D121 removed it along with the sit-down
-  // flow behind it — the instruments fill from the feed and only from the
-  // feed — and a tab whose whole content was a button to a screen that no
-  // longer exists is worse than the empty one it was covering for.
-  //
-  // What stands in its place is the same page one step earlier: the
-  // instrument's own progress, its axes, and which of them are still too
-  // thin to read. Not a nudge — a reading of where the profile has got to,
-  // which is the only honest thing to show before there is a type.
-  const TestProgress = ({ k }) => {
-    const p = ownProgress(k);
-    if (!p || p.ready) return null;
-    // This card is the state BEFORE there is a type, so the flat category
-    // accent was the only colour it could wear — `(RP_TESTS[k]||{}).banner`,
-    // which is the same TEST_HUE value `col` falls back to. D230 gave the
-    // partial fold a colour of its own, so the card can wear where you
-    // actually stand: tapping a two-tone row in the profiles sheet through
-    // to here now lands on the same two tones instead of on the family hue.
-    const { col: hue, sp } = passiveStanding(k);
-    const pct = Math.round((p.answered / Math.max(1, p.total)) * 100);
-    return (
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
-        <div style={{ height: 3, background: `color-mix(in oklch, ${hue} 14%, var(--surface-3))` }}>
-          {/* deep base with the runner-up's lighter tone laid on its right —
-              the progress pill's own construction (passive-meter.jsx), at
-              bar scale, so the two read as one thing */}
-          <div style={{ height: '100%', width: `${pct}%`, display: 'flex', background: sp ? sp.deep : hue }}>
-            {sp ? <span style={{ marginLeft: 'auto', width: ((1 - sp.ratio) * 100).toFixed(1) + '%', background: sp.lift }}></span> : null}
-          </div>
-        </div>
-        <div style={{ padding: '15px 18px 17px' }}>
-          <div className="kicker" style={{ color: hue }}>{(RP_TESTS[k] || {}).kicker || 'Filling in'}</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', marginTop: 4, letterSpacing: '-0.01em' }}>
-            {p.answered} of {p.total} answered
-          </div>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 7 }}>
-            {/* Says where the answers come from, because there is no longer
-                anywhere else they could. */}
-            Marked cards in the feed fill this in. There is no sitting down
-            for it — answer them when they come.
-          </div>
-          {/* The axes, and which are still a coin flip. An axis with one
-              answer behind it lands on an extreme more often than not, so
-              the card refuses a TYPE until every one of them has two —
-              and naming them is what makes the refusal legible instead of
-              looking like a stall. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 14 }}>
-            {p.dims.map((d) => (
-              <div key={d.dim} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span style={{ width: 96, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
-                <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: '100%', width: `${Math.round((d.n / Math.max(1, d.items)) * 100)}%`, background: hue, opacity: 0.75 }}></span>
-                </span>
-                <span style={{ width: 40, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{d.n}/{d.items}</span>
-              </div>
-            ))}
-          </div>
-          {!!p.thin.length && (
-            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
-              Still thin: {p.thin.join(', ')}. Your type appears once every
-              side of this has at least two answers behind it.
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // CONVERTED off the shared-global bridge (D39, "convert on touch"):
-  // adding the fifth panel below would have taken this file's cross-module
-  // global count UP, which check:globals rule 4 refuses. ResultProfileCard
-  // is a named export of result-card.jsx, which spec-index.js imports
-  // eagerly and BEFORE this file, so the import is sound.
-  //
-  // Every fallback the five panels used to carry is gone with it, and that
-  // is the conversion rather than a tidy-up: each one guarded LOAD ORDER
-  // ("has result-card.jsx evaluated yet?"), and an imported binding cannot
-  // be unset. The AttachmentPanel chain even said so — "unreachable today
-  // … written defensively anyway, because load order in this layer is
-  // exactly what changes" — and a static import is what stops it changing.
-  // No data guard was removed: none of them guarded data. The card still
-  // returns null on its own for a test with no result or no RP_TESTS entry.
-  const Big5Panel = () => (
-    <ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} />
-  );
-
-  const PoliticsPanel = () => (
-    <ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} />
-  );
-
-  const ValuesPanel = () => (
-    <ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" />
-  );
-
-  const AttachmentPanel = () => (
-    <ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
-  );
+  // The four result cards are written inline in the tab body below, as
+  // JSX rather than as `const Big5Panel = () => <ResultProfileCard …/>`
+  // wrappers — see the note above TestProgress (D364) for what a wrapper
+  // defined here cost. ResultProfileCard itself is an import, CONVERTED
+  // off the shared-global bridge at D39 ("convert on touch"): it is a
+  // named export of result-card.jsx, which spec-index.js imports eagerly
+  // and BEFORE this file, so the import is sound, and every load-order
+  // fallback the panels used to carry ("has result-card.jsx evaluated
+  // yet?") went with the conversion — an imported binding cannot be
+  // unset. No data guard was removed: none of them guarded data. The
+  // card still returns null on its own for a test with no result or no
+  // RP_TESTS entry.
 
   const dlg = useDialog(onClose, 'Your profile');
   return (
@@ -332,15 +337,15 @@ function ProfileOverlay({ onClose, me }) {
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
           {/* LivePrivacyPanel opened this tab from D98 to D344; it lives
               behind the header's gear now — see AccountSheet above. */}
-          {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
-          {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}
-          {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
-          {sub === 'values' && <><ValuesPanel /><TestProgress k="values" /></>}
-          {sub === 'attachment' && <><AttachmentPanel /><TestProgress k="attachment" /></>}
+          {sub === 'general' && <GeneralPanel onGo={setSub} />}
+          {sub === 'big5' && <><ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} /><TestProgress k="big5" /></>}
+          {sub === 'politics' && <><ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} /><TestProgress k="political" /></>}
+          {sub === 'values' && <><ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" /><TestProgress k="values" /></>}
+          {sub === 'attachment' && <><ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" /><TestProgress k="attachment" /></>}
           {sub === 'roles' && (
             <React.Suspense fallback={null}><RolesPanelLazy /></React.Suspense>
           )}
-          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
+          {sub === 'lenses' && <LensesPanel />}
         </div>
       </div>
 

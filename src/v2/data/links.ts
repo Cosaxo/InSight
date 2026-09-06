@@ -43,6 +43,12 @@ export function inviteLinkFor(code: string): string {
   return `${SITE_ORIGIN}/join/${code}`;
 }
 
+/** The shareable results page of a sponsored question (D379): the
+ * hosting rewrite /q/{qid}, served by functions/src/share.ts. */
+export function resultsLinkFor(qid: string): string {
+  return `${SITE_ORIGIN}/q/${encodeURIComponent(qid)}`;
+}
+
 // Accepts the shapes a join URL can arrive in: the canonical /join/CODE
 // path, the fallback page's /join.html?c=CODE, and a bare "join/CODE"
 // from a custom scheme. Returns the normalized code or null.
@@ -57,12 +63,51 @@ export function parseJoinCode(url: string): string | null {
   // and the code alone is the path — so match on host+path, not path alone.
   const fromPath = /(?:^|\/)join\/([^/?#]+)/.exec(u.hostname + u.pathname);
   const raw = (fromPath && fromPath[1]) || u.searchParams.get("c") || "";
-  const code = decodeURIComponent(raw).trim().toUpperCase();
+  // The decode is load-bearing — `/join/%41%42%43%44%45%46` is a real code
+  // once decoded — and it THROWS on a malformed escape rather than
+  // returning anything: `/join/ABCDEF%`, `insight://join/AB%ZZ` and
+  // `/join.html?c=AB%ZZ` all raise URIError, which is neither the code nor
+  // the null this function's contract promises two lines above. The `new
+  // URL` guard above catches the other half of the same class and this was
+  // simply outside it. `apply()` in initDeepLinks calls straight into here,
+  // so on the native `appUrlOpen` path the throw escapes into Capacitor's
+  // listener with no invite delivered and nothing said.
+  let code: string;
+  try {
+    code = decodeURIComponent(raw).trim().toUpperCase();
+  } catch {
+    return null;
+  }
   return CODE_RE.test(code) ? code : null;
+}
+
+// Who to tell when a code arrives.
+//
+// THE PANEL READS THE STASH ONCE, in a `useState` initializer — which is
+// correct for the ordinary case (the deep link opens the app, the panel
+// mounts after) and silently wrong for the other one. An invite tapped
+// while the Circle screen is ALREADY OPEN stashes a code nothing will ever
+// read: `NAV.goTab("track")` is already where the user is, the panel does
+// not remount, and the code sits in `insight.pendingJoin` until something
+// else happens to remount it. Reproduced end to end before this existed.
+//
+// A set of listeners rather than a DOM event: both ends are typed modules
+// in the same graph, and an event would be a name with no type behind it.
+const joinSubs = new Set<() => void>();
+
+/** Fires when a code lands. The listener reads it with consumeJoinCode. */
+export function subscribeJoinCode(f: () => void): () => void {
+  joinSubs.add(f);
+  return () => joinSubs.delete(f);
 }
 
 export function stashJoinCode(code: string): void {
   try { sessionStorage.setItem(PENDING_KEY, code); } catch { /* best-effort */ }
+  // AFTER the write, so a listener that reads on the callback finds it —
+  // and outside the try, because a sessionStorage failure is best-effort
+  // for the stash and must not swallow the notification for a listener
+  // that could still act on it.
+  joinSubs.forEach((f) => f());
 }
 
 // Read-and-clear: the code prefills one join form once. Leaving it would

@@ -77,6 +77,78 @@ describe("a dial answer shown from its bucket", () => {
       + "what you said").toEqual([]);
   });
 
+  // THE CROWD'S NUMBER CAME OUT OF A DIFFERENT FUNCTION THAN YOURS.
+  //
+  // Everything above pins `dialBucketShown`, which is what your own answer
+  // goes through. The "most say" line one line away on the same card went
+  // through `dialMedOf`, which returned the RAW midpoint — the exact value
+  // this file exists to say must not be printed. So on the 0-12 h dial you
+  // answer 3 h and the card says "most say 4 h", out of the same bucket,
+  // with both numbers derived from the same histogram.
+  it("the crowd's median prints the same value your own answer would", () => {
+    const p = WF.prototype;
+    const wrong = [];
+    for (const q of DIALS) {
+      for (let i = 0; i < 12; i++) {
+        // A histogram whose median lands in bucket i, and nothing else.
+        const dist = Array.from({ length: 12 }, (_, k) => (k === i ? 10 : 0));
+        const med = p.dialMedOf.call(p, q, dist);
+        const shown = p.dialBucketShown.call(p, q, i);
+        if (med !== shown) wrong.push(`${q.id} (${q.lo}-${q.hi}) bucket ${i}: crowd ${med}, you ${shown}`);
+      }
+    }
+    expect(wrong, "the crowd's number and the viewer's own come from the same "
+      + "bucket and would print differently").toEqual([]);
+  });
+
+  it("…and that is a real constraint, not two functions that happen to agree", () => {
+    // The control. If every midpoint were already an integer inside its
+    // bucket the case above would pass against the old code too — so this
+    // asserts that at least one shipped dial HAS a bucket where the raw
+    // midpoint and the shown value differ, which is the case that shipped.
+    const p = WF.prototype;
+    let differ = 0;
+    for (const q of DIALS) {
+      for (let i = 0; i < 12; i++) {
+        if (p.dialBucketMid.call(p, q, i) !== p.dialBucketShown.call(p, q, i)) differ++;
+      }
+    }
+    expect(differ, "no shipped dial distinguishes the midpoint from the shown "
+      + "value, so the case above proves nothing").toBeGreaterThan(0);
+  });
+
+  // AND THE CROWD THAT WAS NOT THERE AT ALL. `dialDist` adds your own
+  // bucket back so the curve is never empty right after you answer —
+  // which on a card nobody else has answered leaves a distribution of
+  // exactly ONE, drawn as a full-height curve labelled "How everyone
+  // answered", with a dashed median and a "most say" line quoting your own
+  // number back at you as the crowd's.
+  //
+  // A source assertion, on the same reasoning as learn-split's: there is
+  // no live dial card in test/live-fixture.ts, so no mount suite reaches
+  // this render at all — which is the sentence at the top of this file,
+  // and why the first defect it was written for shipped.
+  it("draws no crowd on a card that has no counts yet", () => {
+    const src = readFileSync(resolve(here, "../spec/world-feed.jsx"), "utf8");
+    const block = src.slice(src.indexOf("const noCrowd ="), src.indexOf("// ── field:"));
+    // The condition itself moved behind `wfNoCrowd`, this file's one
+    // reader for the flag — three hand-written copies is how the fourth
+    // (the consequence beat) came to be missing. The dial still asks; it
+    // asks by calling.
+    expect(block, "the dial never asks whether there are counts").toContain("wfNoCrowd(q)");
+    // The three things that state a crowd, each behind it.
+    expect(block, "the 'most say' line still prints without a crowd").toMatch(/noCrowd \? null : <span[^>]*>most say/);
+    expect((block.match(/noCrowd \? null : <path/g) || []).length,
+      "the curve still draws from a distribution of one").toBe(2);
+    expect(block, "the dashed median still draws").toMatch(/noCrowd \? null : <line/);
+    // …and the label stops claiming to be everyone.
+    expect(block, "the chart is still labelled 'How everyone answered' with no crowd")
+      .toMatch(/noCrowd \? 'Where you answered/);
+    // …and it says WHY, the way the tiles on the same card already do.
+    expect(block, "nothing tells the reader why the crowd is missing")
+      .toContain("noCrowd ? this.renderFloorNote(big) : null");
+  });
+
   it("the midpoint fallback is confined to dials finer than one unit per bucket", () => {
     // The residue, pinned so it cannot spread. If a WHOLE-unit dial ever
     // lands here, the fix above stopped covering the case it was written

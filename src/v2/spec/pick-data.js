@@ -762,6 +762,72 @@ export let PICK_QS;
       39562: 2,   // Michael Phelps — below the floor
       0: 11,      // Not listed — everyone's local hero
     },
+    // daily catalog-question run, 2026-09-03 — the third languages canon
+    // is FEAR: pk32 ranks what you'd use (Spanish leads) and pk33 what
+    // you'd listen to (Italian leads); this ranks what looks unclimbable.
+    // Chinese takes the top, and Hungarian and Finnish chart here without
+    // appearing on either other board.
+    pk35: {
+      182: 23,  // Chinese — the consensus mountain: tones plus the script
+      74: 18,   // Japanese — three scripts deep
+      8: 16,    // Arabic
+      61: 12,   // Hungarian — the European outlier, eighteen cases
+      44: 11,   // Finnish — the other one
+      135: 10,  // Russian
+      84: 9,    // Korean
+      71: 8,    // Icelandic
+      128: 7,   // Polish
+      32: 6,    // German — the memeable one; feared more than it deserves
+      41: 5,    // Basque — clears the floor but not the top 10; folds
+      76: 5,    // Georgian — same
+      31: 3,    // Danish — below the floor; the pronunciation vote
+      174: 2,   // Vietnamese — below the floor
+      0: 13,    // Not listed — everyone's own nemesis
+    },
+    // daily catalog-question run, 2026-09-05 — the fourth colours canon
+    // is the CLOSET: pk24 asks the heart (blue wins), pk25 the front door,
+    // pk29 the feeling (yellow country); this asks what actually gets
+    // worn, and black takes a board it appears nowhere else on.
+    pk36: {
+      1: 26,        // black — the closet's landslide-in-waiting
+      129: 17,      // navy
+      8421505: 15,  // gray
+      16777216: 13, // white
+      256: 12,      // blue
+      16119261: 9,  // beige
+      32769: 8,     // green
+      10824235: 7,  // brown
+      8421377: 6,   // olive
+      15787661: 5,  // khaki — the tie at 5 breaks its way into the top 10
+      16711681: 5,  // red — same count, folds at the floor
+      16761036: 5,  // pink — clears the floor but not the top 10; folds
+      13808781: 3,  // tan — below the floor
+      8388737: 2,   // purple — below the floor; loved, rarely worn
+      0: 12,        // Not listed — the exact shade only its owner can name
+    },
+    // daily catalog-question run, 2026-09-06 — the videogames domain's
+    // first canon is the GOAT board, the athletes precedent (pk28): the
+    // bar-argument question, not the sales chart. Ocarina leads the way
+    // it leads every critics' poll; Minecraft and GTA V carry the
+    // biggest-thing-ever vote without taking the board; Chrono Trigger
+    // is the retro seat Super Mario Bros. narrowly loses at the floor.
+    pk37: {
+      213911: 23,   // The Legend of Zelda: Ocarina of Time — the perennial consensus
+      49740: 19,    // Minecraft — the biggest game ever, arguing it's also the best
+      71910: 16,    // Tetris — the eternal one; the purist's ballot
+      17185964: 14, // The Legend of Zelda: Breath of the Wild
+      4267401: 12,  // The Witcher 3: Wild Hunt
+      279446: 10,   // Portal 2 — the flawless-one argument
+      27438121: 9,  // Red Dead Redemption 2
+      17452: 8,     // Grand Theft Auto V
+      761815: 7,    // Chrono Trigger — the retro seat
+      64826862: 6,  // Elden Ring — the recency ballot
+      193581: 5,    // Half-Life 2 — clears the floor but not the top 10; folds
+      11168: 5,     // Super Mario Bros. — the founding document; folds at the floor
+      323862: 3,    // The Elder Scrolls V: Skyrim — below the floor
+      1986744: 2,   // The Last of Us — below the floor
+      0: 12,        // Not listed — everyone's own formative cartridge
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1168,6 +1234,44 @@ export let PICK_QS;
         Men: { 1426: 9, 1189: 7, 615: 6, 41421: 5, 169452: 4 },
       },
     },
+    pk35: {
+      ageBand: {
+        // the young cell has actually tried the East Asian three; the
+        // older cell fears the scripts it never started
+        '18-24': { 74: 8, 84: 7, 182: 6, 44: 5, 71: 4 },
+        '25-34': { 182: 8, 8: 7, 74: 6, 135: 5, 61: 4 },
+      },
+      gender: {
+        Women: { 182: 8, 74: 7, 44: 6, 8: 5, 84: 4 },
+        Men: { 182: 9, 8: 7, 61: 6, 135: 5, 74: 4 },
+      },
+    },
+    pk36: {
+      ageBand: {
+        // every cohort wears black; the younger cell adds beige and the
+        // older cell navy — the board reorders, it never flips
+        '18-24': { 1: 9, 16119261: 6, 8421505: 5, 16777216: 5, 129: 4 },
+        '25-34': { 1: 8, 129: 7, 8421505: 6, 256: 5, 16777216: 4 },
+      },
+      gender: {
+        Women: { 1: 9, 16119261: 7, 16777216: 6, 8421505: 5, 129: 4 },
+        Men: { 129: 8, 1: 8, 8421505: 6, 256: 5, 32769: 4 },
+      },
+    },
+    pk37: {
+      ageBand: {
+        // the GOAT is generational: the youngest cell grew up inside
+        // Minecraft, the middle one got Ocarina at nine, and the oldest
+        // puts Tetris back on top — the board reorders, it never flips
+        '18-24': { 49740: 11, 64826862: 8, 17185964: 7, 27438121: 5, 71910: 4 },
+        '25-34': { 213911: 9, 4267401: 8, 17452: 7, 49740: 6, 279446: 5 },
+        '45+': { 71910: 8, 761815: 6, 213911: 5, 49740: 4 },
+      },
+      gender: {
+        Women: { 17185964: 9, 49740: 8, 279446: 6, 71910: 5, 213911: 4 },
+        Men: { 213911: 12, 17452: 8, 4267401: 7, 27438121: 6, 49740: 5 },
+      },
+    },
   };
 
   const api = {
@@ -1337,6 +1441,9 @@ export let PICK_QS;
     { id: 'pk32', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The language you wish you spoke?', n: 160 },
     { id: 'pk33', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The most beautiful language to hear?', n: 152 },
     { id: 'pk34', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete whose life you’d want?', n: 150 },
+    { id: 'pk35', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The hardest language to learn?', n: 148 },
+    { id: 'pk36', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you actually wear?', n: 145 },
+    { id: 'pk37', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The greatest video game ever made?', n: 151 },
   ];
   window.PICK_QS = PICK_QS;
 })();

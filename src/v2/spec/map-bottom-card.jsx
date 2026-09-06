@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
+import { MapStats } from './map-group-stats.js';
 
 // InSight — Map tab bottom card. Group-comparison model:
 //  · answer card — pick one of the 7 profile filters (chips), see how that
@@ -37,6 +38,11 @@ function MTFilterChips({ anchors, activeA, onPick }) {
 // Work/Study, the strongest trait for a test. Makes "people like you" concrete.
 function mtAnchorSelf(anchor) {
   if (!anchor) return '';
+  // The anchor may carry the cohort's own value where that differs from
+  // the one the card headlines — Work does (D328's derived field), and the
+  // sentence this feeds is the one with a number in it, so D146 makes it
+  // the field's rather than the profession's.
+  if (anchor.self) return anchor.self;
   if (anchor.id === 'age') {
     // TWO SHAPES reach this, and only one of them is a number.
     // map-anchors.js builds the demo row as `age {n}` ("age 34") and the
@@ -61,13 +67,42 @@ function mtAnchorSelf(anchor) {
 }
 
 // ── the verdict — the one thing that matters: are you with them or not? ─────
-function MTVerdict({ pct, who, self, isMode }) {
+//
+// IT NOW SAYS WHAT IT RESTS ON. `MapStats.cohortN` was written for this and
+// had no reader anywhere: `grep -rn cohortN src/` found its definition, its
+// entry in the published object, and no call site. D99 added it "so the Map
+// can say 'of 6'", and docs/MIRROR.md §509 says it exists "so a 50% drawn
+// from two people is not presented as a finding". Nothing asked it, and
+// `typicality()` has no floor, so one answer published.
+//
+// One answer is normally YOUR OWN — your vote is folded with its anchors
+// snapshot, so it lands in your own age cell. On the You stop, the one
+// Mirror stop that wears no Preview tag, that read "100% · You're with the
+// majority · of people your age chose the same". A full-width bar, a
+// verdict, and a crowd of you.
+//
+// So below two answers there is no verdict: the answer is still on the map
+// and the card still says so, which is the part that was always true. At two
+// or more the basis is in the sentence (D146) rather than left to be
+// assumed. `n === null` is demo mode, where the numbers are invented and
+// labelled elsewhere — it keeps the wording it had.
+function MTVerdict({ pct, who, self, isMode, n }) {
+  if (n != null && n < 2) {
+    return (
+      <div className="mmt-verdict is-min">
+        <span className="mmt-matchtext">
+          <b>Yours is the only answer here yet</b>
+          <span>nobody else has answered this in your cell{self ? ' · you: ' + self : ''}</span>
+        </span>
+      </div>
+    );
+  }
   return (
     <div className={'mmt-verdict' + (isMode ? ' is-maj' : ' is-min')}>
       <span className="mmt-matchpct">{pct}%</span>
       <span className="mmt-matchtext">
         <b>{isMode ? 'You’re with the majority' : 'A minority take'}</b>
-        <span>of {who} chose the same{self ? ' · you: ' + self : ''}</span>
+        <span>of {n != null ? n.toLocaleString() + ' ' + who : who} chose the same{self ? ' · you: ' + self : ''}</span>
       </span>
     </div>
   );
@@ -90,11 +125,10 @@ function MTNoCohort({ who }) {
 // ── group answer viz — daily-style stacked bar, your slice colored ─────────
 function MTGroupBars({ node, anchor }) {
   const n = mtNOpts(node);
-  // Bound once. This block asks MapStats three things now, and the
-  // coupling ratchet counts references rather than modules — a third
-  // `window.MapStats.` here would raise this file's number for no new
-  // coupling at all, which is not what that number is measuring.
-  const MS = window.MapStats;
+  // Bound once, out of habit from when this was a bridge read that the
+  // coupling ratchet counted per reference; the binding is an import now
+  // (D354's sweep) and the alias only keeps the lines short.
+  const MS = MapStats;
   const d = MS.dist(node.qid, anchor.id, n, node.aidx);
   const who = MS.groupLabel(anchor.id);
   if (!d) return <MTNoCohort who={who}></MTNoCohort>;
@@ -108,6 +142,12 @@ function MTGroupBars({ node, anchor }) {
   // numbers are invented anyway. It can refuse, and a refusal here is the
   // bar's own leader: the ridge's heights are what `d` is FOR, and no
   // reading is better than a fabricated one.
+  // The fourth member this block asks MapStats for. It goes through `MS`
+  // for the reason the comment at the top now gives — line length — and
+  // not the one it gave when this was written: the ratchet counted bridge
+  // references per file, and D354's sweep made the binding an import, so
+  // there is no longer a count to keep down here.
+  const cohortN = MS.cohortN(node.qid, anchor.id, n, node.aidx);
   const asked = MS.mode(node.qid, anchor.id, n, node.aidx);
   const gmode = asked == null ? d.indexOf(max) : asked;
   const isMode = gmode === node.aidx;
@@ -117,7 +157,7 @@ function MTGroupBars({ node, anchor }) {
     const youMid = ((you + 0.5) / n) * 100;
     return (
       <div>
-        <MTVerdict pct={d[you]} who={who} self={self} isMode={isMode}></MTVerdict>
+        <MTVerdict pct={d[you]} who={who} self={self} isMode={isMode} n={cohortN}></MTVerdict>
         <div className="mmt-ridge">
           <span className="mmt-ridge-youlab" style={{ left: Math.max(9, Math.min(91, youMid)) + '%' }}>you · {you + 1}</span>
           <div className="mmt-ridge-cols">
@@ -143,7 +183,7 @@ function MTGroupBars({ node, anchor }) {
   const labIdx = d.map((_, i) => i);
   return (
     <div>
-      <MTVerdict pct={d[node.aidx]} who={who} self={self} isMode={isMode}></MTVerdict>
+      <MTVerdict pct={d[node.aidx]} who={who} self={self} isMode={isMode} n={cohortN}></MTVerdict>
       <div className="mmt-dbar-wrap">
         <span className="mmt-dbar-mark is-you" style={{ left: center(node.aidx) + '%' }}>you</span>
         {!isMode ? <span className="mmt-dbar-mark is-most" style={{ left: center(gmode) + '%' }}>most</span> : null}
@@ -169,6 +209,17 @@ function MTGroupBars({ node, anchor }) {
 // ── answer body: question · “compare with” chips · group bars ──
 function MTAnswerBody({ node, anchors, activeA, onFilter }) {
   const A = anchors.find((a) => a.id === activeA) || anchors[0];
+  // AN EMPTY RING IS A LEGITIMATE LIVE RESULT. map-anchors.js says so in
+  // as many words and names the two callers that handle it — this was the
+  // third, and it did not: with no anchors, `A` is undefined and `A.id`
+  // below throws before anything renders, which app-shell's boundary
+  // catches as the whole Mirror tab.
+  //
+  // Reachable on an ordinary account: somebody who skipped the Basics
+  // card and has taken no test has nothing to filter by, so the chips
+  // have nothing to draw and the bars have no anchor to ask MapStats
+  // about. The question on its own is the honest card there.
+  if (!A) return <div className="mmt-q">{node.prompt}</div>;
   return (
     <React.Fragment>
       <div className="mmt-q">{node.prompt}</div>
@@ -179,7 +230,7 @@ function MTAnswerBody({ node, anchors, activeA, onFilter }) {
 }
 
 // ── answer card: kicker + body ──
-function MTAnswerCard({ node, cat, anchors, activeA, onFilter }) {
+export function MTAnswerCard({ node, cat, anchors, activeA, onFilter }) {
   return (
     <div style={{ '--hue': cat ? cat.hue : 282 }}>
       {/* The separator goes with the date. `note` is null on a live build
@@ -208,7 +259,7 @@ function MTAnchorStat({ anchor, openDim, onDim }) {
     // Resolved once, ahead of the rows, so the legend can ask whether a
     // "them" series exists without a second call into MapStats — a second
     // call site is also a second thing to forget when this gate moves.
-    const them = R.dims.map((d) => window.MapStats.dimVal(anchor.id, d.id, d.value));
+    const them = R.dims.map((d) => MapStats.dimVal(anchor.id, d.id, d.value));
     const hasThem = them.some((v) => v != null);
     return (
       <div className="mmt-astat">
@@ -287,27 +338,51 @@ function MTAnchorChips({ anchors, activeId, onPick }) {
 }
 
 // ── anchor card: your stat · match headline · differences ───────────────────
-function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
+export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
   const [dimId, setDimId] = React.useState(null);
   const hasChips = !!(anchors && anchors.length > 1 && onAnchor);
   const R = IS_TEST_RESULTS[anchor.id];
   const dim = dimId && R && R.dims ? R.dims.find((d) => d.id === dimId) : null;
   const gkey = dim ? anchor.id + '·' + dim.id : anchor.id;   // axis scope → own group
-  const who = dim ? 'people near you on ' + dim.label : window.MapStats.groupLabel(anchor.id);
+  const who = dim ? 'people near you on ' + dim.label : MapStats.groupLabel(anchor.id);
   const rows = items.map((node) => {
     const n = mtNOpts(node);
-    const gmode = window.MapStats.mode(node.qid, gkey, n, node.aidx);
-    return { node, gmode, match: gmode === node.aidx };
+    const gmode = MapStats.mode(node.qid, gkey, n, node.aidx);
+    // A COHORT OF ONE IS NOT A COHORT, and this headline had no floor.
+    // `MTVerdict` above got one at D146 — `typicality()` has none of its
+    // own, so a cell holding a single answer returns a perfectly good mode
+    // and the answer is normally YOUR OWN: a vote is folded with its
+    // anchors snapshot, so it lands in your own age cell. That read "100%
+    // of your answers match people your age", full-width bar, on the You
+    // stop — the one Mirror stop wearing no Preview tag — about nobody.
+    //
+    // `noCohort` below could not catch it: it asks whether the cohort is
+    // EMPTY, and a thin one is not empty. So a thin row is folded in here
+    // instead, as exactly what it is — not measured — which is the same
+    // thing a null gmode already means one line down. `cohortN` is null in
+    // demo mode, where the numbers are invented and labelled elsewhere, so
+    // the demo keeps the wording it had.
+    const cn = MapStats.cohortN ? MapStats.cohortN(node.qid, gkey, n, node.aidx) : null;
+    const thin = cn != null && cn < 2;
+    return { node, gmode: thin ? null : gmode, match: !thin && gmode === node.aidx };
   });
   // Live mode: MapStats refuses (D72), so there is no group mode to match
   // against. Everything downstream of `rows` has to go together — a null
   // gmode is not "you differ", it is "nobody has been counted". Left alone
   // the arithmetic reads 0% and files every answer under "where you differ",
   // which is the same fabrication with a worse number.
-  const noCohort = rows.some((r) => r.gmode == null);
-  const same = noCohort ? [] : rows.filter((r) => r.match);
-  const diffs = noCohort ? [] : rows.filter((r) => !r.match);
-  const pct = rows.length ? Math.round((same.length / rows.length) * 100) : 0;
+  //
+  // Counted over the MEASURED rows rather than all of them, and the
+  // no-cohort case is now "none of them is measured" rather than "any of
+  // them is not". Equivalent wherever it used to fire — D72's refusal is
+  // per anchor and this card is one anchor, so the rows were always
+  // unmeasured together — and it is what keeps one thin row from deleting
+  // a reading the other rows have honestly earned.
+  const measured = rows.filter((r) => r.gmode != null);
+  const noCohort = !measured.length;
+  const same = measured.filter((r) => r.match);
+  const diffs = measured.filter((r) => !r.match);
+  const pct = measured.length ? Math.round((same.length / measured.length) * 100) : 0;
   const [showSame, setShowSame] = React.useState(false);
   const T = IS_TEST_RESULTS[anchor.id];
   return (
@@ -380,7 +455,7 @@ function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
 }
 
 // ── root ─────────────────────────────────────────────────────────────────────
-function MTRootCard({ count, anchorCount }) {
+export function MTRootCard({ count, anchorCount }) {
   return (
     <div>
       <div className="mmt-kicker">your map</div>
@@ -408,7 +483,7 @@ export function MTSwipeRow({ items, onPick, activeId }) {
 }
 
 // ── branch: header + swipeable answers ─────────────────────────────
-function MTBranchCard({ cat, items, onPick }) {
+export function MTBranchCard({ cat, items, onPick }) {
   return (
     <div style={{ '--hue': cat.hue }}>
       <div className="mmt-slim">
@@ -423,7 +498,7 @@ function MTBranchCard({ cat, items, onPick }) {
 
 // ── sub-branch: header + swipeable answers ──────────────────────────────────
 // the sub card carries the breakdown inline — one card, no second hop
-function MTSubCard({ node, cat, rows, anchors, activeA, onFilter }) {
+export function MTSubCard({ node, cat, rows, anchors, activeA, onFilter }) {
   const hue = cat ? cat.hue : 282;
   const [cur, setCur] = React.useState(rows[0] ? rows[0].id : null);
   const active = rows.find((r) => r.id === cur) || rows[0];

@@ -27,7 +27,7 @@
 // label `approved`, or open the PR for a branch row). A box unticked now
 // that the marker listed is a WITHDRAWAL (remove `approved`, unless
 // `merge-when-green` is already on — the shift has handed it over and the
-// shepherd's five steps own it from there). A row whose label moved on
+// owner's merge owns it from there). A row whose label moved on
 // GitHub itself (the owner labelled directly, the shift applied
 // merge-when-green) simply re-renders — labels are the truth the boxes
 // mirror, and the marker is what keeps the mirror from echoing itself.
@@ -78,6 +78,49 @@ export function laneOfBranch(name) {
 }
 
 export const isNoPrBranch = (name) => NO_PR_BRANCHES.some((re) => re.test(name || ""));
+
+// ── a night that has already been reviewed ──────────────────────────
+// A night shift's branch is never merged as itself: the review composes
+// both shifts with `main` and that PR is SQUASH-merged, so
+// `night-YYYYMMDD` stays ahead of `main` forever with every one of its
+// commits already in it. The console had no way to know that and drew
+// each one as an approvable `no PR yet` row — eight of them by
+// 2026-09-06, every one merged days earlier, and the row is not merely
+// noise: a tick opens a PR proposing that night's tree back over main.
+// Measured on all four of the newest branches, every one of them
+// conflicts against `main` today, and `night-20260906` also restores the
+// ad path #401 removed seven hours before the row was drawn —
+// `checkoutLineItem`'s `isAd` arm and 307 lines of `paid.test.ts`.
+// D387 has the ledger.
+//
+// The receipt is the review's own record, because there is no other:
+// every night review since D360 states the branches it took and how many
+// commits each carried, in one table shape, and DECISIONS.md is on `main`
+// where the console already reads. A count that has GROWN since is the
+// one thing such a row still has to say — it has happened once, and the
+// commit was the ceiling raise D365 made itself five hours later.
+//
+// Fails toward the row: a record that names no branch, a table shape that
+// changes, an unreadable DECISIONS.md all leave the box where it is.
+const NIGHT_REVIEW_ROW = /^\|\s*`((?:night|nightb)-\d{8})`\s*\|\s*(\d+)\s*\|/;
+
+export function parseNightReviews(text) {
+  const out = new Map();
+  let record = null;
+  for (const line of String(text || "").split("\n")) {
+    const h = /^## (D\d+)/.exec(line);
+    if (h) { record = h[1]; continue; }
+    const m = NIGHT_REVIEW_ROW.exec(line);
+    // The record that accounts for MOST of the branch wins, so a later one
+    // can take a tail its review missed: `nightb-20260905` gained a commit
+    // five hours after D365 composed 18 of its 19, and D387 is where the
+    // nineteenth is accounted for. A record that re-states an old table
+    // therefore changes nothing.
+    const commits = m ? Number(m[2]) : 0;
+    if (m && record && commits > (out.get(m[1])?.commits ?? -1)) out.set(m[1], { record, commits });
+  }
+  return out;
+}
 
 // ── what / how ──────────────────────────────────────────────────────
 // Every program prompt asks a PR body to open with a `what:` and a `how:`
@@ -188,16 +231,24 @@ export function prRow(pr, extras = {}) {
   };
 }
 
-export function branchRow(branch) {
+export function branchRow(branch, reviews = null) {
   const { lane } = laneOfBranch(branch.name);
+  const reviewed = (reviews instanceof Map ? reviews.get(branch.name) : null) || null;
+  const aheadBy = branch.aheadBy ?? null;
+  // Merged when the record accounts for every commit the branch carries.
+  // A branch that gained commits after its review keeps its box and says
+  // how many of them are already in — nightb-20260905 did, at 09:56 UTC,
+  // five hours after D365 composed 18 of its 19.
+  const landed = !!reviewed && aheadBy != null && aheadBy <= reviewed.commits;
   return {
     kind: "branch",
     key: branch.name,
     branch: branch.name,
     from: lane,
-    aheadBy: branch.aheadBy ?? null,
+    aheadBy,
     lastCommitAt: branch.lastCommitAt || null,
-    stage: "no PR yet",
+    reviewed,
+    stage: landed ? "merged" : "no PR yet",
   };
 }
 
@@ -239,7 +290,10 @@ export function decideActions(rows, file, issue) {
     (issue.now.get(key) === false && issue.rendered.has(key));
   for (const row of rows) {
     if (row.kind === "branch") {
-      if (newTick(row.key)) actions.push({ type: "open-pr", key: row.key, branch: row.branch, from: row.from });
+      // A merged night draws no box, so a tick on one can only be a line
+      // left over from a render before its review landed — and acting on
+      // it would open a PR proposing that night's tree back over main.
+      if (row.stage !== "merged" && newTick(row.key)) actions.push({ type: "open-pr", key: row.key, branch: row.branch, from: row.from });
       continue;
     }
     if (row.selfMerge) continue;
@@ -263,11 +317,25 @@ const fmtDay = (iso) => (iso ? String(iso).slice(0, 10) : "?");
 const fmtTime = (iso) => (iso ? `${String(iso).slice(11, 16)} UTC ${String(iso).slice(0, 10)}` : "?");
 
 export function rowLine(row, { box = true } = {}) {
+  // The tick is drawn from the LABELS, which only move on success — so a
+  // failed label call would re-render the row unticked and erase the
+  // owner's decision from the file. That is closed one level up rather
+  // than here: `holdsTheList` (console.mjs) refuses to rewrite either
+  // surface at all while any tick is unapplied, so this function is never
+  // asked to draw a row whose label call failed. The other shift closed
+  // the same door here instead, by passing the unapplied keys down and
+  // drawing them ticked; both work, and only one of them can be the path.
   const tick = isTicked(row) ? "x" : " ";
   const head = box ? `- [${tick}] ` : "- ";
   if (row.kind === "branch") {
     const n = row.aheadBy == null ? "commits unknown" : `${row.aheadBy} commit${row.aheadBy === 1 ? "" : "s"}`;
-    return `${head}**${row.branch}** (no PR yet) · ${row.from} · ${n} · last ${fmtTime(row.lastCommitAt)}`;
+    // A row that says how much of the branch is already in: the only
+    // night this has ever applied to gained one commit five hours after
+    // its review composed. A night with nothing outstanding is not drawn
+    // here at all — `nightsMerged` says it in one line, and a box on it
+    // would open a PR proposing a merged tree back over main.
+    const carried = row.reviewed ? `, ${row.reviewed.commits} of them merged as ${row.reviewed.record}` : "";
+    return `${head}**${row.branch}** (no PR yet) · ${row.from} · ${n}${carried} · last ${fmtTime(row.lastCommitAt)}`;
   }
   const state = [
     checksWord(row.checks),
@@ -277,6 +345,19 @@ export function rowLine(row, { box = true } = {}) {
   ].filter(Boolean).join(" · ");
   const stage = row.stage === "shift" ? "in the shift" : row.stage === "blocked" ? "could not be made green" : row.stage;
   return `${head}**${row.key}** · ${row.from} · *what:* ${row.what || "—"} · *how:* ${row.how || "—"} · ${state} · opened ${fmtDay(row.createdAt)} · stage **${stage}**`;
+}
+
+// The nights whose review has landed, in one line rather than a row each:
+// they accumulate two a night and never leave the remote, so a row apiece
+// would bury the rows that still want a tick. Newest first, six named.
+export function nightsMerged(rows) {
+  const landed = rows
+    .filter((r) => r.kind === "branch" && r.stage === "merged")
+    .sort((a, b) => String(b.lastCommitAt || "").localeCompare(String(a.lastCommitAt || "")));
+  if (!landed.length) return null;
+  const named = landed.slice(0, 6).map((r) => `${r.branch} (${r.reviewed.record})`).join(" · ");
+  const rest = landed.length - 6;
+  return `**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of \`main\` carrying nothing new: ${named}${rest > 0 ? ` · and ${rest} more` : ""}.`;
 }
 
 const MERGE_LIST_HEAD = `# Merge list — what the automation built, and what you approved
@@ -297,21 +378,23 @@ console workflow runs on that push, mirrors the tick to the label
 \`approved\` on the pull request, and the **merge shift** takes it from
 there: brings the branch current with \`main\`, runs the full battery,
 reviews the whole diff as one unit, fixes what that proves broken,
-and applies \`merge-when-green\` — after which the **PR shepherd**
-merges (\`OPS-RUNBOOK.md\` § The PR shepherd). The same rows stand in
+and applies \`merge-when-green\`. **Nothing merges it after that: you
+do, by hand on GitHub** (D385 retired the PR shepherd). The same rows stand in
 the pinned **Console** issue with clickable boxes; a tick there is the
 same act, mirrored back into this file. Untick here to withdraw an
 approval the shift has not yet acted on. Ticking a *no PR yet* row
 makes the workflow open the pull request from that branch and label
-it.
+it — which is why a night shift whose review has already merged is
+listed in one line without a box instead (D387): its branch stays
+ahead of \`main\` forever, carrying nothing that is not already in.
 
 | Section | A row is here when | Who moves it |
 | --- | --- | --- |
-| **Open** | a PR is open and not yet approved (stage \`new\`), or a branch has commits and no PR (stage \`no PR yet\`) | the workflow |
+| **Open** | a PR is open and not yet approved (stage \`new\`), or a branch has commits, no PR, and no review record that accounts for them (stage \`no PR yet\`) | the workflow |
 | **In the shift** | the tick landed and the merge shift is bringing it to green | the workflow, on the label |
-| **Ready** | \`merge-when-green\` is applied; the shepherd merges on green | the workflow, on the label |
+| **Ready** | \`merge-when-green\` is applied; green and waiting for your merge | the workflow, on the label |
 | **Could not be made green** | the shift stopped, with what is red and why in its comment | the shift's comment, the workflow's row |
-| **Merged this week** | the shepherd or the owner merged it | the workflow |
+| **Merged this week** | the owner merged it | the workflow |
 
 The content lanes (farm, catalog, learn, feed, duel, now) merge their
 own PRs on green (D212) and are listed without a box. Dependabot's
@@ -340,8 +423,10 @@ export function renderMergeList({ rows, merged = [], generatedAt, githubState = 
     for (const r of list) lines.push(rowLine(r, opts));
     lines.push("");
   };
-  const open = [...by("new"), ...branches];
+  const open = [...by("new"), ...branches.filter((r) => r.stage !== "merged")];
   section("Open", open);
+  const nights = nightsMerged(branches);
+  if (nights) { lines.push(nights); lines.push(""); }
   if (deps.length) {
     lines.push(`**Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):`);
     lines.push("");
@@ -382,7 +467,64 @@ export function sections(text) {
 const items = (body, box) =>
   String(body || "").split("\n").filter((l) => new RegExp(`^\\s*- \\[${box}\\] `).test(l)).map((l) => l.replace(/^\s*- \[.\] /, "").trim());
 
+// THE SIX LIST FILES ARE DRAWN AS ABSENT, NEVER AS A ZERO.
+//
+// The console page promises exactly that in its own preamble, and until
+// now it was the one thing the code did not do: `read()` returns null for
+// a file that is not on main, `collect()` turned that into `""`, and an
+// empty string parses cleanly to zero of everything. So a console with no
+// list files at all printed "0 axioms", "requested 0 · planned 0", "(none
+// open)" — and then, at the foot, "Sources that did not answer this run:
+// none". Every panel a confident lie, and the one line that exists to
+// catch that saying all was well.
+//
+// The heading case is the one that actually bites, because the file IS
+// there and nobody suspects it: rename "## Open" in PERMISSIONS.md and the
+// panel goes to "(none open)" with the permissions still sitting in the
+// file underneath. So this asks two questions, not one — is the text
+// there, and do any of the headings the parser needs still exist — and
+// `collect()` answers both by handing the panel a null.
+//
+// The names here are the section titles the parsers below actually read,
+// and every one of them must be present — see `listProblem`. Change a
+// heading in one of these files and change it here too, or the check
+// stops seeing its own file. OWNER-LIST.md has no fixed names (every
+// section is a block the owner may name), so an empty section map is all
+// there is to go on there.
+export const LIST_SECTIONS = {
+  "docs/WORKLIST.md": ["Open", "In flight", "Parked (needs the owner)"],
+  "docs/OWNER-LIST.md": null,
+  "docs/AXIOMS.md": ["operational", "explored", "proposed"],
+  "docs/VISUAL-REQUESTS.md": ["Requested", "Planned", "Drafted", "Designed", "Built"],
+  "docs/PERMISSIONS.md": ["Open", "Granted"],
+};
+
+/**
+ * Null when the file can be trusted; a reason for `missing` when it cannot.
+ * `text` is `read()`'s return, so null means the file is not there.
+ */
+export function listProblem(file, text) {
+  if (text == null) return `${file} (not on main)`;
+  const have = sections(text);
+  if (!have.size) return `${file} (no \`## \` sections)`;
+  // EVERY named section, not just one of them. `some` was the first
+  // draft and it left the bug half-open: rename "## Open" in
+  // PERMISSIONS.md, leave "## Granted" alone, and the file still looked
+  // fine while the panel printed "(none open)" over nine live requests.
+  // Each name below is a whole panel, so one gone is one confident zero.
+  //
+  // The cost is that deleting a section on purpose — an empty "Drafted",
+  // say — makes the console say it could not read the file. That is the
+  // right way round: loud and one word to fix, against silent and
+  // indistinguishable from a real zero.
+  const want = LIST_SECTIONS[file] || [];
+  const gone = want.filter((n) => !have.has(n));
+  if (gone.length) return `${file} (no ${gone.map((n) => `\`## ${n}\``).join(", no ")} section)`;
+  return null;
+}
+
 export function parseWorklist(text) {
+  if (text == null) return null;
   const s = sections(text);
   const open = items(s.get("Open"), " ").map((t) => {
     const m = /\[(claude-[123])\]/.exec(t);
@@ -395,11 +537,48 @@ export function parseWorklist(text) {
 }
 
 export function parseOwnerList(text) {
+  if (text == null) return null;
   const s = sections(text);
   const out = {};
   for (const [name, body] of s) {
     if (/^(How|The shape)/.test(name)) continue;
-    out[name] = { open: items(body, " ").concat(items(body, " ")).slice(0, items(body, " ").length), done: items(body, "x").length };
+    // `doneRows` as well as the count, and that is not tidiness: the fold
+    // filters its candidates against what the owner has ALREADY SAID BY
+    // HAND, and a row the owner TICKED was invisible to that filter — so
+    // it was regenerated as `- [ ]` and the whole block replaced, which
+    // un-ticked the owner within two hours of them ticking. The comment on
+    // foldOwnerList promised the opposite: "a generated row the owner
+    // ticked disappears from the next fold (it is done)."
+    //
+    // (The expression here was `items(…).concat(items(…)).slice(0, len)`
+    // — a no-op that reads like this was half-intended once.)
+    const open = items(body, " ");
+    const doneRows = items(body, "x").concat(items(body, "X"));
+    // `hand` — WHAT THE OWNER ACTUALLY SAID, which is not the same set as
+    // "every row in the section", and conflating the two made the console
+    // delete this file's Store-and-legal block on every other run for as
+    // long as it has been running.
+    //
+    // The fold filters its candidates against `hand`. When `hand` was the
+    // whole body it included the fold's OWN last output, so all 22
+    // generated rows counted as already-listed, the fold produced nothing,
+    // and the block was replaced with emptiness. The run after that saw a
+    // file without them and put all 22 back. Measured on the real file:
+    // 22, 0, 22, 0 — and every console commit on main alternates the same
+    // way, so the owner's list of what only they can do is empty half the
+    // time while 22 launch steps sit open in the runbook.
+    //
+    // So hand rows are the ones OUTSIDE the generated block — plus any
+    // TICKED row inside it, because ticking is the owner's own act
+    // wherever the row lives, and dropping those would re-open the door
+    // that un-ticked them (the comment above).
+    const outside = body.split(FOLD_BEGIN).map((p, i) => (i === 0 ? p : p.slice(p.indexOf(FOLD_END) + 1))).join("\n");
+    const inside = [...String(body || "").matchAll(new RegExp(`${FOLD_BEGIN}([\\s\\S]*?)${FOLD_END}`, "g"))].map((m) => m[1]).join("\n");
+    const hand = [
+      ...items(outside, " "), ...items(outside, "x"), ...items(outside, "X"),
+      ...items(inside, "x"), ...items(inside, "X"),
+    ];
+    out[name] = { open, doneRows, done: doneRows.length, hand };
   }
   return out;
 }
@@ -409,6 +588,7 @@ const tableRows = (body) =>
     .map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
 
 export function parseAxioms(text) {
+  if (text == null) return null;
   const s = sections(text);
   const out = {};
   for (const status of ["operational", "explored", "proposed"]) {
@@ -419,6 +599,7 @@ export function parseAxioms(text) {
 }
 
 export function parseVisualRequests(text) {
+  if (text == null) return null;
   const s = sections(text);
   const out = {};
   for (const status of ["Requested", "Planned", "Drafted", "Designed", "Built"]) {
@@ -429,6 +610,7 @@ export function parseVisualRequests(text) {
 }
 
 export function parsePermissions(text) {
+  if (text == null) return null;
   const s = sections(text);
   return { open: tableRows(s.get("Open")).map((r) => clean(r[0] || "")), granted: tableRows(s.get("Granted")).length };
 }
@@ -442,6 +624,17 @@ export function parseRegister(text) {
   for (const block of String(text).split(/\n(?=## )/)) {
     const h = /^## \d+ · Session (\d)/.exec(block);
     if (h) account = `Claude ${h[1]}`;
+    // A section that is NOT somebody's block ends the last one. Without
+    // this the account carried forward, and §5 — the ops and program
+    // lanes, chartered rather than owned — had its eight rows drawn as
+    // Claude 3's, because §4 is the last Session heading above it. §4 is
+    // "the block nobody has claimed" and has no table at all, so Claude
+    // 3's true count is zero; §5's own text says four of those lanes are
+    // Claude 2's and four exist nowhere yet, and that its ids are
+    // transcribed from `OPS-RUNBOOK.md` rather than read from
+    // `list_triggers`. Beliefs about the tree are not a verified block,
+    // which is the one thing this table is for.
+    else if (/^## /.test(block)) account = null;
     if (!account) continue;
     const lines = block.split("\n");
     for (let i = 0; i < lines.length; i++) {
@@ -575,6 +768,22 @@ export function notAlreadyListed(handRows, candidates) {
 // ── the trail ───────────────────────────────────────────────────────
 export const isoDay = (d = new Date()) => new Date(d).toISOString().slice(0, 10);
 
+/**
+ * May the merge list be rewritten from this run's rows?
+ *
+ * Two questions, and treating them as one is how the third door opened.
+ * `ok` says the open-PR listing answered. `rowsComplete` says the row set
+ * is ALL of it — a failed branch listing or a failed per-branch compare
+ * leaves `ok` true and the rows short, and rewriting then drops those rows
+ * and the owner's ticks on them.
+ *
+ * Exported for the same reason `holdsTheList` is: the decision is one
+ * boolean in a script that cannot be run without a token, so the only way
+ * it can be executed at all is as a function.
+ */
+export const listIsWritable = ({ ok, rowsComplete, mergedOk }) =>
+  !!ok && rowsComplete !== false && mergedOk !== false;
+
 export function trailRow(state) {
   const rows = state.rows || [];
   const prs = rows.filter((r) => r.kind === "pr" && !r.selfMerge);
@@ -586,14 +795,25 @@ export function trailRow(state) {
     prsInShift: state.github.ok ? count("shift") : null,
     prsReady: state.github.ok ? count("ready") : null,
     prsBlocked: state.github.ok ? count("blocked") : null,
-    noPrYet: state.github.ok ? rows.filter((r) => r.kind === "branch").length : null,
+    // `listIsWritable`, not `ok` — the trail is the only record of what the
+    // program looked like on a given day, so a branch count taken from a
+    // row set the run itself declared short is a real zero nobody can tell
+    // from an empty one. That is the rule the console's own header states
+    // and the one a commit four earlier put back; this writer never asked.
+    // Branches WAITING for a tick, which is what the name says: a night
+    // whose review has merged is no longer one of them, and counting it
+    // made the trail read as eight untouched approvals a day (D387).
+    noPrYet: listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete }) ? rows.filter((r) => r.kind === "branch" && r.stage !== "merged").length : null,
     mergedWeek: state.github.ok ? (state.merged || []).length : null,
-    worklist: state.worklist.byTag,
-    inFlight: state.worklist.inFlight.length,
-    ownerOpen: Object.values(state.owner).reduce((n, s) => n + s.open.length, 0),
-    permissionsOpen: state.permissions.open.length,
-    axioms: { operational: state.axioms.operational.length, explored: state.axioms.explored.length, proposed: state.axioms.proposed.length },
-    visuals: Object.fromEntries(Object.entries(state.visuals).map(([k, v]) => [k, v.length])),
+    // Null, not zero, for the same reason the GitHub fields above are:
+    // the trail is the only record of what the program looked like on a
+    // given day, and a zero there is indistinguishable from a real one.
+    worklist: state.worklist ? state.worklist.byTag : null,
+    inFlight: state.worklist ? state.worklist.inFlight.length : null,
+    ownerOpen: state.owner ? Object.values(state.owner).reduce((n, s) => n + s.open.length, 0) : null,
+    permissionsOpen: state.permissions ? state.permissions.open.length : null,
+    axioms: state.axioms ? { operational: state.axioms.operational.length, explored: state.axioms.explored.length, proposed: state.axioms.proposed.length } : null,
+    visuals: state.visuals ? Object.fromEntries(Object.entries(state.visuals).map(([k, v]) => [k, v.length])) : null,
     theoryClaims: state.theory ? state.theory.byStatus : null,
     runwayDays: state.pulse?.runwayDays ?? null,
     mainCi: state.github.ok ? state.mainCi?.state ?? null : null,
@@ -607,6 +827,12 @@ export function mergeTrail(prior, row) {
 
 // ── the console page ────────────────────────────────────────────────
 export const ARTIFACT_LINE = /^\*\*Console artifact:\*\*/;
+
+// A panel whose file the console could not read. Not "(none)", not a
+// zero: the foot of the page names the file and the reason, and this
+// points at it, so a drifted heading reads as a broken pipe rather than
+// as an empty list.
+const unread = (file) => `*\`${file}\` could not be read this run — see the sources line at the foot. No count is drawn rather than a zero.*`;
 
 export function renderConsole(state, priorBody = "") {
   const L = [];
@@ -623,7 +849,8 @@ export function renderConsole(state, priorBody = "") {
   L.push("## Today — only you can do these · `docs/OWNER-LIST.md`");
   const owner = state.owner || {};
   const counts = Object.entries(owner).filter(([n]) => n !== "Done").map(([n, s]) => `${s.open.length} ${n.toLowerCase()}`);
-  L.push(counts.length ? counts.join(" · ") : "*the owner list is not on main*");
+  if (!state.owner) L.push(unread("docs/OWNER-LIST.md"));
+  else L.push(counts.length ? counts.join(" · ") : "*(nothing open)*");
   for (const [name, s] of Object.entries(owner)) {
     if (name === "Done" || !s.open.length) continue;
     L.push(`**${name}**`);
@@ -639,11 +866,13 @@ export function renderConsole(state, priorBody = "") {
   }
   const rows = state.rows || [];
   const prs = rows.filter((r) => r.kind === "pr" && !r.selfMerge);
-  const open = [...prs.filter((r) => r.stage === "new"), ...rows.filter((r) => r.kind === "branch")];
+  const open = [...prs.filter((r) => r.stage === "new"), ...rows.filter((r) => r.kind === "branch" && r.stage !== "merged")];
   L.push("### Approve");
   if (!open.length) L.push("*(nothing waiting for a tick)*");
   for (const r of open) L.push(rowLine(r));
-  for (const [title, stage] of [["In the shift", "shift"], ["Ready — merge-when-green, the shepherd merges on green", "ready"], ["Could not be made green — your call", "blocked"]]) {
+  const nights = nightsMerged(rows);
+  if (nights) L.push(nights);
+  for (const [title, stage] of [["In the shift", "shift"], ["Ready — merge-when-green, green and waiting for your merge", "ready"], ["Could not be made green — your call", "blocked"]]) {
     const list = prs.filter((r) => r.stage === stage);
     L.push(`### ${title}`);
     if (!list.length) L.push("*(none)*");
@@ -659,13 +888,16 @@ export function renderConsole(state, priorBody = "") {
   // To-do
   L.push("## To-do · `docs/WORKLIST.md`");
   const w = state.worklist;
-  L.push("| Account | Open | In flight |");
-  L.push("| --- | ---: | --- |");
-  for (const acc of ["claude-1", "claude-2", "claude-3"]) {
-    const fl = w.inFlight.filter((i) => i.toLowerCase().includes(acc));
-    L.push(`| ${acc} | ${w.byTag[acc] || 0} | ${fl.length ? fl.map((i) => trunc(i, 80)).join("; ") : "—"} |`);
+  if (!w) L.push(unread("docs/WORKLIST.md"));
+  else {
+    L.push("| Account | Open | In flight |");
+    L.push("| --- | ---: | --- |");
+    for (const acc of ["claude-1", "claude-2", "claude-3"]) {
+      const fl = w.inFlight.filter((i) => i.toLowerCase().includes(acc));
+      L.push(`| ${acc} | ${w.byTag[acc] || 0} | ${fl.length ? fl.map((i) => trunc(i, 80)).join("; ") : "—"} |`);
+    }
+    if (w.parked) L.push(`Parked, needing you: ${w.parked}`);
   }
-  if (w.parked) L.push(`Parked, needing you: ${w.parked}`);
   L.push("");
 
   // Routine health
@@ -708,14 +940,18 @@ export function renderConsole(state, priorBody = "") {
   // Axiom board
   L.push("## Axiom board · `docs/AXIOMS.md`");
   const a = state.axioms;
-  for (const s of ["operational", "explored", "proposed"]) L.push(`- **${s}** (${a[s].length}): ${a[s].join(" · ") || "—"}`);
+  if (!a) L.push(unread("docs/AXIOMS.md"));
+  else for (const s of ["operational", "explored", "proposed"]) L.push(`- **${s}** (${a[s].length}): ${a[s].join(" · ") || "—"}`);
   L.push("");
 
   // Visuals
   L.push("## Visual requests · `docs/VISUAL-REQUESTS.md`");
   const v = state.visuals;
-  L.push(Object.entries(v).map(([k, list]) => `${k} ${list.length}`).join(" · "));
-  for (const title of v.requested || []) L.push(`- requested: ${title}`);
+  if (!v) L.push(unread("docs/VISUAL-REQUESTS.md"));
+  else {
+    L.push(Object.entries(v).map(([k, list]) => `${k} ${list.length}`).join(" · "));
+    for (const title of v.requested || []) L.push(`- requested: ${title}`);
+  }
   L.push("");
 
   // Production
@@ -730,7 +966,9 @@ export function renderConsole(state, priorBody = "") {
 
   // Permissions
   L.push("## Permissions · `docs/PERMISSIONS.md`");
-  L.push(state.permissions.open.length ? `${state.permissions.open.length} open: ${state.permissions.open.map((n) => trunc(n, 60)).join(" · ")}` : "*(none open)*");
+  L.push(!state.permissions ? unread("docs/PERMISSIONS.md")
+    : state.permissions.open.length ? `${state.permissions.open.length} open: ${state.permissions.open.map((n) => trunc(n, 60)).join(" · ")}`
+    : "*(none open)*");
   L.push("");
 
   // main

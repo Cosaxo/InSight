@@ -660,7 +660,7 @@ interface RevealVote {
   pickUid?: string;
 }
 
-async function revealGroupDay(
+export async function revealGroupDay(
   group: FirebaseFirestore.QueryDocumentSnapshot,
   dayKey: string,
 ): Promise<boolean> {
@@ -856,6 +856,42 @@ async function revealGroupDay(
     // Stamped only on the odd ones out, so the common case — everyone on the
     // same question — writes exactly the document it wrote before D71.
     const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
+    // WHO THE REVEAL SAYS WAS THERE, computed once and used twice: as the
+    // `members` field, and as the set the `names` map is cut down to.
+    //
+    // It was computed once and used ONCE. `names` above is built over the
+    // group's whole roster, and `members` is a strict subset of it —
+    // revealMembersFor drops anyone who joined after the day ended and did
+    // not play. So a person who joined this morning was NAMED in
+    // yesterday's reveal while not being in its `members`, and if they
+    // later left the circle, `deleteAccount`'s membership-independent
+    // sweep — which walks `members` — could not find them. Their display
+    // name stayed in a document every signed-in user may read, after they
+    // had asked to be erased. Confirmed against the real callable in the
+    // emulator, not reasoned: the name survived the erasure.
+    //
+    // Narrowed rather than indexed, because the field's own note two
+    // screens down already says `members` is "what the reveal's names are
+    // drawn against" — the invariant was written down and not enforced.
+    // Nothing is lost: every name any surface draws belongs to someone in
+    // `members` (a voter is always kept), and a pick can only name someone
+    // who was a member when the answer was written, which is before the
+    // day ended — so a picked person is in `members` too, or is out of the
+    // roster entirely and had no name here either way.
+    const revealMembers = revealMembersFor(
+      members,
+      joinedAtMs(gsnap.get("memberJoinedAt")),
+      dayKey,
+      Object.keys(freshVotes),
+    );
+    const revealNames: Record<string, string> = {};
+    for (const uid of revealMembers) revealNames[uid] = names[uid] ?? "";
+    // The people this day's picks name — see the field's own note below.
+    const pickedUids = [...new Set(
+      Object.values(freshVotes)
+        .map((v) => v.pickUid)
+        .filter((u): u is string => typeof u === "string" && !!u),
+    )];
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose
     // them, and the reveal condition cannot flip back to false. Re-checked
@@ -873,7 +909,7 @@ async function revealGroupDay(
       day: dayKey,
       qid: freshQid ?? qid,
       votes: freshVotes,
-      names,
+      names: revealNames,
       // Membership AT REVEAL TIME.
       //
       // THIS NO LONGER GATES THE READ, and the paragraph that used to
@@ -922,12 +958,22 @@ async function revealGroupDay(
       // instantly while gen2 functions roll out over minutes. No rule
       // requires it now, so removing the field costs an erasure sweep and
       // the reveal's names, not a window of unreadable documents.
-      members: revealMembersFor(
-        members,
-        joinedAtMs(gsnap.get("memberJoinedAt")),
-        dayKey,
-        Object.keys(freshVotes),
-      ),
+      members: revealMembers,
+      // WHO THE PICKS NAME, as an index erasure can walk.
+      //
+      // A pick answer copies the picked person's uid into `votes.<voter>
+      // .pickUid`, validated against membership at ANSWER time. `members`
+      // above is membership at REVEAL time. Answer on a pick day, leave
+      // the circle before the nightly reveal, and the two disagree — the
+      // uid is in the document and in no array anybody queries, so
+      // deleteAccount's `array-contains` sweep never finds it and the
+      // identifier stays in a document any signed-in user can read.
+      // `web/privacy.html` promises the opposite in writing.
+      //
+      // Written only when a pick actually named someone, so ordinary
+      // reveals carry no extra field. Distinct, because two voters may
+      // pick the same person and `arrayRemove` takes every copy anyway.
+      ...(pickedUids.length ? { pickedUids } : {}),
       revealedAt: FieldValue.serverTimestamp(),
     });
     // The day is settled, so it leaves pendingDays in the same write that
@@ -1057,7 +1103,7 @@ async function revealGroupDay(
 // options at every reveal with every other test still green. That is also
 // the line between this arm and the catalog one — drops defaults versus
 // drops data.
-async function foldDuelSignal(
+export async function foldDuelSignal(
   db: FirebaseFirestore.Firestore,
   mode: string,
   qid: string | null,
@@ -1398,9 +1444,28 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   // A batch cannot do that: one unreachable name must not cost the other
   // seven their invitation, so a batch skips and reports instead.
   const rawTo = request.data?.to;
-  const targets = [...new Set(
+  // A target is concatenated into `v2_users/${t}` for the getAll below and
+  // used verbatim as an invite document id, so a "/" — or a "." or ".."
+  // segment — is a PATH INJECTION rather than a bad uid. `pure.ts`'s
+  // `roomQids` already refuses exactly this for exactly this reason ("a bad
+  // one here would be a path injection into a getAll, so it is refused
+  // rather than escaped"); this door was the same shape without the check.
+  //
+  // What it did before: an odd component count made firebase-admin throw
+  // out of `db.doc()`, uncaught, so the caller got a bare INTERNAL — and an
+  // EVEN one resolved, so `v2_users/vic/answers/daily-000` was a real
+  // document read, and the invite was written at a document id containing
+  // slashes. Refused at construction, not escaped.
+  //
+  // BEFORE the budget, deliberately: `assertInviteBudget` writes the hourly
+  // event rather than reading it, so a malformed batch used to charge the
+  // cap on its way to a crash.
+  const pathSafe = (t: string) => !!t && t.length <= 128 && !t.includes("/") && t !== "." && t !== "..";
+  const all = [...new Set(
     (Array.isArray(rawTo) ? rawTo : [rawTo]).map((t) => String(t || "")).filter(Boolean),
   )];
+  const targets = all.filter(pathSafe);
+  const malformed = all.filter((t) => !pathSafe(t));
   if (!targets.length) throw new HttpsError("invalid-argument", "gid and to required");
   const single = targets.length === 1;
   const refuse = (code: "invalid-argument" | "not-found" | "already-exists", msg: string) => {
@@ -1437,7 +1502,10 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   // nobody will ever see and the sender is told it worked.
   const targetSnaps = await db.getAll(...targets.map((t) => db.doc(`v2_users/${t}`)));
   const invited: string[] = [];
-  const skipped: string[] = [];
+  // Seeded with the malformed ones so a mixed batch reports honestly
+  // instead of silently dropping them — the batch contract above is skip
+  // AND report, not skip.
+  const skipped: string[] = [...malformed];
   targets.forEach((t, i) => {
     if (t === uid) { refuse("invalid-argument", "you are already here"); skipped.push(t); return; }
     if (members.includes(t)) { refuse("already-exists", "already a member"); skipped.push(t); return; }
@@ -1637,9 +1705,14 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // for a further linger, which is precisely the promise the option makes.
   //
   // The rules cap `until` at PRESENCE_LINGER_MIN past write time, so a
-  // client cannot grant itself a longer stay than the design allows; the
-  // constant is imported here to keep the two definitions in one place.
-  void PRESENCE_LINGER_MIN;
+  // client cannot grant itself a longer stay than the design allows.
+  //
+  // A bare `void PRESENCE_LINGER_MIN;` stood here under a comment saying
+  // it kept the two definitions in one place. It kept nothing — the
+  // statement is a no-op, the import is used in `presenceExpiry` above,
+  // and moving the constant left every suite green. What holds them
+  // together now is `presence-linger.test.ts`, which reads the ceiling
+  // out of firestore.rules and asserts it equals the constant.
   const now = Timestamp.fromMillis(Date.now());
   // COUNTED, NOT FETCHED. This used to `.get()` the neighborhood and take
   // `snap.docs.length`, which materialises — and pays a billed read for —

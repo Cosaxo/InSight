@@ -30,7 +30,7 @@
 // question ALSO belongs to beside its `topic` home. Reach, never
 // placement — the client's filter/stock/search read topic ∪ also, the
 // Map and grouping stay on `topic`. Emit-when-set; never on sponsored.
-// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question
+// `sponsor` is feed-only (D195): `{ buyer, audience?, link? }` on a question
 // somebody paid to ask. The WINDOW is `until`, not a field here, so the
 // label the card prints and the filter that stops serving it are one
 // value. A sponsored question is never `core` — paid questions inside
@@ -39,7 +39,7 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -2769,6 +2769,83 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-130",
+  "surface": "daily",
+  "seq": 130,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The book or the film first?",
+  "options": [
+   "Book first",
+   "Film first"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Adaptations",
+  "tag": "Which first",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-131",
+  "surface": "daily",
+  "seq": 131,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What makes a villain great?",
+  "options": [
+   "Menace",
+   "Charm",
+   "Being half right",
+   "Mystery"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Villains",
+  "tag": "Villains",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-132",
+  "surface": "daily",
+  "seq": 132,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Practise in private, or learn in public?",
+  "options": [
+   "In private",
+   "In public"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "How you learn",
+  "tag": "Learning out loud",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-133",
+  "surface": "daily",
+  "seq": 133,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Talent is mostly patience.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "Mastery",
+  "tag": "Talent",
+  "axis": "patience",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -4107,7 +4184,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "hi": 12,
   "unit": "h",
   "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two.",
-  "core": true
+  "core": true,
+  "active": false
  },
  {
   "id": "feed-dl4",
@@ -4743,7 +4821,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 25,
   "hi": 45,
   "unit": "yrs",
-  "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
+  "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16.",
+  "active": false
  },
  {
   "id": "feed-f68",
@@ -4836,7 +4915,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 1,
   "hi": 10,
   "unit": "cups",
-  "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
+  "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy.",
+  "active": false
  },
  {
   "id": "feed-f72",
@@ -4879,7 +4959,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 1,
   "hi": 4,
-  "unit": "hrs"
+  "unit": "hrs",
+  "active": false
  },
  {
   "id": "feed-f73",
@@ -5153,7 +5234,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 10,
-  "unit": "friends"
+  "unit": "friends",
+  "active": false
  },
  {
   "id": "feed-f87",
@@ -5368,7 +5450,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 12,
-  "unit": "h"
+  "unit": "h",
+  "active": false
  },
  {
   "id": "feed-f92",
@@ -5475,7 +5558,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 30,
-  "unit": "books"
+  "unit": "books",
+  "active": false
  },
  {
   "id": "feed-f97",
@@ -5580,7 +5664,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 20,
-  "unit": "h"
+  "unit": "h",
+  "active": false
  },
  {
   "id": "feed-f102",
@@ -5638,7 +5723,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 10,
   "hi": 40,
-  "unit": "yrs"
+  "unit": "yrs",
+  "active": false
  },
  {
   "id": "feed-f104",
@@ -5780,7 +5866,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 14,
-  "unit": "meals"
+  "unit": "meals",
+  "active": false
  },
  {
   "id": "feed-f109",
@@ -5931,7 +6018,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 17,
   "hi": 23,
-  "unit": "h"
+  "unit": "h",
+  "active": false
  },
  {
   "id": "feed-f117",
@@ -6034,7 +6122,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 20,
-  "unit": "years"
+  "unit": "years",
+  "active": false
  },
  {
   "id": "feed-f122",
@@ -6079,7 +6168,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 30,
-  "unit": "min"
+  "unit": "min",
+  "active": false
  },
  {
   "id": "feed-f123",
@@ -6445,7 +6535,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 6,
   "hi": 20,
-  "unit": "songs"
+  "unit": "songs",
+  "active": false
  },
  {
   "id": "feed-f136",
@@ -6538,6 +6629,2792 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "from": "2026-09-02",
   "until": "2026-09-07",
   "bg": "The 83rd Venice International Film Festival runs 2 to 12 September and opens the autumn awards season. Maggie Gyllenhaal chairs the main-competition jury; 21 world premieres compete for the Golden Lion."
+ },
+ {
+  "id": "feed-f137",
+  "surface": "feed",
+  "seq": 188,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A win by a bad call: still sweet, or spoiled?",
+  "options": [
+   "Still sweet",
+   "Spoiled"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f138",
+  "surface": "feed",
+  "seq": 189,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Would you rather coach, or commentate?",
+  "options": [
+   "Coach",
+   "Commentate"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f139",
+  "surface": "feed",
+  "seq": 190,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Home advantage: a real force, or an excuse?",
+  "options": [
+   "A real force",
+   "An excuse"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f140",
+  "surface": "feed",
+  "seq": 191,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Anthems before the game: goosebumps, or get on with it?",
+  "options": [
+   "Goosebumps",
+   "Get on with it"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f141",
+  "surface": "feed",
+  "seq": 192,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your phone dies for a day: freedom, or panic?",
+  "options": [
+   "Freedom",
+   "Panic"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f142",
+  "surface": "feed",
+  "seq": 193,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A smart home: convenient, or creepy?",
+  "options": [
+   "Convenient",
+   "Creepy"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f143",
+  "surface": "feed",
+  "seq": 194,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Typing, or talking to your devices?",
+  "options": [
+   "Typing",
+   "Talking"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f144",
+  "surface": "feed",
+  "seq": 195,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The terms and conditions: ever read them, or never once?",
+  "options": [
+   "Sometimes, honestly",
+   "Never once"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f145",
+  "surface": "feed",
+  "seq": 196,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A life with no regrets: achievable, or not even desirable?",
+  "options": [
+   "Achievable",
+   "Not even desirable"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f146",
+  "surface": "feed",
+  "seq": 197,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A guaranteed ordinary life, or a risky remarkable one?",
+  "options": [
+   "Guaranteed ordinary",
+   "Risky remarkable"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f147",
+  "surface": "feed",
+  "seq": 198,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Are you the same person at 18 and 80?",
+  "options": [
+   "Same person",
+   "Someone new"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f148",
+  "surface": "feed",
+  "seq": 199,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Do animals have it figured out better than we do?",
+  "options": [
+   "They do",
+   "We do"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f149",
+  "surface": "feed",
+  "seq": 200,
+  "type": "vote",
+  "domain": null,
+  "prompt": "History will judge our era…",
+  "options": [
+   "Kindly",
+   "Harshly"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f150",
+  "surface": "feed",
+  "seq": 201,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Queue-jumpers: say something, or seethe in silence?",
+  "options": [
+   "Say something",
+   "Seethe in silence"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f151",
+  "surface": "feed",
+  "seq": 202,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Adult birthdays: celebrate big, or let them pass?",
+  "options": [
+   "Celebrate big",
+   "Let them pass"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f152",
+  "surface": "feed",
+  "seq": 203,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Re-reading old favourites: deepening, or time stolen from the new?",
+  "options": [
+   "Deepening",
+   "Stolen time"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f153",
+  "surface": "feed",
+  "seq": 204,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Weddings: small and close, or big and once?",
+  "options": [
+   "Small and close",
+   "Big and once"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f154",
+  "surface": "feed",
+  "seq": 205,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Swap lives with a stranger for a week — you don't choose who. Go?",
+  "options": [
+   "Go",
+   "Stay me"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f155",
+  "surface": "feed",
+  "seq": 206,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A pill that removes all fear. Take it?",
+  "options": [
+   "Take it",
+   "Fear is doing a job"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f156",
+  "surface": "feed",
+  "seq": 207,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Double your money, or double your free time?",
+  "options": [
+   "Double the money",
+   "Double the time"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f157",
+  "surface": "feed",
+  "seq": 208,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Invisible for a day, or pause time for an hour?",
+  "options": [
+   "Invisible",
+   "Pause time"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f158",
+  "surface": "feed",
+  "seq": 209,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your biography: warts and all, or flattering and false?",
+  "options": [
+   "Warts and all",
+   "Flattering and false"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f159",
+  "surface": "feed",
+  "seq": 210,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Adverts in the night sky: just business, or vandalism?",
+  "options": [
+   "Just business",
+   "Vandalism"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f160",
+  "surface": "feed",
+  "seq": 211,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Should museums be free?",
+  "options": [
+   "Free, always",
+   "Tickets are fine"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f161",
+  "surface": "feed",
+  "seq": 212,
+  "type": "vote",
+  "domain": null,
+  "prompt": "New Olympic sports: keep experimenting, or protect the classics?",
+  "options": [
+   "Keep experimenting",
+   "Protect the classics"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f162",
+  "surface": "feed",
+  "seq": 213,
+  "type": "vote",
+  "domain": null,
+  "prompt": "An upper age limit for national leaders: sensible, or ageist?",
+  "options": [
+   "Sensible",
+   "Ageist"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f163",
+  "surface": "feed",
+  "seq": 214,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Drone shows replacing fireworks: an upgrade, or not the same?",
+  "options": [
+   "An upgrade",
+   "Not the same"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f164",
+  "surface": "feed",
+  "seq": 215,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Too much garlic: impossible, or very possible?",
+  "options": [
+   "Impossible",
+   "Very possible"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f165",
+  "surface": "feed",
+  "seq": 216,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Eating alone at a restaurant: a treat, or a trial?",
+  "options": [
+   "A treat",
+   "A trial"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f166",
+  "surface": "feed",
+  "seq": 217,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The end slice of the loaf: the best bit, or the bird's?",
+  "options": [
+   "The best bit",
+   "The bird's"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f167",
+  "surface": "feed",
+  "seq": 218,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cheese course, or dessert course?",
+  "options": [
+   "Cheese",
+   "Dessert"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f168",
+  "surface": "feed",
+  "seq": 219,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A mid-film phone check: unforgivable, or human?",
+  "options": [
+   "Unforgivable",
+   "Human"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f169",
+  "surface": "feed",
+  "seq": 220,
+  "type": "vote",
+  "domain": null,
+  "prompt": "So bad it's good: a real category, or cope?",
+  "options": [
+   "A real category",
+   "Cope"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f170",
+  "surface": "feed",
+  "seq": 221,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Musicals: joy, or endurance?",
+  "options": [
+   "Joy",
+   "Endurance"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f171",
+  "surface": "feed",
+  "seq": 222,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The adaptation you dread most: a beloved book, a favourite game, or your childhood cartoon?",
+  "options": [
+   "The beloved book",
+   "The favourite game",
+   "The childhood cartoon"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f172",
+  "surface": "feed",
+  "seq": 223,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Music in restaurants: atmosphere, or noise?",
+  "options": [
+   "Atmosphere",
+   "Noise"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f173",
+  "surface": "feed",
+  "seq": 224,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The opening act: get there early, or time your arrival?",
+  "options": [
+   "Get there early",
+   "Time your arrival"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f174",
+  "surface": "feed",
+  "seq": 225,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One artist for life: The Beatles, Beyoncé, Bach, or Bob Marley?",
+  "options": [
+   "The Beatles",
+   "Beyoncé",
+   "Bach",
+   "Bob Marley"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f175",
+  "surface": "feed",
+  "seq": 226,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Singing in the shower: everyone does it, or not you?",
+  "options": [
+   "Everyone does it",
+   "Not me"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f176",
+  "surface": "feed",
+  "seq": 227,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Explicit lyrics with kids in the car: relax, or radio edit?",
+  "options": [
+   "Relax",
+   "Radio edit"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f177",
+  "surface": "feed",
+  "seq": 228,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your bodyguard for one risky day: Serena Williams, The Rock, Zlatan, or Jackie Chan?",
+  "options": [
+   "Serena Williams",
+   "The Rock",
+   "Zlatan",
+   "Jackie Chan"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f178",
+  "surface": "feed",
+  "seq": 229,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your life story, written by: Jane Austen, Ernest Hemingway, or Agatha Christie?",
+  "options": [
+   "Jane Austen",
+   "Ernest Hemingway",
+   "Agatha Christie"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f179",
+  "surface": "feed",
+  "seq": 230,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Marooned with one: Bear Grylls, Marie Kondo, Gordon Ramsay, or David Attenborough?",
+  "options": [
+   "Bear Grylls",
+   "Marie Kondo",
+   "Gordon Ramsay",
+   "David Attenborough"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f180",
+  "surface": "feed",
+  "seq": 231,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Who'd win at chess: Napoleon, or Einstein?",
+  "options": [
+   "Napoleon",
+   "Einstein"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f181",
+  "surface": "feed",
+  "seq": 232,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your fictional neighbour: Sherlock Holmes, Mary Poppins, Gandalf, or Homer Simpson?",
+  "options": [
+   "Sherlock Holmes",
+   "Mary Poppins",
+   "Gandalf",
+   "Homer Simpson"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl20",
+  "surface": "feed",
+  "seq": 233,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes of stoppage time that feel honest?",
+  "options": [
+   "0–1 min",
+   "1–3 min",
+   "3–4 min",
+   "4–5 min",
+   "5–6 min",
+   "6–8 min",
+   "8–9 min",
+   "9–10 min",
+   "10–11 min",
+   "11–13 min",
+   "13–14 min",
+   "14–15 min"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 15,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl21",
+  "surface": "feed",
+  "seq": 234,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Browser tabs open right now?",
+  "options": [
+   "0–4 tabs",
+   "4–8 tabs",
+   "8–13 tabs",
+   "13–17 tabs",
+   "17–21 tabs",
+   "21–25 tabs",
+   "25–29 tabs",
+   "29–33 tabs",
+   "33–38 tabs",
+   "38–42 tabs",
+   "42–46 tabs",
+   "46–50 tabs"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 50,
+  "unit": "tabs"
+ },
+ {
+  "id": "feed-dl22",
+  "surface": "feed",
+  "seq": 235,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Seconds a silence can sit comfortably?",
+  "options": [
+   "0–5 s",
+   "5–10 s",
+   "10–15 s",
+   "15–20 s",
+   "20–25 s",
+   "25–30 s",
+   "30–35 s",
+   "35–40 s",
+   "40–45 s",
+   "45–50 s",
+   "50–55 s",
+   "55–60 s"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "s"
+ },
+ {
+  "id": "feed-dl23",
+  "surface": "feed",
+  "seq": 236,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Too late for coffee — from what hour?",
+  "options": [
+   "10–11 h",
+   "11–12 h",
+   "12–13 h",
+   "13–14 h",
+   "14–15 h",
+   "15–16 h",
+   "16–17 h",
+   "17–18 h",
+   "18–19 h",
+   "19–20 h",
+   "20–21 h",
+   "21–22 h"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 10,
+  "hi": 22,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl24",
+  "surface": "feed",
+  "seq": 237,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Cinema trips in a year?",
+  "options": [
+   "0–4 trips",
+   "4–8 trips",
+   "8–13 trips",
+   "13–17 trips",
+   "17–21 trips",
+   "21–25 trips",
+   "25–29 trips",
+   "29–33 trips",
+   "33–38 trips",
+   "38–42 trips",
+   "42–46 trips",
+   "46–50 trips"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 50,
+  "unit": "trips"
+ },
+ {
+  "id": "feed-dl25",
+  "surface": "feed",
+  "seq": 238,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many big decisions does a life turn on?",
+  "options": [
+   "0–2 decisions",
+   "2–3 decisions",
+   "3–5 decisions",
+   "5–7 decisions",
+   "7–8 decisions",
+   "8–10 decisions",
+   "10–12 decisions",
+   "12–13 decisions",
+   "13–15 decisions",
+   "15–17 decisions",
+   "17–18 decisions",
+   "18–20 decisions"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 20,
+  "unit": "decisions"
+ },
+ {
+  "id": "feed-dl26",
+  "surface": "feed",
+  "seq": 239,
+  "type": "dial",
+  "domain": null,
+  "prompt": "A fair finder's fee, in percent?",
+  "options": [
+   "0–4%",
+   "4–8%",
+   "8–13%",
+   "13–17%",
+   "17–21%",
+   "21–25%",
+   "25–29%",
+   "29–33%",
+   "33–38%",
+   "38–42%",
+   "42–46%",
+   "46–50%"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 50,
+  "unit": "%"
+ },
+ {
+  "id": "feed-dl27",
+  "surface": "feed",
+  "seq": 240,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Hours of news in your week?",
+  "options": [
+   "0–2 h",
+   "2–3 h",
+   "3–5 h",
+   "5–7 h",
+   "7–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–13 h",
+   "13–15 h",
+   "15–17 h",
+   "17–18 h",
+   "18–20 h"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 20,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl28",
+  "surface": "feed",
+  "seq": 241,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Your favourite song comes on — volume, in percent?",
+  "options": [
+   "0–8%",
+   "8–17%",
+   "17–25%",
+   "25–33%",
+   "33–42%",
+   "42–50%",
+   "50–58%",
+   "58–67%",
+   "67–75%",
+   "75–83%",
+   "83–92%",
+   "92–100%"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 100,
+  "unit": "%"
+ },
+ {
+  "id": "feed-dl29",
+  "surface": "feed",
+  "seq": 242,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Autographs you've asked for, ever?",
+  "options": [
+   "0–2 autographs",
+   "2–3 autographs",
+   "3–5 autographs",
+   "5–7 autographs",
+   "7–8 autographs",
+   "8–10 autographs",
+   "10–12 autographs",
+   "12–13 autographs",
+   "13–15 autographs",
+   "15–17 autographs",
+   "17–18 autographs",
+   "18–20 autographs"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 20,
+  "unit": "autographs"
+ },
+ {
+  "id": "feed-fd5",
+  "surface": "feed",
+  "seq": 243,
+  "type": "field",
+  "domain": null,
+  "prompt": "Losing — place it",
+  "options": [
+   "shrug it off · personal",
+   "lean shrug it off · personal",
+   "lean carry it · personal",
+   "carry it · personal",
+   "shrug it off · middle",
+   "lean shrug it off · middle",
+   "lean carry it · middle",
+   "carry it · middle",
+   "shrug it off · just a game",
+   "lean shrug it off · just a game",
+   "lean carry it · just a game",
+   "carry it · just a game"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "shrug it off",
+   "carry it"
+  ],
+  "ay": [
+   "just a game",
+   "personal"
+  ]
+ },
+ {
+  "id": "feed-fd6",
+  "surface": "feed",
+  "seq": 244,
+  "type": "field",
+  "domain": null,
+  "prompt": "Your phone — place it",
+  "options": [
+   "a tool · runs you",
+   "lean a tool · runs you",
+   "lean a limb · runs you",
+   "a limb · runs you",
+   "a tool · middle",
+   "lean a tool · middle",
+   "lean a limb · middle",
+   "a limb · middle",
+   "a tool · serves you",
+   "lean a tool · serves you",
+   "lean a limb · serves you",
+   "a limb · serves you"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "a tool",
+   "a limb"
+  ],
+  "ay": [
+   "serves you",
+   "runs you"
+  ]
+ },
+ {
+  "id": "feed-fd7",
+  "surface": "feed",
+  "seq": 245,
+  "type": "field",
+  "domain": null,
+  "prompt": "Hosting — place it",
+  "options": [
+   "full house · a duty",
+   "lean full house · a duty",
+   "lean quiet house · a duty",
+   "quiet house · a duty",
+   "full house · middle",
+   "lean full house · middle",
+   "lean quiet house · middle",
+   "quiet house · middle",
+   "full house · a joy",
+   "lean full house · a joy",
+   "lean quiet house · a joy",
+   "quiet house · a joy"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "full house",
+   "quiet house"
+  ],
+  "ay": [
+   "a joy",
+   "a duty"
+  ]
+ },
+ {
+  "id": "feed-fd8",
+  "surface": "feed",
+  "seq": 246,
+  "type": "field",
+  "domain": null,
+  "prompt": "Cooking — place it",
+  "options": [
+   "a chore · improvised",
+   "lean a chore · improvised",
+   "lean therapy · improvised",
+   "therapy · improvised",
+   "a chore · middle",
+   "lean a chore · middle",
+   "lean therapy · middle",
+   "therapy · middle",
+   "a chore · by the book",
+   "lean a chore · by the book",
+   "lean therapy · by the book",
+   "therapy · by the book"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "a chore",
+   "therapy"
+  ],
+  "ay": [
+   "by the book",
+   "improvised"
+  ]
+ },
+ {
+  "id": "feed-fd9",
+  "surface": "feed",
+  "seq": 247,
+  "type": "field",
+  "domain": null,
+  "prompt": "Horror films — place it",
+  "options": [
+   "can’t watch · art",
+   "lean can’t watch · art",
+   "lean can’t stop · art",
+   "can’t stop · art",
+   "can’t watch · middle",
+   "lean can’t watch · middle",
+   "lean can’t stop · middle",
+   "can’t stop · middle",
+   "can’t watch · silly",
+   "lean can’t watch · silly",
+   "lean can’t stop · silly",
+   "can’t stop · silly"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "can’t watch",
+   "can’t stop"
+  ],
+  "ay": [
+   "silly",
+   "art"
+  ]
+ },
+ {
+  "id": "feed-n11",
+  "surface": "feed",
+  "seq": 248,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Eight years in transit, and a probe finally arrives at Mercury. Slow space travel: the grandeur, or the problem?",
+  "options": [
+   "The grandeur",
+   "The problem",
+   "Wait — eight years?"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-03",
+  "until": "2026-09-08",
+  "bg": "ESA and JAXA's BepiColombo launched in October 2018 and began its Mercury arrival on 3 September 2026 — the transfer module separating before the two orbiters enter orbit in November. Science operations start in spring 2027."
+ },
+ {
+  "id": "feed-n12",
+  "surface": "feed",
+  "seq": 249,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Vinyl is closing in on the CD again. Which do you actually play: the record, the disc, or the stream?",
+  "options": [
+   "The record",
+   "The disc",
+   "The stream"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-03",
+  "until": "2026-09-09",
+  "bg": "US recorded-music revenue neared $6 billion in the first half of 2026 on paid-streaming growth, with vinyl closing in on CDs by units sold — even at an average LP price more than double a CD's."
+ },
+ {
+  "id": "feed-n13",
+  "surface": "feed",
+  "seq": 250,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Fashion month begins, Manhattan to Milan. Does the runway ever reach your wardrobe?",
+  "options": [
+   "Eventually, diluted",
+   "Straight away",
+   "Never — and proudly"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-03",
+  "until": "2026-09-10",
+  "bg": "September is fashion's busiest stretch: the spring shows run from New York through London and Milan to Paris, setting what stores carry next year. London's week overlaps the city's Design Festival."
+ },
+ {
+  "id": "feed-dl30",
+  "surface": "feed",
+  "seq": 251,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Daily screen time — where does “too much” start?",
+  "options": [
+   "0–2 h",
+   "2–4 h",
+   "4–6 h",
+   "6–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–14 h",
+   "14–16 h",
+   "16–18 h",
+   "18–20 h",
+   "20–22 h",
+   "22–24 h"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "also": [
+   "tech"
+  ],
+  "lo": 0,
+  "hi": 24,
+  "unit": "h",
+  "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two.",
+  "core": true
+ },
+ {
+  "id": "feed-dl31",
+  "surface": "feed",
+  "seq": 252,
+  "type": "dial",
+  "domain": null,
+  "prompt": "At what age is an athlete past their peak?",
+  "options": [
+   "20–23 yrs",
+   "23–25 yrs",
+   "25–28 yrs",
+   "28–30 yrs",
+   "30–33 yrs",
+   "33–35 yrs",
+   "35–38 yrs",
+   "38–40 yrs",
+   "40–43 yrs",
+   "43–45 yrs",
+   "45–48 yrs",
+   "48–50 yrs"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 20,
+  "hi": 50,
+  "unit": "yrs",
+  "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
+ },
+ {
+  "id": "feed-dl32",
+  "surface": "feed",
+  "seq": 253,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many coffees a day is too many?",
+  "options": [
+   "0–1 cups",
+   "1–2 cups",
+   "2–3 cups",
+   "3–4 cups",
+   "4–5 cups",
+   "5–6 cups",
+   "6–7 cups",
+   "7–8 cups",
+   "8–9 cups",
+   "9–10 cups",
+   "10–11 cups",
+   "11–12 cups"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "cups",
+  "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
+ },
+ {
+  "id": "feed-dl33",
+  "surface": "feed",
+  "seq": 254,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How long should a concert be?",
+  "options": [
+   "30–50 min",
+   "50–70 min",
+   "70–90 min",
+   "90–110 min",
+   "110–130 min",
+   "130–150 min",
+   "150–170 min",
+   "170–190 min",
+   "190–210 min",
+   "210–230 min",
+   "230–250 min",
+   "250–270 min"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 30,
+  "hi": 270,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl34",
+  "surface": "feed",
+  "seq": 255,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many close friends does a person need?",
+  "options": [
+   "0–1 friends",
+   "1–2 friends",
+   "2–3 friends",
+   "3–4 friends",
+   "4–5 friends",
+   "5–6 friends",
+   "6–7 friends",
+   "7–8 friends",
+   "8–9 friends",
+   "9–10 friends",
+   "10–11 friends",
+   "11–12 friends"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "friends"
+ },
+ {
+  "id": "feed-dl35",
+  "surface": "feed",
+  "seq": 256,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many hours a day on a phone is too many?",
+  "options": [
+   "0–2 h",
+   "2–4 h",
+   "4–6 h",
+   "6–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–14 h",
+   "14–16 h",
+   "16–18 h",
+   "18–20 h",
+   "20–22 h",
+   "22–24 h"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl36",
+  "surface": "feed",
+  "seq": 257,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Books finished last year — how many?",
+  "options": [
+   "0–5 books",
+   "5–10 books",
+   "10–15 books",
+   "15–20 books",
+   "20–25 books",
+   "25–30 books",
+   "30–35 books",
+   "35–40 books",
+   "40–45 books",
+   "45–50 books",
+   "50–55 books",
+   "55–60 books"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "books"
+ },
+ {
+  "id": "feed-dl37",
+  "surface": "feed",
+  "seq": 258,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Hours of live sport in a good week?",
+  "options": [
+   "0–2 h",
+   "2–4 h",
+   "4–6 h",
+   "6–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–14 h",
+   "14–16 h",
+   "16–18 h",
+   "18–20 h",
+   "20–22 h",
+   "22–24 h"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl38",
+  "surface": "feed",
+  "seq": 259,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How old were you when your taste in music settled?",
+  "options": [
+   "5–9 yrs",
+   "9–13 yrs",
+   "13–16 yrs",
+   "16–20 yrs",
+   "20–24 yrs",
+   "24–28 yrs",
+   "28–31 yrs",
+   "31–35 yrs",
+   "35–39 yrs",
+   "39–43 yrs",
+   "43–46 yrs",
+   "46–50 yrs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 5,
+  "hi": 50,
+  "unit": "yrs"
+ },
+ {
+  "id": "feed-dl39",
+  "surface": "feed",
+  "seq": 260,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Meals cooked from scratch in a week?",
+  "options": [
+   "0–2 meals",
+   "2–4 meals",
+   "4–5 meals",
+   "5–7 meals",
+   "7–9 meals",
+   "9–11 meals",
+   "11–12 meals",
+   "12–14 meals",
+   "14–16 meals",
+   "16–18 meals",
+   "18–19 meals",
+   "19–21 meals"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 21,
+  "unit": "meals"
+ },
+ {
+  "id": "feed-dl40",
+  "surface": "feed",
+  "seq": 261,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The ideal dinner hour?",
+  "options": [
+   "12–13 h",
+   "13–14 h",
+   "14–15 h",
+   "15–16 h",
+   "16–17 h",
+   "17–18 h",
+   "18–19 h",
+   "19–20 h",
+   "20–21 h",
+   "21–22 h",
+   "22–23 h",
+   "23–24 h"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 12,
+  "hi": 24,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl41",
+  "surface": "feed",
+  "seq": 262,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years ahead do you actually plan?",
+  "options": [
+   "0–3 years",
+   "3–5 years",
+   "5–8 years",
+   "8–10 years",
+   "10–13 years",
+   "13–15 years",
+   "15–18 years",
+   "18–20 years",
+   "20–23 years",
+   "23–25 years",
+   "25–28 years",
+   "28–30 years"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "years"
+ },
+ {
+  "id": "feed-dl42",
+  "surface": "feed",
+  "seq": 263,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes late before it counts as late?",
+  "options": [
+   "0–5 min",
+   "5–10 min",
+   "10–15 min",
+   "15–20 min",
+   "20–25 min",
+   "25–30 min",
+   "30–35 min",
+   "35–40 min",
+   "40–45 min",
+   "45–50 min",
+   "50–55 min",
+   "55–60 min"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl43",
+  "surface": "feed",
+  "seq": 264,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many songs on a perfect album?",
+  "options": [
+   "6–8 songs",
+   "8–10 songs",
+   "10–12 songs",
+   "12–14 songs",
+   "14–16 songs",
+   "16–18 songs",
+   "18–20 songs",
+   "20–22 songs",
+   "22–24 songs",
+   "24–26 songs",
+   "26–28 songs",
+   "28–30 songs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 6,
+  "hi": 30,
+  "unit": "songs"
+ },
+ {
+  "id": "feed-n14",
+  "surface": "feed",
+  "seq": 265,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Flying cars land at the tech fair again. A dream worth keeping, or a bit that got old?",
+  "options": [
+   "Keep the dream",
+   "It got old",
+   "Just build trains"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-05",
+  "until": "2026-09-11",
+  "bg": "IFA Berlin, Europe's biggest consumer-tech fair, opened on 4 September — 1,900 brands across 190,000 square metres, AI in everything from fridges to laptops, and, once again, flying-car concepts on the floor. It runs to 8 September."
+ },
+ {
+  "id": "feed-n15",
+  "surface": "feed",
+  "seq": 266,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A season opening on a Wednesday for the first time in a decade: fine, or leave the rituals alone?",
+  "options": [
+   "Fine — a game's a game",
+   "Leave the rituals alone"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-05",
+  "until": "2026-09-12",
+  "bg": "The NFL's 2026 season opens on Wednesday 9 September in Seattle — a Super Bowl rematch against New England, and the league's first Wednesday opener in well over a decade. Season openers traditionally hold Thursday night."
+ },
+ {
+  "id": "feed-f182",
+  "surface": "feed",
+  "seq": 267,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A one-club career: nobler, or just rarer?",
+  "options": [
+   "Nobler",
+   "Just rarer"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f183",
+  "surface": "feed",
+  "seq": 268,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sports films: better than the real thing, or never close?",
+  "options": [
+   "Sometimes better",
+   "Never close"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f184",
+  "surface": "feed",
+  "seq": 269,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Commentary: essential company, or mute and watch?",
+  "options": [
+   "Essential company",
+   "Mute and watch"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f185",
+  "surface": "feed",
+  "seq": 270,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Warming up: sacred, or skipped?",
+  "options": [
+   "Sacred",
+   "Skipped"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f186",
+  "surface": "feed",
+  "seq": 271,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A watch tracking your sleep: insight, or anxiety?",
+  "options": [
+   "Insight",
+   "Anxiety"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f187",
+  "surface": "feed",
+  "seq": 272,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Old phones in the drawer: an archive, or a hoard?",
+  "options": [
+   "An archive",
+   "A hoard"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f188",
+  "surface": "feed",
+  "seq": 273,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Passwords: a manager, or your own good system?",
+  "options": [
+   "A manager",
+   "My own system"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f189",
+  "surface": "feed",
+  "seq": 274,
+  "type": "vote",
+  "domain": null,
+  "prompt": "QR-code menus: fine now, or bring back paper?",
+  "options": [
+   "Fine now",
+   "Bring back paper"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f190",
+  "surface": "feed",
+  "seq": 275,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Is nostalgia a friend, or a liar?",
+  "options": [
+   "A friend",
+   "A liar"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f191",
+  "surface": "feed",
+  "seq": 276,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Would you rather be right, or be kind?",
+  "options": [
+   "Right",
+   "Kind"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f192",
+  "surface": "feed",
+  "seq": 277,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Does everything happen for a reason?",
+  "options": [
+   "It does",
+   "It doesn’t"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f193",
+  "surface": "feed",
+  "seq": 278,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The unexamined life: actually fine?",
+  "options": [
+   "Actually fine",
+   "Socrates was right"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f194",
+  "surface": "feed",
+  "seq": 279,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Big fish in a small pond, or small fish in a big one?",
+  "options": [
+   "Big fish, small pond",
+   "Small fish, big pond"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f195",
+  "surface": "feed",
+  "seq": 280,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Talking to strangers on a train: welcome, or headphones in?",
+  "options": [
+   "Welcome",
+   "Headphones in"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f196",
+  "surface": "feed",
+  "seq": 281,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Gift cards: thoughtful enough, or an apology?",
+  "options": [
+   "Thoughtful enough",
+   "An apology"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f197",
+  "surface": "feed",
+  "seq": 282,
+  "type": "vote",
+  "domain": null,
+  "prompt": "House shoes for guests: offer them, or never?",
+  "options": [
+   "Offer them",
+   "Never"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f198",
+  "surface": "feed",
+  "seq": 283,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The group photo: the organiser, or the edge-lurker?",
+  "options": [
+   "The organiser",
+   "The edge-lurker"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f199",
+  "surface": "feed",
+  "seq": 284,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Speak every language, or play every instrument?",
+  "options": [
+   "Every language",
+   "Every instrument"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f200",
+  "surface": "feed",
+  "seq": 285,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Always know the truth, or always be happy?",
+  "options": [
+   "The truth",
+   "Happy"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f201",
+  "surface": "feed",
+  "seq": 286,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your memories of a trip, or the photos of it — keep only one?",
+  "options": [
+   "The memories",
+   "The photos"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f202",
+  "surface": "feed",
+  "seq": 287,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Free flights forever, or free food forever?",
+  "options": [
+   "Free flights",
+   "Free food"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f203",
+  "surface": "feed",
+  "seq": 288,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Perfect sleep every night, or perfect meals every day?",
+  "options": [
+   "Perfect sleep",
+   "Perfect meals"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f204",
+  "surface": "feed",
+  "seq": 289,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Ticket resale above face value: the market, or scalping?",
+  "options": [
+   "The market",
+   "Scalping"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f205",
+  "surface": "feed",
+  "seq": 290,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Election day as a public holiday: overdue, or unnecessary?",
+  "options": [
+   "Overdue",
+   "Unnecessary"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f206",
+  "surface": "feed",
+  "seq": 291,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Space junk: whoever launched it cleans it, or everyone together?",
+  "options": [
+   "The launchers",
+   "Everyone together"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f207",
+  "surface": "feed",
+  "seq": 292,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Museums lending famous works abroad: generous, or risky?",
+  "options": [
+   "Generous",
+   "Risky"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f208",
+  "surface": "feed",
+  "seq": 293,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A four-day festival, or four one-day concerts?",
+  "options": [
+   "The festival",
+   "Four concerts"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f209",
+  "surface": "feed",
+  "seq": 294,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Salad as a main: a meal, or a side that got ambitious?",
+  "options": [
+   "A meal",
+   "An ambitious side"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f210",
+  "surface": "feed",
+  "seq": 295,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Tea: milk first, or tea first?",
+  "options": [
+   "Milk first",
+   "Tea first"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f211",
+  "surface": "feed",
+  "seq": 296,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The bread basket: restraint, or ruin your appetite happily?",
+  "options": [
+   "Restraint",
+   "Ruin it happily"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f212",
+  "surface": "feed",
+  "seq": 297,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Fruit: on the counter, or in the fridge?",
+  "options": [
+   "On the counter",
+   "In the fridge"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f213",
+  "surface": "feed",
+  "seq": 298,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The cinema alone: a pleasure, or a last resort?",
+  "options": [
+   "A pleasure",
+   "A last resort"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f214",
+  "surface": "feed",
+  "seq": 299,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Film scores: half the film, or background?",
+  "options": [
+   "Half the film",
+   "Background"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f215",
+  "surface": "feed",
+  "seq": 300,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Opening weekend, or wait for the verdict?",
+  "options": [
+   "Opening weekend",
+   "Wait for the verdict"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f216",
+  "surface": "feed",
+  "seq": 301,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Actors doing accents: commit, or don’t bother?",
+  "options": [
+   "Commit",
+   "Don’t bother"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f217",
+  "surface": "feed",
+  "seq": 302,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Live music: outdoors under the sky, or in a room built for it?",
+  "options": [
+   "Under the sky",
+   "A room built for it"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f218",
+  "surface": "feed",
+  "seq": 303,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Lyrics you’ve misheard for years: correct them, or keep yours?",
+  "options": [
+   "Correct them",
+   "Keep mine"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f219",
+  "surface": "feed",
+  "seq": 304,
+  "type": "vote",
+  "domain": null,
+  "prompt": "An album on shuffle: harmless, or heresy?",
+  "options": [
+   "Harmless",
+   "Heresy"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f220",
+  "surface": "feed",
+  "seq": 305,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The perfect concert companion: the superfan, or the first-timer?",
+  "options": [
+   "The superfan",
+   "The first-timer"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f221",
+  "surface": "feed",
+  "seq": 306,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Wedding band, or wedding DJ?",
+  "options": [
+   "Band",
+   "DJ"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f222",
+  "surface": "feed",
+  "seq": 307,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your driving instructor: Lewis Hamilton, or your mum?",
+  "options": [
+   "Lewis Hamilton",
+   "My mum"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f223",
+  "surface": "feed",
+  "seq": 308,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A duet with: Freddie Mercury, Aretha Franklin, or Frank Sinatra?",
+  "options": [
+   "Freddie Mercury",
+   "Aretha Franklin",
+   "Frank Sinatra"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f224",
+  "surface": "feed",
+  "seq": 309,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Whose wardrobe: David Bowie’s, Audrey Hepburn’s, or Pharrell’s?",
+  "options": [
+   "David Bowie’s",
+   "Audrey Hepburn’s",
+   "Pharrell’s"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f225",
+  "surface": "feed",
+  "seq": 310,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The group project partner: Hermione Granger, or Tony Stark?",
+  "options": [
+   "Hermione Granger",
+   "Tony Stark"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f226",
+  "surface": "feed",
+  "seq": 311,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Who’d survive a week in your job: Gordon Ramsay, Oprah, or The Rock?",
+  "options": [
+   "Gordon Ramsay",
+   "Oprah",
+   "The Rock"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl44",
+  "surface": "feed",
+  "seq": 312,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Push-ups you could do right now?",
+  "options": [
+   "0–5 push-ups",
+   "5–10 push-ups",
+   "10–15 push-ups",
+   "15–20 push-ups",
+   "20–25 push-ups",
+   "25–30 push-ups",
+   "30–35 push-ups",
+   "35–40 push-ups",
+   "40–45 push-ups",
+   "45–50 push-ups",
+   "50–55 push-ups",
+   "55–60 push-ups"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 60,
+  "unit": "push-ups"
+ },
+ {
+  "id": "feed-dl45",
+  "surface": "feed",
+  "seq": 313,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Unread notifications right now?",
+  "options": [
+   "0–10 notifications",
+   "10–20 notifications",
+   "20–30 notifications",
+   "30–40 notifications",
+   "40–50 notifications",
+   "50–60 notifications",
+   "60–70 notifications",
+   "70–80 notifications",
+   "80–90 notifications",
+   "90–100 notifications",
+   "100–110 notifications",
+   "110–120 notifications"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 120,
+  "unit": "notifications"
+ },
+ {
+  "id": "feed-dl46",
+  "surface": "feed",
+  "seq": 314,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many lives would you want to live, if you could?",
+  "options": [
+   "0–1 lives",
+   "1–2 lives",
+   "2–3 lives",
+   "3–4 lives",
+   "4–5 lives",
+   "5–6 lives",
+   "6–7 lives",
+   "7–8 lives",
+   "8–9 lives",
+   "9–10 lives",
+   "10–11 lives",
+   "11–12 lives"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "lives"
+ },
+ {
+  "id": "feed-dl47",
+  "surface": "feed",
+  "seq": 315,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Decorations up — from which week of the year?",
+  "options": [
+   "0–4 weeks",
+   "4–9 weeks",
+   "9–13 weeks",
+   "13–17 weeks",
+   "17–22 weeks",
+   "22–26 weeks",
+   "26–30 weeks",
+   "30–35 weeks",
+   "35–39 weeks",
+   "39–43 weeks",
+   "43–48 weeks",
+   "48–52 weeks"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 52,
+  "unit": "weeks"
+ },
+ {
+  "id": "feed-dl48",
+  "surface": "feed",
+  "seq": 316,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The most you’d queue for anything, in minutes?",
+  "options": [
+   "0–10 min",
+   "10–20 min",
+   "20–30 min",
+   "30–40 min",
+   "40–50 min",
+   "50–60 min",
+   "60–70 min",
+   "70–80 min",
+   "80–90 min",
+   "90–100 min",
+   "100–110 min",
+   "110–120 min"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 120,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl49",
+  "surface": "feed",
+  "seq": 317,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Fireworks on New Year’s: how many minutes is right?",
+  "options": [
+   "0–2 min",
+   "2–4 min",
+   "4–6 min",
+   "6–8 min",
+   "8–10 min",
+   "10–12 min",
+   "12–14 min",
+   "14–16 min",
+   "16–18 min",
+   "18–20 min",
+   "20–22 min",
+   "22–24 min"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "min"
+ },
+ {
+  "id": "feed-dl50",
+  "surface": "feed",
+  "seq": 318,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Spice jars in your kitchen?",
+  "options": [
+   "0–4 jars",
+   "4–8 jars",
+   "8–12 jars",
+   "12–16 jars",
+   "16–20 jars",
+   "20–24 jars",
+   "24–28 jars",
+   "28–32 jars",
+   "32–36 jars",
+   "36–40 jars",
+   "40–44 jars",
+   "44–48 jars"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 48,
+  "unit": "jars"
+ },
+ {
+  "id": "feed-dl51",
+  "surface": "feed",
+  "seq": 319,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Times you’ve seen your most-watched film?",
+  "options": [
+   "0–2 times",
+   "2–4 times",
+   "4–6 times",
+   "6–8 times",
+   "8–10 times",
+   "10–12 times",
+   "12–14 times",
+   "14–16 times",
+   "16–18 times",
+   "18–20 times",
+   "20–22 times",
+   "22–24 times"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "times"
+ },
+ {
+  "id": "feed-dl52",
+  "surface": "feed",
+  "seq": 320,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Songs on your on-repeat playlist right now?",
+  "options": [
+   "0–3 songs",
+   "3–6 songs",
+   "6–9 songs",
+   "9–12 songs",
+   "12–15 songs",
+   "15–18 songs",
+   "18–21 songs",
+   "21–24 songs",
+   "24–27 songs",
+   "27–30 songs",
+   "30–33 songs",
+   "33–36 songs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 36,
+  "unit": "songs"
+ },
+ {
+  "id": "feed-dl53",
+  "surface": "feed",
+  "seq": 321,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Posters on your teenage bedroom wall — how many?",
+  "options": [
+   "0–1 posters",
+   "1–2 posters",
+   "2–3 posters",
+   "3–4 posters",
+   "4–5 posters",
+   "5–6 posters",
+   "6–7 posters",
+   "7–8 posters",
+   "8–9 posters",
+   "9–10 posters",
+   "10–11 posters",
+   "11–12 posters"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "posters"
+ },
+ {
+  "id": "feed-fd10",
+  "surface": "feed",
+  "seq": 322,
+  "type": "field",
+  "domain": null,
+  "prompt": "Team loyalty — place it",
+  "options": [
+   "born into it · transferable",
+   "lean born into it · transferable",
+   "lean chosen · transferable",
+   "chosen · transferable",
+   "born into it · middle",
+   "lean born into it · middle",
+   "lean chosen · middle",
+   "chosen · middle",
+   "born into it · for life",
+   "lean born into it · for life",
+   "lean chosen · for life",
+   "chosen · for life"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "born into it",
+   "chosen"
+  ],
+  "ay": [
+   "for life",
+   "transferable"
+  ]
+ },
+ {
+  "id": "feed-fd11",
+  "surface": "feed",
+  "seq": 323,
+  "type": "field",
+  "domain": null,
+  "prompt": "Social media — place it",
+  "options": [
+   "drains me · here to stay",
+   "lean drains me · here to stay",
+   "lean feeds me · here to stay",
+   "feeds me · here to stay",
+   "drains me · middle",
+   "lean drains me · middle",
+   "lean feeds me · middle",
+   "feeds me · middle",
+   "drains me · quitting soon",
+   "lean drains me · quitting soon",
+   "lean feeds me · quitting soon",
+   "feeds me · quitting soon"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "drains me",
+   "feeds me"
+  ],
+  "ay": [
+   "quitting soon",
+   "here to stay"
+  ]
+ },
+ {
+  "id": "feed-fd12",
+  "surface": "feed",
+  "seq": 324,
+  "type": "field",
+  "domain": null,
+  "prompt": "Traditions — place it",
+  "options": [
+   "keep them all · confining",
+   "lean keep them all · confining",
+   "lean invent new · confining",
+   "invent new · confining",
+   "keep them all · middle",
+   "lean keep them all · middle",
+   "lean invent new · middle",
+   "invent new · middle",
+   "keep them all · comforting",
+   "lean keep them all · comforting",
+   "lean invent new · comforting",
+   "invent new · comforting"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "keep them all",
+   "invent new"
+  ],
+  "ay": [
+   "comforting",
+   "confining"
+  ]
+ },
+ {
+  "id": "feed-fd13",
+  "surface": "feed",
+  "seq": 325,
+  "type": "field",
+  "domain": null,
+  "prompt": "Snacking — place it",
+  "options": [
+   "a grazer · guilty",
+   "lean a grazer · guilty",
+   "lean three meals · guilty",
+   "three meals · guilty",
+   "a grazer · middle",
+   "lean a grazer · middle",
+   "lean three meals · middle",
+   "three meals · middle",
+   "a grazer · proud",
+   "lean a grazer · proud",
+   "lean three meals · proud",
+   "three meals · proud"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "a grazer",
+   "three meals"
+  ],
+  "ay": [
+   "proud",
+   "guilty"
+  ]
+ },
+ {
+  "id": "feed-fd14",
+  "surface": "feed",
+  "seq": 326,
+  "type": "field",
+  "domain": null,
+  "prompt": "Sequels — place it",
+  "options": [
+   "never needed · real stories",
+   "lean never needed · real stories",
+   "lean keep them · real stories",
+   "keep them · real stories",
+   "never needed · middle",
+   "lean never needed · middle",
+   "lean keep them · middle",
+   "keep them · middle",
+   "never needed · cash grabs",
+   "lean never needed · cash grabs",
+   "lean keep them · cash grabs",
+   "keep them · cash grabs"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "never needed",
+   "keep them"
+  ],
+  "ay": [
+   "cash grabs",
+   "real stories"
+  ]
+ },
+ {
+  "id": "feed-n16",
+  "surface": "feed",
+  "seq": 327,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Eleven districts of London fill with design installations. Public art on your daily route: a gift, or in the way?",
+  "options": [
+   "A gift",
+   "In the way",
+   "I stop noticing by Tuesday"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-06",
+  "until": "2026-09-13",
+  "bg": "The 24th London Design Festival runs 12–20 September 2026: nine days of landmark installations, museum commissions and open studios across eleven design districts, from the V&A and the Barbican to a new Soho district."
+ },
+ {
+  "id": "feed-n17",
+  "surface": "feed",
+  "seq": 328,
+  "type": "vote",
+  "domain": null,
+  "prompt": "TV’s big night returns. Award shows: still appointment viewing, or a highlights reel the morning after?",
+  "options": [
+   "Appointment viewing",
+   "The highlights after",
+   "Neither, honestly"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-06",
+  "until": "2026-09-14",
+  "bg": "The 78th Primetime Emmy Awards air live from the Peacock Theater in Los Angeles on 14 September 2026, hosted by Mariska Hargitay, with the Creative Arts ceremonies held the weekend before."
  },
  {
   "id": "pick-pk04",
@@ -7232,7 +10109,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Relief",
    "Annoyed"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7248,7 +10125,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ignore",
    "Text back later"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7263,7 +10140,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Love it",
    "Squirm"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7280,7 +10157,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Steady",
    "Restless"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7296,7 +10173,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The honest ETA",
    "Nothing — just arrives"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7311,7 +10188,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Say something",
    "Eat it anyway"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7328,7 +10205,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Honesty",
    "Nerve"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7344,7 +10221,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Map it out",
    "Just wander"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7359,7 +10236,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bliss",
    "Restless"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7375,7 +10252,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "One duet, then done",
    "Vanishes"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7391,7 +10268,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Talking to one person",
    "Near the door"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7406,7 +10283,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Laugh it off",
    "Say so"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7423,7 +10300,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ask everyone",
    "Sleep on it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7438,7 +10315,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Freely",
    "Fight it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7455,7 +10332,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Advice",
    "A favour"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7471,7 +10348,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "One plan, then drift",
    "Pool. Book. Done."
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7488,7 +10365,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "How funny",
    "How serious"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7505,7 +10382,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Treat someone else",
    "Spend a little now"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7520,7 +10397,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bring it up",
    "Let it go"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7535,7 +10412,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The talk",
    "The sleep"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7551,7 +10428,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Takes a while",
    "No"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7567,7 +10444,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Loud",
    "Busy"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7582,7 +10459,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Hard truth",
    "Silence"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7599,7 +10476,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Generosity",
    "Judgement"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7616,7 +10493,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Movement",
    "Sleep"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7631,7 +10508,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Giving",
    "Taking"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7646,7 +10523,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Gift",
    "Sentence"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7663,7 +10540,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The listener",
    "The truth-teller"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7678,7 +10555,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Surrounded",
    "Independent"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -7695,7 +10572,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Being fun",
    "Being right"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7712,7 +10589,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "People-pleasing",
    "Distraction"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -7727,7 +10604,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Concede on the spot",
    "Quietly change course"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -7743,7 +10620,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sofa, one film",
    "Cooking together"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7761,7 +10638,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Left alone",
    "Talked at immediately"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7779,7 +10656,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A gesture",
    "Time, then normal"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7796,7 +10673,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Fine, orders a drink",
    "Says nothing, remembers it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7815,7 +10692,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Being touched",
    "Being chosen"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7833,7 +10710,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A pause",
    "Space, then dinner"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7850,7 +10727,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A plan they made",
    "A day with nothing in it"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7868,7 +10745,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Mostly shared",
    "Separate, split bills"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7887,7 +10764,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Left in peace",
    "Asked about"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7904,7 +10781,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bliss",
    "Too much"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7922,7 +10799,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Cleans something",
    "Talks about nothing else"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7940,7 +10817,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Somewhere new",
    "Somewhere quiet"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7958,7 +10835,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Want you to choose",
    "Already decided"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7976,7 +10853,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Only if asked",
    "No"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -7995,7 +10872,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Silence",
    "It doesn't"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8013,7 +10890,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Open to it",
    "No"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8032,7 +10909,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Their people",
    "Their solitude"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8050,7 +10927,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Wait",
    "Ask you not to go"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8069,7 +10946,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "More calm",
    "More honesty"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8086,7 +10963,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Side by side",
    "Busy, together"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8105,7 +10982,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Talking it out",
    "Acting normal"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8122,7 +10999,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Settled deep",
    "Still moving"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8140,7 +11017,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Hint and hope",
    "Soldier on alone"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -8159,7 +11036,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The quiet steadiness",
    "The double act"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -14597,6 +17474,226 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "t": 0,
   "p": 62,
   "k": "100,000 beats a day"
+ },
+ {
+  "id": "learn-c214",
+  "surface": "learn",
+  "seq": 166,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first successful heart transplant was performed in…",
+  "options": [
+   "The United States",
+   "South Africa",
+   "The Soviet Union",
+   "The United Kingdom"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 38,
+  "k": "First heart transplant: Cape Town",
+  "w": "Christiaan Barnard, Groote Schuur Hospital, 1967 — the patient lived eighteen days; the technique lived on."
+ },
+ {
+  "id": "learn-c215",
+  "surface": "learn",
+  "seq": 167,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Television was first demonstrated publicly in the…",
+  "options": [
+   "1900s",
+   "1920s",
+   "1940s",
+   "1950s"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 3,
+  "p": 44,
+  "k": "TV demoed in the 1920s",
+  "w": "John Logie Baird showed working television in 1926 — two decades before most homes saw one."
+ },
+ {
+  "id": "learn-c216",
+  "surface": "learn",
+  "seq": 168,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Empire State Building went up in about…",
+  "options": [
+   "Fourteen months",
+   "Three years",
+   "Five years",
+   "A decade"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 33,
+  "k": "Empire State: ~14 months",
+  "w": "First steel to opening day in under fourteen months, 1930 to 1931 — Depression labour, round-the-clock shifts."
+ },
+ {
+  "id": "learn-c217",
+  "surface": "learn",
+  "seq": 169,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first email was sent in…",
+  "options": [
+   "1971",
+   "1983",
+   "1990",
+   "1995"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 47,
+  "k": "Email: 1971",
+  "w": "Ray Tomlinson sent the first networked email on ARPANET in 1971 — the web came nineteen years later."
+ },
+ {
+  "id": "learn-c218",
+  "surface": "learn",
+  "seq": 170,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Concorde crossed the Atlantic in about…",
+  "options": [
+   "Three and a half hours",
+   "Five hours",
+   "Seven hours",
+   "Nine hours"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 56,
+  "k": "Concorde: ~3.5 hours",
+  "w": "London to New York at twice the speed of sound — no airliner has come close since its 2003 retirement."
+ },
+ {
+  "id": "learn-cap14",
+  "surface": "learn",
+  "seq": 171,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Pakistan is…",
+  "options": [
+   "Karachi",
+   "Islamabad",
+   "Lahore",
+   "Peshawar"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 51,
+  "k": "Pakistan: Islamabad",
+  "w": "Purpose-built in the 1960s to take the government from Karachi — the port kept the size, the new city took the state."
+ },
+ {
+  "id": "learn-cap15",
+  "surface": "learn",
+  "seq": 172,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Kazakhstan is…",
+  "options": [
+   "Almaty",
+   "Tashkent",
+   "Astana",
+   "Bishkek"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 34,
+  "k": "Kazakhstan: Astana",
+  "w": "The capital moved north from Almaty in 1997; the city has since been renamed twice — Astana, Nur-Sultan, Astana again."
+ },
+ {
+  "id": "learn-cap16",
+  "surface": "learn",
+  "seq": 173,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Ivory Coast is…",
+  "options": [
+   "Abidjan",
+   "Yamoussoukro",
+   "Accra",
+   "Dakar"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 29,
+  "k": "Ivory Coast: Yamoussoukro",
+  "w": "The official capital since 1983 — the first president's home village, with a basilica bigger than St Peter's; Abidjan kept the ministries."
+ },
+ {
+  "id": "learn-cap17",
+  "surface": "learn",
+  "seq": 174,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Bolivia's constitutional capital is…",
+  "options": [
+   "La Paz",
+   "Santa Cruz",
+   "Quito",
+   "Sucre"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 32,
+  "k": "Bolivia: Sucre (on paper)",
+  "w": "Sucre holds the constitutional title and the supreme court; the government sits in La Paz — both answers win arguments."
+ },
+ {
+  "id": "learn-cap18",
+  "surface": "learn",
+  "seq": 175,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Sri Lanka is…",
+  "options": [
+   "Colombo",
+   "Anuradhapura",
+   "Sri Jayawardenepura Kotte",
+   "Nuwara Eliya"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 26,
+  "k": "Sri Lanka: Kotte",
+  "w": "The legislative capital since 1982, swallowed by greater Colombo — which is why everyone says Colombo."
  },
  {
   "id": "pulse-pace",

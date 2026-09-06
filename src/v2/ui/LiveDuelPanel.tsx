@@ -20,7 +20,11 @@
 //     list of people and a list of names is not;
 //   · the reveal as BARS with faces on them, not "name — option" rows;
 //   · answering that MORPHS into guessing, instead of asking for both at
-//     once and gating a button on the pair.
+//     once and gating a button on the pair. Since D386 a GROUP card
+//     morphs too: the second tap is a call on where the room will land,
+//     which is the one reading that makes the group instrument spread
+//     (ROLES-PLAN §3.5). The write shape did not change — rules admitted
+//     `guessIdx` on the group surface all along, and the reveal carries it.
 //
 // The port is faithful where live data allows and honestly short where it
 // does not — each gap is commented at its site rather than filled with a
@@ -40,7 +44,7 @@ import React from "react";
 // on an account that has one.
 import LIVE, { localName } from "../data/live";
 import { note } from "../data/engagement";
-import { consumeJoinCode, inviteLinkFor } from "../data/links";
+import { consumeJoinCode, inviteLinkFor, subscribeJoinCode } from "../data/links";
 // Handles and invitations (D122) — how a circle gains a member now. The
 // code survives inside the share link for people who have no account
 // yet; it is no longer something anyone types.
@@ -100,6 +104,27 @@ const ROMANCE = "oklch(0.55 0.13 12)";
  */
 const dayKeyUTC = (offsetDays = 0): string =>
   new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+// How long ago a browsed reveal actually was.
+//
+// NOT the dot's position. `revealHistory` COMPACTS: a day with no reveal
+// doc — a duo where only one of them played — or one this account may not
+// read, because it joined after that day, is ABSENT from the list rather
+// than present as a hole. So the third dot is not "three days ago", it is
+// the third reveal that exists, and after a single skipped day every label
+// behind it is wrong by the size of the gap.
+//
+// The reveal carries the day it was played, so it can say for itself. The
+// index is kept only as the fallback for a reveal with no day key: the
+// live `revealFor` entry is minted for yesterday by construction, which is
+// exactly what the fallback reports for position 1.
+const agoLabel = (key: string | undefined, index: number): string => {
+  const at = key ? Date.parse(key + "T00:00:00Z") : NaN;
+  const days = Number.isFinite(at)
+    ? Math.round((Date.parse(dayKeyUTC(0) + "T00:00:00Z") - at) / 86400000)
+    : index;
+  if (days <= 0) return "Today";
+  return days === 1 ? "Yesterday" : days + " days ago";
+};
 const streakIsLive = (g: { lastRevealDay?: string }): boolean =>
   typeof g.lastRevealDay === "string" && g.lastRevealDay >= dayKeyUTC(-2);
 const GOOD = "var(--c-likeness)";
@@ -249,7 +274,7 @@ function LdPicker({ picked, onChange, cap, busy: outerBusy }: {
   const full = picked.length >= cap;
   // Already picked are excluded from the results rather than shown and
   // refused — a row you may not tap is a worse answer than no row.
-  const { rows, busy, empty } = usePeopleFinder(full ? "" : q, [
+  const { rows, busy, empty, failed } = usePeopleFinder(full ? "" : q, [
     ...picked.map((p) => p.uid),
     LIVE.uid || "",
   ]);
@@ -308,6 +333,14 @@ function LdPicker({ picked, onChange, cap, busy: outerBusy }: {
           {empty && !busy && (
             <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
               Nobody found for “{empty}”.
+            </div>
+          )}
+          {/* A refused or offline read said "Nobody found" — a claim about
+              who exists, made when the only thing that happened was that
+              we could not ask. */}
+          {failed && !busy && (
+            <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+              Couldn’t search just now.
             </div>
           )}
         </>
@@ -475,7 +508,7 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
   const [ok, setOk] = React.useState(false);
   // The circle's own members are excluded, so the list never offers
   // somebody the callable would refuse with "already a member".
-  const { rows, busy, empty } = usePeopleFinder(q, [
+  const { rows, busy, empty, failed } = usePeopleFinder(q, [
     ...(g.memberUids || []),
     LIVE.uid || "",
   ]);
@@ -521,6 +554,11 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
       {empty && !busy && !msg && (
         <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
           Nobody found for “{empty}”.
+        </div>
+      )}
+      {failed && !busy && !msg && (
+        <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          Couldn’t search just now.
         </div>
       )}
       {msg && (
@@ -733,6 +771,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
       <div className="kicker" style={{ marginBottom: 0 }}>{day || "Yesterday"} · revealed</div>
       {bankQ && <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{bankQ.prompt}</div>}
       {duo ? duoRows() : <LdRevealBars reveal={reveal} opts={opts} names={names} uid={uid} tint={tint} />}
+      {!duo && roomRow()}
       {offQuestion.map((u) => {
         // One block per member who was asked something else: their prompt,
         // then their answer read against THEIR options. Their vote is not in
@@ -817,6 +856,23 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
       );
     }
     return <div style={col(0)}>{rows}</div>;
+  }
+
+  // Your call on where the room would land (D386), read against the bars
+  // above it: a hit when it named an option that tied for the top. A room
+  // of one is you, so a day only you answered draws no row — calling your
+  // own vote is not a read. Split days are excluded the way duoRows
+  // excludes them: a guess about one prompt read against another's bars.
+  function roomRow() {
+    if (!mine || typeof mine.guessIdx !== "number" || qidOf(mine) !== rowQid) return null;
+    const tally = revealTally(reveal, opts.length);
+    const counted = tally.reduce((a, r) => a + r.uids.length, 0);
+    if (counted < 2) return null;
+    const top = Math.max(...tally.map((r) => r.uids.length));
+    const winners = tally.filter((r) => r.uids.length === top).map((r) => r.optionIdx);
+    return revealRow("you read the room", winners.includes(mine.guessIdx),
+      winners.map((i) => labelIn(opts, i)).join(" · "), labelIn(opts, mine.guessIdx),
+      <GroupMark key="room" gid={g.id} name={g.name} size={20} />);
   }
 
   function revealRow(label: string, right: boolean, ansLabel: string, guessLabel: string, av: React.ReactNode) {
@@ -1092,11 +1148,15 @@ function LdCard({ g, vh, nextName, newest }: {
       )}
       {/* oldest left, today right — the row is time, so it has to run that
           way even though `past` arrives newest first */}
-      {past.map((_, i) => i + 1).reverse().map((n) => {
+      {past.map((r, i) => ({ n: i + 1, r })).reverse().map(({ n, r }) => {
         const cur = n === day;
         return (
+          // Labelled from the reveal's own day, like the card it opens —
+          // see `agoLabel`. Kept in step deliberately: a dot that says one
+          // thing and a card that says another is worse than both being
+          // wrong together, and that is what fixing only one of them gives.
           <button key={n} className="tap44 is-tight" onClick={() => setDay(n)} aria-current={cur ? "true" : undefined}
-            aria-label={(n === 1 ? "Yesterday" : n + " days ago") + " — revealed"}
+            aria-label={agoLabel(r.day, n) + " — revealed"}
             style={{ width: 22, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitAppearance: "none" }}>
             <span style={{ width: cur ? 18 : 6, height: 6, borderRadius: 999,
               background: cur ? tint : `color-mix(in oklch, ${tint} 45%, var(--surface-3))`,
@@ -1141,7 +1201,7 @@ function LdCard({ g, vh, nextName, newest }: {
           <button onClick={() => setDay(0)}
             style={{ border: "none", background: "none", padding: 0, cursor: "pointer", fontWeight: 700, fontSize: 12, color: "var(--ink-2)", WebkitAppearance: "none" }}>{"‹"} today</button>
         </div>
-        <LdReveal g={g} reveal={shown} day={day === 1 ? "Yesterday" : day + " days ago"} />
+        <LdReveal g={g} reveal={shown} day={agoLabel(shown.day, day)} />
       </div>
     );
   } else if (duo && members.length < 2) {
@@ -1213,16 +1273,19 @@ function LdCard({ g, vh, nextName, newest }: {
         {reveal && <LdReveal g={g} reveal={reveal} />}
       </div>
     );
-  } else if (q && duo && members.length === 2 && pick != null) {
-    // the morph: you have answered, now read them
+  } else if (q && pick != null) {
+    // the morph: you have answered, now read them — or, in a circle, read
+    // the room (D386): the same second tap, asking where most will land
     body = (
       <div style={{ ...col(12), animation: "popIn .3s cubic-bezier(0.2,0.8,0.2,1)" }} key="guess">
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
           You picked <b>{q.options[pick]}</b>.
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <DuelAv uid={themUid} name={names[themUid]} size={38} />
-          <LdPrompt>{"And " + themName + " picked…?"}</LdPrompt>
+          {duo
+            ? <DuelAv uid={themUid} name={names[themUid]} size={38} />
+            : <GroupMark gid={g.id} name={g.name} size={38} />}
+          <LdPrompt>{duo ? "And " + themName + " picked…?" : "And the room picked…?"}</LdPrompt>
         </div>
         <div style={col(9)}>
           {q.options.map((o: string, i: number) => (
@@ -1245,7 +1308,7 @@ function LdCard({ g, vh, nextName, newest }: {
         <div style={col(9)}>
           {q.options.map((o: string, i: number) => (
             <LdOption key={i} label={o} tint={tint} disabled={busy}
-              onClick={() => (duo && members.length === 2 ? setPick(i) : void seal(i))} />
+              onClick={() => setPick(i)} />
           ))}
         </div>
         {voteErr && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
@@ -1354,6 +1417,16 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   // the person already declined to join — the same contract the field it
   // replaced had, minus the typing.
   const [pendingCode, setPendingCode] = React.useState(() => consumeJoinCode() || "");
+  // …and again whenever one ARRIVES, which the initializer alone cannot
+  // see. An invite tapped while this screen is already open stashes a code
+  // and navigates to the tab the user is already on: nothing remounts, so
+  // the read above never runs a second time and the invite is swallowed
+  // until something else happens to remount the panel. Read-and-clear is
+  // unchanged; only the moment of reading moves.
+  React.useEffect(() => subscribeJoinCode(() => {
+    const c = consumeJoinCode();
+    if (c) setPendingCode(c);
+  }), []);
 
   // Snap on the tab's own scroller while this panel is mounted, plus a
   // scroll-spy that keeps the rail pointing at whatever is under the
@@ -1422,9 +1495,21 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   const items = groups.map((g) => {
     const members = g.memberUids || [];
     const themUid = duo ? (members.find((m) => m !== uid) || "") : "";
+    // A ROOM THAT CANNOT BE PLAYED OWES YOU NOTHING. `todayQ` hands back a
+    // question for any room whatever its membership, so a 1v1 you created
+    // and whose partner has not joined counted toward "N to play" and got
+    // a "still to play" dot on the rail — for ever — while the card
+    // directly beneath it renders "Waiting for someone" with no options at
+    // all. Same condition the card uses (`duo && members.length < 2`), so
+    // the two cannot disagree.
+    //
+    // The prototype this was ported from had it: `duo-daily.jsx` computes
+    // `pending = !invited && isPending(p)` and filters the count the same
+    // way. The port kept the second half and dropped the first.
+    const unplayable = duo && members.length < 2;
     return {
       g,
-      pending: S.myDuelVote(g.id) == null && !!S.todayQ(g.id),
+      pending: !unplayable && S.myDuelVote(g.id) == null && !!S.todayQ(g.id),
       themUid,
       label: (duo ? (firstName((g.memberNames || {})[themUid]) || g.name || "1v1") : (g.name || "Circle")) as string,
     };

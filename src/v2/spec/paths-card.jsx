@@ -60,7 +60,9 @@ const ppInk = (h) => WPAL.ink(`oklch(0.52 0.14 ${h})`);
 // sources compute it differently and a component that reached for one of
 // them would be right in exactly one mode.
 function PathsTree({ st, walk, flow }) {
-  const W = 372, H = 236, xs = [16, 128, 240, 352];
+  // 176 tall since 2026-09-02, and the forks reach the full width: the
+  // tree is context under a story, not the story
+  const W = 372, H = 176, xs = [12, 130, 248, 362];
   const yOf = (key) => {
     const d = key.length; if (!d) return H / 2;
     let idx = 0; for (const ch of key) idx = idx * 2 + (ch === 'B' ? 1 : 0);
@@ -77,15 +79,29 @@ function PathsTree({ st, walk, flow }) {
         const mx = (x1 + x2) / 2;
         const f = flow(k);
         const on = walk.startsWith(k);
+        // The walked road is the only strong ink; every other branch is a
+        // quiet tint whose width is the crowd's flow. At ×20 the busy
+        // branches were as loud as the road through them, so the tree read
+        // as a tangle of rivers rather than as one path through a faint
+        // delta — the road is what the card is about, and it is drawn
+        // again on top below so nothing crosses it.
         return <path key={k} d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
-          stroke={on ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 56%)'}
-          strokeWidth={Math.max(1.4, f * 20)} strokeLinecap="round" opacity={on ? 1 : 0.9}></path>;
+          stroke={on ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 64%)'}
+          strokeWidth={on ? 3.5 : Math.max(1.1, f * 9)} strokeLinecap="round" opacity={on ? 1 : 0.9}></path>;
+      })}
+      {keys.filter((k) => walk.startsWith(k)).map((k) => {
+        const x1 = xs[k.length - 1], y1 = yOf(k.slice(0, -1)), x2 = xs[k.length], y2 = yOf(k);
+        const mx = (x1 + x2) / 2;
+        return <path key={'r' + k} d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
+          stroke="var(--pp-ink)" strokeWidth="3.5" strokeLinecap="round"></path>;
       })}
       <circle cx={xs[0]} cy={H / 2} r="4.5" fill="var(--pp-ink)"></circle>
       {keys.filter((k) => k.length === 3).map((k) => (
         <circle key={k} cx={xs[3]} cy={yOf(k)} r={k === walk ? 5 : 2.6} fill={k === walk ? 'var(--pp-ink)' : 'color-mix(in oklch, var(--pp-c), var(--surface) 40%)'}></circle>
       ))}
-      {end && <text x={xs[3] - 10} y={yOf(walk) + (yOf(walk) < 18 ? 14 : -9)} textAnchor="end" fontSize="10.5" fontWeight="800" fill="var(--pp-ink)">{end.name}</text>}
+      {/* the ending's name left the field for the card (2026-09-02): it is
+          the answer this story arrived at, and on the field it was a label
+          squeezed against the right edge of the tree */}
     </svg>
   );
 }
@@ -115,6 +131,27 @@ function srcOf(live, demoId) {
     // disagree about.
     const counts = live.counts || [];
     const total = counts.reduce((a, b) => a + b, 0);
+    // YOU ARE IN THE CROWD YOU ARE BEING COMPARED TO.
+    //
+    // `counts` is the published aggregate, which excludes the reader's own
+    // ending until the fold has run — and the reveal is the whole payload
+    // of this card, so its one number was wrong for every reader and wrong
+    // in one direction: it always made their road rarer than it was. Ten
+    // others finished, one of them where you did, and the card said "1 in
+    // 10 walks your road" when counting yourself makes it 2 of 11 — 1 in 6.
+    // The error is exactly one vote in `total + 1`, so it is LARGEST when a
+    // story is new, which is when the card is most likely to be read.
+    //
+    // The gate stays on the CROWD's total, not the crowd plus you: a story
+    // only you have finished must still draw no tree, or `flow` becomes
+    // non-null for a crowd of one and the card prints "you and 100% ended
+    // here" over yourself. The "You are the first to reach the end of this
+    // one" arm below is that case, and it stays reachable.
+    const mineIdx = live.id && LIVE.myVotes ? Number(LIVE.myVotes()[live.id]) : NaN;
+    const add = Number.isInteger(mineIdx) && mineIdx >= 0 && mineIdx < PATH_ENDINGS.length ? mineIdx : -1;
+    // A half-finished walk has no stored vote and adds nothing — to either
+    // side of the fraction.
+    const withMe = total + (add >= 0 ? 1 : 0);
     return {
       id: live.id,
       title: live.title || live.prompt,
@@ -122,7 +159,7 @@ function srcOf(live, demoId) {
       hue: typeof live.hue === 'number' ? live.hue : 20,
       nodes: live.nodes || {}, endings: live.endings || {}, live: true,
       flow: total > 0
-        ? (key) => PATH_ENDINGS.reduce((s, e, i) => s + (e.startsWith(key) ? counts[i] : 0), 0) / total
+        ? (key) => PATH_ENDINGS.reduce((s, e, i) => s + (e.startsWith(key) ? counts[i] + (i === add ? 1 : 0) : 0), 0) / withMe
         : null,
       total,
     };
@@ -234,7 +271,11 @@ export function PathsCard({ q }) {
               </div>
             )}
           <div className="pp-end">
-            <b>{end.name}</b>
+            {/* the ending is the answer this story arrived at, so it wears
+                the prompt voice. 500, not the design's 600: the tree ships
+                one Spectral weight (styles.css says why), and a synthesised
+                bold serif is worse than the real 500 */}
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500, letterSpacing: '-0.01em', lineHeight: 1.1, color: 'var(--pp-ink)' }}>{end.name}</div>
             <div className="pp-line">{end.line}</div>
             {flow && (
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 9 }}>
@@ -249,9 +290,13 @@ export function PathsCard({ q }) {
                   </>
                 ) : (
                   // A crowd exists (flow is non-null) but none of it ended
-                  // where you did — the shape a fresh walk has while the
-                  // aggregate fold that will count it is still in flight,
-                  // and forever if nobody follows. Both are this sentence.
+                  // where you did. Since the reader is now counted in their
+                  // own share, this is the TRANSIENT only: the window
+                  // between finishing a walk and the vote being stored,
+                  // where `myVotes()` has nothing to fold back in. It used
+                  // to have a second, permanent reading — a finished walk
+                  // nobody else ever followed — and that one is gone,
+                  // because you are no longer absent from your own count.
                   <span className="pp-chip">you&rsquo;re the first to end here</span>
                 )}
               </div>

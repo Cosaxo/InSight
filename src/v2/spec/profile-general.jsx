@@ -5,8 +5,17 @@
 // guards the wiring in CI.
 import React from 'react';
 import NAV from '../data/nav';
-import { loadMine as loadPurchases, mine as myPurchases, subscribePurchases } from '../data/purchases';
 import LIVE from '../data/live';
+// D354's sweep: the lens store, the saved logic result, the demo Scenes
+// field and the city picker as imports. This panel rides loadOverlays(),
+// which awaits the Mirror's chunk first, so mirror-field-pops is landed
+// before this can render; logic-test.jsx is pulled into this chunk by the
+// import, ahead of the group's own line for it — harmless, it reads no
+// global while evaluating.
+import { LOGIC } from './logic-test.jsx';
+import { MirrorFieldBody } from './mirror-field-pops.jsx';
+import { LENSES } from './lens-defs.js';
+import CityPicker from '../ui/CityPicker';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -15,7 +24,6 @@ import { PASSIVE } from './passive-progress.js';
 import { passiveStanding } from './passive-meter.jsx';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
-import { sharePcts } from '../data/pct';
 import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
 // `PLACES` stood here as an import (D39 converted it from a window.PLACES
 // read, which is what moved the coupling meter down). The import outlived
@@ -54,6 +62,7 @@ import {
 // overwrite whatever a user saved under an older build. They
 // round-trip inertly instead — cheap, and lossless if a card returns.
 // ─────────────────────────────────────────────────────────────
+const EXPORTS = {};
 (function () {
   const { useState, useEffect, useRef, useId } = React;
 
@@ -102,9 +111,42 @@ import {
   // answerAnchors() stamped it onto every answer after that. Answers are
   // create-only (D5), so the ones already written have no correction path —
   // which is why the guard has to hold on every mount, not the first.
+  //
+  // …and the empty map the live branch used to return was the OTHER half
+  // of the same bug, pointed at a second device. `{ vitals: {} }` is not
+  // "no opinion", it is a complete profile whose every field is blank, and
+  // the persist effect below writes the anchors derived from it wholesale
+  // — so opening the profile on a phone that had never seen the panel
+  // erased the anchors the laptop wrote, and every answer after that was
+  // stamped anchorless. Seed from the account instead: the anchors ARE the
+  // account's own last word on these fields, and `anchorsFrom` recovers all
+  // ten keys from this seed unchanged (calcAge returns '' with no `born`, so
+  // `exact` falls through to `v.age`; country and jobField re-derive from
+  // city and job). `loadGen`'s merge order keeps the local blob authoritative
+  // where it has a value, so the residue repair above is untouched.
+  //
+  // Bare `LIVE`, the import at the head of the file — not `window.LIVE`,
+  // which would add a counted reference under D39 rule 4. (This sentence
+  // said "a file already carrying three" beside that citation, and three
+  // is the number of `window.LIVE` SITES, not the file's rule-4 count,
+  // which is 13 — read it off `check:globals`, never from here.) `|| {}`
+  // is a data guard, not a load-order one: an imported binding cannot be
+  // unset, but a store with no profile yet can answer {}.
   function baseFor(live) {
     if (!live) return seedFromData();
-    return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
+    const a = LIVE.anchors() || {};
+    return {
+      vitals: {
+        age: a.age || '',
+        gender: a.gender || '',
+        city: a.city || '',
+        education: a.education || '',
+        job: a.profession || '',
+        relationship: a.relationship || '',
+        heightBand: a.heightBand || '',
+      },
+      interests: [], likes: [], dislikes: [], heroes: [],
+    };
   }
 
   // One-time carry-over from GKEY_V1, which on a device that ran the build
@@ -143,7 +185,7 @@ import {
   }
 
   function loadGen() {
-    const live = !!(window.LIVE && window.LIVE.enabled);
+    const live = LIVE.enabled;
     const base = baseFor(live);
     try {
       const saved = JSON.parse(localStorage.getItem(GKEY) || 'null') || migrateV1(live);
@@ -384,7 +426,7 @@ import {
   // read. A shortcut to the Lenses sub-tab, which is otherwise only reachable
   // by knowing it is there; the sibling of TestArcsCard above it.
   function LensesRowCard({ onGo }) {
-    const L = window.LENSES;
+    const L = LENSES;
     if (!L) return null;
     const n = L.KEYS.length, m = L.mapped();
     return (
@@ -462,60 +504,17 @@ import {
   }
 
   // ── Logic gets its own card — a timed skill test, not a personality profile ──
-  // "You asked" — the buyer's shelf (PAID-PLAN §9.3, graduated with the
-  // room per the 2026-08-22 record; D288, runbook phase 2). Compact rows
-  // from the same session-cached store the room reads; each opens the
-  // room, where the meter and the shelf live. Live only — the ledger is
-  // real or absent, never sampled — and absent entirely for the account
-  // that never bought anything.
-  function PaidMineCard() {
-    const [, bump] = React.useReducer((x) => x + 1, 0);
-    const liveOn = !!LIVE.enabled;
-    React.useEffect(() => {
-      if (!liveOn) return undefined;
-      const un = subscribePurchases(bump);
-      loadPurchases().catch(() => { /* no rows — the chapter simply is not there */ });
-      return un;
-    }, [liveOn]);
-    const rows = liveOn ? (myPurchases() || []).filter((p) => p.kind === 'question') : [];
-    if (!rows.length) return null;
-    return (
-      <div>
-        <Chapter>You asked</Chapter>
-        <div className="card" style={{ marginBottom: 16, padding: '4px 18px' }}>
-          {rows.map((p, i) => {
-            const total = (p.counts || []).reduce((a, n) => a + n, 0);
-            const lead = p.counts && p.counts.length ? p.counts.indexOf(Math.max(...p.counts)) : -1;
-            return (
-              <button key={p.id} className="press" onClick={() => NAV.openAskedByYou()} style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0',
-                border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left',
-                borderTop: i > 0 ? '1px solid color-mix(in oklch, var(--rule) 62%, transparent)' : 'none',
-              }}>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, letterSpacing: '-0.01em', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.prompt}</span>
-                  <span style={{ display: 'block', marginTop: 2, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>
-                    {total > 0 && lead >= 0
-                      // sharePcts, the app's one rounding rule — the same
-                      // vector the public card draws (see AskedByYouOverlay).
-                      ? `${sharePcts(p.counts)[lead]}% ${p.options[lead] || ''} · ${total.toLocaleString('en-US').replace(/,/g, ' ')} answers`
-                      : 'no answers yet'}
-                    {p.state === 'running' ? '' : ` · ${p.state}`}
-                  </span>
-                </span>
-                <span aria-hidden="true" style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--accent-ink, var(--accent))' }}>the room →</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
+  // The buyer's shelf ("You asked") stood here until D368 took the
+  // purchase funnel out of the binary. What the account can still see
+  // of its own purchases lives in ui/AskedByYouOverlay.tsx, which is
+  // untouched: it reads this account's own purchase docs and the same
+  // public aggregates everyone reads — already the reader shape, which
+  // is why shape A was cheap.
 
   function LogicCard() {
-    const lg = window.LOGIC ? window.LOGIC.load() : null;
+    const lg = LOGIC.load();
     const C = 2 * Math.PI * 23;
-    const col = window.LOGIC ? window.LOGIC.color : 'var(--ink)';
+    const col = LOGIC.color;
     return (
       <button className="card press" onClick={() => NAV.openLogicTest()} style={{
         width: '100%', marginBottom: 16, padding: '13px 18px', cursor: 'pointer', textAlign: 'left',
@@ -605,9 +604,8 @@ import {
       try { localStorage.setItem(GKEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, [data]);
     // One liveness read for the panel: the anchors mirror below and the
-    // demo-section gate at the foot both branch on it, and consolidating
-    // here keeps the file's shared-global reference count flat (D39 rule 4).
-    const LIVE_ON = !!(window.LIVE && window.LIVE.enabled);
+    // demo-section gate at the foot both branch on it.
+    const LIVE_ON = LIVE.enabled;
     // Mirror the anchor subset onto the owner-only profile doc (D8), so
     // later answers can snapshot it. Only in live mode — in mock mode the
     // vitals are demo data and there is no server to write to.
@@ -626,9 +624,35 @@ import {
     // device stops stamping the sample persona onto new answers. Suppressing
     // the mount write to save a Firestore write would leave the fabricated
     // anchors exactly where they are.
+    //
+    // …and the seed in `baseFor` does not close it on its own, because
+    // `useState(loadGen)` runs exactly once: a panel that mounts before
+    // `v2_users/{uid}` has hydrated seeds from an empty map however good the
+    // seeding rule is, and this wholesale write then erases the account.
+    // Refuse that one write. An all-empty derived map is always accidental
+    // here — every Basics select opens on a `disabled` placeholder and offers
+    // no path back to it, and the city control is a picker — so a user cannot
+    // blank all ten by hand. Clearing ONE field still writes, because the
+    // rest of the map is not empty.
+    //
+    // Not `saveAnchors({ ...LIVE.anchors(), ...anchorsFrom(v) })`, the shape
+    // that suggests itself: `anchorsFrom` returns all ten keys always, empty
+    // strings included, so the spread overwrites the account with blanks and
+    // the merge is a no-op.
+    //
+    // Residual, deliberately not chased: on that race the Basics card also
+    // DISPLAYS empty, because loadGen has already run. The account's anchors
+    // are safe and the next edit writes correctly; re-seeding state after
+    // hydration needs a subscription that could clobber a field typed in the
+    // meantime, which is the worse trade.
     useEffect(() => {
       if (anchorsJson == null) return;
-      try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
+      try {
+        const next = JSON.parse(anchorsJson);
+        const blank = Object.values(next).every((v) => !v);
+        if (blank && Object.values(LIVE.anchors() || {}).some((v) => v)) return;
+        LIVE.saveAnchors(next);
+      } catch (e) { /* best-effort */ }
     }, [anchorsJson]);
 
     return (
@@ -650,7 +674,6 @@ import {
             design's seat for it, after the instruments). Live only, and
             only when a purchase exists: an empty "You asked" chapter on
             the account that never bought anything is furniture. */}
-        <PaidMineCard />
         {/* DEMO ONLY. This field body is the scenes orbit plus its lenses,
             and every number on it is invented: "5.6k people", the
             closer-means-more-like-you distances, "Who's in your circles ·
@@ -659,10 +682,10 @@ import {
             section scale. Live mode drops the section whole; follows are
             managed from the feed's chip row and search until a live scenes
             surface exists with real numbers behind it (D1). */}
-        {!LIVE_ON && typeof window.MirrorFieldBody === 'function' && (
+        {!LIVE_ON && (
           <div>
             <Chapter>Scenes you follow</Chapter>
-            <window.MirrorFieldBody pop="groups" worldZoom="world" />
+            <MirrorFieldBody pop="groups" worldZoom="world" />
           </div>
         )}
         {LIVE_ON && (
@@ -675,6 +698,7 @@ import {
     );
   }
 
-  window.GeneralPanel = GeneralPanel;
+  EXPORTS.GeneralPanel = GeneralPanel;
 })();
+export const { GeneralPanel } = EXPORTS;
 

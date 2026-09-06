@@ -635,9 +635,22 @@ Rules, each load-bearing:
    the precedent: a devDependency used once by a committed generator).
    **Never entries written from model memory** — a wrong key silently
    resolves someone's stored favourite to the wrong thing forever; the
-   D15 refusal stands. A domain whose right source is Wikidata-class
-   (network the session lacks) is *proposed in a PR body* as a
-   build-catalog.mjs-style operator step, not built.
+   D15 refusal stands, and it is the only half of this rule that does.
+   Wikidata IS buildable: `query.wikidata.org` was refused at CONNECT when
+   this rule was written (measured 2026-08-14) and has answered 200 since
+   the policy was widened, which is how `films` was built and committed
+   (D266) and `athletes` after it (D304) — both carry
+   `# Source: Wikidata (CC0)` in their committed headers. The paragraph
+   fifteen lines above already says so. This rule did not move with it and
+   spent that time telling the Sunday slot to decline work the lane had
+   already shipped twice.
+
+   A domain whose source is neither a package registry nor Wikidata-class
+   — anything needing a key, a licence decision or a crawl — is still
+   *proposed in a PR body* as a build-catalog.mjs-style operator step
+   rather than built. Reachability is not sufficiency either: D266 refused
+   the artists catalogue it had fetched successfully, because the query was
+   wrong.
 2. **Stable keys.** External stable IDs where the source has them (dex
    numbers, QIDs); otherwise catalogue-minted keys under an append-only
    discipline the drift gate enforces — a regeneration may append and
@@ -894,9 +907,10 @@ for a duel run:
   run's own ≤4 questions to each other (D123). `--candidate "…" --domain
   duel` remains the single lookup.
 - **Read the signal first.** The scorecard's `duel` section (D40 part 3)
-  scores plays, split, and — for 1v1 — the **guess-match rate**, the
-  duel analogue of evenness: near 100% is a dead question (guessable by
-  heart, no tension), at or under chance (1 / options) is noise (no
+  scores plays, split, and the **guess-match rate** — a 1v1's guess at
+  the partner, and since D386 a group's call on where the room lands —
+  the duel analogue of evenness: near 100% is a dead question (guessable
+  by heart, no tension), at or under chance (1 / options) is noise (no
   tells); write toward the band between. `deadDuels` / `noisyDuels` are
   the retire-proposal analogues: cite them in the PR body as
   `active: false` candidates; the kill switch stays the operator's.
@@ -1156,7 +1170,21 @@ freezes the range with the labels: never touch a shipped `lo`/`hi`/
 the same range and the interesting fact is *where* the numbers sit — a
 threshold ("when does old age begin?"), a norm ("the right tip"), a
 share ("how much of your life is in your control?"). The range must be
-the honest span of real answers, not drama: ends people actually hold.
+the honest span of real answers, not drama: ends people actually hold —
+BOTH ends, and generously. A crowd sitting on a floor is a floor set too
+high, not a crowd: the first live music-taste dial (10–40 yrs) had its
+median at 11, and D358 retired it with thirteen others. And a step of
+at least one unit per bucket: the span in the printed unit is at least
+12, and a multiple of 12 where the unit allows, because `dialFmt`
+prints integers and the twelve synthesized labels round their edges — a
+half-hour step reads "18–18 h" in the voters panel. Where the honest
+span is under twelve units, change the UNIT (a concert in minutes, not
+hours) rather than stretch the ends. A shipped range cannot be edited
+(the freeze above): widening one is a retire-and-append, D358's shape —
+same copy, new `dlN` appended at the end so every `seq` stands, the old
+id `active: false`, its provenance row carried forward, the demo twin
+moved to the new id — and the operator's console flip is what stops the
+old card serving (LAUNCH-RUNBOOK §1).
 A field earns its place when two judgments are independent enough to
 disagree — taste × legitimacy, feeling × importance — and the corners
 are all inhabitable positions. Axis ends are judgments, not facts, and
@@ -1173,7 +1201,7 @@ voters panel prints ("lean tastes good · middle").
   --dist "1,3,…" --n 5000` — the demo-twin form, texture included); a
   field's cloud has no flag syntax, so pre-flight fields via `--batch`
   with the full objects.
-- Budget: continuum candidates count inside the lane's ≤6/run, and lean
+- Budget: continuum candidates count inside the lane's ≤60/run, and lean
   scarce — the feed reads best when a continuum card is an occasional
   change of key, not a second genre (the hot sort pins one near the top;
   a glut buys nothing).
@@ -1261,7 +1289,7 @@ authored branch share `p`, because live the crowd is the aggregate.
   worth inventing. The packet runs the axis rules, and the genre ratchet
   runs against the bank with the batch appended — so a repeated topic is
   reported while a run can still change it.
-- Budget: a story counts inside the lane's ≤6/run and should be rare —
+- Budget: a story counts inside the lane's ≤60/run and should be rare —
   one slot, and a story replaced before its tree has a crowd is a reveal
   nobody got to see.
 
@@ -2023,7 +2051,12 @@ options it has, not two by habit), dial, field, or path. Continuum cards
 (dial/field) are written TWICE, the content entry with NO crowd texture
 plus its demo-pool twin in src/v2/spec/world-feed-data.js with the
 authored texture; lean scarce on them, they are a change of key and not
-a second genre. Read the budget's signal: line — it names the mode and,
+a second genre. A dial's range holds BOTH ends real people answer at,
+generously, with at least a whole unit per bucket — a span of 12 or
+more in the printed unit, a multiple of 12 where the unit allows; under
+twelve units change the unit (minutes, not hours), never stretch the
+ends (§ Continuum questions, D358 — check:quality's step rule refuses
+the rest). Read the budget's signal: line — it names the mode and,
 in demand mode, which topics lead; evenness per topic still steers WHAT
 you write into a topic, never where the budget goes. Pre-flight the whole batch
 from ONE candidates file with "surface": "feed" on each entry: npm run

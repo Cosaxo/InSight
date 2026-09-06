@@ -10,6 +10,28 @@ const total = (a) => a.reduce((n, r) => n + r.write, 0);
 const by = (a) => Object.fromEntries(a.map((r) => [r.id, r]));
 
 describe("allocateTiers — unit mode", () => {
+  it("keeps the batch-mix ceiling in the LEVELLING tier, not only in demand", () => {
+    // The ceiling is a claim about the finished batch, so which tier
+    // happens to be spending must not decide whether it applies. It used
+    // to be computed inside the demand block, and levelling said "no
+    // ceiling" in as many words — so a row demand had just stopped at the
+    // cap took the remainder one level unit at a time.
+    //
+    // Budget 4, share 0.5, so the cap is 2 and two rows can both sit at it
+    // with the budget fully spent: binding the ceiling costs nothing here,
+    // which is what makes this the case that shows the defect rather than
+    // an unsatisfiable one. Before: a:3 (over), b:1. After: a:2, b:2.
+    const rows = [{ id: "a", stock: 0 }, { id: "b", stock: 5 }];
+    const r = allocateTiers({ rows, budget: 4, floor: 0, demand: { a: 10 }, shareCap: 0.5 });
+    const cap = Math.ceil(4 * 0.5);
+    for (const row of r.allocation) {
+      expect(row.write, `${row.id} took ${row.write} against a ceiling of ${cap}`).toBeLessThanOrEqual(cap);
+    }
+    // …and the suite's standing property still holds: the budget is spent
+    // whole. A hard cap with no fallback would strand a unit here.
+    expect(r.spent, "the ceiling stranded budget instead of only shaping it").toBe(4);
+  });
+
   it("spends the whole budget and never stops for stock", () => {
     for (const stock of [0, 10, 24, 240]) {
       const { spent, allocation } = allocateTiers({ rows: rows(10, stock), budget: 12, floor: 24 });

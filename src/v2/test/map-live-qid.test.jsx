@@ -147,15 +147,22 @@ describe("the id the Map asks the live store about", () => {
     const person = readFileSync("src/v2/spec/person-mindmap.jsx", "utf8");
     expect(person, "person-mindmap went back to the demo id").toMatch(/const qid = q\.liveId \|\| q\.id;/);
     expect(person, "person-mindmap's reading went back to the demo id").toMatch(/MapStats\.dist\(qid, 'all'/);
+    // …and its MAJORITY reading, which map-tab's half below has asserted
+    // since that map was fixed. `gd` is rounded, so deriving the majority
+    // from it breaks a real tie by index and mismarks a rare take — the
+    // twin carried the fix and this file did not.
+    expect(person, "person-mindmap's majority reading went back to the percentages").toMatch(/MapStats\.mode\(qid, 'all'/);
     expect(person, "person-mindmap's node carries the demo id again").toMatch(/daily: true, qid,/);
     // Resolved off the process cwd, which vitest sets to the repo root —
     // `import.meta.url` in a transformed module is not a filesystem path
     // this can read from.
     const src = readFileSync("src/v2/spec/map-tab.jsx", "utf8");
     expect(src, "map-tab no longer derives the live qid").toMatch(/const qid = q\.liveId \|\| q\.id;/);
-    // Both readings and the node itself, by the three call shapes.
-    expect(src, "the typicality reading went back to the demo id").toMatch(/MS\.dist\(qid, 'all'/);
-    expect(src, "the majority reading went back to the demo id").toMatch(/MS\.mode\(qid, 'all'/);
+    // Both readings and the node itself, by the three call shapes. The
+    // binding is the imported `MapStats` since D354's sweep (the `MS`
+    // alias went with the window read); what these pin is the `qid`.
+    expect(src, "the typicality reading went back to the demo id").toMatch(/MapStats\.dist\(qid, 'all'/);
+    expect(src, "the majority reading went back to the demo id").toMatch(/MapStats\.mode\(qid, 'all'/);
     expect(src, "the node carries the demo id again — the bottom card reads node.qid")
       .toMatch(/parentId: parent, qid,/);
   });
@@ -167,5 +174,59 @@ describe("the id the Map asks the live store about", () => {
     // `age` is one of the three anchors MapStats answers for (D99/D328).
     expect(MapStats.dist(q.liveId, "age", nOpt, 0), "no age-cohort reading").toBeTruthy();
     expect(MapStats.dist(q.id, "age", nOpt, 0)).toBeNull();
+  });
+});
+
+// ── AN EDIT NEVER REACHED THE MAP ───────────────────────────────────────
+//
+// D86 lets you move your answer on a daily. `liveSync` copies the
+// server-confirmed vote into the Map's own store — but only when the
+// question was ABSENT from it, so the first sync won and every later one
+// was ignored. The daily card then showed the new answer and the Map node
+// kept the old one: filed under the old option's typicality, listed under
+// "where you differ", permanently on that device.
+//
+// The feed does the opposite and reconciles on every store notify
+// (world-feed.jsx), which is what made this the odd one out rather than a
+// convention.
+//
+// SAFE TO RECONCILE, and it took one check: `saved` has a second writer,
+// `DAILYQ.answer()`, which would let a stale confirmed value overwrite a
+// fresh local one. Its only caller is `syncToMap`, gated on
+// DAILYSPLIT_DQ_SYNC, whose one entry is the demo id `s1`. So on a live
+// build `liveSync` is the only writer and `saved` holds nothing but
+// confirmed values.
+function installVote(prompt, idx) {
+  const agg = { total: 900, counts: { 0: 700, 1: 200 }, by: { ageBand: { "25-34": { 0: 400, 1: 60 } } } };
+  STUB.live = {
+    enabled: true,
+    ready: true,
+    dailyBank: () => [{ id: BANK_ID, prompt }],
+    confirmedVotes: () => ({ [BANK_ID]: idx }),
+    myVotes: () => ({ [BANK_ID]: idx }),
+    aggFor: (qid) => (qid === BANK_ID ? agg : null),
+    anchors: () => ({ ageBand: "25-34" }),
+  };
+  window.LIVE = STUB.live;
+  window.dispatchEvent(new Event("insight-live-update"));
+}
+
+describe("a D86 edit of the daily reaches the Map", () => {
+  it("follows the confirmed vote when it moves", () => {
+    const q = DAILYQ.answered()[7];
+    installVote(q.prompt, 0);
+    expect(DAILYQ.myAnswer(q), "the first sync did not land at all").toBe(0);
+    installVote(q.prompt, 1);
+    expect(
+      DAILYQ.myAnswer(q),
+      "the Map kept the pre-edit answer — it is filed under the old option's typicality and listed under 'where you differ', permanently on this device",
+    ).toBe(1);
+  });
+
+  it("still lands the first vote — the control", () => {
+    // Without this, "never write anything" would satisfy the case above.
+    const q = DAILYQ.answered()[8];
+    installVote(q.prompt, 1);
+    expect(DAILYQ.myAnswer(q)).toBe(1);
   });
 });
