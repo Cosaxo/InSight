@@ -69,6 +69,11 @@ const LIVE = vi.hoisted(() => ({
   subscribe: (fn: () => void) => { subscribers.add(fn); return () => { subscribers.delete(fn); }; },
 }));
 vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
+// The walkthrough's mount (D388), reached from this panel by a dynamic
+// import: mocked so the case below can assert the row asks for a
+// RE-showing rather than mounting the real screen over the panel.
+const WT = vi.hoisted(() => ({ mountWalkthrough: vi.fn(async (opts?: { again?: boolean }) => { void opts; }) }));
+vi.mock("./walkthrough", () => ({ mountWalkthrough: WT.mountWalkthrough }));
 
 const { default: LivePrivacyPanel } = await import("./LivePrivacyPanel");
 
@@ -405,5 +410,18 @@ describe("LivePrivacyPanel · the political compass row", () => {
     await act(async () => { notifyAll(); });
     expect(screen.queryByText(/Your answers still count/),
       "the row kept its mount-time snapshot after the store corrected it").toBeNull();
+  });
+});
+
+describe("LivePrivacyPanel · the walkthrough can be shown again (D388)", () => {
+  it("mounts it from its row as a re-showing, so the seen flag does not refuse it", async () => {
+    // The gate refuses a device that has seen the walkthrough — which is
+    // every device that has this panel open. `again` is what makes the
+    // row a row rather than a button that does nothing.
+    WT.mountWalkthrough.mockClear();
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /^Show again$/ }));
+    await vi.waitFor(() => expect(WT.mountWalkthrough).toHaveBeenCalledTimes(1));
+    expect(WT.mountWalkthrough).toHaveBeenCalledWith({ again: true });
   });
 });

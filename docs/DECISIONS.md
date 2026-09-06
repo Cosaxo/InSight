@@ -40969,3 +40969,143 @@ made at the button, and "Create a merge commit" is the same click. This
 record does not ask for it, because the receipt above closes the symptom
 either way and a merge commit on a night branch has costs nobody here has
 priced.
+
+## D388 · The first launch explains the app: five pages before the questions, and a row to see them again
+
+**2026-09-06.** **Status:** binding · Owner request, made directly to a
+session — *"create a walkthrough for the first time someone uses the app
+that explains how it works."* Adds a screen and one account-panel row;
+changes no rule, no vocabulary and no promise.
+
+### What was wrong
+
+The app opens on the daily card, and the daily is the SMALLER half of the
+product — `CLAUDE.md`'s opening paragraph: the Mirror's modules outweigh
+the daily's and the feed's put together — and nothing on the daily says
+so. The first screen a new account met was D151's questions, *A few
+things about you*: a form, before anything had said what the answers
+were for. That form's own pitch (*"Every answer carries a copy of these,
+so it can be counted with your city, your age, your field"*) assumes a
+reader who already knows there is a counting. A person who answers for a
+week without finding the second tab has used a poll with a streak.
+
+### What ships
+
+**The screen** — `src/v2/ui/LiveWalkthrough.tsx`. Five pages, each a
+picture, a title and a sentence or two, in D182's order (visual > word >
+sentence > sentences), met in the order a first day meets them:
+
+| Page | What it says | Where the app already says it |
+| --- | --- | --- |
+| One question a day | answer before you see the crowd; then the split opens, and a feed of more runs under it | the daily card (blind vote, D1's split), the feed beneath it |
+| How far it reaches | World · Circle · 1v1, drawn in the daily ruler's own accents; a circle is *sealed until tomorrow, then revealed with names*; 1v1 is answer, then guess theirs | `daily-split.jsx`'s header, `LiveDuelPanel`'s own sentence, `web/privacy.html`'s D5 row (*sealed … until the day after*) |
+| Every answer carries you | filed with your city, age and field, so it counts with people like you; some feed cards are test items and the profile fills in by itself | D8's snapshot, D151's pitch, D121 (the instruments fill from the feed and only from the feed) |
+| The Mirror | seven stops from you to the world, each reading the same answers through a different crowd, drawn in `mirror-tab`'s accents | `docs/MIRROR.md` §1, D111's seven stops |
+| Your answers are public | anyone signed in can read what you answered, under your name — and you can read theirs; connecting answers is the whole point | `LivePrivacyPanel`'s blunt sentence (D183), `web/privacy.html`'s D98 row, `CLAUDE.md`'s first paragraph (D334) |
+
+The right-hand column is the point of the table: **no page makes a claim
+the app does not already make**, so `web/privacy.html` does not move,
+and D183's rule that the page moves first has nothing to move for.
+`check:policy-claims` and `check:public-copy` both stay green over the
+new copy, and the suite pins the two claims that matter as claims rather
+than as sentences (`docs/COPY.md` §4): *answers are public, under your
+name*, said on the last page; *sealed until tomorrow*, said in the duel
+panel's words.
+
+**What it does not say.** The Patterns tab. D265 mounts that tab on the
+data and describes the gate from below — *no third button, no teaser* —
+and a page about a tab that is not in the bar is a teaser with more
+words. `LiveWalkthrough.test.tsx` fails on the word.
+
+**The gate** — `src/v2/ui/walkthrough.tsx`, `profileSetup.tsx`'s shape
+one screen earlier: a device-local flag (`insight.walkthrough.v1`,
+inside the namespace D51's purge sweeps, so the next account on a wiped
+device starts from the beginning), a purge listener that takes the screen
+down WITHOUT recording it (a flag written on the way out would be written
+under the new uid, which would then never be shown it), its own root
+rather than a wrapper around `<App />` (D151's bundle arithmetic, still
+true), and a promise that settles when the screen is off the page —
+closed by either button, by Escape, or by the purge — and immediately
+when there is nothing to show.
+
+**The condition is a live BUILD, not a live boot.** `LIVE.enabled` is
+the boot having attached; a first launch with no network is still a
+first launch, and the one with the most time for five screens. So the
+gate reads `enabled || demoInProd`, which is `VITE_V2_LIVE` without the
+module reading the flag itself. The demo build never shows it: every
+mount suite and the style diff run there, and neither is anybody's first
+launch.
+
+**The order** — `main.jsx` sequences the two first-launch screens
+rather than racing them: walkthrough, then D151's questions, each a
+no-op once seen. The walkthrough's third page is the sentence that makes
+the questions make sense, so it goes first; `mountWalkthrough()` settles
+only once its screen has left the page, and a walkthrough chunk that
+fails to load costs nothing but the walkthrough — its catch sits before
+the chain continues.
+
+**The row** — `LivePrivacyPanel` gains *How InSight works · Show again*,
+beside the policy the app points at, which is the one place the app
+explains itself. It asks for a RE-showing (`again: true`, so the seen
+flag does not refuse it) and the last button reads *Done* rather than
+*Start*, because the app is already running behind it.
+
+### The bundle arithmetic
+
+Measured on the shipping build (`VITE_V2_LIVE=true`, Sentry in):
+
+| | before | after |
+| --- | --- | --- |
+| eager graph (`MAX_EAGER_KB` 607) | 602 KB | 602 KB |
+| `walkthrough` chunk | — | 10.6 KB (3.6 gzipped), its own chunk, fetched after first paint on live builds only |
+| `profileSetup` chunk | 8.6 KB | 8.6 KB |
+| total JS | 2153 KB / 133 chunks | 2164 KB / 134 chunks |
+
+The chained dynamic import in `main.jsx` did not move the eager figure at
+the kilobyte. `useDialog` comes from `primitives.jsx`, which is in the
+entry chunk already, so the screen carries the dialog contract every
+overlay carries (D24) at no eager cost.
+
+### Tests, and what they were checked against
+
+Two suites and one case. `walkthrough.test.tsx` holds the gate's
+contract (`profileSetup.test.tsx`'s six properties plus the live-build
+condition and the promise); `LiveWalkthrough.test.tsx` holds the claims
+and every way through — buttons report, gestures never do: a swipe or an
+arrow past the last page stays put, because a gesture is not a commit.
+`LivePrivacyPanel.test.tsx` gains the row. All five of these deliberate
+breakages were caught by exactly one case each, and reverted:
+
+| Broken | Caught by |
+| --- | --- |
+| *"Patterns comes later."* appended to the Mirror page | *does not tease the Patterns tab (D265)* |
+| *under your name* dropped from the last page | *says answers are public, under your name — on the last page* |
+| a swipe past the last page finishes the walkthrough | *Start reports done from the last page, and only a button does* |
+| the purge teardown records the showing | *takes the screen down on the purge without recording it* |
+| the gate keys on `enabled` alone | *shows on a first launch whose boot has not attached* |
+
+Rendered in Chromium at 402 × 874 as well as in jsdom: five pages, the
+Tab cycle stays inside, Start settles the promise. The one thing the
+browser found that the suites could not was the title moving 13 px
+between the first two pages — a two-line body against a three-line one
+under a centred block — fixed with a floor under the words.
+
+### What this does not decide
+
+- **D352's design step.** The owner's rule is that a new screen is
+  designed in Claude Design before it is built. This one was built on the
+  owner's direct ask, the same day, in the tree's own vocabulary — the
+  daily ruler's accents, the Mirror's, the iris of D302, the serif prompt
+  voice of D362, the paid door's `.sg-rise` entrance — and is filed in
+  `docs/VISUAL-REQUESTS.md` § Built with what a canvas would still
+  improve: the five illustrations. A redraw replaces `Art` in
+  `LiveWalkthrough.tsx` and touches neither the gate nor the tests,
+  which pin claims and not pictures. The row is on `OWNER-LIST.md` §
+  Designs as optional.
+- **Where the flag lives.** On the device, not on the profile document —
+  D151's arithmetic, unchanged: one Firestore read per cold start is the
+  wrong price for never showing it twice across devices, and the account
+  panel's row is the cheaper answer to the second device.
+- **A tally for it.** D270's vocabulary is a fixed list on the server,
+  and a `walkthrough` key would be a functions change for a number nobody
+  has asked for. Not taken.
