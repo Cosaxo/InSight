@@ -660,7 +660,7 @@ interface RevealVote {
   pickUid?: string;
 }
 
-async function revealGroupDay(
+export async function revealGroupDay(
   group: FirebaseFirestore.QueryDocumentSnapshot,
   dayKey: string,
 ): Promise<boolean> {
