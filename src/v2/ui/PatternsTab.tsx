@@ -14,15 +14,23 @@
 //            stated with its basis. PatternsPeople.tsx / data/peopleMap.ts.
 //
 // This file is the SHELL the standalone's patterns-tab.jsx draws: the
-// ruler, one sub-row under it (topic chips on the map, population chips
-// on people since D216, run progress on the oracle — same height
+// ruler, one sub-row under it (an ⓘ on every lens, plus the topic select
+// on the map and the population chips on people since D216 — same height
 // whichever lens is open, so switching never jumps), and the live gates.
 // Ported from design/standalone-2026-08-20/patterns-tab.jsx; the
 // 2026-08-24 build retired the shell's one-time lens explainer — each
-// lens teaches its own marks (the footer legend on the map card, the
-// one-time hints on the oracle) — and renamed the wider two lenses so
-// the ruler names what each is a map OF. Chrome rule carried with it:
-// no type below 10.5px anywhere, in SVG or out.
+// lens teaches its own marks — and renamed the wider two lenses so
+// the ruler names what each is a map OF. Chrome rule carried with it,
+// raised app-wide by the 2026-09-06 design: no type below 12px anywhere,
+// in SVG or out.
+//
+// THE LEGENDS MOVED BEHIND ONE ⓘ (2026-09-06, VISION-2026-09-06 §2.4):
+// `guide` is this shell's one flag, handed to whichever lens is open —
+// the standing keys, hints and explainer sentences render only while it
+// is on, and the numbers the sub-row used to carry moved into the
+// instruments themselves (the Map's hub counts the pool; the Oracle's
+// kicker counts the answered). Ephemeral on purpose: no device key, so
+// check:purge's subject set does not grow.
 //
 // The trial ships LIVE DATA ONLY (the narrowing D166 §1 licenses): a
 // build with no published loadings — the demo included — says so instead
@@ -42,7 +50,6 @@ import React from "react";
 import LIVE from "../data/live";
 import NAV from "../data/nav";
 import PATTERNS, { ensureLive } from "../data/patterns";
-import { edgesOf, mapGeometry, type MapNode } from "../data/patternsMap";
 import PatternsMap from "./PatternsMap";
 import PatternsOracle from "./PatternsOracle";
 import PatternsPeople, { type PeoplePop } from "./PatternsPeople";
@@ -132,16 +139,12 @@ export default function PatternsTab(): React.ReactElement {
   }), []);
   const [topic, setTopic] = React.useState("all");
   const [ppop, setPpop] = React.useState<PeoplePop>("world");
-  // How many links hold across the pool — the third figure on the map's
-  // meta line. The same bounded fold the Map itself runs (the pool is
-  // core-only and small, D161), memoised on the same key: the number
-  // belongs ABOVE the picture, where it says what the picture holds.
-  const ties = React.useMemo(() => {
-    if (!PATTERNS.ready() || !PATTERNS.hasLoadings()) return 0;
-    const nodes: MapNode[] = PATTERNS.pool().map((p) => ({ id: p.q.id, L: p.L, n: p.n }));
-    return edgesOf(mapGeometry(nodes).U, 3).length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the pool's identity
-  }, [version]);
+  // the explainer lives behind one ⓘ (2026-09-06) — it used to be a
+  // title, a facts line, a progress track and a standing legend above and
+  // below every lens. Per-tab and ephemeral: closing the tab forgets it.
+  // (The facts line's ties count went with it — the idle card under the
+  // Map still counts the links, beside the pool they hold across.)
+  const [guide, setGuide] = React.useState(false);
 
   // The lens body drags on the SAME horizontal axis as the daily's modes
   // and the mirror's stops (2026-09-02): the ruler is a place, so the
@@ -155,13 +158,15 @@ export default function PatternsTab(): React.ReactElement {
   React.useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    // A drag that starts inside a map, a scroller or a field belongs to
-    // it. The Oracle's field is the exception: it is tap-only, so it
-    // hands the drag back to the axis.
-    const SKIP = "svg, canvas, .h-scroll, .ln-rail, [data-nopan], input, textarea, select";
+    // A drag that starts inside a scroller or a control belongs to it —
+    // but the lenses are TAP-ONLY (2026-09-06), so a horizontal drag on
+    // their discs rides the axis. `svg` left this list with that change:
+    // the Oracle's `.or-lens` exception generalised to all three, because
+    // none of the fields scrolls or pans on its own.
+    const SKIP = "canvas, .h-scroll, [data-nopan], input, textarea, select";
     const skips = (t: EventTarget | null): boolean => {
       const el2 = t instanceof Element ? t : null;
-      return !!(el2?.closest(SKIP) && !el2.closest(".or-lens"));
+      return !!el2?.closest(SKIP);
     };
     const spring = () => {
       const b = stackRef.current;
@@ -285,7 +290,6 @@ export default function PatternsTab(): React.ReactElement {
   // only topics that actually have questions in the pool
   const cats = [...new Set(items.map((p) => p.q.cat).filter((c): c is string => !!c))];
   const chips = [{ id: "all", label: "All topics" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
-  const answered = items.filter((p) => p.mine != null).length;
   // The population roster (D216) — the standalone's own: Circle · your
   // country's code · World. Circle always offers (the D190 posture: a row
   // draws even when the stop is empty — the lens says the honest state);
@@ -302,46 +306,40 @@ export default function PatternsTab(): React.ReactElement {
     <div ref={wrapRef} className={"pt-wrap" + (lens === "oracle" ? " pt-oracle" : "")} style={{ padding: "6px 16px 18px" }}>
       <Ruler lens={lens} onLens={setLens} />
       <div className="pt-sub">
-        {lens === "map" ? (
-          // What the picture holds, said once above it — this line does
-          // the legend's counting work, and the topic filter stops being
-          // a scroller of chips (a row you had to swipe to see the end of,
-          // on the one lens whose body now takes the horizontal drag).
-          <div className="pt-meta">
-            <div className="pt-facts" aria-label="What the map holds">
-              <i aria-hidden="true"></i><span><b>{answered}</b> answered</span>
-              <i className="is-open" aria-hidden="true"></i><span><b>{items.length - answered}</b> open</span>
-              <span className="sep">·</span>
-              <span><b>{ties}</b> ties</span>
-            </div>
+        {/* every lens's row leads with the one ⓘ (2026-09-06) — the
+            legends, keys and explainer sentences render in the open lens
+            while it is on. The facts line and the oracle's progress track
+            retired into the instruments (the hub and the kicker say the
+            numbers); the topic filter stays one control, not a scroller
+            of chips, on the lens whose body takes the horizontal drag. */}
+        <div className="pt-meta">
+          <button type="button" className={"pt-info" + (guide ? " is-on" : "")}
+            aria-expanded={guide} aria-label="Legend"
+            onClick={() => setGuide((g) => !g)}>i</button>
+          {lens === "map" ? (
             <label className={"pt-topic" + (topic !== "all" ? " is-on" : "")}>
               <span>{(chips.find((c) => c.id === topic) ?? chips[0]).label}</span>
               <select value={topic} onChange={(e) => setTopic(e.target.value)} aria-label="Topic">
                 {chips.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
             </label>
-          </div>
-        ) : lens === "oracle" ? (
-          <div className="pt-prog">
-            <span className="pt-progtrack"><i style={{ width: `${items.length ? Math.round((answered / items.length) * 100) : 0}%` }}></i></span>
-            <span className="pt-prognum">{answered}<em>/{items.length}</em></span>
-          </div>
-        ) : (
-          <div className="pt-pops h-scroll" role="tablist" aria-label="Population">
-            {pops.map((p) => (
-              <button key={p.id} role="tab" aria-selected={pop === p.id}
-                className={"pt-pop" + (pop === p.id ? " is-on" : "")} onClick={() => setPpop(p.id)}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        )}
+          ) : lens === "people" ? (
+            <div className="pt-pops h-scroll" role="tablist" aria-label="Population">
+              {pops.map((p) => (
+                <button key={p.id} role="tab" aria-selected={pop === p.id}
+                  className={"pt-pop" + (pop === p.id ? " is-on" : "")} onClick={() => setPpop(p.id)}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
       <div key={lens} ref={stackRef} className={(lensSt.dir ? "pt-slide-" + lensSt.dir : "fade-in") + " pt-stack"}>
-        {lens === "map" && <PatternsMap items={items} version={version} topic={topic} />}
-        {lens === "oracle" && <PatternsOracle items={items} version={version} />}
+        {lens === "map" && <PatternsMap items={items} version={version} topic={topic} guide={guide} />}
+        {lens === "oracle" && <PatternsOracle items={items} version={version} guide={guide} />}
         {lens === "people" && (
-          <PatternsPeople items={items} version={version} pop={pop} onOracle={() => setLens("oracle")} />
+          <PatternsPeople items={items} version={version} pop={pop} guide={guide} onOracle={() => setLens("oracle")} />
         )}
       </div>
     </div>

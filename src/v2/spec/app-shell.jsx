@@ -636,8 +636,11 @@ export function App() {
   useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
 
   // acc-now, quiet-ground and the ruler nav are the v28 winners (§10) —
-  // literals now, not judged alternatives.
-  const appClasses = `app surface-tint acc-now ${t.density || 'regular'} quiet-ground`;
+  // literals now, not judged alternatives. lens-paper joined them at the
+  // 2026-09-06 design (VISION-2026-09-06 §3): the Patterns instrument
+  // draws ink on paper, the default rather than a hook nothing set — the
+  // dusk branch of ui/patterns.css stands as the family's record.
+  const appClasses = `app surface-tint acc-now lens-paper ${t.density || 'regular'} quiet-ground`;
 
   return (
     <IOSDevice width={402} height={874}>

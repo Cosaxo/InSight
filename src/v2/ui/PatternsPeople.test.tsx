@@ -132,10 +132,13 @@ describe("the thin and loading states", () => {
 });
 
 describe("the placed field", () => {
-  it("draws the crowd, states the basis, and kicks the bounded loads", async () => {
-    const { container } = render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
-    expect(screen.getByText(/people placed around you/)).toBeTruthy();
-    expect(screen.getByText("10")).toBeTruthy();
+  it("draws the crowd, and the guide states the basis it was placed on", async () => {
+    // the foot card retired into the guide legend (2026-09-06): the
+    // crowd count, the floor and the sample sentence render behind the
+    // tab's ⓘ — moved, not deleted (D146), and still `basis`, never the
+    // viewer's own answered count
+    const { container } = render(<PatternsPeople items={ITEMS} version={1} guide={true} onOracle={noop} />);
+    expect(screen.getByText(/10 people · everyone who answered at least 4 of the 6 questions/)).toBeTruthy();
     expect(screen.getByText(/latest answers/)).toBeTruthy();
     expect(container.querySelectorAll('svg g[role="button"]').length).toBe(10);
     // one bounded load per fetched question, no more — the loop is
@@ -145,17 +148,23 @@ describe("the placed field", () => {
     });
   });
 
+  it("keeps the basis sentences off the standing page — legend only with the ⓘ", () => {
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    expect(document.querySelector(".ln-key")).toBeNull();
+    expect(screen.queryByText(/everyone who answered at least/)).toBeNull();
+  });
+
   it("colours every dot by agreement, in three steps, and says so in words", () => {
     // the viewer answered optionIdx 1 everywhere (item(mine = 1) encodes
     // option 0)… so the five who picked 0 agree with them on all six and
     // the five who picked 1 disagree on all six: two of the three steps,
     // both at the extremes, with nobody in the middle.
-    const { container } = render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    const { container } = render(<PatternsPeople items={ITEMS} version={1} guide={true} onOracle={noop} />);
     const fills = [...container.querySelectorAll('svg g[role="button"] circle:last-of-type')]
       .map((c) => c.getAttribute("fill"));
     expect(new Set(fills).size).toBe(2);
-    expect(fills.filter((f) => f === "oklch(0.84 0.10 282)").length).toBe(5); // mostly agrees
-    expect(fills.filter((f) => f === "oklch(0.76 0.10 20)").length).toBe(5);  // mostly disagrees
+    expect(fills.filter((f) => f === "oklch(0.50 0.11 282)").length).toBe(5); // mostly agrees (paper ink)
+    expect(fills.filter((f) => f === "oklch(0.58 0.11 35)").length).toBe(5);  // mostly disagrees
     // and the legend says the three steps rather than leaving them to be
     // decoded — the size rule with them
     expect(screen.getByText("mostly agrees with you")).toBeTruthy();
@@ -164,24 +173,29 @@ describe("the placed field", () => {
     expect(screen.getByText(/bigger dot = more answers in common/)).toBeTruthy();
   });
 
-  it("rails the five nearest NAMED people, each with its own basis", () => {
+  it("rows the three most agreeing NAMED people, each with its basis and the shared answer", () => {
     render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
-    const rail = screen.getByRole("list", { name: /most like you/i });
-    const chips = [...rail.querySelectorAll("button")];
-    expect(chips.length).toBe(5); // PEOPLE_LABELS, never a sixth
-    // every chip states the count it is claiming, like the card does
-    for (const c of chips) expect(c.textContent).toMatch(/agrees \d+ of \d+/);
-    // and a chip selects the same person the field would
-    fireEvent.click(chips[0]!);
+    const rows = [...screen.getByRole("list", { name: /most like you/i }).querySelectorAll("button")];
+    expect(rows.length).toBe(3); // PEOPLE_ALIKE (2026-09-06), never a fourth
+    for (const r of rows) {
+      // every row states the count it is claiming, like the card does —
+      // and the answer behind it, or the honest split
+      expect(r.textContent).toMatch(/agrees \d+ of \d+/);
+      expect(r.textContent).toMatch(/Both said|You split on everything/);
+    }
+    // and a row selects the same person the field would
+    fireEvent.click(rows[0]!);
     expect(screen.getByText(/Agrees with you on/)).toBeTruthy();
   });
 
-  it("never rails a nameless account — no invented identity (D167)", () => {
+  it("never rows a nameless account — no invented identity (D167)", () => {
     LIVE.voters = () => CROWD.map((r) => ({ ...r, name: "" }));
     render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
     expect(screen.queryByRole("list", { name: /most like you/i })).toBeNull();
     fireEvent.click(document.querySelector('svg g[role="button"]')!);
-    expect(screen.getByText("Someone")).toBeTruthy();
+    // …and the tapped dot's on-field name is the honest word, never an
+    // invented one (it renders on the card and beside the dot)
+    expect(screen.getAllByText("Someone").length).toBeGreaterThan(0);
   });
 
   it("narrows to the circle without changing anyone's numbers (D216)", () => {
@@ -246,11 +260,12 @@ describe("what the field says it is drawing", () => {
       .not.toMatch(/closer two dots/i);
   });
 
-  it("still says what a dot is, rather than dropping the explanation", () => {
+  it("still says what a dot is, one tap away, rather than dropping the explanation", () => {
     // The control: deleting the sentence outright would leave a field of
-    // dots with nothing saying what they are.
-    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
-    expect(document.body.textContent).toMatch(/Each dot is a person who answered/i);
+    // dots with nothing saying what they are. Since 2026-09-06 it lives
+    // in the guide legend — moved behind the ⓘ, not deleted (D146).
+    render(<PatternsPeople items={ITEMS} version={1} guide={true} onOracle={noop} />);
+    expect(document.body.textContent).toMatch(/each dot is a person who answered/i);
     expect(document.body.textContent).toMatch(/placed by how they answered/i);
   });
 });

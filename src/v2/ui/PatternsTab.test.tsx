@@ -125,14 +125,28 @@ const swipe = (el: Element, dx: number) => {
   fireEvent.touchEnd(el, at(160 + dx));
 };
 
-describe("the map's meta line", () => {
-  it("says what the picture holds — answered, open, and how many ties", async () => {
+describe("the sub-row (the ⓘ and one control, 2026-09-06)", () => {
+  it("leads every lens with the guide ⓘ, and keeps the topic select one control", async () => {
     await mount();
-    expect(screen.getByText("2")).toBeTruthy();   // answered
-    expect(screen.getByText("1")).toBeTruthy();   // open
-    expect(screen.getByText(/ties/)).toBeTruthy();
+    // the facts line and the oracle's progress track retired into the
+    // instruments — the hub says the numbers now (the Map suite pins it)
+    expect(screen.queryByLabelText("What the map holds")).toBeNull();
+    const info = screen.getByRole("button", { name: "Legend" });
+    expect(info.getAttribute("aria-expanded")).toBe("false");
     // and the topic filter is one control, not a row that scrolls
     expect(screen.getByLabelText("Topic").tagName).toBe("SELECT");
+  });
+
+  it("opens the open lens's legend, and remembers across a lens swap", async () => {
+    const { container } = await mount();
+    expect(container.querySelector(".ln-key")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Legend" }));
+    expect(screen.getByRole("button", { name: "Legend" }).getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector(".ln-key"), "the guide did not reach the lens").toBeTruthy();
+    // one flag for the tab: walking to another lens keeps it open
+    swipe(container.querySelector(".pt-wrap")!, 120); // map → oracle
+    expect(screen.getByRole("tab", { name: "Oracle" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("button", { name: "Legend" }).getAttribute("aria-expanded")).toBe("true");
   });
 });
 
@@ -141,7 +155,9 @@ describe("the axis", () => {
 
   it("walks the ruler: a drag left opens the next lens along", async () => {
     const { container } = await mount();
-    expect(screen.getByText(/How your questions connect/)).toBeTruthy(); // the map
+    // the map is open (its title retired into the guide, so the ruler is
+    // the witness now)
+    expect(screen.getByRole("tab", { name: "Question map" }).getAttribute("aria-selected")).toBe("true");
     swipe(wrap(container), -120);
     // the people map is the next stop right of the question map
     expect(screen.getByRole("tab", { name: "People map" }).getAttribute("aria-selected")).toBe("true");
