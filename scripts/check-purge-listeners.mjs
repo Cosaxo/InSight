@@ -122,7 +122,15 @@ for (const file of files) {
   const opensIdb = /indexedDB\s*\.\s*open\s*\(/.test(src);
   if (!(writes && insightKey) && !opensIdb) continue;
   matched.add(rel);
-  const listens = src.includes("insight:local-purge");
+  // THE WHOLE EVENT NAME, not a prefix of one. `includes` is satisfied by
+  // any SUPERSTRING, so renaming the event to `insight:local-purgeX`
+  // everywhere kept this gate green while nothing listened for the event
+  // the app actually dispatches — measured, and a rename to a different
+  // name failed correctly, so only the superstring slipped. The boundary
+  // is what a JS identifier or a quote can follow: the real call sites
+  // write it inside quotes, so the character after it is never a word
+  // character or a dash.
+  const listens = /insight:local-purge(?![\w-])/.test(src);
   if (listens || EXEMPT[rel]) continue;
   failed = true;
   console.error(
