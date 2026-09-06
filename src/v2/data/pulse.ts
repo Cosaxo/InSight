@@ -491,7 +491,14 @@ const pendingIdx = (pid: string, scopeId: string): number => {
 };
 
 /**
- * One scope's cut of one day — THE ONLY PLACE THE PENDING JOIN HAPPENS.
+ * One scope's cut of one day, and the place `scope()` and `todayN` share.
+ *
+ * NOT the only join in the file: `bins` still does its own inline, because
+ * it needs the per-INDEX shape (`i === mineIdx`) rather than a total, and
+ * `cutOf` returns a total. Both go through `pendingIdx`, so they cannot
+ * disagree about membership — which is the half that actually drifted —
+ * but this comment said "the only place" until a review pointed at `bins`
+ * sixty lines down.
  *
  * D365 fixed this join in `bins` and `todayN` and did not reach here, so
  * the card printed "of 6 answers today" beside a trend whose last point

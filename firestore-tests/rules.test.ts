@@ -4107,7 +4107,13 @@ describe("the engagement rollup's field validation, which nothing exercised", ()
   // counts test DECLARATIONS, so this contributes one, which is what it is.
   // The avatar token case two blocks down has the same shape for the same
   // reason.
-  const DAY = "2026-09-03";
+  // RELATIVE, per this file's own rule at the top: the rollup's create arm
+  // demands the day be inside `request.time - 8d … + 2d`, so a literal
+  // passes until it ages out and then the CONTROL below starts failing —
+  // leaving the thirty-one refusals passing with nothing proving they are
+  // about their fields. Written as a literal here first; five days of
+  // life.
+  const DAY = dayOffset(-1);
   const ok = (over: Record<string, unknown> = {}) => ({
     day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
     answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
@@ -4161,11 +4167,27 @@ describe("every write gated on sign-in refuses a signed-out client", () => {
   // would contribute one declaration for thirteen tests and make four
   // documented figures wrong.
   //
-  // The payloads are deliberately WELL-FORMED. A malformed one would be
-  // refused by a later clause and prove nothing about the sign-in gate —
-  // the same trap as the catalog-answer case fixed earlier tonight, where
-  // the assertion was refused several clauses before the one it named.
-  const DAY = "2026-09-03";
+  // WHAT THESE HOLD, and what they do not — corrected by a review of this
+  // same night, which found the paragraph that stood here overclaiming.
+  //
+  // `request.auth != null` is the FIRST conjunct of every arm below, so it
+  // short-circuits and each of these does record that clause evaluating
+  // false — which is what the coverage report measures and why the count
+  // moved by exactly thirteen. That much is real.
+  //
+  // What is NOT true is that every payload is otherwise well-formed. Nine
+  // of the thirteen would be refused by a later clause as well if the
+  // sign-in gate were removed: `foresight` and `v2_takes` fail their key
+  // allowlists, `v2_groups` allows only `duoMode` in an update,
+  // `v2_people` needs a `name`, `following` needs `to`, and four target
+  // documents that `clearFirestore()` guarantees do not exist. So deleting
+  // a sign-in clause would not make these pass — they would go on refusing
+  // for the wrong reason, silently.
+  //
+  // Making all thirteen minimal-and-legal is real work against nine rules
+  // and it is on the open list rather than done in a hurry. The claim is
+  // corrected here so the next reader is not misled by it.
+  const DAY = dayOffset(-1);
   const refusesWrite = async (fn: () => Promise<unknown>): Promise<void> => {
     await assertFails(fn());
   };
