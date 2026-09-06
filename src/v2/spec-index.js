@@ -12,13 +12,13 @@ import './spec/archetype-data.js';
 // the Mirror's Compare lens and Groups portrait, so it rides loadMirrorTab()
 // (the Mirror block further down) rather than first paint.
 import './spec/daily-questions.js';
-// suggestions.js moved to the loadOverlays group (still listed, still in
-// order — the D25 move): the door's store carries the decline furniture
-// and the demo room, and check:bundle's eager budget is why a closed door
-// must not cost a byte at boot. Its purge listener attaches when the group
-// loads, which is safe: purgeLocalTrace removes the insight.* keys
-// itself, and a module that never loaded holds no in-memory state for
-// the listener to clear.
+// suggestions.js stood here — deferred to loadOverlays by D25, then
+// deleted with the door itself. Nothing in this file or in loadOverlays
+// names it any more, and neither does data/nav.ts: the registry carried
+// an `openSuggestions` key long after the shell stopped registering one,
+// which is a door that opens onto nothing. Kept as a note because the
+// order around it is a contract and a reader comparing this list to the
+// standalone's script tags will find the gap.
 // demographics.js stood here until D355 — DEMOGRAPHICS has one reader,
 // demographics.jsx, a Mirror module; both ride loadMirrorTab() now.
 import './spec/follows.js';
@@ -57,8 +57,12 @@ import './spec/viz-primitives.jsx';
 // compare-breakdown.jsx stood here until D355 — the Mirror block below.
 // The relmap group SPLIT at D200, and the split is by consumer rather than
 // by size. relmap-lenses.jsx stays eager because it has a LIVE consumer —
-// vote-cuts.js reads window.RMLenses for the who-voted sheet's Type cut
-// (D146) — and it is the small one anyway. Its three siblings moved to
+// vote-cuts.js IMPORTS `RMLenses` (by name since D354's sweep; this note
+// said "reads window.RMLenses" until 2026-09-06, which was the mechanism
+// before that sweep and matters because an import pulls the module into
+// its consumer's chunk whatever this line does) and publishes VOTECUTS,
+// which daily-split.jsx reads for the who-voted sheet's cuts — the landing
+// screen, on the live path (D146) — and it is the small one anyway. Its three siblings moved to
 // loadOverlays: they are reachable only through the demo Circle field, and
 // a live build never renders that (Circle takes LiveCircleBody since D101).
 import './spec/relmap-lenses.jsx';
@@ -161,8 +165,9 @@ import './spec/passive-meter.jsx';
 // deleted it: the four core instruments fill from the feed and have no
 // sit-down flow, so there was nothing left for it to open.
 // profile-overlay.jsx: see the note at search-overlay above.
-// person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
-// suggestions.jsx load after first paint too, from the same group.
+// person-mindmap.jsx, person-overlay.jsx and city-overlay.jsx load after
+// first paint too, from the same group. suggestions.jsx was in it until
+// the door was deleted — see the note at suggestions.js above.
 //
 // THE MIRROR'S THIRTEEN left this list at D355 for loadMirrorTab() at the
 // foot of this file — compare-pop.js, demographics.js and

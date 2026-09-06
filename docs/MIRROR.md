@@ -308,7 +308,7 @@ Since D100 they draw the **archive** rather than the week:
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
 reason Scores can find a question that rates a place at all — the bank
-holds twenty-four in a hundred and thirty, spread over three radii, so
+holds twenty-four in a hundred and thirty-four, spread over three radii, so
 a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships
@@ -587,8 +587,8 @@ reason anything is ever hidden) · D3 (anonymous-first, groups by invite
 code) · D5 (create-only answers, owner-written; the option is editable
 since D86, the cohort snapshot is not) · D8 (per-anchor breakdowns and
 the snapshot they read) · D9 (the city as the unit — its Near-fold undone
-by D111) · D32 (Learn's first attempt only) · D38 (why relmap stays
-eager) · D57 (server-scored logic) · D72 (the Map's mock typicality,
+by D111) · D32 (Learn's first attempt only) · D38 (why relmap was eager,
+until D200 took it off that graph — see §5) · D57 (server-scored logic) · D72 (the Map's mock typicality,
 refused for being invented rather than private) · D111 (Near is
 presence, City is its own stop) · D112 (the similarity surfaces: place
 score profiles and kindred by scores, default-on).

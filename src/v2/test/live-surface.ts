@@ -73,7 +73,7 @@ export const LIVE_MEMBERS = [
   // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
   // scores; `testFeedItems` and `myTestResults` are the fold's other two
   // ingredients, exposed so the typed layer never needs a bridge read.
-  "loadSimilarity", "similarityLoading", "testAggsState", "kindredPeople",
+  "loadSimilarity", "similarityLoading", "testAggsState", "kindredState", "kindredPeople",
   "testFeedItems", "myTestResults",
   // D277 — the passive fold, persisted. Listed here rather than beside
   // saveTestResult because it is what makes the D112 score tier able to
@@ -230,7 +230,9 @@ export const LIVE_SOCIAL_MEMBERS = [
 ];
 
 // LIVE.near's own members (D84), pinned like social's for the same reason.
+// `mode` and `until` were D174's timed state and left with it (D370): the
+// switch is `on`, and nothing else describes it.
 export const LIVE_NEAR_MEMBERS = [
-  "count", "disable", "enable", "lastError", "loadRoom", "mix", "mode", "on",
-  "refresh", "room", "roomLoading", "supported", "tooFew", "until", "updatedAt",
+  "count", "disable", "enable", "lastError", "loadRoom", "mix", "on",
+  "refresh", "room", "roomLoading", "supported", "tooFew", "updatedAt",
 ];

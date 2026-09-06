@@ -40,20 +40,23 @@ export function generatePricingTs(json) {
     "// content/pricing.json; this copy exists because a deployed function\n" +
     "// cannot reach that file and a price the server does not verify is a\n" +
     "// price the client picked.\n" +
-    "export interface PricingCohort { idx: number; booked: number[]; nextOpen: string | null }\n" +
+    "export interface PricingCohort { idx: number; booked: number[]; crowd?: number[]; nextOpen: string | null }\n" +
     "export interface PricingCard {\n" +
     "  generated: string;\n" +
     "  currency: string;\n" +
     "  base: number;\n" +
     "  floorX: number;\n" +
-    "  ceilX: number;\n" +
+    "  crowdStep: number;\n" +
+    "  crowdFree: number;\n" +
     "  floorWeek: number;\n" +
     "  capEur: number;\n" +
-    "  adBase: number;\n" +
+    "  minEur: number;\n" +
+    "  windowDays: number;\n" +
+    "  budgets: number[];\n" +
+    "  menu: Record<\"city\" | \"country\" | \"world\", number>;\n" +
     "  fx: Record<string, number>;\n" +
-    "  trailingDays: number;\n" +
     "  cohorts: Record<\"city\" | \"country\" | \"world\", PricingCohort>;\n" +
-    "  estimates: Record<string, { perDay: number; campaigns: number; days: number }>;\n" +
+    "  estimates: Record<string, { perDay: number; campaigns: number; days: number; running?: number }>;\n" +
     "}\n" +
     "export const PRICING_CARD: PricingCard = " +
     JSON.stringify(data, null, 1) +

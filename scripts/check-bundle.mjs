@@ -830,11 +830,48 @@ const MAX_TOTAL_JS_KB = 2440;
 // is ~2.7 KB a day of ordinary bug-fixing landing in first paint, so a
 // band of 11 KB is about four days and the next trip is due before the
 // week is out. The answer then should be a deferral rather than another
-// raise, and the candidates are already visible in the modulepreload list:
-// explain-sheet (8.6 KB), result-rose (4.9), relmap-lenses (4.9) — all
-// three behind a tap, all three in spec-index.js's ORDERED side-effect
-// list, which is why moving one is its own change with its own load-order
-// risk and not something a review does on the way past.
+// raise.
+//
+// THE THREE CANDIDATES THIS ENTRY FIRST NAMED DO NOT MOVE BY THEIR OWN
+// LINES, and the correction matters because this note is the instruction
+// the next deferral will start from. It named explain-sheet (8.6 KB),
+// result-rose (4.9) and relmap-lenses (4.9) as "all three behind a tap,
+// all three in spec-index.js's ORDERED side-effect list". Two things in
+// that are wrong, measured 2026-09-06:
+//
+//   · **The side-effect line is not what holds them.** Each is imported BY
+//     NAME from a module that is itself eager, so the ESM graph pulls it in
+//     whatever spec-index.js does — which is the mechanism CLAUDE.md states
+//     ("rule 2 asks whether a file LOADS, not whether spec-index.js names
+//     it"). Proved rather than reasoned: delete explain-sheet's line,
+//     rebuild, and it is STILL in the modulepreload set, because
+//     result-card.jsx imports it.
+//   · **relmap-lenses is not behind a tap at all.** vote-cuts.js imports
+//     `RMLenses` and publishes VOTECUTS, which daily-split.jsx reads for the
+//     who-voted sheet's cuts — the landing screen, on the live path.
+//     spec-index.js says so beside its line and is right to; only its
+//     MECHANISM is stale there ("reads window.RMLenses" predates D354's
+//     sweep, which made it an import).
+//
+// WHAT ACTUALLY HOLDS THEM, traced to the anchor so the next attempt does
+// not have to: explain-sheet and result-rose are both pulled by
+// result-card.jsx; result-card and type-marks.jsx (4.9 KB, also on the
+// list) are both pulled by passive-meter.jsx (23.1 KB); and passive-meter
+// is imported and RENDERED by app-shell.jsx — `<PassiveMeter />` in the
+// header, unconditionally, on every screen, "because it reports across
+// tabs, not just the feed". relmap-lenses is not part of this chain and
+// should be left alone.
+//
+// SO THIS IS NOT A LOAD-ORDER PROBLEM, which is what an earlier draft of
+// this same entry assumed when it put the risk "on passive-meter". The
+// chain terminates in something that is ON SCREEN IN THE FIRST FRAME.
+// Deferring it is mechanically easy — app-shell.jsx already React.lazy's
+// four things and the pattern is right there — and the cost is that the
+// header's lens ring pops in after the paint instead of arriving with it.
+// That is a design call about the header, not a refactor, which is why
+// nothing here does it on the way past. ~38 KB sits behind that one call
+// (passive-meter, result-card, type-marks, result-rose, explain-sheet),
+// which is three bands rather than one, so it is worth asking properly.
 const MAX_EAGER_KB = 642;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
