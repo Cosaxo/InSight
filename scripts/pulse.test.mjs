@@ -1174,6 +1174,51 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(html).toContain("Per-question attention");
   });
 
+  it("draws whether the Mirror was READ, as shares of people (D387)", () => {
+    // ENGAGEMENT-PLAN.md's rung-0 table calls this the one thing rung 0
+    // cannot see — "does anyone open it, which stops, which lenses",
+    // because "reading is the point and reading writes nothing". The
+    // client wrote these three for weeks; nothing folded or drew them.
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 4, sessions: 10, quiet: 3, fading: 1, depthEnd: 2,
+          mirrorRead: 3, lensOpen: 1,
+          feedBuckets: { f0: 1, f1: 0, f2: 0, f3: 1, f4: 2 } } },
+    ]);
+    expect(e.people.mirrorRead).toBe(3);
+    expect(e.people.lensOpen).toBe(1);
+    // Shares of the day's ROLLUPS — a raw count moves with the
+    // population and answers nothing.
+    expect(e.people.readShare).toBe(0.75);
+    expect(e.people.lensShare).toBe(0.25);
+    // A map on the wire, a list here, low bracket first.
+    expect(e.people.feedBuckets).toEqual([1, 0, 0, 1, 2]);
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-24", ...e } }, []);
+    expect(html).toContain("read the Mirror");
+    expect(html).toContain("opened a lens");
+    expect(html).toContain("feed depth");
+    expect(html).toContain("75%");
+  });
+
+  it("a fold written before D387 draws dashes, not invented zeros", () => {
+    // Every day already folded lacks these keys entirely. The console
+    // must say it does not know, the way it does for a cohort day that
+    // predates the digest — a 0% would read as "nobody opened the
+    // Mirror", which is a claim this data cannot make.
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 1, firstTime: 0, votes: 1, events: 1, bySurface: {},
+        returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0 } },
+    ]);
+    expect(e.people.readShare).toBeNull();
+    expect(e.people.lensShare).toBeNull();
+    expect(e.people.feedBuckets).toEqual([0, 0, 0, 0, 0]);
+  });
+
   it("zero sessions reads as an unknown share, never a divide-by-zero", () => {
     const e = engagementFromDays([
       { day: "2026-08-22", actives: 1, firstTime: 0, votes: 1, events: 1, bySurface: {},

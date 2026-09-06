@@ -40837,3 +40837,80 @@ the merged tree — D382 had just taken the question content out of first
 paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
+
+## D387 · Three behaviour signals get a reader: whether the Mirror is READ, not only answered into
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the
+owner, off `OWNER-LIST.md`'s own top row — *"three real behaviour
+signals are collected from every device every day and read by nothing —
+what should read them?"*
+
+### What was true
+
+Every account writes one rollup per finished UTC day. Three of its
+fields had **zero** readers anywhere in `functions/src`: `feedB` (how
+deep into the feed, as a 0–4 bracket), `stops` (Mirror stops visited)
+and `lenses` (lenses opened). Their neighbour `depthEnd` — written by
+the same line of client code — has five. The rules validate all three as
+required ints, so every device paid to write them and every one expired
+unread at the 90-day TTL.
+
+That is CLAUDE.md's opening sentence failing in the most literal way
+available: *"a surface that collects without joining is unfinished, and
+so is a join nothing draws."*
+
+### The product question was already answered, in writing
+
+The row said a routine could not decide this because folding them means
+deciding what the fold is FOR. It is — but not by anyone here.
+`ENGAGEMENT-PLAN.md`'s rung-0 table names the blind spot in as many
+words:
+
+> **The entire Mirror** — does anyone open it, which stops, which
+> lenses | *reading is the point and reading writes nothing*
+
+…and its Depth row asks for *"stops per Mirror visit; lens opens per
+stop-visit"*. These three fields ARE that fix. They were built for it,
+shipped for it, and then not wired up. So this record does not choose a
+purpose; it finishes the one already chosen and cites where.
+
+### The shape, taken from the file's own precedents
+
+Nothing here is invented — each of the three takes the shape of a field
+already folded beside it:
+
+- **`mirrorRead`** and **`lensOpen`** — counts of PEOPLE (`stops > 0`,
+  `lenses > 0`), which is `depthEnd`'s 0|1-per-person shape, chosen for
+  `depthEnd`'s reason. The question is *does anyone read the Mirror*,
+  and a sum of stops is one heavy reader away from answering it wrong.
+- **`feedBuckets`** — a 5-wide histogram over `feedB`, which is
+  `fgBuckets`' shape, for `fgBuckets`' reason: a bracket averaged is a
+  number nobody can act on, and the distribution is the finding.
+
+Clamped like every other field in `foldRollups` — the rules bound an
+honest client, the clamp bounds the rest — and pinned by a case that
+folds a negative, a fraction and a string.
+
+### Where it is drawn
+
+`pulse-collect.mjs` emits both counts plus **shares of that day's
+rollups**, and the console prints *read the Mirror* / *opened a lens* /
+*feed depth* beside the answering it already showed. A share rather than
+a count because a count moves with the population and answers nothing.
+
+**A day folded before this record draws an em dash, not 0%.** Every
+already-folded day lacks these keys, and a zero there would read as
+"nobody opened the Mirror" — a claim the data cannot make. Same rule the
+console already applies to a cohort day predating the digest, pinned as
+its own case.
+
+### What this does not do
+
+It does not delete anything, so the rules' allowlist is untouched and no
+already-shipped client's write starts being refused — which was the
+first of the two wrong moves the row named. It also does not feed the
+patterns fit or any user-visible surface: these are operator numbers
+about whether the product's stated shape is true of its readers, and
+R5's line that the daily and the Mirror never adapt to them stands
+untouched.
+

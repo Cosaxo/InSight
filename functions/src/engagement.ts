@@ -962,6 +962,12 @@ export interface RollupRow {
   answers: unknown;
   depthEnd: unknown;
   dayparts: unknown;
+  // The Mirror-reading three (D387). Written by every device since the
+  // rollup shipped and folded by nothing until now — see the fold below
+  // for what each becomes.
+  feedB: unknown;
+  stops: unknown;
+  lenses: unknown;
 }
 
 export interface PeopleDelta {
@@ -973,6 +979,19 @@ export interface PeopleDelta {
   dayparts: [number, number, number, number];
   fgBuckets: [number, number, number, number, number];
   fading: number;
+  /** People who visited at least one Mirror stop today, and people who
+   *  opened at least one lens. COUNTS OF PEOPLE, not sums of stops —
+   *  `depthEnd`'s shape, chosen for `depthEnd`'s reason: the question is
+   *  "does anyone read the Mirror", and a sum is one heavy reader away
+   *  from answering it wrong. `lensOpen` is the deeper half of the same
+   *  question, since a lens is a tap inside a stop. */
+  mirrorRead: number;
+  lensOpen: number;
+  /** How deep into the feed people got, as a histogram over `feedB`'s
+   *  0..4 bracket — `fgBuckets`' shape, for `fgBuckets`' reason: a
+   *  bracket averaged is a number nobody can act on, and the shape of
+   *  the distribution is the finding. */
+  feedBuckets: [number, number, number, number, number];
 }
 
 export interface RollupStore {
@@ -1020,6 +1039,7 @@ export function foldRollups(rows: RollupRow[]): PeopleDelta {
   const delta: PeopleDelta = {
     rollups: 0, sessions: 0, quiet: 0, answers: 0, depthEnd: 0,
     dayparts: [0, 0, 0, 0], fgBuckets: [0, 0, 0, 0, 0], fading: 0,
+    mirrorRead: 0, lensOpen: 0, feedBuckets: [0, 0, 0, 0, 0],
   };
   for (const row of rows) {
     delta.rollups++;
@@ -1028,6 +1048,12 @@ export function foldRollups(rows: RollupRow[]): PeopleDelta {
     delta.answers += clampInt(row.answers, 2000);
     delta.depthEnd += clampInt(row.depthEnd, 1);
     delta.fgBuckets[clampInt(row.fgMin, 4)]++;
+    // Presence, not volume: `> 0` rather than the count itself. The
+    // clamp's ceiling is generous on purpose — it exists to bound a
+    // dishonest client, and the value is only ever compared to zero.
+    if (clampInt(row.stops, 2000) > 0) delta.mirrorRead++;
+    if (clampInt(row.lenses, 2000) > 0) delta.lensOpen++;
+    delta.feedBuckets[clampInt(row.feedB, 4)]++;
     const parts = Array.isArray(row.dayparts) ? row.dayparts : [];
     for (let i = 0; i < 4; i++) delta.dayparts[i] += clampInt(parts[i], 300);
   }
@@ -1110,6 +1136,9 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
         answers: d.get("answers"),
         depthEnd: d.get("depthEnd"),
         dayparts: d.get("dayparts"),
+        feedB: d.get("feedB"),
+        stops: d.get("stops"),
+        lenses: d.get("lenses"),
       }));
     },
     async getFgStates(uids) {
@@ -1143,6 +1172,9 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
             // path, and a list element has none
             dayparts: Object.fromEntries(delta.dayparts.map((v, i) => [`d${i}`, FieldValue.increment(v)])),
             fgBuckets: Object.fromEntries(delta.fgBuckets.map((v, i) => [`b${i}`, FieldValue.increment(v)])),
+            mirrorRead: FieldValue.increment(delta.mirrorRead),
+            lensOpen: FieldValue.increment(delta.lensOpen),
+            feedBuckets: Object.fromEntries(delta.feedBuckets.map((v, i) => [`f${i}`, FieldValue.increment(v)])),
           },
         },
         { merge: true },

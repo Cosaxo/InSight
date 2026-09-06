@@ -713,14 +713,34 @@ export function engagementFromDays(days) {
     ? (() => {
         const p = peopleRow.people;
         const sessions = p.sessions ?? 0;
+        const rollups = p.rollups ?? 0;
         return {
           day: peopleRow.day,
-          rollups: p.rollups ?? 0,
+          rollups,
           sessions,
           quiet: p.quiet ?? 0,
           quietShare: sessions > 0 ? round2((p.quiet ?? 0) / sessions) : null,
           fading: p.fading ?? 0,
           reachedEnd: p.depthEnd ?? 0,
+          // THE MIRROR-READING THREE (D387). ENGAGEMENT-PLAN.md's rung-0
+          // table lists "the entire Mirror — does anyone open it, which
+          // stops, which lenses" as something rung 0 cannot see, because
+          // "reading is the point and reading writes nothing". These
+          // three are what the client started writing to close that, and
+          // until now nothing folded or drew them.
+          //
+          // Shares against `rollups`, because the question is what
+          // fraction of the people who used the app that day READ it —
+          // a count alone moves with the population and answers nothing.
+          // Null rather than 0 when there is no denominator, the
+          // quietShare rule one line up: no people is not "nobody read".
+          mirrorRead: p.mirrorRead ?? 0,
+          lensOpen: p.lensOpen ?? 0,
+          readShare: rollups > 0 ? round2((p.mirrorRead ?? 0) / rollups) : null,
+          lensShare: rollups > 0 ? round2((p.lensOpen ?? 0) / rollups) : null,
+          // The feed-depth bracket histogram, low to high. A map on the
+          // wire (FieldValue.increment needs a field path), a list here.
+          feedBuckets: Array.from({ length: 5 }, (_, i) => (p.feedBuckets || {})[`f${i}`] ?? 0),
         };
       })()
     : null;
