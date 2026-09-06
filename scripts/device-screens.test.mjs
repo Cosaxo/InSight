@@ -98,6 +98,17 @@ describe("summarize", () => {
     const report = { screens: [snap(), snap({ pageErrors: ["boom"] }), snap({ unchanged: true })], skipped: [{ id: "patterns", reason: "gated" }] };
     expect(summarize(report)).toEqual({ hard: 1, soft: 1, screens: 3, skipped: 1 });
   });
+  it("counts a run that ended early as hard, and the report says so first", () => {
+    const report = { capturedAt: "2026-09-06T21:00:00Z", source: "android:emulator-5554", mode: "demo",
+      fatal: "WebView attach timed out after 100s\n    at launch (device-screens.mjs:1:1)",
+      profiles: {}, screens: [snap()], skipped: [] };
+    expect(summarize(report).hard).toBe(1);
+    const md = renderReport(report);
+    const findings = md.slice(md.indexOf("## Findings"), md.indexOf("## Screens"));
+    expect(findings).toContain("[hard] the run ended early");
+    expect(findings).toContain("WebView attach timed out after 100s");
+    expect(findings).not.toContain("at launch"); // the first line, not the stack
+  });
 });
 
 describe("renderReport", () => {

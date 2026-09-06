@@ -177,7 +177,7 @@ export function classify(snap) {
 /** Totals over a report: how many hard and soft findings, over how many
  *  screens — the line the night shift reads before anything else. */
 export function summarize(report) {
-  let hard = 0, soft = 0, screens = 0;
+  let hard = report.fatal ? 1 : 0, soft = 0, screens = 0;
   for (const s of report.screens) {
     screens++;
     for (const f of classify(s)) (f.severity === "hard" ? hard++ : soft++);
@@ -204,6 +204,7 @@ export function renderReport(report) {
   lines.push("");
 
   lines.push("## Findings — read these first", "");
+  if (report.fatal) lines.push(`- **[hard] the run ended early** — ${report.fatal.split("\n")[0]}; every screen below is what landed before that`);
   const findings = [];
   for (const s of report.screens) for (const f of classify(s)) findings.push({ s, f });
   findings.sort((a, b) => (a.f.severity === b.f.severity ? 0 : a.f.severity === "hard" ? -1 : 1));

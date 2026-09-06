@@ -44,6 +44,7 @@
 import { mkdirSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { ROOT, loadPlaywright, ensureServer } from "./store-render.mjs";
 import { PROFILES, BOUNDARY_TEXT, slug, pageChecks, renderReport, summarize } from "./device-screens-lib.mjs";
 
@@ -211,6 +212,13 @@ const report = {
   profiles: {}, screens: [], skipped: [],
 };
 const sha1 = (buf) => createHash("sha1").update(buf).digest("hex");
+// A bound on anything that talks to a device: a promise that never settles
+// otherwise ends the process with no report, which is the one outcome this
+// script must not have.
+const withTimeout = (promise, ms, what) => Promise.race([
+  promise,
+  new Promise((_, reject) => setTimeout(() => reject(new Error(`${what} timed out after ${ms / 1000}s`)), ms).unref()),
+]);
 
 // Wait for the app to be up: the dock appearing IS the ready signal in
 // both modes (the app renders only after initLive().finally — main.jsx),
@@ -267,7 +275,21 @@ async function runProfile(profileId, profile, { open, close, frame }) {
 
   let n = 0;
   for (const scene of scenes) {
-    const { page, watcher } = await open();
+    let opened;
+    try {
+      opened = await open();
+    } catch (e) {
+      // The app did not come up for this scene — no page to capture, so
+      // the entry carries the reason and the run moves to the next scene.
+      n += 1;
+      const entry = { profile: profileId, scene: scene.id, n: String(n).padStart(2, "0"), id: `${scene.id}-NO-APP`, file: "(none)",
+        checks: {}, pageErrors: [], consoleErrors: [], failedRequests: [], unchanged: false,
+        driveError: `the app did not open for this scene — ${String(e && e.message ? e.message : e).slice(0, 240)}` };
+      report.screens.push(entry);
+      console.log(`  ✗ ${profileId}/${scene.id}  (no app: ${entry.driveError.slice(0, 100)})`);
+      continue;
+    }
+    const { page, watcher } = opened;
     let last = null;
     const ctx = {
       async snap(label, { compare = true } = {}) {
@@ -312,6 +334,10 @@ async function runProfile(profileId, profile, { open, close, frame }) {
   }
 }
 
+// Whatever happens inside, the report is written: a device pass that dies
+// without one leaves a reader with nothing to open, and the lane's fifth
+// run did exactly that.
+try {
 if (!android) {
   // ── Chromium at phone geometry ────────────────────────────────────
   const { url, stop: stopServer } = await ensureServer(urlArg);
@@ -362,39 +388,51 @@ if (!android) {
   // debuggable flag). The workflow installs and launches the app first;
   // this half only attaches, so a launch crash shows up as "no WebView"
   // and the adb screenshot the workflow took before is the evidence.
-  const devices = await pw._android.devices();
-  if (!devices.length) { console.error("device-screens: no Android device on adb."); process.exit(1); }
-  const device = devices[0];
-  const model = device.model();
+  const probe = await withTimeout(pw._android.devices(), 30_000, "adb devices");
+  if (!probe.length) { console.error("device-screens: no Android device on adb."); process.exit(1); }
+  const serial = probe[0].serial();
+  const model = probe[0].model();
+  await probe[0].close().catch(() => {});
   const profileId = `android-${slug(model)}`;
-  report.source = `android:${device.serial()}`;
+  report.source = `android:${serial}`;
   report.target = `${model} · ${pkg}`;
-  console.log(`\n${model} — ${pkg}`);
+  console.log(`\n${model} (${serial}) — ${pkg}`);
+
+  // The app's lifecycle through adb itself, not through Playwright's
+  // channel to it: the lane's fifth run drove the first cold start through
+  // `device.shell()` and the second hung inside that channel until Node's
+  // event loop emptied ("unsettled top-level await") — no error, no report.
+  // A child process with a timeout either answers or fails, and every
+  // attach below is bounded the same way, so a hang becomes a line in the
+  // report rather than a silent exit.
+  const adb = (...args) => execFileSync("adb", ["-s", serial, ...args], { encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
 
   // A COLD START PER SCENE, the way a phone does it: stop the app, wipe its
   // data (localStorage with it — every scene is a first launch), start it,
-  // attach to the WebView it opens. Not a reload: the lane's fourth run
-  // attached fine and then lost the devtools target on `page.reload()` —
-  // "Target page, context or browser has been closed" — because the
-  // WebView's navigation replaces the target Playwright was holding. The
-  // attach itself can land on the shell's initial about:blank a moment
-  // before Capacitor loads the app, so it waits for the app's own URL and
-  // re-attaches if that first target goes away under it.
+  // attach to the WebView it opens over a fresh connection. Not a reload:
+  // the fourth run attached fine and then lost the devtools target on
+  // `page.reload()`, because the WebView's navigation replaces the target
+  // Playwright holds. The attach can land on the shell's initial
+  // about:blank a moment before Capacitor loads the app, so it waits for
+  // the app's own URL and re-attaches if that first target goes away.
   async function launch() {
-    await device.shell(`am force-stop ${pkg}`);
-    await device.shell(`pm clear ${pkg}`);
-    await device.shell(`am start -W -n ${pkg}/.MainActivity`);
+    adb("shell", "am", "force-stop", pkg);
+    adb("shell", "pm", "clear", pkg);
+    adb("shell", "am", "start", "-W", "-n", `${pkg}/.MainActivity`);
     let lastErr = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
+      let device = null;
       try {
-        const webview = await device.webView({ pkg }, { timeout: 90_000 });
-        const page = await webview.page();
+        [device] = await withTimeout(pw._android.devices(), 30_000, "adb devices");
+        const webview = await withTimeout(device.webView({ pkg }, { timeout: 90_000 }), 100_000, "WebView attach");
+        const page = await withTimeout(webview.page(), 30_000, "WebView page");
         const deadline = Date.now() + 20_000;
         while (!/localhost/.test(page.url()) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
         if (page.isClosed()) throw new Error("the WebView target closed while the app was loading");
-        return page;
+        return { device, page };
       } catch (e) {
         lastErr = e;
+        if (device) await device.close().catch(() => {});
         console.log(`    attach attempt ${attempt} failed: ${String(e.message || e).slice(0, 120)}`);
         await new Promise((r) => setTimeout(r, 1500));
       }
@@ -403,11 +441,14 @@ if (!android) {
   }
 
   const first = await launch();
-  const size = await first.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight, s: window.devicePixelRatio }));
+  const size = await first.page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight, s: window.devicePixelRatio }));
   console.log(`  WebView ${size.w}×${size.h} @${size.s}`);
+  await first.device.close().catch(() => {});
+  let current = null;
   await runProfile(profileId, { label: model, width: size.w, height: size.h, scale: size.s }, {
     async open() {
-      const page = await launch();
+      current = await launch();
+      const { page } = current;
       const watcher = watch(page);
       await waitReady(page);
       if (report.mode === null) {
@@ -418,12 +459,15 @@ if (!android) {
       watcher.drain();
       return { page, watcher };
     },
-    async close() {},
+    async close() { if (current) await current.device.close().catch(() => {}); current = null; },
     // The device's own screen — status bar, keyboard, the WebView as the
     // phone composes it — which is the half a Chromium render cannot show.
-    async frame() { return device.screenshot(); },
+    async frame() { return withTimeout(current.device.screenshot(), 30_000, "device screenshot"); },
   });
-  await device.close();
+}
+} catch (e) {
+  report.fatal = String(e && e.stack ? e.stack : e).slice(0, 600);
+  console.error(`\ndevice-screens: the run ended early — ${String(e && e.message ? e.message : e).slice(0, 200)}`);
 }
 
 // ── report ──────────────────────────────────────────────────────────
