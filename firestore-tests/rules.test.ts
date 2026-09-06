@@ -383,6 +383,24 @@ describe("v2 profile", () => {
   // `mergeFields` replaces the named field and leaves the rest alone. The
   // case asserts both halves, because a fix that dropped the other profile
   // fields would be the failure the original comment was guarding against.
+  it("a profile cannot be DELETED — the only deny in the file that no test held", async () => {
+    // Of the denies in firestore.rules, this was the one that could be
+    // relaxed to `if request.auth != null` with the whole suite green at
+    // 178; `v2_people`'s identical `allow delete: if false` reds, as does
+    // every other.
+    //
+    // It is not only coverage. The handle guard reads back
+    // `resource.data.get("handle", null)`, so a deleted profile is one
+    // whose re-creation carries no handle — which is the claim-once check
+    // claimHandleV2 rests on, and the registry-hoarding hole D190 closed.
+    // The absence path was closed against OMISSION and never against
+    // deletion. Subcollections outlive the parent doc too, so the answers
+    // would stay world-readable with no name and no anchors behind them.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER), { displayName: "Mira" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER)));
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_users", OWNER)));
+  });
+
   it("saveAnchors' write shape can REMOVE an anchor and keeps the rest of the profile", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, {
@@ -977,7 +995,18 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     // not someone else's subtree, not a bare-map id, not a day outside the
     // window
-    await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
+    //
+    // A DAY NOBODY HAS WRITTEN, for the reason spelled out forty lines
+    // down and not applied here: the assertSucceeds directly above already
+    // created `rollupDay()`, so a second write to it is an UPDATE and dies
+    // on `allow update, delete: if false` without ever reaching the
+    // ownership clause. Measured: replacing `request.auth.uid == uid` with
+    // `request.auth != null` left the suite green at 178 while a stranger
+    // could write rollups into this account's subtree — the input to the
+    // world-readable nightly digest and to their streak.
+    const otherDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_users", OWNER, "engagement", otherDay), rollup({ day: otherDay })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
     // The forward half of the same window, untested here for the same
@@ -1181,11 +1210,20 @@ describe("Foresight CALL (D194): the question's own bounds", () => {
 
 describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
+  // A SECOND real question, and it is what makes the authorship case
+  // below a test of authorship. An answer's doc id must equal its qid
+  // (`request.resource.data.qid == aid`, firestore.rules), so a forged
+  // write needs a seeded question NOBODY has answered yet: the same qid
+  // as the owner's is an update, and an unseeded one dies on the options
+  // lookup. Both of those are how this case passed for the wrong reason.
+  const QID2 = "daily-001";
   const seedQuestion = () => seed(async (db) => {
-    await setDoc(doc(db, "v2_questions", QID), {
-      surface: "daily", seq: 0, type: "binary",
-      prompt: "Pineapple?", options: ["Yes", "No"], active: true,
-    });
+    for (const [id, seq] of [[QID, 0], [QID2, 1]] as [string, number][]) {
+      await setDoc(doc(db, "v2_questions", id), {
+        surface: "daily", seq, type: "binary",
+        prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+      });
+    }
   });
   const answer = (over: Record<string, unknown> = {}) => ({
     qid: QID, surface: "daily", optionIdx: 1,
@@ -1668,9 +1706,25 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       where("surface", "in", ["daily", "feed", "test", "learn"]))));
     // …and write is not. Authoring under someone else's uid is the thing
     // this rule is actually for now.
+    //
+    // A REAL QID, AND A DOC ID NOBODY HAS WRITTEN. This used `feed-x`,
+    // which `seedQuestion` does not seed — so the write died on
+    // `get(/v2_questions/feed-x).data.options.size()` and never reached
+    // the authorship clause. Measured: dropping `request.auth.uid == uid`
+    // from firestore.rules left the whole suite green at 178, while a
+    // stranger could then write a vote under this account's uid that the
+    // aggregate trigger folds as theirs, with their frozen anchors, into
+    // world-readable counts. The case's own comment has always said this
+    // is what the rule is for; the payload is now the one that tests it.
     await assertFails(setDoc(
-      doc(asUser(STRANGER), "v2_users", OWNER, "answers", "feed-x"),
-      answer({ qid: "feed-x" })));
+      doc(asUser(STRANGER), "v2_users", OWNER, "answers", QID2),
+      answer({ qid: QID2 })));
+    // …and the same payload from the owner IS accepted, so the refusal
+    // above is authorship and nothing else. Without this the case could
+    // go back to passing for a reason it does not name.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", QID2),
+      answer({ qid: QID2 })));
   });
 
   // THE query the whole reversal exists to make possible: "everyone who

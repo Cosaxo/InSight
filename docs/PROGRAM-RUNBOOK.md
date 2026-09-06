@@ -69,7 +69,7 @@ asked for — and the console draws its health from it.
 
 | Lane | Account | Triggers (UTC) | Model | Contract | Merge authority |
 | --- | --- | --- | --- | --- | --- |
-| **The axiom builder** | Claude 3 | `30 6,12,18 * * *` | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
+| **The axiom builder** | Claude 3 | `30 6 * * *` — the owner's call of 2026-09-03, one run a day | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
 | **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19,23 * * *` — the 23:15 firing is the long pass | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
 | **The console workflow** | GitHub Actions — no account | every two hours, on push to `main`, on PR label events, on the Console issue's edit | none — `scripts/console.mjs`, stdlib only | § The console | mirrors the owner's tick to the label `approved`; opens the PR for a ticked branch; never merges |
 | **The console keeper** | Claude 3 | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | § The console keeper | n/a |

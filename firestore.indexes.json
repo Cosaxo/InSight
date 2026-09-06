@@ -251,6 +251,16 @@
       ]
     },
     {
+      "collectionGroup": "reveals",
+      "fieldPath": "pickedUids",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
       "collectionGroup": "answers",
       "fieldPath": "qid",
       "indexes": []

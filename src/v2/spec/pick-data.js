@@ -784,6 +784,27 @@ export let PICK_QS;
       174: 2,   // Vietnamese — below the floor
       0: 13,    // Not listed — everyone's own nemesis
     },
+    // daily catalog-question run, 2026-09-05 — the fourth colours canon
+    // is the CLOSET: pk24 asks the heart (blue wins), pk25 the front door,
+    // pk29 the feeling (yellow country); this asks what actually gets
+    // worn, and black takes a board it appears nowhere else on.
+    pk36: {
+      1: 26,        // black — the closet's landslide-in-waiting
+      129: 17,      // navy
+      8421505: 15,  // gray
+      16777216: 13, // white
+      256: 12,      // blue
+      16119261: 9,  // beige
+      32769: 8,     // green
+      10824235: 7,  // brown
+      8421377: 6,   // olive
+      15787661: 5,  // khaki — the tie at 5 breaks its way into the top 10
+      16711681: 5,  // red — same count, folds at the floor
+      16761036: 5,  // pink — clears the floor but not the top 10; folds
+      13808781: 3,  // tan — below the floor
+      8388737: 2,   // purple — below the floor; loved, rarely worn
+      0: 12,        // Not listed — the exact shade only its owner can name
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1202,6 +1223,18 @@ export let PICK_QS;
         Men: { 182: 9, 8: 7, 61: 6, 135: 5, 74: 4 },
       },
     },
+    pk36: {
+      ageBand: {
+        // every cohort wears black; the younger cell adds beige and the
+        // older cell navy — the board reorders, it never flips
+        '18-24': { 1: 9, 16119261: 6, 8421505: 5, 16777216: 5, 129: 4 },
+        '25-34': { 1: 8, 129: 7, 8421505: 6, 256: 5, 16777216: 4 },
+      },
+      gender: {
+        Women: { 1: 9, 16119261: 7, 16777216: 6, 8421505: 5, 129: 4 },
+        Men: { 129: 8, 1: 8, 8421505: 6, 256: 5, 32769: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1372,6 +1405,7 @@ export let PICK_QS;
     { id: 'pk33', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The most beautiful language to hear?', n: 152 },
     { id: 'pk34', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete whose life you’d want?', n: 150 },
     { id: 'pk35', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The hardest language to learn?', n: 148 },
+    { id: 'pk36', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you actually wear?', n: 145 },
   ];
   window.PICK_QS = PICK_QS;
 })();

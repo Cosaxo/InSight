@@ -804,7 +804,38 @@ const MAX_TOTAL_JS_KB = 2440;
 // world-feed — both lazy) started importing them, so each rides its
 // consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.
 // Band ~11 KB, same posture.
-const MAX_EAGER_KB = 630;
+// 630 → 642 (2026-09-05, D365's night review): the composed night tree
+// measured 631 against 630 and the fixes that spent the kilobyte are all
+// in eager modules — the pulse write marking its answer unfolded so the
+// card counts you in the crowd it reports, the Circle rebuilding its
+// follow cache from who you FOLLOW rather than from whose answers loaded,
+// `testAggsState` so a refused read stops being drawn as "nobody has
+// answered", and `crowdN` so the rank reveal says which crowd it matched
+// you against. Measured with a DSN both ways: main 629.9, composed 630.8
+// (+856 bytes); total unmoved at 2185. Band ~11 KB, the same posture as
+// every entry above.
+//
+// THE ARGUMENT AGAINST RAISING THIS RETIRED WHEN THE SDK RULE WAS WRITTEN,
+// and the entries above still carry it, so it is worth saying once here:
+// "not raiseable, because it is the constant keeping the Firestore SDK out
+// of first paint" was true while this number was the only thing saying so.
+// It is not now — MAX_EAGER_CHUNK_KB below states that directly, catches
+// either SDK by a factor of at least 1.4, and its own note explains why
+// ("a guarantee that survives only while a number stays small is not one").
+// What this number still does is make an eager kilobyte a decision with a
+// measurement beside it, which is what this entry is.
+//
+// THE RATE IS THE THING TO WATCH, not this kilobyte. D354's sweep set 630
+// with the tree measuring 619; four days later main measures 629.9. That
+// is ~2.7 KB a day of ordinary bug-fixing landing in first paint, so a
+// band of 11 KB is about four days and the next trip is due before the
+// week is out. The answer then should be a deferral rather than another
+// raise, and the candidates are already visible in the modulepreload list:
+// explain-sheet (8.6 KB), result-rose (4.9), relmap-lenses (4.9) — all
+// three behind a tap, all three in spec-index.js's ORDERED side-effect
+// list, which is why moving one is its own change with its own load-order
+// risk and not something a review does on the way past.
+const MAX_EAGER_KB = 642;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

@@ -380,11 +380,24 @@ export const CANON_BOARD_N = 10;
  * card's first-voter state, not an error. Ties break by item index so
  * equal sums render identically on every device.
  */
-export function rankCrowdFor(
+/**
+ * The crowd order AND how many people it rests on.
+ *
+ * `n` is the number this function has always computed and never returned:
+ * the viewer is subtracted out of the order when their own fold has
+ * landed, so the crowd is `total - 1` then and `total` when the aggregate
+ * is stale. The card could not tell those apart from `agg.total` alone,
+ * which is why the live rank reveal stated "You matched the crowd on 2 of
+ * 4" with no idea whether the crowd was one stranger or a thousand.
+ *
+ * `rankCrowdFor` below stays exactly as it was — the order alone — so
+ * every existing caller and case is untouched.
+ */
+export function rankCrowd(
   agg: AggDoc | undefined,
   mine: number[] | null,
   pending: boolean,
-): number[] | null {
+): { crowd: number[]; n: number } | null {
   const pos = agg?.pos;
   const total = agg?.total ?? 0;
   if (!Array.isArray(pos) || pos.length < 2 || total <= 0) return null;
@@ -412,7 +425,16 @@ export function rankCrowdFor(
   const byMean = [...rest.keys()].sort((a, b) => rest[a] - rest[b] || a - b);
   const crowd = new Array<number>(rest.length).fill(0);
   byMean.forEach((item, i) => { crowd[item] = i + 1; });
-  return crowd;
+  return { crowd, n };
+}
+
+/** The crowd order alone — the long-standing shape. */
+export function rankCrowdFor(
+  agg: AggDoc | undefined,
+  mine: number[] | null,
+  pending: boolean,
+): number[] | null {
+  return rankCrowd(agg, mine, pending)?.crowd ?? null;
 }
 
 export function buildS(

@@ -14,6 +14,18 @@
 // literals — a gate reading nothing and reporting OK, which is worse than
 // no gate because it is believed. Nothing here may depend on where the
 // newlines fall.
+import { stripComments } from "./strip-comments.mjs";
+// COMMENTS ARE BLANKED BEFORE ANY OF THIS IS MATCHED, and it is not tidying.
+// Every read below is a regex over raw source that takes the FIRST match, so a
+// retuned value with its old line parked above it —
+//     // was: <the old line>
+//     <the new line>
+// — made the gate report the SUPERSEDED number and exit 0. Measured on the real
+// tree 2026-09-05. This is the same defect check:devicebind and check:ios-location
+// carried until 2026-09-04, where a commented-out call read as a live one; here it
+// is worse, because the gate reads a VALUE rather than merely a presence.
+// strip-comments.mjs blanks rather than deletes, so every offset and line number
+// this gate reports still points at the real file.
 import { readFileSync } from "node:fs";
 
 export const SOURCE = "functions/src/accountLevel.ts";
@@ -78,16 +90,16 @@ export function parseLadder(tsSrc) {
 
 /** How many rungs declare a `met` predicate — a rung without one cannot be earned. */
 export function countMet(tsSrc) {
-  return [...ladderBlock(tsSrc).matchAll(/\bmet:\s*\(/g)].length;
+  return [...ladderBlock(stripComments(tsSrc)).matchAll(/\bmet:\s*\(/g)].length;
 }
 
 export function parseRequired(tsSrc) {
-  const m = tsSrc.match(/export\s+const\s+REQUIRED_LEVEL\s*=\s*(\d+)\s*;/);
+  const m = stripComments(tsSrc).match(/export\s+const\s+REQUIRED_LEVEL\s*=\s*(\d+)\s*;/);
   return m ? Number(m[1]) : null;
 }
 
 export function parseRulesLevel(rulesSrc) {
-  const m = rulesSrc.match(/function\s+requiredAccountLevel\(\)\s*\{\s*return\s+(\d+)\s*;\s*\}/);
+  const m = stripComments(rulesSrc).match(/function\s+requiredAccountLevel\(\)\s*\{\s*return\s+(\d+)\s*;\s*\}/);
   return m ? Number(m[1]) : null;
 }
 

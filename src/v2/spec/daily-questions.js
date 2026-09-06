@@ -665,7 +665,22 @@ export let DAILYQ;
       // an aggregate already on the device.
       q.liveId = b.id;
       const v = votes[b.id];
-      if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
+      // RECONCILE, don't first-write-wins. This was `!(q.id in saved)`, so
+      // the first sync landed and every later one was ignored — and a D86
+      // edit is exactly a later one. The daily card then showed the new
+      // answer while the Map node kept the old: filed under the old
+      // option's typicality, listed under "where you differ", and
+      // permanent on that device, because nothing else ever writes this.
+      // The feed reconciles on every store notify (world-feed.jsx); this
+      // was the odd one out, not the convention.
+      //
+      // SAFE BECAUSE `saved` HOLDS NOTHING BUT CONFIRMED VALUES on a live
+      // build, which is the check this needed rather than the reasoning:
+      // its other writer is `DAILYQ.answer()`, whose only caller is
+      // `syncToMap`, gated on DAILYSPLIT_DQ_SYNC — one entry, the demo id
+      // `s1`. So there is no optimistic local value here for a stale
+      // confirmed one to overwrite. `votes` is `confirmedVotes()`.
+      if (v != null && saved[q.id] !== Number(v)) { saved[q.id] = Number(v); changed = true; }
       const agg = L.aggFor(b.id);
       const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
       if (agg && agg.counts && size) {
