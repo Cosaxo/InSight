@@ -4,8 +4,10 @@
 > somebody's account right now. §2 and §3 were each verified against the
 > live account that owns them, both on 2026-09-02; §4 has no rows and no
 > owner yet; §5's lanes are their contracts plus what a decision record
-> says about them, with no id readable from any account here. Nothing
-> here is proposed.
+> says about them, with no id readable from any account here; §9 is the
+> cost hunt, chartered 2026-09-06 (D403) and not yet created on any
+> account — the one section that IS proposed, and it says so in its
+> first line. Nothing else here is proposed.
 
 **Why this file exists.** Three claude.ai subscriptions work on this one
 repository — two of them running Routines that a session here has
@@ -564,7 +566,7 @@ all.
 00 ·  night B audit 00:00–01:35
 01 ·  night shift A audit 01:00–02:35
 02 ·  theory review 02:02 (odd)
-03 ·  night shift A audit 03:00–04:35
+03 ·  night shift A audit 03:00–04:35 · cost hunt review 03:05–05:35 (§9, once created)
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
 06 ·  axiom builder 06:30 · production reader 06:40
@@ -583,7 +585,7 @@ all.
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
 22 ·  (free — night B no longer fires here)
-23 ·  night shift A audit 23:00–00:35 · merge shift 23:15
+23 ·  night shift A audit 23:00–00:35 · merge shift 23:15 · cost hunt 23:50–02:20, four hunters (§9, once created)
 ```
 
 The two night shifts interleave on the hour by design — A on odd hours,
@@ -630,6 +632,8 @@ conflicts, so the clock above is about `main`, never about capacity.
 | `claude/doc-sweep-*` | session 2 doc sweep | one per run, dated UTC |
 | `claude/*-diag-<date>` | session 2 axes, doc sweep | the report fallback when a GitHub write is refused — `AXES-DIAG.md`, `DOC-SWEEP-DIAG.md` |
 | `axiom-theory` | session 2 theory lanes | orphan branch; never `main` |
+| `claude/hunt-<YYYYMMDD>-<lens>` | the cost hunt's four hunters (§9) — `reads`, `writes`, `shape`, `bill`; the reviewer pushes `review:` commits onto them, the one push to another session's branch a contract here licenses | one per lens per night, cut from `origin/main`; never `main`, never another lens's, never a night shift's |
+| `claude/hunt-diag-<lens>-<date>` | the cost hunt | the report fallback when a GitHub write is refused — `HUNT-DIAG.md` |
 
 `nightb-*` does not match the glob `night-*`, which is what keeps either
 shift's branch enumeration from sweeping in the other's. `night-YYYYMMDD-b`
@@ -741,3 +745,66 @@ owners' to write.
   on Sundays. It writes nothing else and changes nothing. For the other
   two subscriptions, which cannot see this account's Routines at all, and
   for the console that joins the three.
+
+---
+
+## 9 · The cost hunt — chartered 2026-09-06, not yet created on any account
+
+**Proposed, and this block says so** (rule 1 is why it is not a numbered
+account block: no `list_triggers` on any account returns these yet).
+The owner asked on 2026-09-06 for a nightly routine of four Opus
+ultracode sessions hunting unexpected cost and data-handling waste,
+with a Fable session at the end reviewing and adjusting their work.
+Named the cost hunt — hunters and a reviewer — on the owner's word
+that it must not share the night shift's name, or the two are
+confusing to refer to.
+`COST-HUNT.md` is the contract and D403 the record — both written
+before any Routine exists, so that the first fire finds its section
+(the doc sweep and the now lane each fired for days into a contract
+that was not on `main`; this lane will not).
+
+**Why it is not created from a session.** Measured, not assumed
+(`OPS-RUNBOOK.md` § Platform measurements, `USAGE-REDUCTION.md` §4): a
+Routine minted over MCP with a fresh session per fire starts its
+sessions with no clone and no tools, and the only other binding a
+session can give — a dispatcher relay — costs a relay's whole context
+per firing and needs a charter adopted by a human turn. A Routine
+created in the web UI with the repository attached starts cloned and
+needs neither (§2's improvers are the working example). So the owner
+creates five in this account's web UI — **Claude 2, §3's account, by
+the owner's word of 2026-09-06** (*"should be claude 2, claude 3 i am
+not sure i want to keep yet"*) — and the session that next runs
+`list_triggers` here moves these rows into §3 with the ids quoted from
+the tool response, and fills `COST-HUNT.md` §10 the same way.
+
+| Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
+| --- | --- | --- | --- | --- | --- |
+| InSight cost hunt — reads | — | `50 23 * * *` — nightly 23:50, 150 min | web UI, fresh session, `claude-opus-5`, ultracode | `claude/hunt-<YYYYMMDD>-reads` — `src/v2/data/` and the `ui/` panels' read paths | never — no PR either; the reviewer opens it |
+| InSight cost hunt — writes | — | same | same | `claude/hunt-<YYYYMMDD>-writes` — `functions/src/`, `monitoring/` | same |
+| InSight cost hunt — shape | — | same | same | `claude/hunt-<YYYYMMDD>-shape` — `firestore.rules`, indexes, schema, document shapes, hosting | same |
+| InSight cost hunt — bill | — | same | same | `claude/hunt-<YYYYMMDD>-bill` — `scripts/cost-arith.mjs`, `scripts/pulse.test.mjs`, `monitoring/`, the workflows | same |
+| InSight cost hunt — reviewer | — | `5 3 * * *` — nightly 03:05, 150 min | web UI, fresh session, `claude-fable-5-1` at max effort, ultracode for the batteries | `review:` commits onto the night's four branches; one PR per branch, ready or draft by verdict | **never merges** — opens the PRs, the owner merges (D385) |
+
+**The account is this one**, and `COST-HUNT.md` §6 has the
+arithmetic the choice was read against: the window 23:50–05:35 UTC
+here carries the night shift at 01:00, 03:00 and 05:00, and this
+account has already read `rejected` once; if the window rejects a
+session, the lever is staggering the four hunters across the hour,
+named in that file's §11. The block above moves into §3 in the PR
+that registers the ids, and the clock in §6 loses its "(once
+created)".
+
+**The overview, one sentence each**, for §8's list once they exist:
+
+- **InSight cost hunt — reads / writes / shape / bill** — four Opus
+  sessions a night, one lens each over where the app's bill is paid,
+  that find what is unexpected or wasteful, measure it at five sizes,
+  build the fix or the redesign on a branch, prove it, and report. For
+  the owner, who asked for the app's data handling to be as efficient
+  as it can be made.
+- **InSight cost hunt — reviewer** — the Fable session that reads the
+  four branches as a reviewer who did not write them, merges `main`
+  in, runs the battery, fixes and folds what that proves wrong, and
+  opens one pull request per branch with a verdict the owner can act
+  on in five minutes. For the owner's morning.
+

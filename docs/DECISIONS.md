@@ -42598,3 +42598,148 @@ read in the margin, and the fused bars read as crosses and stars.
   horizontal and the vertical makes a six-armed figure that is not
   symmetric; it is legible and it is deliberate — the fourth
   orientation is held back so a stray one can never alias an element.
+
+## D403 · The cost hunt: four Opus hunters a night and a Fable reviewer, on the owner's ask — proposed
+
+**2026-09-06.** **Status:** proposed — the owner's ask of this day,
+written as the record it becomes the moment the owner creates the five
+Routines; until then it binds nothing (this file's own rule on
+*Proposed*). The contract is `COST-HUNT.md`; the register's block is
+`ROUTINES.md` §9; the two owner rows are on `OWNER-LIST.md` § Decisions
+and § Clicks. Numbered on the branch's base; the standing
+renumber-on-merge collision (D289) may move it.
+
+### The ask, in the owner's words
+
+*"create a new nightly routine that runs 4 opus ultracode sessions
+that look for unexpected cost in the app and ways to optimize data
+handling and firebase data usage in the most efficient way it can do
+decent size redesigns and then a fable max session at the end that
+reviews and adjust the changes at the end."* Asked in a session on the
+account the register calls Claude 2, with the request that the design
+be explained back before it exists — which is why this is proposed and
+not binding. Two rulings followed the read-back the same day and are
+binding on the contract as written: on the licence, *"this sounds
+wrong … dosnet that needlessly limit"* (§ below); on the account,
+*"should be claude 2, claude 3 i am not sure i want to keep yet"*; and
+on the name, *"als should a diffrent name then the night shif or it
+is confusing to refer to them"* — so the lane is the **cost hunt**,
+its four Opus sessions **hunters** and its Fable session **the
+reviewer**, and none of the night shift's or the merge shift's words
+(*shift*, *audit*, *closing*) names anything here.
+
+### The shape
+
+Five fresh-session Routines, coordinated through the repository alone
+(no session can see another's Routines, `ROUTINES.md`; the branches
+are the handoff). **Four hunters** fire together at 23:50 UTC on
+`claude-opus-5` with ultracode, one lens each over *where the bill is
+paid* — the device's reads (`src/v2/data/`), the server's writes and
+compute (`functions/src/`), the shape of the data (`firestore.rules`,
+the indexes, the schema, document sizes, the bank's delivery), and the
+bill against the model (the trail and the observe artifact against
+`COSTS.md` and `scripts/cost-arith.mjs`). Each cuts
+`claude/hunt-<D>-<lens>` from `origin/main`, reads every live branch
+first, audits as one fan-out with one adversarial verification pass
+per candidate, measures every survivor at five sizes before touching
+it, builds the largest verified saving (one redesign or up to three
+smaller changes), proves it with the gates, pushes, and reports —
+never a pull request. **The reviewer** fires at 03:05 UTC on
+`claude-fable-5-1` at max effort, opens with a cheap gate (no cost
+branches → one line and stop), reads the four lines as claims and the
+four diffs as truth, merges `origin/main` into each, runs the battery
+in parallel worktrees, re-reviews every diff as one unit itself, fixes
+and folds what that proves wrong (`review:` commits — the one push
+onto another session's branch a contract here licenses, and only onto
+that night's four), judges each MERGE / DO NOT / NEEDS OWNER, opens
+one pull request per branch — ready or draft by verdict, `what:` /
+`how:` / `measured:` first — and reports. The owner merges by hand
+(D385). The shape is D326 §2's closing flow generalised: the hunters'
+blind spot about their own work is what the fifth session exists for.
+
+### D7 is amended for this lane's subject — the owner's ruling on the licence
+
+The first draft of `COST-HUNT.md` §2 read *"decent size redesigns"*
+against D7 (*backend scale ceilings are recorded, not engineered
+around — zero users, no build*) and `COST-REDUCTION.md` §3 and §5,
+and let a hunter build only a redesign that was *"no dearer today
+and removes a wall"*, sending everything that costs today to pay
+later, or that only pays past a wall, to the owner as an ask. The
+owner read it back: *"this sounds wrong … dosnet that needlessly
+limit."* It did. This is D329's finding for the fourth time on the
+record — a preference stated as a rule reads as a rule — and D352's
+boundary in its plainest form: nothing blocks functionality on its
+own, and the question to put to a constraint is how it is made to
+work, never how the change is cut to fit it.
+
+**So, for this lane's subject — data handling and Firebase
+efficiency — D7's no-build-before-users does not apply,
+`COST-REDUCTION.md` §3's "not yet: everything else" is lifted, and
+`ANSWER-SCALE.md` §5.3's "build on the alert" shelf is lifted.** An
+hunter builds a redesign of any size at any horizon — the daily
+aggregate sharded, the answers create rule restructured against its
+expression ceiling, a fold reading its input once, a cadence widened,
+a schema moved with its compatibility path — and what travels with
+the build is the measurement in both directions (what it costs today,
+what it saves at scale), so the owner reads a trade in the pull
+request rather than a claim. D7 stands everywhere else: a night
+shift or a builder outside this lane still records a ceiling rather
+than engineering around it, until the owner says otherwise there too.
+
+**Two asks remain, and neither is about cost.** Showing a user less
+than yesterday — the who-voted, Kindred and Circle caps
+`COST-REDUCTION.md` §5 refused — is a product call: drawing the
+connection where someone can read it is what the app is for, and a
+smaller picture is not efficiency. A privacy-shaped change is
+`CLAUDE.md`'s standing rule (D334). Both go to the owner with the
+arithmetic and the smallest shape that keeps the value, never as a
+stop, and the hunter builds the part that does not depend on the
+answer. The owner may lift either in one word; the contract's §11
+names a refusal creeping back in as a reason to stop and re-plan, in
+the direction of building.
+
+### What does not change
+
+D98 in full — population counts exact from the first answer, no
+cadence, no batch publish, no floor, no suppressed cell;
+`PUBLISH_EVERY` in `scripts/cost-arith.mjs` stays the constant 1 with
+its pin. D86's one edit shape. D8 and D290 — an answer's anchors
+snapshot is the only copy there is, and `check:answer-shape` stands
+in front of the change that would trim it. The three labelled denies
+in `firestore.rules`. D385 — nothing here merges, and nothing applies
+a label. D129's rule that the poll is charged as real. The night
+shifts' contracts and branches, which the hunters read and never
+touch. `USAGE-REDUCTION.md`'s arithmetic is not changed either; it is
+added to, and honestly: on measured neighbours the lane is on the
+order of $150–300 a night, and §6 of the contract names the dials —
+nights per week, hunters per night, budget minutes — in the order to
+turn them, so the first night's `usage` blocks turn a dial rather than
+retire a lens.
+
+### The account is Claude 2, and why a session did not create the Routines
+
+The owner's word: *"should be claude 2, claude 3 i am not sure i want
+to keep yet."* So the five Routines go on the account this record was
+written on — the register's §3 — and its block is where their rows
+land. The arithmetic the choice was read against stays in the
+contract's §6: the window 23:50–05:35 UTC on this account carries the
+night shift at 01:00, 03:00 and 05:00, every night hour here holds a
+flow, and the account has already read `rejected` once
+(`USAGE-REDUCTION.md` §1); if the window rejects a session the lever
+is staggering the four hunters across the hour, then the budget,
+never a lens dropped without the owner's word. A session did not
+create the Routines because it cannot in a working form — a Routine
+minted over MCP starts its sessions with no clone and no tools
+(measured 2026-09-03, `OPS-RUNBOOK.md` § Platform measurements) and
+the only other binding, a dispatcher relay, costs a relay's whole
+context per firing and needs a charter adopted by a human turn (D353,
+D359). The web-UI path with the repository attached starts cloned and
+needs neither; the five pastes are the owner's click, and the PR that
+registers the ids flips the contract's status and this record.
+
+### Reversal
+
+The cadence dial first, by `update_trigger` on the owning account.
+Retiring the lane is disabling five Routines, a dated line in
+`ROUTINES.md` §9 and this record, and the contract's status line
+moved to *past* — the same shape D385 gave the merge lane.
