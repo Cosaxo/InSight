@@ -220,6 +220,7 @@ everything else: the static gates, and where each one runs.
 | `check:elements` | deploy | The same for the elements catalogue, keyed by atomic number |
 | `check:logic-sync` | deploy | The logic generator's two byte-identical copies (client + functions, D57). Drift means the server scores forms the client never rendered |
 | `check:calls` | deploy | The CALL rubric's two byte-identical copies (D194) **and** a dry run of every authored rubric — twice each, once shaped to come out true and once false. A rubric that can only resolve one way is not a prediction; a drifted copy makes the card contradict the grade it is printing |
+| `check:pick-crowds` | ci | Every live pick question has well-formed `CROWD` and `BY` data in `pick-data.js`. The harness that caught pk28 lived in a scratchpad that was wiped, so the contract had no keeper |
 | `check:globals` | ci | The spec layer's shared-global wiring: dangling references, files `spec-index.js` forgot, undefined JSX tags, publications nothing reads, and (**rule 4**) a ratchet on remaining coupling that may only go down |
 | `check:docs` | ci | This page's maps, and that `DECISIONS-INDEX.md` is current |
 | `check:figures` | ci | Counts quoted in prose, held equal to the tree. Exists because a figure kept current by intention does not stay current |

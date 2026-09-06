@@ -232,6 +232,11 @@ jobs:
       # …and for the elements catalogue, the other contiguous-key domain:
       # stored answers are atomic numbers into public/elements.txt.
       - run: npm run check:elements
+      # The pick-card crowd contract: every live pick question has CROWD
+      # and BY data in pick-data.js, well-formed. The harness that caught
+      # pk28 lived only in a scratchpad and was wiped, which is why this
+      # is a gate rather than a habit.
+      - run: npm run check:pick-crowds
       # …and for the QID-keyed catalogues (films/artists): the committed
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
