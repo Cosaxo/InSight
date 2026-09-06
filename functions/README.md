@@ -24,8 +24,14 @@ rewrite is D223.*
   D86 edit's −old/+new delta through the same path.
 - `src/v2social.ts` — groups, duos, invites, the duel reveal scan and its
   streaks, presence and the Near room fold, push token registration.
-- `src/patterns.ts` — the nightly Patterns sweep: it folds the agg-events
-  ledger through the online rank-K fit (`src/patternsFit.ts`, pure),
+- `src/nightly.ts` — **the one nightly pass over the ledger** (D387):
+  `digestEngagementV2` reads yesterday's agg-events once and runs the
+  engagement digest, the Patterns fit and the taste fold on the same
+  entries, then the attention and rollup folds — each isolated, each
+  heartbeat emitted only for the fold that completed. Its header says why
+  the pass wears the digest's name.
+- `src/patterns.ts` — the Patterns fit the pass runs: it folds the ledger
+  day through the online rank-K fit (`src/patternsFit.ts`, pure),
   compacts each person's current answers onto their private state doc,
   re-solves the batch candidate over every such map (`src/patternsAls.ts`,
   pure — the same model, a batch solver, the whole core corpus), scores
@@ -81,7 +87,7 @@ npm --prefix functions run build     # the emulator loads functions/lib
 
 ## Deployed functions
 
-43 functions ship from this codebase (the deploy's `--only` list also
+41 functions ship from this codebase (the deploy's `--only` list also
 names `firestore:rules` and `firestore:indexes`, which are not functions).
 `scripts/check-deploy-targets.mjs` fails CI if an exported function is
 missing from that list — otherwise it would be built, tested, green and

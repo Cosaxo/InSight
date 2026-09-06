@@ -331,8 +331,8 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
   crossedAt?                       the day the engine last changed hands
   lastDay, folded, at              the last UTC day folded (idempotence),
                                    the last run's fold count, server clock
-read: signed-in · write: NOBODY — written once per night by fitPatternsV2
-(admin SDK), so D7's per-document write ceiling never hears about it. The
+read: signed-in · write: NOBODY — written once per night by the nightly
+pass (`digestEngagementV2` since D387, admin SDK), so D7's per-document write ceiling never hears about it. The
 device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
 Nothing per-person in it, under either engine.
@@ -348,7 +348,7 @@ v2_patterns/sample-{qid}           the nightly voter sample (D385)
                                    and erasure is a field delete
   n, at                            the basis a client states; server clock
 read: signed-in (the loadings document's own rule — same collection) ·
-write: NOBODY — merged nightly by fitPatternsV2 from the ledger day it
+write: NOBODY — merged nightly by the pass (D387) from the ledger day it
 already reads. What Kindred, the People lens and the pair card read in
 place of two hundred answer documents per question; the who-voted sheet
 keeps the live query. THE ONE DERIVED PUBLIC DOCUMENT FAMILY THAT HOLDS
@@ -369,7 +369,7 @@ v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D383)
                                    engine's substrate: it reads people, not
                                    days. Derived from the answers
                                    subcollection, ~1/50th its bytes
-read: NOBODY · write: NOBODY — the push/ shape; fitPatternsV2 (admin SDK)
+read: NOBODY · write: NOBODY — the push/ shape; the nightly pass (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
 
 v2_engagement_daily/{day}          the engagement digest's trail (R1/D268)
@@ -721,7 +721,7 @@ v2_meta/app                        operator/seed-written metadata
   updateUrl      store link the prompts open (web falls back to reload)
   patternsPool   questions the nightly fit has fitted on `patternsBasis`
                  answers or more — the crowd half of the Patterns tab's
-                 mount gate (D265). Written by fitPatternsV2, merged, and
+                 mount gate (D265). Written by the nightly pass, merged, and
                  the only field here the SWEEP owns (contentRev is the
                  seed's); it lives on this doc rather than on
                  v2_patterns/loadings so a client can read it without

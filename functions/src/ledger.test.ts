@@ -16,7 +16,7 @@
 // Read off the real source rather than a fixture, because a fixture of
 // the projection would be a second copy of the thing under test.
 import { describe, expect, it } from "vitest";
-import { readLedgerDay } from "./ledger";
+import { readLedgerDay, memoLedgerReader } from "./ledger";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -169,5 +169,42 @@ describe("readLedgerDay, run", () => {
     expect(upper!.op, "an inclusive upper bound double-counts the next day's first row").toBe("<");
     expect((lower!.val as Date).toISOString()).toBe("2026-09-03T00:00:00.000Z");
     expect((upper!.val as Date).toISOString()).toBe("2026-09-04T00:00:00.000Z");
+  });
+});
+
+describe("memoLedgerReader (D387)", () => {
+  // A db whose one query answers a short page and counts how often it was
+  // asked — the memo's whole claim is the count.
+  function countingDb(fail = false) {
+    let gets = 0;
+    const query = {
+      where: () => query, orderBy: () => query, select: () => query, limit: () => query, startAfter: () => query,
+      async get() {
+        gets += 1;
+        if (fail) throw new Error("UNAVAILABLE");
+        return { size: 1, docs: [{ get: (f: string) => (f === "uid" ? "u1" : f === "qid" ? "daily-000" : undefined) }] };
+      },
+    };
+    return { db: { collection: () => query } as unknown as Parameters<typeof memoLedgerReader>[0], gets: () => gets };
+  }
+
+  it("reads a day once however many folds ask for it, and each day once", async () => {
+    const { db, gets } = countingDb();
+    const ledgerDay = memoLedgerReader(db);
+    const [a, b, c] = await Promise.all([ledgerDay("2026-09-05"), ledgerDay("2026-09-05"), ledgerDay("2026-09-05")]);
+    expect(gets()).toBe(1);
+    expect(a).toBe(b);
+    expect(b).toBe(c);
+    expect(a).toEqual([{ uid: "u1", qid: "daily-000", optionIdx: undefined }]);
+    await ledgerDay("2026-09-04");
+    expect(gets()).toBe(2);
+  });
+
+  it("forgets a read that failed, so the next fold retries instead of inheriting the rejection", async () => {
+    const { db, gets } = countingDb(true);
+    const ledgerDay = memoLedgerReader(db);
+    await expect(ledgerDay("2026-09-05")).rejects.toThrow("UNAVAILABLE");
+    await expect(ledgerDay("2026-09-05")).rejects.toThrow("UNAVAILABLE");
+    expect(gets()).toBe(2);
   });
 });

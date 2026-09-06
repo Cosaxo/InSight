@@ -329,7 +329,8 @@ cannot reach into the fetch.**
 
 - [x] ~~**5.2 Per-topic weights, on-device, feeding tail order only.**~~
       **BUILT SERVER-SIDE at D322**, 2026-08-26: `functions/src/taste.ts`
-      (`fitTasteV2`, nightly 03:27 UTC) counts this person's FEED answers
+      (`fitTasteV2`, nightly 03:27 UTC, until D387 folded it into the 02:23
+      pass) counts this person's FEED answers
       by topic off the agg-events ledger — no new signal, because answers
       are already server-side and public (D98). The document is
       `v2_users/{uid}/taste/profile` `{t, n, at}`: owner-readable,

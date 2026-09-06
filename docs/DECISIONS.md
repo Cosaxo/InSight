@@ -40860,3 +40860,90 @@ three suites were not run here and CI's `test:e2e:all` is where this
 branch's trigger change (the two `logBucketCaps` calls) and D385's
 erasure arm are first exercised against real emulated functions. Said
 here rather than left to be discovered.
+
+## D387 · One nightly pass over the ledger: the digest, the Patterns fit and the taste fold read yesterday's entries once
+
+**2026-09-06.** **Status:** binding. The owner's *"build the remaining
+steps too"* on [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §6 —
+this is step 7, §4.2.
+
+### What
+
+Three scheduled functions each paged yesterday's agg-events ledger for
+themselves: `digestEngagementV2` at 02:23 (the digest, then the
+attention and rollup folds), `fitPatternsV2` at 02:37, `fitTasteV2` at
+03:27. The same entries were billed three times a night, and the pager
+existed in three copies — the digest's projected `uid`, `qid`, `at` with
+its own loop, the D197 shape. Now one function, `digestEngagementV2` in
+`functions/src/nightly.ts`, reads each owed day once through
+`memoLedgerReader` (`ledger.ts`: `readLedgerDay` remembered per day for
+the life of one invocation, a failed read forgotten so the next fold
+retries) and runs the digest, the fit and the taste fold over the same
+array, then the attention and rollup folds as before. The three stores
+take the reader as an argument; each keeps its own cursor and its own
+exactly-once stamps, so nothing about any fold's arithmetic moved — the
+folds' suites are the proof, unchanged.
+
+`fitPatternsV2` and `fitTasteV2` are retired from the source, the index
+and the deploy's `--only` list (`check:deploy-targets` at 41). Their
+heartbeats are not: the pass emits `patterns_fit` when the fit completed
+and `taste_fold` when the fold did, and `engagement_digest` only when the
+digest AND the attention and rollup folds all completed — the engagement
+pipeline whole, as the silence policy always meant it. Each fold runs
+inside its own attempt: a throw in the fit leaves the other four running,
+logs an ERROR carrying `metric: "nightly_fold_failed"` and the fold's
+name, silences that fold's heartbeat alone, and the pass rethrows at the
+end so the invocation is red in the function's own error metrics as
+well. That isolation is new — the old digest function took its two
+folds down with any throw, and a failing fit took nothing else down only
+because it was alone. `nightly.test.ts` pins the choreography through
+thunks; `ledger.test.ts` pins the memo.
+
+### Why the pass wears the digest's name
+
+The deploy identity and the heartbeat metric are what the ARMED alert
+policy is keyed on: `apply-monitoring.mjs` matches policies by display
+name, `monitoring/digestEngagementV2-silent.json` was verified live at
+D333, and a renamed function would leave that policy watching a metric
+nothing emits while a renamed policy would be created beside the old one
+on the next arm. So the pass keeps `digestEngagementV2` and its header
+says what it does; `fitPatternsV2-silent.json` keeps its name for the
+same reason and keeps working, because `patterns_fit` is still emitted
+and still silent exactly when the fit failed. Both runbooks and both
+METRICS descriptions say so.
+
+**Two zombies, and one click.** The deploy's `--only` filter names what
+to update and leaves everything else standing, so the deployed
+`fitPatternsV2` and `fitTasteV2` survive the deploy that removes them
+from source. Each fires on its old schedule, finds its cursor already
+advanced by the pass (the fit's `lastDay` on the loadings doc, the
+fold's `tasteLastDay` on `v2_meta/app`), and returns before reading a
+page — one document read a night each, and two console rows that lie.
+Deleting them is an operator click and is on `OWNER-LIST.md` § Clicks
+with the command.
+
+### The arithmetic
+
+`LEDGER_PASS_READS_PER_ENTRY = 1` replaces `PATTERNS_READS_PER_LEDGER_ENTRY`
+and `ENGAGEMENT_READS_PER_LEDGER_ENTRY` in `scripts/cost-arith.mjs`;
+velocity keeps `VELOCITY_READS_PER_LEDGER_ENTRY` (its cursor window is
+not a calendar day — `ledger.ts`'s header and ENGAGEMENT-RUNBOOK 1.1's
+decision both stand). Re-measured: **$223 → $221 at 50 k DAU,
+$2,273 → $2,253 at 500 k, $0.85 → $0.83 at 500 DAU**; server reads
+33 → 29 per user-day, reads/day −1.1%. Stated rather than smoothed: the
+taste fold's third read of the same entries was never in the model, so
+the true saving is two reads per entry and the modelled one is one.
+Memory and time: the day's entries are held once instead of once per
+fold — the peak any one of the three functions already had — under
+LIGHT_UNBOUNDED's 256 MiB and 480 s; the lever if the sum of three folds
+ever nears the ceiling is `timeoutSeconds` on this one function, never a
+fourth function.
+
+### Measured before the push
+
+Functions: 746 tests (`nightly` 5, the memo 2, the digest's pager test
+replaced by its delegation), `tsc` clean, the build and
+`check:fn-runtime` (41 functions). `check:deploy-targets` 41.
+`check:monitoring` 10 policies, 8 metrics. `check:figures` — the
+`ops.ts` module count and `functions/README.md`'s function count moved
+with the tree. `test:scripts` 957. eslint clean on every touched file.

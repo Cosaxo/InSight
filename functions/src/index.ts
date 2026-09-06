@@ -1292,8 +1292,9 @@ export { logicStartV2, logicSubmitV2 } from "./logic";
 export { resolveCallsV2 } from "./calls";
 // v28 §2 (trial per D166 §1): the nightly Patterns fit — per-question
 // loading vectors from the vote log, core corpus only (D161). The fold
-// that has to exist before the Patterns tab may ship (D167).
-export { fitPatternsV2 } from "./patterns";
+// that has to exist before the Patterns tab may ship (D167). Since D387
+// it runs inside the nightly pass below (`digestEngagementV2`), not as a
+// scheduled function of its own — `fitPatternsV2` is retired.
 // D316: the nightly published serving order — per-topic question order
 // (volume, landslides sunk) onto v2_rank/{feed,learn}, the spine the
 // paged read path fetches against. Global signal only; no uid enters
@@ -1302,13 +1303,15 @@ export { rankBankV2 } from "./rank";
 // D317 phase 1 (D322): the per-person interest profile — feed answers
 // counted by topic, nightly, onto v2_users/{uid}/taste/profile. Derived
 // from answers alone (public by D98); the pager sizes topic pages by it
-// and nothing else reads it.
-export { fitTasteV2 } from "./taste";
-// R1/D268: the nightly engagement digest — anonymous population counts
-// (actives, retention returns, answers by surface) folded from the same
-// ledger, one public day doc per UTC day. The rung-0 half of
-// docs/ENGAGEMENT-PLAN.md; nothing per-person leaves it.
-export { digestEngagementV2 } from "./engagement";
+// and nothing else reads it. Inside the nightly pass since D387;
+// `fitTasteV2` is retired.
+// THE NIGHTLY PASS (D387): one read of yesterday's ledger feeding the
+// engagement digest (R1/D268 — anonymous population counts, one public
+// day doc per UTC day; nothing per-person leaves it), the Patterns fit
+// and the taste fold, then the attention and rollup folds. It keeps the
+// digest's deploy name and heartbeat because the armed alert policy is
+// keyed on them — nightly.ts's header has the reasoning.
+export { digestEngagementV2 } from "./nightly";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

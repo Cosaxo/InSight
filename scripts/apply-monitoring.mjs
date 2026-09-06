@@ -106,8 +106,12 @@ const METRICS = [
   // was never the gap; nothing was reading it. Registered here so the
   // silence policies below have a metric to be absent from.
   {
+    // Emitted from the nightly pass (nightly.ts, `digestEngagementV2`)
+    // since D387 folded the three ledger readers into one invocation; the
+    // policy file keeps its fitPatternsV2 name because that is the display
+    // name the ARMED policy carries, and a renamed policy is a new one.
     name: "patterns_fit",
-    description: "fitPatternsV2 completed a nightly fit (02:37 UTC)",
+    description: "the nightly Patterns fit completed — inside digestEngagementV2 since D387 (02:23 UTC)",
     filter: 'jsonPayload.metric="patterns_fit"',
   },
   {
@@ -117,7 +121,7 @@ const METRICS = [
   },
   {
     name: "engagement_digest",
-    description: "digestEngagementV2 completed a nightly digest (02:23 UTC)",
+    description: "digestEngagementV2 completed the nightly engagement pipeline (02:23 UTC; the same pass carries the Patterns fit and the taste fold since D387)",
     filter: 'jsonPayload.metric="engagement_digest"',
   },
   // The paid pipeline had NO metric registered at all, so none of its money

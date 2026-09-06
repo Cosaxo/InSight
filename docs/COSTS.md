@@ -65,8 +65,8 @@ Every constant below is sourced, not assumed:
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
 | One buyer's-room open | One `uid ==` list query over `v2_purchases`, sized by the buyer's own contract count — for almost every account that is zero rows, and for a buyer it is a handful | firestore.rules `v2_purchases` (D288 §3, PAID-PLAN §7). Session-cached like every owner list; the public split on each purchase card reads the sponsored question's own agg, which the feed already fetched. The pricing fold costs the SERVER nothing at runtime: `scripts/build-pricing.mjs` is operator-run at contract time, and the door reads the committed `content/pricing.json` |
-| The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer — the write now carrying the person's compacted answer map (D383) — **plus one state read per fitted person per night** for the candidate engine's re-solve (charged as one read per MAU), one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1; the candidate and its scan D383). Measured BEFORE the fold shipped — the dated notes under the scenario table have the movement |
-| The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
+| The Patterns fit, nightly | The day's ledger entries as the vote log — read ONCE by the nightly pass (`functions/src/nightly.ts`, D387) for the engagement digest, this fit and the taste fold together; the velocity scan keeps its own read — one private state read+write per active answerer — the write now carrying the person's compacted answer map (D383) — **plus one state read per fitted person per night** for the candidate engine's re-solve (charged as one read per MAU), one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1; the candidate and its scan D383). Measured BEFORE the fold shipped — the dated notes under the scenario table have the movement |
+| The engagement digest, nightly | The day's ledger entries as the activity log — the nightly pass's one read (D387), shared with the fit and the taste fold — one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268), run by `functions/src/nightly.ts`. Separate from velocity's scan, deliberately — cursor window against calendar day; the header carries the argument. Measured before the deploy — dated note below |
 | One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D270). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
 | One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D272). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
@@ -98,11 +98,11 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 9.5 K | 1.0 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 145 K | 10.1 K | 0.85 | 0.00 | **0.85** |
+| Launch / TestFlight | 50 | 9.3 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 143 K | 10.1 K | 0.83 | 0.00 | **0.83** |
 | Real traction | 5,000 | 1.9 M | 101 K | 20 | 0.00 | **20** |
-| Scale | 50,000 | 18.9 M | 1.0 M | 221 | 2.20 | **223** |
-| Hit | 500,000 | 189 M | 10.1 M | 2,230 | 43 | **2,273** |
+| Scale | 50,000 | 18.7 M | 1.0 M | 219 | 2.20 | **221** |
+| Hit | 500,000 | 187 M | 10.1 M | 2,211 | 43 | **2,253** |
 
 > **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
 > wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
@@ -172,6 +172,20 @@ roughly double on the three operation lines.
 > the samples themselves cost the nightly run one read and one write per
 > question the day's answers touched — hundreds a night, under any
 > rounding here.
+
+> **Re-measured 2026-09-06 (D387): one ledger read a night.** The
+> engagement digest, the Patterns fit and the taste fold run in one
+> invocation (`functions/src/nightly.ts`) over one memoised read of the
+> day's entries, so `PATTERNS_READS_PER_LEDGER_ENTRY` and
+> `ENGAGEMENT_READS_PER_LEDGER_ENTRY` became the single
+> `LEDGER_PASS_READS_PER_ENTRY`. **$223 → $221 at 50 k and
+> $2,273 → $2,253 at 500 k; $0.85 → $0.83 at 500 DAU** — server reads
+> 33 → 29 per user-day, reads/day −1.1%. The honest half of that number:
+> the taste fold's read of the same entries was never in this model, so
+> the real saving is two reads per entry and the modelled one is one.
+> The velocity scan keeps its own read (its cursor window is not a
+> calendar day), and the pass's memory and time budget are in
+> nightly.ts's header.
 
 > **The mount gate (D265, 2026-08-23) costs nothing on either side**, and
 > that is the reason it is shaped the way it is. The fit's nightly run
@@ -362,11 +376,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 22 | 71 | 197 |
-| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 22 | 224 | 350 |
-| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 22 | **354** | 440 |
-| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 22 | 354 | 440 |
-| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 22 | 354 | 440 |
+| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 29 | 53 | 186 |
+| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 29 | 152 | 285 |
+| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 29 | **282** | 375 |
+| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 375 |
+| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 375 |
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the

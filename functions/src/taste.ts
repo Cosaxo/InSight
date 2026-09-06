@@ -48,16 +48,10 @@
 // its name suggests: with edits gone it only collapses a create and a
 // same-day repeat. Entries written before `fromIdx` existed carry none
 // and still fold the old way — history is not rewritten.
-import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
 import { FieldValue } from "firebase-admin/firestore";
 import type { Firestore } from "firebase-admin/firestore";
-// ops.ts sets the global runtime options as an import side effect and must
-// stay imported wherever a function is declared (check:fn-runtime).
-import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
-import { db as firestore } from "./db";
-import { readLedgerDay } from "./ledger";
+import { readLedgerDay, type LedgerDayReader } from "./ledger";
 import { utcDay } from "./pure";
 
 /** feed qid → topic, compiled from the seed the same way PATTERNS_QIDS
@@ -204,12 +198,14 @@ export async function runTasteFold(
  * rides v2_meta/app the way the patterns gate does (D265's argument: a
  * field on a doc that already exists costs no new collection, and a day
  * key is not a secret). */
-export function firestoreTasteStore(db: Firestore): TasteStore {
+export function firestoreTasteStore(
+  db: Firestore,
+  // The shared, memoised reader in production (nightly.ts, D387).
+  ledgerDay: LedgerDayReader = (dayKey) => readLedgerDay(db, dayKey),
+): TasteStore {
   const metaRef = db.collection("v2_meta").doc("app");
   return {
-    async ledgerDay(dayKey) {
-      return readLedgerDay(db, dayKey);
-    },
+    ledgerDay,
     async getLastDay() {
       const snap = await metaRef.get();
       return (snap.get("tasteLastDay") as string) ?? "";
@@ -261,18 +257,7 @@ export function firestoreTasteStore(db: Firestore): TasteStore {
   };
 }
 
-const REGION = FUNCTIONS_REGION;
-
-export const fitTasteV2 = onSchedule(
-  // Nightly at 3:27 UTC — after the rank fold (3:07) and before the
-  // velocity scan (3:47), all three off the top-of-hour herd. Cost:
-  // one paged ledger-day read plus one read and one write per person
-  // who answered that day.
-  { schedule: "27 3 * * *", region: REGION, ...LIGHT_UNBOUNDED },
-  async () => {
-    const summary = await runTasteFold(firestoreTasteStore(firestore()), Date.now());
-    if (summary.days > 0) {
-      logger.info("taste fold", { metric: "taste_fold", ...summary });
-    }
-  },
-);
+// `fitTasteV2`, the scheduled function that ran this fold at 03:27 UTC,
+// retired at D387: the fold runs inside the nightly pass (nightly.ts,
+// `digestEngagementV2`, 02:23 UTC) over the ledger day the digest has
+// already read, and emits `taste_fold` from there.

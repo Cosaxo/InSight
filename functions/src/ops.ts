@@ -111,7 +111,7 @@ export const ENFORCE_APP_CHECK =
 /**
  * WHERE EVERY FUNCTION RUNS (D201).
  *
- * One constant, imported by all fifteen modules that define functions, for the
+ * One constant, imported by all thirteen modules that define functions, for the
  * reason `db.ts` is one accessor rather than 37 literal edits: this value
  * was spelled out in ten places on this side and eight on the client's, and
  * a move that reaches some of them is worse than one that reaches none —

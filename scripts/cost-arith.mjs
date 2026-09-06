@@ -324,16 +324,24 @@ export const TRIGGER_READS = { world: 2, duel: 0 };
 // day — a flat term the size of the boot's top-up and reseed combined, and
 // invisible in the model until now. `.select()` narrows egress, not reads.
 export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
+// THE NIGHTLY PASS (D387): one read of the day's ledger entries serving
+// the engagement digest, the Patterns fit and the taste fold together
+// (functions/src/nightly.ts). Until D387 this was two constants of 1 —
+// PATTERNS_READS_PER_LEDGER_ENTRY and ENGAGEMENT_READS_PER_LEDGER_ENTRY,
+// the fit and the digest each paging the same day as its own scheduled
+// function — and the taste fold's third read of the same entries was
+// never in the model at all. So the true term went 3 → 1 while the
+// modelled one goes 2 → 1; the difference is the read this model had
+// been under-counting since D322, stated rather than smoothed. The named
+// lever if even the one read ever matters at scale: flag eligible entries
+// at write time and query the flag (a composite index), which drops the
+// term by the ineligible share.
+export const LEDGER_PASS_READS_PER_ENTRY = 1;
 // The Patterns fit (v28 §2, trial D166 §1), measured BEFORE the fold
-// shipped per VISION-V28 §11.4: the nightly sweep re-reads the day's
-// ledger as its vote log — the velocity scan's own shape, a second reader
-// of the same entries — and carries each active answerer's latent vector,
-// one state read and one state write per active user per day. The model
-// doc itself is one read and one write per PROJECT per night, under any
-// rounding here. The named lever if the ledger re-read ever matters at
-// scale: flag eligible entries at write time and query the flag (a
-// composite index), which drops the term by the ineligible share.
-export const PATTERNS_READS_PER_LEDGER_ENTRY = 1;
+// shipped per VISION-V28 §11.4: the fit carries each active answerer's
+// latent vector, one state read and one state write per active user per
+// day. The model doc itself is one read and one write per PROJECT per
+// night, under any rounding here.
 export const PATTERNS_USER_STATE_OPS = 1;
 // The candidate engine (D383) re-solves nightly over EVERY fitted person's
 // answer map — one state read per person who has ever answered a core
@@ -343,15 +351,15 @@ export const PATTERNS_USER_STATE_OPS = 1;
 // at 50 k DAU that is 150 k reads a night, $0.045, against the ledger
 // re-read's 200 k.
 export const PATTERNS_SCAN_READS_PER_MAU = 1;
-// The engagement digest (R1/D268): a THIRD nightly reader of the same
-// ledger entries. ENGAGEMENT-RUNBOOK 1.1's named decision, taken as a
-// separate scan because velocity's cursor window and the digest's
-// calendar days are different windowing semantics, and the coupling
-// would cost more than the read this constant charges. Plus one
-// bookkeeping state read+write per active answerer per night (the
-// patterns shape — v2_users/{uid}/engagement/_state), and one public
-// day doc per PROJECT per night, under any rounding here.
-export const ENGAGEMENT_READS_PER_LEDGER_ENTRY = 1;
+// The engagement digest (R1/D268): its ledger read is the pass's
+// (LEDGER_PASS_READS_PER_ENTRY above) since D387. ENGAGEMENT-RUNBOOK
+// 1.1's named decision kept it separate from VELOCITY's scan — cursor
+// window against calendar day — and that separation stands: the pass
+// shares the read with the two other CALENDAR-DAY folds, not with
+// velocity. What is left here is one bookkeeping state read+write per
+// active answerer per night (the patterns shape —
+// v2_users/{uid}/engagement/_state), and one public day doc per PROJECT
+// per night, under any rounding here.
 export const ENGAGEMENT_USER_STATE_OPS = 1;
 // Rung 1's attention shards (R2/D270): one anonymous device shard per
 // SAMPLED device per day — the client's own sampling constant, read from
@@ -695,19 +703,18 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
-    // Reads the SERVER issues: the aggregate transaction, the three
-    // nightly ledger readers (velocity scan, Patterns fit, engagement
-    // digest — each re-reads the day's entries, the fit and the digest
-    // each adding one state read per active user), and the reveal
-    // pipeline.
+    // Reads the SERVER issues: the aggregate transaction, the two
+    // nightly ledger reads (the velocity scan's own, and the one pass
+    // that serves the digest, the Patterns fit and the taste fold —
+    // D387; the fit and the digest each add one state read per active
+    // user), and the reveal pipeline.
     const server =
       B.worldAnswers * TRIGGER_READS.world
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
-      + B.worldAnswers * PATTERNS_READS_PER_LEDGER_ENTRY
+      + B.worldAnswers * LEDGER_PASS_READS_PER_ENTRY
       + PATTERNS_USER_STATE_OPS
       + B.mauMultiple * PATTERNS_SCAN_READS_PER_MAU
-      + B.worldAnswers * ENGAGEMENT_READS_PER_LEDGER_ENTRY
       + ENGAGEMENT_USER_STATE_OPS
       + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
       + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads

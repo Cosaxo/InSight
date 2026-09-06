@@ -72,17 +72,11 @@
 // 8-vector), so the day the buffer is the wrong shape the sweep streams
 // people through those statistics and holds none of them. That is the
 // graduation, not a bigger box.
-import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import type { Firestore } from "firebase-admin/firestore";
-// ops.ts sets the global runtime options as an import side effect and must
-// stay imported for that reason wherever a function is declared, like every
-// other function module imports it (check:fn-runtime guards the outcome).
-import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
-import { db as firestore } from "./db";
-import { readLedgerDay } from "./ledger";
+import { readLedgerDay, type LedgerDayReader } from "./ledger";
 import {
   PATTERNS_K,
   PATTERNS_MIN_BASIS,
@@ -730,14 +724,17 @@ const dropUndefined = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
  * (v2_users/{uid}/patterns/state — readable by NOBODY, the push/
  * precedent, and deleteAccount's recursive delete takes it with the
  * account, no new arm). */
-export function firestorePatternsStore(db: Firestore): PatternsStore {
+export function firestorePatternsStore(
+  db: Firestore,
+  // The shared, memoised reader in production (nightly.ts, D387): the
+  // digest has already paid for the day by the time the fit asks.
+  ledgerDay: LedgerDayReader = (dayKey) => readLedgerDay(db, dayKey),
+): PatternsStore {
   const modelRef = db.collection("v2_patterns").doc("loadings");
   return {
-    async ledgerDay(dayKey) {
-      // One reader for one day of the ledger, shared with the taste fold
-      // (ledger.ts, extracted at D322 for D197's one-copy reason).
-      return readLedgerDay(db, dayKey);
-    },
+    // One reader for one day of the ledger (ledger.ts, extracted at D322
+    // for D197's one-copy reason; shared across the night's folds at D387).
+    ledgerDay,
     async getModel() {
       // WHOLE, not field by field (D383). This read used to name `k`, `q`,
       // `lastDay`, `series` and `quality` one at a time, and the putModel
@@ -903,17 +900,8 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
   };
 }
 
-const REGION = FUNCTIONS_REGION;
-
-export const fitPatternsV2 = onSchedule(
-  // Nightly, off the top-of-hour herd and before the velocity scan reads
-  // the same ledger for its own purpose. Cost is in docs/COSTS.md's
-  // Patterns row — measured before this shipped, per VISION-V28 §11.4.
-  { schedule: "37 2 * * *", region: REGION, ...LIGHT_UNBOUNDED },
-  async () => {
-    const summary = await runPatternsFit(firestorePatternsStore(firestore()), Date.now());
-    if (summary.folded > 0 || summary.days > 0) {
-      logger.info("patterns fit", { metric: "patterns_fit", ...summary });
-    }
-  },
-);
+// `fitPatternsV2`, the scheduled function that ran this fit at 02:37 UTC,
+// retired at D387: the fit runs inside the nightly pass (nightly.ts,
+// `digestEngagementV2`, 02:23 UTC) over the ledger day the digest has
+// already read. Its heartbeat metric `patterns_fit` is emitted there, so
+// monitoring/fitPatternsV2-silent.json still watches the fit.
