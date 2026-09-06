@@ -907,9 +907,10 @@ for a duel run:
   run's own ≤4 questions to each other (D123). `--candidate "…" --domain
   duel` remains the single lookup.
 - **Read the signal first.** The scorecard's `duel` section (D40 part 3)
-  scores plays, split, and — for 1v1 — the **guess-match rate**, the
-  duel analogue of evenness: near 100% is a dead question (guessable by
-  heart, no tension), at or under chance (1 / options) is noise (no
+  scores plays, split, and the **guess-match rate** — a 1v1's guess at
+  the partner, and since D386 a group's call on where the room lands —
+  the duel analogue of evenness: near 100% is a dead question (guessable
+  by heart, no tension), at or under chance (1 / options) is noise (no
   tells); write toward the band between. `deadDuels` / `noisyDuels` are
   the retire-proposal analogues: cite them in the PR body as
   `active: false` candidates; the kill switch stays the operator's.

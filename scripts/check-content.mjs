@@ -475,6 +475,18 @@ for (const q of entries) {
   }
 }
 
+// ---- 1v1 domains are a closed set too (D386). The roles fold reads the
+// day's kind off this field — a `mirror` day is a read of the OTHER person
+// and is held apart from likeness and insight — so a 1v1 question with no
+// domain, or a new word nobody taught the fold, would be scored as
+// something it is not. Both pools, since they share the surface.
+const DUO_DOMAINS = ["day", "heat", "mirror", "ahead"];
+for (const q of entries) {
+  if (q.surface === "duo" && !DUO_DOMAINS.includes(q.topic)) {
+    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead`);
+  }
+}
+
 // ---- test items must score against a dimension their test declares.
 for (const [key, t] of Object.entries(content.tests)) {
   const dims = new Set(t.dims.map((d) => d.id));
