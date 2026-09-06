@@ -127,8 +127,10 @@ Gameplay Content · Customer Support · Browsing History · Search History ·
 Diagnostic Data · Other Data Types
 
 **Product Interaction left this list at D270** and is now a ticked row in
-the table above — not linked, the label's first and only unlinked row.
-It is called out here because the D268 bullet below spent a release
+the table above — LINKED since D272 (this sentence said "not linked, the
+label's first and only unlinked row" for two weeks after the table row
+and the bullet below it had both moved; it was true for the two days
+between D270 and D272). It is called out here because the D268 bullet below spent a release
 explaining why it was still a No, and the reasoning that mattered there —
 the row asks what is *collected from the app* — is exactly what changed:
 rung 1 collects.
