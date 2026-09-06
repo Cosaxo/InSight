@@ -982,13 +982,21 @@ class WorldFeed extends React.Component {
       if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
         val = this.dialBucketShown(q, Number(prior));
+        this.holdNote(q.id);
       }
     }
     this._fresh = q.id;
     this.setState((s) => {
       const votes = { ...s.votes, [q.id]: val };
       wfSave(votes);
-      return { votes };
+      // The control was let go, so edit mode is over either way (setVote's
+      // rule for an option tap) — and the drag's own frac goes with it, so
+      // the next "Change" seeds the slider from the answer that STANDS
+      // rather than from wherever the last drag ended, which differs
+      // whenever that drag was refused and snapped back.
+      const editFor = { ...s.editFor }; delete editFor[q.id];
+      const dialPend = { ...(s.dialPend || {}) }; delete dialPend[q.id];
+      return { votes, editFor, dialPend };
     });
   }
 
@@ -1018,9 +1026,17 @@ class WorldFeed extends React.Component {
     const lo = q.lo, hi = q.hi;
     const endTxt = q.ends || [this.dialFmt(q, lo), this.dialFmt(q, hi)];
     const ends = { display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' };
-    if (v == null) {
+    // D86 ON A CONTINUUM (2026-09-06). "Change" re-opens the CONTROL,
+    // seeded at the answer you hold, because a dial has no option rows to
+    // re-open. The store has taken a moved bucket since D218 — setDial
+    // routes a repeat through editVote — but the answered card drew only
+    // the curve, so nothing on screen could reach that path. The owner's
+    // report was "I can't change my answer here", on a card whose edit
+    // already worked one layer down; the door was the whole bug.
+    const editing = v != null && !!this.state.editFor[q.id];
+    if (v == null || editing) {
       const pend = (this.state.dialPend || {})[q.id];
-      const frac = pend != null ? pend : 0.5;
+      const frac = pend != null ? pend : editing ? (v - lo) / (hi - lo) : 0.5;
       const move = (e) => {
         const r = e.currentTarget.getBoundingClientRect();
         const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -1062,7 +1078,7 @@ class WorldFeed extends React.Component {
             <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 6, marginTop: -3, borderRadius: 999, background: WPAL.wash(T.color, 12, 'var(--surface-3)') }}></span>
             <span style={{ position: 'absolute', top: '50%', left: (frac * 100) + '%', transform: 'translate(-50%,-50%)', width: 28, height: 28, borderRadius: '50%', boxSizing: 'border-box', background: pend != null ? T.color : 'var(--surface)', border: pend != null ? '3px solid var(--surface)' : '2px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.25)', transition: 'background 0.15s' }}></span>
           </div>
-          <div style={ends}><span>{endTxt[0]}</span><span style={{ fontWeight: 500 }}>slide · let go to answer</span><span>{endTxt[1]}</span></div>
+          <div style={ends}><span>{endTxt[0]}</span><span style={{ fontWeight: 500 }}>{editing ? 'slide · let go to change' : 'slide · let go to answer'}</span><span>{endTxt[1]}</span></div>
         </div>
       );
     }
@@ -1102,7 +1118,10 @@ class WorldFeed extends React.Component {
           <line x1={0} y1={H - 1} x2={W} y2={H - 1} stroke="var(--rule)" strokeWidth="1"></line>
           <circle cx={frac * W} cy={noCrowd ? H - 8 : this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
         </svg>
-        <div style={ends}><span>{endTxt[0]}</span><span>{endTxt[1]}</span></div>
+        {/* a refused change (D86's one-a-minute cooldown) says why in the
+            slot the slider's instruction used, the same sentence the
+            option cards put on their meta line */}
+        <div style={ends}><span>{endTxt[0]}</span>{this.state.editHold === q.id && <span style={{ fontWeight: 500 }}>One change a minute — try again shortly.</span>}<span>{endTxt[1]}</span></div>
         {noCrowd ? this.renderFloorNote(big) : null}
       </div>
     );
@@ -1122,13 +1141,18 @@ class WorldFeed extends React.Component {
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
         const m = this.fieldCellMid(Number(prior));
         x = m.x; y = m.y;
+        this.holdNote(q.id);
       }
     }
     this._fresh = q.id;
     this.setState((s) => {
       const votes = { ...s.votes, [q.id]: { x, y } };
       wfSave(votes);
-      return { votes };
+      // the dot was placed, so edit mode is over — setDial's rule, and the
+      // pending ring goes with it for the same reason its frac does
+      const editFor = { ...s.editFor }; delete editFor[q.id];
+      const fieldPend = { ...(s.fieldPend || {}) }; delete fieldPend[q.id];
+      return { votes, editFor, fieldPend };
     });
   }
 
@@ -1188,7 +1212,11 @@ class WorldFeed extends React.Component {
 
   renderField(q, T, big) {
     const v = this.fieldVal(q);
-    const done = v != null;
+    // renderDial's door, field-shaped: while you are changing, the plane
+    // takes a tap again and your standing dot stays drawn, so what you are
+    // moving is on screen while you move it.
+    const editing = v != null && !!this.state.editFor[q.id];
+    const done = v != null && !editing;
     const fresh = this._fresh === q.id;
     const dots = done ? (q.live ? this.fieldDots(q) : this.fieldCloud(q)) : [];
     const lab = (t, style) => <span style={{ position: 'absolute', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 650, color: 'var(--ink-3)', letterSpacing: '0.02em', pointerEvents: 'none', ...style }}>{t}</span>;
@@ -1223,9 +1251,13 @@ class WorldFeed extends React.Component {
           {lab(q.ay[0], { bottom: 7, left: '50%', transform: 'translateX(8px)' })}
           {pend && <span style={{ position: 'absolute', left: pend.x + '%', top: pend.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', border: '2px dashed ' + T.color, opacity: 0.7 }}></span>}
           {done && dots.map(([x, y], i) => <span key={i} style={{ position: 'absolute', left: x + '%', top: y + '%', width: 7, height: 7, margin: '-3.5px 0 0 -3.5px', borderRadius: '50%', background: T.color, opacity: 0.38, animation: fresh ? 'popIn .4s ' + (i * 14) + 'ms cubic-bezier(0.2,0.8,0.2,1) backwards' : 'none' }}></span>)}
-          {done && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)', animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}></span>}
+          {(done || editing) && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)', animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}></span>}
         </div>
-        {!done && <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>tap where you land</span>}
+        {!done
+          ? <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>tap where you land</span>
+          : this.state.editHold === q.id
+            ? <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>One change a minute — try again shortly.</span>
+            : null}
       </div>
     );
   }
@@ -2514,14 +2546,20 @@ class WorldFeed extends React.Component {
               <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"></path></svg>
               Takes
             </button>
-            {/* D86: re-open the options on an answered plain vote. The
-                guard is the option-vote shape itself — catalog picks
+            {/* D86: re-open the answer on an answered card. An option vote
+                re-opens its rows; a dial or a field re-opens its CONTROL,
+                seeded at the answer you hold (renderDial, renderField).
+                The guard is the answer's own shape — catalog picks
                 (entity objects), ranks and know cards never store a
                 number here, and their server docs refuse edits anyway.
-                Continuum cards are excluded by NAME: a live dial stores a
-                raw number locally, but its change path is re-answering
-                the control, not re-opening option rows it never had. */}
-            {q.options && q.type !== 'dial' && q.type !== 'field' && typeof this.state.votes[q.id] === 'number' && !this.state.editFor[q.id] && (
+                The continuum cards were excluded here BY NAME until
+                2026-09-06, on the reasoning that their change path was
+                "re-answering the control" — a control the answered card
+                never offered again, so the edit the store and the rules
+                already accepted had no door on screen. */}
+            {(q.type === 'dial' ? this.dialVal(q) != null
+              : q.type === 'field' ? this.fieldVal(q) != null
+                : q.options && typeof this.state.votes[q.id] === 'number') && !this.state.editFor[q.id] && (
               <button className="press" onClick={() => this.setState((s) => ({ editFor: { ...s.editFor, [q.id]: true } }))} style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5 }}>
                 <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                 Change
