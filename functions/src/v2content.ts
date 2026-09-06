@@ -2807,6 +2807,45 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-132",
+  "surface": "daily",
+  "seq": 132,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Practise in private, or learn in public?",
+  "options": [
+   "In private",
+   "In public"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "How you learn",
+  "tag": "Learning out loud",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-133",
+  "surface": "daily",
+  "seq": 133,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Talent is mostly patience.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Skills",
+  "sub": "Mastery",
+  "tag": "Talent",
+  "axis": "patience",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,

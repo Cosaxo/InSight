@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-04T07:05:08.004Z",
-  "daysSinceEpoch": 34,
+  "generatedAt": "2026-09-06T07:05:39.254Z",
+  "daysSinceEpoch": 36,
   "coverage": {
-    "questions": 387,
+    "questions": 393,
     "scored": 54,
-    "unserved": 88
+    "unserved": 90
   },
   "topics": {
     "Sport": {
@@ -17,7 +17,7 @@
       "avgEvenness": 0
     },
     "Film": {
-      "questions": 7,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "measured": 0,
@@ -116,7 +116,7 @@
       "avgEvenness": 0
     },
     "Skills": {
-      "questions": 7,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "measured": 0,
@@ -224,7 +224,7 @@
       "avgEvenness": 0
     },
     "now": {
-      "questions": 13,
+      "questions": 15,
       "scored": 6,
       "answers": 6,
       "measured": 6,
@@ -236,7 +236,7 @@
   "types": {
     "daily": {
       "binary": {
-        "questions": 44,
+        "questions": 46,
         "scored": 1,
         "answers": 1,
         "measured": 1,
@@ -245,7 +245,7 @@
         "avgEvenness": 0
       },
       "choice": {
-        "questions": 32,
+        "questions": 33,
         "scored": 1,
         "answers": 1,
         "measured": 1,
@@ -254,7 +254,7 @@
         "avgEvenness": 0
       },
       "scale": {
-        "questions": 19,
+        "questions": 20,
         "scored": 1,
         "answers": 2,
         "measured": 1,
@@ -292,7 +292,7 @@
         "avgEvenness": null
       },
       "vote": {
-        "questions": 196,
+        "questions": 198,
         "scored": 25,
         "answers": 25,
         "measured": 25,
@@ -660,7 +660,7 @@
     "bySource": {
       "editorial": {
         "questions": 177,
-        "served": 109,
+        "served": 111,
         "scored": 19,
         "answers": 24,
         "measured": 18,
@@ -669,8 +669,8 @@
         "avgEvenness": 0
       },
       "farm": {
-        "questions": 210,
-        "served": 182,
+        "questions": 216,
+        "served": 184,
         "scored": 35,
         "answers": 35,
         "measured": 21,
@@ -682,7 +682,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 99,
+        "served": 101,
         "scored": 10,
         "answers": 15,
         "measured": 10,
@@ -765,6 +765,26 @@
         "served": 7,
         "scored": 1,
         "answers": 1,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-09-04": {
+        "questions": 2,
+        "served": 0,
+        "scored": 0,
+        "answers": 0,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-09-06": {
+        "questions": 2,
+        "served": 0,
+        "scored": 0,
+        "answers": 0,
         "measured": 0,
         "strong": 0,
         "landslides": 0,
@@ -883,6 +903,16 @@
       "farm:2026-09-03": {
         "questions": 63,
         "served": 63,
+        "scored": 0,
+        "answers": 0,
+        "measured": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-09-05": {
+        "questions": 2,
+        "served": 2,
         "scored": 0,
         "answers": 0,
         "measured": 0,
@@ -5008,11 +5038,11 @@
       ],
       "type": "binary",
       "prompt": "Cinema or sofa?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-035",
@@ -5023,11 +5053,11 @@
       ],
       "type": "binary",
       "prompt": "Cook at home or eat out?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-036",
@@ -6529,6 +6559,66 @@
       ],
       "type": "binary",
       "prompt": "At a concert: front row, or back with space?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-130",
+      "surface": "daily",
+      "topic": "Film",
+      "topics": [
+        "Film"
+      ],
+      "type": "binary",
+      "prompt": "The book or the film first?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-131",
+      "surface": "daily",
+      "topic": "Film",
+      "topics": [
+        "Film"
+      ],
+      "type": "choice",
+      "prompt": "What makes a villain great?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-132",
+      "surface": "daily",
+      "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
+      "type": "binary",
+      "prompt": "Practise in private, or learn in public?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-133",
+      "surface": "daily",
+      "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
+      "type": "scale",
+      "prompt": "Talent is mostly patience.",
       "served": false,
       "total": 0,
       "evenness": null,
@@ -9145,7 +9235,7 @@
       "optionShares": null,
       "signal": "scored",
       "grade": "middling",
-      "attnSeen": 1.5,
+      "attnSeen": 3,
       "attnConv": null,
       "attnPass": null
     },
@@ -10634,10 +10724,40 @@
       "evenness": null,
       "optionShares": null,
       "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n14",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Flying cars land at the tech fair again. A dream worth keeping, or a bit that got old?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n15",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "A season opening on a Wednesday for the first time in a decade: fine, or leave the rituals alone?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     }
   ],
   "attention": {
-    "daysWithQ": 7,
+    "daysWithQ": 8,
     "truncatedDevices": 0,
     "basis": "bucket-midpoint estimates from sampled anonymous shards (D271)",
     "warning": "attention is an estimate from bucketed, sampled shards; a skip is not dislike (seen-denominators only), novelty inflates new questions, and no attention figure outranks the content rules (D33/D271)"
