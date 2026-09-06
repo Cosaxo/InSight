@@ -224,6 +224,26 @@ export async function fetchVoterPicks(
  * Null when no sample exists yet — a question the nightly run has not
  * touched since D397, or the tail — so the caller falls back to the live
  * query rather than reading absence as an empty crowd.
+ *
+ * AND NULL FOR AN EXISTING DOCUMENT WITH NO USABLE ROWS, which is the
+ * same fact and used not to be the same answer. `[] ?? live` is `[]`, so
+ * both callers took the empty array and reported a crowd of nobody:
+ * `sayRows` (data/patterns.ts) cached it, and `loadVoterSample`
+ * (live.ts) took the else branch, resolved no names and never set its
+ * fallback flag. Reachable, not theoretical — `deleteAccount`'s scrub
+ * (index.ts § 1a') field-deletes one uid's row and leaves the document
+ * standing, so a sample whose only voter erases their account becomes
+ * `rows: {}` on disk.
+ *
+ * WHAT THIS DOES NOT FIX, named so it is not mistaken for fixed: the
+ * sample is the newest cap voters *the nightly has seen since D397*, not
+ * the newest cap voters. `mergeSample` is fed only by the ledger day the
+ * run reads and nothing seeds it from the answers already written, so a
+ * question answered two hundred times before the samples existed
+ * publishes a sample of however many people answered it since. Those are
+ * real rows and this reader cannot tell them from a complete sample —
+ * the floors downstream (`say()` and `tell()` want 12) then report
+ * `thin` about the crowd when the true subject is the deploy date.
  */
 export async function fetchVoterSample(
   db: Firestore,
@@ -250,7 +270,10 @@ export async function fetchVoterSample(
   }
   // newest first, then uid — the server's own total order
   out.sort((a, b) => (a.d !== b.d ? (a.d < b.d ? 1 : -1) : a.v.uid < b.v.uid ? -1 : a.v.uid > b.v.uid ? 1 : 0));
-  return out.map((x) => x.v);
+  // Empty reads as absent, per the docstring's own promise. Both callers
+  // key their fallback on null, and neither has any other way to tell a
+  // sample that holds nobody from one that was never written.
+  return out.length ? out.map((x) => x.v) : null;
 }
 
 /**
