@@ -90,7 +90,27 @@ function resolveSpec(spec, from) {
 
 // STATIC edges only. `import(` is deliberately not matched — a dynamic
 // import is exactly how a surface should reach its content.
-const STATIC_RE = /(?:^|\n)\s*(?:import\s+(?:[\s\S]*?\s+from\s+)?|export\s+(?:\*|\{[\s\S]*?\})\s+from\s+)["']([^"']+)["']/g;
+//
+// THE CLAUSE IS BOUNDED BY `[^;"']`, AND THAT IS THE WHOLE GATE. It was
+// `[\s\S]*?`, which is lazy but not stopped by anything, so on
+//
+//     import "./spec/daily-questions.js";
+//     import React from "react";
+//
+// the optional `… from ` group expanded ACROSS both statements to reach
+// the second line's ` from `, swallowed the side-effect import and
+// captured "react" instead. A bare `import "…"` was therefore invisible
+// whenever any later import in the same file had a `from` — which
+// `src/v2/main.jsx`, the entry this walk starts from, has always been.
+// Measured: prepending that exact line to main.jsx left this gate
+// printing OK with the module count unmoved, which is precisely the
+// D382–D384 regression it exists to refuse.
+//
+// An import clause — `type { T }`, `* as ns`, `d, { x }`, a multi-line
+// braced list — can contain a newline but never a quote or a semicolon,
+// so those two characters are exactly the statement boundary. Verified
+// identical to the old form on every other import shape in the tree.
+const STATIC_RE = /(?:^|\n)\s*(?:import\s+(?:[^;"']*?\s+from\s+)?|export\s+(?:\*|\{[\s\S]*?\})\s+from\s+)["']([^"']+)["']/g;
 
 const seen = new Set();
 const parent = new Map();

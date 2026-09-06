@@ -63,6 +63,32 @@ describe("check:eager-content", () => {
     expect(r.code).toBe(0);
   });
 
+  it("sees a BARE side-effect import even when a `from` import follows it", () => {
+    // THE SHAPE EVERY CASE IN THIS FILE USED TO MISS, and the reason it
+    // could: `DEBT_IMPORTS` is side-effect imports only, so no fixture
+    // entry ever contained a ` from ` for the walk's regex to reach past.
+    // The real entry — src/v2/main.jsx — has had one from the beginning.
+    //
+    // The optional clause group was `[\s\S]*?`, lazy but unbounded, so it
+    // expanded ACROSS the statement break to the next line's ` from `,
+    // consumed the bare import and captured the LATER specifier. Measured
+    // on the real tree: prepending `import "./spec/daily-questions.js";`
+    // to main.jsx left the gate printing OK with the module count
+    // unmoved — the D382–D384 regression this gate exists to refuse,
+    // walking straight past it.
+    const r = runIn({
+      ...DEBT,
+      // Bare import FIRST, a `from` import after it. Swap the two lines
+      // and the old regex catches it, which is what made this invisible.
+      "src/v2/main.jsx": DEBT_IMPORTS + "\nimport './spec/daily-questions.js';\nimport { App } from './spec/app-shell.jsx';\n",
+      "src/v2/spec/app-shell.jsx": "export const App = 1;\n",
+      "src/v2/spec/daily-questions.js": "export const DAILYQ = { questions: [] };\n",
+    });
+    expect(r.code, "a bare content import walked straight past the gate").toBe(1);
+    expect(r.out).toContain("src/v2/spec/daily-questions.js");
+    expect(r.out).toContain("imported by: src/v2/main.jsx");
+  });
+
   it("REFUSES a content module pulled in by a static import, and names the chain", () => {
     // Exactly yesterday's edge: the daily tab is in the entry chunk and
     // imported the archive for one demo id.
