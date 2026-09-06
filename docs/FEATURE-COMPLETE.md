@@ -16,6 +16,13 @@ with a gate and no deadline.
 
 ## 1 · Algorithm work
 
+> **Measured 2026-09-06 ([`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md)):**
+> the fold below runs, publishes and scores itself, but under the app's
+> own create-only regime its loadings have not left their hash seeds and
+> its one-step-ahead guesses equal the marginal's — `npm run probe:fit`
+> reproduces it. That page is the plan for the engine, its substrate and
+> the reads around it; the rows here stay as the record of what shipped.
+
 The Patterns engine is the largest single item, and D167 makes it a
 gate: the tab does not ship, in trial or otherwise, until the fold
 exists. Since D265 the tab holds itself to a stronger version of the same
