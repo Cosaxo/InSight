@@ -284,6 +284,80 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
   // resolves, matches what every OTHER sweep in this list already has, and
   // costs one index entry per invite on a collection that holds unanswered
   // invitations. Cheap to add, and the thing it insures against is total.
+  // ── the five server-side composites nothing pinned ──────────────────
+  //
+  // Every composite above backs a query in `src/v2/data`, which is what
+  // this file grew up watching. Five more back queries in `functions/src`
+  // and one in the takes path, and each of them could be DELETED from the
+  // config with every runner in the repository green — measured. The
+  // emulator never enforces index configuration, so no suite can see it;
+  // the first symptom is production-only, and in four of the five cases it
+  // is a whole surface that quietly returns nothing.
+  //
+  // A helper rather than six copies: the assertion is the same each time —
+  // a composite exists at the right scope whose fields are the query's
+  // filters and order, in order.
+  const composite = (group: string, scope: string, want: Array<[string, string]>) =>
+    cfg.indexes.find((i) => i.collectionGroup === group
+      && i.queryScope === scope
+      && i.fields.length === want.length
+      && i.fields.every((f, n) => f.fieldPath === want[n][0] && f.order === want[n][1]));
+
+  it("live.ts loadTakes: both takes threads have their composite", () => {
+    // The world thread filters gid, qid and hidden and orders by createdAt
+    // desc; a circle's filters gid and hidden and orders the same way.
+    // Without either index the thread is empty in production and the
+    // catch below it leaves the key absent, so the reader sees no takes and
+    // no error.
+    expect(
+      composite("v2_takes", "COLLECTION",
+        [["gid", "ASCENDING"], ["qid", "ASCENDING"], ["hidden", "ASCENDING"], ["createdAt", "DESCENDING"]]),
+      "the world takes thread has no (gid, qid, hidden, createdAt DESC) composite",
+    ).toBeDefined();
+    expect(
+      composite("v2_takes", "COLLECTION",
+        [["gid", "ASCENDING"], ["hidden", "ASCENDING"], ["createdAt", "DESCENDING"]]),
+      "a circle's takes thread has no (gid, hidden, createdAt DESC) composite",
+    ).toBeDefined();
+  });
+
+  it("v2social.ts nearbyCount/nearbyRoom: presence has its (cell, until) composite", () => {
+    // `where cell in [...] where until > now`, as a count() and twice more
+    // for the mix and the roster. All three die together without it, so
+    // Near reports nobody rather than reporting a failure.
+    expect(
+      composite("v2_presence", "COLLECTION", [["cell", "ASCENDING"], ["until", "ASCENDING"]]),
+      "presence has no (cell, until) composite — Near's count, mix and roster all fail",
+    ).toBeDefined();
+  });
+
+  it("paid.ts's review sweep has its (status, createdAt) composite", () => {
+    // The 30-minute sweep pages bookings still in review past a cutoff. It
+    // is the only thing that moves a booking a human never got to, so its
+    // silent death is a buyer waiting forever on a decision.
+    expect(
+      composite("v2_paid_bookings", "COLLECTION", [["status", "ASCENDING"], ["createdAt", "ASCENDING"]]),
+      "the paid review sweep has no (status, createdAt) composite",
+    ).toBeDefined();
+  });
+
+  it("suggestions.ts's review board has its (status, at) composite", () => {
+    expect(
+      composite("v2_suggestions", "COLLECTION", [["status", "ASCENDING"], ["at", "ASCENDING"]]),
+      "the suggestion review board has no (status, at) composite",
+    ).toBeDefined();
+  });
+
+  it("replay.ts's aggregate rebuild has its (qid, answeredAt ASC) composite", () => {
+    // The rebuild walks every answer to one question in write order. It is
+    // the repair tool for a fold that went wrong, which is exactly when
+    // nobody wants to discover the index is missing.
+    expect(
+      composite("answers", "COLLECTION_GROUP", [["qid", "ASCENDING"], ["answeredAt", "ASCENDING"]]),
+      "the aggregate rebuild has no (qid, answeredAt ASC) collection-group composite",
+    ).toBeDefined();
+  });
+
   it("carries no composite for a query nobody makes: invites (from, at)", () => {
     // The file declared BOTH `(to, at DESC)` and `(from, at DESC)`, added
     // together for the client's inbox. Only the first is a query: the
