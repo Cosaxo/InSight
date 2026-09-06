@@ -31,9 +31,9 @@ its population chips at D216 — the Patterns tab ported whole
 its port and lists the behaviours the ports refused). Same rule again:
 it does not re-point this file.
 
-**Four more followed in the same numbered series** (`InSight_2`,
-`InSight_3`, `InSight_4`, `InSight_7` — five and six were never
-uploaded here): the **2026-08-22** upload carried the paid
+**Five more followed in the same numbered series** (`InSight_2`,
+`InSight_3`, `InSight_4`, `InSight_7`, `InSight_9` — five, six and
+eight were never uploaded here): the **2026-08-22** upload carried the paid
 question report's design, extracted to `standalone-2026-08-22/` and
 implemented by the report builder (D251); the **2026-08-24** upload
 turns the suggestion board into the paid door, adds the buyer's room,
@@ -52,8 +52,18 @@ voice, splits the two-option ballot into one block with a seam, and
 makes four smaller passes — extracted to `standalone-2026-09-02/`
 (**compiled JSX, not source** — that upload ships only its bundle, and
 the README carries the recipe that makes the diff exact), with the plan
-at [`docs/VISION-2026-09-02.md`](../docs/VISION-2026-09-02.md);
-`docs/VISUAL-VISION.md` names it the current vision (D359). Each
+at [`docs/VISION-2026-09-02.md`](../docs/VISION-2026-09-02.md); and the
+**2026-09-06** upload puts ink on paper — `lens-paper` becomes the
+default and the boxes go (the feed, the result card, the profile, the
+ballot all onto hairline grounds, figures drawing themselves in), a
+12px floor goes under the microtype, the serif voice reaches the
+Circle/1v1 prompts and the Oracle's halves, the lens legends retire
+behind one ⓘ, and the Patterns lens picker docks in the header —
+extracted to `standalone-2026-09-06/` (compiled again, same recipe),
+with the plan at
+[`docs/VISION-2026-09-06.md`](../docs/VISION-2026-09-06.md);
+`docs/VISUAL-VISION.md` names it the current vision (D361's rule,
+D387). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:
