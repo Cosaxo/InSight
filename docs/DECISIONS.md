@@ -40577,7 +40577,7 @@ document grows instead: ~1,100 ids at ten times the bank, ~13 KB, well
 inside the limit rank.ts's header already prices, and the sharding
 graduation recorded there covers the case beyond it.
 
-## D385 · Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read
+## D387 · Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read
 
 **2026-09-06.** **Status:** binding as a RECORD OF A CHECK and of one
 change to the console. Nothing on a night branch was merged here, because

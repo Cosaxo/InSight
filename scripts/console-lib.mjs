@@ -91,7 +91,7 @@ export const isNoPrBranch = (name) => NO_PR_BRANCHES.some((re) => re.test(name |
 // conflicts against `main` today, and `night-20260906` also restores the
 // ad path #401 removed seven hours before the row was drawn —
 // `checkoutLineItem`'s `isAd` arm and 307 lines of `paid.test.ts`.
-// D385 has the ledger.
+// D387 has the ledger.
 //
 // The receipt is the review's own record, because there is no other:
 // every night review since D360 states the branches it took and how many
@@ -113,7 +113,7 @@ export function parseNightReviews(text) {
     const m = NIGHT_REVIEW_ROW.exec(line);
     // The record that accounts for MOST of the branch wins, so a later one
     // can take a tail its review missed: `nightb-20260905` gained a commit
-    // five hours after D365 composed 18 of its 19, and D385 is where the
+    // five hours after D365 composed 18 of its 19, and D387 is where the
     // nineteenth is accounted for. A record that re-states an old table
     // therefore changes nothing.
     const commits = m ? Number(m[2]) : 0;
@@ -385,7 +385,7 @@ same act, mirrored back into this file. Untick here to withdraw an
 approval the shift has not yet acted on. Ticking a *no PR yet* row
 makes the workflow open the pull request from that branch and label
 it — which is why a night shift whose review has already merged is
-listed in one line without a box instead (D385): its branch stays
+listed in one line without a box instead (D387): its branch stays
 ahead of \`main\` forever, carrying nothing that is not already in.
 
 | Section | A row is here when | Who moves it |
@@ -802,7 +802,7 @@ export function trailRow(state) {
     // and the one a commit four earlier put back; this writer never asked.
     // Branches WAITING for a tick, which is what the name says: a night
     // whose review has merged is no longer one of them, and counting it
-    // made the trail read as eight untouched approvals a day (D385).
+    // made the trail read as eight untouched approvals a day (D387).
     noPrYet: listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete }) ? rows.filter((r) => r.kind === "branch" && r.stage !== "merged").length : null,
     mergedWeek: state.github.ok ? (state.merged || []).length : null,
     // Null, not zero, for the same reason the GitHub fields above are:

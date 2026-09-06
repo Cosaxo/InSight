@@ -109,7 +109,7 @@ describe("a night whose review has already merged", () => {
   // `night-YYYYMMDD` is ahead of `main` forever with every commit already
   // in it. The console drew all eight of them as approvable rows and told
   // the owner list "8 branch row(s) waiting for a tick" on a morning when
-  // the last of them had merged two hours earlier (D385). A tick on one
+  // the last of them had merged two hours earlier (D387). A tick on one
   // opens a PR proposing that night's tree back over `main`.
   const REVIEWS = `## D365 · The 2026-09-05 night review
 
@@ -133,15 +133,15 @@ describe("a night whose review has already merged", () => {
 
   it("lets a later record account for a tail an earlier one missed, and never for less", () => {
     const later = parseNightReviews(`${REVIEWS}
-## D385 · The tail
+## D387 · The tail
 
 | \`nightb-20260905\` | 19 | one commit later |
 
-## D386 · An amendment that re-states an old table
+## D388 · An amendment that re-states an old table
 
 | \`nightb-20260905\` | 18 | as D365 took it |
 `);
-    expect(later.get("nightb-20260905")).toEqual({ record: "D385", commits: 19 });
+    expect(later.get("nightb-20260905")).toEqual({ record: "D387", commits: 19 });
   });
 
   it("finds the real records in this tree's own DECISIONS.md", () => {
@@ -152,9 +152,9 @@ describe("a night whose review has already merged", () => {
     expect(live.get("night-20260906")).toEqual({ record: "D380", commits: 33 });
     expect(live.get("nightb-20260906")).toEqual({ record: "D380", commits: 35 });
     // The tail case on the real file: D365 took 18 of this branch's 19 and
-    // D385 accounts for the nineteenth, so the later record is the one
+    // D387 accounts for the nineteenth, so the later record is the one
     // that answers here.
-    expect(live.get("nightb-20260905")).toEqual({ record: "D385", commits: 19 });
+    expect(live.get("nightb-20260905")).toEqual({ record: "D387", commits: 19 });
   });
 
   it("marks a branch merged when the record accounts for every commit, and not when it does not", () => {
