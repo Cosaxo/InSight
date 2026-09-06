@@ -65,6 +65,73 @@ export const POLARITY_CASES = [
   },
 ];
 
+/**
+ * WHERE THE CONSTANT COMES FROM, which the truth table above does not ask.
+ *
+ * `check-appcheck` matches the NAME `ENFORCE_APP_CHECK` in each callable's
+ * options; `checkAppCheckPolarity` evaluates the constant in ops.ts. Nothing
+ * joined the two, so one file could stop importing it and declare its own:
+ *
+ *     -import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+ *     +import { LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+ *     +const ENFORCE_APP_CHECK = false;
+ *
+ * That is `tsc --noEmit` clean (the redeclaration spelling would be TS2440;
+ * this one is not), and it left `check:appcheck` printing "20 callables
+ * enforcing App Check" while that file's callables attested nothing.
+ * Measured on the real tree against `deviceBind.ts`, restored after.
+ *
+ * So: exactly one module declares it, and every other module that names it
+ * imports it from there. Takes the files as a map so the gate and its test
+ * read the same code.
+ *
+ * @param {Record<string,string>} files  path → source, `functions/src/*.ts`
+ * @param {string} owner  the module allowed to declare it
+ */
+export function checkAppCheckProvenance(files, owner = "ops.ts") {
+  const errors = [];
+  const declares = [];
+  const NAME = "ENFORCE_APP_CHECK";
+  for (const [path, raw] of Object.entries(files)) {
+    const src = stripComments(raw);
+    if (!src.includes(NAME)) continue;
+    // A local binding of the name, however spelled.
+    const local = new RegExp(`(?:^|[;{}\\n])\\s*(?:export\\s+)?(?:const|let|var|function)\\s+${NAME}\\b`)
+      .test(src);
+    if (local) declares.push(path);
+    if (path.endsWith(owner)) continue;
+    if (local) {
+      errors.push(
+        `${path} declares its own ${NAME}.\n`
+        + `  Every attested callable is supposed to defer to the one constant in\n`
+        + `  ${owner}. A local binding is type-clean, passes this gate's name check\n`
+        + `  at every call site, and turns attestation off for this file alone.`,
+      );
+      continue;
+    }
+    const imports = new RegExp(`import\\s*\\{[^}]*\\b${NAME}\\b[^}]*\\}\\s*from\\s*["']\\./ops["']`)
+      .test(src);
+    if (!imports) {
+      errors.push(
+        `${path} uses ${NAME} without importing it from "./ops".\n`
+        + `  If it now comes from somewhere else, that somewhere else is what\n`
+        + `  decides whether 20 callables demand attestation — point this check\n`
+        + `  at it deliberately rather than letting the source drift.`,
+      );
+    }
+  }
+  if (!declares.length) {
+    errors.push(
+      `no module declares ${NAME}. It moved, or this scan stopped reading the\n`
+      + "  right directory — either way the polarity check above is now grading\n"
+      + "  a constant nothing uses.",
+    );
+  } else if (declares.length > 1) {
+    errors.push(`${NAME} is declared in more than one module: ${declares.join(", ")}.`);
+  }
+  return errors;
+}
+
 /** The declaration's right-hand side, comments stripped. */
 export function polarityExpr(opsSource) {
   const src = stripComments(opsSource);
