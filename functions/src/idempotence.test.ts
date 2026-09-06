@@ -72,10 +72,14 @@ async function deliver(id: string, data: Doc) {
 }
 
 /** One update delivery: the same answer doc, optionIdx moved. */
-async function deliverEdit(id: string, from: number, to: number) {
+async function deliverEdit(id: string, from: number, to: number, anchors?: Doc) {
   const doc = (optionIdx: number) => ({
     exists: true,
-    get: (f: string) => ({ surface: "daily", optionIdx } as Doc)[f],
+    // The anchors snapshot is FROZEN by rules, so the real edit event
+    // carries the same one the create did — and the breakdown retarget
+    // reads it off the `after` document. Optional here so the cases that
+    // are only about counts stay as small as they were.
+    get: (f: string) => ({ surface: "daily", optionIdx, ...(anchors ? { anchors } : {}) } as Doc)[f],
   });
   await (onV2AnswerUpdated as unknown as { run: (e: unknown) => Promise<void> }).run({
     id,
@@ -219,6 +223,66 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     expect(Object.keys(edits), "an editedAt-only rewrite reached the edit matrix").toEqual([]);
     // The counts are untouched, which is the reader-visible half.
     expect((store.get(AGG)?.counts as Doc)["1"]).toBe(1);
+  });
+
+  // ── the D86 invariants, moved off the emulator ──────────────────────
+  //
+  // These four are not about idempotence; they are the edit arm's core
+  // promises, and until now the ONLY thing that executed them was
+  // `firestore-tests/e2e-v2-loop.mjs` — Java 21, a full emulator boot and
+  // several minutes. Each one mutated green in the fast runner, in a file
+  // that already builds exactly the state each needs. One line each.
+  it("an edit does not add a person to the question's population", async () => {
+    // The D86 headline: an edit MOVES a vote. If `total` climbed with it,
+    // every "N people answered" on the question would drift upward every
+    // time somebody changed their mind, and no recount exists.
+    await deliver("evt-1", vote);
+    await deliver("evt-2", { ...vote, optionIdx: 1 });
+    await deliverEdit("edit-1", 1, 0);
+    expect(store.get(AGG)?.total, "an edit was counted as a new answer").toBe(2);
+  });
+
+  it("an edit moves inside the breakdown cells too, not just the totals", async () => {
+    // The anchors an answer snapshots are frozen, so an edit lands in
+    // exactly the cells the create folded into. Without the retarget the
+    // headline number moves and every cut of it — by age, by country —
+    // keeps the old option: the same question reads two different ways
+    // depending on which lens you open.
+    await deliver("evt-1", vote); // optionIdx 1, country NO, ageBand 25-34
+    await deliverEdit("edit-1", 1, 0, vote.anchors);
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by?.country?.NO?.["0"], "the country cut kept the old option").toBe(1);
+    expect(by?.country?.NO?.["1"]).toBeUndefined();
+  });
+
+  it("the create after an edit keeps the published edit matrix", async () => {
+    // The create arm republishes the whole document, so it has to carry
+    // the edits matrix forward — otherwise the next person to answer wipes
+    // the record of everyone who ever changed their mind.
+    await deliver("evt-1", vote);
+    await deliverEdit("edit-1", 1, 0);
+    expect(store.get(AGG)?.edits, "the edit matrix was not published").toBeTruthy();
+    await deliver("evt-2", vote);
+    expect(
+      store.get(AGG)?.edits,
+      "a later answer erased the whole edit matrix",
+    ).toBeTruthy();
+  });
+
+  it("the rank arm accumulates positions rather than republishing the last answer's", async () => {
+    // `pos` is a running sum the client turns into the crowd's order. If
+    // each answer overwrote it, the published order would be whatever the
+    // most recent person happened to say, while the count beside it
+    // climbed — a crowd order with one voter in it, labelled with the
+    // crowd's size.
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("evt-1", rank);
+    await deliver("evt-2", rank);
+    expect(store.get(AGG)?.total).toBe(2);
+    const pos = store.get(AGG)?.pos as number[];
+    expect(pos.reduce((a, b) => a + b, 0), "positions stopped accumulating").toBe(
+      2 * (0 + 1 + 2),
+    );
   });
 
   it("marks the ledger in the same transaction as the fold", async () => {
