@@ -152,9 +152,15 @@ jobs:
 
       - name: Boot
         run: |
-          emulator -avd screens -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim \
+          # The full path, never `emulator` off PATH: the SDK ships a legacy
+          # launcher under tools/ that dies with "Missing emulator engine
+          # program" when it is found first, and a wrong-engine exit looks
+          # identical to a real boot failure from outside.
+          "$ANDROID_HOME/emulator/emulator" -avd screens -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim \
             -camera-back none -camera-front none -memory 3072 > results/android/emulator.log 2>&1 &
           EMU=$!
+          sleep 8
+          echo "--- emulator, first seconds:"; head -40 results/android/emulator.log || true
           # No `adb wait-for-device`: it blocks forever when the emulator
           # process has already died (a bad AVD, a missing engine, no
           # acceleration), and the lane's first run sat in exactly that
@@ -215,8 +221,13 @@ jobs:
       - name: Collect the device's logs
         if: always()
         run: |
-          adb logcat -d -v time '*:E' > results/android/logcat-errors.txt 2>/dev/null || true
-          adb logcat -d -v time 2>/dev/null | grep -i 'chromium\|console\|capacitor' | tail -300 > results/android/logcat-console.txt || true
+          # Bounded: on the lane's first run this step hung for ten minutes
+          # behind an adb that had never seen a device, and the publish step
+          # after it never ran. A log that cannot be read in a minute is not
+          # coming.
+          timeout 60 adb logcat -d -v time '*:E' > results/android/logcat-errors.txt 2>/dev/null || true
+          timeout 60 adb logcat -d -v time 2>/dev/null | grep -i 'chromium\|console\|capacitor' | tail -300 > results/android/logcat-console.txt || true
+          timeout 30 adb devices > results/android/adb-devices.txt 2>&1 || true
           # The one line a reader needs first, if there is one.
           CRASH=$(grep -m1 -A2 'FATAL EXCEPTION' results/android/logcat-errors.txt | tr '\n' ' ' || true)
           [ -n "$CRASH" ] && echo "crash: ${CRASH:0:300}" >> results/android/environment.txt
