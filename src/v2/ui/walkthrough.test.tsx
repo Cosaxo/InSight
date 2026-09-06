@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// walkthrough.tsx — the GATE, not the screen (D388).
+// walkthrough.tsx — the GATE, not the screen (D389).
 //
 // The screen's own claims are in `LiveWalkthrough.test.tsx`, which never
 // imports the three functions here. This is the half that has to survive

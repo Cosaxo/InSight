@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The first-launch walkthrough (D388): the claims the screen makes,
+// The first-launch walkthrough (D389): the claims the screen makes,
 // pinned as claims rather than as sentences (docs/COPY.md §4), and every
 // way through it.
 //

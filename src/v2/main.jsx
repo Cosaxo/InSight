@@ -102,7 +102,7 @@ initLive().finally(() => {
   // overlay is two or more.
   loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
 
-  // The first-launch walkthrough (D388), then the account-creation
+  // The first-launch walkthrough (D389), then the account-creation
   // questions (D151) — the anchors every answer snapshots (D8), asked
   // once, at the top of a new account instead of sitting four taps deep
   // in the profile where nothing pointed at them.

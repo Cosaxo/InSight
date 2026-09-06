@@ -40970,7 +40970,162 @@ record does not ask for it, because the receipt above closes the symptom
 either way and a merge commit on a night branch has costs nobody here has
 priced.
 
-## D388 · The first launch explains the app: five pages before the questions, and a row to see them again
+## D388 · No phone ever sent an App Check token: the native SDK was initialised and the JavaScript SDK that makes every call was not
+
+**Date:** 2026-09-06 · **Status:** Adopted (a fix in `src/lib/appcheck.ts`,
+a test that fails on the old shape, and the runbook rows it corrects)
+
+**What opened it.** The owner sent the App Check console: Cloud Firestore
+0% verified, 100% unverified, with *"that might be my test accounts"*.
+D333's session had read the same instrument on 2026-08-27 — ~3,750
+Firestore requests in seven days, every one `MISSING_OUTDATED_CLIENT` or
+`MISSING_UNKNOWN_ORIGIN` — and explained it the same way: a dev browser
+and CI, neither carrying a debug token yet. Both readings were taken
+while the TestFlight build was in daily use on the owner's phone. A
+phone that attests shows up as a verified share. It never did.
+
+### The cause, by construction
+
+`src/lib/appcheck.ts` calls `FirebaseAppCheck.initialize()` from
+`@capacitor-firebase/app-check`. On web the plugin's implementation calls
+the JavaScript SDK's `initializeAppCheck` itself, with a
+`ReCaptchaV3Provider` or the `CustomProvider` D337's debug path hands
+it. On iOS and Android its implementation is
+`AppCheck.setAppCheckProviderFactory(...)` — the NATIVE App Check SDK and
+nothing on the JavaScript side
+(`node_modules/capacitor-firebase-app-check/ios/Plugin/FirebaseAppCheck.swift`;
+the Android class is the same shape). Every request this app makes —
+Firestore reads and writes, every callable, the avatar upload — is made
+by the JavaScript SDK in the WebView, and that SDK attaches an
+`X-Firebase-AppCheck` header only from an App Check instance registered
+on its own `FirebaseApp`. None was ever registered on native. The
+plugin's own documentation (`packages/app-check/docs/firebase-js-sdk.md`)
+says what a native app does after the native initialise:
+`initializeAppCheck(getApp(), { provider: new CustomProvider({ getToken:
+() => FirebaseAppCheck.getToken() }) })`. Nothing in this tree did, and
+the comment above `ENFORCE_APP_CHECK` in `functions/src/ops.ts` said
+*"the client side is already wired"*.
+
+### What it cost
+
+1. **The 3.4 soak never started.** The shipping build contributed nothing
+   but MISSING, so the metric could never read near-100%, and flipping
+   Firestore to ENFORCED on any reading it has ever given would have
+   refused every phone. Runbook 1.4's *"which starts the soak clock"*
+   (2026-08-05, the DeviceCheck provider registered) was necessary and
+   not sufficient; the clock starts with the first build that carries
+   the bridge.
+2. **The callables that enforce App Check have refused every phone since
+   they were deployed with `ENFORCE_APP_CHECK` on** — `createGroupV2`,
+   `inviteToGroupV2`, `approveJoinV2`, `declineJoinV2`, `leaveGroupV2`,
+   `claimHandleV2`, `registerPushToken`, `activateDeviceV2`, the two
+   logic callables, the two paid callables and the suggestions callable
+   (`grep enforceAppCheck functions/src`). firebase-functions v2 answers
+   a callable with no token 401 before the handler runs.
+   `activateDeviceV2` was already tolerated failing (DEPLOYMENT.md:
+   fail-safe while rules enforcement is soft), which is one reason the
+   silence held. Read off the deploy log rather than assumed: the
+   2026-09-06 11:48Z deploy (run 171) shows `APPCHECK_ENFORCE:` EMPTY in
+   the runtime-env step, so the switch is not set and enforcement is ON
+   — the refusal is live as this record is written.
+
+### What changes
+
+- `src/lib/appcheck.ts`: on native, after the plugin's initialise, the
+  bridge above with `isTokenAutoRefreshEnabled: true`. `firebase/app-check`
+  stays a dynamic import so the entry chunk does not carry it
+  (`check:bundle`). A failed native attestation under UNENFORCED
+  Firestore costs what it cost before — the SDK sends the request
+  without a token — so the change cannot make a phone worse than the
+  build without it.
+- `src/lib/appcheck.test.ts`: on native a JS instance is registered
+  whose provider resolves to the native token with its fields intact; on
+  web with a debug token nothing is registered on top of the plugin's
+  (the real `initializeAppCheck` throws on a second call); once per
+  process however often `init()` is reached. The first case fails on the
+  pre-fix shape with *"no App Check instance on the JS SDK"*.
+- Runbook 1.4 and 3.4 say what the metric was reading and what starts
+  the clock; `ops.ts`'s comment says what the client does.
+
+### What it does NOT settle
+
+- Whether DeviceCheck attestation SUCCEEDS on a real phone is Apple's
+  answer, read off the console once a build with the bridge is on one.
+  The verified share is the instrument; 3.4's threshold stands.
+- Android's provider (Play Integrity, 1.4's un-parked half) still needs
+  the Play Console linkage. The bridge is platform-neutral and carries
+  whichever token the native side mints.
+- The interim. Phones on the build without the bridge stay refused at
+  the enforced callables until the next build is on them.
+  `APPCHECK_ENFORCE=false` on the deploy is the incident switch that
+  would let them work meanwhile, at the cost of those callables
+  accepting unattested scripts for that window (the rules still gate
+  Firestore). That is the owner's call and is put to them with this
+  record, not taken.
+
+### Why two readings said the same wrong thing
+
+Each explained a 0% with the two clients known not to attest — a dev
+browser and CI — and stopped, because the explanation was sufficient.
+Neither asked what the third client, the phone, WOULD have shown if it
+were attesting: a nonzero share, whatever the browsers did. The D39
+shape one instrument over: a reading a known cause fully explains is
+still a reading of everything, and the check is *what would be
+different if the thing I assume works actually worked*.
+
+## D385 amendment (2026-09-06) · The retirement was about the automation, not about the instruction — a session merges when the owner says so
+
+**2026-09-06, four hours after D385.** Owner, asked directly: *"the
+sheperd did not work merge when i say so."* **Status:** binding, and a
+correction to one sentence of D385 rather than to any of its substance.
+
+### What was wrong, and it was one clause
+
+D385 removed the merge automation and wrote the consequence into
+`CLAUDE.md` as *"a session does not merge its own work, and the owner's
+click is the merge."* The first half of that clause was never what the
+owner decided. What failed was a **lane** — a scheduled job merging on a
+label, unattended, four mechanisms deep and each one permission short. A
+session told **in that session, by the owner** to merge a named head is
+not that lane, and never was.
+
+The rule now reads: there is no merge automation and nothing acts on a
+label or a tick; a session stops at a green head and says so; and when
+the owner says merge, the session merges — that instruction is the click.
+
+### What it cost, measured, in the four hours it stood
+
+PR #408 was green and mergeable at 11:58 UTC. The owner had said *"merge
+it"* eleven minutes earlier. The session read the sentence above — which
+had merged into `main` seventeen minutes before that instruction was
+given — treated it as forbidding what it had just been told to do, and
+spent a round trip asking who clicks. Nothing was broken and nothing was
+lost; the cost was one exchange and the owner answering a question about
+a rule they had written to solve a different problem.
+
+**This is D329's finding one rule over, and the third time it is on the
+record**: *a preference stated as a rule reads as a rule*. D334 already
+says a constraint that stands between a request and the tree is an ASK,
+not a stop — the session did ask, which is the shape working, and the
+cheaper shape is the rule not overreaching in the first place. A rule
+written to retire a broken lane should name the lane, not every actor who
+could perform the act.
+
+### What does not change
+
+Everything else in D385 stands: no Action, no label that merges, no
+`merge-when-green` executing anything, `mcp__github__merge_pull_request`
+granted to no scheduled lane, and what a session owes before a PR is
+mergeable — `main` merged in, decision numbers moved (D299), green on the
+current head — unchanged and still the whole of the contract. The
+difference is only who may perform the merge once that is true, and the
+answer is: the owner, or a session the owner tells to, in that session.
+An instruction to merge is for the head it was given about; it does not
+carry to the next PR.
+
+The first exercise of this is D387 itself (#408), merged by the session
+that built it, on the instruction that produced this amendment.
+## D389 · The first launch explains the app: five pages before the questions, and a row to see them again
 
 **2026-09-06.** **Status:** binding · Owner request, made directly to a
 session — *"create a walkthrough for the first time someone uses the app

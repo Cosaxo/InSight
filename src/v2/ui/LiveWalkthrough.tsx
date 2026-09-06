@@ -1,5 +1,5 @@
 // LiveWalkthrough — how the app works, said once, before anything asks
-// you for anything (D388).
+// you for anything (D389).
 //
 // WHY A SCREEN, AND WHY THIS SHORT. The app opens on the daily card, and
 // the daily is the SMALLER half of the product: the Mirror's modules
