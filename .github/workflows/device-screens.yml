@@ -173,18 +173,32 @@ jobs:
       # reported sys.boot_completed at forty seconds and had no device left
       # two seconds after `am start`, while two runs before them on the same
       # image launched fine. An emulator that dies at the app's first launch
-      # is rebooted once and the launch tried again; the second death is a
+      # is rebooted and the launch tried again; the last death is a
       # verdict, written into environment.txt with the emulator's own log.
+      # Three attempts, two renderer settings — the function's comment has
+      # the reasoning.
       - name: Boot, install, launch, capture the launch
         run: |
           boot() {
+            # $1 is the renderer for this attempt. The freezes the lane has
+            # had — the guest gone from adb two seconds after `am start`, no
+            # line in the emulator's log (runs 34061114032, 34061299385,
+            # the ninth run on both of its attempts) — all sit at the moment
+            # the WebView starts drawing, and the same image survived that
+            # moment on three other runs. The host-side renderer's Vulkan
+            # path is the suspect: its log warns about unmapping protected
+            # ranges on every boot, and WebView on Android 14 reaches for
+            # Vulkan first. So Vulkan is off for the first two attempts, and
+            # the third gives up on host rendering altogether.
             pkill -f "emulator/qemu" 2>/dev/null || true
             sleep 3
             : > results/android/emulator.log
+            echo "renderer: $1" >> results/android/environment.txt
             # The full path, never `emulator` off PATH: the SDK ships a legacy
             # launcher under tools/ that dies with "Missing emulator engine
             # program" when it is found first.
-            "$ANDROID_HOME/emulator/emulator" -avd screens -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim \
+            # shellcheck disable=SC2086
+            "$ANDROID_HOME/emulator/emulator" -avd screens -no-window $1 -no-snapshot -noaudio -no-boot-anim \
               -camera-back none -camera-front none -memory 3072 >> results/android/emulator.log 2>&1 &
             EMU=$!
             sleep 8
@@ -225,9 +239,10 @@ jobs:
             sleep 8;  adb exec-out screencap -p > results/android/00-launch-10s.png || true
             adb get-state > /dev/null 2>&1
           }
-          for attempt in 1 2; do
-            echo "::group::attempt $attempt — boot"
-            if ! boot; then echo "::endgroup::"; continue; fi
+          RENDERERS=("-gpu swiftshader_indirect -feature -Vulkan" "-gpu swiftshader_indirect -feature -Vulkan" "-gpu off")
+          for attempt in 1 2 3; do
+            echo "::group::attempt $attempt — boot (${RENDERERS[$((attempt - 1))]})"
+            if ! boot "${RENDERERS[$((attempt - 1))]}"; then echo "::endgroup::"; continue; fi
             echo "::endgroup::"
             echo "android: $(adb shell getprop ro.build.version.release | tr -d '\r') · $(adb shell getprop ro.product.model | tr -d '\r') (attempt $attempt)" >> results/android/environment.txt
             if launch; then
@@ -241,8 +256,8 @@ jobs:
             echo "the emulator disappeared during the launch (attempt $attempt)"
             echo "emulator: disappeared during the launch on attempt $attempt" >> results/android/environment.txt
           done
-          echo "process: UNKNOWN — the emulator disappeared during the launch twice; emulator.log is the evidence" >> results/android/environment.txt
-          echo "::error::the emulator did not survive the app's launch on two attempts"
+          echo "process: UNKNOWN — the emulator disappeared during the launch on every attempt; emulator.log is the evidence" >> results/android/environment.txt
+          echo "::error::the emulator did not survive the app's launch on any attempt"
           exit 1
 
       # Ambient, never a dependency (scripts/store-render.mjs). No browser
