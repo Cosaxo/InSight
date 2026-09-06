@@ -2793,6 +2793,27 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       }
     });
 
+    it("refuses a client-chosen timestamp — the stamp is the server's", async () => {
+      // `at == request.time` had never once evaluated FALSE across the whole
+      // suite (the emulator's coverage report says so, and
+      // scripts/rules-coverage.mjs is what keeps saying it), so the clause
+      // could be deleted with all 179 tests green. It is not decoration: the
+      // queue and the one-per-person id both read `at`, and a back-dated
+      // stamp is how a face lands outside the window a moderator is looking
+      // at.
+      await assertFails(setDoc(
+        doc(asUser(OWNER), "v2_avatars", OWNER),
+        av({ at: new Date("2020-01-01T00:00:00Z") }),
+      ));
+      await assertFails(setDoc(
+        doc(asUser(OWNER), "v2_avatars", OWNER),
+        av({ at: new Date(Date.now() + 86400000) }),
+      ));
+      // …and the server's own stamp still goes through, so this is about
+      // the value and not about the field.
+      await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av()));
+    });
+
     it("lets no client claim `hidden`, in either direction", async () => {
       // `true` is the server's word: a client that could write it could
       // hide its own face to dodge a report mid-queue…
