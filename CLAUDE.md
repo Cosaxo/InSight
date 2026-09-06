@@ -267,7 +267,7 @@ real slipped through:
   check:globals — then blanks the Map on a device.
 - `src/v2/test/mount-app.jsx` is the harness, and **eleven** suites mount
   the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
-  walk both tabs and every overlay, and five that go PAST first paint into
+  walk both tabs and every overlay, and six that go PAST first paint into
   screens no smoke case reaches — the Map's measured body, the daily's
   Circle and 1v1 modes, the demo Mirror's stops past World, the daily's
   split ballot before and after a vote, the Mirror's preview tag on
