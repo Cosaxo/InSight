@@ -413,13 +413,24 @@ arithmetic.
       same console page, and having one without the other looks identical
       to having neither.
 
+      **The soak clock did not start on 2026-08-05 (D387).** Registering
+      the DeviceCheck provider was necessary and not sufficient: the app
+      configured the native SDK and never bridged its token into the
+      JavaScript SDK that makes the requests, so the metrics this row was
+      meant to start accruing read 0% verified from that day to
+      2026-09-06, and every reading of them was explained away as the
+      browsers. 3.4 has the consequence; the clock starts with the first
+      build after #414.
+
       **AND THE REMAINING HALF IS NOT BEING DONE (D337, 2026-08-30).**
       The owner's reading, checked against the tree and correct: there is
       no public web client and none is planned. `web/` is seven static
       pages, none of which loads Firebase — `web/home.html` says so in its
       own comment, *"Deliberately NOT the app: InSight is a native
-      product"* — and the shipping product attests through DeviceCheck.
-      So the web reCAPTCHA provider was never for users. It is for the two
+      product"* — and the shipping product is configured to attest
+      through DeviceCheck (and does from the first build after #414; until
+      then it never had — D387). So the web reCAPTCHA provider was never
+      for users. It is for the two
       browsers that read production Firestore: **a developer's, and the
       screenshot job's**, both of which stop working the moment 3.4 flips.
       This step never said that, which is why it read as a launch item.
@@ -1110,6 +1121,23 @@ start.
       callables already enforce in prod; `APPCHECK_ENFORCE=false` on the
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
+
+      **THE SOAK NEVER STARTED, AND THE 0% WAS THE SHIPPING BUILD (D387,
+      2026-09-06).** Every reading of these metrics — 2026-08-27's ~3,750
+      requests all MISSING, the console on 2026-09-06 at 0% verified —
+      was explained as browsers and CI, and was in fact every phone too:
+      `src/lib/appcheck.ts` initialised the NATIVE App Check SDK and never
+      registered an instance on the JavaScript SDK that makes every
+      request, so no build has ever sent a token. The bridge the plugin
+      documents is in the tree from #414; the first build carrying it is
+      the one that starts this row's 24–48h, and "near 100%" is then read
+      off phones rather than off nothing. Flipping on the old reading
+      would have refused every phone. The callables that already enforce
+      have been refusing every phone the whole time — the 2026-09-06
+      deploy log shows `APPCHECK_ENFORCE:` empty, so the switch is not
+      set — and D387 has the list and the interim choice
+      (`APPCHECK_ENFORCE=false` until that build is on phones, or wait),
+      which is the owner's.
 
       **The flip is Actions → App Check → `enforce` (D367)**, service by
       service, `apply` off first: the dry run prints the current mode and
