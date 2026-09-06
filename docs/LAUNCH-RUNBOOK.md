@@ -413,7 +413,7 @@ arithmetic.
       same console page, and having one without the other looks identical
       to having neither.
 
-      **The soak clock did not start on 2026-08-05 (D387).** Registering
+      **The soak clock did not start on 2026-08-05 (D388).** Registering
       the DeviceCheck provider was necessary and not sufficient: the app
       configured the native SDK and never bridged its token into the
       JavaScript SDK that makes the requests, so the metrics this row was
@@ -429,7 +429,7 @@ arithmetic.
       own comment, *"Deliberately NOT the app: InSight is a native
       product"* — and the shipping product is configured to attest
       through DeviceCheck (and does from the first build after #414; until
-      then it never had — D387). So the web reCAPTCHA provider was never
+      then it never had — D388). So the web reCAPTCHA provider was never
       for users. It is for the two
       browsers that read production Firestore: **a developer's, and the
       screenshot job's**, both of which stop working the moment 3.4 flips.
@@ -1135,7 +1135,7 @@ start.
       would have refused every phone. The callables that already enforce
       have been refusing every phone the whole time — the 2026-09-06
       deploy log shows `APPCHECK_ENFORCE:` empty, so the switch is not
-      set — and D387 has the list and the interim choice
+      set — and D388 has the list and the interim choice
       (`APPCHECK_ENFORCE=false` until that build is on phones, or wait),
       which is the owner's.
 

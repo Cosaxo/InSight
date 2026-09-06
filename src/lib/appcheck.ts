@@ -148,7 +148,7 @@ export async function initAppCheck(): Promise<void> {
     // over the native getToken() (packages/app-check/docs/firebase-js-sdk.md).
     // Without this bridge no phone ever sent a token: three weeks of App
     // Check metrics read 0% verified, and the callables that enforce in
-    // production refused every phone that called them (D387). Under
+    // production refused every phone that called them (D388). Under
     // UNENFORCED Firestore a failed native attestation costs nothing more
     // than it did before — the SDK sends the request without a token.
     if (isNative) {

@@ -14,7 +14,7 @@
 // CustomProvider over the native getToken(). Nothing did. So no phone ever
 // sent a token, the enforced callables refused every phone, and the
 // enforcement flip the runbook was soaking for could never have been safe
-// (D387).
+// (D388).
 //
 // The mocks are name-level, like firebaseImpl.test.ts: whether the SDK
 // honours a CustomProvider is Firebase's contract. What this owns is that

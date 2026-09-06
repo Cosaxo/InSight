@@ -40838,7 +40838,7 @@ paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
 
-## D387 · No phone ever sent an App Check token: the native SDK was initialised and the JavaScript SDK that makes every call was not
+## D388 · No phone ever sent an App Check token: the native SDK was initialised and the JavaScript SDK that makes every call was not
 
 **Date:** 2026-09-06 · **Status:** Adopted (a fix in `src/lib/appcheck.ts`,
 a test that fails on the old shape, and the runbook rows it corrects)

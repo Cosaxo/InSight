@@ -83,7 +83,7 @@ export function assertOperator(request: CallableRequest): void {
 // The client side is src/lib/appcheck.ts: debug tokens on web (D337 —
 // no public web client, so reCAPTCHA stays unprovisioned), DeviceCheck /
 // Play Integrity on native, BRIDGED into the JavaScript SDK that makes
-// the calls. That bridge was missing until 2026-09-06 (D387), so while
+// the calls. That bridge was missing until 2026-09-06 (D388), so while
 // this was ON every phone that reached an enforced callable was refused.
 export const ENFORCE_APP_CHECK =
   process.env.FUNCTIONS_EMULATOR !== "true" &&
