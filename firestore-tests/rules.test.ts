@@ -2891,6 +2891,20 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       await assertSucceeds(setDoc(
         doc(asUser(OWNER), "v2_flags", `av_${STRANGER}_${OWNER}`),
         { takeId: `av_${STRANGER}`, gid: "avatar", uid: OWNER, target: STRANGER, at: serverTimestamp() }));
+      // THE FIELD ALLOWLIST, which nothing made refuse. The arm's own
+      // `hasOnly(["takeId","gid","uid","at","target"])` evaluated true 14
+      // times and false ZERO across the whole suite, so it could be deleted
+      // outright with everything green — leaving `v2_flags` writable with
+      // arbitrary fields by any signed-in user. Nothing surfaces them
+      // (`allow read: if false`), and the collection has no size ceiling
+      // either, which is what functions/src/moderation.ts records.
+      //
+      // FRIEND, whose otherwise-identical write is admitted two lines
+      // below, so the extra field is the only thing left to refuse it.
+      await assertFails(setDoc(
+        doc(asUser(FRIEND), "v2_flags", `av_${STRANGER}_${FRIEND}`),
+        { takeId: `av_${STRANGER}`, gid: "avatar", uid: FRIEND, target: STRANGER,
+          at: serverTimestamp(), note: "x".repeat(400) }));
       // THE SENTINEL ITSELF. `gid == "avatar"` is what separates a face
       // report from a take report, and every fixture here sets it, so it
       // was never the clause that refused — relaxing it to `gid is string`
