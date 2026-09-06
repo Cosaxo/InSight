@@ -3202,5 +3202,104 @@
         "Comfort"
       ]
     ]
+  },
+  {
+    "id": "130",
+    "type": "binary",
+    "prompt": "The book or the film first?",
+    "tag": "Which first",
+    "options": [
+      "Book first",
+      "Film first"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Adaptations"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Reading"
+      ],
+      [
+        "Film",
+        "How you watch"
+      ]
+    ]
+  },
+  {
+    "id": "131",
+    "type": "choice",
+    "prompt": "What makes a villain great?",
+    "tag": "Villains",
+    "options": [
+      "Menace",
+      "Charm",
+      "Being half right",
+      "Mystery"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Villains"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Characters"
+      ],
+      [
+        "Morals",
+        "Grey areas"
+      ]
+    ]
+  },
+  {
+    "id": "132",
+    "type": "binary",
+    "prompt": "Practise in private, or learn in public?",
+    "tag": "Learning out loud",
+    "options": [
+      "In private",
+      "In public"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Skills",
+      "How you learn"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Confidence"
+      ],
+      [
+        "Story",
+        "Sharing"
+      ]
+    ]
+  },
+  {
+    "id": "133",
+    "type": "scale",
+    "prompt": "Talent is mostly patience.",
+    "tag": "Talent",
+    "axis": "patience",
+    "tone": "deep",
+    "cat": [
+      "Skills",
+      "Mastery"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Effort"
+      ],
+      [
+        "Goals",
+        "The long game"
+      ]
+    ]
   }
 ]

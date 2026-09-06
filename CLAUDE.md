@@ -194,9 +194,14 @@ one ever converts.)*
 
 `src/v2/spec-index.js` imports every module for side effects, and **the
 order is semantic** — later modules read globals set by earlier ones.
-Never sort it, never drop an entry. Four of them are deferred past first
-paint via `loadWorldFeed()` (D25) — still listed, still in order, just
-awaited in sequence instead of imported at the top. The Map's seven defer
+Never sort it, never drop an entry. The feed's thirteen are deferred past
+first paint via `loadWorldFeed()` (D25) — still listed, still in order,
+just awaited in sequence instead of imported at the top. (This said
+"four" from the day it was written, which was exact then; the learn
+stack, `pick-data.js`, `world-catalogs.js` and `world-subtopics.js`
+joined the loader afterwards. `spec-index.js`'s own comment corrects
+itself in place and this sentence never got the same edit, which is why
+`check:figures` holds it now.) The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
 comment where the eager list used to hold them. The Mirror's thirteen
@@ -262,7 +267,7 @@ real slipped through:
   check:globals — then blanks the Map on a device.
 - `src/v2/test/mount-app.jsx` is the harness, and **ten** suites mount
   the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
-  walk both tabs and every overlay, and four that go PAST first paint into
+  walk both tabs and every overlay, and five that go PAST first paint into
   screens no smoke case reaches — the Map's measured body, the daily's
   Circle and 1v1 modes, the demo Mirror's stops past World, the daily's
   split ballot before and after a vote, and the Mirror's preview tag on
@@ -366,10 +371,10 @@ the entry chunk has no chunk of its own to name, and the answer twice was
 to raise the ceiling instead. Its allowlist is a shrink-only ratchet in
 `check:globals` rule 4's shape), `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
-catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —
-the last two also run on the deploy path, because the aggregate trigger
-validates answer keys against the committed catalogues (D14–D17;
-docs/CATALOG-QUESTIONS.md).
+catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
+and `check:catalogs` — the last three also run on the deploy path,
+because the aggregate trigger validates answer keys against the committed
+catalogues (D14–D17; docs/CATALOG-QUESTIONS.md).
 
 `check:appcheck` is on the deploy path too: every callable must demand App
 Check attestation or be named in the script's exemption list with the

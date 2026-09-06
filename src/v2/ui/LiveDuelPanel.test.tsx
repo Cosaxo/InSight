@@ -280,6 +280,27 @@ describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
     expect(screen.getByRole("button", { name: /copy invite link/i })).toBeTruthy();
   });
 
+  it("does not count it as one to play, or dot the rail for it", () => {
+    // `todayQ` returns a question for any room whatever its membership, so
+    // a 1v1 whose partner has not joined was owed an answer for ever: the
+    // header said "1 to play" and the rail marked it "still to play",
+    // directly above a card reading "Waiting for someone" with no options
+    // on it. The prototype excluded an unaccepted partner from both.
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/Waiting for someone/i), "the fixture is not the solo state").toBeTruthy();
+    expect(screen.queryByText(/to play/), "a room that cannot be played was counted").toBeNull();
+    expect(screen.queryByLabelText(/still to play/), "the rail dotted a room with nobody in it").toBeNull();
+  });
+
+  it("still counts a real 1v1 you have not answered — the control", () => {
+    // Without this, excluding everything passes the case above and the
+    // header stops counting the days you actually owe.
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me", "u_them"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/1 to play/)).toBeTruthy();
+  });
+
   it("renders nothing when LIVE is off", () => {
     LIVE.enabled = false;
     const { container } = render(<LiveDuelPanel mode="duo" />);

@@ -131,7 +131,11 @@ describe("a dial answer shown from its bucket", () => {
   it("draws no crowd on a card that has no counts yet", () => {
     const src = readFileSync(resolve(here, "../spec/world-feed.jsx"), "utf8");
     const block = src.slice(src.indexOf("const noCrowd ="), src.indexOf("// ── field:"));
-    expect(block, "the dial never asks whether there are counts").toContain("q.live && q.noCountsYet");
+    // The condition itself moved behind `wfNoCrowd`, this file's one
+    // reader for the flag — three hand-written copies is how the fourth
+    // (the consequence beat) came to be missing. The dial still asks; it
+    // asks by calling.
+    expect(block, "the dial never asks whether there are counts").toContain("wfNoCrowd(q)");
     // The three things that state a crowd, each behind it.
     expect(block, "the 'most say' line still prints without a crowd").toMatch(/noCrowd \? null : <span[^>]*>most say/);
     expect((block.match(/noCrowd \? null : <path/g) || []).length,

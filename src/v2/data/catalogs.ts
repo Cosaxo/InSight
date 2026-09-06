@@ -129,6 +129,9 @@ const ARTISTS = makeCatalog("artists.txt");
 // QID-keyed like films/artists (build-catalog.mjs athletes, D308) —
 // export-only, like COUNTRIES: its consumers import it.
 const ATHLETES = makeCatalog("athletes.txt");
+// QID-keyed, films-shaped (build-catalog.mjs videogames, 2026-09-06) —
+// export-only, like COUNTRIES: its consumers import it.
+const VIDEOGAMES = makeCatalog("videogames.txt");
 // Codepoint-keyed (build-emoji.mjs); the display name embeds the character
 // ("😂 face with tears of joy"), so no renderer is needed here.
 const EMOJI = makeCatalog("emoji.txt");
@@ -162,4 +165,4 @@ declare global {
 // exactly what check:globals rule 5 exists to delete.
 Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
 
-export { FILMS, ARTISTS, ATHLETES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES };
+export { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES };

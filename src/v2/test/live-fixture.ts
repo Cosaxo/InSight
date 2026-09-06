@@ -95,6 +95,10 @@ export interface LiveFixtureOptions {
    * asserting against a feed nobody serves.
    */
   sponsored?: boolean;
+  /** The sponsored card's link (D378), when `sponsored` — an https
+   * address the answered face prints as its domain. Off by default for
+   * the same reason: no shipped question carries one. */
+  sponsorLink?: string;
   /**
    * Put one ad in the pool (D197). Off by default and opt-in for the same
    * reason `sponsored` is: `content/ads.json` ships empty, so a fixture
@@ -209,6 +213,15 @@ export const PATH_TITLE = "Fixture Crossroads: the forked road";
 // must be able to say which card it has hold of.
 export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
 
+// The daily card's published option counts, EXPORTED so a test asserting a
+// total built from them moves when they move. smoke-live.test.jsx used to
+// hand-copy this array, which made its "the fixture's daily counts changed"
+// guard `12 + 8 + 5 === 25` — a constant compared with itself, green for
+// any fixture. Measured: changing the fixture to [12, 8, 6] left that
+// guard green and failed the case on a different assertion with the wrong
+// diagnosis.
+export const DAILY_COUNTS = [12, 8, 5];
+
 // The rank card's prompt (D233), same rule.
 export const RANK_PROMPT = "Fixture rank card: order the fixtures";
 
@@ -269,7 +282,7 @@ function liveQuestion(
     options: ["Yes", "No", "Both"].map((label, i) => ({
       id: String(i),
       label,
-      count: tooSmall ? 0 : [12, 8, 5][i],
+      count: tooSmall ? 0 : DAILY_COUNTS[i],
       color: OPTION_COLORS[i % OPTION_COLORS.length],
     })),
     comments: [],
@@ -411,10 +424,6 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const near: Dict = {
     supported: () => true,
     on: () => false,
-    // D174's three states. `session` is what enable() lands on, so a
-    // fixture that flips `on` gets the shape a real opt-in produces.
-    mode: () => "session",
-    until: () => Date.now() + 90 * 60_000,
     count: () => null,
     // D176's room mix — null by default, which is the quiet-street case.
     mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
@@ -601,6 +610,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // states that a place has answered nothing. The fixture has them, so
     // "ready" — the loading and failed arms are driven per case.
     testAggsState: () => "ready" as "loading" | "ready" | "failed",
+    kindredState: () => "ready" as "loading" | "ready" | "failed",
     testFeedItems: () => [],
     myTestResults: () => ({
       big5: { title: "Big Five", dims: [
@@ -870,7 +880,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       // D195: the disclosure travels ON the card, so world-feed's dispatch
       // reads the same field buildFeedGlobals emits.
       ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
-        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }
+        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" }, ...(opts.sponsorLink ? { link: opts.sponsorLink } : {}) }, until: "2099-01-01" }
         : {}),
       // D231: the ask window travels ON the card too, for the same reason
       // — world-feed reads the fields buildFeedGlobals emits.

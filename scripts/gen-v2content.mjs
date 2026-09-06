@@ -137,6 +137,10 @@ export const CATALOG_FILES = {
   pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
   countries: "countries.txt", dogs: "dogs.txt", colors: "colors.txt",
   films: "films.txt", artists: "artists.txt", athletes: "athletes.txt",
+  // languages was absent from this map from its commit (#344) until
+  // 2026-09-06 — exactly the one-transcription drift the paragraph above
+  // exists to prevent: its cards (pk32/pk33/pk35) could never promote.
+  languages: "languages.txt", videogames: "videogames.txt",
 };
 
 // Catalogue picks run their own seq lane from here (D232, amended at
@@ -670,7 +674,7 @@ const HEADER =
   "// question ALSO belongs to beside its `topic` home. Reach, never\n" +
   "// placement — the client's filter/stock/search read topic ∪ also, the\n" +
   "// Map and grouping stay on `topic`. Emit-when-set; never on sponsored.\n" +
-  "// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question\n" +
+  "// `sponsor` is feed-only (D195): `{ buyer, audience?, link? }` on a question\n" +
   "// somebody paid to ask. The WINDOW is `until`, not a field here, so the\n" +
   "// label the card prints and the filter that stops serving it are one\n" +
   "// value. A sponsored question is never `core` — paid questions inside\n" +
@@ -679,7 +683,7 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string>; link?: string }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

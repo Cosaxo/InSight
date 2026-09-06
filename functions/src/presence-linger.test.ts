@@ -28,7 +28,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PRESENCE_LINGER_MIN, PRESENCE_SESSION_MIN } from "./pure";
+import { PRESENCE_LINGER_MIN } from "./pure";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const rules = readFileSync(resolve(root, "firestore.rules"), "utf8");
@@ -68,49 +68,35 @@ describe("the presence linger, in both languages", () => {
 });
 
 /**
- * THE SESSION IS THE SAME PAIR, ONE SHELF UP, AND IT WAS WORSE.
+ * THE SESSION PAIR IS GONE, AND THIS PINS THAT IT STAYS GONE.
  *
- * `PRESENCE_SESSION_MIN` (pure.ts) has no reader anywhere in the tree —
- * repo-wide it appears three times and is read zero times. What actually
- * governs D174's "visible for a while" is `NEAR_SESSION_MS` in the client,
- * and `near.ts` says twice that it mirrors the server constant: "session
- * visible for PRESENCE_SESSION_MIN, then not", and "Mirrors
- * PRESENCE_SESSION_MIN."
+ * Until D370 the near session was the same pair one shelf up, and it was
+ * worse: `PRESENCE_SESSION_MIN` (pure.ts) had no reader anywhere in the
+ * tree, and what actually governed D174's "visible for a while" was
+ * `NEAR_SESSION_MS` in the client, which said twice that it mirrored the
+ * server constant while nothing held them equal — 120 → 1 on the server
+ * left every suite green. The case that stood here held the two numbers
+ * together across the two languages.
  *
- * Nothing held them equal. Measured: 120 -> 1 on the server constant left
- * the functions suite, the script suite and the client suite all green —
- * so the number the client cites as its authority could say one minute
- * while the client kept using two hours, and the comment would still read
- * as true.
- *
- * Its sibling one line above got this treatment after exactly this
- * failure. The session pair was left as it was.
+ * D370 made Near a switch: off or on, no timed session at all, on the
+ * owner's "near should only have off and on". So there is no session
+ * length on either side to hold equal, and the pin inverts — a session
+ * constant reappearing on ONE side is exactly the unmatched pair coming
+ * back, which is what this file exists to notice.
  */
-describe("the near session, in both languages", () => {
+describe("the near session is retired on both sides (D370)", () => {
   const near = readFileSync(resolve(root, "src/v2/data/near.ts"), "utf8");
+  const pure = readFileSync(resolve(root, "functions/src/pure.ts"), "utf8");
 
-  it("holds the client's session length to the server's constant", () => {
-    const m = /export const NEAR_SESSION_MS = (\d+) \* 60_000;/.exec(near);
-    expect(m, "could not find NEAR_SESSION_MS in src/v2/data/near.ts").toBeTruthy();
-    expect(Number(m![1])).toBe(PRESENCE_SESSION_MIN);
+  it("the client carries no session length and cites no server constant for one", () => {
+    expect(/export const NEAR_SESSION_MS\b/.test(near), "NEAR_SESSION_MS came back to near.ts without its server twin").toBe(false);
+    expect(near).not.toContain("PRESENCE_SESSION_MIN");
+    // and the switch is what stands in its place
+    expect(near).toMatch(/nearOptedIn|setNearOn/);
   });
 
-  it("and the client still says it is mirroring that constant", () => {
-    // If the comment goes, this pin is holding two numbers together for a
-    // reason nobody has written down any more — which is how the pair got
-    // into this state. A rename that drops the citation should be
-    // deliberate.
-    expect(near, "near.ts stopped citing PRESENCE_SESSION_MIN as its source")
-      .toContain("PRESENCE_SESSION_MIN");
-  });
-
-  it("states the session in minutes on both sides, so the units cannot drift", () => {
-    // The server names minutes; the client multiplies by 60_000. A unit
-    // change on either side is a silent factor of sixty — the same trap
-    // the linger's own unit case exists for.
-    expect(near).toContain("* 60_000");
-    const pure = readFileSync(resolve(root, "functions/src/pure.ts"), "utf8");
-    expect(/PRESENCE_SESSION_MIN = \d+;/.test(pure),
-      "PRESENCE_SESSION_MIN stopped being a plain minute count").toBe(true);
+  it("the server exports no session constant either, and says where it went", () => {
+    expect(/export const PRESENCE_SESSION_MIN\b/.test(pure), "PRESENCE_SESSION_MIN came back to pure.ts with no reader").toBe(false);
+    expect(pure).toMatch(/PRESENCE_SESSION_MIN = 120` stood here from D174 to D370/);
   });
 });

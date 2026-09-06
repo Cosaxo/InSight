@@ -36,13 +36,12 @@
 // the vocabularies and vote.test.ts holds which anchors a rates question
 // may take. This holds only that the field is written at all.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { stripComments } from "./strip-comments.mjs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = "src/v2/data/live.ts";
 const CONSUMER = "functions/src/replay.ts";
 const REQUIRED = ["qid", "answeredAt", "anchors"];
 
@@ -60,7 +59,25 @@ const PATH = '"v2_users", uid, "answers"';
 // gate reports stay true — see strip-comments.mjs, whose whole design note
 // is that property, and check-appcheck.mjs, which records the identical
 // failure in its own scan.
-const src = stripComments(readFileSync(resolve(root, SRC), "utf8"));
+// EVERY CLIENT SOURCE, not one file. This read `src/v2/data/live.ts` and
+// nothing else, so a SECOND answer-write path anywhere else in the app was
+// outside the gate entirely — and the gate's subject is "every answer
+// carries qid, answeredAt and anchors", not "every answer live.ts writes".
+// D357's pending-queue drain is the near miss: a second write path added
+// beside the first. Reads of the same path are already classified and
+// skipped below (circle.ts fetches a member's answers that way), so
+// widening the file set costs nothing but reaches everything.
+const sources = (function walk(dir) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = resolve(dir, e.name);
+    if (e.isDirectory()) out.push(...walk(full));
+    else if (/\.(tsx?|jsx?)$/.test(e.name) && !/\.test\./.test(e.name)) out.push(full);
+  }
+  return out;
+})(resolve(root, "src"))
+  .map((full) => ({ rel: relative(root, full), text: stripComments(readFileSync(full, "utf8")) }))
+  .filter((f) => f.text.includes(PATH));
 
 /** Take the object literal starting at `open` (an index pointing at `{`). */
 function braceBlock(text, open) {
@@ -104,6 +121,7 @@ let creates = 0;
 let edits = 0;
 let reads = 0;
 
+for (const { rel: SRC, text: src } of sources) {
 for (let i = 0; ; ) {
   const at = src.indexOf(PATH, i);
   if (at === -1) break;
@@ -164,12 +182,13 @@ for (let i = 0; ; ) {
     }
   }
 }
+}
 
 // Vacuity: a scanner that matched nothing reports success, which is the
 // gate bug check-appcheck.mjs's header records. Refuse to pass on zero.
 if (creates < 5) {
   problems.push(
-    `only ${creates} answer-create site(s) found in ${SRC} — the scan shape is stale, `
+    `only ${creates} answer-create site(s) found across ${sources.length} file(s) — the scan shape is stale, `
     + "not the code. Fix this script before trusting it.",
   );
 }

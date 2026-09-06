@@ -61,7 +61,13 @@ function installCell(inCell) {
   const agg = {
     total: 900,
     counts: { 0: 700, 1: 200 },
-    by: { ageBand: { "25-34": { 0: inCell } } },
+    // The WORK cell holds the same count as the age one, keyed by the
+    // derived field the dim actually uses (D328) — so a Work case reads
+    // the same denominator as an Age case and only the SENTENCE differs.
+    by: {
+      ageBand: { "25-34": { 0: inCell } },
+      jobField: { "Trades, construction & manufacturing": { 0: inCell } },
+    },
   };
   STUB.live = {
     enabled: true,
@@ -70,7 +76,11 @@ function installCell(inCell) {
     confirmedVotes: () => ({ [QID]: 0 }),
     myVotes: () => ({ [QID]: 0 }),
     aggFor: (qid) => (qid === QID ? agg : null),
-    anchors: () => ({ ageBand: "25-34" }),
+    anchors: () => ({
+      ageBand: "25-34",
+      profession: "Carpenter",
+      jobField: "Trades, construction & manufacturing",
+    }),
   };
   window.LIVE = STUB.live;
   window.dispatchEvent(new Event("insight-live-update"));
@@ -105,6 +115,43 @@ describe("the Map's cohort verdict states what it rests on", () => {
     // D146: the basis is IN the sentence, which is the half `cohortN` was
     // added for and the half that had no reader.
     expect(text, "the verdict still does not say how many answers it rests on").toMatch(/6 people your age/);
+  });
+
+  it("names the FIELD as your side of a work cohort, not your job title", () => {
+    // D328 made the Work dim the derived `jobField`, so the six people are
+    // the whole trades-and-construction field. The sentence named the
+    // profession — "of 6 people in your line of work chose the same · you:
+    // Carpenter" — which reads as six carpenters. Age had already solved
+    // this by printing the BAND; Work keeps the profession as its headline
+    // (that claims no cohort) and states the field in the sentence that
+    // carries the number.
+    installCell(6);
+    const Card = window.MTAnswerCard;
+    const node = { id: "n1", qid: QID, aidx: 0, qtype: "binary", opts: ["Know", "Be known"], prompt: "Probe?", note: null };
+    const anchors = [{ id: "job", value: "Carpenter", self: "Trades, construction & manufacturing" }];
+    const { container } = render(
+      <Card node={node} cat={null} anchors={anchors} activeA="job" onFilter={() => {}}></Card>,
+    );
+    const text = container.textContent || "";
+    expect(text).toMatch(/in your line of work chose the same/);
+    expect(text, "the job title was named as the cohort's value")
+      .toMatch(/you: Trades, construction & manufacturing/);
+    expect(text).not.toMatch(/you: Carpenter/);
+  });
+
+  it("falls back to the profile's own value where the anchor carries no cohort value", () => {
+    // THE CONTROL, and the shape a profile written before D328 has: no
+    // derived field on the anchor, so the sentence says what it has rather
+    // than nothing. A reader that always took `self` would print an empty
+    // "you:" for every other anchor.
+    installCell(6);
+    const Card = window.MTAnswerCard;
+    const node = { id: "n1", qid: QID, aidx: 0, qtype: "binary", opts: ["Know", "Be known"], prompt: "Probe?", note: null };
+    const anchors = [{ id: "job", value: "Carpenter" }];
+    const { container } = render(
+      <Card node={node} cat={null} anchors={anchors} activeA="job" onFilter={() => {}}></Card>,
+    );
+    expect(container.textContent || "").toMatch(/you: Carpenter/);
   });
 
   it("and cohortN really is what moves it, not the percentage", () => {

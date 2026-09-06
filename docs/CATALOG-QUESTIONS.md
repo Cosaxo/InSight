@@ -20,7 +20,15 @@ artists' ratio rule (≥⅓ of occupations athletic, checked against the
 P279* closure under Q2066131) with `content/athlete-review.json` as its
 reviewed-exceptions file — the D267 machinery, one domain over — plus
 its own live card (`pick-pk28`) and the browse-tiles row the pick ask
-now carries for the sitelink-ranked domains. The load-bearing choices
+now carries for the sitelink-ranked domains. **Videogames** was
+committed 2026-09-06 by the Sunday domain slot: 1,000 sitelink-ranked
+games under the films shape exactly (direct `P31 Q7889`, QID keys, year
+disambiguation, no curation rule needed — a game's class membership
+does not lie the way a person's P106 does), with two measured deltas
+recorded in the builder: a floor of 15 (40 returns only 176 rows) and
+`"en,mul"` label fallback (plain `"en"` returned Minecraft, Tetris and
+Fortnite as bare QIDs — the Messi failure, one domain over). The
+load-bearing choices
 live in those decision records now; this document keeps the full
 arguments. What remains open: **artists**. The same run generated it and D266 refused
 it — sitelink fame ranks the person and P106 calls anyone who ever

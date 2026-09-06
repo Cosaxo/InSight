@@ -214,6 +214,22 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
     expect(chip(/^Norway · 20/)).toBeTruthy();
   });
 
+  it("does not say nobody answered to the person who answered", () => {
+    // `overallN` is the published aggregate's total and nothing else, so
+    // it reads zero both when the question really is unanswered AND in the
+    // seconds after your own vote before the trigger folds it. The sheet's
+    // whole stated job is telling the empty states apart, and this was the
+    // one it could not afford: the sentence sat directly under the row
+    // drawing your own pick.
+    LIVE.aggFor = () => ({ counts: {}, total: 0 });
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} mine={1} />);
+    expect(screen.getByText(/just you so far/i)).toBeTruthy();
+    expect(screen.queryByText(/nobody has answered this yet/i)).toBeNull();
+    // Still no split drawn from a crowd of one — the fix is the sentence,
+    // not a licence to draw 100% bars off your own vote.
+    expect(screen.queryByText("100%")).toBeNull();
+  });
+
   it("says nobody has answered rather than drawing a split of nothing", () => {
     LIVE.aggFor = () => ({ counts: {}, total: 0 });
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);

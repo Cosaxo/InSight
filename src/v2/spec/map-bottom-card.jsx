@@ -38,6 +38,11 @@ function MTFilterChips({ anchors, activeA, onPick }) {
 // Work/Study, the strongest trait for a test. Makes "people like you" concrete.
 function mtAnchorSelf(anchor) {
   if (!anchor) return '';
+  // The anchor may carry the cohort's own value where that differs from
+  // the one the card headlines — Work does (D328's derived field), and the
+  // sentence this feeds is the one with a number in it, so D146 makes it
+  // the field's rather than the profession's.
+  if (anchor.self) return anchor.self;
   if (anchor.id === 'age') {
     // TWO SHAPES reach this, and only one of them is a number.
     // map-anchors.js builds the demo row as `age {n}` ("age 34") and the

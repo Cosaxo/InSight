@@ -825,6 +825,21 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(LIVE.kindredLoading()).toBe(false);
   });
 
+  it("a run that asked for NOTHING is not a failed read", async () => {
+    // The mirror image of the emptiness `kindredState` exists to stop: an
+    // account with no votes has no crowd to fail to read, so telling it
+    // "couldn't read the crowd" invents a failure. It has to be measured
+    // with the breaker OFF — under the breaker loadKindred returns before
+    // the line that decides this, so a case at level 1 passes whatever the
+    // rule says. That is how the first draft of this assertion was
+    // vacuous.
+    metaAt(0);
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(h.voterQueries, "nothing to ask for, so nothing asked").toHaveLength(0);
+    expect(LIVE.kindredState()).toBe("ready");
+  });
+
   it("loadKindred never even RAISES its flag — the caption is the whole point", async () => {
     // The case above cannot see this gate. Delete it and loadKindred runs
     // its loop: every loadVoters refuses on its own gate, so no query is
