@@ -550,7 +550,15 @@ export async function runSeedV2(
     batch.set(refs[i], payload, { merge: true });
     written++;
     // Firestore batches cap at 500 ops.
-    if (++inBatch === 450) {
+    //
+    // `>=`, not `===`. The map-clear pass above can add a SECOND op in one
+    // iteration, so the counter steps 449 → 450 (unchecked, inside that
+    // branch) → 451 here, and an equality never matches again: the batch
+    // then grows without bound and the final commit throws, losing every
+    // write since the last flush. Reachable on any run that rewrites 450+
+    // documents with at least one map clear among them, which is what a
+    // full repair reseed of the 847-document bank is.
+    if (++inBatch >= 450) {
       await batch.commit();
       batch = db.batch();
       inBatch = 0;
