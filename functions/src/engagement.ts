@@ -34,16 +34,10 @@
 // holds the active uids' sets in memory — fine to ~100k DAU under
 // LIGHT_UNBOUNDED's 256 MiB; the fix at that size is paging the fold by
 // uid range, not a bigger box.
-import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
 import { FieldValue } from "firebase-admin/firestore";
 import type { Firestore } from "firebase-admin/firestore";
-// ops.ts sets the global runtime options as an import side effect and must
-// stay imported wherever a function is declared (check:fn-runtime guards
-// the outcome).
-import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
-import { db as firestore } from "./db";
+import { readLedgerDay, type LedgerDayReader } from "./ledger";
 
 /** A missed night folds on the next run, bounded — patterns.ts's clause
  * and constant, for the same reason: a long outage must not turn the
@@ -334,38 +328,20 @@ export async function runEngagementDigest(
  * account, no new arm). The doc id `_state` deliberately fails the
  * date-shaped id the phase-3 rules arm will admit for client rollups, so
  * "server-only" stays a property of the id discipline. */
-export function firestoreEngagementStore(db: Firestore): EngagementStore {
+export function firestoreEngagementStore(
+  db: Firestore,
+  // The shared, memoised reader in production (nightly.ts, D399); the
+  // default is the same pager unshared, for a caller with only a db.
+  ledgerDay: LedgerDayReader = (dayKey) => readLedgerDay(db, dayKey),
+): EngagementStore {
   const daily = db.collection("v2_engagement_daily");
   const metaRef = daily.doc("meta");
   return {
-    async ledgerDay(dayKey) {
-      const start = new Date(`${dayKey}T00:00:00Z`);
-      const end = new Date(start.getTime() + 86400000);
-      const out: DigestEntry[] = [];
-      // paged like the velocity scan — the day's ledger can be large and
-      // the fold needs two fields of it
-      let query = db
-        .collection("v2_agg_events")
-        .where("at", ">=", start)
-        .where("at", "<", end)
-        .orderBy("at")
-        // "at" is in the projection because the CURSOR is built from it:
-        // startAfter() reads every orderBy field off the snapshot, and
-        // select() decides which fields that snapshot carries. Projecting
-        // only uid + qid made page two throw. patterns.ts and velocity.ts
-        // page the same way and both already include it.
-        .select("uid", "qid", "at")
-        .limit(5000);
-      for (;;) {
-        const snap = await query.get();
-        for (const d of snap.docs) {
-          out.push({ uid: String(d.get("uid") ?? ""), qid: String(d.get("qid") ?? "") });
-        }
-        if (snap.size < 5000) break;
-        query = query.startAfter(snap.docs[snap.size - 1]);
-      }
-      return out;
-    },
+    // One reader for one day of the ledger (ledger.ts). This held the
+    // third copy of the pager until D399 — projected uid + qid + at, its
+    // own page loop — and the digest reads the shared day now, so the
+    // second and third fold of a night pay no ledger reads at all.
+    ledgerDay,
     async getLastDay() {
       const snap = await metaRef.get();
       return (snap.exists && (snap.get("lastDay") as string)) || "";
@@ -1161,52 +1137,9 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
   };
 }
 
-export const digestEngagementV2 = onSchedule(
-  // Nightly, off the top-of-hour herd and clear of the other two ledger
-  // readers (patterns 02:37, velocity 03:47). Cost at 5k DAU: one paged
-  // scan of the day's entries (~3 × DAU reads), one _state read and one
-  // write per active account, one day doc — pennies; the arithmetic is
-  // an input to scripts/cost-arith.mjs, not a figure to trust from here.
-  { schedule: "23 2 * * *", region: FUNCTIONS_REGION, ...LIGHT_UNBOUNDED },
-  async () => {
-    const db = firestore();
-    const res = await runEngagementDigest(firestoreEngagementStore(db), Date.now());
-    // Rung 1's fold runs AFTER the digest so a fresh day doc exists for
-    // most shards to merge into (a late shard for an older day merges
-    // just as well — see runAttentionFold's header).
-    const attn = await runAttentionFold(firestoreAttentionStore(db));
-    if (attn.capped) {
-      logger.warn(
-        `[engagement] shard fold hit its cap (${SHARD_FOLD_CAP}) — leftovers fold tomorrow; sampling (src/v2/data/engagement.ts SHARD_SAMPLE_RATE) is the designed lever if this repeats`,
-        { metric: "engagement_shard_cap", shards: attn.shards },
-      );
-    }
-    // …and rung 2's rollups (R3/D272), unfolded-flag driven so late
-    // arrivals sweep like late shards do.
-    const roll = await runRollupFold(firestoreRollupStore(db));
-    if (roll.capped) {
-      logger.warn(
-        `[engagement] rollup fold hit its cap (${ROLLUP_FOLD_CAP}) — leftovers fold tomorrow`,
-        { metric: "engagement_rollup_cap", rollups: roll.rollups },
-      );
-    }
-    // The heartbeat — monitoring/digestEngagementV2-silent.json watches
-    // for this line's ABSENCE (the fitPatternsV2 pattern): a scheduled
-    // function that stops running reports nothing, so the alert is on
-    // silence, and this log is the pulse it listens for.
-    logger.info(
-      `[engagement] digest: ${res.days} day(s) folded through ${res.lastDay || "—"} — actives=${res.actives} votes=${res.votes}; shards=${attn.shards} over ${attn.days} day(s); rollups=${roll.rollups} over ${roll.days} day(s)`,
-      {
-        metric: "engagement_digest",
-        days: res.days,
-        lastDay: res.lastDay,
-        actives: res.actives,
-        votes: res.votes,
-        shards: attn.shards,
-        shardDays: attn.days,
-        rollups: roll.rollups,
-        rollupDays: roll.days,
-      },
-    );
-  },
-);
+// The scheduled function that ran the three folds below — the digest,
+// then the attention fold, then the rollup fold — is `digestEngagementV2`
+// in nightly.ts since D399, where it also hosts the patterns fit and the
+// taste fold over one shared ledger read. The deploy identity and the
+// heartbeat metric (`engagement_digest`) are unchanged; only the module
+// moved, so that the pass has one home and one header.

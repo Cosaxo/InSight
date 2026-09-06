@@ -262,7 +262,7 @@ export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
 // red build rather than a quiet allowance.
 // 32 → 33 when `v2_questions` stopped being exempt and became a row:
 // the bank is content, but a BOUGHT question carries the buyer's name.
-const READER_EXPECTED = 33;
+const READER_EXPECTED = 34;
 const readClasses = classifyReads(rules);
 let readerChecked = 0;
 for (const row of inventoryRows(inventory, named)) {

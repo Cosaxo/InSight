@@ -834,7 +834,7 @@ const FIGURES = [
     what: "alert policies, in the applier's console-steps sentence",
     re: /log-based metrics, and (\w+) policies/,
     actual: word(monitoringPolicies),
-    fix: (n) => `"seven log-based metrics, and ${n} policies"`,
+    fix: (n) => `"… log-based metrics, and ${n} policies"`,
   },
   {
     file: "web/privacy.html",

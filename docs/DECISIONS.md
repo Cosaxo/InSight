@@ -41499,3 +41499,887 @@ pins), `data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
 `check:public-copy`, `check:purge`, live `check:bundle` (598 KB eager
 / 607; 70 KB blocking css / 74), `check:eager-content`, `check:docs`,
 `check:figures`.
+## D393 · The first launch explains the app: five pages before the questions, and a row to see them again
+
+**2026-09-06.** **Status:** binding · Owner request, made directly to a
+session — *"create a walkthrough for the first time someone uses the app
+that explains how it works."* Adds a screen and one account-panel row;
+changes no rule, no vocabulary and no promise.
+
+### What was wrong
+
+The app opens on the daily card, and the daily is the SMALLER half of the
+product — `CLAUDE.md`'s opening paragraph: the Mirror's modules outweigh
+the daily's and the feed's put together — and nothing on the daily says
+so. The first screen a new account met was D151's questions, *A few
+things about you*: a form, before anything had said what the answers
+were for. That form's own pitch (*"Every answer carries a copy of these,
+so it can be counted with your city, your age, your field"*) assumes a
+reader who already knows there is a counting. A person who answers for a
+week without finding the second tab has used a poll with a streak.
+
+### What ships
+
+**The screen** — `src/v2/ui/LiveWalkthrough.tsx`. Five pages, each a
+picture, a title and a sentence or two, in D182's order (visual > word >
+sentence > sentences), met in the order a first day meets them:
+
+| Page | What it says | Where the app already says it |
+| --- | --- | --- |
+| One question a day | answer before you see the crowd; then the split opens, and a feed of more runs under it | the daily card (blind vote, D1's split), the feed beneath it |
+| How far it reaches | World · Circle · 1v1, drawn in the daily ruler's own accents; a circle is *sealed until tomorrow, then revealed with names*; 1v1 is answer, then guess theirs | `daily-split.jsx`'s header, `LiveDuelPanel`'s own sentence, `web/privacy.html`'s D5 row (*sealed … until the day after*) |
+| Every answer carries you | filed with your city, age and field, so it counts with people like you; some feed cards are test items and the profile fills in by itself | D8's snapshot, D151's pitch, D121 (the instruments fill from the feed and only from the feed) |
+| The Mirror | seven stops from you to the world, each reading the same answers through a different crowd, drawn in `mirror-tab`'s accents | `docs/MIRROR.md` §1, D111's seven stops |
+| Your answers are public | anyone signed in can read what you answered, under your name — and you can read theirs; connecting answers is the whole point | `LivePrivacyPanel`'s blunt sentence (D183), `web/privacy.html`'s D98 row, `CLAUDE.md`'s first paragraph (D334) |
+
+The right-hand column is the point of the table: **no page makes a claim
+the app does not already make**, so `web/privacy.html` does not move,
+and D183's rule that the page moves first has nothing to move for.
+`check:policy-claims` and `check:public-copy` both stay green over the
+new copy, and the suite pins the two claims that matter as claims rather
+than as sentences (`docs/COPY.md` §4): *answers are public, under your
+name*, said on the last page; *sealed until tomorrow*, said in the duel
+panel's words.
+
+**What it does not say.** The Patterns tab. D265 mounts that tab on the
+data and describes the gate from below — *no third button, no teaser* —
+and a page about a tab that is not in the bar is a teaser with more
+words. `LiveWalkthrough.test.tsx` fails on the word.
+
+**The gate** — `src/v2/ui/walkthrough.tsx`, `profileSetup.tsx`'s shape
+one screen earlier: a device-local flag (`insight.walkthrough.v1`,
+inside the namespace D51's purge sweeps, so the next account on a wiped
+device starts from the beginning), a purge listener that takes the screen
+down WITHOUT recording it (a flag written on the way out would be written
+under the new uid, which would then never be shown it), its own root
+rather than a wrapper around `<App />` (D151's bundle arithmetic, still
+true), and a promise that settles when the screen is off the page —
+closed by either button, by Escape, or by the purge — and immediately
+when there is nothing to show.
+
+**The condition is a live BUILD, not a live boot.** `LIVE.enabled` is
+the boot having attached; a first launch with no network is still a
+first launch, and the one with the most time for five screens. So the
+gate reads `enabled || demoInProd`, which is `VITE_V2_LIVE` without the
+module reading the flag itself. The demo build never shows it: every
+mount suite and the style diff run there, and neither is anybody's first
+launch.
+
+**The order** — `main.jsx` sequences the two first-launch screens
+rather than racing them: walkthrough, then D151's questions, each a
+no-op once seen. The walkthrough's third page is the sentence that makes
+the questions make sense, so it goes first; `mountWalkthrough()` settles
+only once its screen has left the page, and a walkthrough chunk that
+fails to load costs nothing but the walkthrough — its catch sits before
+the chain continues.
+
+**The row** — `LivePrivacyPanel` gains *How InSight works · Show again*,
+beside the policy the app points at, which is the one place the app
+explains itself. It asks for a RE-showing (`again: true`, so the seen
+flag does not refuse it) and the last button reads *Done* rather than
+*Start*, because the app is already running behind it.
+
+### The bundle arithmetic
+
+Measured on the shipping build (`VITE_V2_LIVE=true`, Sentry in):
+
+| | before | after |
+| --- | --- | --- |
+| eager graph (`MAX_EAGER_KB` 607) | 602 KB | 602 KB |
+| `walkthrough` chunk | — | 10.6 KB (3.6 gzipped), its own chunk, fetched after first paint on live builds only |
+| `profileSetup` chunk | 8.6 KB | 8.6 KB |
+| total JS | 2153 KB / 133 chunks | 2164 KB / 134 chunks |
+
+The chained dynamic import in `main.jsx` did not move the eager figure at
+the kilobyte. `useDialog` comes from `primitives.jsx`, which is in the
+entry chunk already, so the screen carries the dialog contract every
+overlay carries (D24) at no eager cost.
+
+### Tests, and what they were checked against
+
+Two suites and one case. `walkthrough.test.tsx` holds the gate's
+contract (`profileSetup.test.tsx`'s six properties plus the live-build
+condition and the promise); `LiveWalkthrough.test.tsx` holds the claims
+and every way through — buttons report, gestures never do: a swipe or an
+arrow past the last page stays put, because a gesture is not a commit.
+`LivePrivacyPanel.test.tsx` gains the row. All five of these deliberate
+breakages were caught by exactly one case each, and reverted:
+
+| Broken | Caught by |
+| --- | --- |
+| *"Patterns comes later."* appended to the Mirror page | *does not tease the Patterns tab (D265)* |
+| *under your name* dropped from the last page | *says answers are public, under your name — on the last page* |
+| a swipe past the last page finishes the walkthrough | *Start reports done from the last page, and only a button does* |
+| the purge teardown records the showing | *takes the screen down on the purge without recording it* |
+| the gate keys on `enabled` alone | *shows on a first launch whose boot has not attached* |
+
+Rendered in Chromium at 402 × 874 as well as in jsdom: five pages, the
+Tab cycle stays inside, Start settles the promise. The one thing the
+browser found that the suites could not was the title moving 13 px
+between the first two pages — a two-line body against a three-line one
+under a centred block — fixed with a floor under the words.
+
+### What this does not decide
+
+- **D352's design step.** The owner's rule is that a new screen is
+  designed in Claude Design before it is built. This one was built on the
+  owner's direct ask, the same day, in the tree's own vocabulary — the
+  daily ruler's accents, the Mirror's, the iris of D302, the serif prompt
+  voice of D362, the paid door's `.sg-rise` entrance — and is filed in
+  `docs/VISUAL-REQUESTS.md` § Built with what a canvas would still
+  improve: the five illustrations. A redraw replaces `Art` in
+  `LiveWalkthrough.tsx` and touches neither the gate nor the tests,
+  which pin claims and not pictures. The row is on `OWNER-LIST.md` §
+  Designs as optional.
+- **Where the flag lives.** On the device, not on the profile document —
+  D151's arithmetic, unchanged: one Firestore read per cold start is the
+  wrong price for never showing it twice across devices, and the account
+  panel's row is the cheaper answer to the second device.
+- **A tally for it.** D270's vocabulary is a fixed list on the server,
+  and a `walkthrough` key would be a functions change for a number nobody
+  has asked for. Not taken.
+## D394 · The fit had not left its seeds, and the scorecard could not say so: a baseline row, a skill score and a seed-distance summary
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md): *"yeah agree with
+those apply those and go with your recommendation"*. This is the first of
+that page's steps built (§2.1), and the record of the measurement that
+produced the page.
+
+### What was measured
+
+`npm run probe:fit` (`scripts/fit-probe.mjs`) runs the shipped
+`foldUserDay` — imported from `functions/src/patternsFit.ts`, untouched —
+on a deterministic synthetic vote log shaped like the app's own traffic:
+113 two-option questions, four answers per active person per day, a third
+of people active, one shared daily question in rotation, and **one answer
+per person per question**, which is D5's create-only rule. It scores
+every engine with the one-step-ahead surprisal the fit publishes on its
+own scorecard (D325), beside two references: the generating probabilities
+(the floor) and a marginal-only guess (what a loading must beat to carry
+information).
+
+| scenario | marginal, 2nd half | shipped, 2nd half | shipped's Pearson vs the true geometry | shipped ‖L‖ |
+| --- | ---: | ---: | ---: | ---: |
+| 2,000 people, 60 days | 0.925 | 0.925 | 0.030 | 0.078 |
+| 20,000 people, 60 days | 0.924 | 0.924 | 0.032 | 0.076 |
+| 2,000 people, 180 days | 0.857 | 0.857 | 0.041 | 0.078 |
+
+The fit's guesses equal the marginal's to three decimals; the seeds'
+norm is 0.08 and every one of 113 loadings stays within cosine 0.9 of the
+hash seed it was born with. The same engine passes
+`patternsFit.test.ts`'s recovery case, and the probe reproduces that pass
+in the test's own world (`--world test --repeats`, 120 people re-answering
+ten questions for sixty days: same-factor |cos| 0.676 against cross-factor
+0.313). Under create-only, in that same world, the structure is gone
+(0.406 against 0.229). The test's regime gives a person 120 answers on ten
+questions, about twelve per question; the app gives a person one.
+
+### Why, in one paragraph
+
+θ starts at zero and L at a seed of norm 0.08. A first answer moves θ by
+`0.15·e·L ≈ 0.01` along that question's seed; seeds are independent
+directions, so after k answers to k different questions θ is a random
+walk of 0.01 steps, ~0.08 at 72. The question step `0.5/(20+n)` sums to
+about 2 over a question's life, times `e·|θ| ≈ 0.06`, so a loading moves
+~0.1 in incoherent directions and keeps its seed's bearing. Re-answering
+is what ignites the bilinear step — twelve consistent pushes on the same
+θ add coherently — and re-answering is the one thing an answer here
+cannot do. The full arithmetic and the constants-only variants that
+confirm where the instability lives are in the reflection's §1.3.
+
+### What changed
+
+- `patternsFit.ts` — the day tally carries `baseBits`, the same
+  prequential score with `θ·L = 0`; `publishableQuality` publishes
+  `baselineBits` beside `bits` on the headline, on every series row and
+  on every floored per-question row, plus `skill = 1 − bits/baselineBits`
+  (`skillOf`; 0 on an empty day). `seedsSummary` reports, over every
+  published loading, the mean |cosine| with its own seed, the share above
+  0.9, and the mean norm against the seeds' own. The `note` clause says
+  what the two new numbers mean.
+- `patterns.ts` — `putModel` takes and writes `seeds`; the run's summary
+  log carries `skill` and `seedCos`, so the monitoring metric the
+  `fitPatternsV2-silent` policy already reads can grow a threshold on
+  either without a new emit.
+- `scripts/fit-probe.mjs` + `npm run probe:fit` — the instrument, with a
+  `--loadings doc.json` mode that prints the live document's distance
+  from its seeds. Nothing here has read production; that mode is how the
+  owner does.
+
+### What it costs
+
+Zero reads, zero writes: every new number is computed from values the
+fold already had in hand. Bytes: two more numbers per series row
+(≤ 90 rows), one per floored per-question row, five for `seeds` — under
+1 KB on a document measured at ~11 KB. Rows published before this record
+carry no `baselineBits`, and the type says so rather than back-filling a
+number the run never computed.
+
+### What it does not decide
+
+The engine. This record makes the finding observable in production every
+night; replacing the solver is D395's, behind a crossover rule rather
+than a bet. The recovery test stays: it pins the fold's mechanics
+correctly, and what it did not pin — the regime — is now pinned by the
+probe's `--world test` reproducing it and the reflection saying which
+world the app lives in.
+
+Measured before the push: 707 functions tests (patternsFit at 27, the
+sweep at 20), `tsc` clean in `functions/`.
+
+## D395 · Two engines on one document: the person's answer map as the fit's substrate, a batch candidate scored beside the online fit, and a fortnight crossover
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §§2.2–2.4, §3 and
+§4.1 — *"yeah agree with those apply those and go with your
+recommendation"* — including the one row that page put on
+`OWNER-LIST.md` for the corpus: instrument items and multi-option
+questions join the fit. Built in one change because the three parts
+depend on each other: a batch engine needs every observation every
+night, which the ledger-day design cannot give and the answer map can;
+and a wider corpus is an encoding on that map, not a new engine.
+
+### The substrate
+
+`v2_users/{uid}/patterns/state` gains `a: {qid: optionIdx}` — the
+person's CURRENT answer to every item the candidate's corpus names,
+compacted by the nightly run from the same ledger day the online fit
+folds: last entry wins, so an edit overwrites its key, and the `fromIdx`
+machinery the online fold needs to tell an edit from a person is not
+needed by this reader at all. It rides the state write the online fit
+already makes (`putUsers`), under the same retry stamp `d`, and is
+erased with the account by the recursive delete that already takes the
+document. Read by nobody, like the vector beside it; derived from the
+answers subcollection, which is the truth, at ~1/50th its bytes (~40
+answers × ~24 bytes today, bounded by the corpus). **It starts empty at
+deploy**: a person's answers before this record are not in their map
+until they answer again. The path that fills history is a walk of each
+account's answers into the map — `replay.ts`'s posture for the
+aggregates, one read per answer once — recorded here and not built,
+because the basis counts say what the candidate has seen and the
+crossover rule refuses to promote it before it has seen enough.
+
+### The candidate
+
+`functions/src/patternsAls.ts` (pure): the shipped MODEL — `r = x −
+mean`, `r ≈ θ·L`, K = 8 — with a batch SOLVER: alternating ridge least
+squares over every answer map, three sweeps a night, warm-started from
+last night's published rows (a re-run from the same maps and prior is
+bit-identical), weighted-λ regularisation (λ = 0.15 × the row's
+observation count + 0.5, so an item with twenty answers stays shrunk and
+one with two thousand is free), item norms clamped at 1. Each night's
+solve is rotated onto the previous night's rows by orthogonal Procrustes
+(an 8×8 polar decomposition through a Jacobi eigen-solve — refused, as
+the identity, when the shared rows do not pin every direction), so a
+returning reader's map does not reshuffle for want of a basis. Measured
+in the reflection's probe: Pearson 0.95–0.99 against the generating
+geometry where the online fit scores 0.03, and 57–71% of the achievable
+predictive gain; pinned here by `patternsAls.test.ts`'s recovery case,
+which is `patternsFit.test.ts`'s two-factor world under D5's rule — the
+case the online engine cannot pass.
+
+**The corpus** (the owner's row): every option-shaped core item —
+two-option rows as before (`bin`, ±1); ordinal rows (`ord`: scale,
+rating, dial, the 160 instrument items among them) as the option index
+standardised by the item's own mean and sd, so a five-point scale and a
+ten-point rating weigh the same per answer; unordered picks (`opt`:
+choice, vote and the rest) as one pseudo-item per option, `qid~i`, ±1
+picked-or-not, centred by its own share. Compiled from the bank by one
+rule (`compileItems`); the two-option rows are exactly `PATTERNS_QIDS`,
+which is what lets the two engines be scored on one currency. Learn
+cards stay out — knowledge, not disposition — and so do pulse, call,
+catalog, rank and the sealed surfaces, which never had an option share
+to fold. D161 holds: every instrument item is served to everyone.
+**What is drawn does not change yet.** The Map draws two-option rows
+only, `readyPool` counts them only, and the client's `pool()` joins
+two-option questions only; the ordinal and one-hot rows carry `items`
+metadata so a device can encode its own answers into the same solve —
+the Oracle's and the People lens's — which is D396's, with the visuals
+D352 wants designed before an ordinal node or an ordinal guess is drawn.
+
+### The scorecard, made comparable
+
+The candidate is scored one step ahead on the online engine's own
+entries, in its fold order, revisions included: a revision is not scored
+but moves the marginal the way the online fold moves it (clamp and 0/0
+guard alike), and the marginal both engines guess from is ONE running
+number seeded from the online model's counts before the day. So
+`baselineBits` is bit-identical across the two scorecards and skill has
+one denominator — the first version of this scored the candidate against
+last night's mean and the two baselines disagreed by 0.4 bits on the
+first fixture, which would have made every crossover a comparison of
+denominators. The person's vector is re-solved at scoring time from the
+answers they had given before the day, which is what the device does,
+under each device ridge in `ALS_LAMBDAS_U = [0.5, 1, 2, 4]`; the best
+ridge over the owed days is the one the candidate publishes its scorecard
+at and the one it names as `lambdaU`, with the pooled bits under each in
+`lambdaSweep` for the reader.
+
+### The crossover
+
+Both engines publish every night: the engine's rows in `q`, the other's
+under `candidates.{sgd|als}` with the same shape and its own scorecard.
+The candidate wins a night when both scored at least the scorecard's
+floor of eight observations, its skill is strictly higher than the
+engine's, **and it is itself better than the coin** — the last clause
+because the online engine's within-day steps leave it a hair under the
+marginal on a fresh crowd, and a candidate with no model yet tied the
+coin and would have collected a streak off that. `PATTERNS_CROSSOVER_NIGHTS
+= 14` consecutive wins make it the engine: its rows move to `q`, rotated
+onto the rows devices were reading the night before over the keys both
+carry, the benched engine moves to `candidates` with its streak at zero,
+`crossedAt` is stamped and `patterns_crossover` is logged. The rule is
+symmetric: the online fit is the candidate the night after it loses and
+can win the rows back the same way. Nobody flips it — the D265 posture,
+pointed at the engine instead of the tab.
+
+### The store
+
+`v2_patterns/loadings` is read and written WHOLE. The field-by-field
+`getModel` this replaces is the shape that shipped the retry stamp dead
+(`store-projection.test.ts`), and the document has grown too many fields
+to name twice; the projection that cannot drop anything is `snap.data()`,
+normalised for the pre-D395 shape. The per-person read and write name
+`a` at both ends, and the scan the candidate reads people through
+(`scanUsers`, the collection group by path, 500 a page) projects the same
+four fields — all three pinned. `putModel` strips `undefined` before the
+write, because Firestore refuses it outright.
+
+### The arithmetic
+
+Reads: one state read per fitted person per night, charged as one per
+MAU — server reads 30 → 33 per user-day, **$257 → $258 at 50 k DAU and
+$2,611 → $2,626 at 500 k** (`COSTS.md`, re-measured; the compaction
+itself rides the write and the ledger read the online fit already pays).
+Memory: the scan holds each person's map, ~1 KB, 150 MB at 150 k fitted
+people; the item step needs only per-item sufficient statistics (an 8×8
+Gram and an 8-vector), so the sweep streams people through them the day
+the buffer is the wrong shape — recorded in `patterns.ts`'s header, not
+built. Compute: three sweeps × observations × 64 flops — seconds at
+launch, under a minute at 500 k DAU against a 480 s timeout. Document:
+the candidate block doubles the rows and adds a second scorecard, so the
+once-per-session read grows from ~11 KB toward ~60 KB with the wider
+corpus fitted; if that bites, the `candidates` block moves to its own
+document and the client never reads it — the named lever.
+
+Measured before the push: 729 functions tests (`patternsAls` at 17, the
+sweep at 27, the projection pin at 9), `tsc` clean in `functions/`,
+`check:monitoring`, `check:deploy-targets`, `check:appcheck`,
+`check:content`, `check:docs`, `check:figures`.
+
+## D396 · The device reads the whole corpus: the viewer's evidence in every kind, the ridge off the document, and the Oracle asks what it knows least about
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §§2.3, 5.1–5.3 and
+the second row that page put on `OWNER-LIST.md` — *"go with your
+recommendation"* — so the Oracle asks the question it learns most from.
+The client half of D395: the rows and metadata that record publishes are
+read here.
+
+### The evidence
+
+`PATTERNS.evidence()` is the viewer's every answer the published rows can
+encode, as the centred residuals the fit is written in — under the
+candidate engine's rows, the whole corpus: a two-option answer as ±1
+minus the row's marginal, an ordinal one (the instrument items among
+them) as the index standardised by the row's mean and sd, a pick as ±1
+against each of the question's one-hot rows; under the online engine's
+rows, its two-option answers alone. It reads the viewer through a new
+store member, `LIVE.answeredIndex()` — the banks × the vote mirror, the
+way `patternsMine` already counts — because an instrument item's crowd
+counts are usually not cached on the Patterns tab and a question you
+answered is evidence about you whether or not they are. `vote()` stores
+the option index as a string and refuses anything else, so the parse
+cannot invent an index. Core only, D161's rule, and the drawn pool does
+not change: `pool()` still joins two-option questions, the Map draws
+them, and the mount gate counts them (D395). What changes is what the
+two device solves know about the viewer:
+
+- **The Oracle's seal** solves θ from the evidence minus the target's own
+  question, under the ridge the document publishes.
+- **The People lens's own dot** is solved from the same evidence
+  (`foldPeople`'s new `viewerObs`); strangers are still placed from the
+  fetched two-option lists, because a voter row is one option index on one
+  two-option question. The honesty rule pointed at the one person the lens
+  can know that much about.
+
+### The ridge
+
+`patternsMap.ridgeSolve` is `estimateTheta` with its posterior precision
+kept — (Σ L Lᵀ + λI)⁻¹ by Gauss–Jordan, K = 8 — and λ is
+`loadings.lambdaU`, the device ridge the engine's scorecard was measured
+at (D395 sweeps four and publishes the best), with the shipped 0.5 as
+the fallback for a document that predates the field. One number in one
+place, chosen by measurement, read by both solves.
+
+### The next question
+
+`nextAsk` was `pool().find(unanswered && n ≥ 8)` — the first eligible
+question in pool order. It is now the eligible question whose loading
+points where the viewer's vector is least determined: `Lᵀ A⁻¹ L`, the
+predictive variance of θ·L, maximised over the candidates
+(`mostInformative`; ties keep pool order, so the choice is deterministic;
+O(candidates × K²), no reads). It learns the viewer fastest and looks
+worst for a while, because it deliberately asks what it cannot yet call;
+the meter is honest about that either way, which is why it was the
+recommendation.
+
+### The recommendation that changed, and why
+
+§5.1 proposed shrinking the guess by that same variance — "the posterior
+instead of the clamp". Measured before building it, on the probe's world
+with a batch-fitted model and fresh people scored one step ahead: the
+shrink helps at λ = 0.5 (0.946 → 0.902 bits at one prior answer, 0.948 →
+0.895 at two) and hurts once λ is tuned up (0.903 → 0.909 at λ = 2,
+0.929 → 0.933 at λ = 4). The two are one knob twice — both temper an
+under-regularised θ — and D395's sweep already tunes λ by the scorecard
+every night. A second knob the scorecard does not see would make the
+device's guess and the server's score speak different currencies, which
+is the one thing D325 forbids. So the guess stays `marginal + θ·L`, the
+clamp stays as the floor it always was, and the precision serves the
+question choice alone. The number is in `patternsMap.ts`'s header so the
+next reader does not re-propose it without re-measuring.
+
+### What changed
+
+`src/v2/data/patternsMap.ts` (`ridgeSolve`, `undetermined`,
+`mostInformative`, `DEFAULT_LAMBDA_U`), `src/v2/data/patterns.ts`
+(`evidence`, `lambdaU`, the doc's `items`/`lambdaU`/`engine` read, `seal`
+and `nextAsk`), `src/v2/data/peopleMap.ts` (`viewerObs`, `lambda`),
+`src/v2/ui/PatternsPeople.tsx` (passes both), `src/v2/data/live.ts`
+(`answeredIndex`, on the pinned member surface and the live fixture).
+Zero reads: every input was already on the device. Measured before the
+push: `tsc -b` clean, 2,679 client tests, `check:globals` at its
+baseline, eslint clean on every touched file.
+
+## D397 · The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §4.3 — *"yeah agree
+with those apply those"*.
+
+### What
+
+Every list the device intersects — Kindred's twelve, the People lens's
+twelve, the pair card's four — was the same query: the newest 200 answers
+to one question, 200 billed reads each, then names. The lists are public
+(D98), bounded (D102), recency-ordered, and identical for every viewer
+who opens them within a day. The nightly run now publishes them:
+`v2_patterns/sample-{qid}`, one document per core item the day's answers
+touched, holding the newest `PATTERNS_SAMPLE_CAP = 200` voters — uid,
+option index, the answer's frozen cohort chips (D8), and the day it was
+ledgered — as `rows` keyed by uid. Built from the ledger day the run
+already reads (`patternsSamples.mergeSample`, pure: one row per person,
+an edit moves the row, the cap drops the oldest days then the highest
+uids within a day, so a re-run reproduces the set). Under the loadings
+document's own rule — `v2_patterns/{docId}` reads signed-in, writes
+nobody — so no rules change was needed and none could go wrong.
+
+The ledger entry gained the answer's `anchors` for it (`v2.ts`
+`ledgerEntry`, both the create and the edit arm; string values only; the
+same snapshot the answer carries, public like it, same TTL, same
+erasure), because the sample's chips have to be the FROZEN ones (D8) and
+the ledger is the one place the builder can take them without a second
+read per entry. `readLedgerDay` selects and copies it, pinned against the
+interface as before.
+
+On the device: `fetchVoterSample` reads the document and hands back the
+live query's own `Voter` rows, newest first; `LIVE.loadVoterSample` loads
+it under the same cache guards, the same absent-vs-empty rule and the
+same loading flag as `loadVoters`, resolving names through the same
+profile cache, and falls through to the live query for a question no
+sample exists for yet; `LIVE.votersOrSample` hands a fold the live list
+where one is in hand, else the sample. Kindred's world pass, `kindred()`,
+`kindredPeople()`, the People lens and the pair card's `sayRows` read
+through it. **The who-voted sheet keeps the live query** — it is a list
+of names on screen that must show the viewer's own answer the moment it
+lands — and so does the City pass (D278), whose query narrows by city
+in a way a global sample cannot.
+
+### The arithmetic
+
+`kindred: kindredQs × crowd × names` → `kindredQs × (1 + crowd × (names −
+1))` in the cost model: the answers half of the ×2 is one document, the
+profile reads for names are unchanged. Re-measured: **$258 → $223 at 50 k
+DAU, $2,626 → $2,273 at 500 k, $1.17 → $0.85 at 500 DAU** — reads/day −16%
+wherever the cap binds, on the D98-surfaces column that has dominated this
+model since D102. The samples cost the nightly run one read and one write
+per question the day touched — hundreds a night. Storage: ≤ 200 rows ×
+~60 bytes ≈ 12 KB a document, ≤ ~400 documents.
+
+### What it owes, and pays
+
+**This is the first derived, world-readable document family that holds
+uids** — the reason `PEOPLE-MAP.md` §7 deferred published positions.
+What it holds is exactly what the who-voted sheet already shows anyone
+signed in: who answered, what they picked, the chips their answer froze.
+Nothing derived, no vector, no position. What it owes is erasure:
+`deleteAccount` grew phase 1a′, which checks EVERY sample document
+(`listDocuments` on `v2_patterns`, a few hundred reads once per deletion)
+rather than the ones the account's answer map names — the map and the
+samples are written by the same run, and a crash between the two writes
+could leave a row the map does not know about — and removes `rows.{uid}`
+with a field delete, never a rewrite of anyone else's row.
+`e2e-delete-account.mjs` seeds a sample naming the doomed account and
+another voter and asserts the one row is gone, the other stands, and the
+document survives; the leftover sweep gained the fit's per-person state
+too. `data-inventory.md`'s `v2_patterns` row says which of its documents
+hold uids and which do not; `SCHEMA-V2.md` has the shape.
+
+Measured before the push: 736 functions tests (`patternsSamples` at 4,
+the sweep at 30), `tsc` clean in both packages, the client suite green,
+`check:globals` at its baseline, eslint clean on every touched file.
+
+## D398 · The breakdown cap reports what it discards, three lens folds run once per input, and the Circle reads a member's newest answers
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §4.4 and §4.6 —
+*"yeah agree with those apply those"* — rows 9 and 10 of its §6 table,
+three small things with three separate reasons, so three sections.
+
+### The cap alert
+
+`BREAKDOWN_MAX_BUCKETS` bounds the breakdown document (D7's growth
+arithmetic), and past 24 values of one anchor the fold does one of two
+silent things: evicts a bucket holding fewer than `BUCKET_EVICT_BELOW`
+answers to admit the newcomer, or — when every slot is published —
+refuses the newcomer, whose answer then counts in the totals and in no
+cohort cell for that dimension. `evictForNewBucket` ran without a line
+from the day it was written. The reflection's own sentence said
+"eviction"; the refusal is the half it missed, and at scale it is the one
+that discards — once a daily question holds 24 published cities, every
+answer from a 25th is refused, and the City stop is quietly a fact about
+the 24 biggest places.
+
+So the fold now REPORTS, and pure code stays pure: `foldAnchors` and
+`foldCanonAnchors` take an optional `OnBucketCap` callback and go through
+one `admitBucket` (a third fold cannot forget the refusal half), which
+calls it with the kind, the dimension, the bucket and the count lost —
+the victim's, or 0 for a newcomer that never held one. The trigger
+collects the calls per attempt and logs them AFTER the transaction
+commits (`logBucketCaps`, `v2.ts`): one WARNING per discard, `metric:
+"agg_evict"` with `qid`, `kind`, `dim`, `bucket`, `total`. After, not
+inside — a contended answer re-runs its body, and a line per attempt
+would have made the metric read contention. The chain is complete:
+`agg_evict` in `apply-monitoring.mjs`'s METRICS,
+`monitoring/onV2AnswerCreated-evictions.json` thresholding more than
+five discards in an hour (one stray value churned out is the eviction
+rule doing its job; five in an hour on one trigger is a live question
+past the cap or a junk burst against it, and the line's `bucket` tells
+the two apart), `check:monitoring` at 10 policies and 8 metrics, and
+every pinned count moved with it — DEPLOYMENT.md's heading and a section,
+MONITORING.md's table, COSTS.md, the applier's header, and LAUNCH-RUNBOOK
+5.5, which the tenth reopens the way the ninth did: committed, gated,
+and silent until **Arm monitoring** is dispatched. Pinned: the callback's
+three outcomes in `pure.test.ts`, the line's shape in
+`evictions.test.ts`.
+
+What the first firing is FOR is written into the policy's runbook rather
+than left for the operator to rediscover: §4.4's second step — the
+overflow document that keeps the hot document at 24 cells and writes
+every city and country cell beside it — is built on that evidence, and
+until it ships the alert keeps firing on the question that woke it. The
+response is to read the qid off the line and put the work on the list,
+not to raise the threshold.
+
+### Three folds, not four
+
+The reflection named four unmemoised lens folds. Three are memoised on
+their inputs: Explore's tally and bucket order on `[qs, dim]` and its
+rows on `[qs, dim, picked]`; the City field's `rankKindred` over the
+kindred pool on `[pool, myParsed, city]`; the place fields'
+`testItemMeta` on the bank and `placeProfiles` on
+`[items, dim, myFlat, scope, myCountry]`. Each saves the lens's OWN
+render — a bucket chip tapped, a person's card opened, a place picked —
+which used to re-tally the archive, re-rank up to KINDRED_QUESTIONS ×
+VOTER_FETCH_CAP people, or re-profile every place to move one highlight.
+
+"On the store revision" was not taken literally, and the reason is worth
+a line: the inputs ARE the revision. `kindredPeople()` and
+`testFeedItems()` are perRev — a new array exactly when the store
+notifies — and the stop rebuilds `qs` on the same notify, so keying on
+them is keying on the revision without the
+`eslint-disable-next-line react-hooks/exhaustive-deps` that
+`PatternsPeople` needs for its `version` counter.
+
+The fourth — `WhosHere`'s two tallies — was left alone after reading its
+render triggers rather than assumed to need it. It has no state; its
+parent re-renders on the store's notify and on a tab switch, which
+remounts it. There is no render where its inputs have not moved, so a
+memo there would be dead code keyed on a prop the stop rebuilds every
+render. The same holds for `SimilaritySection`'s own `testItemMeta` and
+`myFlatAxes` at the foot of the file, which the reflection also pointed
+at: the section renders on notify alone.
+
+### The Circle reads the newest 300
+
+`fetchAnswersOf` orders by `answeredAt` descending, so `CIRCLE_ANSWER_CAP`
+keeps a member's 300 most recent answers instead of their
+alphabetically-first question ids — the bias `circle.ts` had recorded
+since 2026-08-31 as binding today (570 answerable questions against a cap
+of 300) and as the owner's to price. The owner took the price with §4.6:
+one composite index entry per answer ever written, storage only —
+Firestore bills index storage, not index writes. The
+(`surface` ASC, `answeredAt` DESC) composite is at COLLECTION scope in
+`firestore.indexes.json`, because the voter sheet's group-scope
+composites do not serve a single-collection query, and `indexes.test.ts`
+pins it for the reason its header gives: the emulator does not enforce
+index configuration, so the failure — FAILED_PRECONDITION, swallowed per
+member into an emptier stop — is production-only. Every answer carries
+`answeredAt` by rule, so the `orderBy` excludes nothing. `circle.ts`'s
+comment keeps its history and moves from "bring to the owner" to "the
+owner took it"; SCALE-PLAN §7's row moves from **Binds today** to
+**Fixed**, and its own 644 becomes the 570 `circle.ts` had already
+corrected it to.
+
+Deploy order matters once and is the existing order: `firestore:indexes`
+ships with the backend pipeline on merge, and the client build that
+carries the `orderBy` is a later, manual step (D381), so the index is
+built before any device asks for it.
+
+### Measured before the push
+
+Functions: 739 tests (`evictions` 2, `pure` +1), `tsc` clean, the build
+and `check:fn-runtime` (43 functions) green. `check:monitoring` — 10
+policies, 8 metrics, every condition resolving. `check:figures` — 100
+figures. `check:docs`. The client suite whole: 2,682 tests in 183 files;
+`test:scripts` 957; eslint clean on the tree; `check:globals` at its
+baseline of 30. The rules suite ran earlier in the same session on this
+branch's head-but-two: 197, coverage baseline unchanged.
+
+**Not run: the e2e.** `npm run test:e2e:all` booted the emulators and
+died registering the Firestore trigger with *"Unable to parse JSON:
+Unexpected token 'r', "request bl"…"* — the documented failure of
+LOCAL-TESTING.md § Sandbox/CI note, firebase-tools parsing the sandbox
+proxy's 403 body as JSON. The documented remedy is to run with
+`HTTPS_PROXY` unset, which this session's environment forbids, so the
+three suites were not run here and CI's `test:e2e:all` is where this
+branch's trigger change (the two `logBucketCaps` calls) and D397's
+erasure arm are first exercised against real emulated functions. Said
+here rather than left to be discovered.
+
+## D399 · One nightly pass over the ledger: the digest, the Patterns fit and the taste fold read yesterday's entries once
+
+**2026-09-06.** **Status:** binding. The owner's *"build the remaining
+steps too"* on [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §6 —
+this is step 7, §4.2.
+
+### What
+
+Three scheduled functions each paged yesterday's agg-events ledger for
+themselves: `digestEngagementV2` at 02:23 (the digest, then the
+attention and rollup folds), `fitPatternsV2` at 02:37, `fitTasteV2` at
+03:27. The same entries were billed three times a night, and the pager
+existed in three copies — the digest's projected `uid`, `qid`, `at` with
+its own loop, the D197 shape. Now one function, `digestEngagementV2` in
+`functions/src/nightly.ts`, reads each owed day once through
+`memoLedgerReader` (`ledger.ts`: `readLedgerDay` remembered per day for
+the life of one invocation, a failed read forgotten so the next fold
+retries) and runs the digest, the fit and the taste fold over the same
+array, then the attention and rollup folds as before. The three stores
+take the reader as an argument; each keeps its own cursor and its own
+exactly-once stamps, so nothing about any fold's arithmetic moved — the
+folds' suites are the proof, unchanged.
+
+`fitPatternsV2` and `fitTasteV2` are retired from the source, the index
+and the deploy's `--only` list (`check:deploy-targets` at 41). Their
+heartbeats are not: the pass emits `patterns_fit` when the fit completed
+and `taste_fold` when the fold did, and `engagement_digest` only when the
+digest AND the attention and rollup folds all completed — the engagement
+pipeline whole, as the silence policy always meant it. Each fold runs
+inside its own attempt: a throw in the fit leaves the other four running,
+logs an ERROR carrying `metric: "nightly_fold_failed"` and the fold's
+name, silences that fold's heartbeat alone, and the pass rethrows at the
+end so the invocation is red in the function's own error metrics as
+well. That isolation is new — the old digest function took its two
+folds down with any throw, and a failing fit took nothing else down only
+because it was alone. `nightly.test.ts` pins the choreography through
+thunks; `ledger.test.ts` pins the memo.
+
+### Why the pass wears the digest's name
+
+The deploy identity and the heartbeat metric are what the ARMED alert
+policy is keyed on: `apply-monitoring.mjs` matches policies by display
+name, `monitoring/digestEngagementV2-silent.json` was verified live at
+D333, and a renamed function would leave that policy watching a metric
+nothing emits while a renamed policy would be created beside the old one
+on the next arm. So the pass keeps `digestEngagementV2` and its header
+says what it does; `fitPatternsV2-silent.json` keeps its name for the
+same reason and keeps working, because `patterns_fit` is still emitted
+and still silent exactly when the fit failed. Both runbooks and both
+METRICS descriptions say so.
+
+**Two zombies, and one click.** The deploy's `--only` filter names what
+to update and leaves everything else standing, so the deployed
+`fitPatternsV2` and `fitTasteV2` survive the deploy that removes them
+from source. Each fires on its old schedule, finds its cursor already
+advanced by the pass (the fit's `lastDay` on the loadings doc, the
+fold's `tasteLastDay` on `v2_meta/app`), and returns before reading a
+page — one document read a night each, and two console rows that lie.
+Deleting them is an operator click and is on `OWNER-LIST.md` § Clicks
+with the command.
+
+### The arithmetic
+
+`LEDGER_PASS_READS_PER_ENTRY = 1` replaces `PATTERNS_READS_PER_LEDGER_ENTRY`
+and `ENGAGEMENT_READS_PER_LEDGER_ENTRY` in `scripts/cost-arith.mjs`;
+velocity keeps `VELOCITY_READS_PER_LEDGER_ENTRY` (its cursor window is
+not a calendar day — `ledger.ts`'s header and ENGAGEMENT-RUNBOOK 1.1's
+decision both stand). Re-measured: **$223 → $221 at 50 k DAU,
+$2,273 → $2,253 at 500 k, $0.85 → $0.83 at 500 DAU**; server reads
+33 → 29 per user-day, reads/day −1.1%. Stated rather than smoothed: the
+taste fold's third read of the same entries was never in the model, so
+the true saving is two reads per entry and the modelled one is one.
+Memory and time: the day's entries are held once instead of once per
+fold — the peak any one of the three functions already had — under
+LIGHT_UNBOUNDED's 256 MiB and 480 s; the lever if the sum of three folds
+ever nears the ceiling is `timeoutSeconds` on this one function, never a
+fourth function.
+
+### Measured before the push
+
+Functions: 746 tests (`nightly` 5, the memo 2, the digest's pager test
+replaced by its delegation), `tsc` clean, the build and
+`check:fn-runtime` (41 functions). `check:deploy-targets` 41.
+`check:monitoring` 10 policies, 8 metrics. `check:figures` — the
+`ops.ts` module count and `functions/README.md`'s function count moved
+with the tree. `test:scripts` 957. eslint clean on every touched file.
+
+## D400 · The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own
+
+**2026-09-06.** **Status:** binding. The owner's *"build the remaining
+steps too"* on [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §6 —
+step 9's second half, §4.4's overflow document, built on the owner's
+word rather than on the alert D398 armed to wait for.
+
+### What
+
+`BREAKDOWN_MAX_BUCKETS` bounds the hot aggregate document at 24 values a
+dimension, and until now what the cap evicted or refused was gone: the
+twenty-fifth city to answer a question vanished from its City stop
+(D398 made that visible; nothing made it stop). Now it goes to the
+TAIL — `v2_agg_overflow/{qid}-{shard}`, `{ dim: { bucket: { opt: n } } }`,
+eight shards per question by FNV-1a of the bucket — so hot ∪ tail is
+exact, the fold is commutative everywhere, and a bucket lives in exactly
+one of the two: an evicted cell moves whole, a refused newcomer starts in
+the tail, and a bucket the tail holds stays there. `foldAnchors` takes a
+`BucketTail` (pure.ts); the trigger reads a shard ONLY where a dimension
+is at the cap and lacks the answer's bucket (`capBoundShards` — empty for
+every question under the cap, which is every question today, so the
+ordinary answer pays the one `getAll` it always paid) and writes the
+tail as blind merge-increments after the hot document, so an eviction's
+victim moves into a shard nobody read. The edit path moves its
+-old/+new inside the tail under `retargetAnchors`' own skip rule
+(`retargetTail`). The catalog fold takes no tail: its published `by` is
+a lossy projection of the board by design (D17), so the D398 line still
+means a discarded cell there, and the alert's runbook says which.
+
+The rebuild (`rebuildAggregateV2`, D290) folds the same tail in memory
+and writes the hot document and ALL EIGHT shards in one batch — set where
+the fold produced one, deleted where it did not — so a rebuild is a whole
+replacement of both, and `replay.test.ts` now proves what its header
+wanted: the hot map alone is order-dependent at the cap and says so
+(`cappedDims`), and hot ∪ tail is order-independent and complete.
+
+On the device (`src/v2/data/overflow.ts`): the same hash, pinned on both
+sides against the same vectors and against the server's constants read
+off its source; `overflowWanted` names the questions whose hot map is at
+the cap without the viewer's own city or country; `LIVE.loadOverflow`,
+kicked by the City and Country stops on mount, reads those shards in
+`documentId() in` chunks of 30 and merges the cell into the aggregate
+every Mirror fold already reads, keeping it across a hot-document
+refresh (`storeAgg`). One shard read per such question, once per session;
+nothing while no question is at the cap. Rules: the aggregate's own —
+any signed-in reader, no client write; `check:data-inventory`'s reader
+ratchet moved to 34.
+
+### Why shards, and why the tail is not "every cell twice"
+
+§4.4 proposed one overflow document per question holding EVERY city and
+country cell, written on every answer that carries one (+1 write per
+world answer). Two things changed it. A city dimension can hold the whole
+catalogue — ~11 k places — and one document for a question answered
+from everywhere would be ~550 KB, near Firestore's 1 MiB and far too
+heavy for a phone to read per question at its City stop; eight shards
+keep the worst case under ~70 KB and let the device read the one shard
+its own city hashes to. And a tail that holds only what the hot map does
+not means the majority — whose cities ARE the hot 24 — writes nothing
+extra and reads nothing extra: the write is +1 per answer the cap acts
+on, the trigger's read +1 for the same answers, and `B.tailShare` in the
+cost model carries that share — 0 today, the number to move the first
+time `monitoring/onV2AnswerCreated-evictions.json` fires. What the tail
+gives up is the eviction rule's "recurrence wins": a value that reaches
+the tail never climbs back into a hot slot. What that buys is that no
+reader ever sums two documents for one cell and the trigger never reads
+a shard it did not already need.
+
+### Measured before the push
+
+Functions: 755 tests (`pure` +5 tail cases, `replay` rewritten at the
+cap, `overflow` 3, `replay-guards` taught the batch), `tsc` clean. Client:
+2,688 tests (`overflow` and `overflow.reads` new; the LIVE surface pin
+and every fixture carry `loadOverflow`), `tsc -b` clean. Rules: 198,
+coverage baseline 46 held — the tail's arm has its signed-out case, and
+the sign-in-gated census moved 15 → 16 and 27 → 28 with it.
+`check:data-inventory` 34, `check:monitoring`, `check:figures`,
+`check:docs`, eslint clean. `check:bundle`: 636 KB eager against the
+642 KB ceiling — after one measured lesson. The first draft of
+`overflow.ts` imported `getDocs` from `firebase/firestore` statically,
+and because `live.ts` imports the module and is on the first-paint path,
+the whole Firestore client rode into the eager graph: 634 KB → 961 KB,
+the gate red exactly as D144 built it to be. The module binds the SDK
+off `getFirestoreApi()` at call time now, the voters module's shape
+(D122), and its header says so for the next module. **Not run here: the
+e2e** — the sandbox proxy stops the functions emulator (D398 has the
+failure text); step 7j is written for CI's `test:e2e:all`, and it is the
+first place the transaction's conditional shard read and its blind
+increments meet a real emulator.
+
+## D401 · A top-up fills a topic to a page, not by a page — the paged accumulation D350's amendment named, bounded at its source
+
+**2026-09-06.** **Status:** binding. The owner's *"build the remaining
+steps too"* — step 10's third item, §4.6's eviction.
+
+### What, and why not eviction
+
+`pageNeedList` took the first `pageSize` ids of a topic's published
+order the cache did not hold, whatever the device already held
+unanswered — so a phone that booted daily and answered little was
+handed a fresh page per topic every boot and kept every one: twelve
+topics × `FEED_PAGE` 12 = 144 tail rows a day, fifty thousand a year,
+all read into memory by hydrate. That is the accumulation D350's
+amendment named, and it asked for eviction — keep what was answered and
+what is on screen, drop the rest from memory.
+
+Eviction after the fact was the wrong tool, for a reason worth one
+sentence: an evicted row is one the device paid a read for and, still in
+the cache as "seen", would never be handed again — a leaky bucket that
+keeps paying for pages nobody sees. The bound belongs at the source. A
+top-up now fills a topic TO a page: `held` is what the device holds
+unanswered in memory for that topic (the feed's tail rows without a vote;
+learn cards the mastery map has no history with — core and bought rows
+ship whole and are not runway the pager owes, so they do not count), and
+the page is `pageSize − held`. A topic with a page of fresh cards fetches
+nothing; as they are answered, the next boot refills to a page. Memory is
+then a page per topic or field plus what was answered — which the Mirror
+files and the archive lists, and so stays by design — and the reads a
+boot pays are the paged cards the person consumed since the last one.
+The old cases stand (`held` defaults to empty, the pre-D401 page); the
+new case pins the fill, the stale-held rule and the shrunk-page rule.
+
+### The arithmetic the model never had
+
+The page reads were in the cost model NOWHERE: `boot` priced the meta,
+the bank cursor, the deck's aggregates and the answers page, and not the
+`v2_rank` orders or a single paged document. Before D401 that was ≈144
+reads a boot per device — at 50 k DAU and 1.4 boots, ~10 M reads a day,
+about $90 a month unpriced. `B.pagedShare` (0.5, a guess about humans
+stated as one) now prices the refill as `worldAnswers × pagedShare` per
+user-day — two reads — and the note in COSTS.md says what it replaces.
+Every figure in the table moved by those two reads.
+
+### Measured before the push
+
+`bank-pager`, `bank-cache` and `vote` suites 166; the full client suite;
+`tsc -b`; eslint. BANK-DELIVERY §4 says where the bound is now.

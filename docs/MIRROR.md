@@ -130,8 +130,8 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
 | **Near** | who is around you right now — the radius counter (D84), an anonymous field (D150), and since D177 the room itself: Answers · People · Compare | `nearbyCountV2` for the count and the mix (D176); `nearbyRoomV2` for the roster and the room's answers, both gated on the caller having a live position of their own. The field draws the ROOM since D181 — the same people, placed by test-score likeness and still unnamed — where it drew the city's crowd from D150. The presence CELL stays one of D98's three denies; what D177 discloses is membership, not place | yes |
-| **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
-| **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
+| **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]` — and, for a question whose hot map is at its 24-bucket cap without your city, your own shard of `v2_agg_overflow/{qid}-{s}` merged in (D400, `LIVE.loadOverflow`); kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
+| **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`, with your country's tail shard merged in where the hot map is at its cap (D400); city profiles folded from `by.city` (D112) — the hot 24 only | yes |
 | **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
 
 **You — the Map.** The one stop that is not a population at all. Every

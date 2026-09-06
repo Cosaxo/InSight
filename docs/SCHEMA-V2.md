@@ -247,6 +247,24 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
+v2_agg_overflow/{qid}-{s}          the breakdown cap's TAIL (D400), s = FNV-1a(bucket) mod 8
+  { dim: { bucket: {opt:n} } }     every city and country cell the hot
+                                   document above evicted or refused at
+                                   BREAKDOWN_MAX_BUCKETS. hot ∪ tail is the
+                                   whole dimension; a bucket lives in
+                                   exactly ONE of them (an evicted cell
+                                   moves whole, a refused newcomer starts
+                                   here, and a bucket here stays here).
+                                   Written in the answer's own transaction
+                                   as merge-increments, only when the cap
+                                   acts — nothing before a dimension has 25
+                                   values; rebuilt whole (all eight shards,
+                                   set or deleted) by rebuildAggregateV2
+read: signed-in · write: NOBODY — the aggregate's own rule. A device reads
+one shard per question, and only for a question whose hot map is at the
+cap and lacks its own city or country (src/v2/data/overflow.ts); the
+client computes the same hash, pinned on both sides.
+
 v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
   advertiser, headline, body       text only. No image, no logo, no brand
                                    colour, no link — check:content refuses
@@ -291,29 +309,90 @@ every score in the feature forgeable in one request. Existence is
 load-bearing too: firestore.rules refuses a call answer once this document
 exists, or a player reads the grade and then "predicts" it.
 
-v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1)
+v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
+                                   two engines since D395)
   k                                the vectors' length (8)
-  q {qid: {v: number[k], n, sum}}  one loading vector per CORE two-option
-                                   question (D161 — the eligible set
-                                   compiles from the bank): the streaming
-                                   fit's factorisation of the vote log.
-                                   n is the answers folded (the basis a
-                                   client states or refuses on); sum/n is
-                                   the running marginal the fit centres
-                                   by — the same figure the question's
-                                   public aggregate already carries
+  engine: "sgd"|"als"              which engine's rows are in `q`: the
+                                   shipped online fit (patternsFit.ts) or
+                                   the batch candidate (patternsAls.ts).
+                                   Whichever has won the last fortnight of
+                                   one-step-ahead skill owns the rows; the
+                                   other publishes under `candidates`
+  q {key: {v: number[k], n, sum,   one row per fitted item. Under the online
+     sd?}}                          engine: one per CORE two-option question
+                                   (D161 — the eligible set compiles from
+                                   the bank). Under the candidate: every
+                                   option-shaped core item — two-option
+                                   (`bin`), ordinal (`ord`: scale · rating
+                                   · dial, the instrument items included)
+                                   and one one-hot pseudo-item per option
+                                   of an unordered pick (`opt`, keyed
+                                   `qid~i`). n is the answers folded (the
+                                   basis a client states or refuses on);
+                                   sum/n is the mean the residual centres
+                                   by — for a two-option row the same
+                                   marginal the question's public aggregate
+                                   carries; `sd` is an ordinal row's spread
+  items? {key: {kind, qid, opt?,   the candidate's item metadata — how a
+     nOptions}}                     device encodes its own answer to each
+                                   row; absent while the online engine owns
+                                   `q`, whose rows are all two-option
+  lambdaU                          the device ridge the engine's scorecard
+                                   was measured at, for the phone's own
+                                   solve (estimateTheta) to read rather
+                                   than assume
+  quality, displacement, seeds     the engine's scorecard (D325): the
+                                   prequential series with the marginal-
+                                   only baseline and skill beside every
+                                   row (D394), publish-to-publish
+                                   displacement, and the loadings' distance
+                                   from their hash seeds (D394)
+  candidates {sgd?|als?: {q,       the OTHER engine, with the same rows and
+     items?, quality?,              scorecard, its streak of consecutive
+     displacement?, lambdaU,        winning nights, and (als) the pooled
+     streak, lambdaSweep?}}         bits under each device ridge tried
+  crossedAt?                       the day the engine last changed hands
   lastDay, folded, at              the last UTC day folded (idempotence),
                                    the last run's fold count, server clock
-read: signed-in · write: NOBODY — written once per night by fitPatternsV2
-(admin SDK), so D7's per-document write ceiling never hears about it. The
+read: signed-in · write: NOBODY — written once per night by the nightly
+pass (`digestEngagementV2` since D399, admin SDK), so D7's per-document write ceiling never hears about it. The
 device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
+Nothing per-person in it, under either engine.
 
-v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2)
-  v: number[k], n, at              the latent vector the nightly fold
+v2_patterns/sample-{qid}           the nightly voter sample (D397)
+  qid
+  rows {uid: {o, a, d}}            the newest PATTERNS_SAMPLE_CAP (200 — the
+                                   who-voted sheet's own cap) voters of one
+                                   core question: the option index picked,
+                                   the answer's frozen anchors (D8) and the
+                                   UTC day it was ledgered. Keyed by uid so
+                                   a person is one row (an edit moves it)
+                                   and erasure is a field delete
+  n, at                            the basis a client states; server clock
+read: signed-in (the loadings document's own rule — same collection) ·
+write: NOBODY — merged nightly by the pass (D399) from the ledger day it
+already reads. What Kindred, the People lens and the pair card read in
+place of two hundred answer documents per question; the who-voted sheet
+keeps the live query. THE ONE DERIVED PUBLIC DOCUMENT FAMILY THAT HOLDS
+UIDS: exactly what the who-voted sheet already shows anyone signed in,
+nothing derived — and deleteAccount's phase 1a′ removes the account's row
+from every sample, asserted in e2e-delete-account.mjs.
+
+v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D395)
+  v: number[k], n, at              the latent vector the online fold
                                    carries this person's PUBLIC answers
                                    as, and how many it has folded
-read: NOBODY · write: NOBODY — the push/ shape; fitPatternsV2 (admin SDK)
+  d                                the last UTC day folded into this doc —
+                                   the retry stamp
+  a: {qid: optionIdx}              the person's CURRENT answer to every
+                                   item the candidate's corpus names,
+                                   compacted nightly from the ledger day
+                                   (an edit overwrites its key). The batch
+                                   engine's substrate: it reads people, not
+                                   days. Derived from the answers
+                                   subcollection, ~1/50th its bytes
+read: NOBODY · write: NOBODY — the push/ shape; the nightly pass (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
 
 v2_engagement_daily/{day}          the engagement digest's trail (R1/D268)
@@ -665,7 +744,7 @@ v2_meta/app                        operator/seed-written metadata
   updateUrl      store link the prompts open (web falls back to reload)
   patternsPool   questions the nightly fit has fitted on `patternsBasis`
                  answers or more — the crowd half of the Patterns tab's
-                 mount gate (D265). Written by fitPatternsV2, merged, and
+                 mount gate (D265). Written by the nightly pass, merged, and
                  the only field here the SWEEP owns (contentRev is the
                  seed's); it lives on this doc rather than on
                  v2_patterns/loadings so a client can read it without
@@ -714,7 +793,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 197 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 198 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
