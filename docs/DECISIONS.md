@@ -40339,3 +40339,93 @@ one dispatch, and a bump has a shelf life of exactly one upload.**
 release, build 30's delivery should record itself and the next pre-flight
 is the test of whether that is true. If they are not, this entry is the
 sixth in a row and the reading above stands unchanged.
+
+## D382 · The fit had not left its seeds, and the scorecard could not say so: a baseline row, a skill score and a seed-distance summary
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md): *"yeah agree with
+those apply those and go with your recommendation"*. This is the first of
+that page's steps built (§2.1), and the record of the measurement that
+produced the page.
+
+### What was measured
+
+`npm run probe:fit` (`scripts/fit-probe.mjs`) runs the shipped
+`foldUserDay` — imported from `functions/src/patternsFit.ts`, untouched —
+on a deterministic synthetic vote log shaped like the app's own traffic:
+113 two-option questions, four answers per active person per day, a third
+of people active, one shared daily question in rotation, and **one answer
+per person per question**, which is D5's create-only rule. It scores
+every engine with the one-step-ahead surprisal the fit publishes on its
+own scorecard (D325), beside two references: the generating probabilities
+(the floor) and a marginal-only guess (what a loading must beat to carry
+information).
+
+| scenario | marginal, 2nd half | shipped, 2nd half | shipped's Pearson vs the true geometry | shipped ‖L‖ |
+| --- | ---: | ---: | ---: | ---: |
+| 2,000 people, 60 days | 0.925 | 0.925 | 0.030 | 0.078 |
+| 20,000 people, 60 days | 0.924 | 0.924 | 0.032 | 0.076 |
+| 2,000 people, 180 days | 0.857 | 0.857 | 0.041 | 0.078 |
+
+The fit's guesses equal the marginal's to three decimals; the seeds'
+norm is 0.08 and every one of 113 loadings stays within cosine 0.9 of the
+hash seed it was born with. The same engine passes
+`patternsFit.test.ts`'s recovery case, and the probe reproduces that pass
+in the test's own world (`--world test --repeats`, 120 people re-answering
+ten questions for sixty days: same-factor |cos| 0.676 against cross-factor
+0.313). Under create-only, in that same world, the structure is gone
+(0.406 against 0.229). The test's regime gives a person 120 answers on ten
+questions, about twelve per question; the app gives a person one.
+
+### Why, in one paragraph
+
+θ starts at zero and L at a seed of norm 0.08. A first answer moves θ by
+`0.15·e·L ≈ 0.01` along that question's seed; seeds are independent
+directions, so after k answers to k different questions θ is a random
+walk of 0.01 steps, ~0.08 at 72. The question step `0.5/(20+n)` sums to
+about 2 over a question's life, times `e·|θ| ≈ 0.06`, so a loading moves
+~0.1 in incoherent directions and keeps its seed's bearing. Re-answering
+is what ignites the bilinear step — twelve consistent pushes on the same
+θ add coherently — and re-answering is the one thing an answer here
+cannot do. The full arithmetic and the constants-only variants that
+confirm where the instability lives are in the reflection's §1.3.
+
+### What changed
+
+- `patternsFit.ts` — the day tally carries `baseBits`, the same
+  prequential score with `θ·L = 0`; `publishableQuality` publishes
+  `baselineBits` beside `bits` on the headline, on every series row and
+  on every floored per-question row, plus `skill = 1 − bits/baselineBits`
+  (`skillOf`; 0 on an empty day). `seedsSummary` reports, over every
+  published loading, the mean |cosine| with its own seed, the share above
+  0.9, and the mean norm against the seeds' own. The `note` clause says
+  what the two new numbers mean.
+- `patterns.ts` — `putModel` takes and writes `seeds`; the run's summary
+  log carries `skill` and `seedCos`, so the monitoring metric the
+  `fitPatternsV2-silent` policy already reads can grow a threshold on
+  either without a new emit.
+- `scripts/fit-probe.mjs` + `npm run probe:fit` — the instrument, with a
+  `--loadings doc.json` mode that prints the live document's distance
+  from its seeds. Nothing here has read production; that mode is how the
+  owner does.
+
+### What it costs
+
+Zero reads, zero writes: every new number is computed from values the
+fold already had in hand. Bytes: two more numbers per series row
+(≤ 90 rows), one per floored per-question row, five for `seeds` — under
+1 KB on a document measured at ~11 KB. Rows published before this record
+carry no `baselineBits`, and the type says so rather than back-filling a
+number the run never computed.
+
+### What it does not decide
+
+The engine. This record makes the finding observable in production every
+night; replacing the solver is D383's, behind a crossover rule rather
+than a bet. The recovery test stays: it pins the fold's mechanics
+correctly, and what it did not pin — the regime — is now pinned by the
+probe's `--world test` reproducing it and the reflection saying which
+world the app lives in.
+
+Measured before the push: 707 functions tests (patternsFit at 27, the
+sweep at 20), `tsc` clean in `functions/`.

@@ -27,6 +27,7 @@ import {
   type PatternsDisplacement,
   type PatternsModel,
   type PatternsQuality,
+  type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
 
@@ -40,9 +41,10 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     breakPutModelOnce: boolean;
     quality: PatternsQuality | null;
     displacement: PatternsDisplacement | null;
+    seeds: PatternsSeeds | null;
   } = {
     model: null, users: new Map(), putModelCalls: 0,
-    breakPutModelOnce: false, quality: null, displacement: null,
+    breakPutModelOnce: false, quality: null, displacement: null, seeds: null,
   };
   const store: PatternsStore = {
     async ledgerDay(day) { return ledger[day] ?? []; },
@@ -60,7 +62,7 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
         }
         : null;
     },
-    async putModel(model, lastDay, folded, quality, displacement) {
+    async putModel(model, lastDay, folded, quality, displacement, seeds) {
       if (state.breakPutModelOnce) {
         state.breakPutModelOnce = false;
         throw new Error("model write lost");
@@ -68,6 +70,7 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
       state.model = { ...model, lastDay };
       state.quality = quality;
       state.displacement = displacement;
+      state.seeds = seeds;
       state.putModelCalls++;
       void folded;
     },
@@ -456,6 +459,17 @@ describe("the scorecard the run publishes", () => {
     expect(q?.bits).toBeCloseTo(expected, 3);
     expect(r.bits).toBe(q?.bits);
     expect(q?.note).toBe(PATTERNS_QUALITY_NOTE);
+    // Both people are fresh, so θ·L is zero and every guess IS the
+    // marginal's: the baseline equals the fit's bits and skill is 0 — the
+    // reading the probe found in production's own regime (D382).
+    expect(q?.baselineBits).toBe(q?.bits);
+    expect(q?.skill).toBe(0);
+    expect(r.skill).toBe(0);
+    // …and the seeds summary rides the publish: two loadings, both still
+    // pointing where their hash put them
+    expect(state.seeds?.n).toBe(1);
+    expect(state.seeds?.meanCos).toBeCloseTo(1, 3);
+    expect(r.seedCos).toBe(state.seeds?.meanCos);
   });
 
   it("keeps an n:0 row for an empty day rather than skipping the date", async () => {
@@ -467,7 +481,7 @@ describe("the scorecard the run publishes", () => {
     // held nothing and the series says so out loud
     const series = state.quality?.series ?? [];
     expect(series).toHaveLength(7);
-    expect(series[series.length - 1]).toEqual({ day: yesterday, n: 1, bits: 1 });
+    expect(series[series.length - 1]).toEqual({ day: yesterday, n: 1, bits: 1, baselineBits: 1 });
     expect(series.filter((row) => row.n === 0)).toHaveLength(6);
   });
 
@@ -585,20 +599,23 @@ describe("what the fit publishes for the tab's gate", () => {
     day: "2026-08-22",
     n: 12,
     bits: 0.91,
+    baselineBits: 0.91,
+    skill: 0,
     perQ: {},
     floor: PATTERNS_QUALITY_FLOOR,
-    series: [{ day: "2026-08-22", n: 12, bits: 0.91 }],
+    series: [{ day: "2026-08-22", n: 12, bits: 0.91, baselineBits: 0.91 }],
     note: PATTERNS_QUALITY_NOTE,
   };
   const DISPLACEMENT: PatternsDisplacement = {
     space: "loading", n: 0, moved: 0, mean: 0, p50: 0, p90: 0, max: 0, perQ: {},
   };
+  const SEEDS: PatternsSeeds = { n: 3, meanCos: 1, share90: 1, meanNorm: 0.08, seedNorm: 0.0816 };
 
   it("writes the drawable count and its floor onto the meta doc, merged", async () => {
     const { db, writes } = fakeDb();
     // three published questions, two of them at the floor or better
     const model = modelWith({ a: PATTERNS_MIN_BASIS, b: PATTERNS_MIN_BASIS + 40, c: 1 });
-    await firestorePatternsStore(asDb(db)).putModel(model, "2026-08-22", 12, QUALITY, DISPLACEMENT);
+    await firestorePatternsStore(asDb(db)).putModel(model, "2026-08-22", 12, QUALITY, DISPLACEMENT, SEEDS);
 
     expect(writes.map((w) => w.path)).toEqual(["v2_patterns/loadings", "v2_meta/app"]);
     const loadings = writes[0];
@@ -609,6 +626,9 @@ describe("what the fit publishes for the tab's gate", () => {
     // read for whoever comes to draw it
     expect(loadings.data.quality).toEqual(QUALITY);
     expect(loadings.data.displacement).toEqual(DISPLACEMENT);
+    // …and the seed-distance summary (D382), a property of the model rather
+    // than of a day, so it rides every publish
+    expect(loadings.data.seeds).toEqual(SEEDS);
 
     const meta = writes[1];
     expect(meta.data).toEqual({ patternsPool: 2, patternsBasis: PATTERNS_MIN_BASIS });
@@ -619,7 +639,7 @@ describe("what the fit publishes for the tab's gate", () => {
 
   it("publishes a zero rather than nothing when no question is drawable yet", async () => {
     const { db, writes } = fakeDb();
-    await firestorePatternsStore(asDb(db)).putModel(modelWith({ a: 1, b: 2 }), "2026-08-22", 2, QUALITY, DISPLACEMENT);
+    await firestorePatternsStore(asDb(db)).putModel(modelWith({ a: 1, b: 2 }), "2026-08-22", 2, QUALITY, DISPLACEMENT, SEEDS);
     // A field that stops being written is a field the client keeps
     // reading at its last value — so early nights say 0 out loud.
     expect(writes[1].data).toEqual({ patternsPool: 0, patternsBasis: PATTERNS_MIN_BASIS });

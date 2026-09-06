@@ -36,6 +36,8 @@ import {
   publishableQuality,
   readyPool,
   seedLoading,
+  seedsSummary,
+  skillOf,
   type PatternsModel,
   type PatternsObservation,
 } from "./patternsFit";
@@ -259,7 +261,75 @@ describe("the prequential score", () => {
     const model = emptyModel();
     const score = emptyDayScore();
     foldUserDay(model, emptyUser(), [{ qid: "q-new", x: 1 }], score);
-    expect(score).toEqual({ n: 1, bits: 1, perQ: { "q-new": { n: 1, bits: 1 } } });
+    // …and so is the marginal-only baseline: nothing beats nothing here
+    expect(score).toEqual({ n: 1, bits: 1, baseBits: 1, perQ: { "q-new": { n: 1, bits: 1, baseBits: 1 } } });
+  });
+
+  // ── the baseline (D382) ──────────────────────────────────────────────
+  //
+  // A fit whose vectors carry nothing scores exactly what the marginal
+  // alone scores. Until this row existed the scorecard published 0.93
+  // bits with nothing beside it, and the shipped fit's 0.93 WAS the
+  // marginal's 0.93 in every app-shaped scenario the probe ran
+  // (docs/ALGORITHM-REFLECTION.md §1). Skill is the difference, as a share.
+  it("publishes the marginal-only score beside the fit's, and skill as their gap", () => {
+    // fresh people: θ is zero, so every guess is the marginal's guess and
+    // the skill is exactly 0
+    const model = emptyModel();
+    const score = emptyDayScore();
+    for (let i = 0; i < 6; i++) foldUserDay(model, emptyUser(), [{ qid: "q", x: i % 3 === 0 ? -1 : 1 }], score);
+    expect(score.bits).toBeCloseTo(score.baseBits, 12);
+    const q = publishableQuality([{ day: "2026-09-05", score }], []);
+    expect(q.baselineBits).toBe(q.bits);
+    expect(q.skill).toBe(0);
+    expect(q.series[0]).toEqual({ day: "2026-09-05", n: 6, bits: q.bits, baselineBits: q.bits });
+    expect(q.note).toContain("baselineBits");
+  });
+
+  it("scores positive skill for a person whose vector predicts the answer", () => {
+    const model = emptyModel();
+    // a crowd splits the question evenly, so the marginal says nothing…
+    for (let i = 0; i < 8; i++) foldUserDay(model, emptyUser(), [{ qid: "q", x: i % 2 ? 1 : -1 }]);
+    // …and a person whose θ points along the loading, in the answer's
+    // direction, is called better than the coin
+    const L = model.q.q.v;
+    const user = { v: L.map((x) => x * 40), n: 5 };
+    const score = emptyDayScore();
+    foldUserDay(model, user, [{ qid: "q", x: 1 }], score);
+    expect(score.bits).toBeLessThan(score.baseBits);
+    expect(skillOf(score.bits, score.baseBits)).toBeGreaterThan(0);
+    // …and the perQ row carries the same pair, floored like the rest
+    const q = publishableQuality([{ day: "d", score }], [], 1);
+    expect(q.perQ.q.baselineBits).toBeGreaterThan(q.perQ.q.bits);
+  });
+
+  it("refuses a skill on an empty day", () => {
+    expect(skillOf(0, 0)).toBe(0);
+    const q = publishableQuality([{ day: "d", score: emptyDayScore() }], []);
+    expect(q.skill).toBe(0);
+    expect(q.baselineBits).toBe(0);
+  });
+
+  it("reads the distance from the seeds: a fresh model sits on them, a learned one does not", () => {
+    const model = emptyModel();
+    for (let i = 0; i < 20; i++) foldUserDay(model, emptyUser(), [{ qid: `q${i % 4}`, x: 1 }]);
+    const fresh = seedsSummary(model);
+    expect(fresh.n).toBe(4);
+    // zero θ moves a loading by damping only, which scales it and never
+    // rotates it — so every vector is still its seed, pointing the same way
+    expect(fresh.meanCos).toBeCloseTo(1, 3);
+    expect(fresh.share90).toBe(1);
+    expect(fresh.seedNorm).toBeCloseTo(0.05 * Math.sqrt(PATTERNS_K / 3), 4);
+    expect(fresh.meanNorm).toBeLessThanOrEqual(fresh.seedNorm + 1e-6);
+    // rotate two of the four by hand: the summary says so
+    model.q.q0.v = Array.from({ length: PATTERNS_K }, (_, i) => (i === 0 ? 1 : 0));
+    model.q.q1.v = Array.from({ length: PATTERNS_K }, (_, i) => (i === 1 ? 1 : 0));
+    const moved = seedsSummary(model);
+    expect(moved.share90).toBe(0.5);
+    expect(moved.meanCos).toBeLessThan(fresh.meanCos);
+    expect(moved.meanNorm).toBeGreaterThan(fresh.meanNorm);
+    // and an empty model reports zeros rather than dividing by nothing
+    expect(seedsSummary(emptyModel())).toEqual({ n: 0, meanCos: 0, share90: 0, meanNorm: 0, seedNorm: fresh.seedNorm });
   });
 
   it("reads the marginal one step ahead: with the crowd is cheap, against it is dear", () => {
@@ -348,19 +418,22 @@ describe("what the quality block publishes", () => {
     for (let i = 0; i < PATTERNS_QUALITY_FLOOR; i++) {
       day.n += 1;
       day.bits += 1;
-      const t = (day.perQ["q-big"] ??= { n: 0, bits: 0 });
+      day.baseBits += 1;
+      const t = (day.perQ["q-big"] ??= { n: 0, bits: 0, baseBits: 0 });
       t.n += 1;
       t.bits += 1;
+      t.baseBits += 1;
     }
     // one answer on q-small: ITS mean is one person's surprisal, so it
     // reaches the pooled number and nothing else (the verdict's floor)
     day.n += 1;
     day.bits += 4;
-    day.perQ["q-small"] = { n: 1, bits: 4 };
+    day.baseBits += 4;
+    day.perQ["q-small"] = { n: 1, bits: 4, baseBits: 4 };
     const prior = Array.from({ length: PATTERNS_QUALITY_DAYS }, (_, i) => ({ day: `d${i}`, n: 1, bits: 1 }));
     const q = publishableQuality([{ day: "2026-08-26", score: day }], prior);
     expect(Object.keys(q.perQ)).toEqual(["q-big"]);
-    expect(q.perQ["q-big"]).toEqual({ n: PATTERNS_QUALITY_FLOOR, bits: 1 });
+    expect(q.perQ["q-big"]).toEqual({ n: PATTERNS_QUALITY_FLOOR, bits: 1, baselineBits: 1 });
     expect(q.floor).toBe(PATTERNS_QUALITY_FLOOR);
     expect(q.day).toBe("2026-08-26");
     expect(q.n).toBe(PATTERNS_QUALITY_FLOOR + 1);
@@ -373,7 +446,7 @@ describe("what the quality block publishes", () => {
 
   it("a day with nothing eligible publishes its zero out loud", () => {
     const q = publishableQuality([{ day: "2026-08-25", score: emptyDayScore() }], []);
-    expect(q.series).toEqual([{ day: "2026-08-25", n: 0, bits: 0 }]);
+    expect(q.series).toEqual([{ day: "2026-08-25", n: 0, bits: 0, baselineBits: 0 }]);
     expect(q.n).toBe(0);
     expect(q.perQ).toEqual({});
   });

@@ -70,12 +70,14 @@ import {
   publishableQuality,
   displacementSummary,
   readyPool,
+  seedsSummary,
   type PatternsDayScore,
   type PatternsDisplacement,
   type PatternsModel,
   type PatternsObservation,
   type PatternsQuality,
   type PatternsQualityDay,
+  type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
 
@@ -127,6 +129,9 @@ export interface PatternsStore {
      *  see the fold's own note. A doc predating D325 has none either. */
     quality: PatternsQuality | undefined,
     displacement: PatternsDisplacement,
+    /** Where the vectors are relative to their hash seeds (D382) — the
+     *  reading the displacement summary structurally cannot give. */
+    seeds: PatternsSeeds,
   ): Promise<void>;
   getUsers(uids: string[]): Promise<Map<string, PatternsUserState>>;
   putUsers(states: Map<string, PatternsUserState>): Promise<void>;
@@ -167,7 +172,7 @@ export async function runPatternsFit(
   store: PatternsStore,
   nowMs: number,
   eligible: ReadonlySet<string> = PATTERNS_QIDS,
-): Promise<{ days: number; folded: number; users: number; questions: number; bits: number }> {
+): Promise<{ days: number; folded: number; users: number; questions: number; bits: number; skill: number; seedCos: number }> {
   const yesterday = utcDay(nowMs, -1);
   const floor = utcDay(nowMs, -PATTERNS_CATCHUP_DAYS);
   const model = (await store.getModel()) ?? { ...emptyModel(PATTERNS_K), lastDay: "" };
@@ -191,7 +196,7 @@ export async function runPatternsFit(
     if (day > lastDay && day >= floor) days.push(day);
   }
   if (!days.length || yesterday <= lastDay) {
-    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length, bits: 0 };
+    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length, bits: 0, skill: 0, seedCos: 0 };
   }
 
   let folded = 0;
@@ -323,8 +328,19 @@ export async function runPatternsFit(
     ? publishableQuality(scored, priorSeries)
     : prevQuality;
   const displacement = displacementSummary(prevPub, model);
-  await store.putModel(model, yesterday, folded, quality, displacement);
-  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality?.bits ?? 0 };
+  // Distance from birth, not from last night: the one number that says
+  // whether the vectors have learned anything at all (D382).
+  const seeds = seedsSummary(model);
+  await store.putModel(model, yesterday, folded, quality, displacement, seeds);
+  return {
+    days: days.length,
+    folded,
+    users: touched.size,
+    questions: Object.keys(model.q).length,
+    bits: quality?.bits ?? 0,
+    skill: quality?.skill ?? 0,
+    seedCos: seeds.meanCos,
+  };
 }
 
 /** The Firestore store. State lives in two places, each chosen for its
@@ -353,7 +369,7 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         quality: snap.get("quality") as PatternsQuality | undefined,
       };
     },
-    async putModel(model, lastDay, folded, quality, displacement) {
+    async putModel(model, lastDay, folded, quality, displacement, seeds) {
       // publishableLoadings rounds to 4 dp — the next run refits from the
       // rounded values, a perturbation orders of magnitude under the
       // step size, and the doc stays small enough to read in one go
@@ -396,6 +412,10 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         // holds both ends for that reason.
         ...(quality ? { quality } : {}),
         displacement,
+        // How far the published vectors sit from their hash seeds (D382).
+        // Always written: it is a property of the model, not of a day, so
+        // a run that scored nothing still has one.
+        seeds,
       });
       // ── the mount signal (D265) ──────────────────────────────────
       //
