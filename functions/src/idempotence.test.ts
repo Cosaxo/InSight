@@ -182,6 +182,45 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     expect(store.get("v2_agg_events/evt-1")).not.toHaveProperty("fromIdx");
   });
 
+  it("an edit that arrives before its create THROWS, so Eventarc redelivers", async () => {
+    // Eventarc orders nothing between a document's create and update
+    // deliveries, so the edit can land first. `retargetCounts` refuses
+    // (the old option holds no votes) and the trigger throws, which under
+    // `retry: true` is the whole recovery: the edit comes back after the
+    // create folded.
+    //
+    // Returning instead would be SILENT and permanent — Eventarc marks the
+    // delivery done, and that voter's option never moves on any question,
+    // for as long as the app runs. Swapping the throw for a `return` left
+    // the whole functions suite, tsc and test:scripts green, and the
+    // emulator cannot reach it: a healthy emulator never delivers out of
+    // order.
+    await expect(
+      deliverEdit("edit-1", 1, 0),
+      "an edit before its create was accepted and dropped",
+    ).rejects.toThrow(/before its create/);
+    // …and nothing was written, so the redelivery is a clean replay
+    // rather than one guarded by a ledger entry for a fold that never was.
+    expect(store.has("v2_agg_events/edit-1")).toBe(false);
+    expect(store.has(AGG)).toBe(false);
+  });
+
+  it("an editedAt-only rewrite folds nothing at all", async () => {
+    // Same option to the same option: a stamp, not a move. The early
+    // return is what keeps it out of the published edit matrix — without
+    // it the fold writes a DIAGONAL cell, the one shape pure.ts states
+    // cannot occur, into a matrix readers take as "people who changed
+    // their mind". Green everywhere when removed; the e2e only ever edits
+    // to a different index.
+    await deliver("evt-1", vote);
+    await deliverEdit("edit-1", 1, 1);
+    expect(store.has("v2_agg_events/edit-1"), "a stamp was folded as a move").toBe(false);
+    const edits = (store.get(AGG)?.edits as Doc) || {};
+    expect(Object.keys(edits), "an editedAt-only rewrite reached the edit matrix").toEqual([]);
+    // The counts are untouched, which is the reader-visible half.
+    expect((store.get(AGG)?.counts as Doc)["1"]).toBe(1);
+  });
+
   it("marks the ledger in the same transaction as the fold", async () => {
     // The other half of the property: a fold that lands without its ledger
     // entry is a fold that will land again on the next delivery.
