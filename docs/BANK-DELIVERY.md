@@ -267,16 +267,25 @@ holds it (D161). Of the census above, the topic counts and search still
 read the device's pool; their conversions are recorded in D321 with the
 fixes named.
 
-**What a device accumulates by paging is the remaining design** (D350's
-amendment, 2026-09-01): a phone that boots daily for a year holds every
-page it was handed, and hydrate reads all of them into memory. The
-answer is eviction — keep what was answered and what is on screen, drop
-the rest from memory — a client change with its own record, owed before
-heavy devices hold tens of thousands of rows. It is not a bank-size
-question: the old `BANK_WARN`/`BANK_FAIL` counted the seeded bank as a
-proxy for this and turned CI red at 10,000 questions, which was a
-question limit in everything but name. `INSTALL_WARN` (`check:quality`)
-now warns on what a fresh install is handed whole, and nothing fails.
+**What a device accumulates by paging — bounded at the pager, D389**
+(D350's amendment asked for it, 2026-09-01): a phone that booted daily
+was handed a fresh page per topic every boot whatever it already held
+unanswered — `pageNeedList` took the first `pageSize` ids of the order
+not in the cache — so a year of boots was 144 tail rows a day, ~50 k
+rows, all read into memory by hydrate. The amendment's answer was
+eviction: keep what was answered and what is on screen, drop the rest
+from memory. Built instead at the source, because an evicted row is one
+the device paid a read for and would then never show: a top-up fills a
+topic TO a page — `pageSize` minus what the device holds unanswered in
+memory for it — and no further (`bankPager.ts`, `held`). Memory is then a
+page per topic or field plus what was answered, which the Mirror files
+and the archive lists and so stays; and the reads a boot pays are what
+the person consumed since the last one, not a page per topic per day.
+It is not a bank-size question: the old `BANK_WARN`/`BANK_FAIL` counted
+the seeded bank as a proxy for this and turned CI red at 10,000
+questions, which was a question limit in everything but name.
+`INSTALL_WARN` (`check:quality`) now warns on what a fresh install is
+handed whole, and nothing fails.
 
 The one thing worth doing early is **not making it worse**: a new surface
 that folds over the whole bank at render time is another consumer to

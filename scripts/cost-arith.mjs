@@ -420,6 +420,30 @@ export const B = {
   // break, rather than in a commit message.
   worldAnswers: 4,
   duelAnswers: 1,
+  // The share of world answers whose city or country the hot aggregate
+  // document cannot hold, so they pay the tail (D388): one shard read and
+  // one merge write each, on top of the trigger's two reads and one write.
+  // ZERO TODAY and honestly so — no question has answers from 25 cities,
+  // so the trigger never reads a shard — and the number to move the first
+  // time monitoring/onV2AnswerCreated-evictions.json fires. What it
+  // would cost is small at any plausible value: at 0.3 that is
+  // 0.3 × 4 × (1 read + 1 write) per user-day, about $2 a month at 50 k
+  // DAU on the regional sheet. Named here rather than folded into
+  // TRIGGER_READS so the assumption is visible next to the ones it
+  // depends on.
+  tailShare: 0,
+  // The share of a person's world answers that are PAGED cards — feed tail
+  // and learn, against the daily and the feed's core, which ship whole.
+  // Half is a guess about humans, stated as one. What it prices (D389):
+  // since a top-up fills a topic TO a page, each paged card answered is
+  // one card fetched on the next boot, so the page reads a boot pays are
+  // the paged answers since the last boot — `worldAnswers × pagedShare`
+  // per user-day, in `boot` below. Before D389 the same reads were a
+  // fresh page per topic per boot (FEED_PAGE × twelve topics ≈ 144 a
+  // boot) and were in this model NOWHERE: at 50 k DAU that was ~10 M
+  // reads a day, about $90 a month, unpriced. Stated so the saving is
+  // on the record rather than invisible twice over.
+  pagedShare: 0.5,
   boots: 1.4,          // app opens per active user per day
   // Minutes per user per day with a snapshot LISTENER ATTACHED — not, as
   // this comment said until the idle detach shipped, "minutes with the app
@@ -638,7 +662,10 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     mature, staticBank = false, streamAggs = false,
     publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
   }) {
-    const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots;
+    // …plus the page refill (D389): one paged card fetched per paged card
+    // answered since the last boot, whatever the boot count — see
+    // B.pagedShare for what this replaces.
+    const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots + B.worldAnswers * B.pagedShare;
     // A question under the floor is re-read at most once per 6 h, so roughly
     // one boot in four pays for it. Mature communities have few left.
     const topUp = ((mature ? 5 : AGG_CAP) / 4) * B.boots;
@@ -710,6 +737,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // user), and the reveal pipeline.
     const server =
       B.worldAnswers * TRIGGER_READS.world
+      + B.worldAnswers * B.tailShare // the tail's shard read (D388)
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
       + B.worldAnswers * LEDGER_PASS_READS_PER_ENTRY
@@ -768,7 +796,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled
     // device per day (its fold-side day-doc merge rides per batch).
-    const writes = dau * (B.worldAnswers * (1 + 1 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);

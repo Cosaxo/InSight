@@ -157,6 +157,11 @@ export const LIVE_MEMBERS = [
   // a fold the live list where one is in hand, else the sample.
   "loadVoterSample",
   "votersOrSample",
+  // The breakdown cap's tail (D388): the viewer's own city or country
+  // cell for a question whose hot map is at the cap without it, merged
+  // into the aggregate every Mirror fold already reads. The City and
+  // Country stops kick it on mount.
+  "loadOverflow",
   // The daily pulse (D139): the day-keyed create and the derived
   // day → optionIdx view over the hydrated vote mirror.
   "pulseQs",

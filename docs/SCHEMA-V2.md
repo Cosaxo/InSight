@@ -242,6 +242,24 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
+v2_agg_overflow/{qid}-{s}          the breakdown cap's TAIL (D388), s = FNV-1a(bucket) mod 8
+  { dim: { bucket: {opt:n} } }     every city and country cell the hot
+                                   document above evicted or refused at
+                                   BREAKDOWN_MAX_BUCKETS. hot ∪ tail is the
+                                   whole dimension; a bucket lives in
+                                   exactly ONE of them (an evicted cell
+                                   moves whole, a refused newcomer starts
+                                   here, and a bucket here stays here).
+                                   Written in the answer's own transaction
+                                   as merge-increments, only when the cap
+                                   acts — nothing before a dimension has 25
+                                   values; rebuilt whole (all eight shards,
+                                   set or deleted) by rebuildAggregateV2
+read: signed-in · write: NOBODY — the aggregate's own rule. A device reads
+one shard per question, and only for a question whose hot map is at the
+cap and lacks its own city or country (src/v2/data/overflow.ts); the
+client computes the same hash, pinned on both sides.
+
 v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
   advertiser, headline, body       text only. No image, no logo, no brand
                                    colour, no link — check:content refuses
@@ -770,7 +788,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 197 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 198 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

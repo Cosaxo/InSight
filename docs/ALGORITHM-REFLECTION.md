@@ -1,14 +1,15 @@
 # Algorithm reflection — the fit, the fold, the store, and what a rebuild would look like
 
-**Status: mixed — §1 is a measurement, and most of §6 is built.** The
-owner read this page the day it was written and said *"yeah agree with
-those apply those and go with your recommendation"*; the session that
-followed built §6's steps in order as D382–D386, taking the routine's own
+**Status: built — §1 is a measurement, and every step of §6 is in the
+tree (D382–D389).** The owner read this page the day it was written and
+said *"yeah agree with those apply those and go with your
+recommendation"*, then *"build the remaining steps too"*; the session that
+followed built §6's steps in order, taking the routine's own
 recommendation on the two rows it had put to the owner. The table at the
-foot of §6 says which steps are built, which are half built by design,
-and which are not started; the proposals themselves stand as written,
-because they are the reasoning the records point back to. Written
-2026-09-06 against
+foot of §6 says where each step differs from the row above it — three do,
+each with its reason in the record — and the proposals themselves stand
+as written, because they are the reasoning the records point back to.
+Written 2026-09-06 against
 `main` @ c5cc341 on the owner's ask to reflect, with full creative
 control, on how the algorithm, the database, the data structures and the
 pattern calculation should improve. Read [`MIRROR.md`](MIRROR.md) for the
@@ -707,10 +708,10 @@ record is the truth.
 | 4 | yes | D383 — orthogonal Procrustes onto the published basis; the displacement rides the aligned model |
 | 5 | yes | D383 (server: bin · ord · opt items, the 160 instrument items among them) and D384 (device: every kind is evidence). The owner's row, taken with the same words |
 | 6 | yes | D385 — `v2_patterns/sample-{qid}`, the erasure arm, Kindred · People · pair card reading it; the who-voted sheet and the City pass stay live |
-| 7 | **no** | not started — the three nightly folds still read the ledger separately; §4.2 stands as written |
+| 7 | yes | D387 — one nightly pass (`nightly.ts`, `digestEngagementV2`) over a memoised reader; `fitPatternsV2` and `fitTasteV2` retired; each fold isolated, each heartbeat its own. The pass keeps the digest's deploy name because the armed alert policy is keyed on it |
 | 8 | yes | D384 — the posterior is computed and NOT used to shrink the guess (measured: helps at λ = 0.5, hurts at λ ≥ 2; `patternsMap.ts` says why); λ is published and swept nightly; the information rule, the owner's row |
-| 9 | half, by design | D386 — the metric and the alert, with the refusal half the row above missed; the overflow document waits on the alert's first firing |
-| 10 | two of three | D386 — three folds memoised (`WhosHere`'s needed none; the record says why) and the Circle's index. The client store's page eviction — D350's amendment — is not built |
+| 9 | yes | D386 the metric and the alert; D388 the tail — not one document of every cell but eight shards by bucket hash holding only what the hot map cannot, read by a device for its own city alone; a bucket lives in exactly one of hot and tail; the rebuild writes both |
+| 10 | yes | D386 three folds memoised (`WhosHere`'s needed none; the record says why) and the Circle's index; D389 the paged accumulation bounded at the PAGER rather than evicted after the fact — a top-up fills a topic to a page, not by a page — because an evicted row is a read paid for a card never shown |
 
 ## 7 · What this does not propose
 

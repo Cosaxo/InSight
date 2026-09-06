@@ -102,6 +102,14 @@ function LnNote({ title, children }: { title: string; children: React.ReactNode 
 function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  // The breakdown cap's tail (D388): where a question's hot map is at
+  // its cap without this reader's own city or country, the one shard
+  // that key hashes to is read and merged into the aggregate every fold
+  // below reads. Once per scope per session, and nothing while no
+  // question is at the cap — the store decides, not the stop.
+  React.useEffect(() => {
+    if (scope !== "world") void LIVE.loadOverflow(scope);
+  }, [scope]);
   // The Answers tab's own controls (branch chips, sort, which row is open)
   // moved into LiveAnswerRows at D120 — they belong to the list, and the
   // host had them only because the list used to be inline.

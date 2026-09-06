@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 40 `await getDb()` sites in this file did not change
+// deliberately: the 41 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -131,6 +131,7 @@ import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, fetchVoterSample, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchOverflowCells, overflowWanted, withOverflowCell, type Cell as OverflowCellCounts } from "./overflow";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
 // has below, and for the same measured reason.
@@ -324,6 +325,15 @@ const state = {
   deckDay: -1,
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
+  // The breakdown cap's tail (D388): the viewer's own city/country cell
+  // for each question whose hot map is at the cap without it, as read
+  // from `v2_agg_overflow` — qid → dim → { key, cell }. Kept beside
+  // `aggs` so a refreshed hot document (storeAgg) gets the cell merged
+  // back rather than losing it until the stop is opened again.
+  overflowCells: {} as Record<string, Record<string, { key: string; cell: OverflowCellCounts }>>,
+  // dim → the key the tail was loaded for this session, so a stop opened
+  // twice pays nothing and a changed city loads again.
+  overflowLoaded: {} as Record<string, string>,
   votes: {} as Record<string, string>, // qid -> option id ("0","1",…)
   // Optimistic-vote tracking, split in two because the flags clear at
   // different moments (conflating them let a stranger's vote folding
@@ -1185,7 +1195,13 @@ let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 // cannot silently miss a site.
 const aggDirty = new Set<string>();
 function storeAgg(id: string, agg: AggDoc): void {
-  state.aggs[id] = agg;
+  // A hot document arriving over one whose tail cell this session already
+  // read keeps the cell (D388): the refresh replaces the document whole,
+  // and the tail is not in it by construction.
+  let next = agg;
+  const tail = state.overflowCells[id];
+  if (tail) for (const [dim, t] of Object.entries(tail)) next = withOverflowCell(next, dim, t.key, t.cell);
+  state.aggs[id] = next;
   aggDirty.add(id);
 }
 
@@ -2841,12 +2857,19 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
   // Each surface fails alone: a bad learn order must not cost the feed
   // its pages, or the other way around. The next boot retries either.
   try {
+    // What the device holds unanswered (D389): the learn cards in memory
+    // the mastery map has no history with. A field with a page of them
+    // fetches nothing; the page refills as they are mastered.
+    const learnHistory = learnHistoryIds();
+    const mastered = new Set(learnHistory);
+    const heldLearn = new Set(state.learnBank.map((q) => q.id).filter((id) => !mastered.has(id)));
     const { rows, totals } = await topUpPages(
       { order: () => orderOf("learn"), fetchByIds: (qids) => fetchByIds("learn", qids) },
       cachedBankIds(),
       followedFields(),
-      learnHistoryIds(),
+      learnHistory,
       LEARN_PAGE,
+      heldLearn,
     );
     publishLearnTotals(totals);
     if (rows.length) {
@@ -2895,12 +2918,23 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
         return null;
       }
     })();
+    // What the device holds unanswered in the TAIL (D389): core and bought
+    // rows ship whole and are not runway the pager owes, so they do not
+    // count — a fresh install with its core unanswered still gets its
+    // first tail page per topic, and a topic with a page of fresh tail
+    // cards fetches nothing until they are answered.
+    const heldTail = new Set(
+      state.feedBank
+        .filter((q) => q.core !== true && q.paid !== true && !(q.id in state.votes))
+        .map((q) => q.id),
+    );
     const { rows, totals } = await topUpPages(
       { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
       cachedBankIds(),
       null,
       answered,
       pageSizesByInterest(profile, FEED_PAGE),
+      heldTail,
     );
     // Before the `rows.length` gate, not inside it: a device whose cache
     // already holds this boot's page fetches nothing and still has to be
@@ -4475,6 +4509,45 @@ const LIVE = {
    * one is in hand, else the nightly sample, else null (unfetched). */
   votersOrSample(qid: string): Voter[] | null {
     return state.voters[qid] || state.voterSamples[qid] || null;
+  },
+  /**
+   * The breakdown cap's tail for the viewer's own place (D388): for every
+   * cached aggregate whose hot map for `scope` is at the cap and lacks the
+   * viewer's key, read the one shard that key hashes to and merge the
+   * cell into the document every Mirror reader already folds. Kicked by
+   * the City and Country stops on mount; once per (scope, key) per
+   * session; nothing at all while no question has reached the cap, which
+   * is every question today — `overflowWanted` is the gate, and it is
+   * pinned in overflow.test.ts.
+   */
+  async loadOverflow(scope: "city" | "country"): Promise<void> {
+    if (!state.uid) return;
+    const key = this.anchors()[scope] || "";
+    if (!key || state.overflowLoaded[scope] === key) return;
+    state.overflowLoaded[scope] = key;
+    const wanted = overflowWanted(state.aggs, Object.keys(state.aggs), scope, key);
+    if (!wanted.length) return;
+    try {
+      const db = await getDb();
+      const { cells, read } = await fetchOverflowCells(db, wanted, scope, key);
+      state.stats.aggsFetched += read;
+      for (const c of cells) {
+        state.overflowCells[c.qid] = { ...(state.overflowCells[c.qid] ?? {}), [scope]: { key, cell: c.cell } };
+        const agg = state.aggs[c.qid];
+        if (agg) {
+          state.aggs[c.qid] = withOverflowCell(agg, scope, key, c.cell);
+          aggDirty.add(c.qid);
+        }
+      }
+      if (cells.length) {
+        saveAggCache();
+        notify();
+      }
+    } catch (err) {
+      // Retry on the next mount rather than remembering a failure as a load.
+      delete state.overflowLoaded[scope];
+      reportError(err, { where: "loadOverflow", scope });
+    }
   },
   // uid → display name, from the shared session cache. Synchronous and
   // best-effort: "" means either "no name set" or "not fetched yet", and
@@ -6857,6 +6930,8 @@ function resetForNewUid(uid: string): void {
   state.unaggregated = {};
   state.editedAt = {};
   state.aggs = {};
+  state.overflowCells = {};
+  state.overflowLoaded = {};
   // Before the purge below: a vote ack still in flight must not file the
   // OLD account's answer into a store the new account's hydrate is about
   // to claim. hydrate re-sets it once the new uid's meta row is written.

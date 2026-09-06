@@ -70,6 +70,9 @@ const LIVE = vi.hoisted(() => ({
   placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
   vote: vi.fn(),
   loadKindred: async () => {},
+  // The cap's tail (D388): the stop kicks the read on mount; nothing in
+  // these cases is at the cap, so the stub is the honest fixture.
+  loadOverflow: async () => {},
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false,
   kindredDepth: () => 0,

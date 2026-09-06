@@ -59,6 +59,7 @@ Every constant below is sourced, not assumed:
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
+| The breakdown cap's tail (D388) | **Nothing until a question has answers from 25 cities or countries.** Then +1 shard read and +1 merge write per answer whose city or country the hot document cannot hold (the trigger reads a shard only where the cap acts, and the majority's cities are in the hot 24), and one shard read per such question when a viewer whose city is in the tail opens the City or Country stop, once per session | `v2_agg_overflow`, functions/src/v2.ts; `src/v2/data/overflow.ts`. `B.tailShare` in scripts/cost-arith.mjs carries the share of answers that pay it — 0 today, the number to move when the `agg_evict` alert first fires |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 | One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
 | One Kindred first view | ≤12 **sample documents** (one per question — the nightly voter sample, D385) plus the profile reads for names, shared with the sheet cache; the live query only for a question no sample exists for yet | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99); `PATTERNS_SAMPLE_CAP`, functions/src/patternsSamples.ts. Was ≤12 sheets' worth — ≤2,400 answer reads — until D385 |
@@ -98,11 +99,11 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 9.3 K | 1.0 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 143 K | 10.1 K | 0.83 | 0.00 | **0.83** |
+| Launch / TestFlight | 50 | 9.4 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 144 K | 10.1 K | 0.84 | 0.00 | **0.84** |
 | Real traction | 5,000 | 1.9 M | 101 K | 20 | 0.00 | **20** |
-| Scale | 50,000 | 18.7 M | 1.0 M | 219 | 2.20 | **221** |
-| Hit | 500,000 | 187 M | 10.1 M | 2,211 | 43 | **2,253** |
+| Scale | 50,000 | 18.8 M | 1.0 M | 220 | 2.20 | **222** |
+| Hit | 500,000 | 188 M | 10.1 M | 2,220 | 43 | **2,263** |
 
 > **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
 > wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
@@ -186,6 +187,20 @@ roughly double on the three operation lines.
 > The velocity scan keeps its own read (its cursor window is not a
 > calendar day), and the pass's memory and time budget are in
 > nightly.ts's header.
+
+> **Re-measured 2026-09-06 (D389): the page refill, priced for the first
+> time.** A boot's top-up fills a topic TO a page rather than BY a page,
+> so the paged documents a boot fetches are the paged cards answered
+> since the last boot — `B.pagedShare` (0.5) × `worldAnswers`, two reads
+> per user-day, in the `boot` column. **$221 → $222 at 50 k and
+> $2,253 → $2,263 at 500 k; $0.83 → $0.84 at 500 DAU**, and every row of
+> both tables moved by exactly those two reads. The honest half: those
+> reads were in this model nowhere before, when they were a fresh page
+> per topic per boot — `FEED_PAGE` × twelve topics ≈ 144 a boot, ~10 M a
+> day at 50 k DAU, about $90 a month unpriced — so this note records a
+> saving the table cannot show, because the table never carried the cost.
+> The tail (D388) is priced beside it at `B.tailShare`, zero until the
+> cap's alert first fires.
 
 > **The mount gate (D265, 2026-08-23) costs nothing on either side**, and
 > that is the reason it is shaped the way it is. The fit's nightly run
@@ -376,11 +391,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 29 | 53 | 186 |
-| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 29 | 152 | 285 |
-| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 29 | **282** | 375 |
-| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 375 |
-| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 375 |
+| 50 | 23 | 42 | 3 | 3 | 28 | 7 | 29 | 53 | 188 |
+| 500 | 23 | 42 | 3 | 3 | 28 | 7 | 29 | 152 | 287 |
+| 5,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | **282** | 377 |
+| 50,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 377 |
+| 500,000 | 23 | 2 | 3 | 3 | 28 | 7 | 29 | 282 | 377 |
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the

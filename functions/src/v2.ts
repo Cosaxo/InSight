@@ -42,6 +42,12 @@ import {
   foldAnchors,
   foldCanonAnchors,
   type OnBucketCap,
+  type BucketTail,
+  type OverflowShards,
+  capBoundShards,
+  overflowTail,
+  overflowDocId,
+  retargetTail,
   canonTopN,
   foldEditFlow,
   retargetAnchors,
@@ -154,10 +160,51 @@ export function breakdownFor(
   anchors: unknown,
   optionIdx: number,
   onCap?: OnBucketCap,
+  tail?: BucketTail,
 ): BreakdownCounts {
   const by: BreakdownCounts = storedBy || {};
-  foldAnchors(by, anchors, optionIdx, onCap);
+  foldAnchors(by, anchors, optionIdx, onCap, tail);
   return by;
+}
+
+/** The tail's document for one shard of one question (D388). */
+export const overflowRef = (db: Firestore, qid: string, shard: number) =>
+  db.collection("v2_agg_overflow").doc(overflowDocId(qid, shard));
+
+/**
+ * Read the shards this answer's fold may consult — only where a dimension
+ * is at the cap and lacks the bucket (pure.ts capBoundShards), so the hot
+ * path pays nothing until a tail exists. One `getAll`, inside the
+ * transaction, before any write.
+ */
+export async function readOverflowShards(
+  tx: Transaction,
+  db: Firestore,
+  qid: string,
+  shardIds: readonly number[],
+): Promise<OverflowShards> {
+  const shards: OverflowShards = new Map();
+  if (!shardIds.length) return shards;
+  const snaps = await tx.getAll(...shardIds.map((s) => overflowRef(db, qid, s)));
+  snaps.forEach((snap, i) => {
+    shards.set(shardIds[i], (snap.exists ? (snap.data() as BreakdownCounts) : {}));
+  });
+  return shards;
+}
+
+/** Counts → `FieldValue.increment`s, nested as the shard document is, so
+ * the write is a blind merge: a victim's cell moves into a shard nobody
+ * read, and two answers landing in one shard commute. */
+export function overflowIncrements(counts: BreakdownCounts): Record<string, Record<string, Record<string, FieldValue>>> {
+  const out: Record<string, Record<string, Record<string, FieldValue>>> = {};
+  for (const [dim, buckets] of Object.entries(counts)) {
+    out[dim] = {};
+    for (const [bucket, cell] of Object.entries(buckets)) {
+      out[dim][bucket] = {};
+      for (const [k, n] of Object.entries(cell)) out[dim][bucket][k] = FieldValue.increment(n);
+    }
+  }
+  return out;
 }
 
 /** One thing the bucket cap did while folding an answer — see
@@ -986,12 +1033,21 @@ export const onV2AnswerCreated = onDocumentCreated(
       // Every question slices since D98 — there is no political carve-out
       // and no per-cell floor. The breakdown folded here is the breakdown
       // published, whole.
+      // The tail (D388): the shards this fold may need, read only where a
+      // dimension is at the cap and lacks this answer's bucket — never
+      // before the cap, so the ordinary answer still pays the one getAll
+      // above and nothing more. What the cap then evicts or refuses goes
+      // to the tail as blind increments after the hot write below.
+      const storedBy = agg.exists ? (agg.get("by") as BreakdownCounts) : null;
+      const anchors = snap.get("anchors");
+      const flow = overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
       const by = breakdownFor(
         qid,
-        agg.exists ? (agg.get("by") as BreakdownCounts) : null,
-        snap.get("anchors"),
+        storedBy,
+        anchors,
         optionIdx,
         (kind, dim, bucket, total) => { capped.push({ kind, dim, bucket, total }); },
+        flow.tail,
       );
       // The edit-flow matrix (D226) rides these same docs, and this write
       // replaces the doc whole (merge: false) — so carry it, or the first
@@ -1019,6 +1075,13 @@ export const onV2AnswerCreated = onDocumentCreated(
       // remedy and is now taken; what is left when this bites is sharding,
       // not a floor.
       tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
+      // The tail's own writes — one merge per shard touched, increments
+      // only. Dormant until a dimension reaches the cap; from then on, +1
+      // write per answer whose city or country the hot document cannot
+      // hold (COSTS.md's row).
+      for (const [shard, inc] of flow.pending) {
+        tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
+      }
     });
     logBucketCaps(qid, capped);
   },
@@ -1082,6 +1145,18 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // churn means the old vote is no longer represented (pure.ts has the
       // accounting). Bucket totals never move.
       retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
+      // …and the same move inside the tail (D388), for a bucket the hot
+      // map does not hold: its shard is read (only then — capBoundShards
+      // is empty for a bucket in the hot map or a dimension under the
+      // cap) and the -old/+new lands as increments under retargetAnchors'
+      // own skip rule. Read here, before the writes below, as a
+      // transaction requires.
+      const tailMoves = retargetTail(
+        await readOverflowShards(tx, db, qid, capBoundShards(by, after.get("anchors"))),
+        after.get("anchors"),
+        fromIdx,
+        toIdx,
+      );
       // The move itself is a published fact (D226): one cell of the
       // from → to matrix, folded after the retry guard above so a
       // deferred edit counts once, on the delivery that actually moves.
@@ -1096,6 +1171,9 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // their mind. With no cadence there is no stream to hide in and
       // nothing to hide from: the answer itself is readable.
       tx.set(pubRef, { counts, total, by, edits }, { merge: false });
+      for (const [shard, inc] of tailMoves) {
+        tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
+      }
     });
   },
 );

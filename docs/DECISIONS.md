@@ -40947,3 +40947,141 @@ replaced by its delegation), `tsc` clean, the build and
 `check:monitoring` 10 policies, 8 metrics. `check:figures` — the
 `ops.ts` module count and `functions/README.md`'s function count moved
 with the tree. `test:scripts` 957. eslint clean on every touched file.
+
+## D388 · The breakdown cap's tail: every city and country cell the hot document cannot hold, in eight shards a reader opens only for its own
+
+**2026-09-06.** **Status:** binding. The owner's *"build the remaining
+steps too"* on [`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §6 —
+step 9's second half, §4.4's overflow document, built on the owner's
+word rather than on the alert D386 armed to wait for.
+
+### What
+
+`BREAKDOWN_MAX_BUCKETS` bounds the hot aggregate document at 24 values a
+dimension, and until now what the cap evicted or refused was gone: the
+twenty-fifth city to answer a question vanished from its City stop
+(D386 made that visible; nothing made it stop). Now it goes to the
+TAIL — `v2_agg_overflow/{qid}-{shard}`, `{ dim: { bucket: { opt: n } } }`,
+eight shards per question by FNV-1a of the bucket — so hot ∪ tail is
+exact, the fold is commutative everywhere, and a bucket lives in exactly
+one of the two: an evicted cell moves whole, a refused newcomer starts in
+the tail, and a bucket the tail holds stays there. `foldAnchors` takes a
+`BucketTail` (pure.ts); the trigger reads a shard ONLY where a dimension
+is at the cap and lacks the answer's bucket (`capBoundShards` — empty for
+every question under the cap, which is every question today, so the
+ordinary answer pays the one `getAll` it always paid) and writes the
+tail as blind merge-increments after the hot document, so an eviction's
+victim moves into a shard nobody read. The edit path moves its
+-old/+new inside the tail under `retargetAnchors`' own skip rule
+(`retargetTail`). The catalog fold takes no tail: its published `by` is
+a lossy projection of the board by design (D17), so the D386 line still
+means a discarded cell there, and the alert's runbook says which.
+
+The rebuild (`rebuildAggregateV2`, D290) folds the same tail in memory
+and writes the hot document and ALL EIGHT shards in one batch — set where
+the fold produced one, deleted where it did not — so a rebuild is a whole
+replacement of both, and `replay.test.ts` now proves what its header
+wanted: the hot map alone is order-dependent at the cap and says so
+(`cappedDims`), and hot ∪ tail is order-independent and complete.
+
+On the device (`src/v2/data/overflow.ts`): the same hash, pinned on both
+sides against the same vectors and against the server's constants read
+off its source; `overflowWanted` names the questions whose hot map is at
+the cap without the viewer's own city or country; `LIVE.loadOverflow`,
+kicked by the City and Country stops on mount, reads those shards in
+`documentId() in` chunks of 30 and merges the cell into the aggregate
+every Mirror fold already reads, keeping it across a hot-document
+refresh (`storeAgg`). One shard read per such question, once per session;
+nothing while no question is at the cap. Rules: the aggregate's own —
+any signed-in reader, no client write; `check:data-inventory`'s reader
+ratchet moved to 34.
+
+### Why shards, and why the tail is not "every cell twice"
+
+§4.4 proposed one overflow document per question holding EVERY city and
+country cell, written on every answer that carries one (+1 write per
+world answer). Two things changed it. A city dimension can hold the whole
+catalogue — ~11 k places — and one document for a question answered
+from everywhere would be ~550 KB, near Firestore's 1 MiB and far too
+heavy for a phone to read per question at its City stop; eight shards
+keep the worst case under ~70 KB and let the device read the one shard
+its own city hashes to. And a tail that holds only what the hot map does
+not means the majority — whose cities ARE the hot 24 — writes nothing
+extra and reads nothing extra: the write is +1 per answer the cap acts
+on, the trigger's read +1 for the same answers, and `B.tailShare` in the
+cost model carries that share — 0 today, the number to move the first
+time `monitoring/onV2AnswerCreated-evictions.json` fires. What the tail
+gives up is the eviction rule's "recurrence wins": a value that reaches
+the tail never climbs back into a hot slot. What that buys is that no
+reader ever sums two documents for one cell and the trigger never reads
+a shard it did not already need.
+
+### Measured before the push
+
+Functions: 755 tests (`pure` +5 tail cases, `replay` rewritten at the
+cap, `overflow` 3, `replay-guards` taught the batch), `tsc` clean. Client:
+2,688 tests (`overflow` and `overflow.reads` new; the LIVE surface pin
+and every fixture carry `loadOverflow`), `tsc -b` clean. Rules: 198,
+coverage baseline 46 held — the tail's arm has its signed-out case, and
+the sign-in-gated census moved 15 → 16 and 27 → 28 with it.
+`check:data-inventory` 34, `check:monitoring`, `check:figures`,
+`check:docs`, eslint clean. `check:bundle`: 636 KB eager against the
+642 KB ceiling — after one measured lesson. The first draft of
+`overflow.ts` imported `getDocs` from `firebase/firestore` statically,
+and because `live.ts` imports the module and is on the first-paint path,
+the whole Firestore client rode into the eager graph: 634 KB → 961 KB,
+the gate red exactly as D144 built it to be. The module binds the SDK
+off `getFirestoreApi()` at call time now, the voters module's shape
+(D122), and its header says so for the next module. **Not run here: the
+e2e** — the sandbox proxy stops the functions emulator (D386 has the
+failure text); step 7j is written for CI's `test:e2e:all`, and it is the
+first place the transaction's conditional shard read and its blind
+increments meet a real emulator.
+
+## D389 · A top-up fills a topic to a page, not by a page — the paged accumulation D350's amendment named, bounded at its source
+
+**2026-09-06.** **Status:** binding. The owner's *"build the remaining
+steps too"* — step 10's third item, §4.6's eviction.
+
+### What, and why not eviction
+
+`pageNeedList` took the first `pageSize` ids of a topic's published
+order the cache did not hold, whatever the device already held
+unanswered — so a phone that booted daily and answered little was
+handed a fresh page per topic every boot and kept every one: twelve
+topics × `FEED_PAGE` 12 = 144 tail rows a day, fifty thousand a year,
+all read into memory by hydrate. That is the accumulation D350's
+amendment named, and it asked for eviction — keep what was answered and
+what is on screen, drop the rest from memory.
+
+Eviction after the fact was the wrong tool, for a reason worth one
+sentence: an evicted row is one the device paid a read for and, still in
+the cache as "seen", would never be handed again — a leaky bucket that
+keeps paying for pages nobody sees. The bound belongs at the source. A
+top-up now fills a topic TO a page: `held` is what the device holds
+unanswered in memory for that topic (the feed's tail rows without a vote;
+learn cards the mastery map has no history with — core and bought rows
+ship whole and are not runway the pager owes, so they do not count), and
+the page is `pageSize − held`. A topic with a page of fresh cards fetches
+nothing; as they are answered, the next boot refills to a page. Memory is
+then a page per topic or field plus what was answered — which the Mirror
+files and the archive lists, and so stays by design — and the reads a
+boot pays are the paged cards the person consumed since the last one.
+The old cases stand (`held` defaults to empty, the pre-D389 page); the
+new case pins the fill, the stale-held rule and the shrunk-page rule.
+
+### The arithmetic the model never had
+
+The page reads were in the cost model NOWHERE: `boot` priced the meta,
+the bank cursor, the deck's aggregates and the answers page, and not the
+`v2_rank` orders or a single paged document. Before D389 that was ≈144
+reads a boot per device — at 50 k DAU and 1.4 boots, ~10 M reads a day,
+about $90 a month unpriced. `B.pagedShare` (0.5, a guess about humans
+stated as one) now prices the refill as `worldAnswers × pagedShare` per
+user-day — two reads — and the note in COSTS.md says what it replaces.
+Every figure in the table moved by those two reads.
+
+### Measured before the push
+
+`bank-pager`, `bank-cache` and `vote` suites 166; the full client suite;
+`tsc -b`; eslint. BANK-DELIVERY §4 says where the bound is now.

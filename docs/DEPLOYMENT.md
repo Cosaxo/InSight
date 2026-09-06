@@ -847,16 +847,18 @@ did not wait.
 shape pointed at the other thing the vote path does without an error:
 `BREAKDOWN_MAX_BUCKETS` bounds the breakdown document, and past 24 values
 of one anchor the fold either evicts a sub-floor bucket or refuses the
-newcomer — the answer folds, the transaction commits, and one cohort cell
-is quietly missing. `evictForNewBucket` ran silently from the day it was
-written; the fold now reports through a callback and the trigger logs
-`metric: "agg_evict"` once per discard, after the commit (so a contended
-answer counts once, not once per attempt). The metric is `agg_evict`,
-`severity>=WARNING`, and the policy thresholds more than five discards in
-an hour. Its runbook says what the first firing is FOR: it is the evidence
-`docs/ALGORITHM-REFLECTION.md` §4.4 builds the overflow document on, so
-the response is to read the qid off the line and put that work on the
-list, not to raise the threshold.
+newcomer — the answer folds, the transaction commits, and the cell goes to
+the question's tail (`v2_agg_overflow/{qid}-{shard}`, D388) rather than
+to the hot document. `evictForNewBucket` ran silently from the day it was
+written; the fold reports through a callback (D386) and the trigger logs
+`metric: "agg_evict"` once per act of the cap, after the commit (so a
+contended answer counts once, not once per attempt). The metric is
+`agg_evict`, `severity>=WARNING`, and the policy thresholds more than five
+in an hour. Since D388 nothing is lost when it fires; what the line means
+is that the tail is live for that question — a reader whose city is in it
+pays a shard read per such question at the City stop — and the runbook's
+first response is to move `B.tailShare` in the cost model from its honest
+zero, not to raise the threshold.
 
 ## Running a deploy manually
 

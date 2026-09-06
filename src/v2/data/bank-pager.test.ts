@@ -45,13 +45,37 @@ describe("pageNeedList", () => {
 
   it("skips cached qids WITHOUT spending the page on them", () => {
     // The cache is the seen-set: a page is LEARN_PAGE *fresh* cards, so a
-    // device that answered the order's head must be handed the next
+    // device that ANSWERED the order's head must be handed the next
     // LEARN_PAGE behind it, not a page minus what it has already met.
+    // (Answered — in the history — is the case; a card held UNANSWERED is
+    // runway, and the case below is about that.)
     const o = order({ cell: ids("cell", LEARN_PAGE * 2) });
     const cached = new Set(ids("cell", 5));
-    const need = pageNeedList(o, cached, null, [], LEARN_PAGE);
+    const need = pageNeedList(o, cached, null, ids("cell", 5), LEARN_PAGE);
     expect(need).toHaveLength(LEARN_PAGE);
     expect(need[0]).toBe(`learn-cell5`);
+  });
+
+  it("fills a topic TO a page, not BY a page: cards held unanswered are runway the boot does not re-buy (D389)", () => {
+    // The accumulation D350 named: a boot that took a fresh page whatever
+    // the device already held unanswered handed a daily booter a page per
+    // topic per day. `held` is what is in memory and unanswered; the boot
+    // tops it up to the page and no further.
+    const o = order({ cell: ids("cell", LEARN_PAGE * 3), solar: ids("sol", LEARN_PAGE) });
+    const cached = new Set([...ids("cell", 5), ...ids("sol", LEARN_PAGE)]);
+    // five held unanswered in cell, a whole page held in solar
+    const held = new Set([...ids("cell", 5), ...ids("sol", LEARN_PAGE)]);
+    const need = pageNeedList(o, cached, null, [], LEARN_PAGE, held);
+    expect(need.filter((q) => q.startsWith("learn-cell"))).toHaveLength(LEARN_PAGE - 5);
+    expect(need[0]).toBe("learn-cell5");
+    expect(need.filter((q) => q.startsWith("learn-sol"))).toHaveLength(0);
+    // …and a held card the order no longer places is not runway: the
+    // order dropped it, so the order will never serve it.
+    const stale = new Set([...held, "learn-gone1", "learn-gone2"]);
+    expect(pageNeedList(o, cached, null, [], LEARN_PAGE, stale)).toEqual(need);
+    // held over the page (an order that shrank its page) asks for nothing
+    const over = new Set(ids("cell", LEARN_PAGE + 3));
+    expect(pageNeedList(o, new Set(over), null, [], LEARN_PAGE, over).filter((q) => q.startsWith("learn-cell"))).toEqual([]);
   });
 
   it("pages only the followed fields when the device narrowed", () => {

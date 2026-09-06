@@ -640,6 +640,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // the nightly samples (D385): none in the fixture, so a fold falls back
     // to the live rows the fixture already serves
     loadVoterSample: async () => {},
+    // the cap's tail (D388): no question in the fixture is near the cap
+    loadOverflow: async () => {},
     votersOrSample: () => [
       { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
       { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
