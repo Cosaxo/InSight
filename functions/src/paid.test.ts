@@ -19,6 +19,7 @@ import {
   AUDIENCE_DIMS_MAX,
   LIKERT,
   adPriceQuote,
+  checkoutLineItem,
   adStartDay,
   adAudiencesOverlap,
   dayPlus,
@@ -923,5 +924,75 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
     const f = fakeDb(["review", "live"]);
     await reviewBooking(f.db, "b1");
     expect(f.writes, "the transaction wrote over a booking that went live mid-review").toEqual([]);
+  });
+});
+
+// ── what the buyer is actually charged ──────────────────────────────────
+//
+// Everything from the amount to the sentence describing it is unreachable
+// in the emulator: `createPaidCheckoutV2` throws `unavailable` at the
+// missing Stripe key one line above, and the e2e asserts exactly that
+// refusal. So the whole block ran under nothing — swapping the cap for the
+// per-answer rate, or the cents multiplier from 100 to 10, left the
+// functions suite and every e2e leg green.
+describe("checkoutLineItem — the amount and what the charge says it is for", () => {
+  const q = priceQuote("city");
+  const ad = adPriceQuote("city");
+  const both = { ...q, ...ad } as Parameters<typeof checkoutLineItem>[1];
+
+  it("charges the QUESTION its cap, in cents", () => {
+    // The cap, not the per-answer rate: the cap is what is taken, so the
+    // unserved part can be refunded at close. Charging the rate would bill
+    // €0.14 for a €320 campaign.
+    const li = checkoutLineItem(false, both);
+    expect(q.capEur).toBe(320);
+    expect(li.unit_amount).toBe(32000);
+    expect(li.currency).toBe("eur");
+  });
+
+  it("charges the AD its flat price, in cents", () => {
+    const li = checkoutLineItem(true, both);
+    expect(li.unit_amount).toBe(Math.round(ad.flatEur * 100));
+    // …and the two are genuinely different numbers, or this case and the
+    // one above could not tell the branches apart.
+    expect(ad.flatEur).not.toBe(q.capEur);
+  });
+
+  it("does not lose or gain a factor of ten on the cents", () => {
+    // `* 10` (€3.20) and `* 1000` both leave every other assertion here
+    // intact if the amount is only ever compared to itself, so this
+    // compares against the euro figure the buyer was quoted.
+    for (const isAd of [false, true]) {
+      const li = checkoutLineItem(isAd, both);
+      const euros = isAd ? ad.flatEur : q.capEur;
+      expect(li.unit_amount / 100).toBeCloseTo(euros, 2);
+    }
+  });
+
+  it("tells the question's buyer the window, the rate and the refund", () => {
+    // This sentence is the contract the buyer reads at the moment of
+    // paying. Every number in it comes off the locked quote.
+    const d = checkoutLineItem(false, both).product_data;
+    expect(d.name).toBe("InSight paid question");
+    expect(d.description).toContain(`${q.windowDays}-day window`);
+    expect(d.description).toContain(`€${q.ratePerAnswer}`);
+    expect(d.description).toContain(`up to ${q.cap} answers`);
+    expect(d.description).toContain("refunds automatically at close");
+  });
+
+  it("tells the ad's buyer a flat price and promises it no refund", () => {
+    // The ad has no refund path (D315), so its description must not carry
+    // the question's promise — the two products landed on one page once
+    // and that is the failure the split exists for.
+    const d = checkoutLineItem(true, both).product_data;
+    expect(d.name).toBe("InSight feed ad");
+    expect(d.description).toContain(`${ad.windowDays}-day window at a flat price`);
+    expect(d.description).not.toContain("refunds automatically");
+    expect(d.description).not.toContain("per answer");
+  });
+
+  it("prints the rate without trailing zeros — it is money, not a float dump", () => {
+    const d = checkoutLineItem(false, both).product_data;
+    expect(d.description).not.toMatch(/€\d+\.\d*0(\D|$)/);
   });
 });

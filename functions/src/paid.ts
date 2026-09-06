@@ -847,6 +847,50 @@ export const sweepPaidReviewsV2 = onSchedule(
  * simply expires server-side at Stripe); amount and currency come off the
  * LOCKED quote, never the wire.
  */
+/**
+ * The Checkout line item: what the buyer is charged and what the charge
+ * says it is for.
+ *
+ * PURE, AND EXPORTED, because everything from here to the end of
+ * `createPaidCheckoutV2` is unreachable in the emulator — the callable
+ * throws `unavailable` at the missing Stripe key one line above it, and
+ * the e2e asserts exactly that refusal. So the amount, the currency, the
+ * cents multiplier and the sentence promising the buyer a window and a
+ * refund all ran under nothing: swapping `capEur` for `ratePerAnswer`
+ * (€0.14 instead of €320) or `* 100` for `* 10` (€3.20) left the whole
+ * functions suite and every e2e leg green.
+ *
+ * The amount comes off the LOCKED quote and never off the wire — a
+ * pricing recompute between approval and payment changes nothing for this
+ * buyer (PAID-PLAN §6). An ad is a flat price for the window; a question
+ * is billed per answer up to a cap, and it is the CAP that is charged, so
+ * the unserved part can be refunded at close.
+ */
+export function checkoutLineItem(isAd: boolean, quote: PaidQuote & PaidAdQuote): {
+  currency: "eur";
+  unit_amount: number;
+  product_data: { name: string; description: string };
+} {
+  const amountEur = isAd ? quote.flatEur : quote.capEur;
+  return {
+    currency: "eur",
+    unit_amount: Math.round(amountEur * 100),
+    product_data: isAd
+      ? {
+        name: "InSight feed ad",
+        description:
+          `${quote.windowDays}-day window at a flat price · text-only, no link, no tracking · `
+          + "starts on the scope's first open day after payment",
+      }
+      : {
+        name: "InSight paid question",
+        description:
+          `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
+          + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
+      },
+  };
+}
+
 export const createPaidCheckoutV2 = onCall(
   { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
@@ -871,7 +915,6 @@ export const createPaidCheckoutV2 = onCall(
     }
     const isAd = snap.get("kind") === "ad";
     const quote = snap.get("quote") as PaidQuote & PaidAdQuote;
-    const amountEur = isAd ? quote.flatEur : quote.capEur;
     const { default: Stripe } = await import("stripe");
     const stripe = new Stripe(key);
     // ONE PAYABLE SESSION AT A TIME. Every call here used to mint a fresh
@@ -902,26 +945,7 @@ export const createPaidCheckoutV2 = onCall(
       mode: "payment",
       client_reference_id: bid,
       metadata: { bid, uid },
-      line_items: [{
-        quantity: 1,
-        price_data: {
-          currency: "eur",
-          unit_amount: Math.round(amountEur * 100),
-          product_data: isAd
-            ? {
-              name: "InSight feed ad",
-              description:
-                `${quote.windowDays}-day window at a flat price · text-only, no link, no tracking · `
-                + "starts on the scope's first open day after payment",
-            }
-            : {
-              name: "InSight paid question",
-              description:
-                `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
-                + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
-            },
-        },
-      }],
+      line_items: [{ quantity: 1, price_data: checkoutLineItem(isAd, quote) }],
       // The web pages exist for exactly this hop (commerce stays on the
       // web side): web/paid-done*.html and web/paid-cancel.html on the
       // hosting origin home.html already serves. The app never learns of

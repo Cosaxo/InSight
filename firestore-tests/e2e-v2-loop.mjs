@@ -1975,6 +1975,32 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("payment went live: purchase + disclosed question in one transaction");
 
+  // …AND CHECKOUT REFUSES IT NOW. The guard is `status === "live"` and it
+  // sits ABOVE the missing-key check, so unlike the rest of that callable
+  // it is reachable here — and nothing exercised it: deleting it left the
+  // whole suite green. web/paid-cancel.html tells the buyer that pressing
+  // Pay again "opens a fresh payment page", so a second checkout on a
+  // booking already paid for is a page the product actively offers, and
+  // "failed-precondition" rather than a payable session is the difference
+  // between one charge and two.
+  //
+  // The code distinguishes it from the not-yet-approved refusal, which is
+  // the same code with a different sentence — so the message is checked
+  // too, or this leg would pass on either guard.
+  {
+    // expectRefusal, not expectCode: this leg has to read the MESSAGE, and
+    // expectCode swallows the error and emits its own ok — which is the
+    // exact shape that helper's docstring warns about. It emits no ok, so
+    // the tally counts this only once the sentence is checked too.
+    const why = await expectRefusal("checkout refuses a booking already paid for",
+      "functions/failed-precondition",
+      () => httpsCallable(payFns, "createPaidCheckoutV2")({ id: bid }));
+    if (!/already paid/i.test(why)) {
+      fail("checkout refused a paid booking with the wrong reason: " + why);
+    }
+    ok("checkout refuses a booking already paid for, and says which refusal it is");
+  }
+
   // At-least-once delivery: the SAME event again answers 200 and mints
   // nothing new — the status guard is the idempotency.
   const replay = await signedPost(sessionEvent, whsec);
