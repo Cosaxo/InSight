@@ -3,7 +3,7 @@
 //
 // WHAT THIS GATES, AND IT IS NOT THE CARDS. The visible half of "politics
 // in this app" is 14 questions carrying the political marker, out of the
-// 485 on the daily and the feed, and they are ordinary public answers
+// 487 on the daily and the feed, and they are ordinary public answers
 // like every other. (It said "ten out of 278" — both numbers had moved,
 // and the second was already wrong when it was written. They are
 // check:figures' now, counted off the bank.) The half

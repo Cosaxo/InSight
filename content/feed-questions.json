@@ -5935,6 +5935,48 @@
         "cash grabs",
         "real stories"
       ]
+    },
+    {
+      "id": "n16",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Eleven districts of London fill with design installations. Public art on your daily route: a gift, or in the way?",
+      "bg": "The 24th London Design Festival runs 12–20 September 2026: nine days of landmark installations, museum commissions and open studios across eleven design districts, from the V&A and the Barbican to a new Soho district.",
+      "from": "2026-09-06",
+      "until": "2026-09-13",
+      "options": [
+        {
+          "label": "A gift"
+        },
+        {
+          "label": "In the way"
+        },
+        {
+          "label": "I stop noticing by Tuesday"
+        }
+      ]
+    },
+    {
+      "id": "n17",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "TV’s big night returns. Award shows: still appointment viewing, or a highlights reel the morning after?",
+      "bg": "The 78th Primetime Emmy Awards air live from the Peacock Theater in Los Angeles on 14 September 2026, hosted by Mariska Hargitay, with the Creative Arts ceremonies held the weekend before.",
+      "from": "2026-09-06",
+      "until": "2026-09-14",
+      "options": [
+        {
+          "label": "Appointment viewing"
+        },
+        {
+          "label": "The highlights after"
+        },
+        {
+          "label": "Neither, honestly"
+        }
+      ]
     }
   ]
 }
