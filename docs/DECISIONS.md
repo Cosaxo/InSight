@@ -39944,3 +39944,248 @@ bought dim's rows and not the others, the nameless buyer, the three
 `check:policy-claims`, and the e2e (the page for the sold question
 with its answer, its headers and its cache; no page for a bank
 question or a missing one; no uid on it).
+
+## D380 · The 2026-09-06 night review: two shifts merged as one tree — 68 commits kept, two defects the composition created, and a fix whose tests a third PR deleted
+
+**2026-09-06.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty-eight commits are kept as written; nothing was reverted. What this
+review adds is the composition, two fixes for defects no shift could see
+alone, one overclaim corrected, and three tests recovered from a deletion
+that had nothing to do with them.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260906` | 33 | 4 behind | shift A, Claude 2's, 21:21–05:34 UTC |
+| `nightb-20260906` | 35 | 5 behind | shift B, Claude 1's, 20:13–04:34 UTC |
+
+Six files were touched by both. Four composed cleanly on different
+regions — `functions/src/pure.ts` (A a docstring, B the new
+`seedMapClears`), `src/v2/spec-index.js` (two different notes),
+`src/v2/spec/world-feed.jsx` (A the learn card's rate copy at 3439, B the
+no-crowd work at 228–2226), `src/v2/ui/LiveMirrorLenses.test.tsx` (A a
+mock member, B two cases). Two did not, and both are gate scripts, which
+is not a coincidence: both shifts spent the night on gates that certify
+something without executing it, so they collided on the same files for
+the same reason.
+
+### The first defect: a clean automerge that quietly un-tested a gate
+
+**`scripts/check-appcheck.mjs` — the only thing standing between the
+public callable surface and the open internet.** Both shifts rebuilt it
+the same night:
+
+- **A** extracted `scanCallables()` and `appCheckProblems()` as exported
+  PURE functions and wrote the gate its first test — `appCheckProblems`
+  parameterised on the exemption table *"so a test can drive it without
+  the real tree"*.
+- **B** added the spread-after-`enforceAppCheck` rule inside the scan
+  loop, and two checks that read `functions/src` off disk:
+  `checkAppCheckPolarity` (the constant's VALUE in `ops.ts`, not its name
+  at the call sites) and `checkAppCheckProvenance` (that every callable
+  defers to *that* constant).
+
+git resolved one conflict and produced a working gate — `check:appcheck`
+green, 28 callables, 20 enforcing — that was wrong underneath: **B's two
+disk-reading checks landed inside the function A had made pure.**
+Measured rather than reasoned. Flipping `ENFORCE_APP_CHECK` in `ops.ts`
+from opt-out to opt-in turns A's fixture case — *"is silent when every
+unattested callable is exempt and calls its gate"*, driven on a synthetic
+three-callable string — red:
+
+```
+expected [ …(2) ] to deeply equal []      1 failed | 9 passed
+```
+
+A unit test on a fixture, failing because of a file the fixture never
+mentions. Resolved by giving each half the place its own argument asks
+for: B's spread rule into `scanCallables()`, where the option block is
+now read; B's two checks lifted to the driver beside the
+`appCheckProblems()` call. Under the same mutation the fixture case
+passes 10/10 **and** the gate still exits 1 naming the flipped constant —
+both verified, in both directions.
+
+The same pair collided on **`scripts/check-fn-runtime.mjs`** and merged
+cleanly, and that one is worth stating because it is the good case: A
+widened the scan from `.ts`/`.tsx` to every client source (145 `.js`/`.jsx`
+files were invisible to it), B stripped comments before reading the region
+constant. Both halves were probed on the composed tree and both fire — a
+region spelled out in a `.jsx` is caught, and a superseded constant parked
+in a comment above a wrong live one no longer clears the gate.
+
+### The second defect: a fix for silent data loss, running under nothing
+
+**`functions/src/v2.ts` — the seed's 450-op batch flush.** Shift B added
+the map-clear pass (a Crossroads story that drops a node keeps it forever
+under `merge: true`), then found in its own last commit that the pass can
+put a SECOND op into one loop iteration without consulting the threshold —
+so `++inBatch === 450` can be stepped over and never match again, the batch
+grows to the end of the bank, and the commit throws at Firestore's 500-op
+cap, losing every write since the last flush. `>=` is the fix and it is
+correct.
+
+Two things about it were not.
+
+**It ran under nothing.** Reverting `>=` to `===` left all 687 functions
+tests green. A silent-data-loss guard on the path that rewrites the
+question bank, with nothing able to fail — which is verbatim the class both
+shifts spent the night hunting, in the commit that closed one of them.
+
+**And the comment claimed more than it had.** It said the bug was
+*"reachable on any run that rewrites 450+ documents with at least one map
+clear among them, which is what a full repair reseed of the 847-document
+bank is."* It is not. Simulated across all 847 indices: **exactly one
+trips it** — the clear has to arrive while the counter already stands at
+449; a clear anywhere else only shifts which document lands on the
+boundary, and `===` and `>=` behave identically. Today's bank cannot reach
+it at all. Three documents carry an object-valued seeded field (`feed-pt1`,
+`feed-pt2`, `feed-pt3`, at indices 210, 211 and 307) and the counter stands
+at 210, 212 and 309 when they arrive. So it is a guard against the bank
+gaining a fourth story in the wrong place, not a live bug — and it is kept,
+because `>=` is free and the failure it prevents is silent.
+
+That distinction is also why a live-bank test cannot pin it: inducing
+clears on all three story documents commits identically under either
+operator, so such a case would pass whichever operator is in the file. The
+counting SHAPE is held instead, in the idiom `engagement.test.ts` already
+uses for its own batch. Both cases were mutation-checked — reverting to
+`===` fails one, a third unchecked bump fails the other — and the
+anti-vacuity case earned itself immediately by catching a bad slice anchor
+(`runSeedAds` sits ABOVE `runSeedV2`, so slicing to it yields the empty
+string and every case passes).
+
+### The one no shift and no reviewer of either branch would have seen
+
+`main` moved while this review ran: **#401 merged D370–D379**, and two of
+those records land on the paid work shift A did the same night.
+
+**D375 took the ad off the paid path.** A had extracted
+`checkoutLineItem(isAd, quote)` — pure and exported, because everything
+past the Stripe-key check is unreachable in the emulator and *"the amount,
+the currency, the cents multiplier and the sentence promising the buyer a
+window and a refund all ran under nothing"*. The extraction is kept; the
+`isAd` arm is not, because the caller now refuses an approved-but-unpaid ad
+outright and a second branch would be a shape nothing can reach.
+
+**D370 moved the cap from €320 to €50.** A's case asserted `capEur === 320`
+as a literal and failed on the merged tree. Rewritten against the quote
+rather than against a figure the card is allowed to change, with a guard
+that the cap and the rate do not round to the same cents — without it the
+case could no longer tell which one is being charged. Both mutations it
+exists for still fail it.
+
+**And the one that went silent.** A's three `goLive` window cases — pinning
+its own one-clock-read fix, where `until` is derived from `start` instead
+of from a second `Date.now()` — sat inside `paid.test.ts`'s ad section. So
+D375's deletion, for reasons that have nothing to do with them, **took the
+tests and left the fix.** Nothing went red. `paid.ts` still derives the
+window correctly and was running under nothing again, two days after being
+fixed for exactly that. Recovered under `utcDayKey`, where the ad lane
+cannot reach them.
+
+Their limit is A's own and is stated in the file: they fail on a wrong
+window LENGTH and cannot catch the two-clock shape directly, because fake
+timers freeze the clock rather than advancing it between two reads.
+Verified by mutation in both directions — which is how the claim was
+confirmed rather than taken on trust.
+
+**The finding is that a deletion is a coverage event.** D375 is a correct,
+deliberate product decision, and reviewing it as a diff would show only ad
+code going away. What went with it was a test for a question-path fix that
+happened to be filed nearby. No gate can see this: every runner is green
+before and after, because a deleted test cannot fail. The only thing that
+found it was reading the merged file for what shift A had put in it and
+counting what was still there.
+
+### The battery, on the composed tree
+
+Neither branch's own green says anything about this tree, because no tree
+had held both — and after the `main` merge, no tree had held all three.
+Run here in full:
+
+| | |
+| --- | --- |
+| `test:unit` | 181 files, 2647 tests |
+| `test --prefix functions` | 32 files, 703 tests (687 on arrival, plus this review's) |
+| `test:scripts` | 58 files, 957 tests |
+| `test:rules` | 197 tests (Java 21) — up from 179, shift B's night |
+| `test:e2e:all` | all three legs, one emulator boot, exit 0 |
+| gates | 43 `check:*`, plus `lint`, `tsc -b`, and `check:bundle` on a shipping build |
+
+Two gates are red and neither is about the tree, both verified against
+`origin/main` rather than assumed — the same two D365 recorded:
+`check:store-copy` wants the Play signing SHA256 and says in its own header
+that it is deliberately not in CI; `check:web-firebase` wants the four
+`VITE_FIREBASE_*` secrets and runs on the two release workflows rather than
+on `ci.yml`. Two more read as red on a bare checkout and are not:
+`check:bundle` and `check:fn-runtime` want a build first.
+
+**The ceiling D365 said was due to trip this week did not.** 630 KB eager
+against the 642 raised four days ago, on a shipping build with the DSN in —
+main measures 629.9, so this night's 68 commits cost about a tenth of a
+kilobyte of first paint. The rate D365 measured at ~2.7 KB/day is not a
+constant; a night spent almost entirely on tests, gates and comments does
+not move it. The three deferral candidates it named are still the answer
+when it does.
+
+### What shift B put to the owner, and why a routine could not
+
+Two rows on `OWNER-LIST.md`, both the D334 shape — brought with the
+arithmetic rather than decided:
+
+**Three behaviour signals are collected from every device every day and
+read by nothing.** `feedB`, `stops` and `lenses` on the daily engagement
+rollup: **zero** readers across `functions/src`, against three for
+`depthEnd`, a neighbour in the same document written by the same line of
+client code. The rules validate all three as required ints, so every device
+pays to write them and every one expires unread at the 90-day TTL. It is
+not a quiet fix in either direction: deleting them refuses the engagement
+write from every already-shipped client until those installs turn over, and
+folding them means deciding what the fold is FOR — which is a product
+question. CLAUDE.md's own first paragraph is why it is not simply dropped:
+*"a surface that collects without joining is unfinished"*, and these are
+the three cheapest measures the app has of whether the Mirror is READ
+rather than answered into.
+
+**Two daily questions carry a different tag in the bank than in the
+archive.** `daily 006` is *"Found €500"* against *"Found cash"*; `daily 011`
+is *"Job or partner"* against *"Job or move"*. Measured across all 130 live
+daily questions matched by prompt: exactly these two differ, on `tag` only.
+Both spellings are legal, so nothing is broken — but the archive's header
+says the twins must not drift, the tag is what the reader SEES, and the
+catalogue seed already has exactly such a parity gate. A gate cannot be
+added until someone says which side wins. One sentence closes it.
+
+### What to watch
+
+**`MOD_RUN_CAP` has never been able to fire, and three places named it as
+the bound on a wrong remove verdict.** `scripts/mod-queue.mjs` mints a
+fresh `randomUUID()` per invocation — deliberately, *"a run id somebody can
+choose is a run id somebody can reuse"* — and submits one verdict with it,
+so the count query always reads 0. What actually confines a run is one
+verdict per invocation and one verdict per take per queue generation.
+Shift A left the cap standing and corrected the three claims, because the
+choice between scoping the runId so the cap counts something and dropping
+it to stop paying for an aggregation read on every verdict is the
+maintainer's. The cost today is one billed `count()` per verdict for a
+number that is always zero.
+
+**A torn cache write said it held rows it had lost.** `cacheStore.writeTo`
+committed the meta cursor even when an earlier chunk aborted — measured
+before the fix: one unclonable value at index 4000 of 8500 left 4500 rows
+on disk under a cursor claiming all 8500, and `readDiskCaches` trusts that
+cursor, so every later boot fetches only the delta and the 4000 lost
+answers never come back. The deck re-offers them and the create-only rule
+(D5/D86) refuses every re-vote. Rows are still written; the meta row is now
+withheld, which degrades to the refetch the module header already
+promised.
+
+**The rules layer has a coverage ratchet now, and it started at 96.** Shift
+B added `scripts/rules-coverage.mjs` to `test:rules`: **46 of 353 atomic
+predicates never evaluate false**, down from 96 by the tests B wrote the
+same night — thirteen "must be signed in" write rules, `v2_flags`' field
+allowlist, twenty-two type checks on the rollup every device writes, the
+political consent guard's five checks, and a sealed duel answer's own
+fields, every one of which could be deleted with the whole suite green.
+The baseline may only come down, the same shape as `check:globals` rule 4.

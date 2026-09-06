@@ -122,7 +122,17 @@ const fail = (msg) => problems.push(msg);
 // ── what apply-monitoring says it will create ───────────────────────
 // Read BEFORE the disk scan, because it is half of what decides which
 // files on disk are policies at all.
-const applySrc = read("scripts/apply-monitoring.mjs");
+// COMMENTS OFF. Rules 1-3 read this raw, so commenting out one policy in
+// the POLICIES list left the gate green while its own rule 1 — "a
+// committed policy nobody applies" — was exactly what the tree then had;
+// and block-commenting a metric out of METRICS left a policy pointed at a
+// metric type nothing creates, which the gate's own error text calls
+// "health it has never measured". Both measured before this line.
+//
+// Rule 4 in this same file has stripped comments since it was written,
+// with five lines explaining that a commented-out emitter is precisely
+// this shape. The rules above it never got it.
+const applySrc = stripComments(read("scripts/apply-monitoring.mjs"));
 
 const listedPolicies = [...applySrc.matchAll(/"(monitoring\/[\w.-]+\.json)"/g)].map((m) => m[1]);
 const metricNames = [...applySrc.matchAll(/name:\s*"([\w]+)"/g)].map((m) => m[1]);

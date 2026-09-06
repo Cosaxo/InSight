@@ -95,4 +95,29 @@ describe("the Map's learn card states what its crowd rate rests on", () => {
     const text = draw(2);
     expect(text, "the control lost the crowd rate entirely").toMatch(/% of people get this right/);
   });
+
+  it("hedges the DEMO's authored figure instead of stating it as a measurement", () => {
+    // The demo build has no aggregate at all, so LEARN_RATE falls to the
+    // bank's authoring difficulty hint — a number nobody measured. The
+    // card's own comment says "about" carries the hedge "only in the DEMO
+    // now", and the condition it was carried by, `est && LIVE.enabled`,
+    // is never both true: an estimate exists ONLY where the build is not
+    // live. So the hint printed as "N% of people get this right", which
+    // is the sentence the hedge exists to avoid.
+    const card = cardOf();
+    expect(card).toBeTruthy();
+    // A demo store: LIVE off, and no learn aggregate to measure from.
+    STUB.live = {
+      enabled: false, ready: false,
+      learnAgg: () => null, learnMine: () => null, learnAggLoading: () => false,
+      confirmedVotes: () => ({}), myVotes: () => ({}), dailyBank: () => [],
+      aggFor: () => null, anchors: () => ({}),
+    };
+    window.LIVE = STUB.live;
+    window.dispatchEvent(new Event("insight-live-update"));
+    const { container } = render(<MTLearnCard node={{ id: "n1", cid: card.id }} card={card}></MTLearnCard>);
+    const text = container.textContent || "";
+    expect(text, "the authored hint was stated as a measurement").toMatch(/about \d+% get this right — our estimate/);
+    expect(text).not.toMatch(/\d+% of people get this right/);
+  });
 });

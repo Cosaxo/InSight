@@ -2027,6 +2027,24 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (qDoc.get("sponsor").buyer !== undefined) {
     fail("a nameless booking grew a buyer name: " + JSON.stringify(qDoc.get("sponsor")));
   }
+  // The days the buyer paid for, on the question path. `from`/`until` were
+  // checked for truthiness only, so the window could be any length: the
+  // quote assertion above reads the constant, not the dates goLive wrote.
+  // Against the quote the CALLABLE returned, so a change that moved one
+  // and not the other fails here rather than shipping a mismatch.
+  {
+    const from = qDoc.get("from"), until = qDoc.get("until");
+    const span = Math.round(
+      (Date.parse(`${until}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
+    if (span !== q.windowDays) {
+      fail(`the paid question serves ${span} days, the buyer paid for ${q.windowDays}: ${from}..${until}`);
+    }
+    // …and it starts tomorrow, not today: today's decks are already dealt
+    // on every device that booted this morning, which is the reason the
+    // window is written the way it is.
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    if (from !== tomorrow) fail(`the paid question starts ${from}, not tomorrow (${tomorrow})`);
+  }
   // The buyer's link rides on the content (D378), whole, for every
   // device to print after the answer — and on the buyer's own record.
   if (qDoc.get("sponsor").link !== LINK) {
@@ -2034,6 +2052,32 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   if (purchase.get("link") !== LINK) fail("the purchase record lost the link: " + JSON.stringify(purchase.data()));
   ok("payment went live: purchase + disclosed question in one transaction, the buyer's link on both");
+
+  // …AND CHECKOUT REFUSES IT NOW. The guard is `status === "live"` and it
+  // sits ABOVE the missing-key check, so unlike the rest of that callable
+  // it is reachable here — and nothing exercised it: deleting it left the
+  // whole suite green. web/paid-cancel.html tells the buyer that pressing
+  // Pay again "opens a fresh payment page", so a second checkout on a
+  // booking already paid for is a page the product actively offers, and
+  // "failed-precondition" rather than a payable session is the difference
+  // between one charge and two.
+  //
+  // The code distinguishes it from the not-yet-approved refusal, which is
+  // the same code with a different sentence — so the message is checked
+  // too, or this leg would pass on either guard.
+  {
+    // expectRefusal, not expectCode: this leg has to read the MESSAGE, and
+    // expectCode swallows the error and emits its own ok — which is the
+    // exact shape that helper's docstring warns about. It emits no ok, so
+    // the tally counts this only once the sentence is checked too.
+    const why = await expectRefusal("checkout refuses a booking already paid for",
+      "functions/failed-precondition",
+      () => httpsCallable(payFns, "createPaidCheckoutV2")({ id: bid }));
+    if (!/already paid/i.test(why)) {
+      fail("checkout refused a paid booking with the wrong reason: " + why);
+    }
+    ok("checkout refuses a booking already paid for, and says which refusal it is");
+  }
 
   // At-least-once delivery: the SAME event again answers 200 and mints
   // nothing new — the status guard is the idempotency.

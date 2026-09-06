@@ -22,11 +22,17 @@
 //   node scripts/mod-queue.mjs --remove <takeId> --line H3
 //
 // WHAT IT DELIBERATELY DOES NOT DO. No bulk mode, no "remove everything
-// over N flags", no loop over the queue. `MOD_RUN_CAP` bounds a run's blast
-// radius on the server, and this side keeps the matching shape: one verdict
-// per invocation, each typed by a person who read the text. A CLI that
-// could clear the queue in one command is a CLI that will, and D22's
-// confinement argument is about exactly that.
+// over N flags", no loop over the queue: one verdict per invocation, each
+// typed by a person who read the text. A CLI that could clear the queue in
+// one command is a CLI that will, and D22's confinement argument is about
+// exactly that.
+//
+// THIS SHAPE IS THE BOUND. It used to say the server's `MOD_RUN_CAP`
+// bounded a run and that this side merely matched it — which is backwards:
+// the fresh runId per invocation two paragraphs down means the server's
+// per-run counter always reads 0, so the cap has never once fired. The
+// confinement is here, plus one verdict per take per queue generation on
+// the server.
 //
 // The runId groups verdicts submitted together in the server's log. It is
 // generated per invocation rather than taken as a flag, because a run id

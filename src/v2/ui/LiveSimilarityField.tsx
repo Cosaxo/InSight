@@ -441,13 +441,24 @@ function CityField({ myParsed }: {
     // Paused before empty (D332): with the breaker on, the kindred pool
     // was never fetched, and "Nobody from {city} yet" would be a claim
     // about a crowd nothing looked at.
+    // …AND FAILED BEFORE EMPTY, for the same reason paused comes before
+    // empty. `loading` is false again the moment the kindred run RETURNS,
+    // including when every one of its twelve queries threw — loadVoters
+    // swallows each failure and leaves the list absent — so this said
+    // "Nobody from {city} yet" about a crowd nothing managed to look at.
+    // The Country and World fields had the same shape and were fixed one
+    // fold over; this arm reads PEOPLE rather than published cells, so it
+    // takes the people twin of that reader rather than stretching it.
+    const people$ = LIVE.kindredState();
     return (
       <SfEmptyField caption={<>{cityName}</>}>
-        {loading
+        {loading || people$ === "loading"
           ? <>Matching…</>
           : LIVE.budgetPaused
             ? <>{BUDGET_PAUSED_BODY}</>
-            : <>Nobody from {cityName} yet — fills in as the city answers.</>}
+            : people$ === "failed"
+              ? <>Couldn’t read the crowd here. Close and reopen to try again.</>
+              : <>Nobody from {cityName} yet — fills in as the city answers.</>}
       </SfEmptyField>
     );
   }

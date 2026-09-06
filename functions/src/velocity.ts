@@ -515,6 +515,43 @@ export async function scanLedgerWindow(
   return { fold, maxAt };
 }
 
+/**
+ * One page of auth records, folded into the two things the scan reads from
+ * it: when each account was created, and which of them carry a usable
+ * device-bind level.
+ *
+ * PURE, and extracted for the reason the ledger reader was (the same shape
+ * one file over): the loop lived inside the scheduled handler, which no
+ * runner executes, so the filter below could be replaced with a coercion
+ * and the whole functions suite and every e2e stayed green — while its own
+ * comment names exactly what that costs.
+ *
+ * An ACTUAL integer only, matching what firestore.rules accepts —
+ * `get("db", 0) >= n` errors on a string or a boolean and denies. Coercing
+ * would overstate coverage: `Number(true)` is 1, so a malformed claim
+ * would count as a qualifying account on exactly the day this number is
+ * trusted, and the number is D37's flip decision — what share of real
+ * votes enforcement would refuse. A level ABOVE the ladder is kept rather
+ * than discarded: that is an account minted by a newer deploy than this
+ * code, which levelDef describes honestly.
+ *
+ * An unparseable creation time drops the account from the birth-cluster
+ * input rather than seeding it with NaN, which would make every span
+ * involving it NaN and the cluster silently unreportable.
+ */
+export function foldAuthPage(
+  users: readonly { uid: string; metadata: { creationTime: string }; customClaims?: Record<string, unknown> | null }[],
+  created: { uid: string; createdMs: number }[],
+  levels: Map<string, number>,
+): void {
+  for (const u of users) {
+    const ms = Date.parse(u.metadata.creationTime);
+    if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
+    const raw = u.customClaims?.db;
+    if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) levels.set(u.uid, raw);
+  }
+}
+
 export const ledgerVelocityScan = onSchedule(
   // Daily, off the top-of-hour herd. Cost at D7's own write ceiling
   // (~14k answers/day): one page-scan of the day's ledger entries plus
@@ -577,19 +614,7 @@ export const ledgerVelocityScan = onSchedule(
     const levels = new Map<string, number>();
     for (let i = 0; i < uids.length; i += 100) {
       const res = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
-      for (const u of res.users) {
-        const ms = Date.parse(u.metadata.creationTime);
-        if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
-        // An ACTUAL integer only, matching what firestore.rules accepts —
-        // `get("db", 0) >= n` errors on a string or a boolean and denies.
-        // Coercing would overstate coverage: `Number(true)` is 1, so a
-        // malformed claim would count as a qualifying account on exactly
-        // the day this number is trusted. A level ABOVE the ladder is kept
-        // rather than discarded: that is an account minted by a newer
-        // deploy than this code, which levelDef describes honestly.
-        const raw = u.customClaims?.db;
-        if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) levels.set(u.uid, raw);
-      }
+      foldAuthPage(res.users, created, levels);
     }
     const clusters = birthClusters(created);
     for (const c of clusters) {

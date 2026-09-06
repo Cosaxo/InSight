@@ -433,6 +433,10 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // Whether the last kindred run asked for lists and got NONE — see
+  // kindredState(). Distinct from kindredAt being 0, which is also what a
+  // device with no votes yet looks like.
+  kindredFailed: false,
   // D278: the city-scoped half of the pool, kept SEPARATE from
   // state.voters rather than merged into it. The who-voted sheet draws
   // state.voters and means "who answered this" — a city-filtered list
@@ -4636,6 +4640,15 @@ const LIVE = {
       // stays unset), so the old line reported twelve to the caption after
       // twelve failed queries.
       state.kindredAt = qids.filter((id) => state.voters[id]).length;
+      // ASKED FOR LISTS AND GOT NONE IS A FAILED READ, NOT AN EMPTY
+      // CROWD. loadVoters swallows its own failure and leaves the key
+      // absent — deliberately, so absent and empty stay distinguishable
+      // (its own comment says so) — but every caller downstream then sees
+      // the same thing a device with no votes sees, and the City field
+      // said "Nobody from {city} yet" about twelve queries that all threw.
+      // Zero asked is not a failure: that is a device that has not
+      // answered anything yet, and it has no crowd to fail to read.
+      state.kindredFailed = qids.length > 0 && state.kindredAt === 0;
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {
@@ -4998,6 +5011,21 @@ const LIVE = {
   /** How many of the viewer's questions the ranking has been able to read. */
   kindredDepth(): number {
     return state.kindredAt;
+  },
+  /**
+   * Has the kindred pool been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The people twin of `testAggsState`, and it exists for the same
+   * sentence: `kindredLoading` is false again the moment the run RETURNS,
+   * including when every query inside it threw, so a surface that branches
+   * on it alone tells the viewer nobody is there on the strength of a read
+   * that did not happen. 'failed' only where lists were asked for and none
+   * arrived — a partial pool is a real pool, as far as it goes, and a
+   * device with nothing answered yet has no crowd to fail to read.
+   */
+  kindredState(): "loading" | "ready" | "failed" {
+    if (state.kindredLoading || state.cityKindredLoading) return "loading";
+    return state.kindredFailed ? "failed" : "ready";
   },
 
   // ── Similarity: you against people and places, by scores (D112) ──
@@ -6106,9 +6134,11 @@ const LIVE = {
     return state.deckIds
       .map((qid, back) => {
         const q = dailyById(qid);
-        // `active` is checked HERE, not when the bank is split — see the
-        // tombstone note in hydrate(). A retired question drops out of the
-        // pager without moving the days around it.
+        // `active` is checked HERE, not when the daily lane is split — see
+        // the tombstone note in publishBank(). A retired question drops out
+        // of the pager without moving the days around it. Both halves are
+        // pinned together in warm-boot.test.ts: dropping either one is the
+        // cheapest way to satisfy the other.
         return q && q.active !== false ? buildS(q, back) : null;
       })
       .filter((s): s is LiveQuestion => !!s);
@@ -6774,6 +6804,7 @@ function resetForNewUid(uid: string): void {
   }
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.kindredFailed = false;
   state.cityVoters = {};
   state.cityVotersAt = "";
   state.cityKindredLoading = false;
