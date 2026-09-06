@@ -1,0 +1,5 @@
+maestro/2026-09-06_221253/xctest_runner_2026-09-06_221307.log
+maestro/2026-09-06_221253/InSight device screens/screen-hierarchy/step-004-assertCondition-(i)mirror.json
+maestro/2026-09-06_221253/InSight device screens/screenshots/step-004-assertCondition-(i)mirror.png
+maestro/2026-09-06_221253/InSight device screens/commands.json
+maestro/2026-09-06_221253/InSight device screens/manifest.json

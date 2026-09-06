@@ -1,0 +1,400 @@
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=89] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=89 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x11200b800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=89] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=89] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=90] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=90 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x11200c000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=90] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.235 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=90] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=91] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=91 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x11200e800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=91] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=91] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=92] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=92 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x11201c800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=92] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.236 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=92] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.237 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=93] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.237 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=93 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.237 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112000800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=93] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.237 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=93] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=94] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=94 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112002800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=94] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=94] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=95] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=95 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c60000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=95] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=95] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=96] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.239 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=96 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.240 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c60800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=96] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.240 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=96] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.247 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=78] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.247 Df App[29086:15cd9] [com.apple.WebKit:Loading] 0x1058d8e18 - [pageProxyID=7, webPageID=8, PID=30693] WebPageProxy::didFinishDocumentLoadForFrame: frameID=8589934593, isMainFrame=1
+2026-09-06 22:14:39.247 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=78 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=79] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=79 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=80] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=80 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=81] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=81 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=82] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=82 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=83] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=83 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=84] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=84 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=85] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.248 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=85 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.249 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=86] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.249 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=86 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.249 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=87] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=87 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=88] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=88 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=89] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=89 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=90] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=90 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=91] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=91 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=92] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=92 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=93] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=93 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=94] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=94 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=95] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=95 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.250 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=96] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.251 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=96 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.253 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=98] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=98 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6e800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=98] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=98] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=99] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=99 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6f000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=99] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=99] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=100] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=100 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.254 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6f800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=100] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.255 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=100] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.255 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=101] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.255 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=101 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.255 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c70000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=101] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.255 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=101] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.256 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=102] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.257 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=102 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.257 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c73800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=102] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.257 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=102] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.281 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=106] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.281 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=106 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.281 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c66000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=106] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.281 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=106] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.281 Df App[29086:15cd9] [com.apple.WebKit:ProcessSuspension] 0x10f0e0120 - [PID=30693, throttler=0x10f10c150] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:14:39.282 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=98] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.282 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=98 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.282 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=99] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.282 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=99 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.282 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=100] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.283 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=100 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.283 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=101] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.283 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=101 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.283 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=102] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.283 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=102 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.283 Df App[29086:15cd9] [com.apple.WebKit:RemoteLayerTree] RemoteLayerTreeDrawingAreaProxy(10)::hideContentUntilPendingUpdate completed
+2026-09-06 22:14:39.284 Df App[29086:15cd9] [com.apple.WebKit:Process] 0x1058d8e18 - [pageProxyID=7, webPageID=8, PID=30693] WebPageProxy::stopMakingViewBlankDueToLackOfRenderingUpdateIfNecessary:
+2026-09-06 22:14:39.293 Df App[29086:15cd9] [com.apple.WebKit:RemoteLayerTree] RemoteLayerTreeDrawingAreaProxy(10) Unhiding layer tree
+2026-09-06 22:14:39.296 Df App[29086:15cd9] [com.apple.WebKit:ViewState] 0x1013d38a0 (pageProxyID=7) -[WKWebView _didCommitLayerTree:] - finally received commit 64.73s after visible content rect update request; transactionID 1
+2026-09-06 22:14:39.366 Df App[29086:16e30] [com.apple.WebKit:Process] WebContent[30693] 0x108698008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+2026-09-06 22:14:39.366 Df App[29086:16e30] [com.apple.WebKit:Process] WebContent[30693] 0x108698008 - [webPageID=8] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+2026-09-06 22:14:39.366 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=106] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.366 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=106 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.366 Df App[29086:15cd9] [com.apple.WebKit:ProcessSuspension] 0x10f0e0120 - [PID=30693, throttler=0x10f10c150] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+2026-09-06 22:14:39.386 Df App[29086:15cd9] [com.apple.WebKit:Loading] 0x1058d8e18 - [pageProxyID=7, webPageID=8, PID=30693] WebPageProxy::didGeneratePageLoadTiming: url=<private> firstVisualLayout=39.023 firstMeaningfulPaint=39.326 domContentLoaded=39.289 loadEvent=39.023 subresourcesFinished=39.023
+2026-09-06 22:14:39.391 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=109] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.391 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=109 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.391 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c79000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=109] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.391 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=109] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.418 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=109] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.418 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=109 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.427 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=111] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.427 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=111 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.427 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c73800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=111] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.427 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=111] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.429 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=112] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.429 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=112 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.429 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6a800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=112] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.429 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=112] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.429 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=113] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.429 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=113 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.429 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6c000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=113] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=113] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=114] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=114 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c72800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=114] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=114] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=115] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=115 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c78000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=115] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.430 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=115] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.432 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=116] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.432 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=116 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.432 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c66800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=116] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.432 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=116] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.444 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=118] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.444 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=118 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.444 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x11200f800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=118] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.444 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=118] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=111] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=111 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=112] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=112 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=113] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=113 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=114] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=114 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=115] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=115 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=116] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=116 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=118] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.459 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=118 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.479 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=231] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.480 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=231 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.480 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6c000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=231] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.480 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=231] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.480 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=232] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.480 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=232 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.480 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c62800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=232] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.480 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=232] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=231] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=231 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=232] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=232 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=233] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=233 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6a800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=233] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=233] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=234] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=234 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c6c000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=234] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=234] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=235] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.482 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=235 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c72800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=235] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=235] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=236] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=236 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c78000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=236] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=236] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=237] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=237 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112c7f800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=237] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=237] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=238] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=238 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da0800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=238] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.483 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=238] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=233] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=233 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=234] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=234 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=235] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=235 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=236] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=236 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=237] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=237 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.488 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=238] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.489 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=238 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=239] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=239 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da2800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=239] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=239] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=240] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=240 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da3000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=240] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=240] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=241] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=241 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da3800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=241] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=241] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=242] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=242 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da4000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=242] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=242] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=243] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=243 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da4800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=243] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=243] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=244] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=244 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.490 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da5000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=244] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.491 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=244] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=245] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=245 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112daf800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=245] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=245] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=246] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=246 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112db0000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=246] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=246] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=247] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=247 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112db0800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=247] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=247] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=248] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=248 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112db1000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=248] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=248] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=249] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=249 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112db1800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=249] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.494 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=249] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=250] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=250 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112db2000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=250] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=250] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=239] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=239 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=240] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.495 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=240 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=241] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=241 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=242] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=242 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=243] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=243 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=244] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=244 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=245] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.498 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=245 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=246] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=246 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=247] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=247 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=248] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=248 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=249] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=249 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=250] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.499 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=250 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=253] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=253 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112db2000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=253] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=253] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=254] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=254 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112db2800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=254] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.574 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=254] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.579 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=253] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.579 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=253 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.579 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=254] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.579 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=254 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.580 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=255] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.580 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=255 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.580 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112dba800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=255] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.580 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=255] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.581 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=255] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.581 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=255 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=256] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=256 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da1000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=256] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=256] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=257] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=257 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da2000, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=257] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.582 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=257] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.584 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=256] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.584 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=256 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.584 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=257] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.584 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=257 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.585 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=258] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.585 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=258 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.585 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112da4800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=258] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.585 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=258] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.586 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=258] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.586 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=258 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.586 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=259] ResourceLoader::willSendRequestInternal: calling completion handler
+2026-09-06 22:14:39.586 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=259 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+2026-09-06 22:14:39.586 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] 0x1110680e0 - [resourceLoader=0x112daa800, frameLoader=0x1111dc100, frame=0x1110270c0, webPageID=8, frameID=8589934593, resourceID=259] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+2026-09-06 22:14:39.586 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=259] WebURLSchemeTaskProxy::startLoading
+2026-09-06 22:14:39.587 Df App[29086:16e30] [com.apple.WebKit:Network] WebContent[30693] [schemeHandler=3, webPageID=8, frameID=8589934593, taskID=259] WebURLSchemeTaskProxy::didComplete
+2026-09-06 22:14:39.587 Df App[29086:16e30] [com.apple.WebKit:ResourceLoading] WebContent[30693]: [pageID=8, frameID=8589934593, resourceID=259 SubResourceLoader::didFinishLoading
+2026-09-06 22:14:39.768 Df SpringBoard[15131:b54a] [com.apple.SpringBoard:Library] library category map update received: <SBHLibraryMutableCategoryMap: 0x11cee7280; generatedDate: 2026-09-06 22:14:39 +0000; uniqueIdentifier: 9CF82007-63B4-4596-BAD4-B447A75C5A19; loadedFromDisk: NO; _localizedCategoryNameByCategoryIdentifier: (empty)> categoryIdentifiers = {
+    3001;
+    3000;
+}
+sortedApplicationIdentifiersByCategoryIdentifier = {
+    <SBHLibraryCategoryIdentifier: 0x115f9e220; localizedDisplayName: " System"> = {
+        com.apple.Bridge;
+        com.apple.DocumentsApp;
+        com.apple.Fitness;
+        com.apple.Health;
+        com.apple.Maps;
+        com.apple.MobileAddressBook;
+        com.apple.MobileSMS;
+        com.apple.Passbook;
+        com.apple.Passwords;
+        com.apple.Preferences;
+        com.apple.Preview;
+        com.apple.mobilecal;
+        com.apple.mobilesafari;
+        com.apple.mobileslideshow;
+        com.apple.news;
+        com.apple.reminders;
+        com.apple.shortcuts;
+    }
+    <SBHLibraryCategoryIdentifier: 0x115f9e2e0; localizedDisplayName: Other> = {
+        com.cosaxo.insight;
+2026-09-06 22:14:39.768 Df SpringBoard[15131:b54a] [com.apple.SpringBoard:Library] Installing category map <SBHLibraryMutableCategoryMap: 0x11cee7280; generatedDate: 2026-09-06 22:14:39 +0000; uniqueIdentifier: 9CF82007-63B4-4596-BAD4-B447A75C5A19; loadedFromDisk: NO; _localizedCategoryNameByCategoryIdentifier: (empty)> categoryIdentifiers = {
+    3001;
+    3000;
+}
+sortedApplicationIdentifiersByCategoryIdentifier = {
+    <SBHLibraryCategoryIdentifier: 0x115f9e220; localizedDisplayName: " System"> = {
+        com.apple.Bridge;
+        com.apple.DocumentsApp;
+        com.apple.Fitness;
+        com.apple.Health;
+        com.apple.Maps;
+        com.apple.MobileAddressBook;
+        com.apple.MobileSMS;
+        com.apple.Passbook;
+        com.apple.Passwords;
+        com.apple.Preferences;
+        com.apple.Preview;
+        com.apple.mobilecal;
+        com.apple.mobilesafari;
+        com.apple.mobileslideshow;
+        com.apple.news;
+        com.apple.reminders;
+        com.apple.shortcuts;
+    }
+    <SBHLibraryCategoryIdentifier: 0x115f9e2e0; localizedDisplayName: Other> = {
+        com.cosaxo.insight;
+     - animated <decode: missing data>
+2026-09-06 22:14:41.995 Df App[29086:15cd9] [com.apple.WebKit:ProcessSuspension] 0x10f0f8150 NavigationState is releasing background process assertion because a page load completed
+2026-09-06 22:14:41.995 Df App[29086:15cd9] [com.apple.WebKit:Process] Dropping network activity on WebProcess with PID 30693
+2026-09-06 22:14:41.996 Df App[29086:15cd9] [com.apple.WebKit:ProcessSuspension] 0x10f0e02d0 - [PID=30693, throttler=0x10f10c150] ProcessThrottler::Activity::invalidate: Ending background activity / 'Page Load'
+2026-09-06 22:14:43.230 Df App[29086:15dcf] [com.google.firebase:[FirebaseAppCheck]] 12.18.0 - [FirebaseAppCheck][I-FAA004002] Failed to exchange debug token. To use this token for app debugging, register it with your project.
+
+Firebase App Check debug token: 3CE3D1DC-0FFD-4B4A-AA3F-4F92D5674474
+
+You can do so in the Firebase Console: 
+https://console.firebase.google.com/project/prvfire33/appcheck/apps?selectedAppId=1:437999864865:ios:0dfbab646ca1929cb8a760 
+
+Or using the Firebase CLI: 
+firebase appcheck:debugtokens:create 3CE3D1DC-0FFD-4B4A-AA3F-4F92D5674474 --project prvfire33 --app 1:437999864865:ios:0dfbab646ca1929cb8a760
+
+Note: To keep your project secure, please revoke and delete this token using the 
+Firebase Console or the CLI (`firebase appcheck:debugtokens:delete`) when you finish debugging.
+
+Warning: This debug token is a secret and should not be shared or uploaded to source code.
+
+Debug Token Guide: https://firebase.google.com/docs/app-check/ios/debug-provider
+Firebase CLI install instructions: https://firebase.google.com/docs/cli
+2026-09-06 22:14:44.439 Df log[32601:0] [com.apple.log:] log run noninteractively, parent: 15128 (launchd_sim), args: 'log' 'show' '--last' '20m' '--style' 'compact' '--predicate' 'process == "App" OR eventMessage CONTAINS "com.cosaxo.insight"'

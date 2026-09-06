@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.5 - 0130C0CE-9E1A-4769-A6A0-FA820D0295E6" tests="1" failures="1" time="65.86" timestamp="2026-09-06T22:13:29">
+    <testcase id="InSight device screens" name="InSight device screens" classname="InSight device screens" file="/Users/runner/work/InSight/InSight/.github/device-screens/ios-flow.yaml" time="65.82" timestamp="2026-09-06T22:13:29" status="ERROR">
+      <failure>Assertion is false: "(?i)mirror" is visible</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
