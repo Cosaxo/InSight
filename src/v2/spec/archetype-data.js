@@ -226,6 +226,15 @@ export function IS_nearWhy(testKey, dims, a) {
 //     by a rounding error. A share prior (log-odds against the modal type)
 //     taxes rare types by a fixed, small penalty — enough to break near-ties
 //     toward the plausible answer, never enough to overrule a real match.
+//  4. A TYPE IS IN THE RUNNING ONLY WHEN THE DIMS THAT DEFINE IT ARE THERE
+//     (D381, ROLES-PLAN §3.6). A fold may omit a dim it cannot yet measure
+//     — a group role before any pick day has a snapshot, say — and a type
+//     whose whole identity is that dim would then be scored on the dims it
+//     has no opinion about, at the low weights rule 1 gives them, and win
+//     or lose by noise. So a type with a defining dim (|sig − baseline| ≥
+//     RULE_STRONG, the same bar the rule line uses) absent from `dims` is
+//     scored at Infinity and never picked. With every dim present — every
+//     caller today — nothing changes.
 const ARCH_W_FLOOR = 6;      // every dim counts a little
 const ARCH_SHARE_PULL = 210; // strength of the commonness prior
 
@@ -234,7 +243,14 @@ export function IS_archScores(testKey, dims) {
   if (!sys || !dims || !dims.length) return null;
   const avg = IS_TEST_AVG[testKey] || {};
   const maxShare = Math.max.apply(null, sys.list.map(a => a.share || 1));
+  const present = new Set(dims.map(d => d.id));
   return sys.list.map(a => {
+    for (const id of Object.keys(a.sig)) {                       // rule 4
+      const base = avg[id] != null ? avg[id] : 50;
+      if (Math.abs(a.sig[id] - base) >= RULE_STRONG && !present.has(id)) {
+        return { fit: Infinity, score: Infinity, eligible: false };
+      }
+    }
     let s = 0, w = 0;
     dims.forEach(d => {
       if (a.sig[d.id] == null) return;
@@ -245,7 +261,7 @@ export function IS_archScores(testKey, dims) {
     });
     const fit = w ? s / w : 1e9;                              // mean weighted sq. error
     const prior = ARCH_SHARE_PULL * Math.log(maxShare / Math.max(1, a.share || 1)); // rule 3
-    return { fit, score: fit + prior };
+    return { fit, score: fit + prior, eligible: true };
   });
 };
 
@@ -337,18 +353,22 @@ export function IS_typeRuleParts(testKey, dims, a, max) {
   });
 };
 
-// Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }
+// Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }, or
+// null when no type is eligible for the dims given (rule 4).
 export function IS_matchArchetype(testKey, dims) {
   const sys = IS_ARCHETYPES[testKey];
   const sc = IS_archScores(testKey, dims);
   if (!sc) return null;
-  let best = 0;
-  sc.forEach((x, i) => { if (x.score < sc[best].score) best = i; });
+  let best = -1;
+  sc.forEach((x, i) => { if (x.eligible && (best < 0 || x.score < sc[best].score)) best = i; });
+  if (best < 0) return null;
   // Fit strength measured in DIM POINTS so the bands are readable: `rms` is your
   // typical miss against your own type's signature, `gap` is how many points
   // worse the runner-up is. gap ≥ 12 = a country mile; < 5 = effectively a tie.
+  // An ineligible type reads Infinity here, so it is never the runner-up and
+  // sorts behind every real neighbour on the result card.
   const rmsOf = sc.map(x => Math.sqrt(Math.max(0, x.fit)));
-  const up = sc.map((x, i) => ({ i, s: x.score })).filter(x => x.i !== best).sort((a, b) => a.s - b.s)[0];
+  const up = sc.map((x, i) => ({ i, s: x.score })).filter(x => x.i !== best && Number.isFinite(x.s)).sort((a, b) => a.s - b.s)[0];
   return {
     list: sys.list, idx: best, rmsOf,
     dists: sc.map(x => x.score), fits: sc.map(x => x.fit),

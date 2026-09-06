@@ -252,7 +252,10 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
   });
 
-  it("seals on the first tap in a group, where there is nothing to guess", async () => {
+  it("a group answers, then reads the room — and still writes once (D381)", async () => {
+    // Until D381 a group sealed on the first tap: there was nothing to
+    // guess. Now the second tap is a call on where the room will land,
+    // and the pick waits for it exactly as a duo's does — one create.
     const calls: Array<[string, number, number | undefined]> = [];
     LIVE.social.voteDuel = async (gid: string, idx: number, guess?: number) => {
       calls.push([gid, idx, guess]);
@@ -260,8 +263,11 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
     render(<LiveDuelPanel mode="group" />);
     fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
+    expect(calls, "the pick wrote before the call on the room existed").toEqual([]);
+    expect(screen.getByText(/And the room picked…\?/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tea" }));
     await vi.waitFor(() => expect(calls.length).toBe(1));
-    expect(calls[0]).toEqual(["g1", 0, undefined]);
+    expect(calls[0]).toEqual(["g1", 0, 1]);
   });
 });
 

@@ -448,6 +448,16 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
+  // A 1v1 question's DOMAIN rides `topic` (D381) — `day` (everyday),
+  // `heat` (under pressure), `mirror` (a read of the other person), `ahead`
+  // (the future, romantic only) — the way a group question's kind does.
+  // The source has always carried it as `d` and the demo layer read it
+  // there; the seed dropped it, so the live roles fold could not tell a
+  // mirror day ("The word that fits them best?") from an ordinary one and
+  // scored knowing how you are seen as reading their preferences, and the
+  // same word about each other as likeness. `check:content` holds the set
+  // closed like the group kinds; `duelQFor` carries it to the card as
+  // `kind`, which only ever asked "pick".
   duel.oneVsOne.forEach((q, i) => {
     entries.push({
       id: `duo-${requireId(q, `duel-questions.json oneVsOne[${i}]`)}`,
@@ -459,7 +469,7 @@ export function buildEntries(content = loadContent()) {
       domain: null,
       prompt: q.prompt,
       options: q.options,
-      topic: null,
+      topic: q.d ?? null,
       axis: null,
       test: null,
     });
@@ -484,7 +494,7 @@ export function buildEntries(content = loadContent()) {
       domain: null,
       prompt: q.prompt,
       options: q.options,
-      topic: null,
+      topic: q.d ?? null,
       axis: null,
       test: null,
       mode: "romantic",
