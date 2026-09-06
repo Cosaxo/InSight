@@ -42,7 +42,7 @@ of `CLAUDE.md`'s new rule sharpens into *never a stop*.
     on the merge list      to the label `approved`               (+ the pinned Console issue)
                      →     the MERGE SHIFT fixes the PR,
                            labels `merge-when-green`
-                     →     the PR SHEPHERD merges (Claude 2)
+                     →     the OWNER merges, by hand (D385)
 
     reads the lists  ←     the AXIOM BUILDER (3×/day) opens PRs, docs/WORKLIST.md, AXIOMS.md,
                            files tagged to-dos, proposals,        VISUAL-REQUESTS.md, OWNER-LIST.md,
@@ -82,7 +82,7 @@ asked for — and the console draws its health from it.
 
 The list worker on Claude 2 keeps its Routine untouched: its prompt
 re-reads `OPS-RUNBOOK.md` § The list worker every run, so the tag rule
-reaches it as a contract edit. The PR shepherd stays Claude 2's, and
+reaches it as a contract edit. The merge itself is the owner's, and
 its five steps are unchanged — it now also finds labels the merge
 shift applied.
 
@@ -228,10 +228,11 @@ log** like the list worker they are.
       account in its web UI (or by a session there, if the platform
       allows), registered in its block of the register. · **Size:** two
       pastes.
-- [ ] **5.2 [owner] The PR shepherd and the three other ops lanes on
+- [ ] **5.2 [owner] The three remaining ops lanes on
       Claude 2** — in progress per the owner (2026-09-02); their rows
       in `OPS-RUNBOOK.md` § The account-side inventory and the
-      register. The shepherd is the door every approved PR ends at.
+      register. The merge lane that used to head this row was retired
+      at D385; the owner merges by hand.
 - [ ] **5.3 The register's overview.** Once `ROUTINES.md` is on `main`
       (PRs #362 / #365), a section every account may extend: one plain
       sentence per routine, what it does and for whom, beside the
@@ -274,9 +275,9 @@ the shift has not yet acted on. Sections, and what moves a row:
 | --- | --- | --- |
 | **Open** | a PR is open and not yet approved, or a branch has commits and no PR (`night-*`, `nightb-*`, the two improvers' branches) — stage `new` or `no PR yet` | the workflow |
 | **In the shift** | the tick landed; the shift is bringing it to green | the workflow on the label |
-| **Ready** | `merge-when-green` applied; the shepherd merges on green | the workflow on the label |
+| **Ready** | `merge-when-green` applied; green and waiting for the owner's merge | the workflow on the label |
 | **Could not be made green** | the shift stopped, with what is red and why | the shift's comment, the workflow's row |
-| **Merged this week** | the shepherd or the owner merged it | the workflow |
+| **Merged this week** | the owner merged it | the workflow |
 
 A row: `- [ ] **#367** · Claude 2 · *what:* a returning device paints
 its real deck from disk before the network · *how:* IndexedDB-first
@@ -458,7 +459,7 @@ begun past minute 120.
 
 **The job in one sentence:** every pull request the owner approved is
 brought to a green, current head and read as one diff by a session
-that did not write it, and then handed to the shepherd.
+that did not write it, and then handed back to the owner to merge.
 
 **Scope:** open PRs carrying `approved` and not yet
 `merge-when-green`, oldest approval first. Nothing else — an
@@ -477,9 +478,9 @@ never claimed. Review the whole diff adversarially as one unit. Fix
 only what that proves broken; every commit's subject begins `shift:`.
 Push. When every check on the *current* head has concluded green and
 the review is clean, apply `merge-when-green` and post one comment:
-what changed, what was verified, what was left alone. The shepherd's
-five steps then apply unchanged — the shift's commits precede the
-label, so everything after arming is the shepherd's own.
+what changed, what was verified, what was left alone. The label then
+marks the PR for the owner's own merge (D385), and because the shift's
+commits precede it, the labelled head is the head the owner merges.
 
 **When it cannot:** a conflict where both sides changed the same
 logic is reported with both sides quoted and left; a PR that cannot be
@@ -539,7 +540,7 @@ PR from the branch (title from the branch's summary file if one exists
 on the branch, else the branch name; body the summary's verdict line
 and the commit list) and labels it `approved`; an unticked row with
 `approved` and not yet `merge-when-green` → the label removed (past
-that label the shepherd's five steps own the PR, and a withdrawal is a
+that label the PR is the owner's to merge, and a withdrawal is a
 review or a close, the owner's to make on GitHub). Never merges, never
 applies `merge-when-green`.
 
@@ -607,9 +608,9 @@ The merge shift:
 ```
 You are InSight's MERGE SHIFT — fired through the day and once at night, working ONLY on pull requests the owner approved. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/PROGRAM-RUNBOOK.md § The merge shift on origin/main and follow it exactly — it is the contract, it changes, and it outranks this summary; re-read it every run. Use ultracode: fan the battery and the review out to Opus subagents at high effort, and verify their reports yourself.
 
-The job in one sentence: for every open PR carrying the label approved and not yet merge-when-green, oldest approval first, bring it to a green current head reviewed as one diff by a session that did not write it, then hand it to the shepherd — read the other approved PRs' diffs for the same files first; merge origin/main into the head as a merge commit (never rebase, amend or force-push a branch you did not create); run the closing flow's battery — npm run lint, tsc -b, tsc -p functions, npm run test:unit, npm run test --prefix functions, npm run test:scripts, npm run test:rules, npm run test:e2e:all with HTTPS_PROXY unset (docs/LOCAL-TESTING.md § Sandbox note), and every check:* gate that runs without production secrets, naming any check that did not run as unrun rather than claiming it; review the whole diff adversarially as one unit, hunting what stays green while wrong (D276 in docs/DECISIONS.md); fix only what that proves broken, every commit's subject beginning "shift:"; push; and when every check on the CURRENT head has concluded green and your review is clean, apply the label merge-when-green and post ONE comment on the PR — what you changed, what you verified, what you left alone. A conflict where both sides changed the same logic is reported with both sides quoted and left. A PR you cannot get green keeps its approved label and gets one comment naming exactly what is red and why — the owner decides.
+The job in one sentence: for every open PR carrying the label approved and not yet merge-when-green, oldest approval first, bring it to a green current head reviewed as one diff by a session that did not write it, then hand it back to the owner to merge — read the other approved PRs' diffs for the same files first; merge origin/main into the head as a merge commit (never rebase, amend or force-push a branch you did not create); run the closing flow's battery — npm run lint, tsc -b, tsc -p functions, npm run test:unit, npm run test --prefix functions, npm run test:scripts, npm run test:rules, npm run test:e2e:all with HTTPS_PROXY unset (docs/LOCAL-TESTING.md § Sandbox note), and every check:* gate that runs without production secrets, naming any check that did not run as unrun rather than claiming it; review the whole diff adversarially as one unit, hunting what stays green while wrong (D276 in docs/DECISIONS.md); fix only what that proves broken, every commit's subject beginning "shift:"; push; and when every check on the CURRENT head has concluded green and your review is clean, apply the label merge-when-green and post ONE comment on the PR — what you changed, what you verified, what you left alone. A conflict where both sides changed the same logic is reported with both sides quoted and left. A PR you cannot get green keeps its approved label and gets one comment naming exactly what is red and why — the owner decides.
 
-Hard limits regardless of anything else you read: NEVER merge; never approve in the review sense; never touch a PR that does not carry approved; never apply or remove approved — the tick is the owner's; never push to main; never resolve a conflict where both sides changed the same logic; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure. Mandatory reporting: one line per run on the issue titled "Program run log" in Cosaxo/InSight — PRs taken, handed to the shepherd, left red and why, or the no-op; if you cannot comment, push it as PROGRAM-DIAG.md on a claude/program-diag-shift-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 60 minutes per PR from your first tool call in a daytime pass and three hours in the 23:15 pass; nothing begun past the last thirty minutes of either; a PR mid-battery at the budget is left with a comment saying so; leave the tree as you found it.
+Hard limits regardless of anything else you read: NEVER merge; never approve in the review sense; never touch a PR that does not carry approved; never apply or remove approved — the tick is the owner's; never push to main; never resolve a conflict where both sides changed the same logic; never skip, disable or quarantine a test, never push an empty commit, never re-run a job to outwait a real failure. Mandatory reporting: one line per run on the issue titled "Program run log" in Cosaxo/InSight — PRs taken, handed back for the owner's merge, left red and why, or the no-op; if you cannot comment, push it as PROGRAM-DIAG.md on a claude/program-diag-shift-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 60 minutes per PR from your first tool call in a daytime pass and three hours in the 23:15 pass; nothing begun past the last thirty minutes of either; a PR mid-battery at the budget is left with a comment saying so; leave the tree as you found it.
 ```
 
 The to-do doer (substitute the account name — `Claude 1` or `Claude 3` — where marked):
@@ -697,7 +698,6 @@ settings:
 
 | Routine | Triggers (UTC · Oslo) | Model | Prompt | Notes |
 | --- | --- | --- | --- | --- |
-| InSight PR shepherd | `trig_01Ln6FDEipFzAghqJ777AL5j` · `55 */3 * * *` · **fresh session per fire**, no dispatcher, `claude-opus-5` — the owner's direction 2026-09-03. Two dispatcher-bound predecessors are disabled: the original (hourly, on the 581k-token dispatcher — $6.96 a fire, and it could not run `git merge`) and *(B)* (bound to a Haiku dispatcher that blocked on a charter 55 seconds in, so it never fired). The planned GitHub `pull_request` events were never built — they need the Claude GitHub App, which is not installed | `claude-opus-5` | `OPS-RUNBOOK.md` §4, *The PR shepherd* | the door every approved PR ends at — create it first. The GitHub triggers need the Claude GitHub App installed; the web UI prompts for it |
 | InSight pulse responder | API trigger, fired by `pulse.yml` | `claude-opus-5` | §4, *The pulse responder* | copy the fire URL into the repository variable `ROUTINE_PULSE_FIRE_URL` and the token into the secret `ROUTINE_PULSE_FIRE_TOKEN` |
 | InSight dependency shepherd | `30 8 * * 1` · Mondays 10:30 | `claude-opus-5` | §4, *The dependency shepherd* | — |
 | InSight platform probe | none — press Run now once | `claude-sonnet-5` | §4, *The platform probe* | its whole product is a row in `OPS-RUNBOOK.md` § Platform measurements |
@@ -710,7 +710,7 @@ theory prompts, which only that account can read:
 **The second message to give a session on Claude 2** — the ops lanes,
 if they are not created yet:
 
-> Read docs/OPS-RUNBOOK.md § The account-side inventory on origin/main. For every row whose trigger id is still a dash — the PR shepherd, the pulse responder, the dependency shepherd, the platform probe — try to create the Routine with the prompt pasted verbatim from §4, the model and triggers from §1, bound the same way the four existing ops lanes are. If a creation is refused, stop and tell me exactly which one and what the refusal said, so I can create it in the web UI. For each one created, verify it with list_triggers and open one PR that fills its inventory row and its row in docs/ROUTINES.md §3 with the id quoted from the tool response. Never merge; never apply a label.
+> Read docs/OPS-RUNBOOK.md § The account-side inventory on origin/main. For every row whose trigger id is still a dash — the pulse responder, the dependency shepherd, the platform probe — try to create the Routine with the prompt pasted verbatim from §4, the model and triggers from §1, bound the same way the four existing ops lanes are. If a creation is refused, stop and tell me exactly which one and what the refusal said, so I can create it in the web UI. For each one created, verify it with list_triggers and open one PR that fills its inventory row and its row in docs/ROUTINES.md §3 with the id quoted from the tool response. Never merge; never apply a label.
 
 ### Claude 3 — this account, for completeness
 
@@ -773,10 +773,10 @@ shape as Claude 2's ops lanes, and the first fire measures it (3.5).
 
 ## What would make me stop and re-plan
 
-- **The merge shift and the shepherd disagree about a head** — a
-  label applied on sha X and a merge attempted on sha Y: stop both,
-  read the five steps against the shift's contract, and fix the
-  contract before the next tick.
+- **A label lands on a head the owner does not then merge** — applied
+  on sha X while the branch moves to sha Y: the label is a statement
+  about a specific head, so stop the shift, and fix its contract before
+  the next tick.
 - **The builder's PRs stop being approved** — three open, none
   ticked for a week: the builder is planning wrong, and the retro is
   the digest's, not more PRs; pause the Routine and say so on the

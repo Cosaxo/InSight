@@ -783,6 +783,41 @@ that catches it**, and it is now the only thing that has ever caught it:
 the gate D339 added to take that load off the comparison has not yet
 been switched on.
 
+
+**Runs 51 and 52 then delivered build 30, and the bump landed off step
+17's conclusion** (D381 amendment, 2026-09-06). Run 51 (`34025693929`,
+09:48:48Z) archived `bf24004` with step 17 `skipped` — the dry run,
+5m 48s; run 52 (`34026067310`, 09:57:16Z) archived `c5cc341`, step 17
+`success`, 10:01:23Z → 10:02:41Z, 1m 18s of transfer. `UPLOAD SUCCEEDED
+with no errors`, delivery UUID `96e50ef5-0a24-4308-ad52-7e0d7ea9252b`,
+6,199,752 bytes. Thirteenth pair of this shape. `appBuild` went 30 → 31
+read off step 17 rather than recalled — **ten that held** (20, 21, 22,
+28, 33, 36, 42, 44, 48, 52) against nine skipped (18, 19, 24, 26, 31,
+38, 40, 46, 50).
+
+**This is the first release the pre-flight, the dispatch, the bump and
+the record all happened inside**, with no gap for a session to come back
+across — the arrangement D186 named and D273 sharpened. The bump was
+made from run 52's own step list, not from a memory of it.
+
+**D159's trap fired, and this is the fifth worked example.** Run 51
+archived `bf24004` — the merge of the release prep itself, carrying the
+bump that made build 30 legal — and run 52 archived `c5cc341`, a console
+trail row the console workflow pushed in the eight and a half minutes
+between the dispatches. `appBuild` was 30 at both, so the comparison this
+file is about cost nothing, and the gap was *read* rather than assumed:
+the diff is `docs/MERGE-LIST.md`, `docs/OWNER-LIST.md` and
+`monitoring/console-trail.jsonl` — nothing `dist/`, `ios/` or the shell
+reads — so what run 51 proved about the signing was proved on the inputs
+run 52 used, and `check:bundle` and `check:web-firebase` graded run 52's
+own bundle before it archived anything.
+
+**Step 18 printed `release recorder not wired` for the second release
+running**, so build 30's delivery is recorded by hand exactly as build
+29's was. Two releases is now the measurement on that click
+(`OWNER-LIST.md` § Clicks): the step that cannot forget an upload has
+still never fired.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

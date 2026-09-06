@@ -10109,7 +10109,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Relief",
    "Annoyed"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10125,7 +10125,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ignore",
    "Text back later"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10140,7 +10140,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Love it",
    "Squirm"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10157,7 +10157,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Steady",
    "Restless"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10173,7 +10173,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The honest ETA",
    "Nothing — just arrives"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10188,7 +10188,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Say something",
    "Eat it anyway"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10205,7 +10205,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Honesty",
    "Nerve"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10221,7 +10221,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Map it out",
    "Just wander"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10236,7 +10236,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bliss",
    "Restless"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10252,7 +10252,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "One duet, then done",
    "Vanishes"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10268,7 +10268,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Talking to one person",
    "Near the door"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10283,7 +10283,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Laugh it off",
    "Say so"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10300,7 +10300,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ask everyone",
    "Sleep on it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10315,7 +10315,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Freely",
    "Fight it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10332,7 +10332,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Advice",
    "A favour"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10348,7 +10348,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "One plan, then drift",
    "Pool. Book. Done."
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10365,7 +10365,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "How funny",
    "How serious"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10382,7 +10382,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Treat someone else",
    "Spend a little now"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10397,7 +10397,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bring it up",
    "Let it go"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10412,7 +10412,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The talk",
    "The sleep"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10428,7 +10428,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Takes a while",
    "No"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10444,7 +10444,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Loud",
    "Busy"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10459,7 +10459,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Hard truth",
    "Silence"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10476,7 +10476,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Generosity",
    "Judgement"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10493,7 +10493,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Movement",
    "Sleep"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10508,7 +10508,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Giving",
    "Taking"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10523,7 +10523,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Gift",
    "Sentence"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10540,7 +10540,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The listener",
    "The truth-teller"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10555,7 +10555,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Surrounded",
    "Independent"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null
  },
@@ -10572,7 +10572,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Being fun",
    "Being right"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10589,7 +10589,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "People-pleasing",
    "Distraction"
   ],
-  "topic": null,
+  "topic": "mirror",
   "axis": null,
   "test": null
  },
@@ -10604,7 +10604,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Concede on the spot",
    "Quietly change course"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null
  },
@@ -10620,7 +10620,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sofa, one film",
    "Cooking together"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10638,7 +10638,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Left alone",
    "Talked at immediately"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10656,7 +10656,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A gesture",
    "Time, then normal"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10673,7 +10673,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Fine, orders a drink",
    "Says nothing, remembers it"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10692,7 +10692,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Being touched",
    "Being chosen"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10710,7 +10710,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A pause",
    "Space, then dinner"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10727,7 +10727,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A plan they made",
    "A day with nothing in it"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10745,7 +10745,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Mostly shared",
    "Separate, split bills"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10764,7 +10764,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Left in peace",
    "Asked about"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10781,7 +10781,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Bliss",
    "Too much"
   ],
-  "topic": null,
+  "topic": "day",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10799,7 +10799,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Cleans something",
    "Talks about nothing else"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10817,7 +10817,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Somewhere new",
    "Somewhere quiet"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10835,7 +10835,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Want you to choose",
    "Already decided"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10853,7 +10853,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Only if asked",
    "No"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10872,7 +10872,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Silence",
    "It doesn't"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10890,7 +10890,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Open to it",
    "No"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10909,7 +10909,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Their people",
    "Their solitude"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10927,7 +10927,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Wait",
    "Ask you not to go"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10946,7 +10946,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "More calm",
    "More honesty"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10963,7 +10963,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Side by side",
    "Busy, together"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10982,7 +10982,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Talking it out",
    "Acting normal"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -10999,7 +10999,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Settled deep",
    "Still moving"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -11017,7 +11017,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Hint and hope",
    "Soldier on alone"
   ],
-  "topic": null,
+  "topic": "heat",
   "axis": null,
   "test": null,
   "mode": "romantic",
@@ -11036,7 +11036,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The quiet steadiness",
    "The double act"
   ],
-  "topic": null,
+  "topic": "ahead",
   "axis": null,
   "test": null,
   "mode": "romantic",

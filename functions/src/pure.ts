@@ -377,8 +377,8 @@ export interface DuelAggState {
   plays: number; // group-days revealed
   total: number; // persons counted — the unit the k-floor applies to
   counts: Record<string, number>; // per-option, bank-option questions only
-  guessTotal: number; // duo guesses cast (both partners may guess)
-  guessMatches: number; // …of which called the partner's actual pick
+  guessTotal: number; // guesses cast — a duo's at the partner, a group's at the room (D386)
+  guessMatches: number; // …of which landed: the partner's actual pick, or an option tied for the top
 }
 
 /**
@@ -512,6 +512,23 @@ export function duelAggDelta(
       if (!inRange(guess)) continue;
       guessTotal++;
       if (guess === votes[1 - i].optionIdx) guessMatches++;
+    }
+  } else if (mode === "group") {
+    // A group's guess is a call on where the room lands (D386): a hit
+    // when it names an option tied for the top of the counted votes.
+    // Scored only against a room of two or more — with one counted vote
+    // the "room" is the guesser, and calling your own answer is not a
+    // read. The band the scorecard reads is the same one: near 100% the
+    // room is predictable, at chance nobody can tell where it goes.
+    const counted = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (counted >= 2) {
+      const top = Math.max(...Object.values(counts));
+      for (const v of votes) {
+        const guess = v.guessIdx;
+        if (!inRange(guess)) continue;
+        guessTotal++;
+        if ((counts[String(guess)] || 0) === top) guessMatches++;
+      }
     }
   }
   return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
