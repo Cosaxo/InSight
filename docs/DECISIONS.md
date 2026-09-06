@@ -38071,3 +38071,38 @@ general track for the sources this app has and stay as written; the
 general track is now the foundation both stand on. Each general paper went
 to a separate adversarial reviewer before landing, as the axiom papers
 did. Nothing in the app moves.
+---
+## D364 amendment (2026-09-06) · Paper 6: the body's measured channel, from the owner's review of an outside concept
+
+The owner brought a concept from outside the tree — a passive
+osmotic-hydrogel wearable that draws sweat and interstitial fluid
+without exercise and reads a small metabolite panel continuously, paired
+with whole-genome sequencing and a purpose-trained model over the two —
+and asked for it to be read as *"a future way to use genetic data"*.
+The review ran in chat: what the hardware delivers (a person-specific
+fraction of the blood quantity, stable within a person for weeks, so
+trends and never values), what the concept's headline claims needed that
+the panel cannot carry (immune molecules do not cross into the fluid;
+vector handling is governed by antibodies and receptors the fluid never
+shows), impact by field priced against a named ten, a second opinion's
+scores reconciled against those, and the lowest-friction lifts. Then:
+*"Keep working on this."*
+
+So the axiom series gains paper 6, the body axis's measured channel at
+its perfect form — hourly, multi-analyte, passive — crossed with the
+genome and with every repeated measure. It was not on the planned list;
+it is the crossing the review exchange found worth the most, and paper 5
+had left the body's measured channel as a folded band precisely because
+no passive molecular stream existed to theorize. The paper's spine is
+the one fact the review settled: every use that needs an absolute number
+is out, every use that needs *"different from their own normal"* is in,
+and that line ranks its three uses (safety warning in trials first,
+because it needs within-person precision only; the genetics of
+response-curve parameters second, gated by the count of people observed
+on both axes; vector dosing rescoped to personal reference ranges),
+names its two cheap deciding experiments before anything is built, and
+prices the potential by field. It went to a separate adversarial
+reviewer before landing, as every paper has, and the reviewer's
+findings are in the paper as conditions rather than here as prose. The
+form gate is unchanged: the paper names the body and the genome, so rule
+3 holds on it as written. Nothing in the app moves.

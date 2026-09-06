@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 380 lines instead of
-38,074. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 381 lines instead of
+38,109. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -394,3 +394,4 @@ detect it.
 | **D364** | [Axiom theory restarts as a paper series on `main`: the orphan branch is discarded, the theory is research under `research/`, and its form is a gate](DECISIONS.md#d364--axiom-theory-restarts-as-a-paper-series-on-main-the-orphan-branch-is-discarded-the-theory-is-research-under-research-and-its-form-is-a-gate) | — | 37893 |
 |  | ↳ *amendment 2026-09-05* — [Observer ratings reach their target only in aggregate](DECISIONS.md#d364-amendment-2026-09-05--observer-ratings-reach-their-target-only-in-aggregate) | — | 38010 |
 |  | ↳ *amendment 2026-09-05, later* — [The general track: theory not tied to these axes](DECISIONS.md#d364-amendment-2026-09-05-later--the-general-track-theory-not-tied-to-these-axes) | — | 38047 |
+|  | ↳ *amendment 2026-09-06* — [Paper 6: the body's measured channel, from the owner's review of an outside concept](DECISIONS.md#d364-amendment-2026-09-06--paper-6-the-bodys-measured-channel-from-the-owners-review-of-an-outside-concept) | — | 38075 |
