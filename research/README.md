@@ -34,7 +34,9 @@ by the system so that it is cheap and more people supply it. Paper 7 is
 that sentence taken seriously, which meant splitting "verification" into
 five claims and finding that the worn device serves only two of them,
 that the genome serves the hardest one better, and that the subsidy is
-an instrument only in a shape the obvious design does not have. An **axiom** is the theory of what one axis could become at
+an instrument only in a shape the obvious design does not have.
+
+An **axiom** is the theory of what one axis could become at
 its perfect form and, above all, of what it makes the other axes worth.
 The subject of every paper is *which data makes other data mean more*.
 
