@@ -14,7 +14,7 @@
 # `observe-json` artifact (the payload `observe.mjs --json-out` publishes),
 # the newest *Pulse* run, and monitoring/pulse-trail.jsonl from the tree.
 # Every one of those is readable with the default token — which is the whole
-# reason this lane could move here while the shepherds could not.
+# reason this lane could move here while the session lanes could not.
 #
 # WHAT IT NEVER DOES. Call a Google API (the probe holds that credential and
 # this reads the probe's own output — the reader contract's `Never:` line,
