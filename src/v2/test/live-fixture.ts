@@ -209,6 +209,15 @@ export const PATH_TITLE = "Fixture Crossroads: the forked road";
 // must be able to say which card it has hold of.
 export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
 
+// The daily card's published option counts, EXPORTED so a test asserting a
+// total built from them moves when they move. smoke-live.test.jsx used to
+// hand-copy this array, which made its "the fixture's daily counts changed"
+// guard `12 + 8 + 5 === 25` — a constant compared with itself, green for
+// any fixture. Measured: changing the fixture to [12, 8, 6] left that
+// guard green and failed the case on a different assertion with the wrong
+// diagnosis.
+export const DAILY_COUNTS = [12, 8, 5];
+
 // The rank card's prompt (D233), same rule.
 export const RANK_PROMPT = "Fixture rank card: order the fixtures";
 
@@ -269,7 +278,7 @@ function liveQuestion(
     options: ["Yes", "No", "Both"].map((label, i) => ({
       id: String(i),
       label,
-      count: tooSmall ? 0 : [12, 8, 5][i],
+      count: tooSmall ? 0 : DAILY_COUNTS[i],
       color: OPTION_COLORS[i % OPTION_COLORS.length],
     })),
     comments: [],

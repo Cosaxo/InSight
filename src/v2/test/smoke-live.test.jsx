@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, DAILY_BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { TYPE_SMALL } from "../data/typeMix";
@@ -54,9 +54,12 @@ import { resetNormCache } from "../data/testNorms";
 import { FRIENDS } from "../spec/follows.js";
 import { IS_DATA } from "../spec/sample-data.js";
 
-// The fixture daily's published option counts (live-fixture.ts), named
-// here because a case below asserts an absolute total built from them.
-const FIXTURE_DAILY_COUNTS = [12, 8, 5];
+// The fixture daily's published option counts — IMPORTED, not copied. A
+// case below asserts an absolute total built from them, and the guard on
+// that total was `12 + 8 + 5 === 25` while this was a hand-copied literal:
+// a constant compared with itself, which stays green for any fixture and
+// leaves the real assertion to fail with the wrong diagnosis.
+const FIXTURE_DAILY_COUNTS = DAILY_COUNTS;
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
 
