@@ -461,10 +461,24 @@ on the engine side:
   That supersedes the approach PR #341 builds, which is why this row is
   the owner's (`OWNER-LIST.md` § Decisions) and not this page's.
 
-Together: 113 → 376 items in one space. The loadings doc grows from
-~11 KB to roughly 40 KB at K = 8 and 4 dp (376 × 8 × ~5 bytes plus the
-keys), read once a session; `PATTERNS_MIN_POOL`'s reasoning is
-unchanged (three per dimension) and its count simply crosses earlier.
+Together: 113 → **376 questions, 545 item ROWS** in one space. The two
+numbers are not interchangeable and this paragraph used to quote only
+the first, in the section that specifies one pseudo-item PER OPTION:
+`compileItems(V2_QUESTIONS)` returns 545 specs (bin 113, opt 217, ord
+215) over 376 distinct qids, and it is the ROWS the `q` map publishes.
+
+So the size is the rows': measured at a fully-populated candidate block,
+`q` + `items` is ~92 KB of JSON, ≈130 KB Firestore-accounted — not the
+~40 KB this said, which was 376 × 8 × ~5 bytes plus keys and undercounted
+the corpus by 45%. Read once a session, so the cost is a session's not a
+night's, but it is the figure `PATTERNS_MIN_POOL`'s reasoning sits beside
+and the one docs/COSTS.md's "~11 KB loadings doc" is now two engines
+behind. `PATTERNS_MIN_POOL` itself is unchanged (three per dimension) and
+its count simply crosses earlier.
+
+Measured off the tree rather than argued — `check:figures` does not read
+this page, which is why the wrong number could stand in the paragraph
+that defines the encoding it got wrong.
 
 ## 4 · The database and the data structures
 
