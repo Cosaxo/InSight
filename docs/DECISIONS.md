@@ -38089,20 +38089,44 @@ scores reconciled against those, and the lowest-friction lifts. Then:
 *"Keep working on this."*
 
 So the axiom series gains paper 6, the body axis's measured channel at
-its perfect form — hourly, multi-analyte, passive — crossed with the
+its perfect form — passive, multi-analyte, continuous — crossed with the
 genome and with every repeated measure. It was not on the planned list;
 it is the crossing the review exchange found worth the most, and paper 5
-had left the body's measured channel as a folded band precisely because
-no passive molecular stream existed to theorize. The paper's spine is
-the one fact the review settled: every use that needs an absolute number
-is out, every use that needs *"different from their own normal"* is in,
-and that line ranks its three uses (safety warning in trials first,
-because it needs within-person precision only; the genetics of
-response-curve parameters second, gated by the count of people observed
-on both axes; vector dosing rescoped to personal reference ranges),
-names its two cheap deciding experiments before anything is built, and
-prices the potential by field. It went to a separate adversarial
-reviewer before landing, as every paper has, and the reviewer's
-findings are in the paper as conditions rather than here as prose. The
-form gate is unchanged: the paper names the body and the genome, so rule
-3 holds on it as written. Nothing in the app moves.
+had left the body's measured channel folded to one number a day
+precisely because no molecular stream existed to theorize.
+
+The first draft's spine was the one fact the chat review had settled:
+the stream reads trends and never values, so the uses that need an
+absolute number are out. The adversarial reviewer took that spine apart
+and the paper is the rewrite. Three findings changed its shape rather
+than its wording. There is no single transfer model for such a stream:
+the gland the fluid comes from is metabolically active and makes one of
+the panel's analytes itself, so that channel reads the skin and its
+secretion rate rather than the blood, and no normalizer recovers a blood
+quantity that was never sampled — the ruler and the signal are one
+variable. A ratio stable for weeks cannot carry a phenotype compared
+across quarters or years without an unobserved re-scaling between them,
+so cross-epoch phenotypes must be functionals invariant to that scale
+and the calibration anchor must run at twice the drift's rate, which an
+annual clinic panel is not. And the injury markers a trial actually
+watches are proteins and coagulation indices the fluid never carries, so
+the safety use, which the first draft ranked first, detects late
+decompensation rather than early toxicity; it now ranks third, owes an
+alert rate, a predictive value at the trial's own event rate and a named
+responder, and its comparator is the trial's real safety pathway rather
+than a fortnightly visit. The ranking is now by what the perfect form
+makes knowable, with the hardware's limits as conditions beneath each
+use, which is the series' second rule applied to a paper that had been
+ranking by feasibility. Two further corrections are worth the record:
+the crossing invents its own confound, because the transfer ratio is a
+property of skin and glands and is therefore heritable, so a
+scale-dependent curve parameter carries a heritable multiplier and its
+genetics would find loci for sweating; and the genome here is sequenced
+inside the program rather than imported, which is what licenses the
+carrier designs and what replaces the consumer file's vendor batch with
+a sequencing one.
+
+The reviewer returned twenty-five findings and the paper answers all of
+them; the rest are in it as conditions rather than here as prose. The
+form gate is unchanged: the paper names the body and the genome, so the
+cross-axis rule holds on it as written. Nothing in the app moves.
