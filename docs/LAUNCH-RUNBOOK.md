@@ -1342,8 +1342,21 @@ That is a tester-count problem, not a workflow problem.
       launch and add them on verification without a new review, which
       stays the way to register the ENK (D69's way out) before the home
       address publishes on any listing.
-- [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
-      Mandatory; Apple accepts no submission without it.
+- [x] **4.4 The privacy nutrition label — PUBLISHED 2026-09-06.** The
+      last form, and it is manual; Apple accepts no submission without it.
+
+      **How it closed.** Eleven data types, typed by the owner from App
+      Store metadata run 13's `privacy (report only)` summary into the
+      App Privacy form and published the same afternoon: ten with App
+      Functionality (Other User Content also Product Personalization),
+      Product Interaction with Analytics, every row linked to identity,
+      tracking off — `app-privacy.json` as it stands, `check:store-forms`
+      green. One transcription slip was caught on the review pass before
+      Publish: Product Personalization had landed on Photos or Videos
+      instead of Other User Content. Eleven near-identical dialogs with
+      the two that differ side by side is exactly why the printout ends
+      *"read docs/STORE-FORMS.md before ticking anything"*, and why the
+      pass was worth the minutes.
 
       **NINE ROWS SINCE D175 AND D178, AND THIS STEP SAID SEVEN UNTIL
       BUILD 18's PRE-FLIGHT.** Precise Location and Photos or Videos are
