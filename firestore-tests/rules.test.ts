@@ -659,6 +659,25 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, off: true } } }));
     await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, why: "x" } } }));
     await assertFails(setDoc(mine, { consent: { politics: { v: 1, at: 1 } } }));
+    // THE CLAUSES THE CASES ABOVE NEVER REACH. Each of them is refused one
+    // clause earlier than the one it names — `{ politics: … }` dies on
+    // `hasOnly(["political"])` before `"political" in …` is asked, and
+    // `{ v: 1 }` with no `at` is a rules EVALUATION error rather than a
+    // false. Measured with the coverage report: five predicates in this
+    // one guard evaluated true and never once false across the whole
+    // suite, so any of them could be deleted and this test would still
+    // pass. It is the record D330/D331 built to satisfy a consent
+    // requirement in law, so "the shape is held" is the whole of what a
+    // rule can contribute to it.
+    await assertFails(setDoc(mine, { consent: "yes" }));
+    await assertFails(setDoc(mine, { consent: { political: "yes" } }));
+    await assertFails(setDoc(mine, { consent: { political: { v: 1, at: "1730000000000" } } }));
+    await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, off: "later" } } }));
+    // …and an EMPTY consent map is legal: the key is optional, and a
+    // profile that has never been asked carries one. Asserted so the four
+    // refusals above are about their shapes and not about the guard being
+    // all-or-nothing.
+    await assertSucceeds(setDoc(mine, { consent: {} }));
     // `anon` sat on this allowlist since the v2 profile was written, with
     // no writer and no reader — the D258/D280 shape, and it read like an
     // anonymity toggle that has never existed. D331 took it off, and a
