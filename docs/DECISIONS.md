@@ -40576,3 +40576,91 @@ being a function of the bank — 24 per scope, once, cached after. The
 document grows instead: ~1,100 ids at ten times the bank, ~13 KB, well
 inside the limit rank.ts's header already prices, and the sharding
 graduation recorded there covers the case beyond it.
+
+## D385 · The other two lanes leave first paint, and three stale notes are why they were still there
+
+**Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
+on being told the daily's archive was out and the feed's twins were not:
+*"that should be the case though, i made myself clear."* D382 took one
+lane's write surface out of the bundle and left two, named honestly on
+`check:eager-content`'s allowlist. This takes those two.
+
+### What was still true
+
+Three question lanes have a write surface that ships **inside the app**
+rather than as served content:
+
+| Lane | Writes | Was |
+| --- | --- | --- |
+| farm | `spec/daily-questions.js` | out at D382 |
+| feed | continuum twins in `spec/world-feed-data.js` | **eager** |
+| duel | `content/duel-questions.json` via `spec/duels-data.js` | **eager** |
+
+So writing a feed question or a duel question was still adding bytes a
+phone fetches before it can paint. The learn, now and catalog lanes were
+never affected — the first two write served JSON, and `pick-data.js` has
+been deferred since D25's group.
+
+### The three lines, and the pattern under them
+
+Every one was a `spec-index.js` eager import whose comment gave a reason
+that **had stopped being true**, in each case because D354's sweep
+converted the coupling it named:
+
+- `world-feed-data.js` — "daily-split.jsx reads window.WORLD_TOPICS at
+  MODULE scope … deferring it would silently swap the real topic set for
+  that line's five-entry fallback". D354 had made it
+  `import { WORLD_TOPICS }`, and daily-split's own comment says in as many
+  words that "the fallback goes".
+- `group-daily.jsx` — "stays, because GDAv is read from the Mirror". All
+  three readers (`duo-daily`, `group-mirror`, `group-role-map`) import the
+  binding; the two Mirror ones ride `loadMirrorTab()`.
+- `duels-data.js` — no stated reason left at all; it publishes nothing.
+
+**The pattern is the finding, not the three files.** A deferral note
+outlives the coupling it describes, nothing re-reads it, and the line
+stays — which is the same shape as the figures `check:figures` exists for,
+one layer up. `check:eager-content` is what now re-reads them: a line whose
+reason has expired shows up as content in the first-paint graph.
+
+### What shipped
+
+- **`spec/world-feed-topics.js`** — the thirteen topic rows, a leaf that
+  imports nothing. `daily-split.jsx` (entry chunk) and the three Patterns
+  panels take the palette from here; the pool stays behind
+  `loadWorldFeed()`. The same split as `daily-cats.js`, one surface over,
+  for the same reason: a taxonomy is not a bank.
+- **The demo pool's clobber is guarded** by `demoPoolOpen()`, which is
+  exactly what its own comment said would be required if the file were ever
+  deferred — it now runs *after* the live boot, and unguarded it would
+  overwrite the real feed with invented questions. The literal is a named
+  `WFD_DEMO_POOL` const rather than an inline right-hand side, because
+  `question-quality.mjs` and `question-neighbors.mjs` both read that pool by
+  marker and a ternary hid it from them.
+- **The duel bank loads on demand** in all three places that reached it:
+  daily-split's pending counts (already gated off on live), app-shell's
+  DevTweaks reset, and the demo Circle body — now `React.lazy` beside the
+  live one that always was.
+- **`window.WORLD_TOPICS` is gone.** With every consumer importing, rule 6
+  refused the publication, and the one in-file read became the binding.
+
+Measured: **601 → 541 KB eager**, 93 → **75** modules in the first-paint
+graph. `MAX_EAGER_KB` 607 → **552**, the file's own ~11 KB band.
+
+### What is left, and why it is not the same thing
+
+Three entries remain on the allowlist — `sample-data.js`,
+`test-feed-data.js`, `archetype-data.js`. None is a lane write surface:
+they are demo and derived data that do **not** grow when a lane writes a
+question. So the property the owner asked for holds — no question lane can
+trip the eager budget — while the ratchet keeps the rest visible and
+shrinking. `content/duel-questions.json` came off the list entirely, which
+is the first time an entry has left it.
+
+CLAUDE.md's opening example is now one more casualty of the same drift it
+warns about: `group-daily.jsx` no longer does
+`Object.assign(window, { GroupDailyBody, GDAv })`, so the illustration of
+the shared-global bridge outlived its own publication. Recorded rather than
+rewritten, because picking a live pair is what its own note tells the next
+reader to do.
+

@@ -59,12 +59,6 @@ const CONTENT_DIR = "content/";
 const ALLOW = new Map([
   ["src/v2/spec/sample-data.js",
     "the demo crowd; scenes.js, map-anchors.js and relmap-lenses.jsx are all eager and import it"],
-  ["src/v2/spec/duels-data.js",
-    "group-daily.jsx is eager and imports it (and it pulls content/duel-questions.json with it)"],
-  ["content/duel-questions.json",
-    "rides duels-data.js above"],
-  ["src/v2/spec/world-feed-data.js",
-    "world-feed.jsx is eager; the feed lane's continuum twins live here, so this is the second lane behind the same wall"],
   ["src/v2/spec/test-feed-data.js",
     "vote-cuts.js and world-feed-report.js sit in its chunk and are reached from the eager feed"],
   ["src/v2/spec/archetype-data.js",

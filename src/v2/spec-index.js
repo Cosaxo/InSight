@@ -46,7 +46,19 @@ import './spec/subnav-thumb.js';
 import './spec/map-branches.js';
 import './spec/map-anchors.js';
 import './spec/map-group-stats.js';
-import './spec/duels-data.js';
+// duels-data.js is NOT here any more — the last edge holding the DUEL
+// LANE's bank (content/duel-questions.json, which a scheduled Routine
+// appends to) in first paint. It publishes no global: its nine consumers
+// hold it as a module binding, and every one of them is now either a
+// deferred surface or reaches it dynamically — daily-split's pending
+// counts and app-shell's DevTweaks reset both load it on demand, and the
+// demo Circle body it feeds is React.lazy beside the live one that always
+// was.
+//
+// Its one side effect is a purge listener, and it attaches late for the
+// same reason suggestions.js's and daily-questions.js's do: purgeLocalTrace
+// removes every `insight.` key itself (`insight.duels.v1` here), and a
+// module that never loaded holds no in-memory state to drop.
 import './spec/reveal-clock.js';
 // The app-feel layer (v17). Five of these are pure side effects — they install
 // one document-level listener each and no component knows they exist — so
@@ -95,7 +107,21 @@ import './spec/vote-cuts.js';
 import './spec/type-marks.jsx';
 import './spec/result-rose.jsx';
 import './spec/result-card.jsx';
-import './spec/group-daily.jsx';
+// group-daily.jsx is NOT here any more, and its note went stale the same way
+// world-feed-data.js's did. It said the file "stays, because GDAv is read
+// from the Mirror (group-mirror, group-role-map)" — a shared-global read at
+// render time, which the eager list did have to guarantee. D354's sweep made
+// all three consumers real imports (`import { GDAv } from './group-daily.jsx'`
+// in duo-daily, group-mirror and group-role-map), so rule 2 is satisfied
+// through the ESM graph and the two Mirror readers carry it in
+// loadMirrorTab()'s chunk. It publishes nothing to window at all now — which
+// also makes CLAUDE.md's opening example, the `Object.assign(window, {
+// GroupDailyBody, GDAv })` pair, one more converted publication that outlived
+// its own illustration.
+//
+// What the line was costing: group-daily imports duels-data.js, so it was the
+// last edge holding content/duel-questions.json — the duel lane's bank — in
+// first paint.
 import './spec/read-run.jsx';
 // duo-daily.jsx moved to loadOverlays(): in a SHIPPING build daily-split
 // picks LiveDuelPanel (React.lazy since D156) whenever LIVE.enabled, so the
@@ -123,12 +149,27 @@ import './spec/read-run.jsx';
 // through. A named-export module; its position here is the standalone's, and
 // it reads no other module at load time.
 import './spec/world-palette.js';
-// world-feed-data.js stays EAGER even though the feed itself does not:
-// daily-split.jsx reads window.WORLD_TOPICS at MODULE scope (line 19), and
-// deferring it would silently swap the real topic set for that line's
-// five-entry fallback — the failure mode being a wrong chip row rather than
-// an error anyone would see.
-import './spec/world-feed-data.js';
+// world-feed-data.js is NOT here any more, and the note that kept it here
+// had gone stale twice over. It said daily-split.jsx "reads
+// window.WORLD_TOPICS at MODULE scope … deferring it would silently swap the
+// real topic set for that line's five-entry fallback" — but D354's sweep had
+// already made that a real `import`, and the daily-split comment recording it
+// says in as many words that "the fallback goes". What actually held the file
+// here was the import itself, and the thirteen topic rows behind it: the
+// palette now lives in world-feed-topics.js (a leaf that imports nothing), so
+// the eager side takes the taxonomy and loadWorldFeed() takes the pool.
+//
+// That matters because the pool is where the FEED LANE appends its continuum
+// twins every run — so with this line, writing a feed question was adding
+// first-paint bytes, exactly as writing a daily question was before
+// daily-cats.js. Two of the three question lanes with a bundled write surface
+// were behind the eager budget; this is the second of them.
+//
+// The module's own clobber (`window.WORLD_FEED_QS = [...]`) moved behind
+// `demoPoolOpen()` in the same change, which is what its comment there always
+// said would be required if it were ever deferred: it now runs after the live
+// boot, and an unguarded assignment would overwrite the real feed with demo
+// questions.
 // world-catalogs.js is NOT here either, for pick-data's reason exactly:
 // its module-scope append to window.WORLD_FEED_QS was the only thing
 // holding a demo catalogue in the first-paint graph, since its one importer

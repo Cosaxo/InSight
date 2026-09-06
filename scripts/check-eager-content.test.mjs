@@ -45,12 +45,9 @@ function runIn(files) {
 // fixture, so every fixture run trips the ratchet unless they are present.
 // Supplying them keeps each case about the one thing it is testing.
 const DEBT = {
-  "src/v2/spec/sample-data.js": "export const S = 1;\nimport '../../../content/duel-questions.json';\n",
-  "src/v2/spec/duels-data.js": "import './sample-data.js';\nexport const D = 1;\n",
-  "src/v2/spec/world-feed-data.js": "export const W = 1;\n",
+  "src/v2/spec/sample-data.js": "export const S = 1;\n",
   "src/v2/spec/test-feed-data.js": "export const T = 1;\n",
   "src/v2/spec/archetype-data.js": "export const A = 1;\n",
-  "content/duel-questions.json": "{}\n",
 };
 const DEBT_IMPORTS = Object.keys(DEBT)
   .filter((p) => p.endsWith(".js"))

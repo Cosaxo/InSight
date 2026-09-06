@@ -22,10 +22,15 @@ beforeEach(() => {
 
 async function feedData() {
   // WORLD_CHANNELS is imported by name since D249 — world-feed.jsx was its
-  // only consumer, so it no longer publishes. WORLD_TOPICS still mirrors,
-  // for daily-split, search-overlay and suggestions.
+  // only consumer, so it no longer publishes. WORLD_TOPICS does not mirror
+  // to `window` any more either: this said it "still mirrors, for
+  // daily-split, search-overlay and suggestions", and all three reach it by
+  // import now — the palette moved to world-feed-topics.js when the feed's
+  // pool left the first-paint graph, and check:globals rule 6 refused the
+  // publication once nothing read it.
   const { WORLD_CHANNELS } = await import("../spec/world-feed-data.js");
-  return { channels: WORLD_CHANNELS, topics: window.WORLD_TOPICS };
+  const { WORLD_TOPICS } = await import("../spec/world-feed-topics.js");
+  return { channels: WORLD_CHANNELS, topics: WORLD_TOPICS };
 }
 
 describe("the always-on channel set, per build (D96)", () => {

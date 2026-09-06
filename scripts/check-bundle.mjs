@@ -889,7 +889,26 @@ const MAX_TOTAL_JS_KB = 2440;
 // was written to measure — code in first paint — and a content lane can
 // no longer be blocked by it. Raising this number to fit content is now a
 // gate failure somewhere else, which is the point.
-const MAX_EAGER_KB = 607;
+// 607 → 552 (2026-09-06, D385): the second eager-content sweep, and the one
+// that finishes the job the first started. 607 was set when the DAILY lane's
+// archive came out; this takes the other two lanes with a bundled write
+// surface out with it — the feed's demo pool (its continuum twins are
+// appended on every run) and the duel bank (content/duel-questions.json).
+// 601 → 541 measured, and the eager graph is 75 modules where it was 93.
+//
+// THE THREE LINES THAT HELD THEM were all in spec-index.js, and all three
+// gave a reason that had gone stale: world-feed-data for a
+// `window.WORLD_TOPICS` module-scope read D354 had already converted to an
+// import, group-daily for a `GDAv` render-time lookup the same sweep had
+// converted, and duels-data for nothing it still published. The pattern is
+// worth naming because it will recur: a deferral note outlives the coupling
+// it describes, and nothing re-reads it, so the line stays.
+//
+// Same ~11 KB band as every entry above. What is different now is what a
+// trip MEANS: no question lane can cause one — check:eager-content's
+// allowlist is down to three demo archives, none of which grows when a lane
+// writes — so this ceiling is measuring code in first paint and nothing else.
+const MAX_EAGER_KB = 552;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

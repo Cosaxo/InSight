@@ -34,7 +34,7 @@ import PATTERNS, { type OracleRecord, type PoolItem, type Working } from "../dat
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
-import { WORLD_TOPICS } from "../spec/world-feed-data.js";
+import { WORLD_TOPICS } from "../spec/world-feed-topics.js";
 
 const OR_CAP_BITS = 2.6; // a mark this surprising is full height
 // The prototype's evidence mass summed per-question contributions from
