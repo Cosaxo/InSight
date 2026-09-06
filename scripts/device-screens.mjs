@@ -407,18 +407,15 @@ if (!android) {
   // report rather than a silent exit.
   const adb = (...args) => execFileSync("adb", ["-s", serial, ...args], { encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
 
-  // A COLD START PER SCENE, the way a phone does it: stop the app, wipe its
-  // data (localStorage with it — every scene is a first launch), start it,
-  // attach to the WebView it opens over a fresh connection. Not a reload:
-  // the fourth run attached fine and then lost the devtools target on
-  // `page.reload()`, because the WebView's navigation replaces the target
-  // Playwright holds. The attach can land on the shell's initial
-  // about:blank a moment before Capacitor loads the app, so it waits for
-  // the app's own URL and re-attaches if that first target goes away.
-  async function launch() {
-    adb("shell", "am", "force-stop", pkg);
-    adb("shell", "pm", "clear", pkg);
-    adb("shell", "am", "start", "-W", "-n", `${pkg}/.MainActivity`);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Attach to the app's WebView over a fresh connection. A fresh one every
+  // time, because Playwright caches the page per connection and a cached
+  // page that the WebView has since navigated away from is a closed one.
+  // The attach can land on the shell's initial about:blank a moment before
+  // Capacitor loads the app, so it waits for the app's own URL, and it
+  // retries when that first target goes away under it.
+  async function attach() {
     let lastErr = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
       let device = null;
@@ -427,27 +424,68 @@ if (!android) {
         const webview = await withTimeout(device.webView({ pkg }, { timeout: 90_000 }), 100_000, "WebView attach");
         const page = await withTimeout(webview.page(), 30_000, "WebView page");
         const deadline = Date.now() + 20_000;
-        while (!/localhost/.test(page.url()) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
+        while (!/localhost/.test(page.url()) && Date.now() < deadline) await sleep(200);
         if (page.isClosed()) throw new Error("the WebView target closed while the app was loading");
         return { device, page };
       } catch (e) {
         lastErr = e;
         if (device) await device.close().catch(() => {});
         console.log(`    attach attempt ${attempt} failed: ${String(e.message || e).slice(0, 120)}`);
-        await new Promise((r) => setTimeout(r, 1500));
+        await sleep(1500);
       }
     }
     throw lastErr;
   }
 
-  const first = await launch();
+  // A FIRST LAUNCH PER SCENE, without a new process where the old one is
+  // still there: storage cleared and the page reloaded in place, then a
+  // re-attach. Every emulator freeze the lane has had so far came with a
+  // WebView process starting — runs 34061114032 and 34061299385 at the
+  // app's first launch, 34060750206 and the eighth run at the second cold
+  // start (`am force-stop` · `pm clear` · `am start`) — and a reload inside
+  // the running WebView starts none. The old page cannot be reused after
+  // the reload (the WebView's navigation replaces the devtools target, the
+  // fourth run's lesson), which is what the fresh attach is for. Only when
+  // the page is gone does the app get stopped, cleared and started again.
+  async function launch(prev) {
+    let restart = !prev || prev.page.isClosed();
+    if (!restart) {
+      try {
+        await withTimeout(prev.page.evaluate(() => {
+          try { localStorage.clear(); sessionStorage.clear(); } catch { /* no storage */ }
+          setTimeout(() => location.reload(), 50);
+        }), 10_000, "reset in place");
+      } catch (e) {
+        console.log(`    reset in place failed: ${String(e.message || e).slice(0, 100)}`);
+        restart = true;
+      }
+    }
+    if (prev) await prev.device.close().catch(() => {});
+    if (restart) {
+      adb("shell", "am", "force-stop", pkg);
+      adb("shell", "pm", "clear", pkg);
+      adb("shell", "am", "start", "-W", "-n", `${pkg}/.MainActivity`);
+    }
+    await sleep(1500);
+    const next = await attach();
+    // A reload that did not take leaves last scene's state on screen, and
+    // the storage it cleared says which it was.
+    const clean = await withTimeout(next.page.evaluate(() => { try { return localStorage.length === 0; } catch { return true; } }), 10_000, "storage check");
+    if (!clean) {
+      console.log("    the reload did not take — starting the app again");
+      await next.device.close().catch(() => {});
+      return launch(null);
+    }
+    return next;
+  }
+
+  const first = await attach();
   const size = await first.page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight, s: window.devicePixelRatio }));
   console.log(`  WebView ${size.w}×${size.h} @${size.s}`);
-  await first.device.close().catch(() => {});
-  let current = null;
+  let current = first;
   await runProfile(profileId, { label: model, width: size.w, height: size.h, scale: size.s }, {
     async open() {
-      current = await launch();
+      current = await launch(current);
       const { page } = current;
       const watcher = watch(page);
       await waitReady(page);
@@ -459,7 +497,8 @@ if (!android) {
       watcher.drain();
       return { page, watcher };
     },
-    async close() { if (current) await current.device.close().catch(() => {}); current = null; },
+    // The connection stays open until the next launch reloads through it.
+    async close() {},
     // The device's own screen — status bar, keyboard, the WebView as the
     // phone composes it — which is the half a Chromium render cannot show.
     async frame() { return withTimeout(current.device.screenshot(), 30_000, "device screenshot"); },
