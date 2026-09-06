@@ -262,7 +262,7 @@ export function MFKey({ items }) {
         background: 'var(--surface)', border: '0.5px solid var(--rule)', borderRadius: 999,
       }}>
         {items.map((it, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
             {it.glyph === 'ring'
               ? <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1.6px solid color-mix(in oklch, var(--accent) 60%, transparent)', flexShrink: 0, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: 'var(--accent)', lineHeight: 1 }}>+</span>
               : <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }}></span>}
@@ -397,7 +397,7 @@ export function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
             {chips.map((c) => (
               <span key={c} style={{
-                fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 500, color: `oklch(0.34 0.13 ${hue})`,
+                fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: `oklch(0.34 0.13 ${hue})`,
                 padding: '2px 8px', borderRadius: 99, background: `oklch(0.95 0.03 ${hue})`, border: `0.5px solid oklch(0.85 0.05 ${hue})`,
               }}>{c}</span>
             ))}

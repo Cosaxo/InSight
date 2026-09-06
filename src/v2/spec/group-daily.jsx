@@ -92,7 +92,7 @@ const EXPORTS = {};
       <span style={{
         height: size, padding: '0 8px', borderRadius: 999, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 10.5,
+        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12,
         color: 'var(--surface)', background: 'var(--ink)', boxShadow: '0 0 0 1.5px var(--surface-2)',
       }}>you</span>
     );
@@ -152,7 +152,7 @@ const EXPORTS = {};
                     carried no information and made the rail read as noise */}
                 {pending && <span style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: ACC, border: '2px solid var(--surface)' }}></span>}
               </span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: sel ? 800 : 600, color: sel ? 'var(--ink)' : 'var(--ink-3)', whiteSpace: 'nowrap', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.name}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: sel ? 800 : 600, color: sel ? 'var(--ink)' : 'var(--ink-3)', whiteSpace: 'nowrap', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.name}</span>
             </button>
           );
         })}
@@ -160,7 +160,7 @@ const EXPORTS = {};
           <button onClick={onAdd} aria-label="Create a group"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 6px', WebkitAppearance: 'none', flexShrink: 0, width: 62 }}>
             <span style={{ width: 38, height: 38, margin: 2, borderRadius: 11, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px dashed color-mix(in oklch, var(--ink-3) 55%, transparent)', color: 'var(--ink-2)', fontSize: 18, fontWeight: 600, lineHeight: 1 }}>+</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>New</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>New</span>
           </button>
         )}
       </div>
@@ -203,10 +203,10 @@ const EXPORTS = {};
                 <GDAv p={m} size={30}></GDAv>
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
                   <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13.5 }}>{m.name}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>{m.pending ? 'invited · waiting' : m.rel}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{m.pending ? 'invited · waiting' : m.rel}</span>
                 </span>
                 <button className="tap44" onClick={() => DUELS.removeGroupMember(g.id, m.id)} aria-label={'Remove ' + m.name}
-                  style={{ flexShrink: 0, border: 'none', background: 'var(--surface-3)', color: 'var(--ink-2)', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', fontSize: 11, fontWeight: 800, WebkitAppearance: 'none' }}>{'\u2715'}</button>
+                  style={{ flexShrink: 0, border: 'none', background: 'var(--surface-3)', color: 'var(--ink-2)', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', fontSize: 12, fontWeight: 800, WebkitAppearance: 'none' }}>{'\u2715'}</button>
               </div>
             ))}
             {addable.length > 0 && (
@@ -451,7 +451,7 @@ const EXPORTS = {};
     return (
       <div ref={rootRef} style={col(10)}>
         <div style={{ display: 'flex', alignItems: 'baseline', padding: '0 2px', scrollSnapAlign: 'start' }}>
-          {nLeft > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
+          {nLeft > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
         </div>
         <div ref={railRef} style={{ position: 'sticky', top: 0, zIndex: 6, margin: '-1px -16px 0', padding: '1px 10px 0', background: 'var(--surface-a, var(--surface))', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
           <GroupRail gs={ordered} cur={cur} onPick={jump} onAdd={() => setAddOpen(true)}></GroupRail>

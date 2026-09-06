@@ -93,7 +93,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap', flexShrink: 0 }}>{p.name}</span>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
                   {/* v28 §7.9: the type, as the chip the LIVE KindredCard already
                       wears (ui/LiveMirrorLenses.tsx, D156) — mark + name, one
                       shape for demo and live so a badge on a person always
@@ -103,7 +103,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                     <span style={{
                       marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5,
                       border: '1px solid color-mix(in oklch, var(--rule), transparent 25%)', borderRadius: 999, padding: '2px 9px 2px 4px',
-                      fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)',
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)',
                       background: 'var(--surface-2)', whiteSpace: 'nowrap',
                     }}>
                       <TypeMark testKey="big5" name={p.type} size={16}></TypeMark>
@@ -114,7 +114,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
                   {p.shared.map(s => (
                     <span key={s} style={{
-                      fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500,
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
                       color: `oklch(0.34 0.13 ${p.hue})`,
                       padding: '2px 9px', borderRadius: 99,
                       background: `oklch(0.95 0.03 ${p.hue})`, border: `0.5px solid oklch(0.85 0.05 ${p.hue})`,

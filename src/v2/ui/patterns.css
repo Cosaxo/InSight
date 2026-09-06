@@ -46,7 +46,7 @@
 .pt-pops{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding:1px 0}
 .pt-pops>*{flex-shrink:0}
 .pt-pop{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:12px;font-weight:650;padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
-.pt-pop em{font-style:normal;font-size:10.5px;font-weight:750;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pt-pop em{font-style:normal;font-size:12px;font-weight:750;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .pt-pop.is-on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 .pt-pop.is-on em{color:color-mix(in oklch,var(--surface),transparent 25%)}
 .pt-dot{width:7px;height:7px;border-radius:999px;flex:none}
@@ -75,8 +75,8 @@
 .pt-progtrack i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .pt-prognum{font-size:12px;font-weight:750;color:var(--ink-2);font-variant-numeric:tabular-nums;flex:none}
 .pt-prognum em{font-style:normal;font-weight:650;color:var(--ink-3)}
-.pt-kick{font-size:10.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
-.pt-cat{display:inline-flex;align-items:center;font-size:10.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+.pt-kick{font-size:12px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.pt-cat{display:inline-flex;align-items:center;font-size:12px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
 .pt-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 16px}
 .pt-done>div{font-size:19px;font-weight:750;color:var(--ink)}
 .pt-done>p{font-size:13px;color:var(--ink-3);margin:5px 0 0}
@@ -86,7 +86,7 @@
    is the reading underneath it */
 .qm-read{display:flex;flex-direction:column;justify-content:center;border-top:1px solid var(--rule);padding:16px 2px 4px}
 .qm-qhead{display:flex;align-items:center;gap:8px}
-.qm-yours{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--accent-ink,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qm-yours{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent-ink,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qm-prompt{font-family:var(--serif);font-size:21px;font-weight:500;line-height:1.22;color:var(--ink);margin:9px 0 0;text-wrap:pretty}
 .qm-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .qm-opt{border:1.4px solid var(--rule);background:var(--surface);border-radius:12px;padding:11px 9px;font:inherit;font-size:14px;font-weight:650;color:var(--ink);min-height:46px;cursor:pointer;text-align:center;text-wrap:balance;transition:transform .18s var(--ease-spring),border-color .15s ease}
@@ -104,10 +104,10 @@
 .qm-idle span{font-size:13px;font-weight:600;line-height:1.4;color:var(--ink-2);text-wrap:pretty}
 /* the idle reading: one sentence, the share as a figure under it */
 .qm-tie2{display:flex;flex-direction:column;gap:8px;border:0;background:none;font:inherit;text-align:left;padding:0;cursor:pointer;color:var(--ink);width:100%}
-.qm-foot{font-size:11px;font-weight:650;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
+.qm-foot{font-size:12px;font-weight:650;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 .qm-base{position:relative;display:block;height:15px;margin-top:2px}
 .qm-say:last-child{padding-bottom:3px}
-.qm-base > span{position:absolute;transform:translateX(-50%);font-size:10.5px;font-weight:650;color:var(--ink-3);white-space:nowrap}
+.qm-base > span{position:absolute;transform:translateX(-50%);font-size:12px;font-weight:650;color:var(--ink-3);white-space:nowrap}
 /* the chords draw themselves in when a question is tapped; a dot pops on
    a vote and blooms once behind it */
 .ln-svg .qm-drawin{stroke-dasharray:1;animation:qmDraw .6s cubic-bezier(.22,.8,.3,1) both}
@@ -129,7 +129,7 @@
    is one of your prior answers and the crowd split it contributed; the
    hairline is the coin */
 .or-proof{flex:none;display:flex;flex-direction:column;gap:9px;padding:2px 3px 0;animation:orRise .3s cubic-bezier(.2,.8,.2,1) both}
-.or-proof-kick{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.or-proof-kick{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 .or-ev{display:flex;flex-direction:column;gap:5px;animation:orRise .32s cubic-bezier(.2,.8,.2,1) both}
 .or-ev-q{font-size:12.5px;line-height:1.42;color:var(--ink-3);text-wrap:pretty;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .or-ev-q b,.or-ev-word b{color:var(--ink);font-weight:750}
@@ -137,9 +137,9 @@
 .or-ev-bar{position:relative;flex:1;min-width:52px;height:6px;border-radius:99px;background:var(--surface-3)}
 .or-ev-bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;max-width:100%}
 .or-ev-bar em{position:absolute;top:-2px;bottom:-2px;left:50%;width:1.5px;border-radius:1px;background:color-mix(in oklab,var(--ink-3),var(--surface) 30%)}
-.or-ev-word{flex:none;font-size:11px;font-weight:650;color:var(--ink-3);white-space:nowrap}
+.or-ev-word{flex:none;font-size:12px;font-weight:650;color:var(--ink-3);white-space:nowrap}
 .or-ev-none{font-size:12.5px;line-height:1.46;color:var(--ink-3);text-wrap:pretty}
-.or-proof-base{padding-top:2px;font-size:10.5px;font-weight:600;color:color-mix(in oklab,var(--ink-3),var(--surface) 22%);text-wrap:pretty}
+.or-proof-base{padding-top:2px;font-size:12px;font-weight:600;color:color-mix(in oklab,var(--ink-3),var(--surface) 22%);text-wrap:pretty}
 /* the ledger: your record, one mark per answer on a single baseline */
 .or-ledger{position:relative;flex:none;height:56px;display:flex;align-items:flex-end;padding:0 2px 17px}
 .or-base{position:absolute;left:2px;right:2px;bottom:17px;height:1px;background:color-mix(in oklch,var(--rule),transparent 20%)}
@@ -159,7 +159,7 @@
 /* the done state's standing key. The live lens's own ledger no longer
    carries one: its kicker says the marks in words above the strip
    (2026-09-02), which is the same reading without a second row. */
-.or-cap{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-10px;font-size:11px;font-weight:600;color:var(--ink-3)}
+.or-cap{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-10px;font-size:12px;font-weight:600;color:var(--ink-3)}
 .or-cap-dot{color:var(--rule)}
 .or-cap-up{width:3px;height:11px;border-radius:2px 2px 0 0;background:var(--accent);margin-top:-3px;flex:none}
 .or-cap-dn{width:1.5px;height:7px;border-radius:0 0 1px 1px;background:color-mix(in oklch,var(--ink-3),var(--surface-a) 42%);margin-bottom:-3px;flex:none}
@@ -178,7 +178,7 @@
    lens's card head, and the done state has nothing to advance to. */
 .or-foot{flex:none;min-height:46px;display:flex;align-items:center;justify-content:center}
 @keyframes orRise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
-.or-sealed{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.or-sealed{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
 .or-sealed::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);animation:orBlink 2.7s ease-in-out infinite}
 @keyframes orBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
 /* the guess disc travels on a transform, so the move is one spring, and the
@@ -210,23 +210,23 @@
 .ln-svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible;touch-action:manipulation}
 .ln-svg text{font-family:var(--sans)}
 .ln-svg circle{transition:opacity .3s ease}
-.ln-key{display:flex;flex-wrap:wrap;gap:5px 14px;padding:10px 8px 4px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.ln-key{display:flex;flex-wrap:wrap;gap:5px 14px;padding:10px 8px 4px;font-size:12px;font-weight:600;color:var(--ink-3)}
 .ln-key>span{display:inline-flex;align-items:center;gap:6px}
 .ln-key i{display:inline-block;flex:none;box-sizing:border-box}
 .ln-key .k-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
 .ln-key .k-ring{width:8px;height:8px;border-radius:50%;border:1.3px solid var(--ink-3)}
 .ln-key .k-line{width:14px;height:0;border-top:1.5px solid var(--ink-3)}
 .ln-key .k-dash{width:14px;height:0;border-top:1.5px dashed var(--ink-3)}
-.ln-hint{padding:2px 8px 8px;font-size:11.5px;font-weight:700;color:var(--accent-ink)}
+.ln-hint{padding:2px 8px 8px;font-size:12px;font-weight:700;color:var(--accent-ink)}
 .ln-rail{display:flex;align-items:center;gap:6px;padding:4px 2px 8px;overflow-x:auto;scrollbar-width:none}
 .ln-rail>span{flex:none;display:flex}
 .ln-rail::-webkit-scrollbar{display:none}
-.ln-rail-lab{flex:none;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 4px 0 6px}
+.ln-rail-lab{flex:none;font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:0 4px 0 6px}
 .ln-chip{flex:none;display:flex;align-items:center;gap:7px;height:44px;padding:0 12px 0 6px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);font:inherit;color:var(--ink);cursor:pointer;-webkit-appearance:none}
 .ln-chip.is-on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.ln-chip .c-av{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800}
+.ln-chip .c-av{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
 .ln-chip .c-name{font-size:12.5px;font-weight:700}
-.ln-chip .c-sub{font-size:11px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.ln-chip .c-sub{font-size:12px;font-weight:600;color:var(--ink-3);white-space:nowrap}
 @keyframes lnPulse{0%{r:6px;opacity:.85}100%{r:19px;opacity:0}}
 .ln-pulse{animation:lnPulse 1.9s ease-out infinite}
 @media (prefers-reduced-motion:reduce){.ln-pulse{animation:none;opacity:.5}}

@@ -483,7 +483,7 @@ export class DailySplit extends React.Component {
     const R = WF_REPORT;
     const h = React.createElement;
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 4 } },
-      h('span', { style: { fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)' } }, 'Report this take'),
+      h('span', { style: { fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: 'var(--ink-3)' } }, 'Report this take'),
       h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } },
         R.REASONS.map((r) => h('button', { key: r, className: 'press', onClick: () => { if (!this._jr) this._jr = new Set(); this._jr.add(k); R.report(k, r); this.setState({ reportFor: null }); }, style: { border: '1px solid var(--rule)', borderRadius: 999, padding: '6px 12px', background: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, r)),
         h('button', { onClick: () => this.setState({ reportFor: null }), style: { border: 'none', background: 'none', padding: '6px 4px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink-3)', cursor: 'pointer', WebkitAppearance: 'none' } }, 'Cancel')));
@@ -873,7 +873,7 @@ export class DailySplit extends React.Component {
         h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
           [{ id: 'all', label: 'All', color: INK }, ...S.options.map(o => ({ id: o.id, label: o.label, color: o.color, textColor: o.textColor }))].map(ch =>
             h('button', { key: ch.id, onClick: () => this.setState({ filter: ch.id }), style: { border: LINE, borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: st.filter === ch.id ? ch.color : 'var(--surface-2)', color: st.filter === ch.id ? (ch.textColor || PAPER) : INK, WebkitAppearance: 'none' } }, ch.label))),
-        h('div', { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' } }, '\u25B2 You can only boost takes from your own side.')),
+        h('div', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' } }, '\u25B2 You can only boost takes from your own side.')),
       voted && h('div', { style: { display: 'flex', gap: 8 } },
         h('input', { value: st.draft, onChange: (e) => this.setState({ draft: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') post(); }, placeholder: 'Add your take\u2026', style: { flex: 1, border: LINE, borderRadius: 999, padding: '10px 16px', fontSize: 13.5, fontWeight: 600, background: 'var(--surface-2)', color: INK, outline: 'none', minWidth: 0 } }),
         h('button', { onClick: post, style: { border: LINE, borderRadius: 999, padding: '0 18px', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: voted ? S.options[myIdx].color : INK, color: voted ? (S.options[myIdx].textColor || '#fff') : PAPER, WebkitAppearance: 'none' } }, 'Post')),
@@ -894,22 +894,22 @@ export class DailySplit extends React.Component {
             h('div', { style: { flex: 1, ...col(4), minWidth: 0 } },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
                 h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, c.name),
-                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, c.optObj.label),
-                h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, c.time)),
+                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, c.optObj.label),
+                h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' } }, c.time)),
               h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, c.text),
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
-                h('button', { onClick: () => this.setState({ replyTo: replying ? null : rKey }), style: { background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: replying ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, 'Reply'),
+                h('button', { onClick: () => this.setState({ replyTo: replying ? null : rKey }), style: { background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: replying ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, 'Reply'),
                 h('button', { onClick: () => this.setState(s => ({ reportFor: s.reportFor === c.key ? null : c.key })), 'aria-label': 'Report', style: { background: 'none', border: 'none', padding: '2px', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14, lineHeight: 1, color: st.reportFor === c.key ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, '\u22ef')),
               this.reportRow(c.key)),
             canUp
-              ? h('button', { onClick: () => this.setState(s => ({ ups: { ...s.ups, [c.key]: !s.ups[c.key] } })), style: { border: LINE, borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer', fontWeight: 800, fontSize: 11, background: st.ups[c.key] ? INK : 'var(--surface-2)', color: st.ups[c.key] ? PAPER : INK, flexShrink: 0, WebkitAppearance: 'none' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))
-              : h('div', { title: 'Only voters on their side can boost this', style: { border: '1px solid var(--rule)', borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, cursor: 'not-allowed' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))),
+              ? h('button', { onClick: () => this.setState(s => ({ ups: { ...s.ups, [c.key]: !s.ups[c.key] } })), style: { border: LINE, borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer', fontWeight: 800, fontSize: 12, background: st.ups[c.key] ? INK : 'var(--surface-2)', color: st.ups[c.key] ? PAPER : INK, flexShrink: 0, WebkitAppearance: 'none' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))
+              : h('div', { title: 'Only voters on their side can boost this', style: { border: '1px solid var(--rule)', borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontWeight: 800, fontSize: 12, color: 'var(--ink-3)', flexShrink: 0, cursor: 'not-allowed' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))),
           (reps.length > 0 || replying) && h('div', { style: { marginLeft: 46, ...col(6), borderLeft: '2px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingLeft: 10 } },
             reps.map((r, ri) => h('div', { key: ri, style: col(2) },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
                 h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, 'You'),
-                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
-                h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
+                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
+                h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
               h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, r))),
             replying && h('form', { onSubmit: (e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) this.addDailyReply(rKey, v); }, style: { display: 'flex', gap: 6 } },
               h('input', { name: 'reply', autoFocus: true, autoComplete: 'off', autoCapitalize: 'sentences', enterKeyHint: 'send', placeholder: 'Your reply\u2026', style: { flex: 1, minWidth: 0, border: LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, background: 'var(--surface)', color: INK, outline: 'none' } }),
@@ -950,7 +950,7 @@ export class DailySplit extends React.Component {
             this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
               this.statSubs.map((sb, si) => { const on = (st.dimAxis || null) === sb.id; const rule = !!sb.tier && !(this.statSubs[si - 1] || {}).tier; return h(React.Fragment, { key: sb.id || 'type' },
                 rule ? h('span', { 'aria-hidden': 'true', style: { flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' } }) : null,
-                h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
+                h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
           isFriends && h('div', { style: { display: 'flex', gap: 14, flexWrap: 'wrap' } },
             legend.map(o => h('span', { key: o.id, style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700 } }, h('span', { style: { width: 12, height: 12, borderRadius: 4, background: o.color, border: '1px solid ' + BORD, display: 'inline-block' } }), o.label))),
           isFriends
@@ -959,7 +959,7 @@ export class DailySplit extends React.Component {
                 friendRows.map((f, i) => h('div', { key: i, style: { background: 'var(--surface-2)', border: LINE, borderRadius: 14, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 } },
                   h('span', { style: { ...av(f.color, 34, 14), color: f.textColor || '#fff' } }, f.init),
                   h('span', { style: { flex: 1, fontWeight: 800, fontSize: 14 } }, f.name),
-                  h('span', { style: { background: f.chipColor, color: f.textColor || '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999 } }, f.chipLabel))))
+                  h('span', { style: { background: f.chipColor, color: f.textColor || '#fff', fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 999 } }, f.chipLabel))))
             : h('div', { style: col(many ? 6 : 9) },
                 h('div', { style: { ...GRID, alignItems: 'end' } },
                   h('span', { style: { fontWeight: 700, fontSize: 12, color: 'var(--ink-3)' } }, 'Everyone'),
@@ -1120,7 +1120,7 @@ export class DailySplit extends React.Component {
                   h('span', { style: { fontWeight: 600, fontSize: two ? 16 : 18, letterSpacing: '-0.01em' } }, o.label),
                   // your mark is a stamp, not a footnote: "· you" beside a
                   // label read as punctuation at a glance
-                  myVote === o.id && h('span', { style: { fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: INK, color: PAPER, whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, 'you'),
+                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 999, background: INK, color: PAPER, whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, 'you'),
                   (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
                     onClick: () => this.setState({ tab: 'stats', dim: 'friends', dimAxis: null }),
                     'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,
@@ -1302,10 +1302,10 @@ export class DailySplit extends React.Component {
         type: 'button',
         onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
         'aria-expanded': !!st.showBootErr,
-        style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
+        style: { fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
       }, label),
       st.showBootErr && h('div', {
-        style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
+        style: { fontSize: 12, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
       }, reason));
     return h('div', {
       ref: rootRef,
