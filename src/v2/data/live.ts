@@ -367,9 +367,9 @@ const state = {
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0, budgetMode: 0 },
-  // `dailySource` says which of D382's two paths served the daily: "deck"
+  // `dailySource` says which of D385's two paths served the daily: "deck"
   // (seven documents against the published length) or "whole" (the
-  // pre-D382 surface fetch, taken whenever the shape cannot be trusted).
+  // pre-D385 surface fetch, taken whenever the shape cannot be trusted).
   // A build silently falling back would look exactly like a working one.
   stats: { bankSource: "none", dailySource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
@@ -1549,7 +1549,7 @@ async function startAggPoll(): Promise<void> {
 
 function computeDeck(): void {
   const today = dayIndex();
-  // PAGED (D382): positions come from the published length and resolve
+  // PAGED (D385): positions come from the published length and resolve
   // through the rows this device fetched. `state.questions.length` is the
   // count of what is HELD once the daily pages, and indexing by it would
   // put this device on a different question from everyone else — the
@@ -1573,7 +1573,7 @@ function computeDeck(): void {
   state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
 
-// The daily bank's LENGTH as the server published it (D382), or null when
+// The daily bank's LENGTH as the server published it (D385), or null when
 // this device is holding the daily surface whole (an old build's cache, a
 // missing shape document, a bank that is not dense). The deck's positions
 // are computed against this number, never against how many daily rows
@@ -1581,10 +1581,10 @@ function computeDeck(): void {
 // paged daily and a broken one.
 let dailyBankN: number | null = null;
 
-// The Scores lens's pool as the server published it (D383): scope → the
+// The Scores lens's pool as the server published it (D386): scope → the
 // ids of active `rating` dailies naming that place, in seq order. Null
 // when the daily is not paged — then the device holds the whole surface
-// and `placeAsks` reads it directly, exactly as before D382.
+// and `placeAsks` reads it directly, exactly as before D385.
 //
 // The device NEVER sends its answers anywhere to get this: it subtracts
 // its own votes locally, which is both D163's line and what makes the
@@ -1699,13 +1699,13 @@ async function readDiskCaches(uid: string | null): Promise<DiskCaches> {
   ]);
   try {
     if (bankMeta && bankRows.size) {
-      // THE PAGED DAILY'S LENGTH COMES OFF DISK TOO (D382), and it has to.
+      // THE PAGED DAILY'S LENGTH COMES OFF DISK TOO (D385), and it has to.
       // The warm paint draws the deck before any network read is
       // answered, and a cache written by a paged boot holds eight daily
       // rows — so a device that had forgotten `n` would index eight
       // positions instead of the bank's and paint a different day's
       // question than the rest of the world, on its own disk, silently.
-      // Absent means a pre-D382 cache or a whole-surface boot: null, and
+      // Absent means a pre-D385 cache or a whole-surface boot: null, and
       // computeDeck falls back to counting what it holds, which for those
       // caches is right.
       dailyBankN = typeof bankMeta.dailyN === "number" && bankMeta.dailyN > 0
@@ -2168,7 +2168,7 @@ async function hydrate(): Promise<void> {
   // tail out-but-served.
   //
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
-  // The daily left this list at D382 and did NOT become a ranked surface:
+  // The daily left this list at D385 and did NOT become a ranked surface:
   // it is positional by design, so what a device needs is the bank's
   // LENGTH, not its order. `v2_rank/daily` publishes {n, maxSeq}; the
   // device computes its seven positions locally (which keeps the midnight
@@ -2206,7 +2206,7 @@ async function hydrate(): Promise<void> {
   // Whether the bank came off disk AT ALL — either medium. `bankCacheFrom`
   // cannot answer that: it names the idb store specifically, because the
   // write-back below treats a legacy localStorage payload as "rewrite
-  // whole". D382's daily needs the wider question ("does this device
+  // whole". D385's daily needs the wider question ("does this device
   // already hold the daily surface?"), and reading it off the narrow flag
   // made a migrating device re-fetch every daily it already had.
   let bankFromDisk = false;
@@ -2299,7 +2299,7 @@ async function hydrate(): Promise<void> {
         deltaRows = rowsOf(dsnap).filter(
           (row) =>
             BANK_SURFACES.includes(row.surface)
-            // The daily is a BOOT surface while it is not paged (D382):
+            // The daily is a BOOT surface while it is not paged (D385):
             // with no usable shape document the device holds the surface
             // whole, so a newly promoted daily has to merge here exactly
             // as it did before. Once paged, `dailyBankN` is set and which
@@ -2440,7 +2440,7 @@ async function hydrate(): Promise<void> {
     bankCacheFrom = null;
     bankFromDisk = false;
   }
-  // THE DAILY, on every path (D382). Outside the `if (!all)` above on
+  // THE DAILY, on every path (D385). Outside the `if (!all)` above on
   // purpose: a delta or warm boot must re-read the published length too,
   // because it moves whenever the farm appends and the deck's positions
   // are computed against it. A cold boot fetches eight documents here, a
@@ -2921,7 +2921,7 @@ function servableNow(q: QuestionDoc): boolean {
   return q.active !== false && (!q.until || q.until >= today) && (!q.from || q.from <= today);
 }
 
-// THE DAILY'S DECK (D382), resolved on EVERY boot — cold, delta and warm
+// THE DAILY'S DECK (D385), resolved on EVERY boot — cold, delta and warm
 // alike, which is the half a cold-boot-only version would get wrong.
 // `n` moves whenever the farm appends a question, and the deck's
 // positions are computed against it: a device holding a warm cache and a
@@ -2988,7 +2988,7 @@ async function resolveDailyBank(
     //   Not paged — the cache is the whole surface (no shape document has
     //   ever been readable). `dailyBankN` is already null, `placeAsks`
     //   reads every ask there is, and re-reading the surface on every
-    //   launch would be worse than the pre-D382 tree rather than equal to
+    //   launch would be worse than the pre-D385 tree rather than equal to
     //   it. The delta keeps these rows current (the delta filter's
     //   dailyBankN clause).
     //
@@ -3003,7 +3003,7 @@ async function resolveDailyBank(
     dailyBankN = null;
     // Cleared only on the path that actually takes the surface: holding
     // it, `placeAsks` reads every ask there is and `placeAskTotal` counts
-    // those rows — the pre-D383 behaviour, correct exactly then.
+    // those rows — the pre-D386 behaviour, correct exactly then.
     dailyRatesPool = null;
     state.stats.dailySource = "whole";
     const out: Array<QuestionDoc & { id: string }> = [];
@@ -3156,7 +3156,7 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     reportError(err, { where: "hydrate.learnPages" });
   }
 
-  // THE DAILY'S TWO FOLDS (D382). The deck is seven documents now, and two
+  // THE DAILY'S TWO FOLDS (D385). The deck is seven documents now, and two
   // readers wanted the whole surface:
   //
   //   `aggregated()` — the Mirror's Answers and Scores rows, which are
@@ -3168,9 +3168,9 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
   //   `placeAsks()` — the Scores lens's pool, "every active `rating`
   //   daily that names this place and I have not answered". History
   //   cannot supply that one: its whole subject is what you have NOT
-  //   answered. D382 made it a query over the surface, which was honest
+  //   answered. D385 made it a query over the surface, which was honest
   //   and still linear — 29 of 130 today and the same fraction of any
-  //   bank. D383 makes it a PAGE: the nightly fold publishes the ask ids
+  //   bank. D386 makes it a PAGE: the nightly fold publishes the ask ids
   //   per scope (they are a night old and small), the device subtracts
   //   its own votes locally, and only the first PLACE_ASK_PAGE it has not
   //   met are fetched. The lens's "N more after these" reads the id list
@@ -6124,7 +6124,7 @@ const LIVE = {
    * does not belong in this walk.
    */
   placeAsks(scope: string): Array<{ id: string; text: string; optionCount: number }> {
-    // Over the rows this device HOLDS, which since D383 is a page of the
+    // Over the rows this device HOLDS, which since D386 is a page of the
     // pool rather than the surface. The document stays the authority on
     // `active` and on whether it still names this scope: the published
     // list is a night old and a console edit is not.
@@ -6140,7 +6140,7 @@ const LIVE = {
   },
   /**
    * How many asks this scope still holds for this account — the number
-   * the lens prints as "N more after these" (D383).
+   * the lens prints as "N more after these" (D386).
    *
    * SEPARATE FROM `placeAsks` BECAUSE THE TWO ANSWER DIFFERENT QUESTIONS
    * once the pool is paged: that one returns what can be DRAWN (documents

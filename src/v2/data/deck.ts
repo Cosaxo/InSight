@@ -248,7 +248,7 @@ export function isFeedQid(id: string): boolean {
 }
 
 // The daily's lanes — one today, declared the same way and for the same
-// reason the feed's are. The daily became a paged surface at D382, so
+// reason the feed's are. The daily became a paged surface at D385, so
 // "which of my answers are dailies?" is now a question the store asks on
 // every boot, and the wrong answer is silent: an answered daily that no
 // longer resolves to a document is an answer the Mirror cannot name.
@@ -539,7 +539,7 @@ export function computeDeckIds(
 }
 
 /**
- * The deck as POSITIONS rather than ids (D382) — the same arithmetic as
+ * The deck as POSITIONS rather than ids (D385) — the same arithmetic as
  * `computeDeckIds`, for a device that no longer holds the daily bank.
  *
  * The two must agree exactly or two devices disagree about what today's

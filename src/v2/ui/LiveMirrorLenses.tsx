@@ -781,7 +781,7 @@ const awayCounts = (all: number[], counts: number[]): number[] =>
 function PlaceAsks({ asks, total }: {
   asks: Array<{ id: string; text: string; optionCount: number }>;
   /** How many asks the scope still holds for this account — the pool,
-   *  not the page. Since D383 the device fetches a bounded page of ask
+   *  not the page. Since D386 the device fetches a bounded page of ask
    *  DOCUMENTS but knows every ask ID, so the line below counts the pool
    *  and stays true on a stop whose pool is larger than the page. */
   total: number;
@@ -843,7 +843,7 @@ function ScoresLens({ qs, shortName, scope }: {
   React.useEffect(() => LIVE.subscribe(bump), []);
   const asks = LIVE.enabled ? LIVE.placeAsks(scope) : [];
   // The pool's size, which is not `asks.length` once the pool is paged
-  // (D383) — the asks are the page this device holds, the total is what
+  // (D386) — the asks are the page this device holds, the total is what
   // the scope still has for this account.
   const askTotal = LIVE.enabled ? LIVE.placeAskTotal(scope) : 0;
   // Which crowd the numbers and the sort describe (D288 §2): a viewing

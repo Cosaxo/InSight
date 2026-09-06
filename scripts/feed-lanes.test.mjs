@@ -37,7 +37,7 @@ const block = deckSrc.slice(
   deckSrc.indexOf("]", deckSrc.indexOf("FEED_ID_LANES = [")),
 );
 const lanes = [...block.matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
-// The daily's lanes, read the same way (D382 — the daily pages now, so it
+// The daily's lanes, read the same way (D385 — the daily pages now, so it
 // has the same "which ids are mine?" question the feed does).
 const dailyBlock = deckSrc.slice(
   deckSrc.indexOf("DAILY_ID_LANES = ["),
@@ -77,8 +77,8 @@ describe("the feed surface's id lanes", () => {
     }
   });
 
-  it("every DAILY-surface id matches a declared daily lane (D382)", () => {
-    // The daily pages since D382, so live.ts asks "which of my answers
+  it("every DAILY-surface id matches a declared daily lane (D385)", () => {
+    // The daily pages since D385, so live.ts asks "which of my answers
     // are dailies?" on every boot to heal the ones outside the deck
     // window. A daily id the filter does not recognise is an answer that
     // resolves to no question — the same silent class as the feed's pick

@@ -40190,7 +40190,7 @@ political consent guard's five checks, and a sealed duel answer's own
 fields, every one of which could be deleted with the whole suite green.
 The baseline may only come down, the same shape as `check:globals` rule 4.
 
-## D381 · Question content is not first-paint bytes, and a gate says so
+## D384 · Question content is not first-paint bytes, and a gate says so
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
 in the words that are the rule: *"a iPhone should not download all the
@@ -40269,13 +40269,13 @@ The daily is the one that grows every day, and it is the obvious next
 one. Recorded here rather than done, with the arithmetic where the next
 session will find it.
 
-## D382 · The daily pages: a published length, seven documents, and the density it rests on
+## D385 · The daily pages: a published length, seven documents, and the density it rests on
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
 who had said it before and been half-answered: *"an iPhone should not
 download all the questions like YouTube does not download all the
 videos."* D316 recorded that sentence for the read path and built the
-paging for learn (D320) and the feed's tail (D321); D381 took the
+paging for learn (D320) and the feed's tail (D321); D384 took the
 questions out of the BUNDLE. The daily was left in both places, and it is
 the one surface a scheduled lane appends to every single day.
 
@@ -40355,20 +40355,20 @@ thing the boot needs), and the deck's rows are a dependent trip. A
 same-day relaunch fetches no question at all. A cold boot: **847 → ~725
 documents**, and the daily's term stops growing.
 
-## D383 · The Scores pool pages too: ids in the shape document, documents by the page
+## D386 · The Scores pool pages too: ids in the shape document, documents by the page
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
-— *"fix the rating pool too"* — against the term D382 recorded as owed
+— *"fix the rating pool too"* — against the term D385 recorded as owed
 rather than fixed. This is that record's own follow-up, and it is what
 finishes taking the daily off the boot.
 
-### What D382 left standing
+### What D385 left standing
 
 The daily's deck went to seven documents at any bank size, but the Scores
 lens's pool did not. `placeAsks()` answers "every active `rating` daily
 that names this place and I have NOT answered" — the one daily fold
 history cannot supply, because its whole subject is what you have not
-answered yet. So D382 made it a query over the surface: honest, correct,
+answered yet. So D385 made it a query over the surface: honest, correct,
 and **linear** — 29 of 130 dailies today and the same fraction of any
 bank. At ten times the bank it is ten times the reads, which is the shape
 the paging exists to remove.
@@ -40407,7 +40407,7 @@ falls back to counting the drawn rows, which is exactly right then,
 because the device is holding the whole surface. The pool is cleared on
 the same path that clears the length and never on the other one.
 
-**One bug this found in D382's own code**, recorded because it was the
+**One bug this found in D385's own code**, recorded because it was the
 dangerous kind: the fallback cleared `dailyBankN` before checking whether
 the device already held daily rows. On a warm PAGED boot whose shape read
 failed — one small document, one network blip — that turned a stale
