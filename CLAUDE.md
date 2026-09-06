@@ -524,16 +524,21 @@ an emergency rules fix.
   [`docs/RECREATE.md`](docs/RECREATE.md) is how any session, on any of
   the three subscriptions, puts a missing Routine back — the Routines
   are the one part of the program that does not live in git.
-- **A pull request is merged BY HAND, by the owner (D385).** There is no
-  merge automation in this repository and no label that merges anything.
-  What a session owes before a PR is mergeable is unchanged and is now
-  the whole of it: a green head with `main` already merged in and its
-  decision numbers already moved (D299). Then say so and stop — a
-  session does not merge its own work, and the owner's click is the
-  merge. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where the
-  owner tracks what is waiting, and a tick there is still how approval
-  is recorded (D352); what changed is that nothing downstream acts on
-  the tick, so the merge itself is a click on GitHub.
+- **A pull request is merged BY HAND (D385), and a session merges when
+  the owner says so (D385 amendment).** There is no merge automation in
+  this repository and no label that merges anything. What a session owes
+  before a PR is mergeable is unchanged and is still the whole of the
+  contract: a green head with `main` already merged in and its decision
+  numbers already moved (D299). Then say so and stop — **unless the
+  owner tells you to merge, in that session and about that head, which
+  is the click**. What D385 retired was the unattended lane merging on a
+  label, and its first phrasing read as forbidding the instruction too;
+  the amendment is the owner's own correction (*"the sheperd did not
+  work merge when i say so"*), and it cost a round trip on #408 before
+  it was made. [`docs/MERGE-LIST.md`](docs/MERGE-LIST.md) is still where
+  the owner tracks what is waiting, and a tick there is still how
+  approval is recorded (D352); what changed is that nothing downstream
+  acts on the tick.
 - **A Routine you create, re-pace, rebind or retire is registered in
   [`docs/ROUTINES.md`](docs/ROUTINES.md), in the same PR.** Three
   subscriptions run scheduled lanes against this one repository and no

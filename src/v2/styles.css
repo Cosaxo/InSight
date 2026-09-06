@@ -435,7 +435,7 @@
 .icon-btn:active { transform: scale(0.92); }
 .h-meta {
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -568,12 +568,14 @@
 .rule { height: 0.5px; background: var(--rule); margin: 14px 0; border: none; }
 
 /* Kicker — THE micro-label tier, app-wide. One spec (matches the edition's
-   edMicro): sans 700 · 10.5px · 0.09em · uppercase · ink-3. */
+   edMicro): sans 700 · 12px · 0.07em · uppercase · ink-3. 10.5/0.09em until
+   the 2026-09-06 design put a 12px floor under every piece of microtype
+   (VISION-2026-09-06.md §1) — the floor eased the tracking with it. */
 .kicker {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-3);
   margin-bottom: 4px;
@@ -583,10 +585,10 @@
    inline forms the app kept re-inventing — legend keys, axis captions, row keys.
    Same spec, one place, so two micro-labels in the same row can't disagree
    about size, weight or tracking. Swatch colour comes in as --lgc. */
-.klabel { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
+.klabel { font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
 .klabel--accent { color: var(--accent-ink); }
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 16px; }
-.legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
 .lg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-sizing: border-box; background: var(--lgc, var(--ink-3)); box-shadow: inset 0 0 0 0.5px color-mix(in oklch, var(--ink) 16%, transparent); }
 .lg-dot[data-hollow] { background: var(--surface); border: 1.6px solid var(--lgc, var(--ink-3)); }
 
@@ -625,6 +627,35 @@ button.card:active,
 .card[role="button"]:active {
   transform: translateY(0) scale(0.988);
   box-shadow: var(--shadow-card);
+}
+
+/* The profile on paper (2026-09-06 §6.3): inside the profile overlay —
+   the account sheet behind its gear included, one door, one language —
+   every card flattens to a hairline SECTION: no box, a bottom rule. The
+   prototype said this with seven !importants; scoping outranks the .card
+   family without them, which also means a card's own inline padding or
+   margin still wins — deliberately, because the repo's profile has cards
+   the prototype never drew (TestProgress's full-bleed padding:0, the
+   General tab's own rhythm), and those exceptions are theirs to keep. */
+.profile-ov .card {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 18px 2px;
+  margin-bottom: 0;
+}
+/* compact tightens .card at three classes deep, which would out-rank the
+   section padding above and hand these boxless sections the BOX's inset */
+.app.compact .profile-ov .card { padding: 18px 2px; }
+/* a section is not a raised thing: no lift, no lift shadow, and the hover
+   accent stays off the one border it has left */
+.profile-ov button.card:hover, .profile-ov .card[role="button"]:hover,
+.profile-ov button.card:active, .profile-ov .card[role="button"]:active {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--rule);
 }
 
 /* Unified sub-tab segmented nav (tabs / profile / genome) */
@@ -709,7 +740,7 @@ button.card:active,
   border: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
   color: var(--accent);
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -844,6 +875,12 @@ button.card:active,
 .mm-lensthumb { position: absolute; z-index: 0; transition: transform 0.32s var(--ease-spring), opacity 0.18s ease; }
 .mm-lensthumb.is-off { opacity: 0; }
 [data-lens-style="underline"] .mm-lensrow { border-top: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
+/* …and on paper (2026-09-06 §6.3) a full top+bottom hairline: the row is a
+   ruled band in the page, not a floating trio. :not() is the design's own
+   guard for the prototype's promoted-to-top variant (see MirrorLensTabs.tsx
+   for why no live caller renders it) — kept verbatim so the rule above still
+   describes that variant, and because it is also what outranks it here. */
+[data-lens-style="underline"] .mm-lensrow:not(.mm-lensrow-top) { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 /* no resting tick under closed lenses — three short grey dashes read as broken
    underlines, not as inactive tabs. Weight + the sliding accent bar carry state. */
 [data-lens-style="underline"] .mm-lensbtn { min-height: 44px; font-size: 14.5px; }
@@ -898,6 +935,14 @@ button.card:active,
 @keyframes popIn { from { opacity: 0; transform: translateY(9px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes barIn { from { width: 0; } }
 @keyframes chipPop { from { transform: scale(0.5); opacity: 0; } to { transform: none; opacity: 1; } }
+/* the daily's ballot: two paper halves on one hairline row (2026-09-06,
+   daily-split.jsx). The pressed half tints and underlines in its own
+   side's hue (--oc, set inline per option) — the one place the option's
+   colour survives the boxless redraw before the reveal wears it. The
+   transform:none beats .press's own :active scale: the halves are one
+   block, and one shrinking half would break the seam. */
+.ds-half { transition: background .16s ease, box-shadow .16s ease; }
+.ds-half:active { transform: none; background: color-mix(in oklch, var(--oc) 9%, transparent); box-shadow: inset 0 -3px 0 var(--oc); }
 @keyframes tilePick { 0% { transform: scale(0.96); } 55% { transform: scale(1.012); } 100% { transform: none; } }
 /* a duel tile's share rises from its own floor — the fill IS the number */
 @keyframes wfFillUp { from { height: 0; } }
@@ -1027,7 +1072,7 @@ button.card:active,
 }
 .search-group {
   font-family: var(--sans);
-  font-size: 11px; font-weight: 700;
+  font-size: 12px; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--ink-3);
   margin: 18px 2px 8px;
@@ -1270,6 +1315,10 @@ button.card:active,
    frame; now the edge dissolves — but only on a side that actually has more
    to show (edge-fade.js sets data-ef). A rail that fits stays crisp. */
 .h-scroll[data-ef], .rm-axisrow[data-ef], .mmt-swipe[data-ef], .cb-rail[data-ef], .subnav--scroll[data-ef], .mmt-chips[data-ef], .mmt-fchips[data-ef] { --ef: 28px; }
+/* the map's branch rail dissolves over a longer run (2026-09-06 §6.3) —
+   its chips are wider than the other rails', and at 28px the last one
+   still read as cut rather than as continuing */
+.mmt-chips[data-ef] { --ef: 48px; }
 .h-scroll[data-ef="r"], .rm-axisrow[data-ef="r"], .mmt-swipe[data-ef="r"], .cb-rail[data-ef="r"], .subnav--scroll[data-ef="r"], .mmt-chips[data-ef="r"], .mmt-fchips[data-ef="r"] {
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
   mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
@@ -1344,6 +1393,25 @@ button.card:active,
 .mmt-edges path { transition: opacity 0.3s ease; }
 .mmt-limb { stroke: oklch(0.68 0.09 var(--hue)); }
 .app.dark .mmt-limb { stroke: oklch(0.5 0.08 var(--hue)); }
+/* ink-in (2026-09-06 §6.3): the constellation draws onto the page instead
+   of appearing whole — limbs and spokes as strokes (map-tab sets
+   pathLength=1 and a small per-limb delay inline), answer dots as a fade
+   delayed by distance from the hub. Same keyframe family, by NAME, as
+   ui/patterns.css's — the bodies are identical on purpose: patterns.css
+   rides the lazy Patterns chunk, so whichever sheet loads second redefines
+   the names with the same frames and neither can shift the other's motion.
+   inkIn declares only `from`, so the resting frame is the cascade's own —
+   which is what lets is-off (the time scrub) and is-dim keep their
+   opacities, and mmtFreshHalo stays clear anyway (it animates .mmt-ddot,
+   the child). */
+@keyframes inkDraw { from { stroke-dashoffset: 1; opacity: 0; } to { stroke-dashoffset: 0; } }
+@keyframes inkIn { from { opacity: 0; } }
+@keyframes inkDot { from { opacity: 0; transform: scale(0.2); } }
+.mmt-edges path.mmt-ink { stroke-dasharray: 1; animation: inkDraw 0.5s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+.mmt-dotnode { animation: inkIn 0.4s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .mmt-edges path.mmt-ink, .mmt-dotnode { animation: none; }
+}
 
 /* territory fields — one soft hue landmass per branch */
 .mmt-field { display: none; }
@@ -1453,7 +1521,7 @@ button.card:active,
 }
 .app.dark .mmt-anchor-dot { background: oklch(0.68 0.12 var(--hue)); box-shadow: 0 0 0 3px var(--surface-2); }
 .mmt-anchor-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap;
   color: oklch(0.42 0.09 var(--hue));
   padding: 1.5px 7px; border-radius: 999px;
   background: color-mix(in oklch, var(--surface) 82%, transparent);
@@ -1553,7 +1621,7 @@ button.card:active,
 .mmt-dlab {
   position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
   pointer-events: none; white-space: nowrap;
-  font-size: 10.5px; font-weight: 700; color: oklch(0.40 0.09 var(--hue));
+  font-size: 12px; font-weight: 700; color: oklch(0.40 0.09 var(--hue));
   padding: 2.5px 9px; border-radius: 999px;
   background: oklch(0.95 0.03 var(--hue));
   opacity: 0; transition: opacity 0.18s ease;
@@ -1561,7 +1629,7 @@ button.card:active,
 }
 /* topic labels — quiet structural text, never confusable with answer pills */
 .mmt-dotnode.is-leaf .mmt-dlab {
-  font-size: 10px; font-weight: 650; letter-spacing: -0.005em; text-transform: none;
+  font-size: 12px; font-weight: 650; letter-spacing: -0.005em; text-transform: none;
   color: var(--ink-2); background: none; padding: 2.5px 0; border-radius: 0;
   text-shadow: 0 1px 3px var(--surface), 0 0 7px var(--surface);
 }
@@ -1621,7 +1689,7 @@ button.card:active,
 /* floating chrome */
 .mmt-chip {
   position: absolute; top: 10px; left: 12px; z-index: 4;
-  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-3);
   background: color-mix(in oklch, var(--surface) 72%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1631,7 +1699,7 @@ button.card:active,
 }
 .mmt-clearhl {
   position: absolute; top: 10px; right: 12px; z-index: 4;
-  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-2); cursor: pointer;
   background: color-mix(in oklch, var(--surface-2) 88%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1665,7 +1733,7 @@ button.card:active,
 /* locked-details hint — a quiet floating pill, bottom-centre (not in flow) */
 .mmt-hint {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4;
-  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-3); white-space: nowrap;
   background: color-mix(in oklch, var(--surface) 72%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1694,7 +1762,7 @@ button.card:active,
   position: absolute; top: 9px; right: 9px;
   width: 26px; height: 26px; border-radius: 50%;
   border: 1px solid var(--rule); background: var(--surface); color: var(--ink-3);
-  font-size: 11px; cursor: pointer;
+  font-size: 12px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.2s var(--ease-spring), color 0.15s ease, border-color 0.15s ease;
 }
@@ -1708,7 +1776,7 @@ button.card:active,
 .mmt-card-x::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 34px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 .mmt-kicker {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--sans); font-size: 11.5px; font-weight: 600; letter-spacing: 0;
+  font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0;
   color: oklch(0.52 0.08 var(--hue));
   margin-bottom: 7px;
 }
@@ -1753,7 +1821,7 @@ button.card:active,
 .mmt-matchtext b { font-size: 13.5px; font-weight: 750; letter-spacing: -0.005em; color: var(--ink); }
 .mmt-matchtext span { font-size: 12px; line-height: 1.35; color: var(--ink-3); text-wrap: pretty; }
 .mmt-dbar-wrap { position: relative; margin-top: 22px; }
-.mmt-dbar-mark { position: absolute; top: -15px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 800; letter-spacing: 0.01em; }
+.mmt-dbar-mark { position: absolute; top: -15px; transform: translateX(-50%); white-space: nowrap; font-size: 12px; font-weight: 800; letter-spacing: 0.01em; }
 .mmt-dbar-mark::after { content: ''; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%); border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; border-top: 4px solid currentColor; }
 .mmt-dbar-mark.is-you { color: oklch(0.48 0.12 var(--hue)); }
 .mmt-dbar-mark.is-most { color: var(--ink-3); }
@@ -1806,7 +1874,7 @@ button.card:active,
 .app.dark .mmt-ridge-col.is-peak::before { border-color: oklch(0.68 0.12 var(--hue)); }
 .mmt-ridge-foot {
   display: flex; justify-content: space-between; margin-top: 8px;
-  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
 }
 .mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.50 0.09 var(--hue)); font-weight: 500; }
 .app.dark .mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.78 0.08 var(--hue)); }
@@ -1822,7 +1890,7 @@ button.card:active,
 /* anchor card — your actual stat, before the group breakdown */
 .mmt-astat { margin: 2px 0 0; }
 .mmt-astat-big { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); padding-right: 26px; }
-.mmt-astat-sub { margin-top: 3px; font-family: var(--sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.mmt-astat-sub { margin-top: 3px; font-family: var(--sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .mmt-astat-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 13px; padding: 8px 4px; }
 .mmt-astat-lab { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mmt-astat-bar { height: 5px; border-radius: 99px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: visible; }
@@ -1836,7 +1904,7 @@ button.card:active,
 .app.dark .mmt-astat-bar i { background: oklch(0.74 0.10 var(--hue)); }
 /* where the group sits on this axis — hollow ring, shown on every row */
 .mmt-astat-legend { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 11px; }
-.mmt-astat-legkey { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.mmt-astat-legkey { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
 .mmt-astat-legkey .lk-you { width: 9px; height: 9px; border-radius: 50%; background: oklch(0.62 0.12 var(--hue)); box-shadow: 0 0 0 2px var(--surface-2); }
 .mmt-astat-legkey .lk-them { width: 11px; height: 11px; border-radius: 50%; box-sizing: border-box; background: var(--surface-2); border: 2px solid oklch(0.605 0.118 var(--hue)); }
 .app.dark .mmt-astat-legkey .lk-them { border-color: oklch(0.74 0.10 var(--hue)); }
@@ -1865,11 +1933,11 @@ button.card:active,
 .mmt-astat-x { padding: 5px 8px 10px 107px; display: grid; gap: 7px; }
 .mmt-astat-ends {
   display: flex; justify-content: space-between; gap: 8px;
-  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--ink-3);
 }
 .mmt-astat-key { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.mmt-astat-blurb { font-size: 11.5px; color: var(--ink-2); min-width: 0; }
+.mmt-astat-blurb { font-size: 12px; color: var(--ink-2); min-width: 0; }
 .mmt-astat + .mmt-matchhead { margin-top: 19px; padding-top: 16px; border-top: 0.5px solid var(--rule); }
 
 /* anchor card — match headline + typical-vs-you list */
@@ -1892,11 +1960,11 @@ button.card:active,
 }
 .mmt-mrow-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 .mmt-mchip {
-  font-size: 11.5px; font-weight: 700; padding: 3.5px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; padding: 3.5px 9px; border-radius: 999px;
   white-space: nowrap;
 }
 .mmt-mchip i {
-  font-style: normal; font-weight: 500; font-size: 10px; margin-right: 4px;
+  font-style: normal; font-weight: 500; font-size: 12px; margin-right: 4px;
 }
 .mmt-mchip.is-you { color: white; background: oklch(0.605 0.118 var(--hue)); }
 .mmt-mchip.is-them { color: var(--ink-3); border: 1px solid color-mix(in oklch, var(--ink) 22%, transparent); }
@@ -1906,10 +1974,10 @@ button.card:active,
 .mmt-samehead {
   display: flex; align-items: center; gap: 6px; margin-top: 14px; padding: 0;
   background: none; border: none; cursor: pointer;
-  font-family: var(--sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ink-3);
 }
-.mmt-samehead-chev { font-size: 10px; transition: transform 0.15s ease; }
+.mmt-samehead-chev { font-size: 12px; transition: transform 0.15s ease; }
 .mmt-samehead.is-open .mmt-samehead-chev { transform: rotate(180deg); }
 .mmt-matchlist.is-quiet .mmt-mrow-q { color: var(--ink-3); }
 .mmt-allsame { margin-top: 12px; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
@@ -1955,7 +2023,7 @@ button.card:active,
 .mmt-slim-ct {
   flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--sans); font-size: 10px; font-weight: 500;
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
   background: oklch(0.95 0.03 var(--hue)); color: oklch(0.42 0.09 var(--hue));
 }
 .app.dark .mmt-slim-ct { background: oklch(0.295 0.045 var(--hue)); color: oklch(0.82 0.07 var(--hue)); }
@@ -1987,18 +2055,18 @@ button.card:active,
 .mpc-av {
   width: 24px; height: 24px; border-radius: 50%; flex: none;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--sans); font-weight: 800; font-size: 9.5px; color: #fff;
+  font-family: var(--sans); font-weight: 800; font-size: 12px; color: #fff;
   background: oklch(0.52 0.13 var(--phue, 28));
 }
 .mpc-name { flex: 1; min-width: 0; font-family: var(--sans); font-weight: 700; font-size: 13.5px; color: var(--ink); }
 .mpc-gaps { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .mpc-gap { font-family: var(--sans); font-size: 12.5px; font-weight: 500; line-height: 1.4; color: var(--ink-2); }
 .mpc-gap b { font-weight: 750; color: var(--ink); }
-.mpc-align { font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--ink-3); margin-top: 8px; }
+.mpc-align { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--ink-3); margin-top: 8px; }
 .mpc-pair { display: flex; align-items: stretch; gap: 12px; margin: 10px 0 4px; }
 .mpc-side { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .mpc-side + .mpc-side { align-items: flex-end; border-left: 0.5px solid var(--rule); }
-.mpc-lab { font-family: var(--sans); font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
+.mpc-lab { font-family: var(--sans); font-size: 12px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
 .mpc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
 .mpc-open {
   border: none; background: none; padding: 4px 0; cursor: pointer; -webkit-appearance: none;
@@ -2078,7 +2146,7 @@ button.card:active,
 .pp-svg text { font-family: inherit; }
 .pp-head { display: flex; align-items: center; gap: 8px; }
 .pp-kick {
-  font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--pp-ink);
 }
 .pp-name { font-size: 20px; font-weight: 800; color: var(--ink); margin: 9px 0 3px; line-height: 1.2; }
