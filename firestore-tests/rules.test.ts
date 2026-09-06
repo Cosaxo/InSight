@@ -770,6 +770,26 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
     ));
   });
 
+  it("a key the shape does not name is refused", async () => {
+    // The predicate's own keys().hasOnly(). It had no negative case: every
+    // pulse test carried exactly the seven named keys, so the clause was
+    // true 10× and false never, and deleting it would have left the suite
+    // green. rules-coverage caught that the moment the surface check moved
+    // ahead of it — before, a wrongly-shaped answer on ANOTHER surface
+    // reached this hasOnly and failed here by accident, which counted as
+    // coverage while proving nothing about pulse.
+    //
+    // What it holds up: the aggregate trigger folds whatever the answer
+    // carries. `gid` here would make a pulse answer look like a duel one
+    // to any reader keying off the field's presence.
+    await seedPulse();
+    const day = dayOffset(0);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day, { gid: "g1" }),
+    ));
+  });
+
   it("the template answers for the bound, the kill switch, and the surface claim", async () => {
     await seedPulse();
     const day = dayOffset(0);
@@ -857,6 +877,16 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertSucceeds(setDoc(mine(), callAnswer()));
     await assertFails(updateDoc(mine(), { optionIdx: 1, editedAt: serverTimestamp() }));
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 1 })));
+  });
+
+  it("refuses a key the shape does not name", async () => {
+    // isCallAnswer()'s keys().hasOnly(), which had no negative case either
+    // — see the pulse test of the same name for why the surface-first
+    // reorder is what exposed both. A call answer is graded and scored, so
+    // an unnamed field riding along is a field the grader may one day read.
+    await seedCall();
+    await assertFails(setDoc(mine(), callAnswer({ gid: "g1" })));
+    await assertSucceeds(setDoc(mine(), callAnswer()));
   });
 
   it("refuses a guess filed under another call's id", async () => {

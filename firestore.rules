@@ -41,6 +41,31 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= max);
     }
 
+    // The same bound with the argument written TWICE instead of three
+    // times, for the one caller that pays for it ten times over.
+    //
+    // Firestore expands a rules function by SUBSTITUTING the argument
+    // expression at every use of the parameter — it is a macro, not a
+    // call — and counts every expansion against the hard ceiling of 1,000
+    // evaluated expressions per request. So `isOptionalShortString(
+    // anchors.get("city", null), 80)` evaluates `anchors.get("city", null)`
+    // three times, and `anchors` is itself an argument, so the map lookup
+    // under it expands three times too. Ten anchors, and the answer create
+    // rule was spending most of a request's whole budget proving nobody
+    // sent a 400 KB city.
+    //
+    // Defaulting to "" rather than null is what removes the third use, and
+    // it decides the same cases: an absent key is "" (a string of length 0,
+    // inside any bound, exactly as null passed before), and a present
+    // non-string still fails `is string`. Measured, not reasoned: with this
+    // in place a set() on an existing answer — which evaluates the create
+    // AND the update rule against one budget — stops reporting
+    // PERMISSION_DENIED for running out of expressions.
+    function isShortAnchor(anchors, key, max) {
+      return anchors.get(key, "") is string
+        && anchors.get(key, "").size() <= max;
+    }
+
     // A moment, or nothing. Written for `v2_users.createdAt`/`updatedAt`,
     // which the allowlist admitted with NO type, shape or length check of
     // any kind — so either could carry a 400 KB string, measured.
@@ -277,9 +302,9 @@ service cloud.firestore {
           "city", "country", "ageBand", "age", "gender",
           "profession", "jobField", "education", "relationship", "heightBand",
         ])
-        && isOptionalShortString(anchors.get("city", null), 80)
-        && isOptionalShortString(anchors.get("country", null), 80)
-        && isOptionalShortString(anchors.get("ageBand", null), 20)
+        && isShortAnchor(anchors, "city", 80)
+        && isShortAnchor(anchors, "country", 80)
+        && isShortAnchor(anchors, "ageBand", 20)
         // The exact age, beside the band rather than instead of it (D155).
         // NOT a breakdown dim and never will be: ~80 distinct values would
         // blow BREAKDOWN_MAX_BUCKETS on its own, which is why the band
@@ -287,19 +312,19 @@ service cloud.firestore {
         // "Ceramicist, 29" reads as somebody, "Ceramicist, 25-34" reads as
         // a cell. 3 chars: a written-out age, never a birthday, and the
         // date itself still never leaves the device.
-        && isOptionalShortString(anchors.get("age", null), 3)
-        && isOptionalShortString(anchors.get("gender", null), 40)
-        && isOptionalShortString(anchors.get("profession", null), 80)
+        && isShortAnchor(anchors, "age", 3)
+        && isShortAnchor(anchors, "gender", 40)
+        && isShortAnchor(anchors, "profession", 80)
         // The breakdown bucket for the profession above (D328), derived
         // client-side from a closed list of 20. Same pairing as age/ageBand:
         // the pick names a PERSON and is free to grow past the bucket cap,
         // the field is what the aggregate slices on and cannot. A length is
         // all a rule can hold — BREAKDOWN_DIM_VOCAB is the real enforcement,
         // and check:anchors holds it equal to the client's list.
-        && isOptionalShortString(anchors.get("jobField", null), 40)
-        && isOptionalShortString(anchors.get("education", null), 80)
-        && isOptionalShortString(anchors.get("relationship", null), 40)
-        && isOptionalShortString(anchors.get("heightBand", null), 20);
+        && isShortAnchor(anchors, "jobField", 40)
+        && isShortAnchor(anchors, "education", 80)
+        && isShortAnchor(anchors, "relationship", 40)
+        && isShortAnchor(anchors, "heightBand", 20);
     }
 
     // v2 profile — READABLE BY ANY SIGNED-IN USER (D98). The display
@@ -736,10 +761,10 @@ service cloud.firestore {
         // the crowd stat a people-rate — the scheduler's spaced retries
         // have nothing they are allowed to write.
         function isWorldAnswer() {
-          return request.resource.data.keys().hasOnly([
+          return request.resource.data.surface in ["daily", "feed", "test", "learn"]
+            && request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["daily", "feed", "test", "learn"]
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
               < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
@@ -811,10 +836,10 @@ service cloud.firestore {
         // the OLD doc carrying optionIdx, which an order answer never
         // does, so ranks are immutable without a clause naming them.
         function isRankAnswer() {
-          return request.resource.data.keys().hasOnly([
+          return request.resource.data.surface == "feed"
+            && request.resource.data.keys().hasOnly([
               "qid", "surface", "order", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface == "feed"
             && request.resource.data.qid == aid
             && request.resource.data.order is list
             && request.resource.data.order.size() >= 2
@@ -830,16 +855,16 @@ service cloud.firestore {
         }
 
         function isCatalogAnswer() {
-          return request.resource.data.keys().hasOnly([
+          // Feed-only since D234's review pass (it read `in ["daily",
+          // "feed", "test"]` from birth): catalog questions exist on no
+          // other surface — the seed emits feed and check:content
+          // refuses the rest — so the wider list only ever admitted
+          // answers to a hand-edited console doc the client fences out
+          // anyway (splitBanks keeps the same feed-narrow line).
+          return request.resource.data.surface == "feed"
+            && request.resource.data.keys().hasOnly([
               "qid", "surface", "entity", "answeredAt", "anchors",
             ])
-            // Feed-only since D234's review pass (it read `in ["daily",
-            // "feed", "test"]` from birth): catalog questions exist on no
-            // other surface — the seed emits feed and check:content
-            // refuses the rest — so the wider list only ever admitted
-            // answers to a hand-edited console doc the client fences out
-            // anyway (splitBanks keeps the same feed-narrow line).
-            && request.resource.data.surface == "feed"
             && request.resource.data.qid == aid
             && request.resource.data.entity is int
             && request.resource.data.entity >= 0
@@ -860,11 +885,11 @@ service cloud.firestore {
         // the hand ends; neither is an audience claim about the data,
         // which is why D98 leaves this function alone.
         function isDuelAnswer() {
-          return request.resource.data.keys().hasOnly([
+          return request.resource.data.surface in ["group", "duo"]
+            && request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "guessIdx", "pickUid",
               "gid", "day", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["group", "duo"]
             && request.resource.data.gid is string
             && request.resource.data.day is string
             && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
@@ -920,19 +945,34 @@ service cloud.firestore {
             // neither clause costs an extra read.
             && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
                  .data.get("surface", "daily") == request.resource.data.surface
-            && request.resource.data.optionIdx < duelIndexSpace()
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
-            // SAME bound as optionIdx, via the same function — a guess names
-            // an option, so it lives in the same index space. This read
+            // SAME bound as optionIdx, and now the SAME COMPARISON — a guess
+            // names an option, so it lives in the same index space. This read
             // `guessIdx < 20` while optionIdx had already been widened for
             // exactly that reason: GROUP_CAP is 32, so on a "pick" day in a
             // group of more than 20, a member could be voted for but not
             // guessed. The bug the widening fixed survived in the field
             // beside it because the two bounds were written out twice; one
-            // function means the next change to the index space cannot
-            // reach one and miss the other.
-            && request.resource.data.get("guessIdx", 0) < duelIndexSpace()
+            // bound written once means the next change to the index space
+            // cannot reach one and miss the other.
+            //
+            // Testing the LARGER index once, rather than each against its own
+            // duelIndexSpace() call, is what makes it one bound. It is the
+            // same test: neither index can be negative here — guessIdx by the
+            // line above, optionIdx by the create rule's outer block, which is
+            // this function's only caller. The saving is expressions, not
+            // reads: repeated get()s on one path are deduped within an
+            // evaluation, repeated EXPRESSIONS are not, and each call expands
+            // to a ternary over two get() paths. This rule sits in the answer
+            // create's six-arm disjunction, and a DENIAL walks every arm to
+            // the end — which is the path that hit Firestore's hard ceiling
+            // of 1,000 evaluated expressions and denied for running out of
+            // budget rather than for being false.
+            && (request.resource.data.optionIdx >= request.resource.data.get("guessIdx", 0)
+                  ? request.resource.data.optionIdx
+                  : request.resource.data.get("guessIdx", 0))
+               < duelIndexSpace()
             // D224: on a "pick" day the answer also snapshots WHO its
             // optionIdx meant — the roster order the answering client
             // used — because the index alone goes stale the moment the
@@ -961,10 +1001,10 @@ service cloud.firestore {
         // aggregate doc with no changes of its own — that grain is the
         // whole design (docs/NEXT-FUNCTIONALITY.md §2).
         function isPulseAnswer() {
-          return request.resource.data.keys().hasOnly([
+          return request.resource.data.surface == "pulse"
+            && request.resource.data.keys().hasOnly([
               "qid", "baseQid", "day", "surface", "optionIdx", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface == "pulse"
             && request.resource.data.baseQid is string
             && request.resource.data.day is string
             && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
@@ -1019,10 +1059,10 @@ service cloud.firestore {
         // The D86 edit arm's surface list keeps `call` out, so a sealed
         // guess cannot be moved afterwards.
         function isCallAnswer() {
-          return request.resource.data.keys().hasOnly([
+          return request.resource.data.surface == "call"
+            && request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface == "call"
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
               < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
@@ -1046,7 +1086,6 @@ service cloud.firestore {
 
         allow create: if request.auth != null && request.auth.uid == uid
           && request.resource.data.answeredAt == request.time
-          && isValidV2Anchors(request.resource.data.get("anchors", {}))
           && (
             (request.resource.data.optionIdx is int
               && request.resource.data.optionIdx >= 0
@@ -1072,7 +1111,17 @@ service cloud.firestore {
             // Rank answers carry `order` (D233) — same arrangement: their
             // own branch beside the optionIdx block, the same binding.
             || (isRankAnswer() && deviceBound())
-          );
+          )
+          // LAST, not first, and only the position moved (D8's snapshot is
+          // validated exactly as before — a conjunction reorders freely).
+          // It walks ten anchors through isOptionalShortString, and on a
+          // create that no arm above accepts that is spent before the arms
+          // are even tried. Firestore stops at 1,000 evaluated expressions
+          // and reports the stop as PERMISSION_DENIED, so a rule that runs
+          // out of budget denies exactly like a rule that is false — which
+          // makes this the cheapest kind of latent bug: correct today, and
+          // silently wrong the moment a path grows past the ceiling.
+          && isValidV2Anchors(request.resource.data.get("anchors", {}));
         // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,
         // and why each stays:

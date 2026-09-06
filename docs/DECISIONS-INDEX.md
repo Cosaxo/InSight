@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 407 lines instead of
-41,186. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 408 lines instead of
+41,292. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -18,7 +18,7 @@ detect it.
 | **D2** | ["Near" means geohash5 (~5 km), reusing the existing geo system](DECISIONS.md#d2--near-means-geohash5-5-km-reusing-the-existing-geo-system) | D84 (+3) | 29 |
 | **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D369 (+26) | 97 |
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
-| **D5** | [Sealed answers are owner-only; reveals are materialized server-side](DECISIONS.md#d5--sealed-answers-are-owner-only-reveals-are-materialized-server-side) | D386 (+20) | 393 |
+| **D5** | [Sealed answers are owner-only; reveals are materialized server-side](DECISIONS.md#d5--sealed-answers-are-owner-only-reveals-are-materialized-server-side) | D392 (+21) | 393 |
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
 | **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D367 (+30) | 167 |
 |  | ↳ *amendment 2026-08-03* — [The retry-logging trigger now has an instrument](DECISIONS.md#d7-amendment-2026-08-03--the-retry-logging-trigger-now-has-an-instrument) | — | 3523 |
@@ -103,7 +103,7 @@ detect it.
 | **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D378 (+9) | 8049 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D370 (+8) | 8171 |
 | **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D103 | 8248 |
-| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D380 (+23) | 8349 |
+| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D392 (+24) | 8349 |
 | **D87** | [Production writes require an approval; the `production` environment carries protection rules](DECISIONS.md#d87--production-writes-require-an-approval-the-production-environment-carries-protection-rules) | D303 (+5) | 8439 |
 | **D88** | [Seeding chains to the deploy, because the bank it writes is the deployed one](DECISIONS.md#d88--seeding-chains-to-the-deploy-because-the-bank-it-writes-is-the-deployed-one) | — | 8518 |
 | **D89** | [The feed's "knows this best" row is demo furniture — live mode refuses it](DECISIONS.md#d89--the-feeds-knows-this-best-row-is-demo-furniture--live-mode-refuses-it) | D133 (+2) | 8582 |
@@ -379,7 +379,7 @@ detect it.
 | **D350** | [The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory](DECISIONS.md#d350--the-lane-regulators-lose-their-ceilings-floors-demand-shares-and-the-holdover-inventory) | — | 35990 |
 |  | ↳ *amendment 2026-09-01* — [The bank-size failure was a question limit in everything but name](DECISIONS.md#d350-amendment-2026-09-01--the-bank-size-failure-was-a-question-limit-in-everything-but-name) | — | 36197 |
 | **D351** | [Current events get their lane: found by searching, never from memory](DECISIONS.md#d351--current-events-get-their-lane-found-by-searching-never-from-memory) | — | 36227 |
-| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D385 (+5) | 36282 |
+| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D392 (+6) | 36282 |
 | **D353** | [The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse](DECISIONS.md#d353--the-dispatchers-charter-becomes-a-contract-a-standing-instruction-a-session-cannot-verify-is-one-it-should-refuse) | D359 | 36389 |
 | **D354** | [The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32](DECISIONS.md#d354--the-store-leaves-the-bridge-and-the-sweep-behind-it-takes-the-coupling-ratchet-234--32) | D382 (+4) | 36532 |
 | **D355** | [The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB](DECISIONS.md#d355--the-mirror-leaves-the-eager-graph-through-a-same-tick-slot-761--619-kb) | D363 (+1) | 36631 |
@@ -421,3 +421,4 @@ detect it.
 | **D387** | [Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read](DECISIONS.md#d387--every-night-shift-has-been-reviewed-and-the-merge-list-said-otherwise-for-four-days--the-receipt-the-console-had-no-way-to-read) | D390 | 40841 |
 | **D388** | [No phone ever sent an App Check token: the native SDK was initialised and the JavaScript SDK that makes every call was not](DECISIONS.md#d388--no-phone-ever-sent-an-app-check-token-the-native-sdk-was-initialised-and-the-javascript-sdk-that-makes-every-call-was-not) | D390 | 40973 |
 | **D390** | [A decision-number hole is reported, not refused — merge order stops being a gate](DECISIONS.md#d390--a-decision-number-hole-is-reported-not-refused--merge-order-stops-being-a-gate) | — | 41076 |
+| **D392** | [The answer rules sit at Firestore's 1,000-expression ceiling, and rules functions are macros](DECISIONS.md#d392--the-answer-rules-sit-at-firestores-1000-expression-ceiling-and-rules-functions-are-macros) | — | 41187 |

@@ -41183,3 +41183,109 @@ that is the condition, not the accident.
 Nothing about `main`'s history changed — records are still amended,
 never deleted, and a hole there still gets printed every run until its
 pull request lands. Duplicates still fail.
+
+## D392 · The answer rules sit at Firestore's 1,000-expression ceiling, and rules functions are macros
+
+**Decided:** 2026-09-06 · **Status:** binding for what it changes; the
+half it cannot reach is an ASK on `OWNER-LIST.md`. **Found** by an e2e
+failure on #340 — a pull request that changes one documentation file.
+
+### What the emulator was saying
+
+```
+PERMISSION_DENIED: Unable to evaluate the expression as the maximum of
+1000 expressions to evaluate has been reached. for 'create' @ L1047
+```
+
+Firestore evaluates at most **1,000 expressions per request** and reports
+running out as `PERMISSION_DENIED` — identical, from the client, to a rule
+that evaluated false. A rule that exhausts its budget therefore denies
+exactly like a rule that refuses, which is the cheapest kind of latent
+bug: correct today, silently wrong the moment a path grows.
+
+### What was measured, and what was NOT true
+
+A probe against the rules emulator, one document, one awaited write, no
+batching:
+
+| write | outcome |
+| --- | --- |
+| create, no anchors | allowed |
+| create, all ten anchors | allowed |
+| D86 edit (`optionIdx` + `editedAt`) | allowed |
+| `set` over an existing answer | **ceiling hit** (denied — as intended) |
+
+**Nothing legitimate is broken.** Every write the app actually makes
+lands, with all ten anchors. Only a `set` over an existing answer hits
+the ceiling, and that write is refused by design either way (D5/D86:
+answers are create-only but for the one edit shape, which is an
+`update`). What is gone is the margin.
+
+**And it is not what failed #340.** That was stated too strongly when the
+CI log was first read: locally the suite passes *with* the ceiling being
+hit ten times, so the learn-aggregate timeout on #340 is a separate,
+still-intermittent failure. The two were adjacent in one log, not cause
+and effect.
+
+### Why the rule is so expensive: functions are macros
+
+**A rules function substitutes its argument expression at every use of
+the parameter.** It is not a call, and there is no way to bind a value —
+no `let`, no local. So
+
+```
+isOptionalShortString(anchors.get("city", null), 80)
+  → value == null || (value is string && value.size() <= max)
+```
+
+evaluates `anchors.get("city", null)` **three times**, and `anchors` is
+itself a parameter holding `request.resource.data.get("anchors", {})`, so
+the map lookup under it expands three times too. Ten anchors: thirty-two
+expansions of one defaulted map get, to prove nobody sent a 400 KB city.
+
+Bisected with the emulator rather than reasoned about: stub the anchors
+call and the ceiling clears; stub the arm disjunction and it clears;
+keep both and it does not. Neither half is the culprit — the rule is at
+100% of the budget and everything is the last straw.
+
+### What changed
+
+Three reductions, each a strict cut in evaluated expressions, none a
+change in what the rules admit — verified by 199 rules tests and all
+three e2e suites:
+
+- **The surface discriminator moved ahead of `keys().hasOnly()`** in all
+  six answer predicates. `&&` short-circuits, so a non-matching arm now
+  costs one field read and one comparison instead of building a five-to
+  nine-element list literal and running a set operation first.
+- **`duelIndexSpace()` went from three calls to one.** Both indexes share
+  one bound, so testing the larger of the two once is the same test —
+  neither can be negative there. Repeated `get()`s on one path are deduped
+  within an evaluation; repeated *expressions* are not.
+- **`isValidV2Anchors` uses a two-use form** (`isShortAnchor`, defaulting
+  to `""` rather than `null`), cutting thirty-two argument expansions to
+  twenty-two and deciding the same cases: an absent key is a zero-length
+  string, a present non-string still fails `is string`.
+
+`rules-coverage` caught what the first of those cost: two `hasOnly`
+clauses stopped being exercised, because a wrongly-shaped answer on
+another surface used to reach them and fail there **by accident**, which
+counted as coverage while proving nothing. Two negative cases were added
+rather than the baseline raised — a pulse and a call answer each carrying
+a key its shape does not name.
+
+### What this does not fix, and the ask
+
+The `set`-over-existing path still hits the ceiling. Firestore evaluates
+the create rule with `resource == null` even when the document exists, so
+guarding on that does not short-circuit it, and no local reduction
+reached far enough. Clearing it needs one of:
+
+- **drop or move the per-anchor length validation** — the answer is
+  written by the client, so the profile rule is not a substitute; this
+  reduces what the rule guarantees;
+- **shrink what an answer create verifies** about its question document
+  (four reads of `v2_questions/{aid}`, each a separate path expression).
+
+Both change a guarantee to fit a platform limit, which is the shape
+D352 reserves for the owner. On `OWNER-LIST.md` with this arithmetic.
