@@ -100,7 +100,7 @@ describe("a citation into a hole is the SAME fact, so it is reported too", () =>
   // This block was written as a failure and lasted one run. A partial
   // renumber's other half is a reference left behind, pointing at a number
   // no record claims — which reads like a fault. Then the first run refused
-  // the record introducing it: D393 cites D387, D388 and D389, the three
+  // the record introducing it: D394 cites D387, D388 and D389, the three
   // pull requests holding them. A hole and a citation into that hole are
   // one fact seen twice — this head does not have that number, because
   // another head does — so failing on the second while excusing the first

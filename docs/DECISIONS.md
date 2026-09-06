@@ -41500,7 +41500,7 @@ pins), `data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
 / 607; 70 KB blocking css / 74), `check:eager-content`, `check:docs`,
 `check:figures`.
 
-## D393 · A decision-number hole is reported, not refused — merge order stops being a gate
+## D394 · A decision-number hole is reported, not refused — merge order stops being a gate
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
 — *"fix the gate so merge order doesn't matter"* — after it cost a
@@ -41550,7 +41550,7 @@ because a tree-wide scan would read every `D385` in a code comment as a
 claim about this file.
 
 **It failed on this record.** The first run refused the tree three
-times: D393 cites D387, D388 and D389 — the three pull requests holding
+times: D394 cites D387, D388 and D389 — the three pull requests holding
 them, named in the paragraph above explaining why the gate had to
 change.
 
@@ -41559,11 +41559,11 @@ was. **A hole and a citation into that hole are one fact seen twice** —
 this head does not have that number, because another head does. Failing
 on the second while excusing the first only puts merge order back under
 a different name. So both are reported together, and the note names the
-citers when there are any, because *"D387 is unclaimed and D393 points
+citers when there are any, because *"D387 is unclaimed and D394 points
 at it"* is the sentence a reader actually wants:
 
 ```
-note: D387 (cited by D393), D388 (cited by D393), D389 (cited by D393)
+note: D387 (cited by D394), D388 (cited by D394), D389 (cited by D394)
       unclaimed — an open branch is holding them, or a record was lost.
 ```
 
@@ -41587,7 +41587,7 @@ green at a time, and it was always the **lowest-numbered** one — not
 because its work was ready first, but because nothing was sitting under
 it. #415 had to wait for two merges it has no relationship to.
 
-This branch is the fourth case: written as D387, moved to **D393**, the
+This branch is the fourth case: written as D387, moved to **D394**, the
 first number no open branch claims, leaving holes at D387, D388 and
 D389, one per pull request waiting. Under the rule being removed, the
 change fixing the problem could not pass its own gate until three
@@ -41599,7 +41599,7 @@ the number #411 was holding. So #411 now carries a genuine
 **duplicate** (renumbered to D391, before merging main and not after —
 doing it the other way round is what corrupted D370–D372 across four
 source files and eight documents earlier the same day), and with it
-fixed its head has holes at D389 and D393 and is refused by the rule
+fixed its head has holes at D389 and D394 and is refused by the rule
 this record removes. The two halves land exactly where they should: the
 duplicate is caught, and the hole is the gate holding #411 hostage to
 #416 — itself. Numbers move on their own while pull requests are open;
@@ -41611,7 +41611,7 @@ Nothing about `main`'s history changed — records are still amended,
 never deleted, and a hole there still gets printed every run until its
 pull request lands. Duplicates still fail.
 
-## D394 · The answer rules sit at Firestore's 1,000-expression ceiling, and rules functions are macros
+## D395 · The answer rules sit at Firestore's 1,000-expression ceiling, and rules functions are macros
 
 **Decided:** 2026-09-06 · **Status:** binding for what it changes; the
 half it cannot reach is an ASK on `OWNER-LIST.md`. **Found** by an e2e
