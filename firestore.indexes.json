@@ -179,6 +179,20 @@
       ]
     },
     {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "engagement",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
