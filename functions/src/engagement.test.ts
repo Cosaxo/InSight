@@ -645,7 +645,7 @@ describe("foldShards · qids", () => {
 
 // ── the rollup fold (R3/D272) ───────────────────────────────────────────
 import {
-  ROLLUP_FOLD_CAP, advanceFgWindow, runRollupFold,
+  ROLLUP_FOLD_CAP, advanceFgWindow, foldRollups, runRollupFold,
   type PeopleDelta, type RollupRow, type RollupStore,
 } from "./engagement";
 
@@ -671,12 +671,15 @@ function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
       const doc = state.days.get(day) ?? {
         rollups: 0, sessions: 0, quiet: 0, answers: 0, depthEnd: 0,
         dayparts: [0, 0, 0, 0], fgBuckets: [0, 0, 0, 0, 0], fading: 0,
+        mirrorRead: 0, lensOpen: 0, feedBuckets: [0, 0, 0, 0, 0],
       };
       doc.rollups += delta.rollups; doc.sessions += delta.sessions;
       doc.quiet += delta.quiet; doc.answers += delta.answers;
       doc.depthEnd += delta.depthEnd; doc.fading += delta.fading;
       for (let i = 0; i < 4; i++) doc.dayparts[i] += delta.dayparts[i];
       for (let i = 0; i < 5; i++) doc.fgBuckets[i] += delta.fgBuckets[i];
+      doc.mirrorRead += delta.mirrorRead; doc.lensOpen += delta.lensOpen;
+      for (let i = 0; i < 5; i++) doc.feedBuckets[i] += delta.feedBuckets[i];
       state.days.set(day, doc);
       await Promise.resolve();
     },
@@ -686,7 +689,58 @@ function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
 
 const rr = (uid: string, day: string, over: Partial<RollupRow> = {}): RollupRow => ({
   uid, day, sessions: 2, fgMin: 2, quiet: 1, answers: 3, depthEnd: 0,
-  dayparts: [0, 1, 1, 0], ...over,
+  dayparts: [0, 1, 1, 0], feedB: 0, stops: 0, lenses: 0, ...over,
+});
+
+describe("foldRollups and the Mirror-reading three (D389)", () => {
+  // ENGAGEMENT-PLAN.md's rung-0 table names this blind spot in as many
+  // words: "The entire Mirror — does anyone open it, which stops, which
+  // lenses | reading is the point and reading writes nothing". The three
+  // fields were the fix and were written by every device for weeks while
+  // the fold dropped them on the floor.
+  it("counts PEOPLE who read, not stops visited", () => {
+    // The distinction is the whole design: one person opening nine stops
+    // must not read as nine. `depthEnd`'s shape, for `depthEnd`'s reason.
+    const d = foldRollups([
+      rr("a", "2026-09-06", { stops: 9, lenses: 4 }),
+      rr("b", "2026-09-06", { stops: 1, lenses: 0 }),
+      rr("c", "2026-09-06", { stops: 0, lenses: 0 }),
+    ]);
+    expect(d.rollups).toBe(3);
+    expect(d.mirrorRead, "a sum of stops leaked in").toBe(2);
+    expect(d.lensOpen, "a lens open is a tap inside a stop, counted per person").toBe(1);
+  });
+
+  it("brackets feed depth as a histogram rather than an average", () => {
+    const d = foldRollups([
+      rr("a", "2026-09-06", { feedB: 0 }),
+      rr("b", "2026-09-06", { feedB: 4 }),
+      rr("c", "2026-09-06", { feedB: 4 }),
+    ]);
+    expect(d.feedBuckets).toEqual([1, 0, 0, 0, 2]);
+  });
+
+  it("clamps a dishonest client rather than trusting the rules alone", () => {
+    // Every other field in this fold is clamped for this reason; these
+    // three are only ever compared to zero or used as an index, so an
+    // out-of-range bracket would throw rather than lie.
+    const d = foldRollups([
+      rr("a", "2026-09-06", { feedB: 99, stops: -5, lenses: "many" }),
+      rr("b", "2026-09-06", { feedB: -1, stops: 1.9, lenses: 2 }),
+    ]);
+    expect(d.feedBuckets).toEqual([1, 0, 0, 0, 1]);
+    expect(d.mirrorRead, "a negative or fractional count read as presence").toBe(1);
+    expect(d.lensOpen, "a non-number read as presence").toBe(1);
+  });
+
+  it("a day nobody read the Mirror on is zero, not absent", () => {
+    // The console draws a share against `rollups`; a missing key and a
+    // real zero must not look the same to it.
+    const d = foldRollups([rr("a", "2026-09-06"), rr("b", "2026-09-06")]);
+    expect(d.mirrorRead).toBe(0);
+    expect(d.lensOpen).toBe(0);
+    expect(d.feedBuckets).toEqual([2, 0, 0, 0, 0]);
+  });
 });
 
 describe("advanceFgWindow", () => {

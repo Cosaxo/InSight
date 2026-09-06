@@ -830,11 +830,24 @@ function panelEngagement(p) {
       { k: "quiet-session share", v: e.people.quietShare == null ? "—" : Math.round(e.people.quietShare * 100) + "%" },
       { k: "fading people", v: int(e.people.fading) },
       { k: "hit the feed's end", v: int(e.people.reachedEnd) },
+      { k: "read the Mirror", v: e.people.readShare == null ? "—" : Math.round(e.people.readShare * 100) + "%" },
+      { k: "opened a lens", v: e.people.lensShare == null ? "—" : Math.round(e.people.lensShare * 100) + "%" },
+      { k: "feed depth", v: (e.people.feedBuckets || []).join(" · ") },
     ]) + `
     <p class="note">The person channel (R3/D272): uid-keyed day rollups readable by nobody,
       folded here into counts — <b>fading</b> is a trailing foreground window sinking two
       buckets, the win-back trigger rung 2 exists for. Per-person rows never leave the
-      fold; what prints is how many.</p>` : ""}
+      fold; what prints is how many.</p>
+    <p class="note"><b>Read the Mirror</b> and <b>opened a lens</b> are the answer to the one
+      thing ENGAGEMENT-PLAN.md's rung-0 table says rung 0 cannot see — <em>"the entire Mirror
+      — does anyone open it, which stops, which lenses"</em>, because "reading is the point
+      and reading writes nothing". Both are shares of that day's rollups, and both count
+      PEOPLE rather than stops: one person opening nine stops is one reader, which is the
+      question being asked. <b>Feed depth</b> is the 0–4 bracket histogram, low to high.
+      Read the two Mirror shares against <b>answers</b> above: this app's stated shape is
+      that the Mirror outweighs the daily and the feed put together, and these are the
+      cheapest measure of whether that is true of its READERS rather than of its
+      module count.</p>` : ""}
     <p class="note">Read it against its moment, not in isolation: a new surface's share is
       inflated for as long as it is new — judge shares against neighbours over ≥ a month —
       and a rate whose cohort day predates the digest reads <em>unknown</em>, never 0%
