@@ -41073,6 +41073,59 @@ shape one instrument over: a reading a known cause fully explains is
 still a reading of everything, and the check is *what would be
 different if the thing I assume works actually worked*.
 
+## D385 amendment (2026-09-06) · The retirement was about the automation, not about the instruction — a session merges when the owner says so
+
+**2026-09-06, four hours after D385.** Owner, asked directly: *"the
+sheperd did not work merge when i say so."* **Status:** binding, and a
+correction to one sentence of D385 rather than to any of its substance.
+
+### What was wrong, and it was one clause
+
+D385 removed the merge automation and wrote the consequence into
+`CLAUDE.md` as *"a session does not merge its own work, and the owner's
+click is the merge."* The first half of that clause was never what the
+owner decided. What failed was a **lane** — a scheduled job merging on a
+label, unattended, four mechanisms deep and each one permission short. A
+session told **in that session, by the owner** to merge a named head is
+not that lane, and never was.
+
+The rule now reads: there is no merge automation and nothing acts on a
+label or a tick; a session stops at a green head and says so; and when
+the owner says merge, the session merges — that instruction is the click.
+
+### What it cost, measured, in the four hours it stood
+
+PR #408 was green and mergeable at 11:58 UTC. The owner had said *"merge
+it"* eleven minutes earlier. The session read the sentence above — which
+had merged into `main` seventeen minutes before that instruction was
+given — treated it as forbidding what it had just been told to do, and
+spent a round trip asking who clicks. Nothing was broken and nothing was
+lost; the cost was one exchange and the owner answering a question about
+a rule they had written to solve a different problem.
+
+**This is D329's finding one rule over, and the third time it is on the
+record**: *a preference stated as a rule reads as a rule*. D334 already
+says a constraint that stands between a request and the tree is an ASK,
+not a stop — the session did ask, which is the shape working, and the
+cheaper shape is the rule not overreaching in the first place. A rule
+written to retire a broken lane should name the lane, not every actor who
+could perform the act.
+
+### What does not change
+
+Everything else in D385 stands: no Action, no label that merges, no
+`merge-when-green` executing anything, `mcp__github__merge_pull_request`
+granted to no scheduled lane, and what a session owes before a PR is
+mergeable — `main` merged in, decision numbers moved (D299), green on the
+current head — unchanged and still the whole of the contract. The
+difference is only who may perform the merge once that is true, and the
+answer is: the owner, or a session the owner tells to, in that session.
+An instruction to merge is for the head it was given about; it does not
+carry to the next PR.
+
+The first exercise of this is D387 itself (#408), merged by the session
+that built it, on the instruction that produced this amendment.
+
 ## D389 · The pick card browses every catalogue, paged — D308 §3's ranked-only rule is lifted — and the learn reveal draws the crowd's share as a strip
 
 **Date:** 2026-09-06 · **Status:** Adopted (built: `ui/PickTiles.tsx`,
