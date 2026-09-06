@@ -41499,3 +41499,158 @@ pins), `data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
 `check:public-copy`, `check:purge`, live `check:bundle` (598 KB eager
 / 607; 70 KB blocking css / 74), `check:eager-content`, `check:docs`,
 `check:figures`.
+
+## D393 · Nothing in the app is invented: the trait web's "usual pattern" and the Map's knowledge radius were, and the daily's count is not
+
+**2026-09-06.** **Status:** binding, built. From three screenshots of a
+release device with two questions: *"is knowledge only questions you
+have completed 3 in a row of?"* and *"the data in the other 2 images
+seams invented — no data in the app should be invented."* The second
+sentence is the rule; this record is what it found, one screen at a
+time, and the two fixes it took.
+
+### The Mirror's Knowledge constellation — real, with one invented number
+
+**What the map holds** is answered by `learn-progress.js`, not by a
+streak rule. A fact reaches the Map when it is MASTERED, and mastery has
+two doors: right on the first try, on the map at once; or missed once,
+after which the card queues and needs **three rights in a row, spaced at
+least four cards apart** (`STREAK = 3`, `GAP = 4`) — spaced because three
+in a row on consecutive cards is short-term memory, not knowledge, and
+one further miss empties the dots. So "3 in a row" is the recovery
+rule for a fact you got wrong, not the entry condition: most dots on the
+screenshot are first-try rights. The three filled dots on a leaf's card
+(`LMStreak`) mark exactly the cards earned back from a miss. A live
+build starts Learn at its real zero (D32); the demo's six pre-known
+cards never reach it. The tapped card's *"Nobody else has answered this
+one yet"* is D149/D389's honest line: the published rate is null, or
+rests on one first try, which on that card is the reader's own.
+
+**What was invented:** how far each fact sat from You. The leaf carried
+`typ: c.p / 100` — `p`, the bank's AUTHORED difficulty hint, "the % of
+the crowd expected to get it right" — in a live build too. D133 stopped
+every card from *printing* that number and D149 stopped the live reveal
+from drawing it as bars; the Map's placement, one consumer over, kept
+reading it, and the Map is the one live surface that wears no preview
+tag (D72). Distance is the map's one encoded score ("hard-won facts sit
+outward"), so the shape of the whole Knowledge branch was an author's
+guess.
+
+**Fix.** `learn-data.js` gains `LEARN_CROWD_PCT(card)`: the measured
+first-try rate once **two or more** people have answered
+(`LEARN_CROWD_MIN`, the floor the Map's learn card already applied
+alone — learn-thin-crowd.test.jsx's finding, now one constant both
+consumers read), null below it or before the read lands, the authored
+figure only in the demo. `map-tab.jsx` places a leaf by it; a null
+`typ` sits at the layout's default radius, the D72 fallback the daily
+dots already take when `MapStats` refuses. The demo is unchanged.
+
+**The read it costs, and the shape.** Measuring means reading each
+mastered card's aggregate. `LIVE.learnAgg` is a read-through cache that
+kicks one `getDoc` per miss (D125's finding), so a loop over N mastered
+facts on a cold cache would have been N single reads. The builder warms
+them first through `loadLearnAggs` — one `in` query per thirty facts —
+INSIDE the memo, before the loop, because `loadLearnAggs` claims its ids
+as pending synchronously and an effect runs after the render that would
+already have paid. Once per id per mount; a failed batch releases its
+ids. Budget: at most one read per mastered fact per session, the same
+bound D125 set for the feed's plan; ~35 on the device that reported
+this. `map-learn-warm.test.jsx` pins the batch, its contents and its
+order ahead of any single read; `learn-crowd-pct.test.ts` pins the
+seam.
+
+### The profile's "What moves together" — real dots, an invented pattern
+
+**What is real:** the dots. Each is one of the viewer's OWN dimension
+scores, live from `LIVE.myTestResults()` — the passive fold over the
+viewer's own feed answers (D121), two items an axis or more — and the
+card renders nothing under four resolvable pairs. On the screenshot the
+eight pairs drawn are exactly the eight links that cross Big Five,
+Values and Social style, and the three political links are absent: the
+account holds those three instruments and not the fourth. That is the
+viewer's data, not the persona's (`TraitWebCard.test.tsx` already held
+the D66 line).
+
+**What was invented:** the "usual pattern" every rail was laid against.
+`TRAIT_LINKS` is an authored table — eleven pairs, each with a sign and
+two sentences — and its own header called the signs "editorial claims,
+the same status as a question's wording". A question's wording asks; a
+sign laid on a rail STATES: the card said *"Each pair sits so the usual
+pattern lands its dots together — a stretched amber thread is a rule you
+break"* and headlined the widest gap as *the rule you break*. That is a
+finding about how people's traits travel, and this app had never
+counted one. VISION-V28 §13 filed the card under "nothing to build —
+real on arrival" because the dots were; the direction was not, and the
+row read as licence. D157's sentence, one screen over: **a screen that
+could not get the true number drew a plausible one, and the true number
+was reachable.**
+
+**Fix.** `data/traitLinks.ts` gains `traitBasis(people)`: Pearson r for
+every link over the people holding BOTH dimensions, from the session's
+cached voter sample — `LIVE.kindredPeople()`, the same real people with
+real parsed results `testNorms.ts` counts percentiles over (D157), the
+viewer excluded. A direction is stated at **thirty people or more**
+(`TRAIT_MIN_PEOPLE` — testNorms' answer floor in this fold's unit) and
+**two standard errors from zero** (`TRAIT_MIN_T`: t = r·√(n−2)/√(1−r²)
+≥ 2, i.e. |r| ≈ 0.36 at thirty, ≈ 0.2 at a hundred); under either, the
+pair is not drawn. `traitRows` takes the basis: the drawn sign is the
+measured one, the authored sentences are used only where the measurement
+AGREES with them (they are then true in the design's voice), and where
+it disagrees a neutral pair is generated from the two labels — a
+measured link is drawn, never hidden for want of a line. The card
+fetches its own crowd (`loadKindred`, session-cached, the result card's
+2026-08-31 rule) and its key names the basis: *measured over the people
+this session has scores for — at least N behind every thread*. The demo
+keeps the authored table, because there the invented population is the
+content.
+
+**What this does to the screen today.** With the population the app has
+now, no pair reaches thirty people, so a live build shows **no card**
+where the screenshot shows eight rows. That is the honest state and the
+D265 shape one card over: the card is mounted on the data and arrives
+when the sample can carry it — thirty people holding two instruments
+each, in the cached lists of one viewer. The demo build is unchanged.
+
+**Privacy, checked against D334's four.** The fold reads results D98
+publishes and the norms already read; a politics result is in the
+sample only where its owner turned the compass on (D330/D331); one
+number per pair comes out and nobody is named. None of the three denies,
+the privacy page, the store forms or a consent requirement is touched,
+so this is a build, not an ask.
+
+### The daily's "7 votes" — real, and here is where it comes from
+
+The card is `daily-split.jsx` over `data/deck.ts`: `countsFor` reads the
+PUBLISHED aggregate's per-option counts, adds the viewer's own unfolded
+vote, and `sharePcts` rounds — 6 Italian + 1 Japanese is 86% / 14% / 0
+/ 0 over 7. A live build never shows the demo deck: `get data()`
+returns `[]` until the live deck exists and the tab paints *"Fetching
+today's question…"* rather than a mock (its comment: "live mode NEVER
+shows the demo deck"), and `smoke-live.test.jsx` holds the line. The
+prototype's item with the same prompt (`world-feed-data.js` f08,
+7 800 / 6 400) is demo furniture no live surface imports. **So the
+seven are seven answers to question 036 in Firestore, exact from the
+first (D98)** — every account that has ever answered it, on the daily
+or in the feed, including testers and any earlier install of your own
+that did not come back as this account. What the app cannot tell you
+is WHO; who-voted does, under Friends. Nothing on this card is made up
+by the client, and nothing in this record changes it.
+
+### The rule, restated for the next screen
+
+Three records now say the same thing about three surfaces — D149
+(learn estimates), D157 (test norms), this one (a placement and a
+correlation): **a number a writer typed is content in the demo and a
+fabrication in a live build, whatever surface it is drawn on and
+however it is worded.** The place to look next is any live surface that
+draws a SHAPE from a constant — a radius, a rail, a sort order — since
+D133/D149 swept the numbers that are printed and this is the second
+time a drawn one outlived them.
+
+### Gates
+
+`test:unit` (the two rewritten suites, the two new ones, and the learn
+and Map suites beside them), `tsc -b`, `lint` on every touched file,
+`check:globals` (rule 4 at 30, unmoved — the new edges are imports),
+`check:figures`, `check:docs` (the index regenerated), `check:labels`,
+`check:public-copy`, `test:scripts`.

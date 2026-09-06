@@ -7,6 +7,9 @@ import React from 'react';
 import { DAILYQ } from './daily-questions.js';
 import { DUELS } from './duels-data.js';
 import { LEARN } from './learn-progress.js';
+// The crowd's rate on a mastered fact, as a number the leaf may be placed
+// by — measured or null in a live build (D393). See its header.
+import { LEARN_CROWD_PCT } from './learn-data.js';
 import { list as anchorList } from './map-anchors.js';
 // The Map's own family, imported (v28 §5): until the Map went lazy,
 // spec-index's eager list carried these six and their order. Now the ESM
@@ -88,6 +91,9 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     if (DAILYQ.subscribe) return DAILYQ.subscribe(() => setDqv((x) => x + 1));
   }, []);
   useEffect(() => LEARN.subscribe(() => setDqv((x) => x + 1)), []);
+  // Mastered facts whose crowd rate this mount has already asked for, in
+  // bulk — see the knowledge block in `built`.
+  const learnWarmed = useRef(new Set());
   useEffect(() => DUELS.subscribe(() => setDqv((x) => x + 1)), []);
   // the v28 branches' stores: walks (own store) and the pulse — whose
   // subscribe already rides LIVE's, so Foresight verdicts and call
@@ -201,6 +207,29 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     {
       const got = LEARN.mastered();
       const n = got.length;
+      // WARM THE CROWD RATES IN ONE BATCH, HERE, BEFORE THE LOOP READS THEM
+      // (D393). `LEARN_CROWD_PCT` below reads `LIVE.learnAgg`, a
+      // read-through cache that kicks one getDoc per miss — D125's finding,
+      // and one read per mastered fact per session if this loop met a cold
+      // cache. `loadLearnAggs` claims every wanted id as pending
+      // synchronously, before its first await, so the per-card reads in
+      // this same pass see "in the air" and kick nothing: one `in` query
+      // per thirty facts instead. An effect could not do this — it runs
+      // after the render that would already have paid the reads — which is
+      // why a fetch sits inside a memo, the same render-path shape
+      // `learnAgg` itself has by design. Once per id per mount (the ref),
+      // so the rebuild the batch causes does not re-ask; an id whose batch
+      // failed is released to be asked for again. The batch landing bumps
+      // `dqv`, because `built` keys on it alone and the leaves would
+      // otherwise sit at the default radius until the next answer.
+      if (LIVE.enabled && n) {
+        const fresh = got.map((m) => m.card.id).filter((id) => !learnWarmed.current.has(id));
+        if (fresh.length) {
+          fresh.forEach((id) => learnWarmed.current.add(id));
+          void Promise.resolve(LIVE.loadLearnAggs(fresh))
+            .then(() => setDqv((x) => x + 1), () => fresh.forEach((id) => learnWarmed.current.delete(id)));
+        }
+      }
       got.forEach((m, i) => {
         const c = m.card;
         const fd = LEARN.field(c.f);
@@ -215,10 +244,18 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         const age = n - 1 - i;
         sub.age = Math.min(sub.age, age);
         sub.age0 = Math.max(sub.age0 || 0, age);
+        // Distance from You is the crowd's rate — MEASURED, or not drawn.
+        // This read `c.p / 100` in both builds: the bank's authored
+        // difficulty hint, the number D133 stopped every card from
+        // printing and D149 stopped the live reveal from drawing, still
+        // deciding how far every fact sat from the centre of a live Map
+        // (D393). A null `typ` keeps the layout's default radius, the D72
+        // fallback the daily dots already take when MapStats refuses.
+        const crowd = LEARN_CROWD_PCT(c);
         out.push({
           id: 'lrn-' + c.id, parentId: subId, cid: c.id, qid: c.id, top: sj.label,
           daily: true, learn: true, label: c.k, tag: c.k, ans: c.a[c.c], prompt: c.q,
-          note: 'known', age, typ: c.p / 100, maj: true,
+          note: 'known', age, typ: crowd == null ? null : crowd / 100, maj: true,
         });
       });
     }

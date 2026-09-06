@@ -11,9 +11,19 @@
 // pairs renders NOTHING — with one instrument taken the web has no
 // cross-test thread to draw, and a card of one row would be a claim
 // dressed as a picture.
+//
+// THE USUAL PATTERN IS MEASURED IN A LIVE BUILD (D393). The direction each
+// rail is laid on came from an authored table in both builds until then,
+// and the card called it "the usual pattern" — a finding about people this
+// app had never counted. Live, the direction now comes from a correlation
+// over the session's cached voter sample (the same people testNorms.ts
+// counts percentiles over), a pair draws only where that sample can state
+// one, and the key says what it was counted over. On a young install that
+// is fewer than four pairs, so the card is absent rather than invented —
+// the D265 shape one card over: it arrives when the data can carry it.
 import React from "react";
 import LIVE from "../data/live";
-import { traitRows, type TraitDimRef } from "../data/traitLinks";
+import { traitBasis, traitRows, type TraitDimRef } from "../data/traitLinks";
 import { CORE_TEST_KINDS, parseTestResults } from "../data/similarity";
 // @ts-expect-error TS7016 — untyped spec module (named exports, converted)
 import { IS_TEST_RESULTS, TEST_HUE } from "../spec/test-definitions.js";
@@ -41,12 +51,26 @@ function dimOfFor(): (test: string, dim: string) => TraitDimRef | null {
 
 export default function TraitWebCard(): React.ReactElement | null {
   const [, bump] = React.useState(0);
-  // a result finishing while the profile is open lands through the store
+  // a result finishing while the profile is open lands through the store —
+  // and so does the sample the usual pattern is measured over
   React.useEffect(() => (LIVE.enabled ? LIVE.subscribe(() => bump((x) => x + 1)) : undefined), []);
+  // THE CROWD HALF OF THIS CARD HAS TO FETCH ITS OWN CROWD — the result
+  // card's rule (2026-08-31): `kindredPeople` fills when a surface that
+  // reads it asks, and a profile opened before the Mirror's city field or
+  // People lens has run would otherwise measure over nobody, forever, and
+  // look exactly like a population with no pattern in it. Free on repeat —
+  // loadKindred is session-cached — and skipped on the demo build, where
+  // the authored table is the content.
+  React.useEffect(() => { if (LIVE.enabled) void LIVE.loadKindred(); }, []);
 
-  const rows = traitRows(dimOfFor()).slice(0, 8);
+  const basis = LIVE.enabled ? traitBasis(LIVE.kindredPeople().map((p) => p.results)) : null;
+  const rows = traitRows(dimOfFor(), basis).slice(0, 8);
   if (rows.length < 4) return null;
   const brk = rows.find((r) => r.state === "break") || null;
+  // The smallest basis on the card — the number the key may claim for
+  // every thread at once. 0 in the demo, where nothing was measured.
+  const minN = rows.reduce((m, r) => (r.measured ? Math.min(m, r.n) : m), Infinity);
+  const measured = Number.isFinite(minN);
 
   return (
     <div className="card" style={{ marginBottom: 16, padding: "15px 18px 16px", fontFamily: SANS }}>
@@ -68,7 +92,7 @@ export default function TraitWebCard(): React.ReactElement | null {
           const lo = Math.min(r.pa, r.pb), hi = Math.max(r.pa, r.pb);
           const lab: React.CSSProperties = { fontSize: 11.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
           return (
-            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 11 }} title={`${r.a.label} × ${r.b.label} — ${r.rule}${broke ? " · yours split" : " · holds in you"}`}>
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 11 }} title={`${r.a.label} × ${r.b.label} — ${r.rule}${broke ? " · yours split" : " · holds in you"}${r.measured ? ` · measured over ${r.n} people` : ""}`}>
               <span style={{ width: 96, flexShrink: 0 }}>
                 <span style={{ ...lab, display: "block", color: broke ? "var(--ink)" : "var(--ink-2)", fontWeight: broke ? 700 : 600 }}>{r.a.label}</span>
                 <span style={{ ...lab, display: "block", color: "var(--ink-3)" }}>{"× "}{r.b.label}</span>
@@ -84,9 +108,12 @@ export default function TraitWebCard(): React.ReactElement | null {
         })}
       </div>
       {/* a key for a novel encoding, not a caption restating a shape —
-          the distinction COPY.md §3 draws */}
+          the distinction COPY.md §3 draws. The second sentence is the
+          basis (§3's honesty qualifier): a live build says what the usual
+          pattern was counted over, the demo has nothing counted to name. */}
       <div style={{ fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.45, marginTop: 13, paddingTop: 11, borderTop: "0.5px solid var(--rule)", textWrap: "pretty" }}>
         Each pair sits so the usual pattern lands its dots together — a stretched amber thread is a rule you break.
+        {measured ? ` Each usual pattern is measured over the people this session has scores for — at least ${minN} behind every thread.` : ""}
       </div>
     </div>
   );

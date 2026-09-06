@@ -276,6 +276,41 @@ export function LEARN_RATE(card) {
   if (learnLive()) return { pct: null, src: 'none' };
   return { pct: card.p, src: 'estimate' };
 }
+/**
+ * Answers a card's crowd RATE needs before it is one (D393, from the
+ * finding learn-thin-crowd.test.jsx pins): a single first try is one
+ * person, and on the Map that person is the reader. Shared by the two
+ * consumers that print or DRAW the rate — the Map's learn card and the
+ * Map's placement of the leaf — so they cannot drift apart again. The
+ * reveal footer is deliberately not one of them (it handles a crowd of one
+ * in words and needs the 1).
+ */
+export const LEARN_CROWD_MIN = 2;
+
+/**
+ * The share of the crowd who get this card right, as a number a surface
+ * may DRAW without a sentence beside it — or null.
+ *
+ * `LEARN_RATE` says where its number came from and leaves the caller to
+ * label it; this is the stricter reading for a consumer that has no room
+ * for a label. The Map's leaf placement is that consumer: it sat every
+ * knowledge dot at `card.p / 100` — the authored difficulty hint — in
+ * live builds too, so the DISTANCE of every fact from You was an author's
+ * guess drawn as a measurement (D72's class, D133's number, one surface
+ * the sweep at D149 did not reach). Live: the measured rate once at least
+ * LEARN_CROWD_MIN people have answered, null before that — and the layout
+ * keeps a null leaf at its default radius, the D72 fallback. Demo: the
+ * authored figure, because there the invented crowd is the content.
+ */
+export function LEARN_CROWD_PCT(card) {
+  const rate = LEARN_RATE(card);
+  if (rate.src === 'measured') {
+    const m = LEARN_COUNTS(card);
+    return m && m.total >= LEARN_CROWD_MIN ? rate.pct : null;
+  }
+  return rate.src === 'estimate' ? rate.pct : null;
+}
+
 export function LEARN_SPLIT(card) {
   const measured = learnMeasured(card);
   if (measured) return measured;

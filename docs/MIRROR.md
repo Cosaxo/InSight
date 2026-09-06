@@ -523,6 +523,22 @@ Two gaps are worth stating in prose because no badge covers them:
   at the source, not a gate at each call site — which is precisely what
   made this fix findable: the null marked which readings were invented
   rather than merely unbuilt.
+- **The Map's knowledge leaves sat at an AUTHORED radius until D393, and
+  the profile's trait web drew an authored "usual pattern".** Both were
+  the D157 shape in a live build: a number a writer typed, drawn as a
+  measurement, on a screen with no badge to say so. A mastered fact's
+  distance from You read `card.p / 100` — the bank's difficulty hint,
+  which D133 had already stopped every card from PRINTING — and now
+  reads the measured first-try rate (`LEARN_CROWD_PCT`, two answers or
+  more) or sits at the layout's default radius, the D72 fallback; the
+  aggregates are warmed in one batch per mount, the D125 shape. The
+  trait web's rails were laid by the signs in `TRAIT_LINKS`; a live
+  build now lays them by a correlation over the cached voter sample
+  (`data/traitLinks.ts` `traitBasis`: thirty people holding both
+  readings, two standard errors from zero) and draws a pair only where
+  the sample can state one — which on today's population is no card at
+  all, until the sample can carry it. The demo keeps both authored
+  figures, because there the invented crowd is the content.
 - **The relationship MAP is prototype-only; the Circle stop is not, and
   this bullet said otherwise for three months.** It read "v2 has no
   person-to-person graph at all to draw", which D101 made false: the

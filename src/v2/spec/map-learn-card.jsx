@@ -9,7 +9,7 @@
 // live.ts is in the entry graph regardless, so this import ordered
 // nothing (check:globals refuses an unused binding, which is how the
 // removal got asked for).
-import { LEARN_COUNTS, LEARN_RATE } from './learn-data.js';
+import { LEARN_COUNTS, LEARN_CROWD_MIN, LEARN_RATE } from './learn-data.js';
 import { LEARN } from './learn-progress.js';
 import { LMStreak } from './learn-bits.jsx';
 
@@ -47,8 +47,10 @@ export function MTLearnCard({ node }) {
   // card exists to print. The feed's reveal footer already refuses at this
   // exact number; these consumers came in at D133 and never got that
   // guard. Folded into `none`, whose copy — "Nobody else has answered this
-  // one yet." — is already the true sentence here.
-  const thin = rate.src === 'measured' && ((LEARN_COUNTS(card) || {}).total || 0) < 2;
+  // one yet." — is already the true sentence here. The floor is the
+  // shared constant since D393, because the Map's placement of this same
+  // leaf reads it too (learn-data.js, LEARN_CROWD_PCT).
+  const thin = rate.src === 'measured' && ((LEARN_COUNTS(card) || {}).total || 0) < LEARN_CROWD_MIN;
   const none = (rate.pct == null || thin) && !loading;
   return (
     <div style={{ '--hue': s ? s.hue : 250 }}>
