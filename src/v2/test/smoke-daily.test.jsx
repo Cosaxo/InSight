@@ -55,8 +55,11 @@ describe("the daily tab", () => {
     // deletion: if loadWorldFeed stopped resolving, or dropped a module, the
     // case above would still pass and the feed would simply never appear.
     mountApp();
+    // the topics disclosure is the feed head's standing control (the +
+    // moved behind it, 2026-09-06), so it is the witness that the chunk
+    // landed and rendered
     expect(
-      screen.queryByRole("button", { name: /add a topic/i }),
+      screen.queryByRole("button", { name: /all topics|\d+ of \d+ topics/ }),
       "the feed did not render after loadWorldFeed resolved",
     ).not.toBeNull();
   });

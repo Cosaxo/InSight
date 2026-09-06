@@ -986,7 +986,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     localStorage.clear();
     const expectNoBoundary = mountLive();
     await growFeed();
-    fireEvent.click(screen.queryAllByRole("button", { name: /About this question/i })[0]);
+    // the daily's ctx opener is the underlined words under the ballot
+    // since 2026-09-06 — the kicker-row ⓘ it replaced is gone
+    fireEvent.click(screen.getByRole("button", { name: /why this question/i }));
 
     // nextElementSibling, not parentElement. The rows are flat key/value
     // spans in one grid, so a row's `parentElement` is the WHOLE sheet body
@@ -1523,6 +1525,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // sections present.
   it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
     const expectNoBoundary = mountLive();
+    // the rail folds behind the topics disclosure since 2026-09-06 — the
+    // + lives inside it, so the door opens first
+    fireEvent.click(screen.getByRole("button", { name: /all topics|\d+ of \d+ topics/ }));
     fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
     expect(
       screen.queryByText("Communities"),
@@ -1710,9 +1715,10 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await awaitText(/ votes/);
     const shown = /(\d[\d.K]*) votes/.exec(document.body.textContent);
     expect(shown, "the card is not printing a vote count — fixture changed").toBeTruthy();
-    // [0] is the daily's, above the feed; [1] is the first feed card's —
-    // the one just answered.
-    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[1]);
+    // the daily's ⓘ became the words under its ballot (2026-09-06), so
+    // every "About this question" is a feed card's — [0] is the one just
+    // answered.
+    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[0]);
     expectNoBoundary("live feed, ctx sheet");
     expect(screen.getByText("Answers"), "the feed's info sheet did not open").toBeTruthy();
     expect(
@@ -2659,8 +2665,9 @@ describe("live mode never inherits the sample persona (D55)", () => {
         comments: [], friends: [],
       }];
     });
-    // The daily card's own ⓘ is the FIRST — the feed below has one per card.
-    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[0]);
+    // The daily opens its sheet through the words under the ballot since
+    // 2026-09-06; the feed's cards keep their per-card ⓘ.
+    fireEvent.click(screen.getByRole("button", { name: /why this question/i }));
     expectNoBoundary("daily/live/ctx-sheet");
     // The sheet's own rows are the proof it opened — "On your map" is the
     // one that always draws, whatever the counts say.

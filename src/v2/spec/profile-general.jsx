@@ -494,7 +494,7 @@ const EXPORTS = {};
                     strokeDasharray={`${arc * sp.ratio} ${C}`} transform="rotate(-90 28 28)"></circle>}
                 </svg>
                 <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '-0.01em', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{top ? top.label : name}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: -4 }}>{name}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginTop: -4 }}>{name}</span>
               </button>
             );
           })}
