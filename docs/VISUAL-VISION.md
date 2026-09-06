@@ -19,10 +19,11 @@ it is moving toward.
   patches, the one new stylesheet, the unchanged list — compiled JSX
   again, the 09-02 README's recipe applies). Made the vision by D361's
   standing rule — the owner's upload moves the vision — and recorded
-  at D387.
+  at D389.
 - **The plan built on it:** `VISION-2026-09-06.md` — every item
   measured against the tree with its backend half named, §8 the build
-  order as worklist lines, §9 the gate per step. Nothing is built yet.
+  order as worklist lines, §9 the gate per step. All six steps are
+  built (the bullet below); §7's owner rows remain.
 - **What it changed over the 2026-09-02 design:** one direction — **ink
   on paper**. `lens-paper` goes from an unwired hook to the app's
   default (the Patterns field trades dusk for paper) and the boxes go
@@ -41,8 +42,8 @@ it is moving toward.
   side, `paid-data.js` **draws the subscription seat split** 08-26
   §2.2 has waited on (evenly across subscribers, a €24 seat floor) —
   still the owner's tick, now with the owner's own drawing behind it.
-- **Built from it:** all six steps of its plan's §8 (D388 steps 1–2,
-  D389 steps 3–6, 2026-09-06) — the 12px floor app-wide; the Patterns
+- **Built from it:** all six steps of its plan's §8 (D390 steps 1–2,
+  D391 steps 3–6, 2026-09-06) — the 12px floor app-wide; the Patterns
   instrument on paper (the boxless lens card, the guide ⓘ with the
   moved legends, the ring's in-rim labels and serif hub, the Oracle's
   serif halves, the People rows); the header dial and the docking; the
@@ -109,7 +110,7 @@ it is moving toward.
 | 2026-08-24 | `design/standalone-2026-08-24/` | the suggestion board becomes the paid door; the buyer's room; locals and visitors | `VISION-2026-08-24.md`, D287–D288 |
 | 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
 | 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
-| **2026-09-06** | `design/standalone-2026-09-06/` | **the current vision** — above | `VISION-2026-09-06.md`, D387 |
+| **2026-09-06** | `design/standalone-2026-09-06/` | **the current vision** — above | `VISION-2026-09-06.md`, D389 |
 
 ## How the next one arrives
 

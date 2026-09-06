@@ -63,7 +63,7 @@ extracted to `standalone-2026-09-06/` (compiled again, same recipe),
 with the plan at
 [`docs/VISION-2026-09-06.md`](../docs/VISION-2026-09-06.md);
 `docs/VISUAL-VISION.md` names it the current vision (D361's rule,
-D387). Each
+D389). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

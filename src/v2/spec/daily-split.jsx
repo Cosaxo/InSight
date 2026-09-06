@@ -1053,8 +1053,14 @@ export class DailySplit extends React.Component {
           ? h('div', { style: { display: 'flex', gap: 5 } },
               S.options.map((o, i) => {
                 const t = Math.round((i * 100) / Math.max(1, S.options.length - 1));
-                return h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
+                return h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
               }))
+          // `sd-opt` on every ballot button (both shapes) is the store
+          // screenshot harness's hook — scripts/gen-screenshots.mjs votes
+          // by clicking the first one, whatever its label. The 2026-09-02
+          // rewrite dropped it and the reveal scene went dark for four days
+          // before Screenshots run 7 found the gap; it is a marker, not a
+          // style, and it stays on whichever element casts the vote.
           // asking: ONE split ballot, as a hairline ROW since 2026-09-06
           // (VISION-2026-09-06 §5.1). The box goes: two paper halves
           // between a top and bottom rule, the seam an inner hairline —
@@ -1068,7 +1074,7 @@ export class DailySplit extends React.Component {
           // guard), not the prototype's 56px tap height — same name, two
           // tokens, and the trap §5.1 exists to name.
           : h('div', { className: 'ds-ballot', style: { display: 'grid', gridTemplateColumns: S.options.length === 2 ? '1fr 1fr' : '1fr', borderTop: LINE, borderBottom: LINE } },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press ds-half', onClick: () => this.castVote(S, o.id), style: { '--oc': o.color, minHeight: 56, background: 'transparent', border: 'none', borderLeft: S.options.length === 2 && i === 1 ? LINE : 'none', borderTop: S.options.length > 2 && i > 0 ? LINE : 'none', borderRadius: 0, padding: '0 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', textAlign: 'center', WebkitAppearance: 'none', boxShadow: 'none' } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press ds-half sd-opt', onClick: () => this.castVote(S, o.id), style: { '--oc': o.color, minHeight: 56, background: 'transparent', border: 'none', borderLeft: S.options.length === 2 && i === 1 ? LINE : 'none', borderTop: S.options.length > 2 && i > 0 ? LINE : 'none', borderRadius: 0, padding: '0 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', textAlign: 'center', WebkitAppearance: 'none', boxShadow: 'none' } },
               h('span', { style: { fontWeight: 700, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.015em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, counts, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })

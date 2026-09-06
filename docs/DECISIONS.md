@@ -40838,7 +40838,295 @@ paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
 
-## D387 · The 2026-09-06 vision arrives: ink on paper, a 12px floor, and the dial in the header
+## D387 · Every night shift has been reviewed, and the merge list said otherwise for four days — the receipt the console had no way to read
+
+**2026-09-06.** **Status:** binding as a RECORD OF A CHECK and of one
+change to the console. Nothing on a night branch was merged here, because
+there was nothing left to merge: the check is the finding. The change is
+that `docs/MERGE-LIST.md` and the pinned Console issue stop offering a tick
+on a night whose review has already landed.
+
+### The question, and the answer
+
+The owner asked whether all night shifts had been reviewed, and to review
+and merge any that had not. **All of them have.** Every branch either of
+the two night shifts has produced — `night-20260825` through
+`night-20260906`, `nightb-20260902` through `nightb-20260906` — carries
+nothing that is not on `main` today.
+
+| Nights | How they reached `main` | How that is verifiable |
+| --- | --- | --- |
+| `night-20260825` … `night-20260902`, `nightb-20260902` (+ its integration branch) | merged by a MERGE COMMIT, so the branch tip is an ancestor of `main` | `git merge-base --is-ancestor origin/<branch> origin/main` answers yes for all eleven |
+| `night-20260903` … `night-20260906`, `nightb-20260903` … `nightb-20260906` | reviewed and SQUASH-merged as the composed tree — D360 (#384), D363 (#392), D365 (#398), D380 (#402) | each record's own arrival table states the branch and its commit count, and the four counts equal what GitHub reports the branch as being ahead by: 35/25, 32/13, 32/18, 33/35 |
+
+The records go back further than the branches that still show: D323 (the
+27th), D335 (the 28th and 29th together), D336 (the 30th), D338 (the
+31st), D349 (the 1st and 2nd). Only the two oldest nights, 08-25 and
+08-26, are named in no record at all — and both are ancestors of `main`,
+so nothing of theirs is outstanding either.
+
+### Why the list said otherwise, and it was not a stale render
+
+The merge list drew eight night branches as approvable `- [ ]` rows on the
+morning of 2026-09-06, four hours after the last of them merged, and
+`docs/OWNER-LIST.md` § Approvals carried the same count as a sentence:
+*"18 PR row(s) and 8 branch row(s) waiting for a tick"*. Both were
+regenerated from GitHub minutes earlier. The rows were current; the
+question they were answering was the wrong one.
+
+**A night shift's branch is never merged as itself.** The review composes
+both shifts with `main` on a branch of its own and that PR is
+squash-merged, so every commit's CONTENT lands while none of its commits
+becomes an ancestor of `night-YYYYMMDD`. GitHub's compare therefore reports
+the branch as ahead by exactly what it was ahead by the night it closed,
+forever, and `console.mjs` drew a row for every `night-*`/`nightb-*` branch
+with `ahead_by > 0`. The nine older nights are absent from the list for the
+same reason inverted: they were merged with merge commits, which made their
+tips ancestors, which zeroed `ahead_by`. **The cut-off is exactly where the
+merge method changed**, which is why the list has carried precisely four
+days of rows since 09-03 and will carry two more every morning.
+
+### What a tick on one of those rows would have done — measured
+
+Not noise. A tick makes the console open a PR from that branch and label it
+`approved`, and the branch is a snapshot of a tree that has since moved.
+Merged into `origin/main` @ `c5cc3414` in a scratch worktree:
+
+| Branch | Result |
+| --- | --- |
+| `night-20260906` | **conflicts in four files**, and among what merges cleanly it restores `functions/src/paid.ts`'s `checkoutLineItem(isAd, …)` arm and 307 lines of `paid.test.ts` — `adPriceQuote`, `adStartDay` and their cases — which is the ad path D375 deliberately removed in #401, seven hours before the row was drawn |
+| `nightb-20260906` | conflicts in two files |
+| `night-20260905` | conflicts in eleven |
+| `nightb-20260905` | conflicts in six |
+
+So the row invited the owner to hand the merge shift a PR that reverts a
+merged decision and cannot merge — and the shift, doing its job, would have
+spent a battery run finding that out.
+
+### The one commit no review has ever taken
+
+`nightb-20260905` carries nineteen commits and D365's table accounts for
+eighteen: `deb14013`, *"Raise the eager ceiling to 642 KB, with the note the
+gate asks for"*, was pushed at 09:56 UTC on 2026-09-05, five hours after
+that review composed at 04:13. It is the only such commit across all
+thirteen nights, found by comparing each record's stated count with the
+branch's own.
+
+**Nothing is missing because of it.** The same review made the same change
+itself: `scripts/check-bundle.mjs` on `main` reads `MAX_EAGER_KB = 642`
+with the ledger entry *"630 → 642 (2026-09-05, D365's night review)"*, and
+`docs/OWNER-LIST.md`'s row is the ruled version. The night shift declined
+the raise twice on the grounds that spending the owner's last kilobyte
+unattended was not the *"deliberate note"* the gate invites, then made it
+when the owner said *"raise the ceiling and note why"* — and the review had
+already done it. Two paths to one decision, which is what two shifts and a
+reviewer on one tree produce. The commit is accounted for here rather than
+merged: merging it would re-apply a ceiling that is already 642.
+
+### What changed
+
+`scripts/console-lib.mjs` gains `parseNightReviews`, which reads
+`docs/DECISIONS.md` on `main` for the table shape every night review since
+D360 has used — `` | `night-YYYYMMDD` | <commits> | `` — and returns the
+record and count per branch. `branchRow` marks a branch **merged** when the
+count accounts for every commit it carries; a merged branch draws no box on
+either surface, appears in one line naming the record that took it, and
+`decideActions` refuses to open a PR for it even if a tick is left over
+from an older render. A branch with commits BEYOND its record keeps its box
+and says so — *"19 commits, 18 of them merged as D365"* — and the PR the
+console opens for it says which are already in. The two counts that told
+the owner what was waiting (the trail's `noPrYet`, the owner list's
+Approvals line) now count only what is.
+
+On today's tree that is eight approvable rows down to one, and that one
+names the commit above. With the row below accounting for it, none.
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `nightb-20260905` | 19 | reviewed | eighteen merged as D365, the nineteenth superseded by that same review's own ceiling raise |
+
+**The receipt is a document, and it fails toward the row.** A record that
+names no branch, a table written in another shape, an unreadable
+DECISIONS.md — each leaves every night exactly as tickable as before,
+which is the direction that cannot lose work. What it cannot do is notice a
+night whose review merged something OTHER than what its table claims; the
+record is trusted for its own arithmetic, and the arithmetic is one number
+a reviewer writes by hand. The live table is pinned by a test against this
+tree's own `DECISIONS.md`, so the next record that changes the shape fails
+`test:scripts` before the page goes wrong.
+
+### What this does not decide
+
+The night branches are never deleted, so they accumulate on the remote at
+two a night whether or not the console draws them; the one-line note names
+the six newest and counts the rest. Whether the reviews should merge the
+composed tree with a merge commit instead — which would make every night an
+ancestor of `main` and delete this whole class of row at the source — is
+the owner's, not this record's. It got cheaper to choose while this branch
+was open: **D385 retired the PR shepherd an hour before this merged**, so
+the squash is no longer something an Action does on a label but a choice
+made at the button, and "Create a merge commit" is the same click. This
+record does not ask for it, because the receipt above closes the symptom
+either way and a merge commit on a night branch has costs nobody here has
+priced.
+
+## D388 · No phone ever sent an App Check token: the native SDK was initialised and the JavaScript SDK that makes every call was not
+
+**Date:** 2026-09-06 · **Status:** Adopted (a fix in `src/lib/appcheck.ts`,
+a test that fails on the old shape, and the runbook rows it corrects)
+
+**What opened it.** The owner sent the App Check console: Cloud Firestore
+0% verified, 100% unverified, with *"that might be my test accounts"*.
+D333's session had read the same instrument on 2026-08-27 — ~3,750
+Firestore requests in seven days, every one `MISSING_OUTDATED_CLIENT` or
+`MISSING_UNKNOWN_ORIGIN` — and explained it the same way: a dev browser
+and CI, neither carrying a debug token yet. Both readings were taken
+while the TestFlight build was in daily use on the owner's phone. A
+phone that attests shows up as a verified share. It never did.
+
+### The cause, by construction
+
+`src/lib/appcheck.ts` calls `FirebaseAppCheck.initialize()` from
+`@capacitor-firebase/app-check`. On web the plugin's implementation calls
+the JavaScript SDK's `initializeAppCheck` itself, with a
+`ReCaptchaV3Provider` or the `CustomProvider` D337's debug path hands
+it. On iOS and Android its implementation is
+`AppCheck.setAppCheckProviderFactory(...)` — the NATIVE App Check SDK and
+nothing on the JavaScript side
+(`node_modules/capacitor-firebase-app-check/ios/Plugin/FirebaseAppCheck.swift`;
+the Android class is the same shape). Every request this app makes —
+Firestore reads and writes, every callable, the avatar upload — is made
+by the JavaScript SDK in the WebView, and that SDK attaches an
+`X-Firebase-AppCheck` header only from an App Check instance registered
+on its own `FirebaseApp`. None was ever registered on native. The
+plugin's own documentation (`packages/app-check/docs/firebase-js-sdk.md`)
+says what a native app does after the native initialise:
+`initializeAppCheck(getApp(), { provider: new CustomProvider({ getToken:
+() => FirebaseAppCheck.getToken() }) })`. Nothing in this tree did, and
+the comment above `ENFORCE_APP_CHECK` in `functions/src/ops.ts` said
+*"the client side is already wired"*.
+
+### What it cost
+
+1. **The 3.4 soak never started.** The shipping build contributed nothing
+   but MISSING, so the metric could never read near-100%, and flipping
+   Firestore to ENFORCED on any reading it has ever given would have
+   refused every phone. Runbook 1.4's *"which starts the soak clock"*
+   (2026-08-05, the DeviceCheck provider registered) was necessary and
+   not sufficient; the clock starts with the first build that carries
+   the bridge.
+2. **The callables that enforce App Check have refused every phone since
+   they were deployed with `ENFORCE_APP_CHECK` on** — `createGroupV2`,
+   `inviteToGroupV2`, `approveJoinV2`, `declineJoinV2`, `leaveGroupV2`,
+   `claimHandleV2`, `registerPushToken`, `activateDeviceV2`, the two
+   logic callables, the two paid callables and the suggestions callable
+   (`grep enforceAppCheck functions/src`). firebase-functions v2 answers
+   a callable with no token 401 before the handler runs.
+   `activateDeviceV2` was already tolerated failing (DEPLOYMENT.md:
+   fail-safe while rules enforcement is soft), which is one reason the
+   silence held. Read off the deploy log rather than assumed: the
+   2026-09-06 11:48Z deploy (run 171) shows `APPCHECK_ENFORCE:` EMPTY in
+   the runtime-env step, so the switch is not set and enforcement is ON
+   — the refusal is live as this record is written.
+
+### What changes
+
+- `src/lib/appcheck.ts`: on native, after the plugin's initialise, the
+  bridge above with `isTokenAutoRefreshEnabled: true`. `firebase/app-check`
+  stays a dynamic import so the entry chunk does not carry it
+  (`check:bundle`). A failed native attestation under UNENFORCED
+  Firestore costs what it cost before — the SDK sends the request
+  without a token — so the change cannot make a phone worse than the
+  build without it.
+- `src/lib/appcheck.test.ts`: on native a JS instance is registered
+  whose provider resolves to the native token with its fields intact; on
+  web with a debug token nothing is registered on top of the plugin's
+  (the real `initializeAppCheck` throws on a second call); once per
+  process however often `init()` is reached. The first case fails on the
+  pre-fix shape with *"no App Check instance on the JS SDK"*.
+- Runbook 1.4 and 3.4 say what the metric was reading and what starts
+  the clock; `ops.ts`'s comment says what the client does.
+
+### What it does NOT settle
+
+- Whether DeviceCheck attestation SUCCEEDS on a real phone is Apple's
+  answer, read off the console once a build with the bridge is on one.
+  The verified share is the instrument; 3.4's threshold stands.
+- Android's provider (Play Integrity, 1.4's un-parked half) still needs
+  the Play Console linkage. The bridge is platform-neutral and carries
+  whichever token the native side mints.
+- The interim. Phones on the build without the bridge stay refused at
+  the enforced callables until the next build is on them.
+  `APPCHECK_ENFORCE=false` on the deploy is the incident switch that
+  would let them work meanwhile, at the cost of those callables
+  accepting unattested scripts for that window (the rules still gate
+  Firestore). That is the owner's call and is put to them with this
+  record, not taken.
+
+### Why two readings said the same wrong thing
+
+Each explained a 0% with the two clients known not to attest — a dev
+browser and CI — and stopped, because the explanation was sufficient.
+Neither asked what the third client, the phone, WOULD have shown if it
+were attesting: a nonzero share, whatever the browsers did. The D39
+shape one instrument over: a reading a known cause fully explains is
+still a reading of everything, and the check is *what would be
+different if the thing I assume works actually worked*.
+
+## D385 amendment (2026-09-06) · The retirement was about the automation, not about the instruction — a session merges when the owner says so
+
+**2026-09-06, four hours after D385.** Owner, asked directly: *"the
+sheperd did not work merge when i say so."* **Status:** binding, and a
+correction to one sentence of D385 rather than to any of its substance.
+
+### What was wrong, and it was one clause
+
+D385 removed the merge automation and wrote the consequence into
+`CLAUDE.md` as *"a session does not merge its own work, and the owner's
+click is the merge."* The first half of that clause was never what the
+owner decided. What failed was a **lane** — a scheduled job merging on a
+label, unattended, four mechanisms deep and each one permission short. A
+session told **in that session, by the owner** to merge a named head is
+not that lane, and never was.
+
+The rule now reads: there is no merge automation and nothing acts on a
+label or a tick; a session stops at a green head and says so; and when
+the owner says merge, the session merges — that instruction is the click.
+
+### What it cost, measured, in the four hours it stood
+
+PR #408 was green and mergeable at 11:58 UTC. The owner had said *"merge
+it"* eleven minutes earlier. The session read the sentence above — which
+had merged into `main` seventeen minutes before that instruction was
+given — treated it as forbidding what it had just been told to do, and
+spent a round trip asking who clicks. Nothing was broken and nothing was
+lost; the cost was one exchange and the owner answering a question about
+a rule they had written to solve a different problem.
+
+**This is D329's finding one rule over, and the third time it is on the
+record**: *a preference stated as a rule reads as a rule*. D334 already
+says a constraint that stands between a request and the tree is an ASK,
+not a stop — the session did ask, which is the shape working, and the
+cheaper shape is the rule not overreaching in the first place. A rule
+written to retire a broken lane should name the lane, not every actor who
+could perform the act.
+
+### What does not change
+
+Everything else in D385 stands: no Action, no label that merges, no
+`merge-when-green` executing anything, `mcp__github__merge_pull_request`
+granted to no scheduled lane, and what a session owes before a PR is
+mergeable — `main` merged in, decision numbers moved (D299), green on the
+current head — unchanged and still the whole of the contract. The
+difference is only who may perform the merge once that is true, and the
+answer is: the owner, or a session the owner tells to, in that session.
+An instruction to merge is for the head it was given about; it does not
+carry to the next PR.
+
+The first exercise of this is D387 itself (#408), merged by the session
+that built it, on the instruction that produced this amendment.
+
+## D389 · The 2026-09-06 vision arrives: ink on paper, a 12px floor, and the dial in the header
 
 **2026-09-06.** **Status:** binding for what the vision points at;
 nothing of it is built. The owner's `InSight_9.html` upload of this
@@ -40929,11 +41217,11 @@ cited path resolving), `check:figures`, `test:scripts` — this PR is
 documents and provenance only, so the client suites are untouched by
 construction.
 
-## D388 · The 2026-09-06 design, steps 1 and 2: the 12px floor, and the Patterns instrument on paper
+## D390 · The 2026-09-06 design, steps 1 and 2: the 12px floor, and the Patterns instrument on paper
 
 **2026-09-06.** **Status:** binding, built. The owner's *"build the
 first two steps"* on `VISION-2026-09-06.md` §8, the day after the
-vision arrived (D387). Two commits on `claude/zen-pascal-ugc4p4`; the
+vision arrived (D389). Two commits on `claude/zen-pascal-ugc4p4`; the
 same renumber caveat as its siblings (D289's collision pattern).
 
 ### Step 1 — the floor
@@ -41003,10 +41291,10 @@ persistence across a lens swap, the People rows' shared-answer line),
 (rule 4 at 30, unmoved), `check:bundle` (601 KB eager / 607),
 `check:docs`, `check:figures`.
 
-## D389 · The 2026-09-06 design, steps 3–6: the dial, the feed's ground, the ballot row, the polish pass
+## D391 · The 2026-09-06 design, steps 3–6: the dial, the feed's ground, the ballot row, the polish pass
 
 **2026-09-06.** **Status:** binding, built. The owner's *"build the
-rest of the steps"* on `VISION-2026-09-06.md` §8, same day as D388.
+rest of the steps"* on `VISION-2026-09-06.md` §8, same day as D390.
 Four commits on `claude/zen-pascal-ugc4p4`, one per step; the same
 renumber caveat as its siblings (D289's collision pattern). With this
 the vision's build queue is empty — what remains of the plan is §7's
