@@ -674,11 +674,11 @@
     $("panelStatus").textContent =
       state === "declined" ? "Declined" :
       state === "held" ? "Held" :
-      state === "paying" ? "Paying" : "Ready to pay";
+      state === "paying" ? "Not open yet" : "Ready to pay";
     $("panelKicker").textContent =
       state === "declined" ? "reviewed" :
       state === "held" ? "review is down" :
-      state === "paying" ? "leaving for stripe" : "quoted · price locked";
+      state === "paying" ? "card payment isn\u2019t live yet" : "quoted \u00b7 price locked";
 
     $("quoteWell").hidden = state === "declined";
     $("quotePrompt").textContent = st.prompt;
@@ -712,7 +712,13 @@
 
     $("payBtn").hidden = state !== "quoted";
     $("backBtn").textContent = state === "declined" ? "Rewrite it" : "Change it";
-    $("payNote").textContent = state === "quoted" ? PAY_NOTE : "";
+    // KEPT AFTER THE TAP, and this is the half that was backwards. The
+    // header of this file says "the pay tap reports the door as closed
+    // rather than throwing a raw 403 at a buyer" — but the tap moved to a
+    // state announcing "Paying · leaving for stripe" and ERASED the only
+    // sentence saying payment is not open, while making no request at all.
+    // A buyer was told a payment was under way, and then nothing happened.
+    $("payNote").textContent = (state === "quoted" || state === "paying") ? PAY_NOTE : "";
     $("panel").scrollIntoView({ block: "nearest" });
   }
 
