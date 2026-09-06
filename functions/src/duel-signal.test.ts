@@ -102,7 +102,7 @@ describe("the cross-group duel aggregate", () => {
     expect(agg!.counts).toEqual({ "0": 1, "1": 2 });
   });
 
-  it("publishes the 1v1 guess-match rate, and only for 1v1", async () => {
+  it("publishes the guess-match rate — a 1v1's at the partner, a group's at the room", async () => {
     // Positional pairing: each partner's guess is checked against the
     // OTHER's actual pick. One right, one wrong.
     await fold("duo", QID, [
@@ -112,15 +112,19 @@ describe("the cross-group duel aggregate", () => {
     expect(store.get(AGG)!.guessTotal).toBe(2);
     expect(store.get(AGG)!.guessMatches).toBe(1);
 
-    // A group reveal carrying guesses publishes no rate — the field only
-    // means anything for a pair.
+    // A group reveal carrying guesses publishes the rate too since D386
+    // (until then the field only meant anything for a pair): each guess
+    // is read against the option the room landed on. Here the room split
+    // 1–1, so both options tied for the top and both calls on option 1
+    // landed.
     store.clear();
     store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
     await fold("group", QID, [
       { optionIdx: 0, guessIdx: 1 },
       { optionIdx: 1, guessIdx: 1 },
     ]);
-    expect(store.get(AGG)).not.toHaveProperty("guessTotal");
+    expect(store.get(AGG)!.guessTotal).toBe(2);
+    expect(store.get(AGG)!.guessMatches).toBe(2);
   });
 
   it("mints nothing for a question an operator has deleted", async () => {

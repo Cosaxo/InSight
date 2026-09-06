@@ -40722,3 +40722,118 @@ than merely absent. **Deleting the documentation of a thing that is still
 running is how a surprise gets made**, which is the failure `CLAUDE.md`
 names and the one this decision is otherwise about.
 
+## D386 · The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess
+
+**2026-09-06.** **Status:** binding, built. The owner's *"yes build the
+first two steps"* on [`ROLES-PLAN.md`](ROLES-PLAN.md) §5, the same day
+the plan was written and the same day its §2 was measured. Written as D381 on this
+branch, renumbered to D385 when its pull request opened and to D386
+before it merged: main took D381–D384 (#405, #407) and then D385 (#409,
+the shepherd's retirement) while the branch was open — the collision
+pattern D289 names, met twice on one branch.
+
+### What the plan found, in one line each
+
+`scripts/roles-probe.mjs` against the shipped tables: at the fortnight
+the app reads, a 1v1 match is a tie for over half of records and one
+more day renames one in six; the group's three dims correlate at −0.7
+to −0.9, so after 14 days four in five members are The Quiet Majority;
+Steadiness measures how long you have played. Two structural faults
+sat under those: eleven 1v1 questions ask for a read of the *other*
+person and the fold scored them as reading and as likeness, because
+the source's `d` tag never reached the seed; and every rate was a raw
+hit rate, so a two-option day counted like a four-option one and a
+pick day in a group of eight like a coin. Steps 1 and 2 close the two
+faults and add the one reading the group instrument was missing. The
+tables, the ledger and the cast (steps 3–5) are still the owner's.
+
+### Step 1 — the day's kind, and the honest fold
+
+- **The seed carries the 1v1 domain.** `gen-v2content.mjs` emits the
+  source's `d` as `topic` on both 1v1 pools (`day` · `heat` · `mirror`
+  · `ahead`), the way a group question's kind already rode that field;
+  `check:content` holds the set closed like the group kinds;
+  `duelQFor` carries it to the card as `kind`, which only ever asked
+  "pick". The embed is regenerated (the bank's wire size moved 243.6 →
+  243.7 KiB, `COSTS.md`). A reseed writes it onto the live documents;
+  until then `bankQ` answers "classic" and the fold reads every day as
+  an ordinary one — which is also what every reveal before the tag is.
+- **Every rate is scored against luck** (`data/roles.ts`, the plan's
+  §3.2): a hit counts 1, a miss −1/(k−1) for a day with *k* options,
+  the mean lands on 0–100 as 50 + 50·mean — 50 is guessing at random,
+  100 is right every day, on a two-option day and an eight-option pick
+  day alike. *k* comes from the bank entry (`bankQ`), from the reveal's
+  own roster on a pick day, or from the highest index the reveal's
+  votes reach — a floor, never a guess at more options than were seen.
+  The receipts stay the plain counts. On a coin the scale IS the raw
+  rate, so every binary fixture in `roles.test.ts` kept its numbers;
+  what changed is a miss on a four-option day costing a third instead
+  of everything (the new cases pin both).
+- **A mirror day is held apart.** It moves none of the four dims and
+  lands in two receipt rows of its own — *you called how they see you
+  on 2 of 2 days*, and the reverse — and it does not count toward the
+  floor, which the panel's thin row now reflects. **Projection** (your
+  guess was your own answer — the ties lane's knowledge-against-
+  projection, tie-3) is folded the same way, as a receipt.
+- **`asides`**, not dims. The registry cases hold every signature to
+  exactly the fold's dim ids, and a reading the tables cannot see is a
+  row, not a petal, until the tables take it (step 4). They blend on
+  their own days and draw in the panel's receipts beside the dims.
+- **The baselines moved to the scale** (`IS_TEST_AVG`, the arithmetic
+  beside them): `duo` read/seen 62 → 70, like 54 → 64; `group` own 34 →
+  24, pull 58 → 70; steadiness is not a rate and stayed. Still
+  authored, for D157's reason.
+- **Rule 4 in the matcher** (`IS_archScores`, the plan's §3.6): a type
+  is in the running only when every dim that defines it (|sig −
+  baseline| ≥ `RULE_STRONG`) is present in the fold; otherwise it
+  scores Infinity, is never the runner-up, and `IS_matchArchetype`
+  returns null when nothing is eligible. With every dim present —
+  every caller today — nothing changes, and the registry case says so.
+- **The copy** says the scale (`explain-sheet.jsx`): *scored against
+  luck — 50 is guessing at random*.
+
+### Step 2 — reading the room
+
+- **The group card morphs** like the 1v1 card (`LiveDuelPanel`): the
+  second tap is *And the room picked…?*, the pick waits for it, one
+  create (D5, D156 §4). The write shape did not change — `isDuelAnswer`
+  admitted `guessIdx` on the group surface all along and the reveal
+  carried it for any mode. The reveal draws a *you read the room* row
+  under the bars, a hit when the call named an option tied for the
+  top; a room of one draws nothing, because that room is you.
+- **The fold reads it** as the `room` aside — *called where the room
+  landed 4 of 6 times* — on days two or more answered the row's
+  question.
+- **The signal counts it** (`duelAggDelta`, `functions/src/pure.ts`):
+  a group's guesses score against the options tied for the top of the
+  counted votes, on a room of two or more; the scorecard's duel
+  section reads the same `guessMatchRate` band for both surfaces, and
+  the duel lane's brief says so (`QUESTION-FARM.md`, `SCHEMA-V2.md`).
+  The e2e loop pins a group reveal carrying the member's guess.
+
+### What moved on a card that exists
+
+The dims of every role card are now on the chance scale against
+re-authored baselines, mirror days are out of them, and the tables are
+the same — so some cards land on a different name than yesterday. Few
+exist (pre-launch builds), the plan's §2.1 says what the old name was
+worth, and the runner-up and hysteresis that would show the change
+coming are step 4's, with the tables.
+
+### What stays
+
+D204's rules, whole: no dead axis (an aside draws only with days
+behind it), the floors in their own unit, receipts on every dim, live
+only. The fortnight of reads and its cost row; the demo layer's own
+type maths; the seal; the reveal's readers (D98).
+
+### Gates
+
+`test:unit` (2 685), `test --prefix functions` (705), `test:scripts`
+(957), `lint`, `tsc -b`, `check:globals` (30, unmoved), `check:content`,
+`check:figures`, `check:docs`, `check:public-copy`, `check:tap-targets`,
+`check:a11y`, `check:bundle` (eager 599 KB against the 607 ceiling on
+the merged tree — D382 had just taken the question content out of first
+paint and re-based the ceiling; the matcher's rule 4 and the explain
+copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
+one emulator boot.
