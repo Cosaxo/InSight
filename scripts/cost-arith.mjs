@@ -594,7 +594,13 @@ export function socialTerms(dau, mature, o = {}) {
   const crowd = Math.min(voterCap, dau);
   return {
     whoVoted: B.sheetOpens * crowd * names,
-    kindred: B.kindredViews * kindredQs * crowd * names,
+    // Kindred reads the nightly voter SAMPLE (D385): one document per
+    // question in place of `crowd` answer documents, and the same profile
+    // reads for names as before — `names − 1` of them per row, because the
+    // ×2 above was "answers plus profiles" and the answers half is now the
+    // one document. The People lens and the pair card ride the same
+    // documents; the who-voted sheet above keeps the live query.
+    kindred: B.kindredViews * kindredQs * (1 + crowd * (names - 1)),
     // A member's answer set grows with account AGE, not DAU.
     circle: B.circleOpens * B.circleFollows
       * Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10)),

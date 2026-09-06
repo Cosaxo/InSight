@@ -151,6 +151,12 @@ export const LIVE_MEMBERS = [
   // banks and the vote mirror so an instrument item counts whether or not
   // its crowd counts are cached.
   "answeredIndex",
+  // The nightly voter samples (D385): one document per question in place
+  // of two hundred answer reads, for every fold that only counts —
+  // Kindred, the People lens, the pair card — and the accessor that hands
+  // a fold the live list where one is in hand, else the sample.
+  "loadVoterSample",
+  "votersOrSample",
   // The daily pulse (D139): the day-keyed create and the derived
   // day → optionIdx view over the hydrated vote mirror.
   "pulseQs",

@@ -71,10 +71,16 @@ const voters = vi.hoisted(() => ({
   // read is pure waste on this path — up to VOTER_FETCH_CAP profile
   // documents per question, billed, thrown away.
   fetchVoters: vi.fn(async () => []),
+  // The nightly sample (D385): null means none published yet, and the
+  // pair card falls back to the live picks — which is what every case
+  // below that counts rows exercises. The case about the sample sets it.
+  fetchVoterSample: vi.fn<(db: unknown, qid: string) => Promise<{ uid: string; optionIdx: number }[] | null>>(
+    async () => null),
 }));
 vi.mock("./voters", () => ({
   fetchVoterPicks: voters.fetchVoterPicks,
   fetchVoters: voters.fetchVoters,
+  fetchVoterSample: voters.fetchVoterSample,
   VOTER_FETCH_CAP: 200,
 }));
 
@@ -411,6 +417,30 @@ describe("the pair card", () => {
     await PATTERNS.say("qa", "qb");
     expect(voters.fetchVoterPicks).toHaveBeenCalled();
     expect(voters.fetchVoters).not.toHaveBeenCalled();
+  });
+});
+
+describe("the pair card reads the nightly sample first (D385)", () => {
+  it("counts the sample's rows and never issues the live query when a sample exists", async () => {
+    publishFixture();
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    const crowd = (side: number) => Array.from({ length: 20 }, (_, i) => ({ uid: `s${i}`, optionIdx: i < 15 ? side : 1 - side }));
+    voters.fetchVoterSample.mockImplementation(async (_db, qid) => (qid === "qa" ? crowd(0) : crowd(0)));
+    const say = await PATTERNS.say("qa", "qb");
+    expect(say?.both).toBe(20);
+    expect(voters.fetchVoterPicks).not.toHaveBeenCalled();
+    expect(voters.fetchVoterSample).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to the live picks for a question with no sample yet", async () => {
+    publishFixture();
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    voters.fetchVoterSample.mockResolvedValue(null);
+    voters.fetchVoterPicks.mockResolvedValue([]);
+    await PATTERNS.say("qa", "qb");
+    expect(voters.fetchVoterPicks).toHaveBeenCalledTimes(2);
   });
 });
 

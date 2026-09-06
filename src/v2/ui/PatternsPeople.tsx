@@ -80,7 +80,9 @@ const slim = (items: readonly PoolItem[]): PeopleItem[] =>
   }));
 
 /** live.ts's rows, narrowed to the fold's shape (they already match). */
-const rowsOf = (qid: string): readonly PeopleRow[] | null => LIVE.voters(qid);
+/** live.ts's rows, narrowed to the fold's shape (they already match): the
+ * live list where one is in hand, else the nightly sample (D385). */
+const rowsOf = (qid: string): readonly PeopleRow[] | null => LIVE.votersOrSample(qid);
 
 function Empty({ head, line, cta }: { head: string; line: string; cta?: React.ReactNode }): React.ReactElement {
   return (
@@ -144,7 +146,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
     void (async () => {
       for (const qid of fetchSet) {
         if (!on) return;
-        await LIVE.loadVoters(qid);
+        await LIVE.loadVoterSample(qid);
       }
     })();
     return () => { on = false; };

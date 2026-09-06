@@ -28,7 +28,7 @@
 // sharing an endpoint cost four lists, not six.
 import LIVE from "./live";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
-import { fetchVoterPicks, VOTER_FETCH_CAP } from "./voters";
+import { fetchVoterPicks, fetchVoterSample, VOTER_FETCH_CAP } from "./voters";
 import type { LiveQuestion } from "./deck";
 import {
   DEFAULT_LAMBDA_U,
@@ -176,7 +176,10 @@ function sayRows(qid: string): Promise<{ uid: string; optionIdx: number }[]> {
   if (!p) {
     p = (async () => {
       const db = await getDb();
-      return fetchVoterPicks(db, qid);
+      // The nightly sample first (D385): one document for the same rows the
+      // live query would read two hundred documents for. The live query
+      // stays as the fallback for a question no sample exists for yet.
+      return (await fetchVoterSample(db, qid)) ?? fetchVoterPicks(db, qid);
     })();
     // a failed fetch must not be cached as the crowd — drop it so the next
     // open retries (the loadVoters absent-vs-empty rule, applied here)

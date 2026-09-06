@@ -83,6 +83,10 @@ vi.mock("../data/live", () => ({
     voters: () => [],
     votersLoading: () => false,
     loadVoters: () => Promise.resolve(),
+    // …through the nightly-sample path since D385: the lens reads and
+    // loads rows through these two
+    votersOrSample: () => [],
+    loadVoterSample: () => Promise.resolve(),
     budgetPaused: false,
   },
 }));

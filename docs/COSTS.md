@@ -61,7 +61,7 @@ Every constant below is sourced, not assumed:
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 | One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
-| One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
+| One Kindred first view | ≤12 **sample documents** (one per question — the nightly voter sample, D385) plus the profile reads for names, shared with the sheet cache; the live query only for a question no sample exists for yet | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99); `PATTERNS_SAMPLE_CAP`, functions/src/patternsSamples.ts. Was ≤12 sheets' worth — ≤2,400 answer reads — until D385 |
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
 | One buyer's-room open | One `uid ==` list query over `v2_purchases`, sized by the buyer's own contract count — for almost every account that is zero rows, and for a buyer it is a handful | firestore.rules `v2_purchases` (D288 §3, PAID-PLAN §7). Session-cached like every owner list; the public split on each purchase card reads the sponsored question's own agg, which the feed already fetched. The pricing fold costs the SERVER nothing at runtime: `scripts/build-pricing.mjs` is operator-run at contract time, and the door reads the committed `content/pricing.json` |
@@ -98,11 +98,11 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.4 K | 1.0 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 180 K | 10.1 K | 1.17 | 0.00 | **1.17** |
-| Real traction | 5,000 | 2.3 M | 101 K | 23 | 0.00 | **23** |
-| Scale | 50,000 | 22.5 M | 1.0 M | 256 | 2.20 | **258** |
-| Hit | 500,000 | 225 M | 10.1 M | 2,583 | 43 | **2,626** |
+| Launch / TestFlight | 50 | 9.5 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 145 K | 10.1 K | 0.85 | 0.00 | **0.85** |
+| Real traction | 5,000 | 1.9 M | 101 K | 20 | 0.00 | **20** |
+| Scale | 50,000 | 18.9 M | 1.0 M | 221 | 2.20 | **223** |
+| Hit | 500,000 | 189 M | 10.1 M | 2,230 | 43 | **2,273** |
 
 > **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
 > wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
@@ -158,6 +158,20 @@ roughly double on the three operation lines.
 > per-item sufficient statistics, so the sweep can stream people through
 > them in pages and hold none — a memory shape, not a read count, and the
 > read count is the bill.
+
+> **Re-measured 2026-09-06 (D385): the voter samples.** Kindred, the
+> People lens and the pair card read the nightly sample document — one
+> read per question — instead of the newest two hundred answer documents
+> each, so the `kindred` term goes `kindredQs × crowd × names` →
+> `kindredQs × (1 + crowd × (names − 1))`: the answers half of the ×2 is
+> one document now and the profile reads for names are unchanged.
+> **$258 → $223 at 50 k and $2,626 → $2,273 at 500 k; $1.17 → $0.85 at
+> 500 DAU** — reads/day −16% at every size the cap binds, which is the
+> D98-surfaces column this model has said dominates the bill since D102.
+> The who-voted sheet keeps the live query (its own row is unchanged), and
+> the samples themselves cost the nightly run one read and one write per
+> question the day's answers touched — hundreds a night, under any
+> rounding here.
 
 > **The mount gate (D265, 2026-08-23) costs nothing on either side**, and
 > that is the reason it is shaped the way it is. The fit's nightly run

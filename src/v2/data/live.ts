@@ -49,7 +49,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 39 `await getDb()` sites in this file did not change
+// deliberately: the 40 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
@@ -130,7 +130,7 @@ import * as cacheStore from "./cacheStore";
 import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchVoters, fetchVoterSample, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
 // has below, and for the same measured reason.
@@ -444,6 +444,12 @@ const state = {
   // kindredPeople() unions the two; nothing else reads this.
   cityVoters: {} as Record<string, Voter[]>,
   cityVotersAt: "",
+  // The nightly voter SAMPLES (D385): the same rows the live lists hold,
+  // published by the fit one document per question, read by every fold
+  // that only counts — Kindred's world pass, the People lens, the pair
+  // card. The who-voted sheet keeps `voters` above, live. kindredPeople()
+  // unions this in too, live rows winning where both exist for a question.
+  voterSamples: {} as Record<string, Voter[]>,
   cityKindredLoading: false,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
@@ -4428,6 +4434,48 @@ const LIVE = {
       notify();
     }
   },
+  /**
+   * The nightly voter sample for a question (D385) — the same rows the live
+   * list holds, one document instead of up to two hundred, for every fold
+   * that only COUNTS: Kindred's world pass, the People lens, the pair
+   * card. Same cache guards and the same absent-vs-empty rule as
+   * `loadVoters`, and the same loading flag, so a panel that asks
+   * `votersLoading(qid)` sees either loader. A question with no sample yet
+   * — the nightly run has not touched it since D385, or it is the tail —
+   * falls through to the live query rather than reading absence as an
+   * empty crowd. A live list already in hand is never re-read as a sample:
+   * the fresher rows win.
+   */
+  async loadVoterSample(qid: string): Promise<void> {
+    if (!qid || state.votersLoading[qid] || state.voters[qid] || state.voterSamples[qid]) return;
+    if (socialReadsPaused(state.meta.budgetMode)) return;
+    state.votersLoading[qid] = true;
+    notify();
+    let fallback = false;
+    try {
+      const db = await getDb();
+      const rows = await fetchVoterSample(db, qid, state.uid);
+      if (!rows) {
+        fallback = true;
+      } else {
+        await resolveNames(db, rows.map((r) => r.uid), state.names, state.scores, undefined, state.logicPcts);
+        for (const r of rows) r.name = state.names[r.uid] || "";
+        state.voterSamples[qid] = sortVoters(rows);
+        saveProfileCache();
+      }
+    } catch (err) {
+      reportError(err, { where: "loadVoterSample", qid });
+    } finally {
+      state.votersLoading[qid] = false;
+      notify();
+    }
+    if (fallback) await this.loadVoters(qid);
+  },
+  /** A question's rows for a fold that only counts: the live list where
+   * one is in hand, else the nightly sample, else null (unfetched). */
+  votersOrSample(qid: string): Voter[] | null {
+    return state.voters[qid] || state.voterSamples[qid] || null;
+  },
   // uid → display name, from the shared session cache. Synchronous and
   // best-effort: "" means either "no name set" or "not fetched yet", and
   // the caller renders the same fallback for both because from the screen
@@ -4669,13 +4717,15 @@ const LIVE = {
       // first surface has run, and firing twelve at once at boot-adjacent
       // moments is the shape that gets a client rate-limited.
       for (const qid of qids) {
-        if (!state.voters[qid]) await this.loadVoters(qid);
+        // the nightly sample (D385) — one document — with the live query
+        // as its own fallback for a question no sample exists for yet
+        if (!state.voters[qid] && !state.voterSamples[qid]) await this.loadVoterSample(qid);
       }
       // Counted from what actually LANDED, not from what was asked for:
       // loadVoters swallows its own failure (reportError, then the list
       // stays unset), so the old line reported twelve to the caption after
       // twelve failed queries.
-      state.kindredAt = qids.filter((id) => state.voters[id]).length;
+      state.kindredAt = qids.filter((id) => state.voters[id] || state.voterSamples[id]).length;
       // ASKED FOR LISTS AND GOT NONE IS A FAILED READ, NOT AN EMPTY
       // CROWD. loadVoters swallows its own failure and leaves the key
       // absent — deliberately, so absent and empty stay distinguishable
@@ -4708,9 +4758,15 @@ const LIVE = {
       const n = Number(opt);
       if (Number.isFinite(n)) mine[qid] = n;
     }
-    // uid -> their answers, assembled from the cached voter lists.
+    // uid -> their answers, assembled from the cached voter lists — the
+    // live ones, and the nightly samples (D385) where no live list was
+    // fetched for the question.
     const theirs: Record<string, Record<string, number>> = {};
-    for (const [qid, rows] of Object.entries(state.voters)) {
+    const lists = [
+      ...Object.entries(state.voters),
+      ...Object.entries(state.voterSamples).filter(([qid]) => !state.voters[qid]),
+    ];
+    for (const [qid, rows] of lists) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
@@ -5225,7 +5281,12 @@ const LIVE = {
     // overlap heavily — a city-mate near the top of a question's newest
     // 200 is in both — and the inner loop is idempotent per (uid, qid), so
     // the union needs no dedupe of its own.
-    const pools = [...Object.entries(state.voters), ...Object.entries(state.cityVoters)];
+    const pools = [
+      ...Object.entries(state.voters),
+      // the nightly samples (D385), where no live list was fetched for the question
+      ...Object.entries(state.voterSamples).filter(([qid]) => !state.voters[qid]),
+      ...Object.entries(state.cityVoters),
+    ];
     for (const [qid, rows] of pools) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
@@ -6818,6 +6879,7 @@ function resetForNewUid(uid: string): void {
   // held only to save reads, and nothing about it should outlive the
   // session that fetched it.
   state.voters = {};
+  state.voterSamples = {};
   state.votersLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other

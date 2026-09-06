@@ -105,6 +105,7 @@ import {
   type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
+import { mergeSample, sampleAdditions, type SampleDoc } from "./patternsSamples";
 import {
   ALS_LAMBDAS_U,
   PATTERNS_CROSSOVER_NIGHTS,
@@ -166,6 +167,8 @@ export interface PatternsLedgerEntry {
   /** Present only on a D86 edit (v2.ts's ledgerEntry): the index the
    *  answer moved away from. Its ABSENCE is what marks a first answer. */
   fromIdx?: number;
+  /** The answer's frozen cohort chips (D8), for the voter samples (D385). */
+  anchors?: Record<string, string>;
 }
 
 export type PatternsEngine = "sgd" | "als";
@@ -226,6 +229,9 @@ export interface PatternsStore {
   putUsers(states: Map<string, PatternsUserState>): Promise<void>;
   /** Every person's state, paged — the candidate's substrate. */
   scanUsers(each: (uid: string, state: PatternsUserState) => void): Promise<void>;
+  /** The voter samples for these questions, where one exists (D385). */
+  getSamples(qids: string[]): Promise<Map<string, SampleDoc>>;
+  putSamples(samples: Map<string, SampleDoc>): Promise<void>;
 }
 
 // The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
@@ -260,6 +266,8 @@ export interface PatternsRunSummary {
   folded: number;
   /** Answers compacted onto people's maps — the candidate's substrate. */
   compacted: number;
+  /** Voter sample documents rewritten tonight (D385). */
+  samples: number;
   users: number;
   questions: number;
   bits: number;
@@ -343,13 +351,14 @@ export async function runPatternsFit(
   }
   if (!days.length || yesterday <= lastDay) {
     return {
-      days: 0, folded: 0, compacted: 0, users: 0, questions: Object.keys(model.q).length,
+      days: 0, folded: 0, compacted: 0, samples: 0, users: 0, questions: Object.keys(model.q).length,
       bits: 0, skill: 0, seedCos: 0, engine, candidateSkill: 0, streak: engine === "sgd" ? alsStreakPrev : sgdStreakPrev, crossed: false,
     };
   }
 
   let folded = 0;
   let compacted = 0;
+  let samplesWritten = 0;
   const touched = new Set<string>();
   // One tally per owed day (D325) — a day with nothing eligible keeps
   // its n: 0 row, so the series says "no answers" out loud rather than
@@ -435,10 +444,16 @@ export async function runPatternsFit(
     // Last wins is the whole rule here — the ledger is in `at` order, and a
     // map is a set, not a step, so an edit simply overwrites its key.
     const answersByUid = new Map<string, AnswerMap>();
+    const anchorsByUid = new Map<string, Record<string, Record<string, string>>>();
     for (const e of wide) {
       const a = answersByUid.get(e.uid) ?? {};
       a[e.qid] = e.optionIdx as number;
       answersByUid.set(e.uid, a);
+      if (e.anchors) {
+        const an = anchorsByUid.get(e.uid) ?? {};
+        an[e.qid] = e.anchors;
+        anchorsByUid.set(e.uid, an);
+      }
     }
     const uids = [...new Set([...byUid.keys(), ...answersByUid.keys()])].sort();
     const states = await store.getUsers(uids);
@@ -498,6 +513,22 @@ export async function runPatternsFit(
       touched.add(uid);
     }
     if (write.size) await store.putUsers(write);
+    // ── the voter samples (D385) ───────────────────────────────────
+    //
+    // Every question the day's answers touch gets its sample re-merged:
+    // the newest PATTERNS_SAMPLE_CAP voters, uid → option and frozen chips,
+    // the who-voted sheet's own list refreshed nightly. A set, not a step
+    // — re-merging a day a dead run already merged changes nothing — so
+    // it needs no stamp of its own.
+    const adds = sampleAdditions(day, answersByUid, anchorsByUid);
+    if (adds.size) {
+      const qids = [...adds.keys()].sort();
+      const prevSamples = await store.getSamples(qids);
+      const next = new Map<string, SampleDoc>();
+      for (const qid of qids) next.set(qid, mergeSample(prevSamples.get(qid) ?? null, qid, adds.get(qid) ?? []));
+      await store.putSamples(next);
+      samplesWritten += next.size;
+    }
     // A DAY A DEAD RUN ALREADY FOLDED IS NOT AN EMPTY DAY. The retry guard
     // above skips everybody a previous attempt stamped, so `score` stays at
     // n: 0 — and a zero row published into the series says exactly what the
@@ -674,6 +705,7 @@ export async function runPatternsFit(
     days: days.length,
     folded,
     compacted,
+    samples: samplesWritten,
     users: touched.size,
     questions: Object.keys(engineRows).length,
     bits: pub.quality?.bits ?? 0,
@@ -808,6 +840,38 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
             // to be named or the stamp and the map never land.
             { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: s.a } : {}) },
           );
+        }
+        await batch.commit();
+      }
+    },
+    async getSamples(qids) {
+      const out = new Map<string, SampleDoc>();
+      for (let i = 0; i < qids.length; i += 300) {
+        const chunk = qids.slice(i, i + 300);
+        const snaps = await db.getAll(...chunk.map((qid) => db.collection("v2_patterns").doc(`sample-${qid}`)));
+        snaps.forEach((snap, j) => {
+          if (!snap.exists) return;
+          out.set(chunk[j], {
+            qid: chunk[j],
+            rows: (snap.get("rows") as SampleDoc["rows"]) ?? {},
+            n: (snap.get("n") as number) ?? 0,
+          });
+        });
+      }
+      return out;
+    },
+    async putSamples(samples) {
+      // Under the loadings document's own rule: `v2_patterns/{docId}` reads
+      // signed-in and writes nobody, so a sample needs no rules change —
+      // and no rules change is possible for it to get wrong. `set` with no
+      // merge: the merged document is the whole sample.
+      const entries = [...samples.entries()];
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = db.batch();
+        for (const [qid, doc] of entries.slice(i, i + 400)) {
+          batch.set(db.collection("v2_patterns").doc(`sample-${qid}`), {
+            qid, rows: doc.rows, n: doc.n, at: FieldValue.serverTimestamp(),
+          });
         }
         await batch.commit();
       }

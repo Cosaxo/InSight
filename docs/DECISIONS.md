@@ -40654,3 +40654,81 @@ and `nextAsk`), `src/v2/data/peopleMap.ts` (`viewerObs`, `lambda`),
 Zero reads: every input was already on the device. Measured before the
 push: `tsc -b` clean, 2,679 client tests, `check:globals` at its
 baseline, eslint clean on every touched file.
+
+## D385 · The nightly voter samples: Kindred, the People lens and the pair card read one document per question instead of two hundred
+
+**2026-09-06.** **Status:** binding. The owner's call on
+[`ALGORITHM-REFLECTION.md`](ALGORITHM-REFLECTION.md) §4.3 — *"yeah agree
+with those apply those"*.
+
+### What
+
+Every list the device intersects — Kindred's twelve, the People lens's
+twelve, the pair card's four — was the same query: the newest 200 answers
+to one question, 200 billed reads each, then names. The lists are public
+(D98), bounded (D102), recency-ordered, and identical for every viewer
+who opens them within a day. The nightly run now publishes them:
+`v2_patterns/sample-{qid}`, one document per core item the day's answers
+touched, holding the newest `PATTERNS_SAMPLE_CAP = 200` voters — uid,
+option index, the answer's frozen cohort chips (D8), and the day it was
+ledgered — as `rows` keyed by uid. Built from the ledger day the run
+already reads (`patternsSamples.mergeSample`, pure: one row per person,
+an edit moves the row, the cap drops the oldest days then the highest
+uids within a day, so a re-run reproduces the set). Under the loadings
+document's own rule — `v2_patterns/{docId}` reads signed-in, writes
+nobody — so no rules change was needed and none could go wrong.
+
+The ledger entry gained the answer's `anchors` for it (`v2.ts`
+`ledgerEntry`, both the create and the edit arm; string values only; the
+same snapshot the answer carries, public like it, same TTL, same
+erasure), because the sample's chips have to be the FROZEN ones (D8) and
+the ledger is the one place the builder can take them without a second
+read per entry. `readLedgerDay` selects and copies it, pinned against the
+interface as before.
+
+On the device: `fetchVoterSample` reads the document and hands back the
+live query's own `Voter` rows, newest first; `LIVE.loadVoterSample` loads
+it under the same cache guards, the same absent-vs-empty rule and the
+same loading flag as `loadVoters`, resolving names through the same
+profile cache, and falls through to the live query for a question no
+sample exists for yet; `LIVE.votersOrSample` hands a fold the live list
+where one is in hand, else the sample. Kindred's world pass, `kindred()`,
+`kindredPeople()`, the People lens and the pair card's `sayRows` read
+through it. **The who-voted sheet keeps the live query** — it is a list
+of names on screen that must show the viewer's own answer the moment it
+lands — and so does the City pass (D278), whose query narrows by city
+in a way a global sample cannot.
+
+### The arithmetic
+
+`kindred: kindredQs × crowd × names` → `kindredQs × (1 + crowd × (names −
+1))` in the cost model: the answers half of the ×2 is one document, the
+profile reads for names are unchanged. Re-measured: **$258 → $223 at 50 k
+DAU, $2,626 → $2,273 at 500 k, $1.17 → $0.85 at 500 DAU** — reads/day −16%
+wherever the cap binds, on the D98-surfaces column that has dominated this
+model since D102. The samples cost the nightly run one read and one write
+per question the day touched — hundreds a night. Storage: ≤ 200 rows ×
+~60 bytes ≈ 12 KB a document, ≤ ~400 documents.
+
+### What it owes, and pays
+
+**This is the first derived, world-readable document family that holds
+uids** — the reason `PEOPLE-MAP.md` §7 deferred published positions.
+What it holds is exactly what the who-voted sheet already shows anyone
+signed in: who answered, what they picked, the chips their answer froze.
+Nothing derived, no vector, no position. What it owes is erasure:
+`deleteAccount` grew phase 1a′, which checks EVERY sample document
+(`listDocuments` on `v2_patterns`, a few hundred reads once per deletion)
+rather than the ones the account's answer map names — the map and the
+samples are written by the same run, and a crash between the two writes
+could leave a row the map does not know about — and removes `rows.{uid}`
+with a field delete, never a rewrite of anyone else's row.
+`e2e-delete-account.mjs` seeds a sample naming the doomed account and
+another voter and asserts the one row is gone, the other stands, and the
+document survives; the leftover sweep gained the fit's per-person state
+too. `data-inventory.md`'s `v2_patterns` row says which of its documents
+hold uids and which do not; `SCHEMA-V2.md` has the shape.
+
+Measured before the push: 736 functions tests (`patternsSamples` at 4,
+the sweep at 30), `tsc` clean in both packages, the client suite green,
+`check:globals` at its baseline, eslint clean on every touched file.

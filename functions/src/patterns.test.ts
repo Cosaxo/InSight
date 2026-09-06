@@ -35,6 +35,7 @@ import {
   type PatternsUserState,
 } from "./patternsFit";
 import { ALS_LAMBDAS_U, PATTERNS_CROSSOVER_NIGHTS } from "./patternsAls";
+import { PATTERNS_SAMPLE_CAP, type SampleDoc } from "./patternsSamples";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
 
@@ -44,7 +45,10 @@ const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 
 function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
   const users = new Map<string, PatternsUserState>();
+  const samples = new Map<string, SampleDoc>();
   const state = {
+    /** The voter samples as the last putSamples left them (D385). */
+    samples,
     /** The publication as the last putModel left it — whole, cloned, the
      * way the Firestore store reads the document back (D383). */
     pub: null as PatternsPublication | null,
@@ -108,6 +112,14 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     },
     async scanUsers(each) {
       for (const [uid, s] of [...users.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) each(uid, project(s));
+    },
+    async getSamples(qids) {
+      const out = new Map<string, SampleDoc>();
+      for (const qid of qids) { const d = samples.get(qid); if (d) out.set(qid, clone(d)); }
+      return out;
+    },
+    async putSamples(next) {
+      for (const [qid, d] of next) samples.set(qid, clone(d));
     },
   };
   return { store, state };
@@ -870,5 +882,62 @@ describe("the candidate engine (D383)", () => {
     expect(state.pub!.engine).toBe("sgd");
     expect(state.pub!.candidates.als!.streak).toBe(0);
     expect(state.pub!.candidates.als!.quality?.skill).toBe(0);
+  });
+});
+
+
+// ── the voter samples (D385) ──────────────────────────────────────────
+describe("the voter samples the sweep publishes", () => {
+  const DAY = 24 * 3600 * 1000;
+  const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;
+
+  it("writes one sample per question the day touched — uid, option, frozen chips — and the online rows are untouched", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0, anchors: { city: "Oslo, NO", ageBand: "25-34" } },
+        { uid: "u2", qid: CORE_A, optionIdx: 1 },
+        { uid: "u1", qid: TEST_ITEM, optionIdx: 3, anchors: { city: "Oslo, NO" } },
+        { uid: "u1", qid: "feed-tail-x", optionIdx: 0, anchors: { city: "Oslo, NO" } },  // not in the corpus: no sample
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.samples).toBe(2);
+    expect([...state.samples.keys()].sort()).toEqual([CORE_A, TEST_ITEM].sort());
+    const s = state.samples.get(CORE_A)!;
+    expect(s.n).toBe(2);
+    expect(s.rows.u1).toEqual({ o: 0, a: { city: "Oslo, NO", ageBand: "25-34" }, d: yesterday });
+    expect(s.rows.u2).toEqual({ o: 1, a: {}, d: yesterday });
+    expect(state.samples.get(TEST_ITEM)!.rows.u1.o).toBe(3);
+    // the fit's own rows are not a sample: nothing per-person in them
+    expect(JSON.stringify(state.pub!.q)).not.toContain("u1");
+  });
+
+  it("moves a person to their edit and carries the sample across nights; a re-run of a day is a no-op", async () => {
+    const d2 = utcDay(NOW, -2);
+    const { store, state } = memoryStore({
+      [d2]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }, { uid: "u2", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 }, { uid: "u3", qid: CORE_A, optionIdx: 1 }],
+    });
+    await runPatternsFit(store, NOW - DAY);
+    expect(state.samples.get(CORE_A)!.n).toBe(2);
+    await runPatternsFit(store, NOW);
+    const s = state.samples.get(CORE_A)!;
+    expect(s.n).toBe(3);
+    expect(s.rows.u1).toEqual({ o: 1, a: {}, d: yesterday });
+    expect(s.rows.u2.d).toBe(d2);
+    const before = JSON.stringify(s);
+    // the same morning again: nothing owed, nothing rewritten
+    const again = await runPatternsFit(store, NOW);
+    expect(again.samples).toBe(0);
+    expect(JSON.stringify(state.samples.get(CORE_A))).toBe(before);
+  });
+
+  it("caps a sample at the newest two hundred", async () => {
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < PATTERNS_SAMPLE_CAP + 25; i++) rows.push({ uid: `u${String(i).padStart(3, "0")}`, qid: CORE_A, optionIdx: i % 2 });
+    const { store, state } = memoryStore({ [yesterday]: rows });
+    await runPatternsFit(store, NOW);
+    expect(state.samples.get(CORE_A)!.n).toBe(PATTERNS_SAMPLE_CAP);
+    expect(PATTERNS_SAMPLE_CAP).toBe(200);
   });
 });

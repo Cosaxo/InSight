@@ -19,6 +19,11 @@ const LIVE = vi.hoisted(() => ({
   budgetPaused: false as boolean,
   subscribe: () => () => {},
   loadVoters: vi.fn(() => Promise.resolve()),
+  // the nightly sample path (D385): what the lens reads and loads through
+  loadVoterSample: vi.fn(() => Promise.resolve()),
+  // …and reads rows through this, which hands back whatever `voters` says
+  // (a case sets `voters`; the delegation keeps the two in step)
+  votersOrSample: (): PeopleRow[] | null => LIVE.voters(),
   voters: (): PeopleRow[] | null => [],
   votersLoading: (): boolean => false,
   loadFollows: vi.fn(() => Promise.resolve()),
@@ -62,7 +67,7 @@ beforeEach(() => {
   LIVE.voters = () => CROWD;
   LIVE.votersLoading = () => false;
   LIVE.budgetPaused = false;
-  LIVE.loadVoters = vi.fn(() => Promise.resolve());
+  LIVE.loadVoterSample = vi.fn(() => Promise.resolve());
   LIVE.follows = () => [];
   LIVE.followsLoading = () => false;
   LIVE.anchors = () => ({});
@@ -141,7 +146,7 @@ describe("the placed field", () => {
     // one bounded load per fetched question, no more — the loop is
     // sequential (each await yields), so the count is settled, not read
     await vi.waitFor(() => {
-      expect((LIVE.loadVoters as ReturnType<typeof vi.fn>).mock.calls.length).toBe(ITEMS.length);
+      expect((LIVE.loadVoterSample as ReturnType<typeof vi.fn>).mock.calls.length).toBe(ITEMS.length);
     });
   });
 

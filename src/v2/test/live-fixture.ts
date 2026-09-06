@@ -637,6 +637,13 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // no answers in the fixture's corpus by default — the evidence is empty
     // and every device solve stays at the origin, the honest cold state
     answeredIndex: () => ({}),
+    // the nightly samples (D385): none in the fixture, so a fold falls back
+    // to the live rows the fixture already serves
+    loadVoterSample: async () => {},
+    votersOrSample: () => [
+      { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
+      { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
+    ],
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
     // The daily pulse (D139): the fixture mirrors the real pair — the

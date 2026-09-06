@@ -190,11 +190,29 @@ export const LEDGER_RETENTION_DAYS = 90;
 // account (index.ts phase 4c). Absent on catalog entries — the fit's
 // pool is two-option questions only — and an edit's entry carries the
 // NEW side, so a refit leans toward what the person now says.
-function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number) {
+//
+// `anchors` joined for the nightly voter samples (D385): the sample a
+// device reads instead of querying two hundred answer documents carries
+// each voter's FROZEN cohort chips (D8), and the ledger is the one place
+// the sample builder can take them from without a second read per entry.
+// The snapshot the answer itself carries, string values only; public like
+// the answer (D98); same TTL, same erasure. Absent on catalog entries.
+function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.length <= 80) out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown) {
+  const a = ledgerAnchors(anchors);
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
+    ...(a ? { anchors: a } : {}),
     // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
     // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
     // byte-identical in shape to the create it supersedes — which is
@@ -922,7 +940,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // create after an edit erases the flows. Emit-when-set: the common,
       // never-edited question's doc gains no key.
       const edits = agg.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx, undefined, snap.get("anchors")));
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -1011,7 +1029,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       const edits: EditFlow =
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone

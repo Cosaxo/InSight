@@ -20,6 +20,10 @@ export interface LedgerDayEntry {
   /** Present only on a D86 edit: the index the answer moved AWAY from.
    *  Its absence is what marks an entry as a first answer. */
   fromIdx?: number;
+  /** The answer's frozen cohort chips (D8), for the nightly voter samples
+   *  (D385). Absent on entries written before the field, and on catalog
+   *  entries. */
+  anchors?: Record<string, string>;
 }
 
 const PAGE = 5000;
@@ -40,7 +44,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
     // undefined at every reader — no error, no log, just a fold that
     // quietly stops distinguishing an edit from a first answer. Pinned in
     // ledger.test.ts against the interface itself.
-    .select("uid", "qid", "optionIdx", "fromIdx", "at")
+    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "at")
     .limit(PAGE);
   for (;;) {
     const snap = await query.get();
@@ -50,6 +54,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
         qid: String(d.get("qid") ?? ""),
         optionIdx: d.get("optionIdx") as number | undefined,
         ...(d.get("fromIdx") === undefined ? {} : { fromIdx: d.get("fromIdx") as number }),
+        ...(d.get("anchors") ? { anchors: d.get("anchors") as Record<string, string> } : {}),
       });
     }
     if (snap.size < PAGE) break;

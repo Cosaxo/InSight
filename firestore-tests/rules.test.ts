@@ -915,6 +915,9 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
       await setDoc(doc(db, "v2_patterns", "loadings"), { k: 8, q: { "daily-000": { v: [0.1], n: 3 } } });
     });
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "loadings")));
+    // …and the nightly voter samples beside it (D385) read under the same
+    // rule — they are the who-voted list, which D98 made anyone's to read
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "sample-daily-000")));
     // A client-writable model would make the whole map forgeable in one request.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 8, q: {} }));
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 9 }));

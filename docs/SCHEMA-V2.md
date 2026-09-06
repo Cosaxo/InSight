@@ -337,6 +337,25 @@ device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
 Nothing per-person in it, under either engine.
 
+v2_patterns/sample-{qid}           the nightly voter sample (D385)
+  qid
+  rows {uid: {o, a, d}}            the newest PATTERNS_SAMPLE_CAP (200 — the
+                                   who-voted sheet's own cap) voters of one
+                                   core question: the option index picked,
+                                   the answer's frozen anchors (D8) and the
+                                   UTC day it was ledgered. Keyed by uid so
+                                   a person is one row (an edit moves it)
+                                   and erasure is a field delete
+  n, at                            the basis a client states; server clock
+read: signed-in (the loadings document's own rule — same collection) ·
+write: NOBODY — merged nightly by fitPatternsV2 from the ledger day it
+already reads. What Kindred, the People lens and the pair card read in
+place of two hundred answer documents per question; the who-voted sheet
+keeps the live query. THE ONE DERIVED PUBLIC DOCUMENT FAMILY THAT HOLDS
+UIDS: exactly what the who-voted sheet already shows anyone signed in,
+nothing derived — and deleteAccount's phase 1a′ removes the account's row
+from every sample, asserted in e2e-delete-account.mjs.
+
 v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D383)
   v: number[k], n, at              the latent vector the online fold
                                    carries this person's PUBLIC answers
