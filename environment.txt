@@ -1,0 +1,3 @@
+google-services.json: ABSENT (secret empty)
+avd: pixel_7 on system-images;android-34;google_apis;x86_64
+drive: skipped
