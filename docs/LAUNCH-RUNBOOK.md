@@ -46,10 +46,12 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69), **and the address document was
-  uploaded 2026-08-30.** The *bostedsattest* arrived 23 days after the
-  declaration and went up the same day. 4.3b now waits on Apple's
-  verification, which gates only the EU-27 storefronts.
+- **Trader status: VERIFIED** (D69; closed 2026-09-06,
+  owner-confirmed). The *bostedsattest* arrived 23 days after the
+  declaration, went up the same day (2026-08-30), and Apple's
+  verification has since come back. The EU-27 storefronts are
+  unblocked; only the D69 address swap (home → ENK, once D345's
+  registration lands) remains, and it blocks nothing.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -1224,8 +1226,8 @@ That is a tester-count problem, not a workflow problem.
 
       `whatsNew` is sent separately and refused on a first release (D74),
       which is expected and reported as a skip rather than a failure.
-- [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
-      this repo knew about.** App Store Connect → **Business** → *Trader
+- [x] **4.3b EU trader status (Digital Services Act) — VERIFIED, closed
+      2026-09-06 (owner-confirmed).** App Store Connect → **Business** → *Trader
       Status*, or via the banner on the Apps list. Apple's wording: *"your
       trader status must be provided or your apps will be removed from the
       App Store in the EU."*
@@ -1268,10 +1270,20 @@ That is a tester-count problem, not a workflow problem.
       that the document arrived, not what it says.
 
       **Uploaded 2026-08-30**, through App Store Connect → **Business**
-      → *Trader Status*. **The step stays open anyway, and D74 is why:**
+      → *Trader Status*. **The step stayed open anyway, and D74 was why:**
       the upload is a fact, EU distribution being unblocked is not one
       yet. It closes when the console reports the status verified — that
-      is Apple's to run, not work in this file. If the document comes
+      is Apple's to run, not work in this file.
+
+      **CLOSED 2026-09-06: the console reports the status verified**
+      (owner-confirmed on the release thread — "verified a long time
+      ago"; the exact console date was not captured, so this records
+      when the file learned it, per D74's tick-after-the-fact rule).
+      The EU-27 storefronts are unblocked; nothing about trader status
+      remains open. What D69 left live is only the address SWAP: the
+      listing publishes the home address until the ENK's business
+      address (now in motion — D345 un-parked Play onto the ENK route)
+      replaces it in this same console form. If the document comes
       back instead, the open question is whether to send the
       fødselsnummer unmasked: Apple's wording asks only for records
       verifying **name and address**, so no part of the form needs it,
