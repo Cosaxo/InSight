@@ -1,0 +1,29 @@
+--- recorded/mirror-field-pops.jsx
++++ 2026-09-06/mirror-field-pops.jsx
+@@ -193,7 +193,7 @@
+   }, p.name), !p.anon && /*#__PURE__*/React.createElement("span", {
+     style: {
+       fontFamily: 'var(--sans)',
+-      fontSize: 10.5,
++      fontSize: 12,
+       fontWeight: 600,
+       color: 'var(--ink-3)',
+       letterSpacing: '0.04em',
+@@ -223,7 +223,7 @@
+     key: s,
+     style: {
+       fontFamily: 'var(--sans)',
+-      fontSize: 11.5,
++      fontSize: 12,
+       fontWeight: 500,
+       color: `oklch(0.34 0.13 ${p.hue})`,
+       padding: '2px 9px',
+@@ -307,7 +307,7 @@
+   const [, bump] = React.useReducer(x => x + 1, 0);
+   React.useEffect(() => window.DAILYQ ? window.DAILYQ.subscribe(bump) : undefined, []);
+   const parts = mfpSoWhat(pop, zoom, cfg);
+-  if (!parts.length) return null;
++  if (pop === 'circle' || !parts.length) return null;
+   return /*#__PURE__*/React.createElement("div", {
+     style: {
+       padding: '7px 26px 0',

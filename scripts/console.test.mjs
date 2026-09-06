@@ -137,7 +137,7 @@ describe("a night whose review has already merged", () => {
 
 | \`nightb-20260905\` | 19 | one commit later |
 
-## D389 · An amendment that re-states an old table
+## D393 · An amendment that re-states an old table
 
 | \`nightb-20260905\` | 18 | as D365 took it |
 `);
@@ -316,7 +316,7 @@ describe("the lists on this tree", () => {
     // cast (item 6) on 2026-09-06. The web ask door D368 also added moved
     // Designed → Built at D369 — the SECTION is the status, not the
     // `status` line inside the entry, so an entry that is built and left
-    // under Designed reads as still waiting. Built is 2 since D389 filed
+    // under Designed reads as still waiting. Built is 2 since D393 filed
     // the first-launch walkthrough (item 7) straight under Built the same
     // day: built on the owner's direct ask without the drafted step, and
     // recorded there rather than skipped silently.

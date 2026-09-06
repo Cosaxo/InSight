@@ -69,7 +69,7 @@ const LIVE = vi.hoisted(() => ({
   subscribe: (fn: () => void) => { subscribers.add(fn); return () => { subscribers.delete(fn); }; },
 }));
 vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
-// The walkthrough's mount (D389), reached from this panel by a dynamic
+// The walkthrough's mount (D393), reached from this panel by a dynamic
 // import: mocked so the case below can assert the row asks for a
 // RE-showing rather than mounting the real screen over the panel.
 const WT = vi.hoisted(() => ({ mountWalkthrough: vi.fn(async (opts?: { again?: boolean }) => { void opts; }) }));
@@ -413,7 +413,7 @@ describe("LivePrivacyPanel · the political compass row", () => {
   });
 });
 
-describe("LivePrivacyPanel · the walkthrough can be shown again (D389)", () => {
+describe("LivePrivacyPanel · the walkthrough can be shown again (D393)", () => {
   it("mounts it from its row as a re-showing, so the seen flag does not refuse it", async () => {
     // The gate refuses a device that has seen the walkthrough — which is
     // every device that has this panel open. `again` is what makes the

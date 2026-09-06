@@ -348,7 +348,7 @@ function LivePrivacyPanel() {
         </div>
       </div>
 
-      {/* The first-launch walkthrough, again (D389). Shown once, before
+      {/* The first-launch walkthrough, again (D393). Shown once, before
           the account questions; a person who skipped it, or who wants the
           Mirror explained a second time, finds it here beside the policy
           the app points at — the one place the app explains itself. A

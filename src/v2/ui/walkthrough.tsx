@@ -1,5 +1,5 @@
 // walkthrough.tsx — whether the first-launch walkthrough still needs
-// showing, and how it gets onto the page (D389).
+// showing, and how it gets onto the page (D393).
 //
 // profileSetup.tsx's shape, one screen earlier, for its two reasons:
 // react-refresh wants LiveWalkthrough.tsx to export a component and

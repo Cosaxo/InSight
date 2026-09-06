@@ -89,13 +89,20 @@ draft it as long as it first makes the plan, then uses Claude Design.*
 
 ### 1 · Trait-axis directions on the patterns Map
 
-**Re-aimed 2026-09-02** at the ring the current vision draws
-(`VISUAL-VISION.md`; `VISION-2026-09-02.md` §1.2, built). What the
+**Re-aimed 2026-09-02** at the ring the vision draws
+(`VISION-2026-09-02.md` §1.2, built). What the
 request wants is unchanged — *the axes exist to be connected*, drawn on
 data that publishes today — and where it can be drawn is not: the plane
 this was written against is retired, and on a ring an axis cannot be a
 direction. The version below is the whole request, re-stated; the plane
-version is in this file's history.
+version is in this file's history. **Noted 2026-09-06**: the current
+vision (`VISION-2026-09-06.md` §2.1) quiets the same field — short
+topic groups now name themselves INSIDE the rim, idle chords drop to a
+whisper, and the standing legend moves behind an ⓘ — so grammar 2
+below (the inner arc) shares its area with the new in-rim labels, and
+whichever grammar the design picks inherits the guide-ⓘ rule: its key
+lives in the legend, not as standing chrome. The three grammars and
+their trades stand.
 
 - **asked by** — the program plan, 2026-09-02, ahead of the axes
   build lane reaching step 1.4; the theory it serves is AXES-PLAN §2.
@@ -414,7 +421,7 @@ it is planned here.
   uses the app that explains how it works."* **Built the same day on the
   direct ask, without the drafted step** — recorded here rather than
   skipped silently, because the rule at the top of this file is the
-  owner's and a screen built past it should say so. D389 is the record.
+  owner's and a screen built past it should say so. D393 is the record.
 - **surface** — its own root over the app, on a first launch of a live
   build, BEFORE D151's *A few things about you* (`src/v2/main.jsx`
   sequences the two); and the account sheet's *How InSight works · Show
@@ -447,7 +454,7 @@ it is planned here.
 - **why** — `CLAUDE.md`'s first paragraph: the daily is the smaller half,
   and nothing on it said so. A person who answers for a week without
   finding the Mirror has used a poll with a streak.
-- **status** — `built` 2026-09-06 (D389). **What a canvas would still
+- **status** — `built` 2026-09-06 (D393). **What a canvas would still
   improve:** the five illustrations, which are drawn from the tree's
   vocabulary rather than from a design — a redraw replaces `Art` in
   `src/v2/ui/LiveWalkthrough.tsx` and nothing else; the gate and the

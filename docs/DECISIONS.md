@@ -41125,7 +41125,381 @@ carry to the next PR.
 
 The first exercise of this is D387 itself (#408), merged by the session
 that built it, on the instruction that produced this amendment.
-## D389 · The first launch explains the app: five pages before the questions, and a row to see them again
+
+## D389 · The pick card browses every catalogue, paged — D308 §3's ranked-only rule is lifted — and the learn reveal draws the crowd's share as a strip
+
+**Date:** 2026-09-06 · **Status:** Adopted (built: `ui/PickTiles.tsx`,
+`ui/PickSearch.tsx`, `spec/world-feed.jsx`; pinned in `PickTiles.test.tsx`,
+`test/feed-pick-browse.test.jsx` and three `smoke-live` cases)
+
+Three owner reports from a device, sent as three screenshots on
+2026-09-06 — *"3 things to change"* — each a screen where the code was
+right one layer down and wrong on the surface, the #413 shape again:
+
+1. **"Your phone — place it", answered: Takes beside it, no Change.**
+   #413 had opened the door for the dial and the field together that
+   afternoon; the build on the phone predated the merge. Nothing to
+   build. But #413 pinned only the dial, so the field half had no case
+   of its own, and a door with no test is the door that closes silently
+   next time — it has two now, the dial's two halves: the plane takes a
+   tap again with your standing dot still drawn and placing moves the
+   cell through `editVote`; a refused move snaps the dot back to the
+   standing cell's midpoint and says why.
+2. **"The country you'd move to?": a search field alone over "one pick
+   from 250".** The owner: *"the search questions should also show some
+   options in a lazy loading style to have some more visuals. Of course
+   not all by default as that would get expensive."* §1–2.
+3. **"The capital of Tanzania is…": Zanzibar City lit up beside the
+   Dodoma they had answered correctly**, read as having answered wrong.
+   §3.
+
+### 1 · Why D308 held the row back, and why that was the wrong cut
+
+D308 §3 drew the catalogue's head as tiles over the search and offered
+the row ONLY for the sitelink-ranked domains, on this reasoning: *"the
+alphabetical catalogues' head is not a fame ranking, and offering it as
+one would be the D1 shape of misleading."* True of the premise and
+wrong about the cure. The honesty problem was a row that CLAIMED a
+ranking; the cut removed the row instead, so the seven domains without
+a fame order — countries, dogs, colours, languages, emoji, elements,
+the Pokédex — kept the search-only ask D308 was built to replace: the
+domain invisible until you already knew what to type. That is the
+screenshot.
+
+The row invents no ranking because it claims none. The tiles carry no
+rank number and the copy under the search still says what the ask is
+("one pick from 250 — the crowd's canon reveals after"); what the row
+shows is the file in the file's own order, which every reader can see
+for themselves — the famous domains lead with their famous few, the
+alphabetical ones with A, and the keyed catalogues with #1 **and the key
+on the tile**: "Bulbasaur #1", "Hydrogen (H) #1". A dex-ordered row
+without the number would read as arbitrary, which is the one way this
+row could mislead, so `PickTiles` prints the tag `PickSearch` already
+carried for those two domains. What the row does NOT show is the
+crowd's board — that reveals after, as before, and the same tap that
+was the search's pick is the tile's (`setPick`, the key, never the
+name).
+
+### 2 · Paged, which is what makes every domain affordable
+
+The catalogues run to a thousand rows (films 1,000, emoji 1,391, the
+Pokédex 1,025), and D308's head was eight tiles because a row of a
+thousand is a thousand DOM nodes on every unanswered pick card in the
+feed — the "expensive" the owner named. The row is paged:
+
+- **One page draws at once** — `PICK_TILE_PAGE`, eight, D308's head
+  kept as the step. The rest of the file is in memory (the store parsed
+  it) and not in the DOM.
+- **The next page arrives on the row's own scroll**: an
+  `IntersectionObserver` on the last tile, rooted in the ROW rather
+  than the viewport. A viewport-rooted observer would fire for every
+  pick card that scrolled past on the page whether or not its row had
+  been touched — the whole catalogue, one page per frame, for a reader
+  who never looked. Rooted in the row it fires only when the reader
+  has dragged the row to its end.
+- **The same tile is a door**: it says how many the page left behind
+  ("+242 · more") and a tap appends the next page. That is the
+  keyboard's path, the reduced-motion reader's, and the test
+  environment's, where no observer ever fires (`setup-dom.ts`). It
+  leaves once the file is out.
+- **The fetch is the one the search already pays.** `pickLoad` is the
+  same catalogue load the picker kicks on open; `pickHead` reads the
+  store's parsed array through a per-domain memo (`memoRows`), so the
+  feed's every render of every unanswered pick card maps nothing.
+  Before the memo, `PickSearch`'s `peek` mapped the whole list on each
+  call — harmless while its one caller was that component's first
+  render, 1,391 objects per render per card once the feed read it. One
+  request per domain per session, 2–35 KB from the app's own bundle
+  root, and a demo card kicks the same load it would on open.
+
+What a page costs at the sizes that matter: eight tiles is eight
+buttons and sixteen spans; a reader who pages a 1,025-row Pokédex to
+the end holds 129 pages of it, which is the same DOM the un-paged row
+would have drawn on arrival — reached only by 128 deliberate acts.
+
+### 3 · The learn reveal's crowd share
+
+`renderKnow` drew each wrong option's share of the crowd as a wash
+filling the row's HEIGHT to the share's width — at 18% of the hue, on
+the reasoning that a large area wants a pale tint. At a share near 100%
+that is a filled row with no edge showing, and a filled row beside the
+solid correct one is a verdict, not a bar: the screenshot's crowd was
+one first try, on Zanzibar City, and the owner's own correct answer
+carried "0 people · 0%" (a repeat, D157's footer said so) — so the
+wrong row was the only one that looked chosen. Every gate was green;
+`learn-thin-crowd` pins the Map card's rate on a crowd of one and says
+nothing about the feed's bars.
+
+The share is a strip along the row's bottom edge now (`data-know-share`,
+4–5px, 55% of the hue — a strip has no area to carry a pale tint on),
+the pick board's shape one card over. The row keeps its surface; a
+share of 100% is a full-width bar under the label; the correct option's
+solid fill, your wrong pick's ink border and the ✓/✕ marks are the only
+things that read as verdicts, which is what they are. The smoke-live
+case mounts the owner's shape — a crowd of one on the option after the
+correct one — and fails against the wash (mutation-checked: it fails on
+the pre-change file).
+
+What this does not change: which options carry a number. The count
+still prints on the correct option and on your wrong pick only (D149,
+as built); the other rows say their share with the bar alone. Printing
+the count on every row is one line here if the bar proves too quiet,
+and was not taken because the report was about the fill, not the
+figures.
+
+### What it does NOT settle
+
+- Whether the alphabetical domains want a different FIRST page than A —
+  a daily-seeded sample, say, so the row varies. Not taken: a row you
+  cannot predict is a row you cannot browse, and the search is the way
+  to a name. The order is the file's, and the file's order is a
+  builder's decision recorded per catalogue in `content/` and
+  `scripts/build-*.mjs`.
+- The demo build (`renderPickCatalog`, the prototype's `WF_CATALOGS`
+  cards) keeps its own ranked tile row, untouched.
+
+## D390 · The 2026-09-06 vision arrives: ink on paper, a 12px floor, and the dial in the header
+
+**2026-09-06.** **Status:** binding for what the vision points at;
+nothing of it is built. The owner's `InSight_9.html` upload of this
+date, made the current vision by D361's standing rule — an owner
+upload is a vision without a request — extracted, measured and named
+in one PR (`claude/zen-pascal-ugc4p4`). `main` mints numbers while a
+branch is open, so the standing collision pattern (D289) may renumber
+this at merge; the documents cite it by date where they can.
+
+### What arrived, and how it was diffed
+
+The ninth numbered standalone (`InSight_8` was never uploaded, like 5
+and 6), in InSight_7's compiled fast-boot shape: one 2 MB bundle of
+114 modules, 26 assets. Diffed against the latest recorded state of
+every module — v18 + the v28 patches + the seven later extractions +
+the two READMEs' prose hunks, compiled where the record is JSX, per
+the 09-02 README's recipe — **89 of 114 modules byte-identical**,
+eight more differing only by recorded hunks, and the residue exact:
+**seventeen modules, seven stylesheets, one new stylesheet**. The
+patches in `design/standalone-2026-09-06/changes/` reproduce the
+upload byte-for-byte from that baseline; the whole files are the
+upload's bytes. The inventory is that directory's README; the plan,
+with every item measured against the tree, is
+[`VISION-2026-09-06.md`](VISION-2026-09-06.md).
+
+### What the design says
+
+One direction — **ink on paper** — in four moves: `lens-paper` goes
+from an unwired hook to the app's default and the boxes go with it
+(feed cards on a top-rule ground, the result card and the profile as
+hairline sections, the ballot one hairline row, the test picker rows,
+figures drawing themselves in); a **12px floor** under every piece of
+microtype, app-wide (the Patterns tab's 10.5 rule, raised and made
+global); the **serif voice reaching further** (Circle and 1v1 prompts,
+the Oracle's options inside the disc halves, the Map's hub figure, the
+result card's identity line); and **chrome collapsing into words** (the
+lens legends behind one ⓘ with the rule that a basis sentence may move
+behind a tap but never be deleted; the daily's ⓘ icon becoming *why
+this question*; the feed's topic rail behind an *all topics* chip; the
+Patterns lens picker as a header dial that docks like the daily's
+ruler).
+
+### What the mapping found
+
+- **The repo's `--field-size` is not the prototype's.** Same name, two
+  tokens: the tree's is a 16px input font size (the iOS-zoom guard);
+  the prototype's is a 56px tap height, and it is the new ballot's
+  min-height. A blind port draws a 16px-tall ballot; the plan's §5.1
+  names the trap and the port carries its own height token.
+- **Two redraws target retired surfaces.** The test picker
+  (`test-overlay.jsx` as rows) redraws the sit-down flow D121 replaced
+  with passive results — provenance, not a step; and the paid data
+  file extends a pricing law D371–D377 partly moved past (the crowding
+  index supersedes the booked-ratio idx for sponsored questions).
+- **The upload answers an open owner question in the drawing.**
+  `paid-data.js`'s new `SUB` writes the subscription seat split
+  VISION-2026-08-26 §2.2 has waited on — evenly across subscribers,
+  recomputed each period, a €24 seat floor. The OWNER-LIST row now
+  carries the owner's own arithmetic and still waits for the tick,
+  plus one new word the tick needs: where the catalog window lives
+  now that buying is on the web (D368).
+- **The anonymous-answers toggle is drawn a third time** — now as
+  underlined words under the new ballot. The D98-amendment row stands;
+  the plan builds the ballot and holds the words (D334: not built
+  silently, not dropped silently).
+- **Born or built dies before it was ever drawn.** The design deletes
+  `NatureRows` from the result card; the tree never ported it, so the
+  deletion costs nothing and closes the line that has sat on the v20
+  remains list since D113.
+- **One dead block in the new sheet.** `dots.css` carries an `.h-dots`
+  family no module references — the header dial wears the existing
+  `.h-dockruler` classes. Recorded as found, not ported.
+
+### What this changes elsewhere
+
+`VISUAL-VISION.md` names the 2026-09-06 design the current vision and
+the lineage gains its row; request 1 gains a note (the in-rim labels
+share the field its "inner arc" grammar priced; the three grammars
+stand); the two OWNER-LIST rows gain what the design draws; six
+`[claude-3]` build lines join the worklist in the plan's §8 order. The
+committed style-diff reference does not move (`design/README.md`'s
+rule): v18 stays what the tree is measured against until a full sync.
+
+### Gates
+
+`check:docs` (the new plan registered, the vision re-pointed, every
+cited path resolving), `check:figures`, `test:scripts` — this PR is
+documents and provenance only, so the client suites are untouched by
+construction.
+
+## D391 · The 2026-09-06 design, steps 1 and 2: the 12px floor, and the Patterns instrument on paper
+
+**2026-09-06.** **Status:** binding, built. The owner's *"build the
+first two steps"* on `VISION-2026-09-06.md` §8, the day after the
+vision arrived (D390). Two commits on `claude/zen-pascal-ugc4p4`; the
+same renumber caveat as its siblings (D289's collision pattern).
+
+### Step 1 — the floor
+
+Every piece of microtype to 12px, app-wide: the shared tier in
+`styles.css` (`.kicker`/`.klabel`/`.legend` with tracking eased to
+0.07em, `.h-meta`, `.stamp`, `.search-group`, `.pp-kick`), the Map
+families site for site with the upload's own patch (22 `.mmt-`/`.mpc-`
+rules), sixteen rules in `ui/patterns.css`, and the touched spec
+modules' inline sizes — the Mirror ruler at on 13 / off 12 (the
+design's four tiers folded onto the tree's two), the 1v1 and Circle
+chrome, the person-card chips, the daily's comment chrome,
+`TestArcsCard`'s sublabels. Eager graph measured 602 → 601 KB against
+the 607 ceiling. Three things stay under the floor with their reasons
+at the site: the Mirror lens row's measured seven-tab ladder (D135 —
+the upload leaves its own twin alone), two glyph marks, and the daily's
+context ⓘ that §5 replaces with words.
+
+### Step 2 — the instrument on paper
+
+`lens-paper` is the app root's default (`app-shell.jsx`); the lens card
+loses its box, title and standing legend; one ⓘ per lens
+(`PatternsTab`'s `guide` flag — ephemeral, no device key, so
+`check:purge`'s subject set does not grow) carries every explainer
+under one rule, **a basis sentence may move one tap away but never be
+deleted** (D146). The Map seats short topic names inside the rim
+(candidates × four radii, refused at the hub, the dots, the wedge or a
+placed neighbour), speaks its hub in the serif, quiets idle chords to
+0.05 ink, draws its arcs and dots in (`inkDraw`, one family — the
+tapped-chord `qmDraw` folded in), deletes the callout pill and the
+beacon's words, and compacts the strongest link to the serif arrow
+sentence. The Oracle's options render inside the halves in the serif
+(`orLines` breaks at the most even space), every field caption is gone,
+the kicker counts the pool, a 1·2·3 strip teaches the game under the
+guide. The People lens names on tap only, frames the disc with two
+faint rings, lands the paper agreement palette, and rows the three most
+agreeing named people with the answer each shares.
+
+### What the build settled
+
+- **The repo's floors beat the design three more times**: the ⓘ at
+  44px against the drawn 32, the sub-row's 44 against 34, the *YOU*
+  tag at 12 against 10.5 — the same calls D362 made.
+- **A control that loses its words may not lose its name**: the beacon
+  and the Oracle's field both carry their retired text as accessible
+  names, pinned; `check:a11y`'s baseline unmoved.
+- **`peopleMap.ts` lost its label solver whole** — `near`, `lab`,
+  `PEOPLE_LABELS` and ~60 lines of spot-scoring (D362 §1.6's
+  precedent: a layout engine whose surface is gone is residue).
+  `PEOPLE_ALIKE = 3` caps the rows; likeness-not-layout ranking and
+  D167's named-only rule carried unchanged; the guide legend prints
+  `basis`/`minShared`, never the viewer's own count.
+- **The strongest-link basis line stays against the design's
+  deletion** — D310's bounded-sample wording, and §2.4's rule cuts
+  both ways. The compact sentence carries full prompts; the live bank
+  has no `short` names, which is the design's own fallback.
+- The axis SKIP list drops `svg`: the lenses are tap-only, so the
+  Oracle's `.or-lens` exception generalised to all three.
+
+### Gates
+
+`test:unit` (2 705 — +5 pins: the in-rim label geometry, the map
+legend's gating, the option words in the halves, the guide's
+persistence across a lens swap, the People rows' shared-answer line),
+`data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
+`check:tap-targets`, `check:a11y` (no new findings), `check:globals`
+(rule 4 at 30, unmoved), `check:bundle` (601 KB eager / 607),
+`check:docs`, `check:figures`.
+
+## D392 · The 2026-09-06 design, steps 3–6: the dial, the feed's ground, the ballot row, the polish pass
+
+**2026-09-06.** **Status:** binding, built. The owner's *"build the
+rest of the steps"* on `VISION-2026-09-06.md` §8, same day as D391.
+Four commits on `claude/zen-pascal-ugc4p4`, one per step; the same
+renumber caveat as its siblings (D289's collision pattern). With this
+the vision's build queue is empty — what remains of the plan is §7's
+two owner rows.
+
+### Step 3 — the dial in the header
+
+The Patterns lens state lifts into the shell as `ptLens` and crosses
+as props (`lens`/`onLens`/`onDock` — no window global, rule 4 unmoved);
+the dock slot serves track AND patterns (`DAILY_DOTS` + `PT_DIAL`,
+haptic ticks, `data-docked` on either tab, docking reset on tab
+change); the Patterns ruler folds on scroll or use and the daily hides
+its in-page switcher once docked. Three tree contracts beat the
+design's lines, recorded in §3.1: the docked twins keep their in-flow
+rulers' accessible names (the *Which daily*/*Which lens* renames stay
+unported — `smoke-nav` pins the shared label), the dock slot may not
+go `aria-hidden` while undocked (tried; broke the crossfade contract's
+two suites), and the fold effect reads its scroll host optionally so
+bare mounts stand.
+
+### Step 4 — the feed on paper
+
+Boxed card skins onto the rule ground (the paid card keeps its box —
+D375's one-product line), the topic rail behind an *all topics / N of
+M topics* disclosure with neutral check chips, the `headHold` guard
+plus `topicsOpen` so the sticky head never hides mid-use. Six suites
+re-walked through the disclosure; `smoke-daily`'s feed witness became
+the chip itself. The feed's ~60 untouched sub-12 inline sizes are the
+design's own leftover and stay (§4.1's scope call).
+
+### Step 5 — the ballot as a hairline row
+
+`.ds-ballot`/`.ds-half`: top and bottom rules, transparent halves, the
+hue held in `--oc` and drawn only on press (9% tint, 3px underline);
+the height is a literal 56 with §5.1's trap comment at the site — the
+repo's `--field-size` is a 16px font token, not the prototype's 56px
+height. The ⓘ became the underlined words *why this question* (the
+sponsored card still says *what you need to know*), and the anonymous
+words' slot ships EMPTY with the §7.1 comment — the D98-amendment row
+is still the owner's. The split-ballot suite now pins the design's own
+split: daily as hairline row, feed votes keeping the 09-02 seam block.
+D86's long-press edit pinned a third time.
+
+### Step 6 — the paper polish pass
+
+The result card boxless (`rpv2-page`, serif identity 31/500, the near
+chips folded into one prose sentence, the `false &&`-ed rule line
+deleted, Born-or-built closed as never-ported); the constellation
+draws in as ink (`mmt-ink` on `pathLength: 1`, dots delayed by hub
+distance — keyframes twinned BY NAME with `ui/patterns.css`, identical
+bodies, reduced-motion guarded); the profile flattens to `.profile-ov`
+hairline sections WITHOUT `!important` (inline paddings win on
+purpose — the repo's own cards keep their exceptions; the account
+sheet flattens with it); the Mirror's lens row becomes a ruled band
+and its figure lifts; the circle population's so-what stands down (it
+ranked nine named friends under the figure already drawing that
+ranking — *least* reads as a verdict on a friend); the duel prompts go
+serif (group's at `fs + 2`, the design's own weight-per-pixel recipe).
+`IS_typeRuleParts` stays defined for `scripts/report-lib.mjs`; the
+banner keeps `overflow: hidden` for its bleeding emblem. §6.4 has each
+call with its reason.
+
+### Gates
+
+`test:unit` (2 710 — the fold, the dial/ruler agreement, the two
+ballot shapes and the re-pinned D86 edit among the new and reshaped
+pins), `data/patterns.test.ts` byte-identical, `tsc -b`, `lint`,
+`check:tap-targets`, `check:a11y` (6, baseline), `check:globals`
+(rule 4 at 30, unmoved), `check:answer-shape`, `check:labels`,
+`check:public-copy`, `check:purge`, live `check:bundle` (598 KB eager
+/ 607; 70 KB blocking css / 74), `check:eager-content`, `check:docs`,
+`check:figures`.
+## D393 · The first launch explains the app: five pages before the questions, and a row to see them again
 
 **2026-09-06.** **Status:** binding · Owner request, made directly to a
 session — *"create a walkthrough for the first time someone uses the app

@@ -93,7 +93,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap', flexShrink: 0 }}>{p.name}</span>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
                   {/* v28 §7.9: the type, as the chip the LIVE KindredCard already
                       wears (ui/LiveMirrorLenses.tsx, D156) — mark + name, one
                       shape for demo and live so a badge on a person always
@@ -103,7 +103,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                     <span style={{
                       marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5,
                       border: '1px solid color-mix(in oklch, var(--rule), transparent 25%)', borderRadius: 999, padding: '2px 9px 2px 4px',
-                      fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)',
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)',
                       background: 'var(--surface-2)', whiteSpace: 'nowrap',
                     }}>
                       <TypeMark testKey="big5" name={p.type} size={16}></TypeMark>
@@ -114,7 +114,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
                   {p.shared.map(s => (
                     <span key={s} style={{
-                      fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500,
+                      fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500,
                       color: `oklch(0.34 0.13 ${p.hue})`,
                       padding: '2px 9px', borderRadius: 99,
                       background: `oklch(0.95 0.03 ${p.hue})`, border: `0.5px solid oklch(0.85 0.05 ${p.hue})`,
@@ -173,7 +173,12 @@ function MFSoWhat({ pop, cfg }) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
   useEffectMFP(() => DAILYQ.subscribe(bump), []);
   const parts = mfpSoWhat(pop, cfg);
-  if (!parts.length) return null; // too thin to say anything — say nothing
+  // circle refuses even when it has something (2026-09-06, §6.3): "X mirrors
+  // you closest; Y least" ranks the nine people the reader knows BY NAME
+  // under the figure that already draws the same ranking — the one so-what
+  // that repeats its own field, and the one where least reads as a verdict
+  // on a friend. The other populations keep theirs.
+  if (pop === 'circle' || !parts.length) return null; // too thin to say anything — say nothing
   return (
     <div style={{ padding: '7px 26px 0', textAlign: 'center' }}>
       <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'balance' }}>
