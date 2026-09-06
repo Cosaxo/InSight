@@ -57,7 +57,11 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
                       from the published breakdown dims, matched
                       conjunctively by the DEVICE (data/sponsored.ts) —
                       the server is never asked who should see what — and
-                      every matched dim prints on the band. The window
+                      every matched dim prints on the band. `link`
+                      (D378) is the buyer's one https address: printed as
+                      its bare domain on the ANSWERED face only, opened in
+                      the system browser with no referrer, and counted by
+                      nobody. The window
                       is `until` above rather than a field here, so the
                       band's label and the serving filter are one value. A
                       sponsored question is never `core`
@@ -248,10 +252,11 @@ v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
                                    breakdown dims, matched ON THE DEVICE
                                    (data/sponsored.ts). The server is never
                                    asked who should see what
-  from?                            D315: a self-serve ad queued behind the
-                                   scope's running one starts later than it
-                                   was paid — pickPaid holds it until this
-                                   day, the exclusivity its flat price buys
+  from?                            D315: a self-serve ad's first serving
+                                   day — pickPaid holds it until then. No
+                                   new ones since D375 retired the lane;
+                                   a doc that carries it is a window sold
+                                   before, and closes on its own day
   active?, seq, updatedAt
 read: signed-in · write: nobody client-side (the seed, and since D315 the
 payment webhook at paidad-* ids). An ad takes no answer, so there is no
@@ -420,9 +425,10 @@ v2_presence/{uid}                  Near-by-radius presence (D84)
                                    coordinate is discarded (data/locate.ts)
   at: request.time                 last write; the beat refreshes it
   until?: timestamp                when this position STOPS counting
-                                   (D174) — the linger for the standing
-                                   option, the session deadline for the
-                                   timed one, whichever is sooner. The
+                                   (D174) — the linger past the last
+                                   beat. (Until D370 the timed option
+                                   clamped it to a session deadline; the
+                                   switch is off or on now.) The
                                    count filters on it, and the rules cap
                                    it at PRESENCE_LINGER_MIN so no client
                                    grants itself a longer stay. OPTIONAL

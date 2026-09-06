@@ -4,10 +4,10 @@
 //   node scripts/record-purchase.mjs --project prvfire33 \
 //     --uid <buyerUid> --qid pd01 --scope city --place Oslo \
 //     --prompt "Should the night buses run all night?" --options "All night,The hours are fine" \
-//     --start 2026-08-24 --until 2026-09-21 --rate 0.16 --cap 4000 --cap-eur 640
+//     --start 2026-08-24 --until 2026-09-21 --rate 0.02 --cap 1000 --cap-eur 20
 //   node scripts/record-purchase.mjs --emulator --uid u1 --qid pd01 --scope world \
 //     --prompt "Sunrise or sunset?" --options "Sunrise,Sunset" \
-//     --start 2026-08-24 --until 2026-09-21 --rate 0.16 --cap 4000 --cap-eur 640
+//     --start 2026-08-24 --until 2026-09-21 --rate 0.02 --cap 1000 --cap-eur 20
 //
 // Needs admin credentials (GOOGLE_APPLICATION_CREDENTIALS or `gcloud auth
 // application-default login`), or --emulator with FIRESTORE_EMULATOR_HOST.
@@ -24,11 +24,13 @@
 // nothing. This script remains for sales the machinery does not carry
 // (reports sold standalone, subscriptions when they exist).
 //
-// The same sitting that records a purchase re-runs the pricing fold
-// (scripts/build-pricing.mjs) and commits the changed content/pricing.json
-// — the booked/open days and the demand index the door prints are read
-// from that committed file, never from other buyers' rows. The reminder
-// at the foot of a successful run says exactly that.
+// A recorded row moves the rate card at the next nightly fold — the
+// closer republishes `v2_meta/pricing` every day (D371) — or now, with
+// scripts/build-pricing.mjs, which runs the same fold by hand and also
+// refreshes the committed content/pricing.json snapshot. The booked/open
+// days and the demand index the door prints are read from that published
+// document (the committed file until it lands), never from other buyers'
+// rows. The reminder at the foot of a successful run says exactly that.
 //
 // What it validates, each bound a recorded rule rather than taste:
 //   - dims ≤ 3, each of the published vocabulary (D228's coarseness
@@ -142,5 +144,5 @@ console.log(`${existing.exists ? "amended" : "recorded"} v2_purchases/${pid}`);
 console.log(`  ${kind} · ${scope}${place ? ` (${place})` : ""} · ${start} → ${until} (${days} days) · ${rate}/answer · cap ${cap} answers / €${capEur}`);
 if (dims.length) console.log(`  dims: ${dims.join(" · ")}`);
 console.log("\nSame sitting, before you stand up:");
-console.log("  node scripts/build-pricing.mjs   # refold the ledger into content/pricing.json");
-console.log("  …and commit the changed pricing.json — the door prints THAT file, never this row.");
+console.log("  node scripts/build-pricing.mjs   # publish the live rate card now, and refresh the committed snapshot");
+console.log("  …or wait for the nightly closer's fold (D371). Either way the door prints the published card, never this row.");

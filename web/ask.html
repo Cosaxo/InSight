@@ -20,11 +20,20 @@
     design/ask-2026-09-05/. The states, the ruler and the refund
     arithmetic are that draft's; the prices are not — they come from
     web/ask-pricing.json, which scripts/build-ask-pricing.mjs generates
-    from content/pricing.json and WINDOW_DAYS. Read that script's header
-    before touching a number here: the refund window is the one field
-    that is NOT a rename of anything in the pricing file, and wiring it
-    to the file's nearest-looking field would shorten a payment promise
-    by a day.
+    from content/pricing.json (the window included, D376) and the feed's
+    own paid-card density. Read that script's header before touching a
+    number here.
+
+    THREE THINGS JOINED THE DRAFT (D376–D378, docs/SPONSORED-PLAN.md):
+    the MENU — three rows, one price per reach, "up to N answers · 29
+    days" under each, and a row opens the composer at that budget; the
+    BUDGET — the buyer sets the most they will spend (chips), billed per
+    answer up to it, the unserved part refunded; and the LINK — one https
+    address, shown on the card as its bare domain only after a person
+    has answered, opened in their browser, nothing counted. The crowding
+    is said as room — "room for 3 more" until a scope's free places are
+    taken, then "3 in rotation · sharing" — read off the same strip the
+    multiplier is folded from (D377).
 
     NO FRAMEWORK, NO CDN, ONE INLINE SCRIPT. Every sibling in web/ is
     static under `default-src 'none'`, and this page keeps that: the
@@ -133,6 +142,24 @@
     .scope-read { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 26px; }
     .scope-read b { font-size: 19px; }
     .muted { color: var(--ink-3); font-size: 13px; }
+    .menu { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .menu-row {
+      display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; align-items: baseline;
+      width: 100%; text-align: left; font: inherit; cursor: pointer;
+      background: var(--paper); border: 1px solid var(--rule); border-radius: 11px; padding: 12px 14px;
+      min-height: 44px; color: var(--ink);
+    }
+    .menu-row[aria-pressed="true"] { border-color: var(--ink); }
+    .menu-row .who { font-weight: 800; font-size: 16px; }
+    .menu-row .price { font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; text-align: right; }
+    .menu-row .room { font-size: 12px; color: var(--ink-3); }
+    .menu-row .buys { font-size: 12px; color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .budget-read { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 8px; }
+    input[type="url"] {
+      width: 100%; font: inherit; color: var(--ink); background: var(--paper);
+      border: 1px solid var(--rule); border-radius: 9px; padding: 9px 11px;
+    }
+    input[type="url"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .flat-note {
       margin-top: 10px; font-size: 13px; color: var(--ink-3);
       border-left: 2px solid var(--rule); padding-left: 10px;
@@ -186,6 +213,13 @@
     than the cap, and whatever goes unanswered comes back to you.
   </p>
 
+  <!-- ── the menu (D376): one price per reach, what it buys, the room ── -->
+  <section class="card" id="menuCard">
+    <p class="kicker">The menu</p>
+    <div class="menu" id="menu" role="group" aria-label="Price per reach"></div>
+    <p class="hint" id="menuNote"></p>
+  </section>
+
   <!-- ── compose ─────────────────────────────────────────────────── -->
   <section class="card" id="compose">
     <p class="kicker">Your question</p>
@@ -215,11 +249,22 @@
     <div class="scope-read">
       <div>
         <b id="scopeRate">—</b>
-        <span class="muted">per answer · <span id="scopeIdx">—</span></span>
+        <span class="muted">per answer · <span id="scopeRoom">—</span></span>
       </div>
       <div class="muted">up to <b id="scopeAnswers">—</b> answers</div>
     </div>
     <p class="flat-note" id="flatNote" hidden></p>
+
+    <label class="field" for="budget-first" style="margin-top:18px"><span>Your budget — the most you'll spend</span></label>
+    <div class="chips" id="budgets" role="group" aria-label="Your budget"></div>
+    <p class="hint" id="budgetHint"></p>
+
+    <label class="field" style="margin-top:18px">
+      <span>A link · optional</span>
+      <input type="url" id="link" maxlength="200" inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false"
+        placeholder="https://your-site.no/page" />
+    </label>
+    <p class="hint" id="linkHint">Shown as the site's name after a person has answered, opened in their browser. Nothing is counted.</p>
 
     <button type="button" class="pay" id="quoteBtn">Get a price</button>
   </section>
@@ -250,8 +295,9 @@
       <dl>
         <dt>Audience</dt><dd id="qAudience"></dd>
         <dt>Per answer</dt><dd id="qRate"></dd>
-        <dt>Charged now (the cap)</dt><dd id="qCap"></dd>
+        <dt>Charged now (your budget)</dt><dd id="qCap"></dd>
         <dt>Answers that buys</dt><dd id="qAnswers"></dd>
+        <dt id="qLinkLabel" hidden>Link, after the answer</dt><dd id="qLink" hidden></dd>
       </dl>
     </div>
 
@@ -278,7 +324,7 @@
       <a href="/privacy.html">Privacy</a> ·
       <a href="/">InSight</a>
     </p>
-    <p class="prov">
+    <p class="prov" id="placesLine">
       Every answer on InSight is public, and a sponsored question is labelled
       as one wherever it appears.
     </p>
@@ -307,7 +353,15 @@
 
   var st = {
     P: null, panel: null, scope: 0, cur: "EUR",
-    prompt: "", type: "pick", opts: ["", ""]
+    prompt: "", type: "pick", opts: ["", ""],
+    // The most the buyer will spend (D372): a chip off the card. From a
+    // menu row it is the row's price — the buyer chose that number; from
+    // nothing, the smallest — a control that defaults to more money than
+    // the least is the wrong default for a button that charges it.
+    budget: null,
+    // The buyer's one link (D378) — composed here, held to shape by the
+    // server, judged by the review.
+    link: ""
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -337,10 +391,54 @@
     return c.pre ? c.sym + s : s + " " + c.sym;
   }
   function n(v) { return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+  // A budget is a whole-euro figure and prints as one — "€5", never
+  // "€5.00" beside "€10": the cents band in fmt is for the per-answer
+  // line, where the cents are the price.
+  function fmtWhole(eur) {
+    var c = (st.P && st.P.fx[st.cur]) || { sym: "€", rate: 1, pre: true };
+    var v = eur * c.rate;
+    if (v >= 1000) v = Math.round(v / 100) * 100;
+    else if (v >= 100) v = Math.round(v / 10) * 10;
+    else v = Math.round(v);
+    var out = n(v);
+    return c.pre ? c.sym + out : out + " " + c.sym;
+  }
 
   function cohort() { return st.P.cohorts[st.scope]; }
   function rate() { return st.P.perAnswerBaseEur * cohort().index; }
-  function answers() { return Math.floor(st.P.capEur / rate()); }
+  function budget() { return st.budget == null ? st.P.budgets[0] : st.budget; }
+  function answersFor(eur, c) { return Math.floor(eur / (st.P.perAnswerBaseEur * c.index)); }
+  function answers() { return answersFor(budget(), cohort()); }
+
+  // The crowding, as a sentence (D377): the room left before anyone
+  // shares — the card's free places less the campaigns in the cohort's
+  // rotation over the fortnight, a campaign on any day counting as a
+  // place taken — and, once there is none, how many are sharing. Read
+  // off the same strip the multiplier is folded from, so the sentence
+  // and the price agree.
+  function crowdOf(c) {
+    var sum = 0;
+    for (var i = 0; i < c.crowd.length; i++) sum += c.crowd[i] || 0;
+    return c.crowd.length ? Math.round((sum / c.crowd.length) * 10) / 10 : 0;
+  }
+  function roomOf(c) { return Math.max(0, st.P.crowdFree - Math.ceil(crowdOf(c))); }
+  function roomLine(c) {
+    var room = roomOf(c);
+    if (room > 0) return "room for " + room + " more";
+    var k = crowdOf(c);
+    return (Number.isInteger(k) ? String(k) : k.toFixed(1)) + " in rotation · sharing";
+  }
+
+  // The link (D378), shown as the bare domain the card will print —
+  // whose page it is, never where on it. Null for anything not https.
+  function linkDomain(link) {
+    if (!link) return null;
+    try {
+      var u = new URL(link);
+      if (u.protocol !== "https:") return null;
+      return u.hostname.replace(/^www\./i, "").toLowerCase() || null;
+    } catch (e) { return null; }
+  }
   function typeDef() {
     for (var i = 0; i < TYPES.length; i++) if (TYPES[i].key === st.type) return TYPES[i];
     return TYPES[0];
@@ -439,6 +537,58 @@
     add.textContent = "+ Add an " + (T.add || "option");
   }
 
+  // ── the menu (D376) ────────────────────────────────────────────
+  // Three rows, one number each — the price per reach — with what it
+  // buys at the line in force under it. Crowding shows in the count,
+  // never in the figure: a busy cohort buys fewer answers for the same
+  // money. Picking a row opens the composer on that reach at that
+  // budget, the chips still there to adjust.
+  function drawMenu() {
+    var box = $("menu");
+    box.textContent = "";
+    st.P.cohorts.forEach(function (c, i) {
+      var eur = st.P.menu[c.key];
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "menu-row";
+      b.setAttribute("aria-pressed", String(i === st.scope && budget() === eur));
+      b.setAttribute("aria-label", c.label + ", " + fmtWhole(eur) + ", up to " + n(answersFor(eur, c)) + " answers over " + st.P.refundDays + " days, " + roomLine(c));
+      var who = document.createElement("span"); who.className = "who"; who.textContent = c.label;
+      var price = document.createElement("span"); price.className = "price"; price.textContent = fmtWhole(eur);
+      var room = document.createElement("span"); room.className = "room"; room.textContent = roomLine(c);
+      var buys = document.createElement("span"); buys.className = "buys";
+      buys.textContent = "up to " + n(answersFor(eur, c)) + " answers · " + st.P.refundDays + " days";
+      b.appendChild(who); b.appendChild(price); b.appendChild(room); b.appendChild(buys);
+      b.addEventListener("click", function () {
+        st.scope = i;
+        st.budget = eur;
+        draw();
+        $("compose").scrollIntoView({ block: "start", behavior: "smooth" });
+        $("prompt").focus({ preventScroll: true });
+      });
+      box.appendChild(b);
+    });
+    $("menuNote").textContent =
+      "Billed per answer at the line you lock, up to your budget; unserved answers refund at close. "
+      + "One card in " + st.P.paidEvery + " in the feed is paid, and each says PAID.";
+  }
+
+  function drawBudgets() {
+    var box = $("budgets");
+    box.textContent = "";
+    st.P.budgets.forEach(function (eur, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      if (i === 0) b.id = "budget-first";
+      b.textContent = fmtWhole(eur);
+      b.setAttribute("aria-pressed", String(eur === budget()));
+      b.addEventListener("click", function () { st.budget = eur; draw(); });
+      box.appendChild(b);
+    });
+    $("budgetHint").textContent = "up to " + n(answers()) + " answers · only what arrives is billed";
+  }
+
   // ── the ruler ──────────────────────────────────────────────────
   var XS = [9, 50, 91];
 
@@ -478,23 +628,23 @@
 
   function drawScope() {
     $("scopeRate").textContent = fmt(rate());
-    $("scopeIdx").textContent = "×" + cohort().index.toFixed(1);
+    $("scopeRoom").textContent = roomLine(cohort());
     $("scopeAnswers").textContent = n(answers());
 
-    // When the ledger is empty every cohort sits at the floor index, so
-    // all three scopes cost the same and the ruler looks broken. It is
-    // not: the spread IS demand, and there has been none yet. Saying so
-    // is cheaper than a reader deciding the page is wrong.
+    // When the ledger is empty every cohort sits at the floor, so all
+    // three scopes cost the same per answer and the ruler looks broken.
+    // It is not: the spread IS crowding, and there is none yet. Saying
+    // so is cheaper than a reader deciding the page is wrong.
     var idx = st.P.cohorts.map(function (c) { return c.index; });
     var flat = idx.every(function (v) { return v === idx[0]; });
     var note = $("flatNote");
     note.hidden = !flat;
     if (flat) {
       note.textContent =
-        "All three cost the same today. The multiplier is demand — how much of "
-        + "each audience is already booked — and nothing is, so every scope sits "
-        + "at the floor of ×" + st.P.floorIndex.toFixed(1) + ". It rises to ×"
-        + st.P.ceilingIndex.toFixed(1) + " as days fill.";
+        "Every scope costs the same per answer today: " + st.P.crowdFree + " campaigns in a "
+        + "scope each hold a place of their own, and the line rises by "
+        + Math.round(st.P.crowdStep * 100) + "% for each one beyond them — no ceiling, "
+        + "and the line you lock is the line you keep.";
     }
   }
 
@@ -534,12 +684,16 @@
     $("quotePrompt").textContent = st.prompt;
     $("qAudience").textContent = P.cohorts[st.scope].label;
     $("qRate").textContent = fmt(r);
-    $("qCap").textContent = fmt(P.capEur);
+    $("qCap").textContent = fmtWhole(budget());
     $("qAnswers").textContent = "up to " + n(a);
+    var dom = linkDomain(st.link.trim());
+    $("qLinkLabel").hidden = !dom;
+    $("qLink").hidden = !dom;
+    $("qLink").textContent = dom ? dom + " ↗" : "";
 
     $("refundLine").hidden = state === "declined";
     $("refundLine").textContent =
-      "You are charged " + fmt(P.capEur) + " now. The question runs for "
+      "You are charged " + fmtWhole(budget()) + " now. The question runs for "
       + P.refundDays + " days; if it is answered " + n(served) + " times instead of "
       + n(a) + ", the " + n(a - served) + " unserved answers come back to you as "
       + fmt((a - served) * r) + ". Nobody has to ask.";
@@ -587,10 +741,12 @@
   }
 
   function draw() {
+    drawMenu();
     drawTypes();
     drawOptions();
     drawRuler();
     drawScope();
+    drawBudgets();
     refreshQuoteButton();
   }
 
@@ -619,6 +775,15 @@
     st.prompt = e.target.value.slice(0, 120);
     $("promptLen").textContent = String(st.prompt.length);
     refreshQuoteButton();
+  });
+  $("link").addEventListener("input", function (e) {
+    st.link = e.target.value.slice(0, 200);
+    var dom = linkDomain(st.link.trim());
+    $("linkHint").textContent = dom
+      ? "Shows as " + dom + " ↗ after the answer. Nothing is counted."
+      : st.link.trim()
+        ? "A whole https address — https://…"
+        : "Shown as the site's name after a person has answered, opened in their browser. Nothing is counted.";
   });
   $("addOpt").addEventListener("click", function () {
     var T = typeDef();
@@ -655,6 +820,9 @@
       st.P = P;
       $("provFile").textContent = P.source;
       $("provDate").textContent = P.committed;
+      $("placesLine").textContent =
+        "Every answer on InSight is public. One card in " + P.paidEvery
+        + " in the feed is paid, and a sponsored question is labelled as one wherever it appears.";
       drawCurrencies();
       draw();
     })

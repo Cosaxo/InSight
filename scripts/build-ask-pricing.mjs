@@ -1,43 +1,43 @@
 #!/usr/bin/env node
 // build-ask-pricing.mjs — the adapter between the committed pricing card
-// and the web ask door's page resource (D368 shape A).
+// and the web ask door's page resource (D368 shape A; D376–D378 moved the
+// menu, the places and the link onto it).
 //
 //   node scripts/build-ask-pricing.mjs          # write web/ask-pricing.json
 //   node scripts/build-ask-pricing.mjs --check  # fail if it is stale
 //
 // WHY AN ADAPTER AND NOT A RENAME. Claude Design's draft was fed a
-// SHAPED pricing resource rather than `content/pricing.json`, so eight
+// SHAPED pricing resource rather than `content/pricing.json`, so the
 // names and two structures differ (design/ask-2026-09-05/README.md has
 // the table). The committed file is not the one to move: it is computed
-// by `build-pricing.mjs` off the real purchase ledger and held by
-// `check:pricing`, and renaming its fields to suit one page would break
-// the fold that produces them and the gate that proves them. So the
-// page gets its own resource, generated from the same numbers, and this
-// file is where the two vocabularies meet.
+// by `build-pricing.mjs` and the server's own fold off the real purchase
+// ledger (D371) and held by `check:pricing`, and renaming its fields to
+// suit one page would break the fold that produces them and the gate
+// that proves them. So the page gets its own resource, generated from
+// the same numbers, and this file is where the two vocabularies meet.
 //
-// THE ONE FIELD THAT IS NOT A RENAME, and the reason this script exists
-// as a script rather than as a paragraph telling somebody to be careful:
+// THE WINDOW IS ON THE CARD NOW. Until D376 this script read the refund
+// window off `functions/src/paid.ts`'s `WINDOW_DAYS` by regex, because
+// the card's nearest-looking field — `trailingDays`, the demand
+// lookback — was a different quantity one day shorter, and wiring the
+// page to it would have drawn a payment promise the money path does not
+// keep. D373 retired the lookback and D376 put `windowDays` on the card
+// as the one number the server's `WINDOW_DAYS` and every door read; the
+// substitution this script guarded against has no field left to be made
+// with. It still refuses a card without the number rather than guessing.
 //
-//   the design draws `refundDays` — 29 days
-//   the pricing file's nearest field is `trailingDays` — 28
+// THE DENSITY IS THE APP'S. `paidEvery` — a paid card after every this
+// many world cards (D377) — is `SPONSOR_EVERY` in `src/v2/data/sponsored.ts`,
+// where the feed places the cards. Read by regex over the source for the
+// reason the window used to be: the alternative is importing a client
+// module to learn one integer, and a rename throws loudly here rather
+// than returning a plausible number.
 //
-// They are different quantities. `trailingDays` is the demand-measurement
-// lookback that `build-pricing.mjs` divides by; the 29 is `WINDOW_DAYS`
-// in `functions/src/paid.ts`, the fixed serving window the closer
-// actually refunds against. Wiring one to the other draws a page making
-// a payment promise ONE DAY SHORTER than the money path keeps — a
-// substitution that reads as correct in review, passes every type check,
-// and is only visible to somebody who knows both meanings.
-//
-// So the window is read from the function's own constant, and the two
-// are asserted to be different: if `trailingDays` is ever tuned to 29
-// the equality would make this check vacuous, and the suite says so.
-//
-// The other direction matters too. `capEur`, `base`, `floorX`, `ceilX`
-// and the cohort indices are the LEDGER's, refolded whenever a contract
-// lands, so this file is generated rather than authored — a page quoting
-// a price the ledger has moved past is the same class of error one
-// document over.
+// The rest — base, floor, step, the free places, budgets, the menu, the
+// cohort indices and their crowd strips — is the LEDGER's, refolded on
+// every sale, so this file is generated rather than authored: a page
+// quoting a price the ledger has moved past is the same class of error
+// one document over.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -46,25 +46,16 @@ import { fileURLToPath } from "node:url";
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SOURCE = "content/pricing.json";
 export const TARGET = "web/ask-pricing.json";
-export const WINDOW_SOURCE = "functions/src/paid.ts";
+export const PLACES_SOURCE = "src/v2/data/sponsored.ts";
 
-/**
- * The serving window, read from `paid.ts` rather than passed in.
- *
- * A regex over source is the weaker way to read a constant and it is the
- * right one here: the alternative is importing a module that pulls in
- * firebase-functions and a Stripe client to learn one integer. The
- * failure mode is the safe one — a rename or a reformat throws loudly
- * instead of returning a plausible number — and the suite pins that.
- */
-export function windowDays(src) {
-  const m = /export const WINDOW_DAYS\s*=\s*(\d+)\s*;/.exec(String(src ?? ""));
+/** The feed's paid-card density, read from the module that places them. */
+export function paidEvery(src) {
+  const m = /export const SPONSOR_EVERY\s*=\s*(\d+)\s*;/.exec(String(src ?? ""));
   if (!m) {
     throw new Error(
-      `build-ask-pricing: could not read WINDOW_DAYS from ${WINDOW_SOURCE}. ` +
-      "It is the refund promise the page prints; this script will not guess it " +
-      "and must never fall back to pricing.json's trailingDays, which is a " +
-      "different quantity one day shorter (see this file's header).",
+      `build-ask-pricing: could not read SPONSOR_EVERY from ${PLACES_SOURCE}. ` +
+      "It is the density the page prints beside the free places; this script " +
+      "will not guess it.",
     );
   }
   return Number(m[1]);
@@ -98,24 +89,47 @@ export const CURRENCIES = [
   { code: "NOK", sym: "kr", pre: false },
 ];
 
-export function buildAskPricing(pricing, paidSrc) {
-  const P = pricing || {};
-  const days = windowDays(paidSrc);
-  const trailing = Number(P.trailingDays);
-  // Stated as a property rather than trusted: see the header. If these
-  // ever coincide, the distinction this script exists to keep is no
-  // longer observable and somebody has to look again.
-  const windowEqualsTrailing = days === trailing;
+const wholeAtLeast = (v, min) => Number.isInteger(v) && v >= min;
 
-  const cohorts = SCOPES.map(({ key, label }) => ({
-    key,
-    label,
-    index: Number(P.cohorts?.[key]?.idx),
-  }));
+export function buildAskPricing(pricing, sponsoredSrc) {
+  const P = pricing || {};
+  const days = P.windowDays;
+  if (!wholeAtLeast(days, 1)) {
+    throw new Error(
+      `build-ask-pricing: ${SOURCE} carries no windowDays — the refund window the page ` +
+      "prints is the card's (D376), and this script will not guess it.",
+    );
+  }
+  const every = paidEvery(sponsoredSrc);
+
+  const cohorts = SCOPES.map(({ key, label }) => {
+    const c = P.cohorts?.[key] || {};
+    const crowd = Array.isArray(c.crowd) ? c.crowd.map(Number) : Array.isArray(c.booked) ? c.booked.map((b) => (b ? 1 : 0)) : null;
+    return { key, label, index: Number(c.idx), crowd };
+  });
   for (const c of cohorts) {
     if (!Number.isFinite(c.index)) {
       throw new Error(`build-ask-pricing: ${SOURCE} has no demand index for the "${c.key}" cohort`);
     }
+    if (!c.crowd || c.crowd.length !== 14 || c.crowd.some((n) => !Number.isInteger(n) || n < 0)) {
+      throw new Error(`build-ask-pricing: ${SOURCE} has no fortnight crowd strip for the "${c.key}" cohort`);
+    }
+  }
+
+  const budgets = Array.isArray(P.budgets) ? P.budgets.map(Number) : [];
+  if (!budgets.length || budgets.some((b) => !wholeAtLeast(b, 1))) {
+    throw new Error(`build-ask-pricing: ${SOURCE} has no budget presets`);
+  }
+  const menu = {};
+  for (const { key } of SCOPES) {
+    const m = Number(P.menu?.[key]);
+    // The menu price is one of the chips, so a row opens the composer on
+    // a budget the buyer can see pressed — check:pricing holds the card
+    // to this and this holds the page to the card.
+    if (!budgets.includes(m)) {
+      throw new Error(`build-ask-pricing: ${SOURCE}'s menu price for "${key}" (${P.menu?.[key]}) is not one of its budget presets`);
+    }
+    menu[key] = m;
   }
 
   const fx = {};
@@ -127,18 +141,28 @@ export function buildAskPricing(pricing, paidSrc) {
     fx[code] = { sym, rate: r, pre };
   }
 
+  for (const [k, min] of [["base", 0], ["floorX", 0], ["crowdStep", 0], ["minEur", 1], ["capEur", 1]]) {
+    if (!(Number(P[k]) >= min) || !Number.isFinite(Number(P[k]))) {
+      throw new Error(`build-ask-pricing: ${SOURCE} has no usable ${k}`);
+    }
+  }
+  if (!wholeAtLeast(P.crowdFree, 1)) throw new Error(`build-ask-pricing: ${SOURCE} has no crowdFree — the free places the page prints`);
+
   return {
     // Provenance first, because the page prints it: a buyer reading a
     // price is told which committed file it came from and when.
     source: SOURCE,
     committed: String(P.generated ?? ""),
     perAnswerBaseEur: Number(P.base),
-    capEur: Number(P.capEur),
-    adBaseEur: Number(P.adBase),
     floorIndex: Number(P.floorX),
-    ceilingIndex: Number(P.ceilX),
+    crowdStep: Number(P.crowdStep),
+    crowdFree: Number(P.crowdFree),
+    minEur: Number(P.minEur),
+    capEur: Number(P.capEur),
+    budgets,
+    menu,
     refundDays: days,
-    windowEqualsTrailing,
+    paidEvery: every,
     cohorts,
     fx,
   };
@@ -147,17 +171,9 @@ export function buildAskPricing(pricing, paidSrc) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const check = process.argv.includes("--check");
   const pricing = JSON.parse(readFileSync(join(ROOT, SOURCE), "utf8"));
-  const paidSrc = readFileSync(join(ROOT, WINDOW_SOURCE), "utf8");
-  const built = `${JSON.stringify(buildAskPricing(pricing, paidSrc), null, 1)}\n`;
-
-  if (built.includes(`"windowEqualsTrailing": true`)) {
-    console.error(
-      `build-ask-pricing: WINDOW_DAYS and ${SOURCE}'s trailingDays are both ` +
-      `${pricing.trailingDays}. They are different quantities that happen to ` +
-      "agree, so the substitution this script guards against is currently " +
-      "invisible. Read this file's header before changing either.",
-    );
-  }
+  const sponsoredSrc = readFileSync(join(ROOT, PLACES_SOURCE), "utf8");
+  const out = buildAskPricing(pricing, sponsoredSrc);
+  const built = `${JSON.stringify(out, null, 1)}\n`;
 
   if (check) {
     let live = null;
@@ -168,7 +184,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     }
     if (live !== built) {
       console.error(
-        `check:ask-pricing — ${TARGET} does not match ${SOURCE} + ${WINDOW_SOURCE}.\n\n` +
+        `check:ask-pricing — ${TARGET} does not match ${SOURCE} + ${PLACES_SOURCE}.\n\n` +
         "  The web ask door reads this file for every price it prints, and it is\n" +
         "  generated rather than authored. Regenerate it:\n\n" +
         "    npm run build:ask-pricing\n\n" +
@@ -176,9 +192,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       );
       process.exit(1);
     }
-    console.log(`check:ask-pricing OK — ${TARGET} matches the committed card (window ${JSON.parse(built).refundDays}d, cap €${JSON.parse(built).capEur}).`);
+    console.log(`check:ask-pricing OK — ${TARGET} matches the committed card (window ${out.refundDays}d, menu €${out.menu.city} · €${out.menu.country} · €${out.menu.world}, ${out.crowdFree} free places, one card in ${out.paidEvery}).`);
   } else {
     writeFileSync(join(ROOT, TARGET), built);
-    console.log(`build-ask-pricing: wrote ${TARGET} — window ${JSON.parse(built).refundDays}d, cap €${JSON.parse(built).capEur}, card of ${JSON.parse(built).committed}.`);
+    console.log(`build-ask-pricing: wrote ${TARGET} — window ${out.refundDays}d, menu €${out.menu.city} · €${out.menu.country} · €${out.menu.world}, card of ${out.committed}.`);
   }
 }
