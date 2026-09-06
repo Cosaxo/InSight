@@ -1,6 +1,6 @@
 # The 1v1 and group profile — the plan
 
-**Status: plan notes — §5's steps 1 and 2 are built (D385, 2026-09-06,
+**Status: plan notes — §5's steps 1 and 2 are built (D386, 2026-09-06,
 the owner's *"yes build the first two steps"*); the rest proposes.** Written
 2026-09-06 on the owner's ask of that day — *"how could we make the 1v1
 and groups profile better, and check if you want to improve the
@@ -241,7 +241,7 @@ for a group of *m*; Presence is a plain share and stays one.
 
 The baselines below are authored on that scale, like every baseline in
 `IS_TEST_AVG` and for D157's reason; re-authoring them from the first
-real fold is a one-line change and its own note. **Done at D385** for
+real fold is a one-line change and its own note. **Done at D386** for
 the tables that exist: `duo` 70 · 70 · 64 · 58 and `group` 24 · 70 ·
 58, the arithmetic beside them in `test-definitions.js`.
 
@@ -357,7 +357,7 @@ reveal for any mode, and the answer→guess morph is built on the 1v1
 card (D156 §4 — one create, the pick waits for the guess). The group
 card runs the same morph; the write shape does not change. The cost is
 one more tap per group day, and it is the owner's to weigh (§6).
-**Built at D385**: the morph on the group card, a *you read the room*
+**Built at D386**: the morph on the group card, a *you read the room*
 row on the reveal, the reading as a receipt row (`asides` in
 `roles.ts`) and in the signal (`duelAggDelta` scores a group's guess
 against the option the room landed on); it becomes a matched dim with
@@ -398,7 +398,7 @@ is a claim about a person, so it has to be true and kind at once.
 
 ### 3.7 The questions
 
-**The tag reaches the seed** (built at D385). `gen-v2content.mjs` emits the source's
+**The tag reaches the seed** (built at D386). `gen-v2content.mjs` emits the source's
 `d` as `topic` on duo entries (`day` · `heat` · `mirror` · `ahead` —
 the group's kind already rides that field), `check:content` holds the
 set closed as it does the group kinds, `duelQFor` carries it to the
@@ -494,7 +494,7 @@ record or note; steps 1 and 2 are worth building even if the owner
 keeps D204's tables, because they fix what the current numbers mean.
 
 0. **[owner]** The call — § 6 and `OWNER-LIST.md`.
-1. **S · The day's kind and the honest fold — BUILT (D385).** `gen-v2content.mjs`
+1. **S · The day's kind and the honest fold — BUILT (D386).** `gen-v2content.mjs`
    emits the duo domain as `topic`; `check:content` holds the closed
    set; `npm run build:content`. `roles.ts` holds mirror days apart,
    chance-scales every rate (§3.2), and refuses a type whose defining
@@ -504,7 +504,7 @@ keeps D204's tables, because they fix what the current numbers mean.
    numbers on today's card move, so a note says so.
    · **Gate:** `npm run test:unit`, `npm run check:content`,
    `npm run test --prefix functions`.
-2. **S · Reading the room — BUILT (D385).** `LiveDuelPanel` runs the answer→guess
+2. **S · Reading the room — BUILT (D386).** `LiveDuelPanel` runs the answer→guess
    morph on group cards; `roles.ts` folds `room`; `foldDuelSignal`
    counts group guesses (today: only a duo's) and the scorecard's duel
    section reads them. · **Gate:** `npm run test:unit`, functions
@@ -539,7 +539,7 @@ sees or pays, so they are stated with what they expose and cost:
 - **The guess on group days.** One more tap a day for every group
   member, in exchange for the one dim that makes the group table
   spread. The 1v1 has no skip and this proposes none; a skipped day
-  simply carries no `guessIdx` and does not count. *Built at D385 on
+  simply carries no `guessIdx` and does not count. *Built at D386 on
   your word.*
 - **The cast.** Each member's role in the group, drawn for the group.
   The inputs are public (D98); the lines are said in front of people,

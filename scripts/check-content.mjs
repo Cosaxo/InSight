@@ -475,7 +475,7 @@ for (const q of entries) {
   }
 }
 
-// ---- 1v1 domains are a closed set too (D385). The roles fold reads the
+// ---- 1v1 domains are a closed set too (D386). The roles fold reads the
 // day's kind off this field — a `mirror` day is a read of the OTHER person
 // and is held apart from likeness and insight — so a 1v1 question with no
 // domain, or a new word nobody taught the fold, would be scored as

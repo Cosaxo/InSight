@@ -454,7 +454,7 @@ function score(aggs) {
   // Aggregates arrive from the reveal-time fold (D40 part 3) as
   // `duel-<qid>` docs: plays are group-days, totals are persons, and the
   // guess-match rate — a 1v1's guess at the partner, a group's call on
-  // where the room lands (D385) — is the duel analogue of evenness:
+  // where the room lands (D386) — is the duel analogue of evenness:
   // matches near 100% mean no tension (a dead question), matches near
   // chance (1/options) mean no tells (noise); the good zone is the band
   // between.

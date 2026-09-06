@@ -19,7 +19,7 @@ import { likenessRate } from "./cohort";
 
 export interface PortraitVote {
   optionIdx: number;
-  /** A guess at where the room would land (D385) — read by the roles
+  /** A guess at where the room would land (D386) — read by the roles
    * fold, never by the portrait: which option won is a fact about the
    * answers, and a guess is not one of them. */
   guessIdx?: number;
@@ -38,7 +38,7 @@ export interface PortraitReveal {
   qid?: string | null;
   votes?: Record<string, PortraitVote> | null;
   /** Who was in the group ON that day (SCHEMA-V2) — a pick day's option
-   * count, for the roles fold's chance scale (D385). Unread here. */
+   * count, for the roles fold's chance scale (D386). Unread here. */
   members?: readonly string[] | null;
 }
 

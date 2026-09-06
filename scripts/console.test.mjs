@@ -273,7 +273,7 @@ describe("the register", () => {
     // verified block — it is the chartered ops lanes, ids transcribed from
     // a runbook. Before this, all of §5 was drawn as Claude 3's, so the
     // console reported eight routines for an account whose true count is
-    // zero, one of them (the PR shepherd) already listed under Claude 2
+    // zero, one of them already listed under Claude 2
     // and none of them read from `list_triggers`.
     const withOps = `# The register
 
@@ -291,7 +291,7 @@ Nobody has written this block.
 
 | Lane | Trigger id | Fires (UTC) | Merge authority |
 | --- | --- | --- | --- |
-| PR shepherd | \`trig_9\` | \`20 6,16 * * *\` | squash |
+| Pulse responder | \`trig_9\` | \`20 6,16 * * *\` | never |
 `;
     expect(parseRegister(withOps)).toEqual([
       { account: "Claude 1", name: "feed lane", trigger: "trig_1", schedule: "30 9 * * *" },

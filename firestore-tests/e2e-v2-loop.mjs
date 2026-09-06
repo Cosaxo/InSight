@@ -780,7 +780,7 @@ ok("duo streak = 1");
   const mkGroup = await httpsCallable(fns, "createGroupV2")({ name: "Marker Crew", mode: "group" });
   const mkGid = mkGroup.data.gid;
   const mkDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
-  // …with a call on where the room lands (D385): a group answer may carry
+  // …with a call on where the room lands (D386): a group answer may carry
   // `guessIdx` like a duo's, and the reveal below must publish it.
   await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_${mkDay}`), {
     qid: "group-gu0", surface: "group", optionIdx: 1, guessIdx: 1,
@@ -805,7 +805,7 @@ ok("duo streak = 1");
   const mkVotes = mkRevealSnap.get("votes") || {};
   if (mkVotes[uid]?.guessIdx !== 1)
     fail("the group reveal dropped the call on the room: " + JSON.stringify(mkVotes[uid]));
-  ok("a group reveal carries the member's call on the room (D385)");
+  ok("a group reveal carries the member's call on the room (D386)");
   ok("indexed scan found the marked group and revealed it");
 
   // Settling the day must clear it, or every later run re-reads this group

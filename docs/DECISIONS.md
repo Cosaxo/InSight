@@ -40340,6 +40340,72 @@ release, build 30's delivery should record itself and the next pre-flight
 is the test of whether that is true. If they are not, this entry is the
 sixth in a row and the reading above stands unchanged.
 
+## D381 amendment (2026-09-06) · Build 30 is delivered, and the whole release happened in one sitting
+
+**Status:** binding as a RELEASE RECORD. D381 above is the pre-flight that
+prepared build 30; this is what the dispatch did with it.
+
+Run 51 (`34025693929`, 09:48:48Z) was the dry run — step 17 `skipped`,
+5m 48s, archive and both entitlement gates green, `EXPORT SUCCEEDED`. Run
+52 (`34026067310`, 09:57:16Z) was the upload — step 17 **`success`**,
+10:01:23Z → 10:02:41Z, 1m 18s of transfer, `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `96e50ef5-0a24-4308-ad52-7e0d7ea9252b`,
+6,199,752 bytes. **Build 30 is spent**, and `appBuild` went 30 → 31 read
+off that step's own step list rather than from a memory of it.
+
+Ten bumps have now held (20, 21, 22, 28, 33, 36, 42, 44, 48, 52) against
+nine skipped (18, 19, 24, 26, 31, 38, 40, 46, 50).
+
+### The gap this release did not have
+
+Every previous skip had one: D143 named it as the gap between "the upload
+finished" and "someone came back to the tree", and D273 narrowed it
+further to the number itself — *a bump has a shelf life of exactly one
+upload*. This release had neither gap, because the pre-flight, the merge,
+both dispatches, the bump and this record are one continuous sitting. That
+is not a new rule, it is D186's arrangement with nothing between its
+parts, and it is the cheapest way this has ever been done.
+
+### D159's trap fired, and the gap was read rather than assumed
+
+Run 51 archived `bf24004` — the merge of D381's own release prep, the
+commit carrying the bump that made 30 legal — and run 52 archived
+`c5cc341`, a console trail row pushed in the eight and a half minutes
+between the dispatches. Fifth worked example after runs 22, 32/33, 41/42
+and 43/44.
+
+What is new is that the gap was **opened and read** rather than noticed
+afterwards. `main` was re-read between the dispatches, found moved, and
+the moving commit was diffed before the upload went: `docs/MERGE-LIST.md`,
+`docs/OWNER-LIST.md` and `monitoring/console-trail.jsonl`, with `appBuild`
+30 at both commits. Nothing `dist/`, `ios/` or the shell reads. So the
+answer to *does this cost anything* was measured, not assumed — which is
+the half D229 could not give for build 23, where the commit in the gap
+changed the bundle's own posture and nobody looked until afterwards.
+
+**The re-read is the procedure; closing the gap is not always available.**
+D324 and D339's amendment each closed it on purpose. Here it could not be:
+the console workflow pushes on its own schedule and this release ran
+through its slot. That makes the re-read the load-bearing step rather than
+the fallback, and it answered in one diff.
+
+### Step 18 was empty again
+
+`release recorder not wired` for the second release running. D381 argued
+that a remedy waiting on a click nobody has made is not yet a remedy; two
+deliveries now say the same thing, and both were recorded by hand. The
+click's row on `OWNER-LIST.md` § Clicks carries both.
+
+### When to revisit
+
+**At build 31's pre-flight.** Run 52 is the highest run, its step 17
+`success`, `appBuild` at its own `head_sha` `c5cc341` is 30, and the tree
+is at 31 — so unless something dispatches in between, that pre-flight
+should answer *run as-is*. Per D198 and D273 that sentence is a report
+about a comparison and never a promise about the tree: **a verdict has a
+shelf life of exactly one dispatch, and a bump has a shelf life of exactly
+one upload.**
+
 ## D382 · Question content is not first-paint bytes, and a gate says so
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner,
@@ -40577,14 +40643,94 @@ document grows instead: ~1,100 ids at ten times the bank, ~13 KB, well
 inside the limit rank.ts's header already prices, and the sharding
 graduation recorded there covers the case beyond it.
 
-## D385 · The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess
+## D385 · The PR shepherd is retired: pull requests are merged by hand
+
+**2026-09-06.** Owner: *"the pr sheperd does not work so do it manualy and
+remove the text that mention a pr sheperd."* **Status:** binding, and an
+explicit reversal of the merge-automation half of D352 and of the lane
+D289's engineering tier was built around. Nothing else in D352 moves — the
+six lists, the tick, and the owner's `approved` tap all stand.
+
+**There is no merge automation in this repository.** The Action
+(`.github/workflows/pr-shepherd.yml`), its three scripts
+(`scripts/pr-shepherd.mjs`, `pr-shepherd-lib.mjs`, and the test) and every
+contract for the lane are deleted. `CLAUDE.md`'s rule now reads that a PR
+is merged by hand, by the owner.
+
+### What it did, measured, before it was removed
+
+The lane ran 25 times as an Action between 2026-09-03 and 2026-09-06 and
+concluded `success` on every run in the visible window. It also merged
+nothing. PR #405 — the build 30 release prep — sat green and mergeable
+with all eleven checks passing while the release it unblocked could not be
+dispatched, and it was merged by hand in the end. **A lane that reports
+success and does not do its job is worse than no lane**, because the run
+list looks healthy: the same shape D381 had just recorded one paragraph
+over, where step 18's `release recorder not wired` also read `success`.
+
+The honest reading of why is not "the Action was broken" but that the lane
+was three mechanisms deep and each was one permission short of working.
+The register already carried it: refused from a session by the permission
+classifier, then bound to a dispatcher that could not run `git merge`, then
+re-created fresh-session and handed no MCP tools, then moved to an Action
+whose trigger conditions never coincided with a labelled green head. Four
+attempts, each fixing the previous failure, none reaching a merge. The
+owner's sentence ends that sequence rather than adding a fifth.
+
+### What did not change, and this is the part worth keeping
+
+The discipline the lane was supposed to enforce was never the lane's. What
+a session owes before a PR is mergeable is unchanged and is now the whole
+of the contract: **`main` merged in, decision numbers already moved (D299),
+green on the current head, and then stop.** The merge shift still brings a
+PR to green, still reviews the diff as one unit, and still applies
+`merge-when-green` — which from today is a marker that a named head is
+ready, not an instruction anything executes.
+
+**No lane merges, so no lane needs the merge tool.**
+`mcp__github__merge_pull_request` is granted to no lane in this program;
+`OPS-RUNBOOK.md`'s merge tier is gone rather than reassigned, and the
+open permission rows that existed to make the lane able to merge are
+closed as moot rather than left waiting.
+
+### What was kept, deliberately
+
+Three things still say "PR shepherd" on purpose, and none is an
+instruction:
+
+1. **The owner's own quoted words** in `PROGRAM-PLAN.md` §10 and
+   `ROUTINES.md` — *"this is wrong, the shepherd can"*, *"they are set to
+   be merged by the shepherd"*. Rewriting a person's quoted sentence to
+   match a later decision falsifies the record of what was said and when.
+   Both sites are annotated with this decision instead.
+2. **The historical decision records** above. D352 and the rest stay as
+   written; a reversal is recorded, never retrofitted (`CLAUDE.md`:
+   binding "until an explicitly recorded reversal").
+3. **The dependency shepherd**, which is a different lane, still Mondays,
+   and still never merges. The owner named the PR one.
+
+### The half a session cannot finish
+
+The Action is deleted; the **Routine is not**.
+`trig_01Ln6FDEipFzAghqJ777AL5j` lives on the ops subscription, and
+`list_triggers` returns only the calling account's — this account's eleven
+do not include it — so no session here can disable it. Until the owner
+does, it fires every third hour into a contract that is no longer on
+`main`. It is on `OWNER-LIST.md` § Clicks, and `ROUTINES.md` §3 keeps a
+struck row rather than a deletion so the live trigger is visible rather
+than merely absent. **Deleting the documentation of a thing that is still
+running is how a surprise gets made**, which is the failure `CLAUDE.md`
+names and the one this decision is otherwise about.
+
+## D386 · The 1v1 and group profile, steps 1 and 2: the day's kind reaches the seed, every rate is scored against luck, and a group day gets a guess
 
 **2026-09-06.** **Status:** binding, built. The owner's *"yes build the
 first two steps"* on [`ROLES-PLAN.md`](ROLES-PLAN.md) §5, the same day
 the plan was written and the same day its §2 was measured. Written as D381 on this
-branch and renumbered to D385 before its pull request opened: main took
-D381–D384 (#405, #407) while the branch was open — the collision pattern
-D289 names, met one more time.
+branch, renumbered to D385 when its pull request opened and to D386
+before it merged: main took D381–D384 (#405, #407) and then D385 (#409,
+the shepherd's retirement) while the branch was open — the collision
+pattern D289 names, met twice on one branch.
 
 ### What the plan found, in one line each
 

@@ -1417,7 +1417,7 @@ describe("the duel question-level signal (D40 part 3)", () => {
     }
   });
 
-  it("scores a group's guesses against the option the room landed on (D385)", () => {
+  it("scores a group's guesses against the option the room landed on (D386)", () => {
     // Three votes, two on option 0. Guesses: 0 lands, 2 does not, one
     // member did not guess at all.
     const d = duelAggDelta([v(0, 0), v(0, 2), v(2)], "group", 4);

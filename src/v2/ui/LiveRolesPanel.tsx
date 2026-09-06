@@ -87,7 +87,7 @@ export default function LiveRolesPanel(): React.ReactElement {
   };
   const uid = (LIVE.uid as string) || "";
   // The day's option count and kind, from the bank the store already
-  // holds (D385): the fold scores every rate against luck, and holds a
+  // holds (D386): the fold scores every rate against luck, and holds a
   // 1v1's mirror days apart from likeness. No bank — a fixture, or a
   // bank not yet fetched — and every day reads as an ordinary one with
   // the option count its own votes reach.
@@ -286,7 +286,7 @@ export default function LiveRolesPanel(): React.ReactElement {
                     <div style={{ padding: "0 0 12px", display: "flex", flexDirection: "column", gap: 5 }}>
                       {/* The dims, then the asides — readings the tables do
                           not carry yet (projection, the mirror days, reading
-                          the room — D385), drawn as receipts in the same
+                          the room — D386), drawn as receipts in the same
                           shape so the row says everything the record does. */}
                       {[...s.res.dims, ...(s.res.asides || [])].map((d) => (
                         <div key={d.id} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>

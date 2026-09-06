@@ -112,7 +112,7 @@ describe("the cross-group duel aggregate", () => {
     expect(store.get(AGG)!.guessTotal).toBe(2);
     expect(store.get(AGG)!.guessMatches).toBe(1);
 
-    // A group reveal carrying guesses publishes the rate too since D385
+    // A group reveal carrying guesses publishes the rate too since D386
     // (until then the field only meant anything for a pair): each guess
     // is read against the option the room landed on. Here the room split
     // 1–1, so both options tied for the top and both calls on option 1

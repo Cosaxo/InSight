@@ -908,7 +908,7 @@ for a duel run:
   duel` remains the single lookup.
 - **Read the signal first.** The scorecard's `duel` section (D40 part 3)
   scores plays, split, and the **guess-match rate** — a 1v1's guess at
-  the partner, and since D385 a group's call on where the room lands —
+  the partner, and since D386 a group's call on where the room lands —
   the duel analogue of evenness: near 100% is a dead question (guessable
   by heart, no tension), at or under chance (1 / options) is noise (no
   tells); write toward the band between. `deadDuels` / `noisyDuels` are

@@ -252,8 +252,8 @@ describe("LiveDuelPanel · answering morphs into guessing (D156)", () => {
     expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
   });
 
-  it("a group answers, then reads the room — and still writes once (D385)", async () => {
-    // Until D385 a group sealed on the first tap: there was nothing to
+  it("a group answers, then reads the room — and still writes once (D386)", async () => {
+    // Until D386 a group sealed on the first tap: there was nothing to
     // guess. Now the second tap is a call on where the room will land,
     // and the pick waits for it exactly as a duo's does — one create.
     const calls: Array<[string, number, number | undefined]> = [];

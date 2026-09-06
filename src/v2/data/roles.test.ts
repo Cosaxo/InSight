@@ -179,13 +179,13 @@ describe("groupRole", () => {
     // A constant 50 equal to the baseline would have contributed nothing
     // to any match while drawing an identical petal on every rose.
     expect(r.dims.some((d) => d.id === "cast")).toBe(false);
-    // …and the room reading (D385) is an ASIDE, not a fourth dim: the
+    // …and the room reading (D386) is an ASIDE, not a fourth dim: the
     // table cannot see it yet, and a dim the signatures do not carry is
     // exactly what the registry cases below refuse.
     expect(r.dims.some((d) => d.id === "room")).toBe(false);
   });
 
-  it("reads the room off your guess at where it would land (D385)", () => {
+  it("reads the room off your guess at where it would land (D386)", () => {
     // A group reveal with my guess: one day I called the winner, one day I
     // did not, one day the room was a 1–1 tie and my call named a side of
     // it (a hit — the top was shared), one day I did not guess.
@@ -214,7 +214,7 @@ describe("groupRole", () => {
   });
 });
 
-// ── the chance scale (D385, ROLES-PLAN §3.2) ────────────────────────────
+// ── the chance scale (D386, ROLES-PLAN §3.2) ────────────────────────────
 describe("every rate is scored against luck", () => {
   const four: BankLookup = () => ({ options: ["a", "b", "c", "d"], kind: "day" });
   const two: BankLookup = () => ({ options: ["a", "b"], kind: "day" });
@@ -270,7 +270,7 @@ describe("every rate is scored against luck", () => {
   });
 });
 
-// ── the day's kind (D385, ROLES-PLAN §3.7) ──────────────────────────────
+// ── the day's kind (D386, ROLES-PLAN §3.7) ──────────────────────────────
 describe("a mirror day is held apart", () => {
   // q1 is an ordinary day; qm asks each of you about the OTHER.
   const bank: BankLookup = (qid) => (qid === "qm"
@@ -313,7 +313,7 @@ describe("a mirror day is held apart", () => {
   });
 });
 
-describe("projection — guessing your own answer (D385)", () => {
+describe("projection — guessing your own answer (D386)", () => {
   it("is folded as an aside with its plain count", () => {
     // Guessed my own answer on two of four days, and one of those two
     // was right — projection and insight are different numbers.
@@ -343,7 +343,7 @@ describe("blendRoles blends the asides on their own days", () => {
   });
 });
 
-// ── rule 4: a type is in the running only when its defining dims are (D385) ──
+// ── rule 4: a type is in the running only when its defining dims are (D386) ──
 describe("the matcher refuses a type whose defining dim is absent", () => {
   it("scores it at Infinity and never picks it", () => {
     // The Outlier is defined by `own` and by `pull` (10 against a
