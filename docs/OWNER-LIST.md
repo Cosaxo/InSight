@@ -88,6 +88,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 
 ## Designs
 
+- [ ] **The first-launch walkthrough's five illustrations** — `VISUAL-REQUESTS.md` § Built, item 7 (D393). Built 2026-09-06 on your direct ask without the canvas step the rule asks for; the pictures are drawn from the tree's own vocabulary (the daily ruler's accents, the Mirror's, the iris). A canvas would replace the five drawings in `src/v2/ui/LiveWalkthrough.tsx` and nothing else — the gate and the tests pin claims, not pictures. Optional: tick, or leave it.
 - [ ] **The 1v1 and group profile — three instruments, and the pair's card** — `VISUAL-REQUESTS.md` § Requested, item 5, filed 2026-09-06 from `ROLES-PLAN.md` §3.8. Waits on the plan's row under § Decisions above, then a plan, a draft, and you.
 - [ ] **The cast — the group as roles** — item 6 there, same day, same plan. The prototype's role map (`spec/group-role-map.jsx`) is the reference for the idea; the data is the real fold per member. Waits with item 5.
 - [ ] **The interest profile, shown and editable** — `VISUAL-REQUESTS.md` § Requested, item 0b, filed 2026-09-04. The nightly fold already shapes which questions reach you and nothing shows it to you; D317 kept this bullet across the reversal and said it binds *harder* on the server. Two things in it are yours before a draft: whether the edit is a *less/normal/more* nudge or something finer, and how an edit reaches the fetch given the profile document is deliberately client-unwritable. *Source:* `SCALE-RUNBOOK.md` 5.3; D317; D367.
