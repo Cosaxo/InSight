@@ -3126,6 +3126,22 @@
         "by": "ai",
         "audited": false
       }
+    },
+    "n16": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n17": {
+      "source": "farm",
+      "batch": "2026-09-06",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   },
   "pick": {
