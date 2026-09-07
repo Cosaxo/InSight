@@ -1683,7 +1683,7 @@ That is a tester-count problem, not a workflow problem.
       question, not that a count was lost — its runbook says what to do,
       which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 33.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 34.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -2470,7 +2470,18 @@ That is a tester-count problem, not a workflow problem.
       deliberate act: `asc-review.mjs` touches no `reviewSubmission`
       resource on any path, and a test pins that it does not.
 
-- [ ] **6.2 Submit to App Store review.** Budget one rejection round on
+- [ ] **6.2 Submit to App Store review.**
+
+      > **DO NOT SUBMIT BUILD 33.** It is uploaded and it carries the
+      > account wall, which is what it was cut to prove — and it also
+      > carries D419's sign-in defect: a user who signs in with Google is
+      > left staring at the gate until they force-quit and relaunch,
+      > because `subscribeToAuth` watched `onAuthStateChanged` and a LINK
+      > keeps the uid, so the SDK never called back. A reviewer meeting
+      > that files "the app does not work", and they would be right.
+      > **Build 34 is the first submittable build.** Anyone handed 33 on
+      > TestFlight hits the same wall — say so when you hand it over.
+ Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
       primary path is anonymous, no account is required, and Google is an
