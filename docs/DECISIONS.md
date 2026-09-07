@@ -43812,3 +43812,130 @@ early in either direction.
   there is an audience, and it is the owner's to rule on separately.
 - Anything about the current release. No build, label or store form
   moves on this record.
+
+## D413 · The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions
+
+**2026-09-07.** **Status:** binding for what the vision points at;
+nothing of it is built. The owner's `InSight_10.html` upload of this
+date, made the current vision by D361's standing rule — an owner upload
+is a vision without a request — extracted, measured and named in one PR
+(`claude/new-visual-direction-plan-whjnb2`), with the owner's ask
+attached to the upload: *"politic test and big 5 have gotten
+subcategories as well so we need to make a plan for testing them as
+well."* `main` mints numbers while a branch is open, so the standing
+collision pattern (D289, D408) may renumber this at merge; the documents
+cite it by date where they can.
+
+### What arrived, and how it was diffed
+
+The tenth numbered standalone, in InSight_7's compiled fast-boot shape:
+one 2 MB bundle of **117 modules** (three more than 09-06's 114), 26
+assets. Diffed against the latest recorded state of every module — v18
++ the v28 patches + the eight later extractions + the two READMEs'
+prose hunks, compiled where the record is JSX, per the 09-02 README's
+recipe — **99 of 117 modules byte-identical**, eight more differing only
+by recorded hunks, and the residue exact: **three new modules, seven
+that moved, no stylesheet** (the ten `<style>` blocks reconstructed the
+same way are identical to their record but for the boot-splash lines
+09-02 carries in prose and the per-bundle font asset ids). The six
+patches in `design/standalone-2026-09-07/changes/` reproduce the upload
+byte-for-byte from that baseline; the four whole files are the upload's
+bytes. The inventory is that directory's README; the plan, with every
+item measured against the tree, is
+[`VISION-2026-09-07.md`](VISION-2026-09-07.md).
+
+### What the design says
+
+Three additions and a polish pass. **The two instruments most people
+know get a second level**: the Big Five's five domains unfold into the
+thirty IPIP-NEO facets (six per domain on a 4–20 track, IPIP-NEO's
+report text kept verbatim behind each) and the compass's six axes into
+eighteen positions (three per axis on a 0–100 track with a hollow *most
+people* ring), both on the profile's Big 5 and Politics tabs under the
+result card, as rows that unfold one at a time. **The compass carries
+its own way in**: an axis you have not gone deep on offers *Six
+questions place them →* — two per position, one at a time on the
+five-step scale — after which the axis's compass score becomes its
+positions' mean, *"so level one and level two never disagree"*; the Big
+Five module draws thirty demo scores and carries no questions at all.
+**Circle and 1v1 get a first day**: one day of the game drawn with
+nothing invented — today's World question sealed over the hairline
+ballot, tonight's reveal clock, tomorrow's reveal with your mark in the
+first seat and open seats as dashed rings — then *Start one* and the
+other door in one line; an invitation and a tapped link get hero beats
+(*A link asks, it does not admit*); a *Start another* row once circles
+exist. **The person overlay's three record sections go boxless**: the
+receipts led by a sentence with the exception side first and an *All
+N* toggle, *Play together* as doors carrying the named type's one-line
+meaning, the read-each-other card as a two-column hit-rate table under
+a sentence. And one line on the feed's two-option ballot.
+
+### What the mapping found
+
+- **The facets and positions have nothing behind them in the tree, and
+  the plan is mostly about that.** The Big Five is five axes and 25
+  items, the compass six and 30, both scored passively (D121) and
+  drawn by the result card; no item carries a facet, no fold computes
+  one, nothing stores one. `VISION-2026-09-07.md` §2 is the measurement
+  plan: the compass's 36 position items verbatim into the bank, the Big
+  Five's 120 from IPIP-NEO-120 (the form whose 4–20 scale and report
+  text the design already uses — an owner row on source and voice); a
+  facet fold with an all-items floor (four for a facet, two for a
+  position — D121's reasoning one level down); the design's level-one
+  rule pinned (an axis is its facets' mean once every one is measured);
+  bands as the side of the scale's midpoint; the *most people* rings
+  measured at D157's floors and authored in the demo only; v1 on the
+  device, publishing nothing new; and the suites, gate by gate, that
+  prove each of those.
+- **The design reopens D121.** *Six questions place them →* is a
+  sit-down flow of six, and D121 retired the sit-down flow on the
+  owner's own 2026-08-12 ask. Both are the owner's words; the row goes
+  to `OWNER-LIST.md` with the shape a tick would build (an in-place
+  answer is a `LIVE.vote` on the same bank document the feed writes —
+  no second store, no device key; the design's
+  `insight.politicsDeep.v1` does not port) and the arithmetic that
+  makes the door matter (156 items at one test card in four is ~624
+  feed cards to fill both instruments passively). The banks, the fold
+  and the read-only panels build regardless.
+- **First paint refuses the obvious port.** The eager graph measured
+  602 KB against 607 on the shipping build, and `test-definitions.js`
+  — the 110 prompts with their scoring keys — sits on
+  `check:eager-content`'s allowlist as named debt. 156 more prompts
+  there would be the thing the gate exists to refuse, so the scoring
+  metadata (`facet`, `invert`) rides the bank document and the join
+  moves from prompt text to id (§2.5).
+- **Publishing the sub-scales is a separate ask.** The positions extend
+  the political coordinate inside D331's gate, and publishing them
+  changes what the consent's words and the privacy page promise
+  (*six-axis*); one facet is named *Depression*. Nothing in the design
+  draws another person's facets, so v1 keeps them device-side; the row
+  is written so the deferral is not silent (D334).
+- **The first day has a live source for every state.** `LiveDuelPanel`
+  already IS the create-or-join flow on a first run (`LdOnboard`,
+  `LdInvites`, `LdJoinPending`, D122/D190/D236/D240); the port adds the
+  Day beats and redresses the heroes. The upload's `window.WORLD_TODAY`
+  does not port as a global (rule 4; the D280 shape) and its demo
+  `dailyStart` tweak becomes mount fixtures.
+- **The receipts were never ported.** The tree's person overlay draws
+  *What makes the number* and no receipts section, so the design's
+  *The answers behind it* is a first port rather than a redress; the
+  doors and the reading table redress D310's sections and draw the
+  person's-page half of `VISUAL-REQUESTS.md` request 5.
+
+### What this changes elsewhere
+
+`VISUAL-VISION.md` names the 2026-09-07 design the current vision and
+the lineage gains its row; request 5 gains a note; three rows join
+`OWNER-LIST.md` § Decisions (the D121 collision, the sub-scales'
+publication, the Big Five items' source); six `[claude-3]` build lines
+join the worklist in the plan's §6 order, one of them `[owner]`-tagged
+behind the D121 row. The committed style-diff reference does not move
+(`design/README.md`'s rule): v18 stays what the tree is measured
+against until a full sync.
+
+### Gates
+
+`check:docs` (the new plan registered as a plan, the vision re-pointed,
+every cited path resolving), `check:figures`, `test:scripts` — this PR
+is documents and provenance only, so the client suites are untouched by
+construction.

@@ -10,94 +10,73 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-09-06 standalone
+## The current vision — the 2026-09-07 standalone
+
+- **Source:** the owner's `InSight_10.html` upload of 2026-09-07,
+  extracted to `design/standalone-2026-09-07/` (its README is the
+  inventory: the three new modules and seven that moved, the six
+  patches, the unchanged list — compiled JSX again, the 09-02 README's
+  recipe applies; no stylesheet moved). Made the vision by D361's
+  standing rule — the owner's upload moves the vision — and recorded
+  at D413.
+- **The plan built on it:** `VISION-2026-09-07.md` — every item
+  measured against the tree with its backend half named, and, on the
+  owner's ask with the upload (*"we need to make a plan for testing
+  them as well"*), its §2 is the plan for how the new sub-scales get
+  MEASURED: the item banks, where they are answered, the fold and its
+  floors, what is stored, what proves it. §6 is the build order as
+  worklist lines, §7 the gate per step. Nothing is built.
+- **What it changed over the 2026-09-06 design:** three additions and a
+  polish pass. **The two instruments most people know get a second
+  level** — the Big Five's five domains unfold into the thirty IPIP-NEO
+  facets (six per domain on a 4–20 track, IPIP-NEO's report text behind
+  each) and the compass's six axes into eighteen positions (three per
+  axis on a 0–100 track with a hollow *most people* ring); the compass
+  carries its own way in (*Six questions place them →*, in place, after
+  which the axis is its positions' mean), while the Big Five draws
+  readings with no questions behind them. **Circle and 1v1 get a first
+  day** — one day of the game drawn with nothing invented (today
+  sealed, tonight's clock, tomorrow revealed) and then the doors;
+  invitation and link heroes; the name field where an account has
+  none; a *Start another* row once circles exist. **The person
+  overlay's three record sections go boxless** — the receipts led by a
+  sentence with the exception side first, *Play together* as doors, the
+  read-each-other card as a two-column hit-rate table. One line on the
+  feed's two-option ballot.
+- **Built from it:** nothing yet. The plan's steps 1–3 and 5–6 need no
+  decision; step 4 — the in-place questions — waits on the D121 row the
+  design reopens (`OWNER-LIST.md` § Decisions), and two more rows carry
+  the facets' publication and the Big Five items' source.
+- **Requests it closed:** none. It **draws the person's-page half of
+  request 5** (the pair's card: the doors and the reading table), which
+  still waits on `ROLES-PLAN.md`'s owner call.
+
+## The one before — the 2026-09-06 standalone
 
 - **Source:** the owner's `InSight_9.html` upload of 2026-09-06
   (`InSight_8` was never uploaded here), extracted to
   `design/standalone-2026-09-06/` (its README is the inventory: the
   seventeen modules and seven stylesheets that moved, the fourteen
-  patches, the one new stylesheet, the unchanged list — compiled JSX
-  again, the 09-02 README's recipe applies). Made the vision by D361's
-  standing rule — the owner's upload moves the vision — and recorded
-  at D390.
+  patches, the one new stylesheet, the unchanged list). Made the vision
+  by D361's rule and recorded at D390.
 - **The plan built on it:** `VISION-2026-09-06.md` — every item
   measured against the tree with its backend half named, §8 the build
-  order as worklist lines, §9 the gate per step. All six steps are
-  built (the bullet below); §7's owner rows remain.
+  order as worklist lines, §9 the gate per step.
 - **What it changed over the 2026-09-02 design:** one direction — **ink
-  on paper**. `lens-paper` goes from an unwired hook to the app's
-  default (the Patterns field trades dusk for paper) and the boxes go
-  with it: feed cards on a top-rule ground, the result card and the
-  profile flattened to hairline sections, the ballot one hairline row,
-  the test picker rows, and the figures **drawing themselves in** (the
-  Patterns ring and the Map constellation arrive as ink strokes). A
-  **12px floor** goes under every piece of microtype, app-wide. The
-  **serif voice reaches further** — Circle and 1v1 prompts, the
-  Oracle's options inside the disc halves, the Map's hub figure, the
-  result card's identity line. **Chrome collapses into words**: the
-  standing lens legends retire behind one ⓘ per lens, the daily's ⓘ
-  icon becomes *why this question*, the feed's topic rail folds behind
-  an *all topics* chip, and the Patterns lens picker moves into the
-  header as a dial that docks like the daily's ruler. On the model
-  side, `paid-data.js` **draws the subscription seat split** 08-26
-  §2.2 has waited on (evenly across subscribers, a €24 seat floor) —
-  still the owner's tick, now with the owner's own drawing behind it.
+  on paper**. `lens-paper` from an unwired hook to the app's default and
+  the boxes gone with it (feed cards on a top-rule ground, the result
+  card and the profile as hairline sections, the ballot one hairline
+  row, the figures drawing themselves in); a **12px floor** under every
+  piece of microtype; the **serif voice reaching further**; **chrome
+  collapsing into words** (the lens legends behind one ⓘ, *why this
+  question*, the folded topic rail, the Patterns dial in the header);
+  and `paid-data.js` drawing the subscription seat split 08-26 §2.2 has
+  waited on.
 - **Built from it:** all six steps of its plan's §8 (D391 steps 1–2,
-  D392 steps 3–6, 2026-09-06) — the 12px floor app-wide; the Patterns
-  instrument on paper (the boxless lens card, the guide ⓘ with the
-  moved legends, the ring's in-rim labels and serif hub, the Oracle's
-  serif halves, the People rows); the header dial and the docking; the
-  feed's paper ground and folded topics; the ballot as a hairline row
-  with *why this question*; and the polish pass (the boxless result
-  card, the constellation's ink-in, the profile's hairline sections,
-  the serif duel prompts). The design also draws the anonymous answers
-  words on the daily — the third design in a row to draw that toggle,
-  still the open D98-amendment decision on `OWNER-LIST.md`, so that
-  slot ships empty until the row is ticked.
-- **Requests it closed:** none. It **quiets the field request 1 draws
-  in** (in-rim topic labels now use part of the inner area the "inner
-  arc" grammar priced; the request's three grammars stand, with a note).
-
-## The one before — the 2026-09-02 standalone
-
-- **Source:** the owner's `InSight_7.html` upload of 2026-09-02,
-  extracted to `design/standalone-2026-09-02/` (its README is the
-  inventory: the ten modules and four stylesheets that moved, the four
-  patches, the unchanged list — and the one thing this upload does
-  differently: it ships compiled JSX, so the README carries the recipe
-  that makes the diff exact). Made the vision on the owner's sentence
-  of that day — *"new visual should be added as the new visual vision
-  until i update it with new visuals"* (D361) — not through a request.
-- **The plan built on it:** `VISION-2026-09-02.md` — every item
-  measured against the tree with its backend half named, §7 the build
-  order as worklist lines, §8 the gate per step.
-- **What it changed over the 2026-08-26 design:** the three Patterns
-  lenses become **one instrument** — a round dusk field in a light card,
-  a title and one plain sentence above, a legend in words below
-  (`lens.css`); the Map is redrawn as a **ring** (questions on a rim by
-  topic, ties as chords — position stops meaning similarity, and the
-  basis lines change with it), the Oracle moves into the field (the two
-  options are its halves, the verdict is said in words), the People lens
-  colours every dot by agreement in three steps and names the five most
-  like you; the shell gains a meta line, a topic select and a swipe axis
-  that runs off the far end into the daily. **Every prompt a person
-  answers gets a serif voice** (Spectral, `--serif`). **The two-option
-  ballot splits** into one block with a hairline seam that moves to the
-  crowd's split, on the daily and on every feed card. Smaller: topic-hued
-  answer rows in the Mirror's Answers lens, a quieter Crossroads tree,
-  the paid door's rate rows with the pricing law as scannable tokens, the
-  catalog window's polish (still waiting on its owner decision), the tab
-  bar's buttons losing weight.
-- **Built from it:** all of it but the half that waits on an owner
-  decision (D362, six commits in `VISION-2026-09-02.md` §7's order): the
-  shared instrument and the three lenses, the shell's axis, the prompt
-  voice, the split ballot, the answer rows and the Crossroads tree, the
-  paid door's rate rows. Only the catalog window (§4.2) is unbuilt, on
-  VISION-2026-08-26 §2.2's seat-split sentence.
-- **Requests it closed:** none. It **re-aimed request 1** (trait-axis
-  directions on the Map), which was written against the plane the ring
-  retires: that request now states the three grammars a ring can carry
-  an axis in, and what each costs.
+  D392 steps 3–6, 2026-09-06); the anonymous-answers words still wait
+  on their owner row.
+- **Requests it closed:** none; it quieted the field request 1 draws
+  in (the in-rim labels share the area its "inner arc" grammar priced).
 
 ## The lineage
 
@@ -110,7 +89,8 @@ it is moving toward.
 | 2026-08-24 | `design/standalone-2026-08-24/` | the suggestion board becomes the paid door; the buyer's room; locals and visitors | `VISION-2026-08-24.md`, D287–D288 |
 | 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
 | 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
-| **2026-09-06** | `design/standalone-2026-09-06/` | **the current vision** — above | `VISION-2026-09-06.md`, D390 |
+| 2026-09-06 | `design/standalone-2026-09-06/` | ink on paper, the 12px floor, the dial in the header | `VISION-2026-09-06.md`, D390 |
+| **2026-09-07** | `design/standalone-2026-09-07/` | **the current vision** — above | `VISION-2026-09-07.md`, D413 |
 
 ## How the next one arrives
 

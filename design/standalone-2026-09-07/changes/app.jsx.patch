@@ -1,0 +1,50 @@
+--- recorded/app.jsx
++++ 2026-09-07/app.jsx
+@@ -11,7 +11,8 @@
+   "mirrorPop": "circle",
+   "worldZoom": "world",
+   "pulseHistory": "typical",
+-  "friendVotes": "rows"
++  "friendVotes": "rows",
++  "dailyStart": "seeded"
+ } /*EDITMODE-END*/;
+ 
+ // the world feed's card set, all shipped
+@@ -592,6 +593,7 @@
+     hideSwitcher: true,
+     ruler: true,
+     dock: true,
++    start: t.dailyStart || 'seeded',
+     feedHier: true,
+     pulse: true,
+     feedOpts: {
+@@ -710,6 +712,29 @@
+   }), /*#__PURE__*/React.createElement(TweakSection, {
+     label: "Demo state"
+   }), /*#__PURE__*/React.createElement(TweakSelect, {
++    label: "Circle / 1v1 start",
++    value: t.dailyStart || 'seeded',
++    options: [{
++      value: 'seeded',
++      label: 'sample circles'
++    }, {
++      value: 'fresh',
++      label: 'fresh account'
++    }, {
++      value: 'no-follows',
++      label: 'fresh · no follows'
++    }, {
++      value: 'no-name',
++      label: 'fresh · no display name'
++    }, {
++      value: 'invited',
++      label: 'invitation waiting'
++    }, {
++      value: 'link',
++      label: 'tapped a link'
++    }],
++    onChange: v => setTweak('dailyStart', v)
++  }), /*#__PURE__*/React.createElement(TweakSelect, {
+     label: "Pulse history",
+     value: t.pulseHistory || 'typical',
+     options: ['typical', 'gap', 'day1', 'perfect'],
