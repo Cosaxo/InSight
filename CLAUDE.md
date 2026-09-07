@@ -180,17 +180,22 @@ prototype. Modules do **not** import each other. They assign to
 `globalThis`/`window` and look each other up **by name at render time**:
 
 ```jsx
-// group-daily.jsx defines it…
-Object.assign(window, { GroupDailyBody, GDAv });
-// …duo-daily.jsx just uses the bare tag, no import
-<GDAv p={p} size={38} plain></GDAv>
+// search-overlay.jsx defines it…
+Object.assign(window, { SearchOverlay });
+// …app-shell.jsx just uses the bare tag, no import
+<SearchOverlay onClose={() => setOv(null)} />
 ```
 
-*(This example named `useTweaks` until D210 and was false: `app-shell.jsx`
-had long since converted to a real `import`, and the publication beneath it
-was the residue that sweep removed. `check:globals` rule 5 could not see
-either — see D210 for why, and pick a live pair from its own output if this
-one ever converts.)*
+*(This example has now been false twice. It named `useTweaks` until D210:
+`app-shell.jsx` had long since converted to a real `import`, and the
+publication beneath it was the residue that sweep removed. It then named
+`group-daily.jsx`'s `GDAv` until D418, which converted it. `check:globals`
+rule 5 could see neither — see D210 for why. The lesson is the one the
+paragraph two sections down states outright: pick a live pair from
+`check:globals`'s own output, because an example of the convention is the
+first thing the convention breaks. Note also that the bare tag above is
+now the rare form: almost every surviving read is the qualified
+`window.X`, which is the shape a conversion will actually meet.)*
 
 `src/v2/spec-index.js` imports every module for side effects, and **the
 order is semantic** — later modules read globals set by earlier ones.
@@ -214,7 +219,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-54 modules are already off the bridge — they export and publish nothing,
+55 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
