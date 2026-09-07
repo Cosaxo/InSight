@@ -454,7 +454,7 @@ it is planned here.
   step deferred, and as a screen rather than a control, so it is a
   request under D352 rather than a build.
 - **status** — `requested`.
-### 7 · The front door — one screen, three ways in
+### 9 · The front door — one screen, three ways in
 
 - **asked by** — the owner, 2026-09-07: *"i think this app defenenetly
   should have a sigin in wall and not anonymous users"*, then *"make a
