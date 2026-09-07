@@ -41793,3 +41793,65 @@ the general track's rule on sources.
 is three spaces sharing a name, and what a distance in it licenses —
 and is under adversarial review; its revision follows. Sixteen axiom
 papers and six general ones carry the form. Nothing in the app moves.
+
+## D389 amendment (2026-09-07, seventh) · G6: the space every paper calls "one"
+
+G6 takes apart the phrase the whole series rests on — that a unit is a
+point in one geometry — and its twenty-five-finding review found that
+the draft had left every load-bearing object undefined. Distance
+validity was named as an estimand and never given a statistic; the
+learner's space was given "the metric the objective made", which a
+predictive objective does not induce at all, since any invertible
+reparametrization leaves every prediction and changes every distance;
+distances were taken between shrunken posterior summaries as if they
+were points; the between-unit and within-unit geometries were called
+two spaces sharing nothing but the units, which misreads G3's level
+separation with its common scale, joint centre and cross-level term;
+"regions or a continuum" was put to a multimodality test, which
+answers a different question, since a single dimension can be bimodal
+and separated regions can project unimodal; a probe recovering the
+floor's placement was read as earning the floor's name, the inference
+G5 refuses; predictive equivalence was made the definition of "same
+placement", which is not transitive and is the very criterion G3 says
+is silent about structure; a "geometric ledger entry" was a second
+currency with no exchange rate; the paper's own headline number needs
+co-observed pairs and never mentioned G1's constraint; every one of
+its reads is the pairwise primitive G3 names as a binding point under
+custody, unmentioned; and five rules were borrowed from axiom-track
+papers, inverting the dependency the README states.
+
+The revision defines distance validity as a concordance — over pairs
+co-observed on a held-out target on the eligible-drawn stream, the
+probability that the nearer of two pairs disagrees less, in the
+target's own scale — which is invariant to monotone change of the
+metric, one half at no information, read beside the ceiling within-unit
+noise sets, with its interval from resampling units, its pair count on
+the co-observation graph thinning quadratically in the number of
+sources, its resolution arithmetic carried from G1's sizing rule (one
+hundredth of concordance costs units in the low thousands co-observed
+on the target, not pairs), a period- or unit-holdout protocol on the
+deployed space beside source ablation with its transfer assumption
+named, a shrinkage correction, and G2's type. The metric is a declared
+object with a version row; the outcome space is renamed the criterion
+both constructible spaces estimate; the comparison between spaces
+gates the use of a distance per target and leaves G3's code-length
+rule to decide the learner's place. A region is a mixture component
+that improves held-out prediction and passes the five clauses, with a
+sample size in within-region spread and membership as a three-shape
+fork rather than the draft's flat refusal; intrinsic dimension is per
+level, scoped to class, cut, capacity and scale, on one measurement
+scale with G3's discrepancy between the levels; trait and state are
+declared bands, separable from response error only under the short-lag
+replicate. A direction's name is a decodable subspace earned under the
+floor's rotation convention; a placement survives a refit by predictive
+substitutability against a reference version under a stated tolerance,
+which preserves neither identity nor distance; a source's geometric
+worth is a state per target beside the ledger in G4's pattern; a pair
+carries a relation-specific latent by G1's argument. A section places
+every pairwise read against the custody rule, and the uses carry
+G3's exposure mapping, clustered assignment and consent for
+proximity-driven pairing. All axiom-track references are replaced by
+arguments from the setting and citations to G1–G5 alone.
+
+Sixteen axiom papers and six general ones carry the form, every one
+reviewed and revised. Nothing in the app moves.
