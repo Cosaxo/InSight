@@ -190,6 +190,7 @@ than of a subject:
 | `design/README.md` | The frozen prototype and its revisions |
 | `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
 | `design/ask-2026-09-05/README.md` | The web ask door (D368 shape A), and **the adapter contract the build needs** — the draft was fed a shaped pricing resource, so eight names differ from `content/pricing.json`, and `refundDays` must come from `WINDOW_DAYS` rather than from `trailingDays`, which is a day shorter than the promise |
+| `design/front-door-2026-09-07/README.md` | The sign-in screen the account wall needs (visual request 9, `SIGNIN-PLAN.md`), twelve live artboards. **The README is the readable half**: the delivered file is a bundle, so the copy it settled, the three keyboard-and-flight behaviours, and the errors that each name their own way out are written out rather than left in a gzipped asset |
 
 ## 5 · The gates
 

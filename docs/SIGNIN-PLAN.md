@@ -135,6 +135,26 @@ then the entitlement lands, then a build. Until then the code is
 complete and inert on device, because the native sheet has nothing to
 open.
 
+## 6c · The design landed the same day (2026-09-07)
+
+The owner's canvas is extracted to `design/front-door-2026-09-07/`, and
+request 9 is `designed`. Twelve live artboards including dark and a
+375×667 phone with the keyboard up. It settled more than the request
+asked for, and three of those are the build's to honour rather than to
+re-decide:
+
+- **Every error names its own way out.** *No account uses this address
+  yet* offers **Create one**; *This address already has an account*
+  offers **Sign in instead**. A dead-end error message on the one screen
+  a person cannot get past is the failure mode this removes.
+- **Apple's label follows the mode** (*Sign in with Apple* / *Sign up
+  with Apple*) where Google's does not. Deliberate asymmetry: keep it.
+- **The toggle and the legal footer hide while the keyboard is up**, and
+  every door dims while another is in flight.
+
+The step-1 code already matches the parts that overlap, because the
+gate's shell survived by request.
+
 ## 7 · The order
 
 1. **Sign in with Apple** — code, tests, the entitlement. Independent

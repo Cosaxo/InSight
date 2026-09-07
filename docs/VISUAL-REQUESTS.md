@@ -520,7 +520,15 @@ it is planned here.
   not met: delete the account, come back, answer again, in one tap. The
   wall is how the Mirror's central claim — that *your* answers say
   something about *you* — stops being undermined by the app itself.
-- **status** — `requested`.
+- **status** — `designed` (2026-09-07). The owner's canvas is extracted
+  to [`design/front-door-2026-09-07/`](../design/front-door-2026-09-07/) —
+  twelve live artboards, and a README that is the readable half because
+  the delivered file is a bundle. It settled more than the request asked
+  for: every error names its own way out (*no account* offers **Create
+  one**, *already has an account* offers **Sign in instead**), Apple's
+  label follows the mode where Google's does not, and the toggle and the
+  legal footer both hide while the keyboard is up. Next is the build,
+  step 3 of `SIGNIN-PLAN.md`.
 
 
 ## Planned
