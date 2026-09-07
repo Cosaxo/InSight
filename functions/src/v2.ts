@@ -581,7 +581,7 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
-      // The instruments' deep items (D414): which sub-scale an item scores
+      // The instruments' deep items (D416): which sub-scale an item scores
       // and how it is keyed, on the document — the device joins these by
       // id rather than by prompt text, which is what keeps the 156 new
       // prompts out of first paint (docs/VISION-2026-09-07.md §2.5).

@@ -73,7 +73,7 @@ export const PASSIVE = (function () {
   // a test question in the feed was answered — one more of that test done
   function record(q) {
     const k = testFor(q);
-    // A DEEP item (D414 — a facet's or a position's card, `q.facet` on the
+    // A DEEP item (D416 — a facet's or a position's card, `q.facet` on the
     // feed card) is the instrument's question and still stays out of the
     // ring: needed() counts the domain-level set IS_TESTS carries, and a
     // facet answer counted here would fill a ring whose denominator never

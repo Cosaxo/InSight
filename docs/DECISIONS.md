@@ -43813,7 +43813,7 @@ early in either direction.
 - Anything about the current release. No build, label or store form
   moves on this record.
 
-## D413 · The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions
+## D415 · The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions
 
 **2026-09-07.** **Status:** binding for what the vision points at;
 nothing of it is built. The owner's `InSight_10.html` upload of this
@@ -43940,10 +43940,10 @@ every cited path resolving), `check:figures`, `test:scripts` — this PR
 is documents and provenance only, so the client suites are untouched by
 construction.
 
-## D414 · The owner rules on the 09-07 rows: the feed is the only door, the sub-scales stay on the device, and the facet items are written
+## D416 · The owner rules on the 09-07 rows: the feed is the only door, the sub-scales stay on the device, and the facet items are written
 
 **2026-09-07.** **Status:** binding — the owner's three answers, in the
-session that extracted the upload, to the three rows D413 opened. Their
+session that extracted the upload, to the three rows D415 opened. Their
 words, in order: *"no they should only be in the feed"* · *"they can be
 only for the user for now but can be public later"* · *"that will be
 your next task to create those questions in a good way."* Written on
@@ -43998,10 +43998,10 @@ which steps remain.
 
 `check:docs`, `check:figures`, `test:scripts` — documents only.
 
-## D415 · The instruments' deep items land in the bank: thirty facets written, eighteen positions carried, and the prompts kept out of first paint
+## D417 · The instruments' deep items land in the bank: thirty facets written, eighteen positions carried, and the prompts kept out of first paint
 
 **2026-09-07.** **Status:** binding, **built** — step 1 of
-`VISION-2026-09-07.md` §6, on the owner's ruling of the same day (D414:
+`VISION-2026-09-07.md` §6, on the owner's ruling of the same day (D416:
 *"that will be your next task to create those questions in a good
 way"*). Written on `claude/new-visual-direction-plan-whjnb2`; the
 standing collision pattern (D289, D408) may renumber this at merge.
@@ -44037,7 +44037,7 @@ The rules each item was held to, and the suite that pins them
   can't find the energy to start anything* and, keyed against, *I'm
   mostly at peace with who I am*. Every answer is public (D98); the
   facet's name and the reading are the panel's business (step 3), and
-  its publication is the owner's (D414 §2).
+  its publication is the owner's (D416 §2).
 
 **The compass's eighteen positions, two items each — 36, the design's
 own.** Verbatim from `politics-deep.jsx` (typographic apostrophes

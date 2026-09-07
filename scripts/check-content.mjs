@@ -70,7 +70,7 @@ const ID_SHAPE = {
   // because the client minted those ids before the items had a backend
   // (lens-defs.js) and devices hold local state keyed by them (D91).
   //
-  // Two OR THREE digits on the core instruments' family since D414: each
+  // Two OR THREE digits on the core instruments' family since D416: each
   // instrument's deep items (its facets' or positions') continue its own
   // numbering past the core items — big5 runs 00–24 then 25–144 — so the
   // hundreds arrived with them. Widening the shape touches no shipped id.
@@ -516,7 +516,7 @@ for (const [key, t] of Object.entries(content.tests)) {
   }
 }
 
-// ---- deep items (D414) must name a facet their test declares, under the
+// ---- deep items (D416) must name a facet their test declares, under the
 // axis they score. tests.json declares `facets` for exactly this check, the
 // way `dims` exists for the one above: a facet id the device's fold does
 // not know is a scored answer nobody can read, and a facet filed under the

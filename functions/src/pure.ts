@@ -1846,7 +1846,7 @@ export const SEEDED_FIELDS = [
   // would ever have got one. Held here now by `check:seed-fields`, which
   // compares this list against what gen-v2content actually emits.
   "bg", "c", "t", "p", "k", "w",
-  // The instruments' deep items (D414): the facet or position an item
+  // The instruments' deep items (D416): the facet or position an item
   // scores and its keying, on the document so the device joins by id.
   // Compared so a re-filed or re-keyed item reaches the standing doc.
   "facet", "invert",

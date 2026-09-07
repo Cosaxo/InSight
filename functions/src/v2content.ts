@@ -39,7 +39,7 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-// `facet`/`invert` are the instruments' DEEP items' only (D414): the
+// `facet`/`invert` are the instruments' DEEP items' only (D416): the
 // facet or position an item scores and whether it is keyed against it,
 // on the document so the device joins by id and the prompts stay out
 // of first paint. The core items and the lens items carry neither.

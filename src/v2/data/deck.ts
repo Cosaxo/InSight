@@ -83,7 +83,7 @@ export interface QuestionDoc {
   // by the deep join below and by nothing else on the device: the core
   // items' scoring metadata lives in IS_TESTS and joins by prompt.
   axis?: string | null;
-  // The instruments' deep items (D414): which sub-scale an item scores —
+  // The instruments' deep items (D416): which sub-scale an item scores —
   // a Big Five facet or a compass position — and whether it is keyed
   // against it. On the document rather than in IS_TESTS so the device
   // joins by id and the 156 prompts stay out of first paint

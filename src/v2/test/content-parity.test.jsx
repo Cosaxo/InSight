@@ -71,19 +71,19 @@ describe("personality test banks (spec ≡ content)", () => {
   }
 });
 
-// ── the deep items (D414): bank-only, by their own rules ────────────
+// ── the deep items (D416): bank-only, by their own rules ────────────
 //
 // The facet and position items live in `deep` beside `questions` and NOT
 // in IS_TESTS: the spec layer's definitions are compiled into first paint
 // (check:eager-content names test-definitions.js as debt already), so the
 // 156 new prompts ride the seeded document instead and join by id
 // (data/similarity.ts testDeepMeta). What this pins is the item design the
-// plan fixed (docs/VISION-2026-09-07.md §5.3, D414): the counts per facet
+// plan fixed (docs/VISION-2026-09-07.md §5.3, D416): the counts per facet
 // that make the drawn scales true, the keying that makes an
 // agree-with-everything style score as nothing, and the declarations the
 // content gate and the fold both read.
 const DEEP_K = { big5: 4, political: 2 };
-// Two keyed each way is the Big Five rule (D414); the compass's positions
+// Two keyed each way is the Big Five rule (D416); the compass's positions
 // are the design's own items, two per position with one reverse-keyed.
 const DEEP_AGAINST = { big5: 2, political: 1 };
 

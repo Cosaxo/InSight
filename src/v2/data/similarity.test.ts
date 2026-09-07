@@ -635,7 +635,7 @@ describe("pickKindredQids — chosen, not inherited", () => {
   });
 });
 
-// ── the deep items join by the document, not by prompt (D414) ────────
+// ── the deep items join by the document, not by prompt (D416) ────────
 describe("testDeepMeta", () => {
   const DEEP = [
     // a facet item, plainly keyed

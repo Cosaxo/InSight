@@ -65,7 +65,7 @@ export interface TestBankItem {
   test: string | null;
   options: string[];
   /**
-   * The deep items' scoring metadata, on the document (D414): the axis,
+   * The deep items' scoring metadata, on the document (D416): the axis,
    * the facet or position, and the keying. The core items carry only
    * `axis` here and join by prompt above; a deep item joins by these.
    */
@@ -116,7 +116,7 @@ export function testItemMeta(bank: readonly TestBankItem[], defs: TestDefs): Tes
 }
 
 /**
- * A deep item (D414) — a Big Five facet's or a compass position's — joined
+ * A deep item (D416) — a Big Five facet's or a compass position's — joined
  * to its scoring metadata OFF THE DOCUMENT, by id.
  *
  * The core items join by prompt text against IS_TESTS (above) because

@@ -441,7 +441,7 @@ counter is off, because with no room there is nothing to have tabs about.
 
 The four core instruments — Big Five, politics, values, social — and the
 minor lenses beside them (`IS_LENSES`) have no test flow to sit down for.
-Their items ship as ordinary feed cards (`surface: "test"`) — since D414
+Their items ship as ordinary feed cards (`surface: "test"`) — since D416
 the Big Five's thirty facets and the compass's eighteen positions among
 them, as bank-only DEEP items the feed serves after each instrument's
 domain items (a fold for them is the plan's next step; today they fill

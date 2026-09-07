@@ -71,7 +71,7 @@ again, same recipe; no stylesheet moved), with the plan at
 [`docs/VISION-2026-09-07.md`](../docs/VISION-2026-09-07.md), which is
 also the plan for how the facets and positions get measured;
 `docs/VISUAL-VISION.md` names it the current vision (D361's rule,
-D413). Each
+D415). Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

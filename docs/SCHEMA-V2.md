@@ -38,7 +38,7 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
   options: string[]   (scale → the 5-point agree scale; rating → "1".."10";
                        pulse → exactly five steps; call → exactly two, and
                        index 0 is the call coming true)
-  facet?, invert?     the instruments' DEEP items only (D414): the Big
+  facet?, invert?     the instruments' DEEP items only (D416): the Big
                        Five facet or compass position an item scores, and
                        whether it is keyed against it. On the document so
                        the device joins by id rather than by prompt text —

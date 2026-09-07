@@ -548,7 +548,7 @@ export function buildEntries(content = loadContent()) {
     });
   }
 
-  // The instruments' DEEP items (D414 — the Big Five's thirty facets and
+  // The instruments' DEEP items (D416 — the Big Five's thirty facets and
   // the compass's eighteen positions): each core test's `deep` array,
   // emitted AFTER the lens loop so the counter continues past every
   // standing test and lens doc — no shipped seq moves — and so, inside an
@@ -723,7 +723,7 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "// `facet`/`invert` are the instruments' DEEP items' only (D414): the\n" +
+  "// `facet`/`invert` are the instruments' DEEP items' only (D416): the\n" +
   "// facet or position an item scores and whether it is keyed against it,\n" +
   "// on the document so the device joins by id and the prompts stay out\n" +
   "// of first paint. The core items and the lens items carry neither.\n" +

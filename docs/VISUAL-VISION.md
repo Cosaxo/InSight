@@ -18,7 +18,7 @@ it is moving toward.
   patches, the unchanged list — compiled JSX again, the 09-02 README's
   recipe applies; no stylesheet moved). Made the vision by D361's
   standing rule — the owner's upload moves the vision — and recorded
-  at D413.
+  at D415.
 - **The plan built on it:** `VISION-2026-09-07.md` — every item
   measured against the tree with its backend half named, and, on the
   owner's ask with the upload (*"we need to make a plan for testing
@@ -44,7 +44,7 @@ it is moving toward.
   read-each-other card as a two-column hit-rate table. One line on the
   feed's two-option ballot.
 - **Built from it:** nothing yet. The owner ruled the plan's three rows
-  on 2026-09-07 (D414): the in-place questions do not build (the feed is
+  on 2026-09-07 (D416): the in-place questions do not build (the feed is
   the only door, D121 stands), the facets and positions stay on the
   device for now, and the Big Five's facet items are written next — so
   steps 1–3 and 5–6 build in order and step 4 is struck.
@@ -91,7 +91,7 @@ it is moving toward.
 | 2026-08-26 | `design/standalone-2026-08-26/` | anonymous answers and private results (the first design to amend D98 — still an owner decision), co-funded seats and the catalog window, the Oracle's working, a Patterns and person-overlay polish pass | `VISION-2026-08-26.md`, D310 |
 | 2026-09-02 | `design/standalone-2026-09-02/` | one instrument for the three lenses, the ring, the serif voice, the split ballot | `VISION-2026-09-02.md`, D361 |
 | 2026-09-06 | `design/standalone-2026-09-06/` | ink on paper, the 12px floor, the dial in the header | `VISION-2026-09-06.md`, D390 |
-| **2026-09-07** | `design/standalone-2026-09-07/` | **the current vision** — above | `VISION-2026-09-07.md`, D413 |
+| **2026-09-07** | `design/standalone-2026-09-07/` | **the current vision** — above | `VISION-2026-09-07.md`, D415 |
 
 ## How the next one arrives
 

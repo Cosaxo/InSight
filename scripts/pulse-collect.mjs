@@ -365,7 +365,7 @@ export function collectPipeline() {
     { surface: "call", count: call.questions.length, source: "content/call-questions.json" },
     {
       surface: "test items",
-      // The core items and, since D414, each instrument's DEEP items (the
+      // The core items and, since D416, each instrument's DEEP items (the
       // Big Five's facets, the compass's positions) — bank docs on the same
       // surface, in `deep` beside `questions`. The two-path bank-size check
       // in pulse.test.mjs caught this row lagging the day they landed,
