@@ -167,7 +167,18 @@ const COLD_BOOT_SURFACES = ["test", "group", "duo", "pulse", "call"];
 // never. Not parsed-and-trusted, and not copied-and-hoped: copied, and
 // proved still equal.
 (() => {
-  const live = read("src/v2/data/live.ts");
+  // STRIPPED, and that is not decoration. `.match` returns the FIRST hit, so
+  // a superseded spelling parked in a comment above the live one is what
+  // this reads — and then the equality check compares the copy below
+  // against the comment and agrees with itself. Measured: dropping "test"
+  // from the real list while leaving the old list in a `// was:` line above
+  // it prints `check-figures OK` at exit 0, while the cold-boot row in
+  // docs/COSTS.md stays certified at a number 2.8x the truth. That is the
+  // D179/D197/D275 class — a script that CHECKS something breaking with
+  // nothing else going red — in the one gate whose whole job is to notice
+  // a figure that stopped being true. The same file already strips for its
+  // OTHER read of this same module, one screen down.
+  const live = stripComments(read("src/v2/data/live.ts"));
   const m = live.match(/const BANK_SURFACES = \[([^\]]+)\]/);
   if (!m) {
     throw new Error(
