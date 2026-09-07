@@ -1100,7 +1100,23 @@ export class DailySplit extends React.Component {
                     h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, (avg && !floored) ? (Math.round(avg * 10) / 10).toFixed(1) : '\u2014'),
                     h('span', { style: { fontWeight: 700, fontSize: 12.5, color: 'var(--ink-3)' } }, '/ ' + S.options.length + ' average'),
                     myIdx >= 0 && h('span', { style: { marginLeft: 'auto', fontWeight: 700, fontSize: 12.5, color: 'var(--ink-2)' } }, 'you said ' + (myIdx + 1))),
-                  h(RatingRidge, { counts, mine: myIdx, color: topicCol, height: 64 }));
+                  // FLOORED MEANS FLOORED HERE TOO. The numeral above is
+                  // already withheld on a live card with no published
+                  // counts, and this ridge was drawn regardless — and it
+                  // scales to `max(1, ...counts)`, so the FIRST voter's own
+                  // single answer becomes a full-height column with two
+                  // empty steps beside it. Measured on a live fixture: the
+                  // card read "— / 3 average … You're first — the count
+                  // lands in a moment." over columns at 7%, 7%, 100%.
+                  //
+                  // Zeroed rather than hidden: the scale is worth seeing and
+                  // so is where you landed, and with a zero total the
+                  // component floors every step and drops "most at N" from
+                  // its own description. This is what the option-tile
+                  // branch below already does when floored (`flex: 10`),
+                  // and the third of the three gates this file's header
+                  // says the feed had and the daily did not.
+                  h(RatingRidge, { counts: floored ? counts.map(() => 0) : counts, mine: myIdx, color: topicCol, height: 64 }));
               })()
             // the ballot again, its seam now at the crowd's split: two
             // sides read left-to-right (width is share), three or more

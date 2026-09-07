@@ -498,6 +498,59 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("mirror/live/tooSmall");
   });
 
+  it("does not draw a spread for a crowd it is withholding", async () => {
+    // THE THIRD GATE. daily-split.jsx's header says the feed ruled on this
+    // state three times and "the daily was the one answer surface with no
+    // such gate" — then gated the numeral and the option tiles and left the
+    // rating card's ridge drawing unconditionally. The ridge scales to the
+    // biggest count, so the FIRST voter's single answer is a full-height
+    // column beside empty steps: a published spread under a line saying
+    // nobody has answered yet.
+    //
+    // Reachable at all only since the fixture can put the ordinal card
+    // TODAY — the deck draws today's card and has no day dots, so the
+    // rating render had no mount test of any kind.
+    const expectNoBoundary = mountLive({ tooSmall: true, ratingToday: true });
+    const ballot = document.querySelector('[data-screen-label="Split daily v2"] [role="group"], [data-screen-label="Split daily v2"]');
+    expect(ballot, "the daily did not mount").toBeTruthy();
+    // Vote the first step.
+    const first = screen.getByRole("button", { name: "Yes" });
+    fireEvent.click(first);
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+
+    const ridge = screen.queryByRole("img", { name: /Spread across/ });
+    expect(ridge, "the rating card drew no ridge after the vote").toBeTruthy();
+    // The words were already honest — the numeral is withheld — and the
+    // SHAPE is what this pins: every column the same height, so nothing is
+    // claimed about a crowd the card is refusing to count.
+    const bars = [...ridge.querySelectorAll("span > span[style*='height']")];
+    expect(bars.length, "the ridge drew no columns").toBeGreaterThan(1);
+    const heights = new Set(bars.map((b) => b.style.height));
+    expect(
+      heights.size,
+      `a withheld crowd was drawn as a spread: ${[...heights].join(", ")}`,
+    ).toBe(1);
+    // …and it still says nothing about a peak.
+    expect(ridge.getAttribute("aria-label")).not.toMatch(/most at/);
+    expectNoBoundary("daily/live/rating/floored");
+  });
+
+  it("…and DOES draw the spread once the counts publish", async () => {
+    // The control. Without it, "every column the same height" is also what
+    // a ridge that stopped drawing anything looks like — and flattening a
+    // real crowd would cost the card the reading it exists for.
+    const expectNoBoundary = mountLive({ ratingToday: true });
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+    const ridge = screen.queryByRole("img", { name: /Spread across/ });
+    expect(ridge, "the rating card drew no ridge").toBeTruthy();
+    const heights = new Set(
+      [...ridge.querySelectorAll("span > span[style*='height']")].map((b) => b.style.height),
+    );
+    expect(heights.size, "a published crowd was flattened").toBeGreaterThan(1);
+    expectNoBoundary("daily/live/rating/published");
+  });
+
   it("renders the demoInProd fallback without tripping the boundary", () => {
     // A live build that could not attach and fell back to mock data. Its own
     // branch again — and the one where D11 suppresses the most.

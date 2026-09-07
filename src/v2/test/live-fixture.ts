@@ -49,6 +49,18 @@ type Dict = Record<string, unknown>;
 export interface LiveFixtureOptions {
   /** Cards below the k-floor render no share numeral and no fill (D11). */
   tooSmall?: boolean;
+  /**
+   * Make TODAY's card the ordinal one.
+   *
+   * The deck's rating question is `daily-001` — yesterday — and the live
+   * deck draws today's card only, with no day dots to page back through.
+   * So the rating card's own render was unreachable from any mount test,
+   * which is how its floored arm shipped drawing the first voter's single
+   * answer as a full-height column while the numeral beside it was
+   * withheld. This swaps the two so a case can vote the rating card and
+   * read what it drew.
+   */
+  ratingToday?: boolean;
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
   /**
@@ -354,7 +366,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const listeners = new Set<() => void>();
   const deck = [
     {
-      ...liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
+      ...liveQuestion(
+        "daily-000", "Would you rather know, or be known?", tooSmall,
+        "Mind", opts.ratingToday ? "rating" : "binary",
+      ),
       // D306: the daily's About sheet leads with a background when the
       // question carries one — opt-in, so the default mount keeps the
       // no-background arm honest.
