@@ -41582,3 +41582,45 @@ Every one of the four unbuilt axes and the first two planned crossings
 now have a paper; fourteen axiom papers and four general ones carry the
 form. G4 and paper 11 are revised against their reviews; paper 12's
 review is running and its revision follows. Nothing in the app moves.
+
+## D389 amendment (2026-09-07, third) · Paper 13 revised, paper 14 drafted, and the planned list is spent
+
+**Paper 13**, the last planned crossing — causal patterns from
+within-unit events — landed against a twenty-six-finding review that
+restructured it three ways. The draft named the person's own pre-event
+series as the counterfactual for a randomized event, which reinstates
+every trend the randomization was bought to remove; the counterfactual
+is the concurrent arm at the same calendar position, and the first
+class splits into occurrence-randomized families with an unassigned arm
+and timing-randomized families whose estimand is paper 2's
+early-against-late at a shrinking horizon. The draft's headline "third
+class" — events the system influences without controlling — collapsed
+under its own definition into ordinary non-compliance inside a
+first-class offer design, and is withdrawn as a class and restated as
+the instrument it is, with exclusion and monotonicity named per family.
+And behavioural resilience had dropped both of paper 6's constitutive
+conditions while citing it, so it is now defined only on one fixed,
+repeated, dose-controlled adverse challenge, with the condition that
+the instrument — response propensity and the leaving hazard — is itself
+perturbed by the challenge, as a competing-risks quantity priced in
+people times events with a reliability term. The cross-axis claim is
+now specific: an event aligns every source's series at one origin, so
+the response ordering across sources is a reading no source makes
+alone. The randomizations are named a second budget the measurement
+budget cannot price, per G4's incommensurability, and every fork
+carries what is imposed on whom and the smallest shape that still
+identifies, with timing-randomization of naturally occurring adverse
+events as the middle shape the draft omitted.
+
+**Paper 14** is drafted: interests, the one built axis among the app's
+seven with no paper. Its claims — interest as the person-side
+missingness mechanism beside the policy's; declared and revealed
+interest as two instruments for one construct, each with its own
+confound; avoidance as the costlier channel; homophily against
+influence separable only under a randomized offer; attention drift as a
+leading indicator under paper 13's discipline — are under adversarial
+review, and a cross-paper coherence review of all nineteen prior papers
+runs beside it, because several rewrites reversed theses earlier papers
+had already cited. Both revisions follow. The planned list is spent:
+every unbuilt axis and every planned crossing has a paper. Nothing in
+the app moves.
