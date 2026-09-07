@@ -454,6 +454,82 @@ it is planned here.
   step deferred, and as a screen rather than a control, so it is a
   request under D352 rather than a build.
 - **status** — `requested`.
+### 9 · The front door — one screen, three ways in
+
+- **asked by** — the owner, 2026-09-07: *"i think this app defenenetly
+  should have a sigin in wall and not anonymous users"*, then *"make a
+  plan for the c plan that is how almost all apps do account"*. The
+  build plan is [`SIGNIN-PLAN.md`](SIGNIN-PLAN.md); this request is
+  the screen it waits on (§6).
+- **surface** — the FIRST thing anyone sees, before the daily tab
+  exists. It replaces `ui/LiveSignInGate.tsx`, which today is a
+  Google-only wall shown on the test track: the stacked lockup (D302's
+  full iris over the wordmark, 44px), a line of copy, one button. The
+  shell it keeps — fixed inset, `--surface-2`, centred, `max-width:
+  420`, safe-area padding top and bottom — is right and should survive.
+  Nothing surrounds it: no tab bar, no back.
+- **data and basis** — none. This screen reads nothing and publishes
+  nothing. It is the one surface in the app with no aggregate behind
+  it, which is why it has to carry its weight on shape and words alone.
+- **what it must hold**
+  - **Three doors, and Apple's rule sets their order.** Guideline 4.8
+    wants Sign in with Apple offered *equivalently* to other social
+    logins, so on iOS it leads: **Sign in with Apple** (Apple's own
+    black-fill treatment, which is prescribed and not ours to restyle),
+    then **Continue with Google**, then email.
+  - **Email is progressive, not a fifth of the screen.** The default
+    state shows the two one-tap doors and a quiet *Use email instead*.
+    Tapping it reveals address, password, and one primary button. The
+    calm default is the point: most people will take a one-tap door and
+    should not have to read past a form to find it.
+  - **Sign up and sign in are one screen, not two.** A single toggle
+    below the form — *New here? Create an account* / *Already have an
+    account?* — because two near-identical screens is the thing that
+    makes people bounce.
+  - **The honest sentence.** Answers on InSight are public, and this is
+    the screen where someone decides to join. Telling them here is the
+    same obligation D98 wrote for the account panel, pointed forward: a
+    person who learns it afterwards from a stranger quoting their vote
+    is the failure. One line, above the legal footer, not buried in it.
+    D182 §3 governs — a claim, not a word count.
+  - **The legal footer.** By continuing you agree to the Terms, and the
+    Privacy Policy, both linked and both real pages.
+- **states** — default (two buttons, email collapsed) · email expanded
+  · creating vs signing in · per-button loading, since a tap on Apple
+  leaves the app and comes back · error, and it needs four that read
+  differently: wrong password, no such account, address already taken,
+  and the network being down · forgotten-password sent, which is a
+  confirmation with nowhere to go but back to the inbox.
+- **interaction** — a tap on Apple or Google leaves for the system
+  sheet and returns; the screen must not look broken while it is gone.
+  *Forgot password?* sits with the password field, not with the
+  toggle. Nothing dismisses this screen: it is a wall, and the only way
+  past it is through a door.
+- **vocabulary** — the standalone family in `design/`,
+  `src/v2/styles.css`, D302's two palettes in both light and dark. The
+  gate's existing lockup and shell are the starting point rather than
+  a blank page. Apple's button is the one element that obeys someone
+  else's rules.
+- **constraints** — the screen is dynamic-imported, so it is off the
+  first-paint budget, but it is the first thing a new user waits for
+  and should feel instant. `check:tap-targets` for every control,
+  including the small toggle and the forgot link. Keyboard-safe: the
+  password field must not be under the keyboard on a small phone.
+- **why** — D219 let the wall go on the owner's condition that
+  duplicates be hard to make, and 2026-09-07 showed the condition is
+  not met: delete the account, come back, answer again, in one tap. The
+  wall is how the Mirror's central claim — that *your* answers say
+  something about *you* — stops being undermined by the app itself.
+- **status** — `designed` (2026-09-07). The owner's canvas is extracted
+  to [`design/front-door-2026-09-07/`](../design/front-door-2026-09-07/) —
+  twelve live artboards, and a README that is the readable half because
+  the delivered file is a bundle. It settled more than the request asked
+  for: every error names its own way out (*no account* offers **Create
+  one**, *already has an account* offers **Sign in instead**), Apple's
+  label follows the mode where Google's does not, and the toggle and the
+  legal footer both hide while the keyboard is up. Next is the build,
+  step 3 of `SIGNIN-PLAN.md`.
+
 
 ## Planned
 

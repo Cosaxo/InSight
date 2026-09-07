@@ -37,6 +37,18 @@ const h = vi.hoisted(() => ({
   // A signInAnonymously that never settles — the shape the device
   // produced, and the one an unbounded await turns into silence.
   hangSignIn: false,
+  // Apple: what the plugin hands back, and what the SDK was given.
+  appleResult: {
+    credential: { idToken: "apple-id-token", nonce: "raw-nonce" },
+  } as { credential: { idToken?: string; nonce?: string } | null },
+  oauthProviders: [] as string[],
+  oauthCredentials: [] as Array<Record<string, unknown>>,
+  signInCredentials: [] as unknown[],
+  linkCredentials: [] as unknown[],
+  // The signed-in user the Auth instance reports. Null is a real state,
+  // not just a fixture default: it is what linkApple/linkGoogle branch on
+  // to decide between upgrading a session and starting one.
+  currentUser: null as { uid: string } | null,
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -48,10 +60,10 @@ vi.mock("firebase/app", () => ({
 }));
 
 vi.mock("firebase/auth", () => ({
-  getAuth: () => { h.getAuthCalls += 1; return { __auth: "browser" }; },
+  getAuth: () => { h.getAuthCalls += 1; return { __auth: "browser", get currentUser() { return h.currentUser; } }; },
   initializeAuth: (_app: unknown, opts: Record<string, unknown>) => {
     h.initializeAuthCalls.push(opts);
-    return { __auth: "native" };
+    return { __auth: "native", get currentUser() { return h.currentUser; } };
   },
   indexedDBLocalPersistence: { __persistence: "indexedDB" },
   connectAuthEmulator: () => {},
@@ -65,9 +77,21 @@ vi.mock("firebase/auth", () => ({
     ? new Promise(() => { /* never settles, which is the case */ })
     : Promise.resolve({ user: { uid: "uid_test" } })),
   GoogleAuthProvider: class {},
-  linkWithCredential: () => Promise.resolve(),
+  // Enough of the real shape to catch the bug this file exists for: the
+  // provider id it was constructed with, and the object handed to
+  // credential(). A stub that returned a bare token would pass while the
+  // nonce went missing, which is the whole failure.
+  OAuthProvider: class {
+    readonly providerId: string;
+    constructor(providerId: string) { this.providerId = providerId; h.oauthProviders.push(providerId); }
+    credential(o: Record<string, unknown>) {
+      h.oauthCredentials.push(o);
+      return { __cred: "apple", ...o };
+    }
+  },
+  linkWithCredential: (_u: unknown, c: unknown) => { h.linkCredentials.push(c); return Promise.resolve(); },
   linkWithPopup: () => Promise.resolve(),
-  signInWithCredential: () => Promise.resolve(),
+  signInWithCredential: (_a: unknown, c: unknown) => { h.signInCredentials.push(c); return Promise.resolve(); },
   signInWithPopup: () => Promise.resolve(),
   signOut: () => Promise.resolve(),
 }));
@@ -95,7 +119,10 @@ vi.mock("firebase/functions", () => ({
 }));
 
 vi.mock("@capacitor-firebase/authentication", () => ({
-  FirebaseAuthentication: { signInWithGoogle: () => Promise.resolve({}) },
+  FirebaseAuthentication: {
+    signInWithGoogle: () => Promise.resolve({}),
+    signInWithApple: () => Promise.resolve(h.appleResult),
+  },
 }));
 
 vi.mock("./appcheck", () => ({ initAppCheck: () => Promise.resolve() }));
@@ -110,6 +137,12 @@ beforeEach(() => {
   h.getAuthCalls = 0;
   h.initializeAuthCalls.length = 0;
   h.hangSignIn = false;
+  h.appleResult = { credential: { idToken: "apple-id-token", nonce: "raw-nonce" } };
+  h.oauthProviders.length = 0;
+  h.oauthCredentials.length = 0;
+  h.signInCredentials.length = 0;
+  h.linkCredentials.length = 0;
+  h.currentUser = null;
 });
 
 afterEach(() => {
@@ -192,5 +225,70 @@ describe("a synchronous auth callback", () => {
     // Fails as "promise rejected ReferenceError: Cannot access 'unsub'
     // before initialization" against the pre-fix shape.
     await expect(m.anonSignIn()).resolves.toBe("uid_test");
+  });
+});
+
+describe("Sign in with Apple", () => {
+  // WHY THESE ARE HERE. Apple binds its identity token to a nonce: the
+  // plugin hashes one for the native request and returns the RAW value,
+  // and Firebase re-hashes it to check the token was minted for this
+  // request. Drop it and the exchange fails `auth/invalid-credential`,
+  // which names neither Apple nor the nonce and sends you reading the
+  // provider config. Nothing else in the stack would notice: the field is
+  // optional in the plugin's type and the SDK's credential() takes a
+  // loose object, so tsc, eslint and a hand test on a device that happens
+  // to succeed all stay quiet.
+  it("exchanges the native token WITH its raw nonce", async () => {
+    h.native = true;
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    await m.appleSignIn();
+
+    expect(h.oauthProviders).toEqual(["apple.com"]);
+    // rawNonce, not nonce: the SDK's field is the raw one because it does
+    // the hashing, and the two names are one letter apart.
+    expect(h.oauthCredentials).toEqual([
+      { idToken: "apple-id-token", rawNonce: "raw-nonce" },
+    ]);
+    expect(h.signInCredentials).toHaveLength(1);
+  });
+
+  it("LINKS rather than replacing when a session already exists", async () => {
+    // The property the whole wall rests on: a person who answered before
+    // the gate appeared keeps every answer, because the anonymous uid is
+    // upgraded rather than abandoned.
+    h.native = true;
+    h.currentUser = { uid: "uid_test" };
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    await m.linkApple();
+
+    expect(h.linkCredentials, "linkApple signed in fresh instead of linking").toHaveLength(1);
+    expect(h.signInCredentials).toHaveLength(0);
+  });
+
+  it("signs in fresh when there is no session to keep", async () => {
+    // The other half of the same branch, and the one a first launch takes:
+    // the gate renders before initLive() has an anonymous session on a
+    // cold start, so linkApple has to work with nothing to upgrade.
+    h.native = true;
+    h.currentUser = null;
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    await m.linkApple();
+
+    expect(h.signInCredentials).toHaveLength(1);
+    expect(h.linkCredentials).toHaveLength(0);
+  });
+
+  it("fails readably when the plugin returns no token", async () => {
+    // A misconfigured build does not open the sheet at all. Callers set a
+    // busy flag and await, so a silent failure is a frozen screen with
+    // nothing to show — the same reason the Google path has a deadline.
+    h.native = true;
+    h.appleResult = { credential: null };
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    await expect(m.appleSignIn()).rejects.toThrow(/Apple sign-in returned no idToken/);
   });
 });
