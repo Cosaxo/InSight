@@ -899,15 +899,24 @@ anything a user does.
   setting, and neither D219 nor this file's own gate could see the
   divergence.
 
-  So this reply is usable **only** from a build with `REQUIRE_SIGNIN` set
-  to `false`. The wall is right for TestFlight and wrong for submission;
-  D134 states that fork and leaves the choice — drop the wall, or build
-  Sign in with Apple — deliberately open. **Check the flag before quoting
-  this bullet**, and note that a wall raises 5.1.1(v) (an app should be
-  usable without an account unless its core features need one) before it
-  raises 4.8: this app's loop ran anonymously for twelve builds, so that
-  argument is about the product and costs more than adding a provider.
-  Runbook 6.2 carries the operational half.
+  D134's fork — drop the wall, or build Sign in with Apple — is closed:
+  D413 took the second branch, and both doors ship. What is left is the
+  half a provider cannot answer. **A wall raises 5.1.1(v)** (an app
+  should be usable without an account unless its core features need one)
+  **before it raises 4.8**, and this app's loop ran anonymously for
+  twelve builds, so that argument is about the product and costs more
+  than adding a provider. D413 §5 has the reply written out. Runbook
+  6.2 carries the operational half.
+
+  **The wall now passes on two conditions, not one** (D413's amendment):
+  the session is linked AND no address is waiting to be confirmed. An
+  account made at the email door does not reach the app until its
+  confirmation mail is opened — so if a reviewer creates an account with
+  a throwaway address they cannot read, they will be held at *Confirm
+  your address* and may report the app as broken. **Apple's own door
+  does not do this** (Apple hands over an address it has already
+  verified), and the review guide should point a reviewer at it. Runbook
+  5.16 is the mail's own dependency.
 
   **This bullet used to add "and the app collects no email or name via
   Google either". Delete that from any reply; it is false.**

@@ -127,6 +127,16 @@ export async function emailCreate(address: string, password: string): Promise<vo
   return m.emailCreate(address, password);
 }
 
+export async function sendVerification(): Promise<void> {
+  const m = await impl();
+  return m.sendVerification();
+}
+
+export async function refreshVerification(): Promise<boolean> {
+  const m = await impl();
+  return m.refreshVerification();
+}
+
 export async function emailReset(address: string): Promise<void> {
   const m = await impl();
   return m.emailReset(address);

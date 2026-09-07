@@ -869,6 +869,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // is the labelled estimate.
     loadLearnAggs: async () => {},
     emailCreate: async () => {},
+    abandonSignIn: async () => {},
+    accountEmail: null,
+    needsEmailVerify: false,
+    refreshVerification: async () => true,
+    sendVerification: async () => {},
     emailReset: async () => {},
     emailSignIn: async () => {},
     linkApple: async () => {},

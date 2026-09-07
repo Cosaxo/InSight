@@ -11,6 +11,8 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   createUserWithEmailAndPassword,
+  reload,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   connectAuthEmulator,
@@ -492,9 +494,56 @@ export async function emailCreate(address: string, password: string): Promise<vo
   if (user?.isAnonymous) {
     await emailAttempt(() =>
       linkWithCredential(user, EmailAuthProvider.credential(address, password)));
-    return;
+  } else {
+    await emailAttempt(() => createUserWithEmailAndPassword(auth(), address, password));
   }
-  await emailAttempt(() => createUserWithEmailAndPassword(auth(), address, password));
+  // After the account exists, never before: a verification mail for an
+  // address that failed to register is a mail about nothing.
+  await sendVerification();
+}
+
+/**
+ * Send the address a link that proves it is theirs.
+ *
+ * WHY ONLY THE PASSWORD DOOR NEEDS THIS. Apple and Google both hand
+ * Firebase an address they have already verified, so `emailVerified` is
+ * true the moment those links complete. A password account's address is
+ * whatever someone typed, which is the case this exists for: a typo locks
+ * the account out of its own reset, and a stranger's address gets reset
+ * mail it never asked for.
+ *
+ * Best-effort by design. A create that succeeded and a verification mail
+ * that did not send is a person with an account, and the gate's verify
+ * screen carries a Resend for exactly that; throwing here would instead
+ * report the whole sign-up as failed, which is worse and untrue.
+ */
+export async function sendVerification(): Promise<void> {
+  const user = auth().currentUser;
+  if (!user) return;
+  try {
+    await sendEmailVerification(user);
+  } catch (err) {
+    // console, not reportError: this module does not import the Sentry
+    // helper, and the bare name resolves to the DOM's one-argument
+    // global — which tsc caught. Same shape as appcheck.ts's warning.
+    console.warn("[auth] verification mail failed to send:", err);
+  }
+}
+
+/**
+ * Ask the server again whether the address has been confirmed.
+ *
+ * `reload` and not a cached read: `emailVerified` is a property of the
+ * local user object, and following the link happens in a MAIL APP — no
+ * token refresh reaches this process on its own, so a person who verified
+ * correctly would sit on the screen forever waiting for a flag that only
+ * a round trip can move.
+ */
+export async function refreshVerification(): Promise<boolean> {
+  const user = auth().currentUser;
+  if (!user) return false;
+  await reload(user);
+  return !!auth().currentUser?.emailVerified;
 }
 
 /**

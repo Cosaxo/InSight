@@ -2272,6 +2272,43 @@ That is a tester-count problem, not a workflow problem.
       disclosure band. Nothing here is a launch step; it is the answer to
       "why is there no ads step".
 
+- [ ] **5.16 The two Firebase auth emails now stand between a user and
+      the app (D413).** Ten minutes, one console, and it is not cosmetic:
+      since the wall reads `linked && !needsEmailVerify`, someone who
+      creates an account with an address **cannot open InSight at all**
+      until the confirmation mail arrives and is opened. The mail is the
+      product's front door for that door.
+
+      Firebase console → Authentication → **Templates**. Both templates
+      work untouched, so nothing here blocks a build — what it buys is
+      that the mail is opened rather than binned:
+
+      1. **Email address verification** and **Password reset** — check
+         the **sender name**. It defaults to the PROJECT ID, so the mail
+         arrives from *prvfire33*, which is a name no user has ever seen
+         and reads as phishing for an app called InSight. Set it to
+         `InSight`. The sender ADDRESS
+         (`noreply@prvfire33.firebaseapp.com`) needs a verified custom
+         domain to change and is not worth one before launch.
+      2. Send yourself one of each and read them on a phone. A link that
+         404s or an action URL pointing at a project you renamed is
+         invisible from this side and total from the user's.
+
+      **What does NOT need doing.** No template edit is required for the
+      app to work, no new data is collected (Contact Info → Email Address
+      is already on the published label), and the address is verified by
+      Firebase rather than by anything in this repo — the app only asks
+      `reload()` whether the flag moved. `web/privacy.html` already says
+      the link is sent and that the app waits for it.
+
+      **The typo escape is in the app, not here.** An account created on
+      a mistyped address can never be verified and its reset mail goes to
+      the same wrong inbox, so the verify screen carries *"Use a
+      different address"*, which signs out and lets D3's anonymous
+      recovery hand the device a fresh session. Test it once on a build
+      before submitting: type a wrong address, create, and check that the
+      doors come back.
+
 ## Phase 6 — Submit
 
 - [x] **6.0 THE PAID DOOR'S SHAPE — DECIDED 2026-09-05 (D368): shape A,
@@ -2370,6 +2407,33 @@ That is a tester-count problem, not a workflow problem.
       workflow runs it too: the privacy panel is compiled into the binary,
       so a false claim about who can read an answer ships to the phone
       rather than staying in the repo.
+- [ ] **6.1b App Review Information — a demo account is now MANDATORY
+      (D413).** Ten minutes, and skipping it costs a full review round on
+      guideline 2.1 rather than on anything about the app. App Store
+      Connect → the version → **App Review Information**:
+
+      - **Sign-in required: YES.** It was NO for every build before 32,
+        truthfully. It is a lie now, and a reviewer who opens the app to
+        a wall with that box unticked files "we were unable to review"
+        without reading further.
+      - **Username / password.** Hand them a real account. **Make it
+        through the app, not through the Firebase console** — a user
+        created in the console has `emailVerified: false`, so the wall
+        holds it exactly where it holds everyone else, and the console
+        exposes no toggle for that flag (only the Admin SDK does). So:
+        install the build, create an account on an address you can read,
+        open the confirmation link, and put that pair in the form.
+      - **Notes.** One sentence: the fastest way in is **Sign in with
+        Apple**, which needs no mail round trip because Apple hands over
+        an address it has already confirmed. A reviewer who takes the
+        email door with an address they cannot read will be held at
+        *Confirm your address* and may report the app as broken.
+
+      Answer 5.1.1(v) here too if you want to pre-empt it, in the
+      reviewer's terms rather than ours: the account is not gatekeeping a
+      feature, it is the unit the product is about. D413 §5 has it
+      written out.
+
 - [ ] **6.2 Submit to App Store review.** Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
@@ -2408,6 +2472,36 @@ That is a tester-count problem, not a workflow problem.
       cannot die with their handset. Build 13 is a test-track build and
       ships walled on purpose. The flag becomes a blocker at exactly one
       moment, which is this step.
+
+      **REVERSED 2026-09-07 (D413): the wall goes back up, and every
+      paragraph above about the drop is now history rather than
+      instruction.** D219's own condition — everyone has an account,
+      answers attributed, duplicates hard — was tested by the owner on
+      2026-09-07 by deleting their account inside the app and answering
+      again as a fresh anonymous session, one tap. It had never held.
+      `ios-release.yml` defaults `VITE_REQUIRE_SIGNIN` to `'true'` again.
+
+      So **the 4.8 answer drafted in `SHIP-CHECKLIST § hardening` is
+      retired, not deferred**: it rested on "no account is required",
+      which is false of every build this workflow now makes. Sign in with
+      Apple is BUILT and leads the gate — the exemption for an app using
+      exclusively its own account system does not apply once Google is
+      offered, so pre-building it was the cheap side of the round D219
+      told you to budget.
+
+      **5.1.1(v) is still the expensive half and is still unbudgeted.**
+      The reply, if it is asked for: the account is not gatekeeping a
+      feature, it is the unit the product is about — a daily question
+      answered by nobody in particular produces nothing the app can show
+      you back. D413 §5 has it written out, including what a wall costs
+      in installs, which is unknown here because the app has never had
+      one under measurement.
+
+      **The wall now has TWO conditions, and the second is 5.16's.** It
+      passes on `linked && !needsEmailVerify`, so an email account that
+      never opens its confirmation mail never reaches the app. Read 5.16
+      before submitting: the mail is a real dependency of the wall, and
+      the one test worth doing by hand is the mistyped-address escape.
 
       **This step used to end "…and no email or name is collected through
       it". It is deleted, and do not say it.** Google's default scopes put

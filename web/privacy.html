@@ -177,8 +177,13 @@
     <li>
       <strong>Email and password.</strong> We receive the address you type.
       <strong>The password goes to Firebase Authentication, which stores
-      it hashed; this app never sees it and never stores it.</strong> A
-      reset link is sent by Firebase to that address at your request.
+      it hashed; this app never sees it and never stores it.</strong>
+      Firebase sends a confirmation link to that address, and the app
+      stays behind its sign-in screen until you open it &mdash; so an
+      address that was mistyped, or that is not yours, does not end up
+      with an InSight account behind it. A reset link is sent the same
+      way at your request. Apple and Google hand us an address they have
+      already confirmed, so neither of those asks you to do this.
     </li>
   </ul>
 

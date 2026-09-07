@@ -1,11 +1,14 @@
 # The account wall and its three doors — the plan
 
-**Status: plan only, not built.** The owner's decision, 2026-09-07:
-*"i think this app defenenetly should have a sigin in wall and not
-anonymous users"*, then *"make a plan for the c plan that is how
-almost all apps do account"*. This page is what that costs and the
-order it gets built in. Nothing here is adopted until a DECISIONS.md
-record says so, and the record it will have to reverse is **D219**.
+**Status: BUILT, 2026-09-07 — adopted as
+[D413](DECISIONS.md#d413--the-account-wall-goes-back-up-and-d219s-own-condition-is-why),
+which reverses D219. This page is kept as the reasoning, not as a
+worklist; §7 records what each step actually cost.** The owner's
+decision, 2026-09-07: *"i think this app defenenetly should have a
+sigin in wall and not anonymous users"*, then *"make a plan for the c
+plan that is how almost all apps do account"*, then — after reading
+§6's deferral of address verification — *"add the email verification
+before launch"*.
 
 ## 1 · Why, in the owner's own terms
 
@@ -58,6 +61,17 @@ account counts, an error message for every one of those, and the
 support mail when somebody still cannot get in. That is why §7
 recommends the order it does.
 
+**The verification decision, made:** addresses ARE verified before an
+account counts, on the owner's instruction the same day. The estimate
+above priced it as a conversion cost — one round trip through an inbox
+before the first answer — and missed the cost of NOT doing it, which
+is larger: a password account exists the moment Firebase accepts the
+password, so a typo produces a real account whose confirmation mail
+and whose reset mail both go to a stranger. Without a way out, the
+wall would be a locked room on that device. D413's amendment has the
+three pieces that ship (two flags on the wall, a rule that names the
+password door precisely, and `abandonSignIn` as the escape).
+
 ## 4 · Apple guideline 4.8 decides the shape
 
 4.8 says an app offering a third-party or social login must also offer
@@ -100,7 +114,10 @@ Two ways to satisfy it, and they are not equal:
 D352: a new screen is a request in `VISUAL-REQUESTS.md`, designed
 before it is built. Two extra buttons on the existing gate would be
 controls and would need no request — but sign-up, forgotten-password
-and their error states are a screen family. Request **7** carries it.
+and their error states are a screen family. Request **9** carries it
+(it was filed as 7, which collided with the first-launch walkthrough
+already built under that number — the console's own pinned count
+caught it).
 
 ## 6b · Step 1 is built (2026-09-07), except the entitlement
 
@@ -155,24 +172,33 @@ re-decide:
 The step-1 code already matches the parts that overlap, because the
 gate's shell survived by request.
 
-## 7 · The order
+## 7 · The order, and what it cost
 
-1. **Sign in with Apple** — code, tests, the entitlement. Independent
-   of the design, because it is a button on a screen that exists.
-2. **The design round** — request 7 drafted, refined by the owner,
-   extracted under `design/`.
-3. **Email + password** — built against the accepted design.
-4. **The wall on** — `REQUIRE_SIGNIN=true`, the records, the privacy
-   page, the checklist.
-5. **Build, device test, submit.**
+All five ran on 2026-09-07. Steps 1 and 2 ran in parallel as planned —
+1 is code against an existing surface, 2 is the owner's and Claude
+Design's — which is why a two-to-three-day estimate closed in one.
 
-Steps 1 and 2 run in parallel: 1 is code against an existing surface, 2
-is the owner's and Claude Design's.
+1. **Sign in with Apple** — done. Code, tests, then the entitlement in
+   its own commit once the owner ticked the App ID capability. §6b has
+   why that order is not optional.
+2. **The design round** — done. Request 9, twelve artboards, extracted
+   to `design/front-door-2026-09-07/`. §6c records the three decisions
+   the design made that the request had not asked for.
+3. **Email + password** — done: sign in, create, reset, and (added on
+   the owner's word, above) address verification with its escape.
+4. **The wall on** — done. `ios-release.yml` defaults
+   `VITE_REQUIRE_SIGNIN` to `'true'`, `web/privacy.html` moved first
+   per D183, `SHIP-CHECKLIST`'s 4.8 reply is retired, and the runbook's
+   6.2 says so at the step where it binds.
+5. **Build, device test, submit** — the owner's, and the only part
+   left. Runbook **5.16** is the one new console step it depends on
+   (the two Firebase auth mail templates), and the one hand test worth
+   doing is the mistyped-address escape.
 
-**Three clicks are the owner's alone and block step 1's testing:** the
-Apple provider and the Email/Password provider in the Firebase console,
-and Sign in with Apple enabled for the App ID in the Apple Developer
-portal.
+**Three clicks were the owner's alone and blocked step 1's testing:**
+the Apple provider and the Email/Password provider in the Firebase
+console, and Sign in with Apple enabled for the App ID in the Apple
+Developer portal. All three are done.
 
 ## 8 · What this costs the release
 

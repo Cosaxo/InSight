@@ -244,6 +244,41 @@ function LiveSignInGate() {
     signin ? LIVE.emailSignIn(address.trim(), password)
            : LIVE.emailCreate(address.trim(), password));
 
+  // The verify screen's three controls. Each keeps its own word rather
+  // than sharing `err`: "still not confirmed" is not an error, it is the
+  // answer to the question the button asked.
+  const [verifyWord, setVerifyWord] = React.useState<string | null>(null);
+  const checkVerified = async () => {
+    setFlight("email"); setVerifyWord(null);
+    try {
+      // A false here re-renders nothing on its own — needsEmailVerify is
+      // unchanged — so the screen has to say so itself or the tap looks
+      // broken. A true flips the flag in the store and this component
+      // unmounts with the wall.
+      const ok = await LIVE.refreshVerification();
+      if (!ok) setVerifyWord("Not confirmed yet. Open the link, then tap again.");
+    } catch (e) { setVerifyWord(clean(e)); }
+    setFlight(null);
+  };
+  const resend = async () => {
+    setFlight("email"); setVerifyWord(null);
+    try {
+      await LIVE.sendVerification();
+      // sendVerification is best-effort and never throws (firebaseImpl
+      // says why), so this sentence is about what was ATTEMPTED. Claiming
+      // delivery would be the one thing it cannot know.
+      setVerifyWord("Sent again. It can take a minute to arrive.");
+    } catch (e) { setVerifyWord(clean(e)); }
+    setFlight(null);
+  };
+  const startOver = async () => {
+    setFlight("email"); setVerifyWord(null);
+    try {
+      await LIVE.abandonSignIn();
+    } catch (e) { setVerifyWord(clean(e)); }
+    setFlight(null);
+  };
+
   const sendReset = () => fly("email", async () => {
     await LIVE.emailReset(address.trim());
     setScreen("reset");
@@ -273,6 +308,41 @@ function LiveSignInGate() {
           connection rather than showing you sample questions.
         </GateBody>
         <GateButton label="Try again" onClick={() => location.reload()} />
+      </GateShell>
+    );
+  }
+
+  // THE ACCOUNT EXISTS AND THE ADDRESS DOES NOT YET BELONG TO ANYONE.
+  // Its own screen, ahead of every other, because the wall is up for a
+  // different reason here: there is nothing to sign in to and no door to
+  // choose — the account is made, and one link stands between it and the
+  // app. Reached on a relaunch as well as straight after the create, so
+  // it names the address from the STORE rather than from the field above,
+  // which a relaunch has emptied.
+  if (LIVE.needsEmailVerify) {
+    const at = LIVE.accountEmail || address.trim();
+    return (
+      <GateShell>
+        <GateTitle />
+        <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 19,
+          letterSpacing: "-0.02em", marginBottom: 8 }}>Confirm your address</div>
+        <GateBody>
+          We sent a link to <strong>{at || "your address"}</strong>. Open it, then come back.
+        </GateBody>
+        <GateButton label={"I\u2019ve confirmed it"} onClick={() => void checkVerified()}
+          busy={inFlight} />
+        <GateQuiet label="Send it again" disabled={inFlight} onClick={() => void resend()} />
+        {verifyWord && (
+          <div role="alert" style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600,
+            color: "var(--ink-2)", marginTop: 14, lineHeight: 1.5, textAlign: "center" }}>
+            {verifyWord}
+          </div>
+        )}
+        {/* The way out of a typo, and the reason this screen is not a
+            locked room: the account keeps the wrong address, this device
+            gets a fresh anonymous session, and the doors come back. */}
+        <GateQuiet label="Use a different address" disabled={inFlight}
+          onClick={() => void startOver()} />
       </GateShell>
     );
   }

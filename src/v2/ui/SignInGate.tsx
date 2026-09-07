@@ -40,7 +40,18 @@ function SignInGate({ children }: { children?: React.ReactNode }) {
   // rather than by luck: `signInRequired()` reads a value Vite substitutes
   // at BUILD time, so it is constant for the life of the process and the
   // hook order above can never change between renders of one instance.
-  if (!signInRequired() || LIVE.linked) return <>{children}</>;
+  //
+  // TWO CONDITIONS, NOT ONE. An account created at the email door exists
+  // the moment Firebase accepts the password — linked is already true —
+  // and nothing has yet shown that the address belongs to whoever typed
+  // it. Passing on `linked` alone would let a typo'd or borrowed address
+  // through with a full account behind it, and the reset mail that is the
+  // only way back into such an account goes to the wrong inbox. Apple and
+  // Google hand over an address they have already verified, so they never
+  // meet this arm (live.ts's observer has the precise rule).
+  if (!signInRequired() || (LIVE.linked && !LIVE.needsEmailVerify)) {
+    return <>{children}</>;
+  }
 
   // `null` rather than a spinner: this is a local chunk on a phone's own
   // disk, and a spinner that shows for one frame is worse than nothing.

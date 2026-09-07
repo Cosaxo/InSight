@@ -43921,12 +43921,71 @@ particular produces nothing the app can show you.
 
 ### 6 · What this does NOT decide
 
-- The email door's **address verification**. Nothing verifies that an
-  address belongs to whoever typed it, so an account can hold a
-  stranger's address. It costs a round trip through an inbox before the
-  first answer, which is a real conversion cost on the wall's own worst
-  screen, and it is deferred rather than skipped.
 - **Android's Play Integrity half** of 1.4, unchanged and still parked
   with Play itself.
 - **The production reset.** The test answers in the live bank predate
   all of this and are a separate job.
+
+**Amendment (same day) — address verification ships with the wall, not
+after it.** §6 listed it as deferred, with the arithmetic: a round trip
+through an inbox before the first answer, on the wall's own worst
+screen. The owner read that and answered *"add the email verification
+before launch"*, which settles the conversion question — the wall's
+whole purpose is an account that can be told apart from another, and an
+account on an address nobody confirmed is exactly the account that
+cannot.
+
+What the deferral had not priced is the trap on the other side, and it
+is worse than the round trip. **A password account exists the moment
+Firebase accepts the password**, before anything has looked at the
+address — so a typo produces a real account, on a real uid, whose
+verification mail goes to somebody else. The reset link, which is the
+only other way into such an account, goes to the same wrong inbox.
+Shipping the wall without verification would therefore have shipped a
+locked room: the app would come back to the same screen on every
+relaunch, with no control on it that could help.
+
+So three things ship together:
+
+- **The wall reads two flags, not one.** `linked && !needsEmailVerify`.
+  Two rather than a single `passed` boolean so the screen can say WHICH
+  it is — "sign in" and "confirm your address" are different screens
+  with different controls, and a gate that only knew it was closed would
+  have to guess.
+- **`needsEmailVerify` names the password door precisely.** Not
+  `!emailVerified`: Apple and Google hand Firebase an address they have
+  already confirmed, and a provider whose flag was somehow false would
+  otherwise be walled out with a Resend button that can never resolve —
+  there is no verification mail to resend for a door that does not send
+  one. The rule is pinned at the observer in `vote.test.ts`, because
+  that failure is invisible to every screen-level test.
+- **`abandonSignIn` is the way out of the typo.** Signing out is the
+  whole mechanism: the auth observer mints a fresh anonymous session
+  (D3, unchanged), `linked` and `needsEmailVerify` fall back to false,
+  and the doors return. Nothing is deleted — the abandoned account keeps
+  its unconfirmed address, which is the correct outcome for an address
+  its owner never confirmed.
+
+Two smaller things were found while wiring it, and both were live bugs
+rather than new work:
+
+- **`refreshVerification` writes the flag itself.** Following the link
+  happens in a MAIL APP, so no token refresh reaches this process on its
+  own and only a `reload()` can learn about it. The store then sets the
+  flag on the answer it got rather than waiting for the auth observer:
+  `reload()` notifying its listeners is an SDK implementation detail,
+  and a wall that stayed up because it stopped doing so is the exact bug
+  this path exists to prevent.
+- **The session-recovery latch was one-shot for the life of the
+  process.** `sessionRecoveryTried` is set before the recovery
+  `anonSignIn()` and was never cleared, so a SECOND session loss — a
+  deliberate sign-out at the wall, a revoked token hours later — was
+  silently unrecoverable. Cleared on success, which is what its own
+  comment ("one attempt") always claimed.
+
+`web/privacy.html` moved first, as D183 requires: the email bullet now
+says a confirmation link is sent and that the app stays behind its
+sign-in screen until it is opened, and says that Apple and Google do not
+ask for this. The App Privacy label still does not move — no new data is
+collected, and Firebase sends the mail on the same address already
+declared.

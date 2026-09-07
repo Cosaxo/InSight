@@ -20,6 +20,9 @@ const emailSignIn = vi.fn(async () => {});
 const emailCreate = vi.fn(async () => {});
 const emailReset = vi.fn(async () => {});
 const googleSignIn = vi.fn(async () => {});
+const refreshVerification = vi.fn(async () => true);
+const sendVerification = vi.fn(async () => {});
+const abandonSignIn = vi.fn(async () => {});
 
 vi.mock("../../lib/firebase", () => ({
   googleSignIn: (...a: unknown[]) => googleSignIn(...(a as [])),
@@ -69,14 +72,22 @@ beforeEach(() => {
   emailCreate.mockClear();
   emailReset.mockClear();
   googleSignIn.mockClear();
+  refreshVerification.mockClear();
+  sendVerification.mockClear();
+  abandonSignIn.mockClear();
   stub("subscribe", () => () => {});
   stub("linkGoogle", linkGoogle);
   stub("linkApple", linkApple);
   stub("emailSignIn", emailSignIn);
   stub("emailCreate", emailCreate);
   stub("emailReset", emailReset);
+  stub("refreshVerification", refreshVerification);
+  stub("sendVerification", sendVerification);
+  stub("abandonSignIn", abandonSignIn);
   stub("enabled", true);
   stub("linked", false);
+  stub("needsEmailVerify", false);
+  stub("accountEmail", null);
   stub("bootError", "");
 });
 
@@ -283,6 +294,70 @@ describe("the email door", () => {
     fireEvent.focus(screen.getByLabelText("Password"));
     expect(screen.queryByText("Create an account")).toBeNull();
     expect(screen.queryByText(/Answers on InSight are public/)).toBeNull();
+  });
+
+  it("does not let an unconfirmed address past the wall", async () => {
+    // The gap the verify screen closes: Firebase creates the account the
+    // moment it accepts the password, so `linked` is true while nothing
+    // has shown the address belongs to whoever typed it.
+    stub("linked", true);
+    stub("needsEmailVerify", true);
+    stub("accountEmail", "typo@b.co");
+    await gateReady();
+    expect(screen.queryByText("the app")).toBeNull();
+    expect(screen.getByText("Confirm your address")).toBeTruthy();
+    // Named from the STORE, so a relaunch — which empties the field the
+    // address was typed into — still says which inbox to open.
+    expect(screen.getByText("typo@b.co")).toBeTruthy();
+    // And the doors are gone: there is nothing left to choose.
+    expect(screen.queryByText("Continue with Google")).toBeNull();
+  });
+
+  it("asks the SERVER whether the address was confirmed, and says so when it was not", async () => {
+    // Following the link happens in a mail app; no token refresh reaches
+    // this process on its own. A screen that read a cached flag would sit
+    // there forever for someone who did everything right.
+    stub("linked", true);
+    stub("needsEmailVerify", true);
+    refreshVerification.mockResolvedValueOnce(false);
+    await gateReady();
+    fireEvent.click(screen.getByText(/I\u2019ve confirmed it/));
+    expect(refreshVerification).toHaveBeenCalledTimes(1);
+    // A false changes no store flag, so nothing re-renders on its own —
+    // the screen has to answer the question the tap asked or it reads as
+    // a dead button.
+    expect(await screen.findByText(/Not confirmed yet/)).toBeTruthy();
+  });
+
+  it("resends, and claims only what it attempted", async () => {
+    // sendVerification is best-effort and never throws, so the sentence is
+    // about the send, not about delivery.
+    stub("linked", true);
+    stub("needsEmailVerify", true);
+    await gateReady();
+    fireEvent.click(screen.getByText("Send it again"));
+    expect(sendVerification).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/Sent again/)).toBeTruthy();
+  });
+
+  it("offers a way out of a typo, or the wall is a locked room", async () => {
+    // An account on an address nobody owns cannot be verified and cannot
+    // be reset — the reset mail goes to the same wrong inbox. Without this
+    // control the app is unreachable on that device forever.
+    stub("linked", true);
+    stub("needsEmailVerify", true);
+    await gateReady();
+    fireEvent.click(screen.getByText("Use a different address"));
+    expect(abandonSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it("a confirmed account walks straight through", async () => {
+    // The other side of the same rule, and the one that would strand every
+    // Apple and Google account if `needsEmailVerify` were ever over-broad.
+    stub("linked", true);
+    stub("needsEmailVerify", false);
+    gate();
+    expect(screen.getByText("the app")).toBeTruthy();
   });
 
   it("says answers are public BEFORE anyone signs up", async () => {

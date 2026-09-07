@@ -35,6 +35,19 @@ interface CapturedListener {
   error?: (err: unknown) => void;
 }
 
+// The four fields live.ts's auth observer reads, and no more. `uid` alone
+// was enough while `linked` was the only thing derived from the user; the
+// verify wall (D413) derives a second flag from three more, and a mock
+// that cannot express "linked, but the address is unconfirmed" cannot test
+// the rule that keeps a Google account out of that state.
+interface AuthUser {
+  uid: string;
+  isAnonymous?: boolean;
+  emailVerified?: boolean;
+  email?: string | null;
+  providerData?: Array<{ providerId: string }>;
+}
+
 const h = vi.hoisted(() => ({
   reportError: vi.fn(),
   // per-test knobs (reset in beforeEach)
@@ -100,8 +113,11 @@ const h = vi.hoisted(() => ({
   // only some come back (D169's loadSimilarity).
   aggFailIds: [] as string[],
   // live.ts observes auth for the whole session; capture the callback so a
-  // test can drive a uid change or a revoked session.
-  authCb: null as null | ((u: { uid: string } | null) => void),
+  // test can drive a uid change, a revoked session, or an account whose
+  // address is not confirmed yet. The shape is the SDK's User narrowed to
+  // the fields the observer reads — widening it further would invite a
+  // test to assert on something live.ts never looks at.
+  authCb: null as null | ((u: AuthUser | null) => void),
   snapshots: [] as CapturedListener[],
   // The offline-cache teardown deleteAccount owes the privacy policy. Named
   // rather than counted so the ORDER is assertable: clearIndexedDbPersistence
@@ -147,12 +163,14 @@ vi.mock("../../lib/firebase", () => {
   getFirestoreApi: () => fsApi,
   getFunctionsApi: () => fnsApi,
   emailCreate: () => Promise.resolve(),
+  refreshVerification: () => Promise.resolve(true),
+  sendVerification: () => Promise.resolve(),
   emailReset: () => Promise.resolve(),
   emailSignIn: () => Promise.resolve(),
   linkApple: () => Promise.resolve(),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+  subscribeToAuth: (cb: (u: AuthUser | null) => void) => {
     h.authCb = cb;
     return () => { h.authCb = null; };
   },
@@ -1555,6 +1573,82 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Blanking to the demo deck would be a worse lie than a stale-but-true
     // view, so enabled must survive while a new anon session is fetched.
     expect(LIVE.enabled).toBe(true);
+  });
+
+  // ── the verify flag (D413) ────────────────────────────────────────
+  //
+  // The wall reads `linked && !needsEmailVerify`, so an over-broad rule
+  // here locks a perfectly good account out of the app with no control on
+  // screen that can fix it — there is no verification mail to resend for a
+  // provider that does not send one. That failure is invisible to every
+  // other suite, which is why the rule is pinned at the observer rather
+  // than through the screen.
+  it("only the password door needs a confirmed address", async () => {
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+
+    // Anonymous: not linked, and nothing to confirm.
+    h.authCb!({ uid, isAnonymous: true });
+    expect(LIVE.linked).toBe(false);
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // Google/Apple hand over an address they have already verified.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "a@b.co",
+      providerData: [{ providerId: "google.com" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(false);
+    expect(LIVE.accountEmail).toBe("a@b.co");
+
+    // …and even if the flag were somehow false, a provider with no
+    // verification mail must not be walled: the screen would offer a
+    // Resend that can never resolve.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "apple.com" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // The case the wall exists for.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(true);
+    expect(LIVE.accountEmail).toBe("typo@b.co");
+
+    // Confirmed — and a password account that ALSO linked a social door
+    // is verified from that side, which is the same branch.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+  });
+
+  it("refreshVerification lowers the wall itself rather than waiting on the SDK", async () => {
+    // reload() notifying its listeners is an implementation detail of the
+    // Firebase SDK. If the store trusted it and it changed, the screen
+    // would sit on "Confirm your address" after a successful confirm with
+    // no way forward — so the store writes the flag on the answer it got.
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(true);
+    let told = 0;
+    const off = LIVE.subscribe(() => { told += 1; });
+    // The module mock's refreshVerification resolves true (the address was
+    // confirmed in a mail app), and no auth callback follows it.
+    await expect(LIVE.refreshVerification()).resolves.toBe(true);
+    off();
+    expect(LIVE.needsEmailVerify).toBe(false);
+    // …and the subscribers heard, or a gate already mounted stays up.
+    expect(told).toBe(1);
   });
 
   it("rank-type feed questions serve as RANK cards — never flattened to votes", async () => {

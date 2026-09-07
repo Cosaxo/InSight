@@ -86,6 +86,8 @@ import {
   emailCreate,
   emailReset,
   emailSignIn,
+  refreshVerification,
+  sendVerification,
   linkApple,
   linkGoogle,
   subscribeToAuth,
@@ -285,6 +287,13 @@ const state = {
   sessionLost: false,
   uid: null as string | null,
   linked: false,
+  needsEmailVerify: false,
+  // The address the account signs in with, so the verify screen can name
+  // it after a relaunch — by then the component's own field is empty and
+  // "we sent a link to your address" is the sentence a stuck user least
+  // needs. Null for an anonymous session and for a provider that hands
+  // over none.
+  accountEmail: null as string | null,
   questions: [] as Array<QuestionDoc & { id: string }>,
   feedBank: [] as Array<QuestionDoc & { id: string }>,
   // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
@@ -6298,6 +6307,27 @@ const LIVE = {
       /* session may already be invalid — reload handles the rest */
     }
   },
+  /**
+   * Drop the half-made account behind the wall and start the doors again.
+   *
+   * THE TRAP THIS EXISTS FOR. A password account is created before its
+   * address is confirmed, so a typo produces a real account, on a real
+   * uid, whose verification mail went to somebody else — and the reset
+   * link that is the only other way in goes to the same wrong inbox.
+   * Without this the gate is a locked room: relaunching keeps the session
+   * (there IS a user, so refreshLive does not sign in again), so the
+   * screen would come back forever.
+   *
+   * Signing out is the whole mechanism: the auth observer sees the null
+   * user and mints a fresh anonymous session (D3), which puts `linked`
+   * and `needsEmailVerify` back to false and the door back on screen.
+   * Nothing is deleted — the abandoned account still exists, unverified
+   * and unreachable, which is the correct outcome for an address its
+   * owner never confirmed.
+   */
+  async abandonSignIn(): Promise<void> {
+    await googleSignOut();
+  },
   // read-only views for the Map/Mirror hydration (daily-questions.js)
   dailyBank(): Array<{ id: string; prompt: string }> {
     return state.questions.map((q) => ({ id: q.id, prompt: q.prompt }));
@@ -6744,6 +6774,33 @@ const LIVE = {
   // opposite unconditionally.
   get linked() {
     return state.linked;
+  },
+  // The wall is passed when the session is linked AND nothing is waiting on
+  // an inbox. Two flags rather than one so the gate can say WHICH it is:
+  // "sign in" and "confirm your address" are different screens, and a
+  // single `passed` boolean would leave the screen guessing.
+  get needsEmailVerify() {
+    return state.needsEmailVerify;
+  },
+  get accountEmail() {
+    return state.accountEmail;
+  },
+  async sendVerification(): Promise<void> {
+    await sendVerification();
+  },
+  // Clicking a link in an inbox changes nothing on THIS device, so the only
+  // way to learn about it is to ask the server; `reload()` does. The flag
+  // is then written here rather than left to the auth observer: reload()
+  // notifying its listeners is an SDK implementation detail, and a gate
+  // that stayed up because it did not would be the bug this whole path
+  // exists to avoid.
+  async refreshVerification(): Promise<boolean> {
+    const verified = await refreshVerification();
+    if (verified && state.needsEmailVerify) {
+      state.needsEmailVerify = false;
+      notify();
+    }
+    return verified;
   },
   subscribe(fn: () => void): () => void {
     listeners.add(fn);
@@ -8080,7 +8137,22 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // refreshes, and a notify per refresh is a re-render per refresh.
     const wasLinked = state.linked;
     state.linked = !!user && user.isAnonymous === false;
-    const linkedChanged = state.linked !== wasLinked;
+    // ONLY the password door needs this, and the condition says so rather
+    // than testing `!emailVerified` alone: Apple and Google both hand
+    // Firebase an address they have already verified, so a Google account
+    // whose flag is somehow false would otherwise be walled out of the app
+    // with no way to fix it — there is no verification mail to resend for
+    // a provider that does not use one. Someone who links BOTH keeps a
+    // verified address from the social side, and `emailVerified` is true,
+    // so this is false and they pass.
+    const wasNeeds = state.needsEmailVerify;
+    state.needsEmailVerify = !!user
+      && user.isAnonymous === false
+      && !user.emailVerified
+      && user.providerData.some((p) => p.providerId === "password");
+    state.accountEmail = (user && !user.isAnonymous && user.email) || null;
+    const linkedChanged = state.linked !== wasLinked
+      || state.needsEmailVerify !== wasNeeds;
     const next = user?.uid || null;
     if (next && state.uid && next !== state.uid) {
       resetForNewUid(next);
@@ -8108,6 +8180,13 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
         void anonSignIn()
           .then((uid) => {
             state.sessionLost = false;
+            // One attempt per LOSS, not one per process. The latch is
+            // there so a session that dies the instant it is minted does
+            // not spin; clearing it on success restores the guarantee its
+            // comment claims — a second, later loss (a deliberate sign-out
+            // at the wall, a revoked token) was silently unrecoverable
+            // while this stayed true for the life of the app.
+            sessionRecoveryTried = false;
             if (uid !== state.uid) resetForNewUid(uid);
             else notify();
           })
