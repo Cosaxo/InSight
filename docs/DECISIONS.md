@@ -42744,6 +42744,512 @@ Retiring the lane is disabling five Routines, a dated line in
 `ROUTINES.md` §9 and this record, and the contract's status line
 moved to *past* — the same shape D385 gave the merge lane.
 
+## D404 · The night shift looks at the phones: a device pass at phone geometry in its container, the real shells on GitHub's runners, and a brief that reads both
+
+**2026-09-06.** **Status:** binding for what is in the tree — the script,
+the lane and the brief; the brief becomes the Routine's on an owner
+paste (§ What is the owner's). The owner's ask of this day, whole: *"the
+night shift should also run ios and android emulator and look for visual
+issues or things that look wrong or dont work in the apps."* Numbered
+after D403 on `main` at merge time.
+
+### What nothing was looking at
+
+Every gate in this tree reads names, types and counts, and the ten mount
+suites that render the whole App render it into jsdom, which has no
+layout. So a row that wraps onto a third line on a 375px iPhone, a button
+that lands under the home indicator, a lens label that no longer fits, a
+stop that paints nothing, a tap that changes nothing, a splash that never
+hands over — none of it was red anywhere, and each of them was found,
+when it was found, by the owner on a phone. The night shifts audit the
+tree five times a night and had never once looked at the app. The store
+screenshot harness (`scripts/gen-screenshots.mjs`) was the nearest thing
+and is the wrong shape for it: six scenes at the two store sizes, built
+to prove a capture is shippable, not to find what is wrong on a screen
+nobody chose.
+
+### Where an emulator can run, measured rather than assumed
+
+The worker's container first, because that is where the ask lands. This
+session ran in the same environment night shift B's worker is bound to
+(`env_01Ri3fw8gD9Py3LmTQ9hTYCL`), and read it: four cores, 16 GB, 30 GB
+free, `dl.google.com` reachable through the proxy, GitHub release
+downloads refused by it (403) — and **no `/dev/kvm`**. Google's emulator
+refuses an x86_64 system image without hardware acceleration, an ARM image
+on an x86 host is not something the current SDK ships for, and macOS is
+not a thing a Linux container can have. So neither emulator runs where
+the shift runs, and no allowlist widening changes that.
+
+GitHub's runners have both. `ubuntu-latest` exposes `/dev/kvm` once a udev
+rule opens it, `macos-latest` has Xcode and its simulators, and
+`ios-build.yml` has already compiled the simulator build there 323 times
+in five to eight minutes a run. The cost note in that workflow assumed a
+private repository; **the repository is public**, so the minutes — macOS
+included — are free. That settles where the shells boot.
+
+And Chromium at phone geometry in the container: Playwright is installed
+globally on the image with a Chromium beside it (`scripts/store-render.mjs`
+already resolves it), and a full pass — three phones, every screen — runs
+in 3 minutes 12 seconds. That is the instrument that runs every flow.
+
+### The device pass, in the container
+
+`scripts/device-screens.mjs` (`npm run screens`) builds nothing itself —
+it drives `dist/`, the way the store harness does — and walks the demo
+app through every screen a user reaches: the daily and its reveal, the
+feed two screens down, the Circle and 1v1 stops, the Mirror as it lands
+and every stop of its rail (seven), every lens at World (five), the
+profile and its test profiles, search, and the Patterns tab when the
+build has crossed its gate (D265 — skipped and said so otherwise). Three
+profiles, chosen to bracket the phones we ship to: an iPhone SE (375×667
+@2, where a layout gives way first), an iPhone 15 Pro (393×852 @3) and a
+Pixel 7 (412×915 @2.625). **Full panels, not Playwright's device
+descriptors**: its iPhone 15 Pro is 393×659, Safari's viewport with the
+URL bar and toolbar taken out, and the app does not run in Safari — it
+runs in a WebView that fills the screen (`StatusBar.overlaysWebView:
+true`). The pure half is `scripts/device-screens-lib.mjs`, pinned by
+`test:scripts`.
+
+Every capture is checked for what a PNG hides, and the checks have two
+weights. **Hard** fails the run on the screen's own evidence: the
+ErrorBoundary's text (`"This view hit a snag."`, pinned), an uncaught page
+error, a drive step that could not find the control it was told to tap.
+**Soft** is a lead a reader looks at: text wider than the box it is set
+in, a control partly outside the viewport sideways, a screen
+pixel-identical to the one before the tap (the tap may have done nothing —
+a baseline is hashed before every drive so a single-capture scene can
+say it too), a broken image, a webfont that failed, a `console.error`, a
+failed request. The first run flagged "content wider than its box" ten
+times on every screen and was measuring design: a container's
+`scrollWidth` counts every absolutely positioned child and every `.tap44`
+hit box, so the map's nodes and every ⓘ button read as overflow. The
+check now reads **text leaves only**, skips an element whose
+pseudo-element is a positioned hit box, and skips nowrap-plus-ellipsis
+truncation; the second run flagged one thing in 22 screens on the SE — the
+word *establishment* set 7px past its column on the World stop's Compare
+lens, below the fold, which is real. Each lead says whether the PNG shows
+it (`inView`), because a lead below the fold is still a lead.
+
+`report.md` leads with the findings, most severe first, each naming its
+PNG; then every screen per profile with a mark; then what was skipped and
+why; then what the marks mean. The point is that a night shift with
+ninety minutes reads that and then opens the PNGs it names — the checks
+see overflow and errors, not taste, and the PNGs are for the eyes the
+brief now asks for.
+
+### The real shells, on the runners
+
+`.github/workflows/device-screens.yml` boots both, and the protocol is
+built for a reader that has git and nothing else — the night shifts push
+branches and read origin, and have no API to fetch an artifact with.
+
+- **Request** — a push of the head to be screened to
+  `nightb-<date>-screens` (or `night-<date>-screens`; the lane listens for
+  both shifts' prefixes). That is a `nightb-*` branch by name, so it is
+  inside B's standing push authorization as written, and it is a pointer:
+  the lane deletes it when both platforms are done, so the next request is
+  a plain push and a shift that never force-pushes never has to.
+- **Android** — the debug APK, built as `ci.yml` builds it, on an API 34
+  `google_apis` x86_64 emulator with KVM opened by the documented udev
+  rule, no third-party emulator action (the supply chain stays what it
+  was). The WebView is driven by **the same script**, `--android`:
+  Capacitor makes a debug build's WebView debuggable
+  (`webContentsDebuggingEnabled` defaults to the app's debuggable flag),
+  and Playwright's adb attach reuses every scene — so a reader compares the
+  emulator's captures with the container's screen for screen. The device's
+  own frame is what is captured, status bar and all: the safe areas are
+  half of what this lane exists to show.
+- **iOS** — `ios-build.yml`'s unsigned simulator build, installed and
+  launched on the newest available iPhone simulator with a notch, and
+  driven by **Maestro** through the accessibility tree, because a
+  WKWebView exposes no CDP for Playwright to attach to. Every tap in the
+  flow is optional: a label that moved must not end the flow, since the
+  captures after it are still worth having, and a screen that did not
+  change is a finding a reader sees by comparing two PNGs. Maestro is
+  unpinned for the first runs on purpose — the version that works is
+  written into the results (`maestro-version.txt`) and pinned from there,
+  not guessed here.
+- **Both** — `00-launch-*` captures from the OS before anything drives
+  the app (a splash that never hands over and a launch crash are visible
+  there and nowhere else), the device's own logs, an `environment.txt`,
+  and an `INDEX.md` written first so a reader opening the ref cold knows
+  what it is. The Firebase config files come from the release workflows'
+  secrets: `@capacitor-firebase/authentication` asks for a `FirebaseApp`
+  in its constructor on Android and configures one on bridge load on iOS,
+  so a shell without them crashes at launch — an empty secret is a warning
+  here, and the launch capture is then the evidence of exactly that.
+- **Results** — each platform lands ONE orphan commit on
+  `screens/<name>-<platform>`, force-replaced on re-run so the ref never
+  grows history; the owner deletes it with the night it screened.
+  `git archive` it into `.nightb/screens/` and read.
+- **Not a gate.** Nothing here blocks a PR or a deploy — `ci.yml`'s rule
+  about a lane that could block an emergency rules fix — and every
+  capture step continues on error so one run reports every wall and the
+  results branch lands even when a driver failed.
+
+The lane cannot be dispatched by name until the workflow file is on
+`main` (the API returned 404 for it on this branch, twice), so it was
+exercised the way a shift will use it: a push to
+`nightb-20260906-lanetest-screens`, run 34056990061. Its outcome is
+recorded at the end of this record.
+
+### The brief, and the schedule it had to match
+
+`design/night-shift-b-brief-2026-09-06.md` is night shift B's brief with
+§ The device pass: request the phones at every flow start, render the app
+here, read the report, open the PNGs it names and at least five screens
+on the SE, write `[visual]` items like any other finding, fix them with
+the smallest CSS or markup change and prove the fix with a re-render
+LOOKED AT (a fix nobody has seen is not proved), read the emulator results
+when they land, and carry a **Devices** paragraph in every summary — which
+head was screened, whether each shell launched, what the captures showed,
+and a results ref that never came back named as unrun, never as green.
+The 20:00 fan-out gains a seventh finder whose slice is the report and the
+PNGs rather than code. Its merge-verdict enumeration excludes `*-screens`
+refs and never fetches `screens/*`.
+
+The schedule it had to match was not the one the tree recorded. On
+2026-09-03 the L1 lever cut the Routine to three flows and wrote a
+three-flow brief for the owner to paste; the paste never happened, and
+on 2026-09-05 at 21:17 UTC the Routine went back to five flows — the
+owner's re-pace, unrecorded until this record read `list_triggers`
+(`ROUTINES.md` §2's 2026-09-06 observations). Five firings with one
+fan-out is exactly the L1 the owner approved — *"audit once, fix four
+times"* — so the new brief keeps the five-flow hour table, fans out once at
+20:00, fixes at 22, 00 and 02, closes at 04, and caps the list at 32. The
+09-03 text is marked superseded at its top: pasted onto five flows, its
+hour table would leave the 22:00 and 02:00 firings with no flow at all.
+
+It is a paste, and a sequenced one. `update_trigger` refuses a prompt edit
+on a Routine whose fires deliver into another session (measured
+2026-09-03, `PERMISSIONS.md`), and it was deliberately not re-attempted
+here: a brief made live before this branch is on `main` would push
+request refs no workflow answers and run a script the night branch does
+not have. Merge first, then paste — both on `OWNER-LIST.md` § Clicks.
+
+### What this does not do
+
+- **It does not boot the live app.** Both instruments run the demo build —
+  deterministic, no backend, the tree every mount suite renders — so the
+  first-launch walkthrough (D393), the anonymous sign-in and the live
+  boot's attach are not on the pass. A live-build lane is one build flag
+  and the two config files away, and it would create an anonymous account
+  and write one real vote to production per shell per night. That is an
+  ask (`OWNER-LIST.md` § Decisions), with the three shapes it could take.
+- **It does not change shift A's brief**, which lives on another account;
+  the lane listens for `night-*-screens` already and the section is
+  written to be pasted there with one prefix changed (a click).
+- **It does not gate anything**, and it does not pin Maestro yet.
+- **The checks do not see taste** — overlap, contrast, alignment, whether a
+  screen makes sense. That is what the eyes in the brief are for.
+
+### What is the owner's
+
+- **Paste the brief**, after this merges (`OWNER-LIST.md` § Clicks).
+- **Whether the pass may boot the live app** and write to production to do
+  it (§ Decisions).
+- **Shift A's brief** — optional; with both, the phones are screened every
+  two hours (§ Clicks).
+- **Whether the Android half deserves a runner that does not crash** —
+  a larger hosted runner is paid, a self-hosted machine with a GPU is a
+  machine; both are the owner's money (§ Decisions). Until then the
+  lane reboots and reports.
+- **The Android Firebase secret** (§ Clicks) — the shell boots against a
+  placeholder project without it.
+
+### The first runs — eighteen requests in one night, and what each taught
+
+The lane cannot be dispatched by name until its file is on `main` (the
+API answers 404 for a workflow that exists only on a branch), so it was
+exercised the way a shift will use it: a push to a `nightb-…-screens`
+request ref, eighteen times, each run fixing what the last one showed.
+The Device screens workflow numbers them 1–18; the first seven by id are
+34056990061, 34058702498, 34059918629, 34060292996, 34060750206,
+34061114032 and 34061299385.
+
+**iOS was mechanics, and it is done.** Run 1 built, booted an iPhone 17
+Pro simulator (iOS 26.5) and launched — into a SIGABRT eleven seconds
+later: the plist had been written beside the project and never linked
+into the bundle, so the auth plugin's `FirebaseApp.configure()` aborted
+the process. The release workflow's link step fixed that in run 2, where
+Maestro 2.10.0 drove the whole flow and PASSED — and published none of
+its eighteen screenshots, because it writes them under its own output
+directory, not the working directory; pointed at the results in run 6
+it also wrote a 205 MB simulator log there and GitHub refused the push.
+Run 10 was the first complete iOS result: 21 captures, 19 of them
+distinct screens — every Mirror stop, every lens, the profile, search,
+the safe areas in frame — with the daily ruler's Circle and 1v1 taps
+captured before their animation settled. A wait after each tap (run 20)
+made Circle its own screen; 1v1 still captures Circle's — 20 distinct
+screens of 21 — so that one tap is the iOS flow's open item, and a
+reader compares the two PNGs rather than trusting the name. The simulator's first boot takes five to eight minutes
+(iOS data migration), an install one; a whole iOS job is 20–30 minutes.
+
+**Android was the finding.** The emulator on GitHub's hosted Linux
+runners CRASHES — the process is gone, not hung; the host had 15 GB
+free — one to three minutes after the app's WebView starts drawing, on
+the Android 14 and 15 images, whatever the renderer: swiftshader_indirect
+with Vulkan, without it, with host composition and direct memory off,
+the Play Store build of the image. Eleven of twelve launches across
+runs 6–11 and 15–17 ended that way; `-gpu off` is not a thing those
+images support (they fall back to lavapipe, another host renderer). The
+Android 12 and 13 images never crashed and ran all 22 scenes — and
+cannot render the app: their WebViews predate `color-mix()`, `oklch` and
+`dvh`, so every capture was a colourless page with no cards and no
+sliders, which is a false finding on every screen. Android 15 renders it
+right and lived longest, six scenes. So the lane boots Android 15,
+`.github/device-screens/android-boot.sh` holds the boot with three
+attempts, and the drive runs that script again when the emulator dies
+under it, twice a run, carrying on from the scene it was about to do —
+a night usually gets its 22 screens across two or three boots, and a
+results ref that carries fewer says which landed. Along the way: the AVD
+home the tools disagreed on (`ANDROID_AVD_HOME`, run 3), a boot step that
+must never `adb wait-for-device` (it blocked to the job's timeout in run
+1), a log step whose adb calls are bounded (run 2 hung there), a cold
+start per scene that killed the devtools target (`page.reload()`, run 4)
+and then Playwright's own adb channel (run 5) — replaced by storage
+cleared and a reload in place, then a fresh attach, which held for 22
+scenes in runs 12 and 14 — and `GOOGLE_SERVICES_JSON`, which does not
+exist (the Play release that reads it has never run), so the lane boots
+the shell against a placeholder project until the owner adds it.
+
+**What the captures showed, on the first night, before any shift read
+them:** on Android the status bar's clock and icons are drawn OVER the
+header's avatar and search button — `StatusBar.overlaysWebView: true`
+with no top inset on Android, where iOS places the header under the
+notch correctly (visible in every Android launch capture); the word
+*establishment* runs 7–8px past its column on the Compare lens on both
+the iPhone SE geometry and the emulator; and a `<text>` "Trail running"
+19px past its box on the profile — on the Android 13 image, so read
+against a current WebView before it is believed. The first is exactly
+the class of defect the owner's ask named, and nothing else in the
+tree could have seen it.
+
+**The crash, named, and the lane as it merges.** Run 18 died on the
+boot script's fourth line (`grep -c` prints "0" and exits 1, so a
+`|| echo 0` made "0 0" and the arithmetic aborted — proved on three
+cases before the fix went out). Run 20 is the lane as it merges: three
+boots of Android 15, each alive about two minutes, the drive rebooting
+the emulator twice and carrying on, six driven screens landed and every
+later scene one honest line — and the kernel's log, read with root at
+last, naming the crash: **`RenderThread[4711]: segfault at 558a1411ded0
+ip 00005589da51156f`**, twice, the emulator's own render thread at the
+moment the WebView draws. So it is the emulator build's host renderer
+(37.1.11, what `sdkmanager` installs today), not the app and not the
+guest. The drive now allows four reboots a run — about fifteen minutes
+for the whole set — and the boot script's header names the next thing
+to try: an older emulator build pinned from Google's repository, in
+place of the one the runner image installs.
+
+**Costs, measured:** the Chromium pass 3m12s for 66 screens in the
+shift's container; an Android job 8–25 minutes depending on reboots; an
+iOS job 20–30; a results ref 5–12 MB; the runner minutes free. A
+session's git channel cannot delete a ref (every deletion push was cut
+off), so the first night's results refs are the lane's cleanup job's to
+sweep, seven days on.
+
+## D405 · The place scorecard's second crowd is renamed "everywhere else", and D288 §2's "from elsewhere" is retired — the night shipped it, the owner rules on it
+
+**2026-09-07.** **Status:** built, awaiting the owner — the code
+shipped on `night-20260907` at `b6ca0689` and the reversal was NOT
+recorded with it. This record is the closing flow of that night
+correcting its own omission; the label change is on the branch and can
+be reverted in one commit if the owner wants "from elsewhere" back.
+Numbered D404 on the branch's base and moved to D405 by the
+2026-09-07 night review — `main` had taken D404 for the device pass
+(#427) while the night ran, which is the standing renumber-on-merge
+collision D289 describes.
+
+### What D288 §2 bound, and what changed
+
+D288 §2 is marked binding and names the labels verbatim: *"the place
+scorecards hold two crowds, named for what the data can know: 'live
+there' and 'from elsewhere' — never 'visitors'"*. `b6ca0689` kept "live
+there", replaced "from elsewhere" with **"everywhere else"**, stopped
+the card's header widening to "How Oslo is rated" when the second crowd
+appears, and added the line *"The ring is everywhere else rating their
+own place, not this one."* CLAUDE.md says a decision stays binding
+until an explicitly recorded reversal, and the night's whole diff
+touched no `docs/` file. The closing review found it.
+
+### The arithmetic
+
+D288 §2 was right about WHO the two crowds are and read as being about
+what they had answered. Every one of the bank's 24 `rates` questions is
+self-referential — it asks the answerer about their own place — so
+nobody outside Oslo has ever rated Oslo. "From elsewhere" names the
+raters correctly and invites the reading that they rated THIS place;
+under it, the header flipped to "How Oslo is rated" the moment one
+outsider appeared, which was a claim the data could not support.
+"Everywhere else" names the same crowd and cannot be read as a verdict
+on the stop, and the added line says what the ring measured. So this
+narrows a label to what the data can know, which is the sentence D288
+§2 chose its own labels by — but the words were the binding part, and
+the substance is the owner's to confirm.
+
+Cost of reverting: three label sites in `LiveMirrorLenses.tsx`, one
+line, and the header flip, plus the test that pins them. Nothing on the
+server, no rule, no store form, and `web/privacy.html` has nothing to
+move for.
+
+### What still names the old label
+
+`docs/VISION-2026-08-24.md` names "from elsewhere" as the shipped label
+in three places (§ the built table, § the labels bullet, and the body).
+Pointed at this record rather than rewritten: that document is a plan's
+account of what D288 decided on the day, and this file's own rule keeps
+a decision's arithmetic as the state at the moment it was taken.
+
+### Reversal
+
+Restore the three labels and the header flip, delete the ring line, and
+record it here. D288 §2's other halves — the two crowds, the viewing
+lens, the refusal to collect a self-declared role — are untouched by
+this and still bind.
+
+## D406 · The 2026-09-07 night review: two shifts merged as one tree — 67 commits kept, three defects the composition created, and a guard fix that was the same fix twice
+
+**2026-09-07.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty-seven commits are kept as written; nothing was reverted. What this
+review adds is the composition, three fixes for defects no shift could
+see alone, and one renumbering `main` forced while the night ran.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260907` | 35 | 9 behind | shift A, Claude 2's, 21:05–05:26 UTC |
+| `nightb-20260907` | 32 | 11 behind | shift B, Claude 1's, 20:26–04:13 UTC |
+
+Twenty files were touched by both, fifteen of them gate scripts — the
+same concentration D380 saw a night earlier and for the same reason:
+both shifts spent the night on gates that certify something without
+executing it, so they collided on the same files for the same reason.
+Shift B's own `0b341e5` names the pattern from inside it.
+
+### The guard collision: one defect, two correct fixes, nine files
+
+Both shifts independently found that
+``import.meta.url === `file://${process.argv[1]}` `` compares a
+percent-encoded URL against a raw path, so on any checkout whose path
+holds a space the guard is false, the check body never runs, and the
+script exits 0 having printed nothing — a pass, indistinguishable from
+a real one. A fixed seven scripts with
+`import.meta.url === pathToFileURL(process.argv[1]).href`; B fixed
+nine with `resolve(process.argv[1]) === fileURLToPath(import.meta.url)`
+and pinned the safe form with a ratchet in `scripts/source-pins.test.mjs`.
+
+**Resolved to B's spelling throughout**, on B's own argument rather than
+on a preference: thirteen scripts on `main` already used it, so the
+ratchet pins the majority instead of inventing a rule. A's edits to
+those eight overlapping files were the guard and nothing else, so
+nothing of A's was lost — the two shifts had written the same fix.
+
+**The composition defect underneath it.** In five of those files git
+auto-merged A's *import* addition into B's import line while the guard
+line conflicted, leaving `pathToFileURL` imported and unused beside a
+guard that uses `fileURLToPath`. Dead, and invisible to every gate.
+Stripped in all five.
+
+Measured rather than reasoned, because the ratchet's regex looked too
+narrow: ``new URL(`file://${process.argv[1]}`).href`` — the spelling
+`gen-pricing-ts.mjs` and `play-upload.mjs` still carry — **is not the
+defect**. `new URL()` normalises and percent-encodes, so on
+`/tmp/sp ace dir/probe.mjs` it matches `import.meta.url` where the bare
+template does not. The ratchet is correctly scoped; those two need no fix.
+
+### The second defect: a test file whose two halves each held the other's import
+
+`scripts/check-appcheck.test.mjs`. A's `const ROOT = resolve(…)`
+auto-merged in cleanly while `resolve` lived only in A's import line,
+which conflicted — so taking B's side alone ships a `ReferenceError`,
+and taking A's side alone drops B's rule. The same file class D380
+found here a night earlier.
+
+Resolved by unioning the imports and keeping **both** blocks, because
+they prove different things and each argument is right about its own
+half: A's drives the real gate as a subprocess against a copy of the
+tracked tree with an opt-out callable planted in a subdirectory, plus
+the control at the top level — behaviour. B's asserts on the script's
+source that both walks over `functions/src` carry `recursive: true`,
+with a floor that fails loudly if the walks are renamed — drift. The
+whole `test:scripts` runner is 17s for 985 tests with A's tree copy in
+it, so the behavioural half costs nothing worth trading.
+
+### The third defect: a silent arity shift in the mount fixture
+
+`src/v2/test/live-fixture.ts`, and this is the one that would have
+shipped green. B inserted `soloVoter` as `liveQuestion`'s **fourth
+positional parameter**; A added two call sites written against the old
+arity. One of them — the `daily-002` card behind A's new `deckDays`
+option — auto-merged with no conflict at all, and under B's signature
+it passes `"Morals"` as `soloVoter` (truthy, so every option count
+drops to zero) and `"binary"` as the branch. A fixture quietly
+describing a state nobody wrote a case for.
+
+Both options now compose, and the proof is that both shifts' new cases
+pass in one mount: A's *"names the day the card itself names, not the
+frozen weekday list"* and B's *"does not print a share when the only
+vote in the crowd is yours"*, together in `smoke-live.test.jsx`.
+
+### The renumbering `main` forced
+
+Shift A wrote its closing record as D404 while `main` took D404 for the
+device pass (#427) during the night — the standing collision D289
+describes. A's is **D405** here, its two citations in
+`VISION-2026-08-24.md` moved with it, and `DECISIONS-INDEX.md`
+regenerated rather than hand-edited.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `check:globals` (30 cross-module refs, at baseline)
+· `check:figures` · `check:docs` · every other CI and backend-checks
+gate · `test:scripts` 985 · `test:unit` 2838 · functions 778 ·
+`test:rules` 199 with `rules-coverage` at baseline 46 ·
+`test:e2e:all` green on one emulator boot, including the two assertions
+this night added — *"the running campaign stops; the finished one keeps
+its answers on the Mirror"* and the erased buyer's byline. The bundle
+is 2183 KB / 602 KB eager against 2440 / 607.
+
+`firestore.rules` changed in **comments only** — the D399 function
+names it still cited — which is why the rules suite and its coverage
+baseline did not move.
+
+`check:store-copy` is red on `main` and red here, on an unfilled Play
+signing SHA that only the owner can supply. It is not on any CI path
+and the night did not touch it.
+
+### What is the owner's
+
+Three things this review merged but did not decide:
+
+1. **D405** renames the place scorecard's second crowd and un-flips the
+   heading. It is a copy change on a live surface that reverses a small
+   deliberate choice, and it says so. Checked rather than trusted: all
+   24 place-rating questions in the bank are written self-referentially
+   — *"Rate the food where you live"*, *"How safe do you feel walking
+   home at night?"* — so nobody outside Oslo has ever rated Oslo, and
+   *"How Oslo is rated"* was a claim the data cannot support. Merged as
+   an honesty correction under D1, reversible in one commit; D405's own
+   Reversal section says how.
+2. **The display-name row on `OWNER-LIST.md`** (shift B). Clearing your
+   display name leaves you findable under it, permanently, because the
+   writer skips an empty name and `allow delete: if false` closes the
+   only other path. B wrote the fix, verified it, **reverted it**, and
+   put it to the owner because lifting a recorded refusal on a rules
+   write surface is not a shift's call. That is D334's protocol
+   followed exactly.
+3. **The `testResults` row on `OWNER-LIST.md`** (shift B). The last
+   client-writable field on `v2_users` bounded in key count and never in
+   bytes, on a path that fetches whole documents thirty at a time. Three
+   shapes priced; no rules expression can bound it, so every way through
+   is a product decision.
+
+### Reversal
+
+Each half is its own commit and the merge is one squash. Reverting this
+record's tree restores `main` at `525edac`; reverting D405 alone is the
+one commit its own record names.
 ## D408 · A decision-number hole is reported, not refused — merge order stops being a gate
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner

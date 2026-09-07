@@ -132,53 +132,23 @@ describe("check:figures and the drift figure", () => {
   });
 });
 
-describe("the cold-boot row is computed, not copied", () => {
-  // COSTS.md's cold-boot row said "+913 reads — the whole question bank"
-  // long after daily, feed and learn started paging, and this gate kept
-  // that number CURRENT as the bank grew: a gate faithfully maintaining a
-  // false sentence, which is worse than a sentence nobody holds. Someone
-  // reading the docs — including the session that eventually found it —
-  // saw "a phone downloads every question" and believed it, months after
-  // the work that stopped it.
-  //
-  // The fix computes the row from `BANK_SURFACES` in live.ts. These two
-  // cases are the two ways that can go wrong.
+// THE COLD-BOOT ROW'S CASES LIVED HERE, and they are gone because the
+// mechanism they covered is. This branch computed the row from
+// `BANK_SURFACES` in live.ts; `main` landed its own fix for the same false
+// sentence first (D406's night review) and its number is the better one —
+// `coldBootBankDocs` counts the feed's CORE questions too, which the boot
+// really does fetch and this branch's 250 missed. Main's list is
+// deliberately a second copy, argued at COLD_BOOT_SURFACES: "a regex over a
+// source array would silently agree with itself if the array were renamed".
+//
+// WHAT IS NOW UNHELD, recorded rather than dropped quietly, because the
+// first of the two deleted cases proved it: main's gate reads only
+// v2content.ts, so CHANGING `BANK_SURFACES` in live.ts moves what a boot
+// fetches and this gate does not notice — it keeps computing from its own
+// list and the row stays green at the wrong number. That is the same shape
+// as the bug the row is famous for (a gate faithfully maintaining a false
+// sentence), one input over. Reading the surface list from live.ts while
+// keeping main's feed-core arithmetic would close it; that is new work, not
+// a merge resolution, so it is written down here instead of done in a merge
+// commit.
 
-  it("moves with the code when a surface leaves the boot", () => {
-    const live = join(tree, "src/v2/data/live.ts");
-    const before = readFileSync(live, "utf8");
-    try {
-      writeFileSync(live, before.replace(
-        /const BANK_SURFACES = \["test", "group", "duo", "pulse", "call"\];/,
-        'const BANK_SURFACES = ["test", "group", "duo", "pulse"];',
-      ));
-      const r = runGate(tree);
-      expect(r.code, "dropping a surface left the documented boot cost unchanged").toBe(1);
-      expect(r.out).toMatch(/what a cold boot fetches/);
-      // Both halves move, and in opposite directions — fewer fetched is
-      // more not fetched. A row that moved only one way would be arithmetic
-      // nobody checked.
-      expect(r.out).toMatch(/never ride the boot/);
-    } finally {
-      writeFileSync(live, before);
-    }
-  });
-
-  it("REFUSES rather than guesses when the list is renamed", () => {
-    // The D197 shape: one bank parser in three copies, and the copy with a
-    // try/catch reported an invented wire size instead of failing. A gate
-    // that cannot find its input must say so — silently computing zero
-    // would report a boot that fetches nothing, which is a number, looks
-    // like an answer, and is worse than red.
-    const live = join(tree, "src/v2/data/live.ts");
-    const before = readFileSync(live, "utf8");
-    try {
-      writeFileSync(live, before.replace("const BANK_SURFACES = ", "const RENAMED = "));
-      const r = runGate(tree);
-      expect(r.code).toBe(1);
-      expect(r.out).toMatch(/could not find BANK_SURFACES/);
-    } finally {
-      writeFileSync(live, before);
-    }
-  });
-});

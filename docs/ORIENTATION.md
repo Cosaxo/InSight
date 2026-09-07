@@ -90,6 +90,7 @@ who decides:
 | `design/` | Two different things under one name. The **standalone revisions** are the frozen prototype and its history — read-only reference, and what "do not edit design/" is about. `design/icon/` and `design/store/` are the opposite: live SOURCES that builders rasterise and gates read, and that `asc:push` sends to App Store Connect | `design/README.md` |
 | `.github/workflows/` | `backend-checks.yml` is called by **both** `ci.yml` and `firebase-deploy.yml`, so what guards a PR guards production | `docs/DEPLOYMENT.md` |
 | `.github/scripts/` | `report_audit_issue.py` — the weekly dependency audit's issue writer. A file rather than an inline `run:` block, and hand-written rather than a third-party action: the workflow whose subject is supply-chain hygiene adds no SHA of its own to pin | `.github/workflows/security-audit.yml` |
+| `.github/device-screens/` | What `device-screens.yml` needs beside itself: the Maestro flow that walks the iOS simulator (`ios-flow.yaml`) and the publisher both platform jobs share (`publish.sh`), which hands the captures back as one orphan commit on a `screens/*` ref — git, because the night shifts have git and no API (D404) | `.github/workflows/device-screens.yml` |
 | `.claude/` | Committed Claude Code project settings: the permission allowlist that keeps the autonomous lanes' sessions from stalling on prompts. Hardening is by omission — no merge tools, no API file writes, no trigger mutation, and no `deny` list, because the file reaches every session in the repo | `docs/AXES-RUNBOOK.md` § the permission paragraph |
 
 ## 4 · The documents
@@ -128,7 +129,7 @@ directions.
 | [`STORE-FORMS.md`](STORE-FORMS.md) | Apple's privacy and age-rating questionnaires, answered field by field | tree |
 | [`SCALE-PLAN.md`](SCALE-PLAN.md) | What an unbounded feed costs, what trips first, and the core/tail split it forces. §1's classification is built; the rest is not | mixed |
 | [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) | The same work as an ordered build list — open steps only | plan |
-| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the cache store, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D284, §3 at D312; §4 remains | mixed |
+| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the cache store, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D284, §3 at D312, §4 at D320/D321 (learn, then the feed tail), and the daily's positional fetch at D383 — the file's own Status line is the authority and said so while this row still read "§4 remains" | mixed |
 | [`ANSWER-SCALE.md`](ANSWER-SCALE.md) | The answers-side twin: the client caches that grow with every answered question (instrumented and moved to IndexedDB at D312), a life's archive on one device, and the daily's write wall with its post-D98 sharding shape re-derived, shelved on the alert | mixed |
 | [`FEATURE-COMPLETE.md`](FEATURE-COMPLETE.md) | Everything open between here and feature-complete — algorithms, question production, scale work, flips — one line each, pointing at the file that owns it | plan |
 | [`COST-REDUCTION.md`](COST-REDUCTION.md) | Getting the bill down. The big one was built at D129; the rest is analysis | mixed |

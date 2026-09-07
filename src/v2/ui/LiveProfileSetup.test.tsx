@@ -48,6 +48,7 @@ vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 const { default: LiveProfileSetup } = await import("./LiveProfileSetup");
 const { PROFILE_SETUP_LS, profileSetupNeeded, mountProfileSetup } = await import("./profileSetup");
 const { PROFILE_GENERAL_LS } = await import("../data/cityAnchor");
+const { backLayerCount, closeTopBackLayer, resetBackLayers } = await import("../data/backLayers");
 
 const onDone = vi.fn();
 
@@ -455,5 +456,35 @@ describe("an account deletion takes the screen with it", () => {
     expect(screen.getAllByText(/A few things about you/i)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: /Skip for now/ }));
     await settle();
+  });
+});
+
+// ── Android's back button ────────────────────────────────────────────
+//
+// The same gap the walkthrough had, on the screen directly behind it:
+// this is a full-screen `role="dialog"` overlay on its own root outside
+// `<App/>`, so the shell's handler (person → city → overlay → tab) finds
+// nothing to peel, returns false, and `back.ts` calls `App.exitApp()`.
+// The app quits with the seven questions still on screen — and since
+// `markProfileSetupSeen()` hangs off `onDone` alone, the quit records
+// nothing and the next launch asks them all again.
+//
+// Dismissing is a legitimate way out here for the same reason Skip is:
+// what the flag records is that the question was ASKED.
+describe("the hardware back button", () => {
+  beforeEach(() => { resetBackLayers(); });
+
+  it("registers a layer, so back does not fall through to exitApp", () => {
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(backLayerCount(), "nothing would peel this screen").toBe(1);
+    expect(closeTopBackLayer(), "the back press was not consumed").toBe(true);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the stack empty on unmount", () => {
+    const { unmount } = render(<LiveProfileSetup onDone={onDone} />);
+    expect(backLayerCount()).toBe(1);
+    unmount();
+    expect(backLayerCount()).toBe(0);
   });
 });

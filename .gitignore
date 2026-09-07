@@ -148,3 +148,8 @@ MORNING_SUMMARY.md
 NIGHTB_TASKS.md
 NIGHTB_SUMMARY.md
 .nightb/
+
+# scripts/device-screens.mjs's default output — the phone-geometry captures
+# and their report. The night shifts write theirs under .nightb/ and
+# .night-shift/ (above); this is where a hand run lands.
+.device-screens/

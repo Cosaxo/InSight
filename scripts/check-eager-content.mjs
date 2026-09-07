@@ -49,6 +49,15 @@ const CONTENT = new Set([
   "src/v2/spec/test-feed-data.js",
   "src/v2/spec/archetype-data.js",
   "src/v2/spec/paths-data.js",
+  // 110 test items across the four instruments (big5, political, values,
+  // attachment) plus their typical-person baselines — the file's own
+  // header calls them "the question banks". It was missing from this list
+  // while being statically imported by `data/live.ts`, so the gate that
+  // exists to keep question content out of first paint reported "all 6
+  // named as debt" with a seventh sitting in the eager graph: confirmed in
+  // the shipping build as a 12 KB preloaded chunk, against a first-paint
+  // ceiling with about 5 KB of headroom.
+  "src/v2/spec/test-definitions.js",
 ]);
 // Any JSON seed under content/ is content by construction — the banks
 // themselves. duel-questions.json rides duels-data.js today.
@@ -69,6 +78,13 @@ const ALLOW = new Map([
     "vote-cuts.js and world-feed-report.js sit in its chunk and are reached from the eager feed"],
   ["src/v2/spec/archetype-data.js",
     "data/live.ts imports it for the archetype match (D253)"],
+  ["src/v2/spec/test-definitions.js",
+    "TWO eager importers: data/live.ts (IS_TESTS, for the passive fold) and "
+    + "spec/passive-meter.jsx (IS_TEST_RESULTS). Deferring either alone wins "
+    + "nothing while the other stands, so the remedy is this gate's second "
+    + "one — split the result helpers off the 110-item banks — and it is the "
+    + "largest single win available against a first-paint ceiling with ~5 KB "
+    + "of headroom (12 KB in the shipping build)"],
 ]);
 
 const EXT = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".json"];
@@ -90,7 +106,27 @@ function resolveSpec(spec, from) {
 
 // STATIC edges only. `import(` is deliberately not matched — a dynamic
 // import is exactly how a surface should reach its content.
-const STATIC_RE = /(?:^|\n)\s*(?:import\s+(?:[\s\S]*?\s+from\s+)?|export\s+(?:\*|\{[\s\S]*?\})\s+from\s+)["']([^"']+)["']/g;
+//
+// THE CLAUSE IS BOUNDED BY `[^;"']`, AND THAT IS THE WHOLE GATE. It was
+// `[\s\S]*?`, which is lazy but not stopped by anything, so on
+//
+//     import "./spec/daily-questions.js";
+//     import React from "react";
+//
+// the optional `… from ` group expanded ACROSS both statements to reach
+// the second line's ` from `, swallowed the side-effect import and
+// captured "react" instead. A bare `import "…"` was therefore invisible
+// whenever any later import in the same file had a `from` — which
+// `src/v2/main.jsx`, the entry this walk starts from, has always been.
+// Measured: prepending that exact line to main.jsx left this gate
+// printing OK with the module count unmoved, which is precisely the
+// D382–D384 regression it exists to refuse.
+//
+// An import clause — `type { T }`, `* as ns`, `d, { x }`, a multi-line
+// braced list — can contain a newline but never a quote or a semicolon,
+// so those two characters are exactly the statement boundary. Verified
+// identical to the old form on every other import shape in the tree.
+const STATIC_RE = /(?:^|\n)\s*(?:import\s+(?:[^;"']*?\s+from\s+)?|export\s+(?:\*|\{[\s\S]*?\})\s+from\s+)["']([^"']+)["']/g;
 
 const seen = new Set();
 const parent = new Map();

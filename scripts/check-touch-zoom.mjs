@@ -63,9 +63,10 @@
 // failures. All three are how this gate goes quietly green on the failure
 // it is named after.
 
+import { fileURLToPath } from "node:url";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { stripComments } from "./strip-comments.mjs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const SRC = join(ROOT, "src");
@@ -214,7 +215,7 @@ export const badCssFontSize = (body) => {
 
 // Only when RUN, so a test can import the two matchers above without this
 // walking src/, reading every sheet and calling process.exit.
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   // A NON-EMPTY FLOOR, the shape check-deploy-targets.mjs already uses
   // ("found NO exported functions, which cannot be right"). Without it this
   // gate reports "every text field defers to --field-size ✓" and exits 0 on a

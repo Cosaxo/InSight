@@ -78,7 +78,9 @@ exactly what three subscriptions produce.
 **environment** `env_01Ri3fw8gD9Py3LmTQ9hTYCL` ·
 **verified** 2026-09-05 00:22 UTC against `list_triggers`, **eleven**
 Routines, **nine enabled and two disabled** — the nine below plus the two
-program lanes this account gained at phase 5.1.
+program lanes this account gained at phase 5.1. **Re-verified 2026-09-06
+19:35 UTC**: the same eleven, the same nine enabled — and night shift B's
+schedule had moved again (its row and the 2026-09-06 observations below).
 
 The two disabled are `InSight DB scalability` and `Nightly algorithm
 improvement`, both paused by the owner 2026-09-03 14:25/14:30 UTC with no
@@ -104,7 +106,7 @@ row, per this file's own instruction.
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
 | InSight roll call (Claude 1) | `trig_01JQiMDMk2m4SfPjCKgbCF2o` | `35 15 * * *` — daily 15:35 (17:35 Oslo) | fresh session, model `claude-sonnet-5` | nothing — read-only; one comment per day on the **Ops run log** issue | never merges; never pushes; never labels |
 | InSight list worker (Claude 1) | `trig_01JRBox3KomrnVEfeMZnrHmC` | `0 16 * * *` — daily 16:00 (18:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/worklist-<slug>` — `docs/WORKLIST.md` and whatever the item it takes names | never merges; never labels |
-| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,0,4 * * *` — **three** flows; 20:00 and 00:00 audit at 95 min, 04:00 closing at 110 min (cut from five 2026-09-03, `updated_at` 14:28:12Z — the L1 lever) | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is | never merges; never pushes `main` or `night-*` |
+| InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,22,0,2,4 * * *` — **five** flows again: four at 95 min, the 04:00 closing at 110 (cut to three 2026-09-03 as the L1 lever, back to five 2026-09-05, `updated_at` 21:17:55Z — see the 2026-09-06 observations) | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is; `nightb-YYYYMMDD-screens` as the device-pass request ref once the 2026-09-06 brief is pasted (D404) | never merges; never pushes `main` or `night-*` |
 
 **Contracts.** The five content lanes defer to `QUESTION-FARM.md` and
 re-read it every run — the prompt is a summary and the manual outranks
@@ -213,6 +215,36 @@ re-verify; nothing in §2 is edited.
   recreate in this account's Routines web UI with the repository
   attached, the path its two improvers use today. **[owner]** decides
   which, on that evidence.
+
+### Observations, 2026-09-06 — the five flows, and the phones
+
+- **Night shift B is on five flows again, and nothing in the tree said so
+  for a day.** `list_triggers` returns `0 20,22,0,2,4 * * *` with
+  `updated_at` 2026-09-05T21:17:55Z — after this block's 09-05 00:22
+  verification, which is why the row above read *three* until now. The
+  re-pace is the owner's (rule 5), and it reads as the L1 lever as the
+  owner approved it — *"audit once, fix four times"* (`OWNER-LIST.md`
+  § Decisions) — rather than the three-flow cut a session applied on
+  09-03: five firings, one fan-out. The live PROMPT is still the original
+  five-audit brief, because a prompt cannot be edited from a session
+  (`PERMISSIONS.md`), so tonight fans out four times with the list capped
+  at 8; `design/night-shift-b-brief-2026-09-06.md` is the text that
+  matches the schedule, and the paste is the owner's click. The 09-03
+  brief is marked superseded: pasted onto five flows, its hour table would
+  leave 22:00 and 02:00 with no flow.
+- **The night shift has a device pass now (D404), and it needs no
+  account.** `.github/workflows/device-screens.yml` boots the debug APK on
+  an Android emulator and the simulator build on an iPhone simulator when
+  a `nightb-*-screens` or `night-*-screens` ref is pushed, and hands the
+  captures back as one orphan commit per platform on
+  `screens/<name>-<platform>`; `scripts/device-screens.mjs` renders the
+  same screens at phone geometry in the shift's own container, which has
+  no `/dev/kvm` (measured) and so cannot run an emulator itself. The lane
+  is GitHub Actions — like the console, a lane any session can read the
+  state of — and it merges nothing, opens nothing and blocks nothing. The
+  request ref is deleted by the lane when both platforms are done, so a
+  shift's next request is a plain push. Shift A's brief is on the other
+  account; the lane already listens for its prefix.
 
 ---
 
@@ -563,9 +595,9 @@ all.
 ### The clock (UTC)
 
 ```
-00 ·  night B audit 00:00–01:35
+00 ·  night B 00:00–01:35 (fix, once the 09-06 brief is pasted; audit until then)
 01 ·  night shift A audit 01:00–02:35
-02 ·  theory review 02:02 (odd)
+02 ·  night B 02:00–03:35 (as at 00) · theory review 02:02 (odd)
 03 ·  night shift A audit 03:00–04:35 · cost hunt review 03:05–05:35 (§9, once created)
 04 ·  night B closing 04:00–05:50
 05 ·  night shift A closing 05:00–05:50 · merge shift 05:15 · console keeper 05:45
@@ -584,17 +616,18 @@ all.
 19 ·  merge shift 19:15
 20 ·  night B audit 20:00–21:35            ── main's busiest merge hour
 21 ·  night shift A audit 21:00–22:35
-22 ·  (free — night B no longer fires here)
+22 ·  night B 22:00–23:35 (as at 00)
 23 ·  night shift A audit 23:00–00:35 · merge shift 23:15 · cost hunt 23:50–02:20, four hunters (§9, once created)
 ```
 
 The two night shifts interleave on the hour by design — A on odd hours,
 B on even — so neither is ever mid-flow alone with a stale view of the
-other's work. **B now fires at only three of its four even hours** (20, 00,
-04), so 22:00 and 02:00 carry an A flow with no B flow beside it. The
-interleave still holds where B fires; what is gone is the guarantee that
-every A flow has a B flow within the hour, which is worth knowing before
-reading a gap here as a free slot. Everything else is stacked rather than scheduled against
+other's work. B fired at only three of its four even hours between
+2026-09-03 and 2026-09-05 (20, 00, 04) and is back on all five slots since
+(§2's 2026-09-06 observations), so the interleave holds again at every
+hour. The device-pass lane B's brief now requests at each flow start runs
+on GitHub's runners, not on any account, and is not on this clock — it
+finishes 15–25 minutes after the push that asks for it. Everything else is stacked rather than scheduled against
 anything: the 08:00–09:30 window can carry eight firings across three
 accounts, and the only ones that can see each other are the ones sharing
 session 1's bound dev session. Since D352 the merge shift adds a firing
@@ -632,6 +665,8 @@ conflicts, so the clock above is about `main`, never about capacity.
 | `claude/doc-sweep-*` | session 2 doc sweep | one per run, dated UTC |
 | `claude/*-diag-<date>` | session 2 axes, doc sweep | the report fallback when a GitHub write is refused — `AXES-DIAG.md`, `DOC-SWEEP-DIAG.md` |
 | `axiom-theory` | session 2 theory lanes | orphan branch; never `main` |
+| `nightb-YYYYMMDD-screens` · `night-YYYYMMDD-screens` | the night shift that pushes it — a device-pass REQUEST (D404), a pointer at a head the night branch already carries | inside each shift's own prefix; deleted by the device-screens lane when both platforms are done; excluded from every merge-verdict enumeration |
+| `screens/<name>-android` · `screens/<name>-ios` | the device-screens lane — GitHub Actions, no account | one orphan commit each, force-replaced on re-run; the owner deletes them with the night they screened; never merged, never fetched into an enumeration |
 | `claude/hunt-<YYYYMMDD>-<lens>` | the cost hunt's four hunters (§9) — `reads`, `writes`, `shape`, `bill`; the reviewer pushes `review:` commits onto them, the one push to another session's branch a contract here licenses | one per lens per night, cut from `origin/main`; never `main`, never another lens's, never a night shift's |
 | `claude/hunt-diag-<lens>-<date>` | the cost hunt | the report fallback when a GitHub write is refused — `HUNT-DIAG.md` |
 
@@ -731,7 +766,18 @@ alone, and a line lands in the same PR as the Routine it describes. It is
 seeded here with the two lanes this PR created; the rest are their
 owners' to write.
 
-**Session 1 — the program lanes (§2)**
+**Session 1 — night shift B and the program lanes (§2)**
+
+- **InSight night shift B** — audits the tree once a night from a fan-out
+  of finders, fixes what it verified across four flows on a branch of its
+  own, and at 04:00 UTC judges every unmerged night branch on origin,
+  composes the ones it would merge and runs the whole battery on the
+  composed tree — so the owner opens one summary at breakfast, not five
+  branches. Since D404 it also looks at the app on phones: it renders every
+  screen at three phone geometries in its own container and asks GitHub's
+  runners for the real Android and iOS shells, then reads the captures the
+  way it reads code. For the owner, who merges what it prepared and had
+  been the only one looking at the phones.
 
 - **InSight list worker (Claude 1)** — works the owner's to-do list for
   this subscription: each afternoon it takes the topmost item tagged
