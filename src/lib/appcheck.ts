@@ -48,6 +48,30 @@ import { FirebaseAppCheck } from "capacitor-firebase-app-check";
 
 let initialized = false;
 
+// The plugin types `expireTimeMillis` optional and the SDK's AppCheckToken
+// requires it — and requires it to be RIGHT: the SDK holds a token valid
+// while `expireTimeMillis > Date.now()` and schedules the refresh off it,
+// so 0 is "expired, fetch again" in a loop and a made-up hour is a token
+// that goes stale in the request headers under enforcement. Both native
+// implementations set the field (iOS from `result.expirationDate`), so the
+// branches below serve the type rather than the plugin: the JWT's own `exp`
+// claim is what the field is derived from, and a token with neither is
+// refused here so the SDK sends the request unattested — what it did
+// before the bridge — rather than with a time this file invented.
+function expiryOf(token: string, expireTimeMillis: number | undefined): number {
+  if (typeof expireTimeMillis === "number" && expireTimeMillis > 0) return expireTimeMillis;
+  const payload = token.split(".")[1];
+  if (payload) {
+    try {
+      const claims = JSON.parse(
+        atob(payload.replace(/-/g, "+").replace(/_/g, "/")),
+      ) as { exp?: unknown };
+      if (typeof claims.exp === "number") return claims.exp * 1000;
+    } catch { /* not a JWT — fall through to the refusal */ }
+  }
+  throw new Error("[appcheck] native token carried no expiry");
+}
+
 export async function initAppCheck(): Promise<void> {
   if (initialized) return;
   const isNative = Capacitor.isNativePlatform();
@@ -80,8 +104,8 @@ export async function initAppCheck(): Promise<void> {
   // provider.initialize(), which loads Google's reCAPTCHA script. With no
   // real registration that means a script fetch and a console error for an
   // answer nothing reads, so hand it a provider that cannot be consulted
-  // rather than a placeholder key. Imported dynamically: web-only, and the
-  // native bundle should not carry it.
+  // rather than a placeholder key. Imported dynamically, here and in the
+  // native bridge below, so the entry chunk does not carry it.
   let webProvider: unknown;
   if (!isNative && debugToken && !webSiteKey) {
     const { CustomProvider } = await import("firebase/app-check");
@@ -114,6 +138,34 @@ export async function initAppCheck(): Promise<void> {
       // scripts/appcheck-guard.ts refuses one at build time.
       ...(debugToken !== undefined ? { debugToken } : {}),
     });
+    // On iOS and Android the call above configures the NATIVE App Check
+    // SDK and nothing else. Every Firestore read, every callable and the
+    // avatar upload here go through the JavaScript SDK inside the WebView,
+    // and that SDK attaches a token only from an App Check instance
+    // registered on ITS FirebaseApp — which the plugin creates on web (its
+    // web implementation calls initializeAppCheck itself) and not on
+    // native. The plugin's own docs bridge the two with a CustomProvider
+    // over the native getToken() (packages/app-check/docs/firebase-js-sdk.md).
+    // Without this bridge no phone ever sent a token: three weeks of App
+    // Check metrics read 0% verified, and the callables that enforce in
+    // production refused every phone that called them (D388). Under
+    // UNENFORCED Firestore a failed native attestation costs nothing more
+    // than it did before — the SDK sends the request without a token.
+    if (isNative) {
+      const [{ getApp }, { initializeAppCheck, CustomProvider }] = await Promise.all([
+        import("firebase/app"),
+        import("firebase/app-check"),
+      ]);
+      initializeAppCheck(getApp(), {
+        provider: new CustomProvider({
+          getToken: async () => {
+            const { token, expireTimeMillis } = await FirebaseAppCheck.getToken();
+            return { token, expireTimeMillis: expiryOf(token, expireTimeMillis) };
+          },
+        }),
+        isTokenAutoRefreshEnabled: true,
+      });
+    }
     initialized = true;
   } catch (err) {
     // Failing init should not block the app — we still want sign-in

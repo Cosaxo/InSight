@@ -769,6 +769,26 @@ makes the comparison answerable.
 50 commits rode in the 29 → 30 gap, over four days — the third widest
 after build 26's 193 and build 27's 130.
 
+**Build 31's pre-flight opened on a clean tree, and the dispatch, the bump
+and the record happened inside one session again** (2026-09-06, the
+release day D388 opened). Run 52 was the highest run in `ios-release.yml`'s
+list, its step 17 `success`, and `appBuild` at run 52's own `head_sha`
+`c5cc341` was **30** against a tree reading **31** — 31 is greater than 30,
+so *run as-is*, and no number moved before the dispatch (the fifth
+pre-flight to find nothing to do, after D153, D158, D191 and D324). Run 53
+(`34034773547`, 13:00:25Z) archived `8a2b326` — the merge of #414, the App
+Check bridge that makes this the first build whose phones can attest
+(D388) — with step 17 `skipped`, 5m 32s; run 54 (`34035079826`,
+13:06:20Z) archived `c3a59cb`, step 17 `success`, 13:11:46Z → 13:13:24Z,
+1m 38s of transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`f1f8362a-003c-4307-b9f8-90ff7ec8c369`, 6,205,166 bytes. Fourteenth pair
+of this shape, and D159's trap fired for the sixth time at the same cost
+as the fifth — nothing: the gap between the two heads is `docs/MERGE-LIST.md`, `docs/OWNER-LIST.md`, `monitoring/console-trail.jsonl`,
+nothing `dist/`, `ios/` or the shell reads. `appBuild` went 31 → 32 read
+off step 17 rather than recalled — **eleven that held** (20, 21, 22, 28,
+33, 36, 42, 44, 48, 52, 54) against nine skipped. Step 18 printed
+`release recorder not wired` for the third release running.
+
 **Build 30's pre-flight found the debt rather than a clean tree** (D381,
 2026-09-06). Run 50 is the highest run in `ios-release.yml`'s list, its
 step 17 `success`, and `appBuild` at run 50's own `head_sha` `74c84a0`

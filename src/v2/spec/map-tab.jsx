@@ -7,6 +7,7 @@ import React from 'react';
 import { DAILYQ } from './daily-questions.js';
 import { DUELS } from './duels-data.js';
 import { LEARN } from './learn-progress.js';
+import { LEARN_TYP } from './learn-data.js';
 import { list as anchorList } from './map-anchors.js';
 // The Map's own family, imported (v28 §5): until the Map went lazy,
 // spec-index's eager list carried these six and their order. Now the ESM
@@ -218,7 +219,23 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         out.push({
           id: 'lrn-' + c.id, parentId: subId, cid: c.id, qid: c.id, top: sj.label,
           daily: true, learn: true, label: c.k, tag: c.k, ans: c.a[c.c], prompt: c.q,
-          note: 'known', age, typ: c.p / 100, maj: true,
+          // TYPICALITY IS A MEASUREMENT, and this read the AUTHORING
+          // HINT. `c.p` is documented in data/learnBank.ts as "the % of
+          // the crowd expected to get it right" — a number the question
+          // writer chose — and map-layout turns `typ` into a ±80px radial
+          // push, so the dot's distance from You was that guess. On a live
+          // build the card that opens on tapping this very dot refuses the
+          // same number in words: LEARN_RATE returns `estimate` only when
+          // LIVE is off, so the card says "Nobody else has answered this
+          // one yet" while the dot sits where the hint put it. A position
+          // IS a claim (LiveSimilarityField says so in as many words), and
+          // this is the one Mirror stop that wears no Preview tag.
+          //
+          // The daily branch two dozen lines up already does this — real
+          // distribution or the neutral radius — and carries the comment
+          // explaining why. `estimate` is kept because it occurs ONLY when
+          // LIVE is off, where every number on the map is the demo's own.
+          note: 'known', age, typ: LEARN_TYP(c), maj: true,
         });
       });
     }
@@ -977,10 +994,15 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               if (hidden && hidden.has(e.to)) op = 0;
               if (e.spoke) op *= 0.7; // gravity lines stay quieter than trunks
               return (
+                // the constellation draws itself in (2026-09-06,
+                // VISION-2026-09-06 §6.3): every limb arrives as an ink
+                // stroke on a small stagger, spokes just behind the
+                // trunks — the delay rides inline so no re-layout runs
                 <path
                   key={i}
-                  className={e.spoke ? 'mmt-limb mmt-spoke' : 'mmt-limb'}
-                  style={{ '--hue': e.hue }}
+                  className={e.spoke ? 'mmt-limb mmt-spoke mmt-ink' : 'mmt-limb mmt-ink'}
+                  pathLength={1}
+                  style={{ '--hue': e.hue, animationDelay: `${(e.spoke ? 0.05 : 0.22) + (i % 7) * 0.04}s` }}
                   d={`M ${pos[e.from].x} ${pos[e.from].y} L ${pos[e.to].x} ${pos[e.to].y}`}
                   fill="none"
                   opacity={op}
@@ -1149,6 +1171,9 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
                   + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.walk && !n.pulse && !n.sealed && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
+                  // ink-in, delayed by distance from the hub — the map
+                  // grows outward (2026-09-06)
+                  animationDelay: `${0.12 + Math.min(0.45, Math.hypot(p.x, p.y) / 1500)}s`,
                   width: sz, height: sz,
                   transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${itemScale})`,
                 }}

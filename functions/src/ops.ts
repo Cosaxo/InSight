@@ -80,9 +80,11 @@ export function assertOperator(request: CallableRequest): void {
 //     to soft-disable if client attestation is ever misconfigured —
 //     flipping a deploy env var beats shipping a code change during
 //     an incident.
-// The client side is already wired (src/lib/appcheck.ts): reCAPTCHA
-// v3 on web via VITE_APPCHECK_RECAPTCHA_SITE_KEY, DeviceCheck / Play
-// Integrity on native. Debug builds register a debug token.
+// The client side is src/lib/appcheck.ts: debug tokens on web (D337 —
+// no public web client, so reCAPTCHA stays unprovisioned), DeviceCheck /
+// Play Integrity on native, BRIDGED into the JavaScript SDK that makes
+// the calls. That bridge was missing until 2026-09-06 (D388), so while
+// this was ON every phone that reached an enforced callable was refused.
 export const ENFORCE_APP_CHECK =
   process.env.FUNCTIONS_EMULATOR !== "true" &&
   process.env.APPCHECK_ENFORCE !== "false";
@@ -111,7 +113,7 @@ export const ENFORCE_APP_CHECK =
 /**
  * WHERE EVERY FUNCTION RUNS (D201).
  *
- * One constant, imported by all fifteen modules that define functions, for the
+ * One constant, imported by all thirteen modules that define functions, for the
  * reason `db.ts` is one accessor rather than 37 literal edits: this value
  * was spelled out in ten places on this side and eight on the client's, and
  * a move that reaches some of them is worse than one that reaches none —

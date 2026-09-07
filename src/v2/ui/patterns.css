@@ -1,10 +1,12 @@
 /* The Patterns tab's own sheet — ported at D215 from the 2026-08-20
-   standalone's patterns.css + oracle.css, and rebuilt at the 2026-09-02
-   standalone (design/standalone-2026-09-02/, docs/VISION-2026-09-02.md
-   §1.1): the three lenses stopped being three cards with three legends
-   and became ONE instrument — a light card, a round dusk field, a title
-   and one plain sentence above it, a legend in words below. That grammar
-   is the .ln-* block at the foot; each lens adds only what is its own.
+   standalone's patterns.css + oracle.css, rebuilt at the 2026-09-02
+   standalone (the three lenses became ONE instrument — a round dusk
+   field, a title above, a legend below), and put ON PAPER at the
+   2026-09-06 standalone (design/standalone-2026-09-06/,
+   docs/VISION-2026-09-06.md §2): the shell sets .lens-paper on the app
+   root, the card loses its box and its standing words, and the legends
+   render under one ⓘ per lens. That grammar is the .ln-* block at the
+   foot; each lens adds only what is its own.
 
    THE VERBATIM DEBT IS PAID. This file used to carry eleven selectors
    that styled nothing (.pt-chip, .pt-next, .pt-note, .pt-svg,
@@ -41,42 +43,47 @@
 /* the prototype keyed this on :has(.or-lens); the tab KNOWS which lens is
    open, so the class is set directly — one selector every engine holds */
 .pt-wrap.pt-oracle .pt-stack{flex:1;min-height:0}
-/* one sub-row under the lens tabs, same height whichever lens is open */
+/* one sub-row under the lens tabs, same height whichever lens is open.
+   Every lens leads it with the one ⓘ (2026-09-06): the standing legends,
+   keys and explainer sentences render in the open lens only while it is
+   on. The facts line and the oracle's progress track retired into the
+   instruments — the Map's hub and the Oracle's kicker say the numbers. */
 .pt-sub{min-height:44px;display:flex;align-items:center}
 .pt-pops{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding:1px 0}
 .pt-pops>*{flex-shrink:0}
 .pt-pop{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:12px;font-weight:650;padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
-.pt-pop em{font-style:normal;font-size:10.5px;font-weight:750;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pt-pop em{font-style:normal;font-size:12px;font-weight:750;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .pt-pop.is-on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 .pt-pop.is-on em{color:color-mix(in oklch,var(--surface),transparent 25%)}
 .pt-dot{width:7px;height:7px;border-radius:999px;flex:none}
-/* the map's sub-row: what the picture holds, and one control for the topic.
-   The control is a native <select> dressed as a pill — the right control on
-   a phone, and the one that does not put a horizontal scroller on the lens
-   whose body now takes a horizontal drag. It is sized to 44px HERE rather
-   than inline, so check-tap-targets cannot see it: same class-sized case as
-   .pm-chip / .wf-chip / .mmt-card-x, named so the next reader knows it was
-   measured rather than missed. */
 .pt-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px}
-.pt-facts{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:0;overflow:hidden}
-.pt-facts b{font-weight:700;color:var(--ink)}
-.pt-facts i{width:8px;height:8px;border-radius:50%;flex:none;box-sizing:border-box;background:var(--ink);opacity:.78}
-.pt-facts i.is-open{background:transparent;border:1.25px solid var(--ink-3);opacity:1}
-.pt-facts .sep{color:var(--rule)}
-.pt-facts span+i{margin-left:6px}
+.pt-meta .pt-pops{flex:none;justify-content:flex-end}
+/* the ⓘ: the lens explainer, on demand. 44px for the same reason as
+   .pt-topic below — class-sized, so check-tap-targets cannot see it, and
+   measured here so the next reader knows it was. (The design draws it at
+   32; the repo's tap floor wins, as it did for the topic pill.) */
+.pt-info{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-3);font-family:var(--serif);font-style:italic;font-size:15px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0 0 2px;-webkit-appearance:none;transition:background .18s,color .18s,border-color .18s}
+.pt-info.is-on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+/* the oracle's 1·2·3, under the guide only (2026-09-06) */
+.or2-how{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.or2-how>span{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;text-align:center;font-family:var(--sans);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.or2-g{width:24px;height:24px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px}
+.or2-g1{background:color-mix(in oklch,var(--accent) 22%,var(--surface-2));border:1.4px solid var(--accent)}
+.or2-g2{border:1.2px solid var(--ink);background:linear-gradient(90deg,var(--ink) 50%,transparent 50%)}
+.or2-g3{background:var(--accent);color:var(--surface-2)}
+/* the topic control: a native <select> dressed as a pill — the right
+   control on a phone, and the one that does not put a horizontal scroller
+   on the lens whose body takes the horizontal drag. It is sized to 44px
+   HERE rather than inline, so check-tap-targets cannot see it: same
+   class-sized case as .pm-chip / .wf-chip / .mmt-card-x, named so the next
+   reader knows it was measured rather than missed. */
 .pt-topic{position:relative;flex:none;display:inline-flex;align-items:center;height:44px;border:1px solid var(--rule);border-radius:999px;background:var(--surface-2);color:var(--ink);padding:0 14px}
 .pt-topic.is-on{border-color:var(--ink);background:var(--ink);color:var(--surface)}
 .pt-topic>span{font-size:12.5px;font-weight:600;white-space:nowrap;pointer-events:none;display:inline-flex;align-items:center;gap:6px}
 .pt-topic>span::after{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);opacity:.7}
 .pt-topic select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font:inherit}
-/* oracle's sub-row: how far through the pool you are */
-.pt-prog{display:flex;align-items:center;gap:10px;width:100%;padding:0 2px}
-.pt-progtrack{flex:1;height:5px;border-radius:999px;background:color-mix(in oklch,var(--rule),var(--surface) 35%);overflow:hidden}
-.pt-progtrack i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .6s cubic-bezier(.2,.8,.2,1)}
-.pt-prognum{font-size:12px;font-weight:750;color:var(--ink-2);font-variant-numeric:tabular-nums;flex:none}
-.pt-prognum em{font-style:normal;font-weight:650;color:var(--ink-3)}
-.pt-kick{font-size:10.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
-.pt-cat{display:inline-flex;align-items:center;font-size:10.5px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+.pt-kick{font-size:12px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.pt-cat{display:inline-flex;align-items:center;font-size:12px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
 .pt-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 16px}
 .pt-done>div{font-size:19px;font-weight:750;color:var(--ink)}
 .pt-done>p{font-size:13px;color:var(--ink-3);margin:5px 0 0}
@@ -86,7 +93,7 @@
    is the reading underneath it */
 .qm-read{display:flex;flex-direction:column;justify-content:center;border-top:1px solid var(--rule);padding:16px 2px 4px}
 .qm-qhead{display:flex;align-items:center;gap:8px}
-.qm-yours{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--accent-ink,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qm-yours{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent-ink,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qm-prompt{font-family:var(--serif);font-size:21px;font-weight:500;line-height:1.22;color:var(--ink);margin:9px 0 0;text-wrap:pretty}
 .qm-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .qm-opt{border:1.4px solid var(--rule);background:var(--surface);border-radius:12px;padding:11px 9px;font:inherit;font-size:14px;font-weight:650;color:var(--ink);min-height:46px;cursor:pointer;text-align:center;text-wrap:balance;transition:transform .18s var(--ease-spring),border-color .15s ease}
@@ -104,18 +111,27 @@
 .qm-idle span{font-size:13px;font-weight:600;line-height:1.4;color:var(--ink-2);text-wrap:pretty}
 /* the idle reading: one sentence, the share as a figure under it */
 .qm-tie2{display:flex;flex-direction:column;gap:8px;border:0;background:none;font:inherit;text-align:left;padding:0;cursor:pointer;color:var(--ink);width:100%}
-.qm-foot{font-size:11px;font-weight:650;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
+.qm-foot{font-size:12px;font-weight:650;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 .qm-base{position:relative;display:block;height:15px;margin-top:2px}
 .qm-say:last-child{padding-bottom:3px}
-.qm-base > span{position:absolute;transform:translateX(-50%);font-size:10.5px;font-weight:650;color:var(--ink-3);white-space:nowrap}
-/* the chords draw themselves in when a question is tapped; a dot pops on
-   a vote and blooms once behind it */
-.ln-svg .qm-drawin{stroke-dasharray:1;animation:qmDraw .6s cubic-bezier(.22,.8,.3,1) both}
-@keyframes qmDraw{from{stroke-dashoffset:1;opacity:0}to{stroke-dashoffset:0}}
+.qm-base > span{position:absolute;transform:translateX(-50%);font-size:12px;font-weight:650;color:var(--ink-3);white-space:nowrap}
+/* ink-in (2026-09-06): the figure draws itself onto the page instead of
+   appearing whole — arcs and tapped chords as strokes, the hub and labels
+   as a fade, the dots as small blooms staggered by rim angle. One family,
+   not two: the tapped-chord draw the ring shipped with (qmDraw) folded
+   into inkDraw rather than keeping a twin keyframe set. */
+@keyframes inkDraw{from{stroke-dashoffset:1;opacity:0}to{stroke-dashoffset:0}}
+@keyframes inkIn{from{opacity:0}}
+@keyframes inkDot{from{opacity:0;transform:scale(.2)}}
+.ln-svg .qm-arc,.ln-svg .qm-drawin{stroke-dasharray:1;animation:inkDraw .55s cubic-bezier(.22,.8,.3,1) both}
+.ln-svg .qm-fig{animation:inkIn .5s ease .4s both}
+.ln-svg .qm-ink{animation:inkIn .45s ease both}
+.ln-svg .qm-dot{transform-box:fill-box;transform-origin:center;animation:inkDot .4s cubic-bezier(.2,.8,.2,1) both}
 .qm-bloom{transform-box:fill-box;transform-origin:center;animation:qmBloom .9s ease-out both;pointer-events:none}
 @keyframes qmBloom{from{transform:scale(.45);opacity:.65}to{transform:scale(2.7);opacity:0}}
 .qm-pop{transform-box:fill-box;transform-origin:center;animation:qmPop .5s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes qmPop{0%{transform:scale(.55)}60%{transform:scale(1.22)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.ln-svg .qm-arc,.ln-svg .qm-drawin,.ln-svg .qm-fig,.ln-svg .qm-ink,.ln-svg .qm-dot{animation:none}}
 
 /* ── Oracle lens — the same field, the two sides as its halves
    (PatternsOracle.tsx). Confidence is the fill's height and the disc's
@@ -129,7 +145,7 @@
    is one of your prior answers and the crowd split it contributed; the
    hairline is the coin */
 .or-proof{flex:none;display:flex;flex-direction:column;gap:9px;padding:2px 3px 0;animation:orRise .3s cubic-bezier(.2,.8,.2,1) both}
-.or-proof-kick{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.or-proof-kick{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 .or-ev{display:flex;flex-direction:column;gap:5px;animation:orRise .32s cubic-bezier(.2,.8,.2,1) both}
 .or-ev-q{font-size:12.5px;line-height:1.42;color:var(--ink-3);text-wrap:pretty;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .or-ev-q b,.or-ev-word b{color:var(--ink);font-weight:750}
@@ -137,9 +153,9 @@
 .or-ev-bar{position:relative;flex:1;min-width:52px;height:6px;border-radius:99px;background:var(--surface-3)}
 .or-ev-bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;max-width:100%}
 .or-ev-bar em{position:absolute;top:-2px;bottom:-2px;left:50%;width:1.5px;border-radius:1px;background:color-mix(in oklab,var(--ink-3),var(--surface) 30%)}
-.or-ev-word{flex:none;font-size:11px;font-weight:650;color:var(--ink-3);white-space:nowrap}
+.or-ev-word{flex:none;font-size:12px;font-weight:650;color:var(--ink-3);white-space:nowrap}
 .or-ev-none{font-size:12.5px;line-height:1.46;color:var(--ink-3);text-wrap:pretty}
-.or-proof-base{padding-top:2px;font-size:10.5px;font-weight:600;color:color-mix(in oklab,var(--ink-3),var(--surface) 22%);text-wrap:pretty}
+.or-proof-base{padding-top:2px;font-size:12px;font-weight:600;color:color-mix(in oklab,var(--ink-3),var(--surface) 22%);text-wrap:pretty}
 /* the ledger: your record, one mark per answer on a single baseline */
 .or-ledger{position:relative;flex:none;height:56px;display:flex;align-items:flex-end;padding:0 2px 17px}
 .or-base{position:absolute;left:2px;right:2px;bottom:17px;height:1px;background:color-mix(in oklch,var(--rule),transparent 20%)}
@@ -159,7 +175,7 @@
 /* the done state's standing key. The live lens's own ledger no longer
    carries one: its kicker says the marks in words above the strip
    (2026-09-02), which is the same reading without a second row. */
-.or-cap{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-10px;font-size:11px;font-weight:600;color:var(--ink-3)}
+.or-cap{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:-10px;font-size:12px;font-weight:600;color:var(--ink-3)}
 .or-cap-dot{color:var(--rule)}
 .or-cap-up{width:3px;height:11px;border-radius:2px 2px 0 0;background:var(--accent);margin-top:-3px;flex:none}
 .or-cap-dn{width:1.5px;height:7px;border-radius:0 0 1px 1px;background:color-mix(in oklch,var(--ink-3),var(--surface-a) 42%);margin-bottom:-3px;flex:none}
@@ -178,9 +194,8 @@
    lens's card head, and the done state has nothing to advance to. */
 .or-foot{flex:none;min-height:46px;display:flex;align-items:center;justify-content:center}
 @keyframes orRise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
-.or-sealed{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
-.or-sealed::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);animation:orBlink 2.7s ease-in-out infinite}
-@keyframes orBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+/* (the .or-sealed chip and its blink retired 2026-09-06 — the pulsing
+   sealed disc is the standing signal now, and the ⓘ says the game) */
 /* the guess disc travels on a transform, so the move is one spring, and the
    called half fills behind it */
 .or2-disc{transition:transform .62s var(--ease-spring)}
@@ -189,44 +204,50 @@
 .or2-half{cursor:pointer}
 .or2-verdict{font-size:14px;font-weight:500;line-height:1.5;color:var(--ink-2);text-wrap:pretty}
 .or2-verdict b{font-weight:800;color:var(--ink)}
-@media (prefers-reduced-motion:reduce){.or-mk{animation:none}.or2-disc,.or2-fill,.or-aside,.or-proof,.or-ev,.or-done{animation:none;transition:none}.or-sealed::before{animation:none}}
+@media (prefers-reduced-motion:reduce){.or-mk{animation:none}.or2-disc,.or2-fill,.or-aside,.or-proof,.or-ev,.or-done{animation:none;transition:none}}
 
-/* ── the shared instrument (2026-09-02) ──
-   The three lenses draw into one round dusk field inside a light card: a
-   title and one plain sentence above it, a legend in WORDS below. The
-   field's palette lives on --ln-*, absolute rather than accent-derived,
-   so the instrument reads the same whatever hue the tab wears (the
-   accent chrome around it still tracks the tab — D310 §4.5 stands).
-   .app.lens-paper swaps the field to paper; nothing sets that class
-   today, and a control for it is a control nobody has asked for. */
+/* ── the shared instrument (2026-09-02; on paper since 2026-09-06) ──
+   The three lenses draw into one round field. The palette lives on
+   --ln-*, absolute rather than accent-derived, so the instrument reads
+   the same whatever hue the tab wears (the accent chrome around it still
+   tracks the tab — D310 §4.5 stands). The dusk tokens below are the
+   02's; `.app.lens-paper` — which the SHELL SETS ON THE ROOT since the
+   2026-09-06 design (app-shell.jsx's class line) — re-inks everything
+   for paper, so the paper branch is the one every build renders and the
+   dusk branch stands as the design family's record. The card is boxless
+   on paper: no .ln-head, no standing legend — the guide ⓘ carries the
+   words (VISION-2026-09-06 §2.1–§2.4). */
 .ln-card{padding:8px 8px 4px}
-.ln-head{padding:6px 8px 10px}
-.ln-title{font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
-.ln-sub{margin-top:3px;font-size:12px;font-weight:500;line-height:1.45;color:var(--ink-3);text-wrap:pretty}
 .ln-field{position:relative;width:100%;aspect-ratio:1;--ln-ink:oklch(0.88 0.03 282);--ln-sub:oklch(0.72 0.04 282);--ln-line:oklch(0.88 0.04 282);--ln-hub:oklch(0.34 0.05 282);--ln-ring:oklch(0.46 0.06 282);--ln-halo:oklch(0.27 0.045 282);--ln-beacon:oklch(0.84 0.11 282);--ln-me:oklch(0.99 0.005 80)}
 .ln-field::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 46%,oklch(0.31 0.05 282),oklch(0.225 0.035 282) 74%)}
-.app.lens-paper .ln-field{--ln-ink:var(--ink);--ln-sub:var(--ink-3);--ln-line:var(--ink);--ln-hub:var(--surface-2);--ln-ring:var(--rule);--ln-halo:oklch(0.975 0.004 78);--ln-beacon:var(--accent);--ln-me:var(--ink)}
-.app.lens-paper .ln-field::before{background:radial-gradient(circle at 50% 46%,oklch(0.992 0.003 80),oklch(0.955 0.006 75) 80%);box-shadow:inset 0 0 0 1px var(--rule)}
+.app.lens-paper .ln-card{padding:4px 0 0}
+.app.lens-paper .ln-field{--ln-ink:var(--ink);--ln-sub:var(--ink-3);--ln-line:var(--ink);--ln-hub:var(--surface);--ln-ring:var(--rule);--ln-halo:oklch(0.975 0.004 78);--ln-beacon:var(--accent);--ln-me:var(--ink)}
+.app.lens-paper .ln-field::before{background:none;box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--ink),transparent 84%)}
+/* the Oracle's field draws its own rim and seam, so it goes bare */
+.app.lens-paper .ln-field.is-bare::before{box-shadow:none}
 .ln-svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible;touch-action:manipulation}
 .ln-svg text{font-family:var(--sans)}
 .ln-svg circle{transition:opacity .3s ease}
-.ln-key{display:flex;flex-wrap:wrap;gap:5px 14px;padding:10px 8px 4px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+/* the legend, under the guide ⓘ only — re-inked for paper */
+.ln-key{display:flex;flex-wrap:wrap;gap:6px 14px;padding:12px 4px 4px;font-size:12px;font-weight:600;color:var(--ink-2)}
 .ln-key>span{display:inline-flex;align-items:center;gap:6px}
 .ln-key i{display:inline-block;flex:none;box-sizing:border-box}
-.ln-key .k-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
-.ln-key .k-ring{width:8px;height:8px;border-radius:50%;border:1.3px solid var(--ink-3)}
-.ln-key .k-line{width:14px;height:0;border-top:1.5px solid var(--ink-3)}
-.ln-key .k-dash{width:14px;height:0;border-top:1.5px dashed var(--ink-3)}
-.ln-hint{padding:2px 8px 8px;font-size:11.5px;font-weight:700;color:var(--accent-ink)}
-.ln-rail{display:flex;align-items:center;gap:6px;padding:4px 2px 8px;overflow-x:auto;scrollbar-width:none}
-.ln-rail>span{flex:none;display:flex}
-.ln-rail::-webkit-scrollbar{display:none}
-.ln-rail-lab{flex:none;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 4px 0 6px}
-.ln-chip{flex:none;display:flex;align-items:center;gap:7px;height:44px;padding:0 12px 0 6px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);font:inherit;color:var(--ink);cursor:pointer;-webkit-appearance:none}
-.ln-chip.is-on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.ln-chip .c-av{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800}
-.ln-chip .c-name{font-size:12.5px;font-weight:700}
-.ln-chip .c-sub{font-size:11px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.ln-key .k-dot{width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.ln-key .k-ring{width:8px;height:8px;border-radius:50%;border:1.3px solid var(--ink)}
+.ln-key .k-line{width:14px;height:0;border-top:1.5px solid var(--ink)}
+.ln-key .k-dash{width:14px;height:0;border-top:1.5px dashed var(--ink)}
+/* the people most like you: rows under the field (2026-09-06 — the chip
+   rail went with the dusk card; a row carries the same counts plus the
+   answer you share) */
+.ln-list{display:flex;flex-direction:column;padding:12px 2px 0}
+.ln-row{display:flex;align-items:center;gap:12px;padding:11px 0;border:0;border-bottom:1px solid var(--rule);background:none;font:inherit;color:var(--ink);cursor:pointer;text-align:left;-webkit-appearance:none;width:100%}
+.ln-row.is-on .ln-row-name{color:var(--accent-ink)}
+.ln-row-av{width:30px;height:30px;border-radius:50%;flex:none;color:var(--surface-2);display:flex;align-items:center;justify-content:center;font-family:var(--sans);font-size:12px;font-weight:800}
+.ln-row-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ln-row-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ln-row-name{font-family:var(--sans);font-size:14px;font-weight:700}
+.ln-row-sub{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.ln-row-q{font-family:var(--serif);font-size:14px;color:var(--ink-2);line-height:1.3;text-wrap:pretty}
 @keyframes lnPulse{0%{r:6px;opacity:.85}100%{r:19px;opacity:0}}
 .ln-pulse{animation:lnPulse 1.9s ease-out infinite}
 @media (prefers-reduced-motion:reduce){.ln-pulse{animation:none;opacity:.5}}

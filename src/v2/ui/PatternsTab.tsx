@@ -14,15 +14,23 @@
 //            stated with its basis. PatternsPeople.tsx / data/peopleMap.ts.
 //
 // This file is the SHELL the standalone's patterns-tab.jsx draws: the
-// ruler, one sub-row under it (topic chips on the map, population chips
-// on people since D216, run progress on the oracle — same height
+// ruler, one sub-row under it (an ⓘ on every lens, plus the topic select
+// on the map and the population chips on people since D216 — same height
 // whichever lens is open, so switching never jumps), and the live gates.
 // Ported from design/standalone-2026-08-20/patterns-tab.jsx; the
 // 2026-08-24 build retired the shell's one-time lens explainer — each
-// lens teaches its own marks (the footer legend on the map card, the
-// one-time hints on the oracle) — and renamed the wider two lenses so
-// the ruler names what each is a map OF. Chrome rule carried with it:
-// no type below 10.5px anywhere, in SVG or out.
+// lens teaches its own marks — and renamed the wider two lenses so
+// the ruler names what each is a map OF. Chrome rule carried with it,
+// raised app-wide by the 2026-09-06 design: no type below 12px anywhere,
+// in SVG or out.
+//
+// THE LEGENDS MOVED BEHIND ONE ⓘ (2026-09-06, VISION-2026-09-06 §2.4):
+// `guide` is this shell's one flag, handed to whichever lens is open —
+// the standing keys, hints and explainer sentences render only while it
+// is on, and the numbers the sub-row used to carry moved into the
+// instruments themselves (the Map's hub counts the pool; the Oracle's
+// kicker counts the answered). Ephemeral on purpose: no device key, so
+// check:purge's subject set does not grow.
 //
 // The trial ships LIVE DATA ONLY (the narrowing D166 §1 licenses): a
 // build with no published loadings — the demo included — says so instead
@@ -42,7 +50,6 @@ import React from "react";
 import LIVE from "../data/live";
 import NAV from "../data/nav";
 import PATTERNS, { ensureLive } from "../data/patterns";
-import { edgesOf, mapGeometry, type MapNode } from "../data/patternsMap";
 import PatternsMap from "./PatternsMap";
 import PatternsOracle from "./PatternsOracle";
 import PatternsPeople, { type PeoplePop } from "./PatternsPeople";
@@ -85,10 +92,11 @@ const LENSES = [
 type Lens = (typeof LENSES)[number]["id"];
 
 // The same ruler the daily and the mirror wear — one axis, stops on a scale.
-function Ruler({ lens, onLens }: { lens: Lens; onLens: (l: Lens) => void }): React.ReactElement {
+// `flush` drops its own margins when the folding wrapper below carries them.
+function Ruler({ lens, onLens, flush }: { lens: Lens; onLens: (l: Lens) => void; flush?: boolean }): React.ReactElement {
   const idx = Math.max(0, LENSES.findIndex((s) => s.id === lens));
   return (
-    <div style={{ margin: "-6px 0 -2px" }}>
+    <div style={{ margin: flush ? 0 : "-6px 0 -2px" }}>
       <div style={{ position: "relative", display: "flex", height: 50 }} role="tablist" aria-label="How wide this lens looks">
         <div style={{ position: "absolute", left: 6, right: 6, bottom: 21, height: 1, background: "color-mix(in oklch, var(--rule), transparent 30%)" }}></div>
         {LENSES.map((s, i) => {
@@ -111,37 +119,140 @@ function Ruler({ lens, onLens }: { lens: Lens; onLens: (l: Lens) => void }): Rea
   );
 }
 
-export default function PatternsTab(): React.ReactElement {
+export default function PatternsTab({ lens: lensProp, onLens, ruler = false, onDock }: {
+  /** The shell's lens (the header dial, 2026-09-06). The tab renders from
+   * its own state — the slide's direction has to land in the same commit
+   * as the lens — and adopts a differing prop one effect later; bare
+   * mounts (the test fixtures) simply never pass it. */
+  lens?: Lens;
+  onLens?: (l: Lens) => void;
+  /** Fold the in-flow ruler behind the header dial: away once scrolled
+   * past or once a lens is used, back on a pull at the top. Off for bare
+   * mounts, which have no header to dock into. */
+  ruler?: boolean;
+  onDock?: (docked: boolean) => void;
+} = {}): React.ReactElement {
   const version = usePatterns();
   // the incoming lens slides from the side you moved toward on the ruler
   // (2026-08-26) — the axis is a place, not a list, so a swap has a
   // direction. The direction rides IN the lens state (one object, one
   // set) rather than in a ref: the class reads it during render, and a
   // render-read ref is exactly what react-hooks/refs refuses. First
-  // mount keeps the plain fade: nothing was moved from.
-  const [lensSt, setLensSt] = React.useState<{ id: Lens; dir: "" | "l" | "r" }>({ id: "map", dir: "" });
+  // mount keeps the plain fade: nothing was moved from (and it seeds
+  // from the shell's lens, so a return to the tab lands where you left).
+  const [lensSt, setLensSt] = React.useState<{ id: Lens; dir: "" | "l" | "r" }>({ id: lensProp ?? "map", dir: "" });
   const lens = lensSt.id;
   // useCallback, not a plain closure: the swipe axis below holds this in
   // an effect, and a new identity every render would tear its listeners
   // down and re-add them on every render rather than on every lens change.
-  const setLens = React.useCallback((id: Lens): void => setLensSt((cur) => {
-    if (id === cur.id) return cur;
-    const a = LENSES.findIndex((s) => s.id === cur.id);
-    const b = LENSES.findIndex((s) => s.id === id);
-    return { id, dir: b > a ? "r" : "l" };
-  }), []);
+  const setLens = React.useCallback((id: Lens): void => {
+    setLensSt((cur) => {
+      if (id === cur.id) return cur;
+      const a = LENSES.findIndex((s) => s.id === cur.id);
+      const b = LENSES.findIndex((s) => s.id === id);
+      return { id, dir: b > a ? "r" : "l" };
+    });
+    onLens?.(id);
+  }, [onLens]);
+  // the header dial writes the prop; adopt it with a direction. One
+  // effect pass late on purpose — deriving during render is the
+  // set-state-in-render shape the hooks lint refuses, and the slide's
+  // second frame is not worth an exception.
+  React.useEffect(() => {
+    if (lensProp && lensProp !== lensSt.id) setLens(lensProp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lensSt.id is the compare target, not a trigger
+  }, [lensProp, setLens]);
   const [topic, setTopic] = React.useState("all");
   const [ppop, setPpop] = React.useState<PeoplePop>("world");
-  // How many links hold across the pool — the third figure on the map's
-  // meta line. The same bounded fold the Map itself runs (the pool is
-  // core-only and small, D161), memoised on the same key: the number
-  // belongs ABOVE the picture, where it says what the picture holds.
-  const ties = React.useMemo(() => {
-    if (!PATTERNS.ready() || !PATTERNS.hasLoadings()) return 0;
-    const nodes: MapNode[] = PATTERNS.pool().map((p) => ({ id: p.q.id, L: p.L, n: p.n }));
-    return edgesOf(mapGeometry(nodes).U, 3).length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the pool's identity
-  }, [version]);
+  // the explainer lives behind one ⓘ (2026-09-06) — it used to be a
+  // title, a facts line, a progress track and a standing legend above and
+  // below every lens. Per-tab and ephemeral: closing the tab forgets it.
+  // (The facts line's ties count went with it — the idle card under the
+  // Map still counts the links, beside the pool they hold across.)
+  const [guide, setGuide] = React.useState(false);
+
+  const wrapRef = React.useRef<HTMLDivElement | null>(null);
+  const stackRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Docking, as on the daily (2026-09-06): the in-flow ruler starts on
+  // the page and folds away once it scrolls out of the body OR once a
+  // lens is used — the lenses fill the screen, so they rarely scroll,
+  // and a tap in one is the moment the ruler's job is done. The header
+  // dial takes over (`onDock`). A wheel-up or a 36px pull at the top
+  // brings it back. `hid` is the use-fold (it collapses the ruler);
+  // scrolled-past needs no collapse — the ruler is already off-screen —
+  // so it only reports. Capture phase because scroll does not bubble.
+  const [hid, setHid] = React.useState(false);
+  const rulerEl = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!ruler) return;
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    // the scroll host exists under the shell; a bare mount has none, and
+    // the use-fold below works without it
+    const host = wrap.closest(".app");
+    const body = () => wrap.closest(".app-body");
+    let scrolled = false;
+    let folded = false;
+    let last = false;
+    const push = () => {
+      const v = scrolled || folded;
+      if (v !== last) { last = v; onDock?.(v); }
+    };
+    const setFolded = (v: boolean) => {
+      if (folded === v) return;
+      folded = v;
+      setHid(v);
+      push();
+    };
+    const check = () => {
+      const el = rulerEl.current, sc = body();
+      if (!el || !sc) return;
+      const r = el.getBoundingClientRect(), s = sc.getBoundingClientRect();
+      // hysteresis: gone past the top edge docks, 8px back into view releases
+      scrolled = scrolled ? r.bottom <= s.top + 8 : r.bottom <= s.top + 1;
+      push();
+    };
+    const atTop = () => { const sc = body(); return !sc || sc.scrollTop <= 1; };
+    const inLens = (t: EventTarget | null) =>
+      !!(t instanceof Element && t.closest(".pt-stack"));
+    // after a tap or drag in a lens (pointerup, so the click lands before
+    // the layout moves under the finger)
+    const onUp = (e: Event) => { if (inLens(e.target)) setFolded(true); };
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      if (!folded && e.deltaY > 6 && inLens(e.target)) setFolded(true);
+      else if (folded && e.deltaY < -6 && atTop()) setFolded(false);
+    };
+    let ty = 0, tx = 0, top0 = false;
+    const onTS = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      ty = t.clientY; tx = t.clientX; top0 = atTop();
+    };
+    const onTM = (e: TouchEvent) => {
+      if (!folded || !top0) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const dy = t.clientY - ty, dx = Math.abs(t.clientX - tx);
+      if (dy > 36 && dx < dy * 0.6) setFolded(false);
+    };
+    const C = { capture: true, passive: true } as const;
+    const U = { capture: true } as const;
+    host?.addEventListener("scroll", check, C);
+    wrap.addEventListener("pointerup", onUp, C);
+    wrap.addEventListener("wheel", onWheel, C);
+    wrap.addEventListener("touchstart", onTS, C);
+    wrap.addEventListener("touchmove", onTM, C);
+    return () => {
+      host?.removeEventListener("scroll", check, U);
+      wrap.removeEventListener("pointerup", onUp, U);
+      wrap.removeEventListener("wheel", onWheel, U);
+      wrap.removeEventListener("touchstart", onTS, U);
+      wrap.removeEventListener("touchmove", onTM, U);
+      if (last) onDock?.(false);
+    };
+  }, [ruler, onDock]);
 
   // The lens body drags on the SAME horizontal axis as the daily's modes
   // and the mirror's stops (2026-09-02): the ruler is a place, so the
@@ -149,19 +260,20 @@ export default function PatternsTab(): React.ReactElement {
   // daily — `NAV.goNav` is D166's one licensed joint, used from the other
   // side, and it ANSWERS whether it navigated, so a refusal springs back
   // instead of leaving the stack where the finger left it. The near end
-  // has nowhere to go and always springs.
-  const wrapRef = React.useRef<HTMLDivElement | null>(null);
-  const stackRef = React.useRef<HTMLDivElement | null>(null);
+  // has nowhere to go and always springs. (wrapRef/stackRef are declared
+  // with the dock effect above — the two systems share the wrap.)
   React.useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    // A drag that starts inside a map, a scroller or a field belongs to
-    // it. The Oracle's field is the exception: it is tap-only, so it
-    // hands the drag back to the axis.
-    const SKIP = "svg, canvas, .h-scroll, .ln-rail, [data-nopan], input, textarea, select";
+    // A drag that starts inside a scroller or a control belongs to it —
+    // but the lenses are TAP-ONLY (2026-09-06), so a horizontal drag on
+    // their discs rides the axis. `svg` left this list with that change:
+    // the Oracle's `.or-lens` exception generalised to all three, because
+    // none of the fields scrolls or pans on its own.
+    const SKIP = "canvas, .h-scroll, [data-nopan], input, textarea, select";
     const skips = (t: EventTarget | null): boolean => {
       const el2 = t instanceof Element ? t : null;
-      return !!(el2?.closest(SKIP) && !el2.closest(".or-lens"));
+      return !!el2?.closest(SKIP);
     };
     const spring = () => {
       const b = stackRef.current;
@@ -285,7 +397,6 @@ export default function PatternsTab(): React.ReactElement {
   // only topics that actually have questions in the pool
   const cats = [...new Set(items.map((p) => p.q.cat).filter((c): c is string => !!c))];
   const chips = [{ id: "all", label: "All topics" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
-  const answered = items.filter((p) => p.mine != null).length;
   // The population roster (D216) — the standalone's own: Circle · your
   // country's code · World. Circle always offers (the D190 posture: a row
   // draws even when the stop is empty — the lens says the honest state);
@@ -300,48 +411,54 @@ export default function PatternsTab(): React.ReactElement {
 
   return (
     <div ref={wrapRef} className={"pt-wrap" + (lens === "oracle" ? " pt-oracle" : "")} style={{ padding: "6px 16px 18px" }}>
-      <Ruler lens={lens} onLens={setLens} />
+      {ruler ? (
+        <div ref={rulerEl} aria-hidden={hid}
+          style={{
+            margin: hid ? "-6px 0 -8px" : "-6px 0 -2px",
+            height: hid ? 0 : 50, opacity: hid ? 0 : 1,
+            overflow: "hidden", pointerEvents: hid ? "none" : "auto",
+            transition: "height .32s cubic-bezier(.2,.8,.2,1), margin .32s cubic-bezier(.2,.8,.2,1), opacity .18s ease",
+          }}>
+          <Ruler lens={lens} onLens={setLens} flush />
+        </div>
+      ) : (
+        <Ruler lens={lens} onLens={setLens} />
+      )}
       <div className="pt-sub">
-        {lens === "map" ? (
-          // What the picture holds, said once above it — this line does
-          // the legend's counting work, and the topic filter stops being
-          // a scroller of chips (a row you had to swipe to see the end of,
-          // on the one lens whose body now takes the horizontal drag).
-          <div className="pt-meta">
-            <div className="pt-facts" aria-label="What the map holds">
-              <i aria-hidden="true"></i><span><b>{answered}</b> answered</span>
-              <i className="is-open" aria-hidden="true"></i><span><b>{items.length - answered}</b> open</span>
-              <span className="sep">·</span>
-              <span><b>{ties}</b> ties</span>
-            </div>
+        {/* every lens's row leads with the one ⓘ (2026-09-06) — the
+            legends, keys and explainer sentences render in the open lens
+            while it is on. The facts line and the oracle's progress track
+            retired into the instruments (the hub and the kicker say the
+            numbers); the topic filter stays one control, not a scroller
+            of chips, on the lens whose body takes the horizontal drag. */}
+        <div className="pt-meta">
+          <button type="button" className={"pt-info" + (guide ? " is-on" : "")}
+            aria-expanded={guide} aria-label="Legend"
+            onClick={() => setGuide((g) => !g)}>i</button>
+          {lens === "map" ? (
             <label className={"pt-topic" + (topic !== "all" ? " is-on" : "")}>
               <span>{(chips.find((c) => c.id === topic) ?? chips[0]).label}</span>
               <select value={topic} onChange={(e) => setTopic(e.target.value)} aria-label="Topic">
                 {chips.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
             </label>
-          </div>
-        ) : lens === "oracle" ? (
-          <div className="pt-prog">
-            <span className="pt-progtrack"><i style={{ width: `${items.length ? Math.round((answered / items.length) * 100) : 0}%` }}></i></span>
-            <span className="pt-prognum">{answered}<em>/{items.length}</em></span>
-          </div>
-        ) : (
-          <div className="pt-pops h-scroll" role="tablist" aria-label="Population">
-            {pops.map((p) => (
-              <button key={p.id} role="tab" aria-selected={pop === p.id}
-                className={"pt-pop" + (pop === p.id ? " is-on" : "")} onClick={() => setPpop(p.id)}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        )}
+          ) : lens === "people" ? (
+            <div className="pt-pops h-scroll" role="tablist" aria-label="Population">
+              {pops.map((p) => (
+                <button key={p.id} role="tab" aria-selected={pop === p.id}
+                  className={"pt-pop" + (pop === p.id ? " is-on" : "")} onClick={() => setPpop(p.id)}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
       <div key={lens} ref={stackRef} className={(lensSt.dir ? "pt-slide-" + lensSt.dir : "fade-in") + " pt-stack"}>
-        {lens === "map" && <PatternsMap items={items} version={version} topic={topic} />}
-        {lens === "oracle" && <PatternsOracle items={items} version={version} />}
+        {lens === "map" && <PatternsMap items={items} version={version} topic={topic} guide={guide} />}
+        {lens === "oracle" && <PatternsOracle items={items} version={version} guide={guide} />}
         {lens === "people" && (
-          <PatternsPeople items={items} version={version} pop={pop} onOracle={() => setLens("oracle")} />
+          <PatternsPeople items={items} version={version} pop={pop} guide={guide} onOracle={() => setLens("oracle")} />
         )}
       </div>
     </div>

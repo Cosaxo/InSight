@@ -213,11 +213,20 @@ const NAV_ONE = [
   { key: 'mirror',      tab: 'mirror'                },
 ];
 
-// The daily's scale, compact, for the header once the in-flow ruler scrolls away.
-const DOCK_STOPS = [
+// The daily's three modes, compact, for the header once the in-flow ruler
+// scrolls away — and, since the 2026-09-06 design, Patterns runs the same
+// system: its lens dial (short labels; the in-page ruler keeps the long
+// ones) takes the wordmark's place when its ruler folds. One dock slot,
+// two riders (VISION-2026-09-06 §3).
+const DAILY_DOTS = [
   { id: 'world', label: 'World', acc: 'var(--c-around)' },
   { id: 'group', label: 'Circle', acc: 'var(--c-likeness)' },
   { id: 'duo', label: '1v1', acc: 'var(--c-people)' },
+];
+const PT_DIAL = [
+  { id: 'oracle', label: 'Oracle', acc: 'var(--c-today)' },
+  { id: 'map', label: 'Questions', acc: 'var(--c-today)' },
+  { id: 'people', label: 'People', acc: 'var(--c-today)' },
 ];
 
 // Overlays that ship. `test` left this list at D121 with the sit-down
@@ -378,16 +387,22 @@ export function App() {
   const backOv = () => { if (ovBack) { setOv(ovBack); setOvBack(null); } else { setOv(null); } };
   const [dailyKey, setDailyKey] = useState(0);
   const [dailyMode, setDailyMode] = useState('world');
-  // true once the daily feed has scrolled past its ruler — the wordmark steps
-  // aside and the ruler takes the header
+  // true once the open tab's in-flow ruler has scrolled away (the daily's)
+  // or folded (Patterns', which also folds on use) — the wordmark steps
+  // aside and the compact ruler takes the header
   const [docked, setDocked] = useState(false);
+  // which Patterns lens is open — lifted here so the dial can live in the
+  // header (2026-09-06); the tab keeps a fallback state for bare mounts
+  const [ptLens, setPtLens] = useState('map');
   // The `testKind` state that stood here chose which test TestOverlay
   // opened on. D121 removed the overlay: the four core instruments fill
   // from the feed and only from the feed, so there is no test to open.
   // (LogicOverlay stays — it is a sit-down instrument by construction,
   // procedurally generated and server-scored, D57.)
 
-  useEffect(() => { if (tab !== 'track') setDocked(false); }, [tab]);
+  // every arrival starts undocked — two tabs ride the slot now, and a dock
+  // carried across a switch would show the wrong ruler for a beat
+  useEffect(() => { setDocked(false); }, [tab]);
   // The gate closes in exactly one case — the account changed under us
   // (usePatternsTab's purge arm) — and a viewer standing on the tab when
   // it does would otherwise be left on one the bar no longer carries: a
@@ -636,8 +651,11 @@ export function App() {
   useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
 
   // acc-now, quiet-ground and the ruler nav are the v28 winners (§10) —
-  // literals now, not judged alternatives.
-  const appClasses = `app surface-tint acc-now ${t.density || 'regular'} quiet-ground`;
+  // literals now, not judged alternatives. lens-paper joined them at the
+  // 2026-09-06 design (VISION-2026-09-06 §3): the Patterns instrument
+  // draws ink on paper, the default rather than a hook nothing set — the
+  // dusk branch of ui/patterns.css stands as the family's record.
+  const appClasses = `app surface-tint acc-now lens-paper ${t.density || 'regular'} quiet-ground`;
 
   return (
     <IOSDevice width={402} height={874}>
@@ -645,7 +663,7 @@ export function App() {
           the dusk-indigo override retired (the tab is not the daily's, and
           borrowing --c-today said it was); only the mirror still re-accents
           per population. */}
-      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
+      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={docked && (tab === 'track' || tab === 'patterns') ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
 
         <header className="app-header">
           <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { openDeferred(() => { closeAll(); setOv('profile'); }); } }}>
@@ -675,16 +693,39 @@ export function App() {
               </svg>
               <span>In<em>Sight</em></span>
             </div>
-            {tab === 'track' && (
+            {(tab === 'track' || tab === 'patterns') && (
+              // The undocked slot sits under the wordmark's crossfade —
+              // hidden by opacity, out of the tab order (tabIndex -1, the
+              // tree's own discipline; the design drops the management and
+              // ships always-tabbable stops). NOT aria-hidden: the
+              // crossfade needs the ruler present, and the mode tests
+              // drive the daily through these very stops — the standing
+              // contract smoke-nav pins.
               <div className="h-dockslot">
-                <div className="h-dockruler" role="tablist" aria-label="How far this answer reaches">
-                  {DOCK_STOPS.map((s) => (
-                    <button key={s.id} role="tab" aria-selected={dailyMode === s.id} tabIndex={docked ? 0 : -1}
-                      className={"h-dockstop" + (dailyMode === s.id ? ' is-on' : '')}
-                      style={dailyMode === s.id ? { '--dacc': s.acc } : undefined}
-                      onClick={() => { setDailyMode(s.id); setDocked(false); }}>{s.label}</button>
-                  ))}
-                </div>
+                {/* each docked copy wears its in-flow twin's accessible
+                    name — it IS that ruler, docked, and one control with
+                    two names would read as two controls (the design's
+                    "Which daily"/"Which lens" renames stay unported;
+                    smoke-nav pins the daily pair by the shared label) */}
+                {tab === 'track' ? (
+                  <div className="h-dockruler" role="tablist" aria-label="How far this answer reaches">
+                    {DAILY_DOTS.map((s) => (
+                      <button key={s.id} role="tab" aria-selected={dailyMode === s.id} tabIndex={docked ? 0 : -1}
+                        className={"h-dockstop" + (dailyMode === s.id ? ' is-on' : '')}
+                        style={{ '--dacc': s.acc }}
+                        onClick={() => { if (dailyMode !== s.id) HAPTIC.tick(); setDailyMode(s.id); }}>{s.label}</button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-dockruler" role="tablist" aria-label="How wide this lens looks">
+                    {PT_DIAL.map((s) => (
+                      <button key={s.id} role="tab" aria-selected={ptLens === s.id} tabIndex={docked ? 0 : -1}
+                        className={"h-dockstop" + (ptLens === s.id ? ' is-on' : '')}
+                        style={{ '--dacc': s.acc }}
+                        onClick={() => { if (ptLens !== s.id) HAPTIC.tick(); setPtLens(s.id); }}>{s.label}</button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -738,7 +779,7 @@ export function App() {
                   TABS then, so no tap and no swipe can set it (D265). */}
               {tab === 'patterns' && (
                 <React.Suspense fallback={null}>
-                  <PatternsTabLazy />
+                  <PatternsTabLazy lens={ptLens} onLens={setPtLens} ruler onDock={setDocked} />
                 </React.Suspense>
               )}
             </div>

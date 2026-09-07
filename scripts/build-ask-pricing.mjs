@@ -168,7 +168,7 @@ export function buildAskPricing(pricing, sponsoredSrc) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const check = process.argv.includes("--check");
   const pricing = JSON.parse(readFileSync(join(ROOT, SOURCE), "utf8"));
   const sponsoredSrc = readFileSync(join(ROOT, PLACES_SOURCE), "utf8");
@@ -192,7 +192,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       );
       process.exit(1);
     }
-    console.log(`check:ask-pricing OK — ${TARGET} matches the committed card (window ${out.refundDays}d, menu €${out.menu.city} · €${out.menu.country} · €${out.menu.world}, ${out.crowdFree} free places, one card in ${out.paidEvery}).`);
+    console.log(`check:ask-pricing OK — ${TARGET} matches the committed card (window ${out.refundDays}d, menu €${out.menu.city} · €${out.menu.country} · €${out.menu.world}, ${out.crowdFree} free places, a paid card every ${out.paidEvery} questions).`);
   } else {
     writeFileSync(join(ROOT, TARGET), built);
     console.log(`build-ask-pricing: wrote ${TARGET} — window ${out.refundDays}d, menu €${out.menu.city} · €${out.menu.country} · €${out.menu.world}, card of ${out.committed}.`);

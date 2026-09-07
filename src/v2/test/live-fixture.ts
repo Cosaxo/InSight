@@ -49,6 +49,44 @@ type Dict = Record<string, unknown>;
 export interface LiveFixtureOptions {
   /** Cards below the k-floor render no share numeral and no fill (D11). */
   tooSmall?: boolean;
+  /**
+   * Make TODAY's card the ordinal one.
+   *
+   * The deck's rating question is `daily-001` — yesterday — and the live
+   * deck draws today's card only, with no day dots to page back through.
+   * So the rating card's own render was unreachable from any mount test,
+   * which is how its floored arm shipped drawing the first voter's single
+   * answer as a full-height column while the numeral beside it was
+   * withheld. This swaps the two so a case can vote the rating card and
+   * read what it drew.
+   */
+  ratingToday?: boolean;
+  /**
+   * A THIRD DAY in the deck, with the day labels a real deck carries.
+   *
+   * The default deck is two cards both stamped "Today", which is enough
+   * for everything that only asks whether an archive exists — and not
+   * enough for the day dots. Their fallback list of weekday names is
+   * frozen to a Thursday, and it first disagrees with a real label at the
+   * THIRD position (index 2 is "Tue"), so with two cards a dot that
+   * ignored the card's own label and a dot that read it could not be told
+   * apart. Opt-in, so no existing mount gains a card it was not written
+   * for.
+   */
+  deckDays?: boolean;
+  /**
+   * The state one fold LATER: every drawn count zero, but the aggregate
+   * has published — because the only answer in it is the viewer's own,
+   * and `countsFor` subtracts the viewer back out once the trigger has
+   * folded them (data/deck.ts). `noCountsYet` stays FALSE here, since it
+   * is `agg.total > 0` and that total counts the viewer.
+   *
+   * `tooSmall` cannot express it: it sets the counts to zero AND
+   * `noCountsYet` to true, which is the window BEFORE the fold. The gap
+   * between the two is where the daily and the feed printed "100% · 1
+   * vote" over a crowd of nobody, a couple of seconds after the write.
+   */
+  soloVoter?: boolean;
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
   /**
@@ -206,6 +244,17 @@ const dayKey = (n: number) => new Date(Date.now() + n * 86400000).toISOString().
 // to appear nowhere else in the spec layer's demo data.
 export const FEED_PROMPT = "Fixture feed card: does the gate hold?";
 export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
+
+/**
+ * The third day's label under `deckDays`.
+ *
+ * Exported rather than repeated in the test, for the reason
+ * split-stage.test.js is worth reading first: a test holding its own copy
+ * of a fixture constant passes when the fixture moves and the app does not.
+ * Deliberately NOT the weekday the dots' frozen fallback prints at this
+ * position — that is the whole discrimination.
+ */
+export const FIXTURE_THIRD_DAY = "Fri";
 /** The fixture Crossroads story's title — unique, so a query binds to the card. */
 export const PATH_TITLE = "Fixture Crossroads: the forked road";
 
@@ -258,6 +307,7 @@ function liveQuestion(
   id: string,
   prompt: string,
   tooSmall: boolean,
+  soloVoter: boolean,
   // D100's bank fields. Defaulted rather than required so the two
   // existing call sites stay readable, but supplied by both — a fixture
   // where every question shares one branch and no ordinal type would
@@ -282,7 +332,7 @@ function liveQuestion(
     options: ["Yes", "No", "Both"].map((label, i) => ({
       id: String(i),
       label,
-      count: tooSmall ? 0 : DAILY_COUNTS[i],
+      count: (tooSmall || soloVoter) ? 0 : DAILY_COUNTS[i],
       color: OPTION_COLORS[i % OPTION_COLORS.length],
     })),
     comments: [],
@@ -299,6 +349,9 @@ function liveQuestion(
     // still handed the daily a card that said the crowd had published —
     // and the first-voter state on the app's front door was unreachable
     // from any mount test. That is why it went unseen.
+    // NOT `tooSmall || soloVoter`: the whole point of the solo case is
+    // that the aggregate HAS published (its total is 1 — you), so the
+    // floor keyed on this flag alone lifts while every count is zero.
     noCountsYet: tooSmall,
     test: null,
   };
@@ -320,6 +373,7 @@ export interface LiveHandle {
 
 export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const tooSmall = !!opts.tooSmall;
+  const soloVoter = !!opts.soloVoter;
   const aggCounts = opts.aggCounts;
   // One Crossroads story (D136), shaped as the store folds it: eight
   // per-ending counts in PATH_ENDINGS order, and a total. The counts are
@@ -354,7 +408,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const listeners = new Set<() => void>();
   const deck = [
     {
-      ...liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
+      ...liveQuestion(
+        "daily-000", "Would you rather know, or be known?", tooSmall, soloVoter,
+        "Mind", opts.ratingToday ? "rating" : "binary",
+      ),
       // D306: the daily's About sheet leads with a background when the
       // question carries one — opt-in, so the default mount keeps the
       // no-background arm honest.
@@ -363,8 +420,19 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // A second branch and an ordinal type, so the archive the Mirror
     // reads exercises the branch filter and the Scores lens rather than
     // only their "nothing here" arms.
-    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, "Morals", "rating"),
+    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, soloVoter, "Morals", "rating"),
   ];
+  if (opts.deckDays) {
+    // The labels a real deck carries. `liveQuestion` stamps "Today" on
+    // every card, which is fine while nothing reads the label as a claim
+    // about WHICH day — the dots do, and index 2 is where their frozen
+    // fallback ("Tue") parts company with the truth.
+    deck[1] = { ...deck[1], dayLabel: "Yesterday" };
+    deck.push({
+      ...liveQuestion("daily-002", "Does a rule nobody has tested still bind?", tooSmall, soloVoter, "Morals", "binary"),
+      dayLabel: FIXTURE_THIRD_DAY,
+    });
+  }
 
   const social: Dict = {
     todayKey: () => "2026-07-30",
@@ -635,6 +703,18 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // `{}` is "no fit has published", which reads as a closed gate through
     // patternsReady's own defaults rather than through a second branch.
     patternsSignal: () => ({ ...(opts.patterns ?? {}) }),
+    // no answers in the fixture's corpus by default — the evidence is empty
+    // and every device solve stays at the origin, the honest cold state
+    answeredIndex: () => ({}),
+    // the nightly samples (D397): none in the fixture, so a fold falls back
+    // to the live rows the fixture already serves
+    loadVoterSample: async () => {},
+    // the cap's tail (D400): no question in the fixture is near the cap
+    loadOverflow: async () => {},
+    votersOrSample: () => [
+      { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
+      { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
+    ],
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
     // The daily pulse (D139): the fixture mirrors the real pair — the
@@ -657,6 +737,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fold has counted them. The real store returns the option index only
     // while `unaggregated` still holds it.
     pulsePending: () => null,
+    // Same reason, one question wider: the fixture's votes are seeded as
+    // folded, so nothing here is unaggregated and every question answers
+    // null. A case that wants the other side of the fold overrides this
+    // member on the store it was handed, the way feed-insight-round does.
+    votePending: () => null,
     pulseVotes: (baseQid: string) => {
       const out: Record<string, number> = {};
       for (const [aid, v] of Object.entries(votes)) {

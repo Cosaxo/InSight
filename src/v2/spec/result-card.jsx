@@ -11,7 +11,7 @@ import { TypeMark, TypeIndexSheet } from './type-marks.jsx';
 import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
 import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
-import { IS_FRIEND_TYPES, IS_STANDOUT, IS_matchArchetype, IS_nearWhy, IS_profileRarity, IS_typeRuleParts } from './archetype-data.js';
+import { IS_FRIEND_TYPES, IS_STANDOUT, IS_matchArchetype, IS_nearWhy, IS_profileRarity } from './archetype-data.js';
 import { PASSIVE } from './passive-progress.js';
 // What the POPULATION looks like, measured (D157). This card used to read
 // IS_TEST_AVG directly — five authored constants per instrument, drawn as
@@ -80,7 +80,7 @@ function RarityField({ pct, label, color, title }) {
           <span key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: lit.has(i) ? color : `color-mix(in oklch, ${color} 16%, var(--surface-3))` }}></span>
         ))}
       </div>
-      <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: color, whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: color, whiteSpace: 'nowrap' }}>{label}</span>
     </div>
   );
 }
@@ -139,7 +139,7 @@ function TensionSpine({ dims, poles, hues, avg, lead }) {
         const isLead = d.id === leadId;
         const lo = Math.min(50, youP), hi = Math.max(50, youP);
         const t = avg && avg[d.id] != null ? pos(avg[d.id]) : null;
-        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: isLead ? 12.5 : 11.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? rpv2Deep(hue) : 'var(--ink-3)' });
+        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: isLead ? 12.5 : 12, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? rpv2Deep(hue) : 'var(--ink-3)' });
         return (
           <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ ...poleStyle(!right), width: 68, flexShrink: 0, textAlign: 'right' }}>{pp[0]}</span>
@@ -177,7 +177,7 @@ function rpv2Pctl(diff) {
 // over a bounded sample has to name the sample, or it is claiming the
 // whole population from forty people.
 function PctlLine({ testKey, d, diff, src }) {
-  const line = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: -3, marginBottom: 7 };
+  const line = { fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginTop: -3, marginBottom: 7 };
   if (src === 'authored') {
     return Math.abs(diff) >= 6
       ? <div style={line}>{rpv2Pctl(diff)} members</div>
@@ -220,7 +220,7 @@ function DifferRows({ testKey, R, cfg }) {
         const right = d.value >= 50;
         const f0 = cfg.bipolar ? pos(50) : pos(0);
         const fl = Math.min(f0, y), fw = Math.max(f0, y) - Math.min(f0, y);
-        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: 10.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? deep : 'var(--ink-3)', width: 62, flexShrink: 0 });
+        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: 12, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? deep : 'var(--ink-3)', width: 62, flexShrink: 0 });
         return (
           <div key={d.id}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 5 }}>
@@ -304,7 +304,10 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
     const guess = IS_profileRarity(testKey, R.dims);
     return guess ? { ...guess, note: `${guess.label.toLowerCase()} sit as far from average as you` } : null;
   })();
-  const ruleParts = arch ? IS_typeRuleParts(testKey, R.dims, arch.list[you]) : [];
+  // (the "rule" line — "very curious + warm →" — retired with the
+  // 2026-09-06 design, which ships it switched off; deleted here rather
+  // than mirrored as dead code. IS_typeRuleParts itself stays: the paid
+  // report builder still reads it under node — scripts/report-lib.mjs.)
   const near = arch ? arch.list.map((a, i) => ({ a, i, d: fits[i], rms: arch.rmsOf[i] })).filter(x => x.i !== you).sort((m, n) => m.d - n.d).slice(0, 2)
     .map((x, k) => ({ ...x, why: IS_nearWhy(testKey, R.dims, x.a), border: k === 0 && (x.rms - arch.rms) < 5 })) : [];
   // fit strength, in dim points of separation from the runner-up
@@ -352,11 +355,17 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   const hero = <TestRose testKey={testKey} dims={R.dims} animate={true} />;
   const otherAxes = null;
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
-      <div title={pct < 100 ? `${nLeft} more answers to fully map this` : 'fully mapped'} style={{ height: 3, background: `color-mix(in oklch, ${cfg.banner} 14%, var(--surface-3))` }}>
-        <div className="rpv2-bar" style={{ height: '100%', width: `${pct}%`, background: cfg.banner, transformOrigin: 'left' }}></div>
+    // boxless since 2026-09-06 (VISION-2026-09-06 §6.1): the card leaves
+    // its card — no box, no side padding, one hairline under the banner —
+    // and the identity speaks in the serif. `rpv2-page` is the design's
+    // own name for the shape; the styles ride inline like the rest.
+    <div className="rpv2-page" style={{ padding: 0, marginBottom: 14 }}>
+      <div title={pct < 100 ? `${nLeft} more answers to fully map this` : 'fully mapped'} style={{ height: 2, borderRadius: 99, background: `color-mix(in oklch, ${cfg.banner} 14%, var(--surface-3))` }}>
+        <div className="rpv2-bar" style={{ height: '100%', width: `${pct}%`, background: cfg.banner, transformOrigin: 'left', borderRadius: 99 }}></div>
       </div>
-      <div style={{ position: 'relative', overflow: 'hidden', background: `linear-gradient(115deg, color-mix(in oklch, ${cfg.banner} 17%, var(--surface)) 0%, color-mix(in oklch, ${cfg.banner} 6%, var(--surface)) 78%)`, borderBottom: `0.5px solid color-mix(in oklch, ${cfg.banner} 28%, var(--rule))`, padding: '15px 18px 16px' }}>
+      {/* overflow stays on the BANNER: the emblem bleeds off its right
+          edge by design, and the box that used to clip it is gone */}
+      <div style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid var(--rule)', padding: '16px 0 18px' }}>
         <SigEmblem testKey={testKey} sig={arch ? arch.list[you].sig : R.dims.reduce((o, d) => (o[d.id] = d.value, o), {})} color={cfg.banner} people={sameType} typeName={arch ? arch.list[you].name : null} />
         <div style={{ position: 'relative', zIndex: 1, paddingRight: 96 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
@@ -364,46 +373,32 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
               <span className="kicker" style={{ color: cfg.banner, marginBottom: 0 }}>{cfg.kicker}</span>
               <ExplainBtn onClick={() => setExplain(true)} label="What this measures" />
             </span>
-            {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
+            {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
           </div>
-          {ruleParts.length ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginTop: 10 }}>
-              {ruleParts.map((p, i) => {
-                const h = cfg.hues[p.id] != null ? cfg.hues[p.id] : 40;
-                const w = p.band === 'strong' ? 9 : 7, hh = p.band === 'strong' ? 8 : 6;
-                return (
-                  <React.Fragment key={p.id}>
-                    {i ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)' }}>+</span> : null}
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.005em', color: rpv2Deep(h) }}>
-                      {p.band === 'even'
-                        ? <svg width="9" height="8" viewBox="0 0 9 8" style={{ flexShrink: 0 }} role="img" aria-label="average"><rect x="0" y="3" width="9" height="2" fill={rpv2Dot(h)}></rect></svg>
-                        : <svg width={w} height={hh} viewBox={`0 0 ${w} ${hh}`} style={{ flexShrink: 0, transform: p.high ? 'none' : 'rotate(180deg)' }} role="img" aria-label={p.high ? 'above average' : 'below average'}><path d={`M${w / 2} 0 L${w} ${hh} L0 ${hh} Z`} fill={rpv2Dot(h)}></path></svg>}
-                      {p.text}
-                    </span>
-                  </React.Fragment>
-                );
-              })}
-              <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', opacity: 0.7 }}>{'→'}</span>
-            </div>
-          ) : null}
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: ruleParts.length ? 3 : 9 }}>{arch ? arch.list[you].name : archetype}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 31, fontWeight: 500, letterSpacing: '-0.015em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: 10 }}>{arch ? arch.list[you].name : archetype}</div>
           {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
-          {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
+          {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--serif)', fontSize: 16, color: 'var(--ink-2)', marginTop: 7, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
           {rar ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={rar.note + (sameType.length ? ` — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ')}` : '')} /></div> : null}
         </div>
       </div>
-      <div style={{ padding: '10px 16px 16px' }}>
+      <div style={{ padding: '12px 0 4px' }}>
         {hero}
-        <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div>
         {arch ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
-            {near.map(({ a, why, border }) => (
-              <span key={a.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 5px', borderRadius: 999, background: border ? `color-mix(in oklch, ${cfg.banner} 8%, var(--surface))` : 'var(--surface)', border: `0.5px solid ${border ? `color-mix(in oklch, ${cfg.banner} 45%, var(--rule))` : 'var(--rule)'}`, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-                <TypeMark testKey={testKey} name={a.name} size={20} />{a.name}
-                {why ? <span style={{ fontWeight: 500, color: 'var(--ink-3)' }}>if {why}</span> : null}
+          // the near-type chips became one sentence (2026-09-06): what
+          // would make you the other type, said in words, with the whole
+          // index one inline tap away
+          <div style={{ marginTop: 12, fontFamily: 'var(--sans)', fontSize: 13, lineHeight: 1.55, color: 'var(--ink-2)', textWrap: 'pretty' }}>
+            {near.map(({ a, why }, i) => (
+              <span key={a.name}>
+                {i ? ' \u00b7 ' : ''}
+                {why
+                  ? <>{why.charAt(0).toUpperCase() + why.slice(1)} and you’d be <b style={{ color: 'var(--ink)', fontWeight: 700 }}>{a.name}</b></>
+                  : <>Close to <b style={{ color: 'var(--ink)', fontWeight: 700 }}>{a.name}</b></>}
               </span>
             ))}
-            <button className="press" onClick={() => setTypesOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 11px', borderRadius: 999, background: 'none', border: '0.5px solid var(--rule)', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>All {arch.list.length} types <span aria-hidden="true">{'\u203A'}</span></button>
+            {' \u00b7 '}
+            <button className="press tap44" onClick={() => setTypesOpen(true)} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', font: 'inherit', fontWeight: 700, color: cfg.banner, WebkitAppearance: 'none' }}>all {arch.list.length} types {'\u2192'}</button>
           </div>
         ) : null}
         {typesOpen ? <TypeIndexSheet testKey={testKey} onClose={() => setTypesOpen(false)} /> : null}

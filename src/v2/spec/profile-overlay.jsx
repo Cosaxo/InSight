@@ -257,7 +257,10 @@ function ProfileOverlay({ onClose, me }) {
 
   const dlg = useDialog(onClose, 'Your profile');
   return (
-    <div className="overlay surface-tint" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
+    // profile-ov (2026-09-06 §6.3) scopes the paper-section flatten in
+    // styles.css — every .card inside, the gear's account sheet included,
+    // becomes a hairline section rather than a box
+    <div className="overlay surface-tint profile-ov" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>

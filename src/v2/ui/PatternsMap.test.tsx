@@ -102,20 +102,26 @@ describe("the ring at rest", () => {
     // every question is on the rim: two ordinary dots plus the beacon,
     // which draws the third on its own layer so no neighbour buries it
     expect(dots(container).length).toBe(ITEMS.length - 1);
-    expect(screen.getByText(/Answer next/)).toBeTruthy();
+    // the beacon lost its visible words (2026-09-06) but not its name
+    expect(screen.getByLabelText(/Answer next/)).toBeTruthy();
     expect(await screen.findByText(/Strongest link/)).toBeTruthy();
+    // the compact sentence keeps the basis — a count may move, not vanish
     expect(screen.getByText(/counted over the 40 people in both samples/)).toBeTruthy();
-    // the hub counts what you have answered, out of the pool
-    expect(screen.getByText("2 of 3")).toBeTruthy();
+    // the hub counts what you have answered, out of the pool — the serif
+    // figure over its caption since 2026-09-06
+    expect(screen.getByText("2")).toBeTruthy();
+    expect(screen.getByText("OF 3")).toBeTruthy();
   });
 
-  it("draws a chord only for a real link, and the strongest one on the field", async () => {
+  it("draws a chord only for a real link, and nothing written on the field", async () => {
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
     // three questions, each carrying its strongest few, deduped — three
     // pairs, so three chords and not the six a full mesh would draw
     expect(chords(container).length).toBe(3);
-    // and the strongest link is written ON the field, not only under it
-    expect(await screen.findByText(/qa-yes ↔ qb-yes · 78%/)).toBeTruthy();
+    // the strongest link is said once UNDER the field (2026-09-06 deleted
+    // the on-field callout pill — the only <rect> the svg ever carried)
+    expect(await screen.findByText("78%")).toBeTruthy();
+    expect(container.querySelectorAll("svg rect").length).toBe(0);
   });
 
   it("groups the rim by topic, in the palette's own order", () => {
@@ -128,7 +134,7 @@ describe("the ring at rest", () => {
     ];
     const { container } = render(<PatternsMap items={mixed} version={1} topic="all" />);
     // one arc per topic present, never one per question
-    expect(container.querySelectorAll("path[stroke-width='3']").length).toBe(2);
+    expect(container.querySelectorAll(".qm-arc").length).toBe(2);
     // the two `food` dots are neighbours on the rim: their angular gap is
     // one step, and the `sport` dot sits across the group gap from them
     const [qa, qb, qc] = dots(container).map((d) => ({
@@ -139,12 +145,44 @@ describe("the ring at rest", () => {
     // qa and qc share a topic; qb is the other group
     expect(gap(ang(qa), ang(qc))).toBeLessThan(gap(ang(qa), ang(qb)));
   });
+
+  it("puts a short group's name inside the rim, where it cannot overrun its band", () => {
+    // one lone `sport` question among thirty: its band is a sliver, so
+    // the along-the-arc form would overrun it — the 2026-09-06 layout
+    // seats the name INSIDE the rim instead, straight (no rotation),
+    // clear of the hub and short of the dots
+    const many = [
+      ...Array.from({ length: 30 }, (_, i) => item(`f${i}`, vec(0.5 + (i % 3) * 0.1, 0.1), null, "food")),
+      item("qs", vec(1, 0), 1, "sport"),
+    ];
+    const { container } = render(<PatternsMap items={many} version={1} topic="all" />);
+    const lab = [...container.querySelectorAll("svg text")].find((t) => t.textContent === "SPORT");
+    expect(lab, "the short group lost its name entirely").toBeTruthy();
+    expect(lab!.getAttribute("transform"), "an in-rim label must sit straight").toBeNull();
+    const x = Number(lab!.getAttribute("x")), y = Number(lab!.getAttribute("y"));
+    const d = Math.hypot(x - 176, y - 176);
+    expect(d, "the label left the field").toBeLessThan(131);
+    expect(d, "the label sits on the hub").toBeGreaterThan(44);
+  });
+});
+
+describe("the legend behind the guide ⓘ (2026-09-06)", () => {
+  it("renders the key and the link sentence only while the guide is open", () => {
+    const { container, rerender } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    expect(container.querySelector(".ln-key")).toBeNull();
+    rerender(<PatternsMap items={ITEMS} version={1} topic="all" guide={true} />);
+    // the retired title's sentence leads the legend — a basis sentence
+    // may move one tap away, it may not be deleted (D146)
+    expect(screen.getByText(/a line joins two questions when/i)).toBeTruthy();
+    expect(screen.getByText("still open")).toBeTruthy();
+    expect(screen.getByText("tap a dot for its links")).toBeTruthy();
+  });
 });
 
 describe("the beacon (2026-08-26)", () => {
   it("is a tap target of its own — the map's one instruction opens the pick", () => {
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
-    const g = screen.getByText(/Answer next/).closest("g")!;
+    const g = screen.getByLabelText(/Answer next/);
     fireEvent.click(g.querySelector("circle")!); // the invisible hit circle
     expect(screen.getByText("Q qc")).toBeTruthy(); // the open question's card
     expect(screen.getByText("qc-yes")).toBeTruthy(); // with its options offered
@@ -181,7 +219,7 @@ describe("a selection", () => {
   it("offers the options on an open question and votes through LIVE", () => {
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
     // qc is the beacon at rest, so its dot is the one on the top layer
-    fireEvent.click(screen.getByText(/Answer next/).closest("g")!.querySelector("circle")!);
+    fireEvent.click(screen.getByLabelText(/Answer next/).querySelector("circle")!);
     fireEvent.click(screen.getByText("qc-yes"));
     expect(LIVE.vote).toHaveBeenCalledWith("qc", "qc:0");
     expect(container.querySelector(".qm-pop")).toBeTruthy(); // the dot pops where you voted

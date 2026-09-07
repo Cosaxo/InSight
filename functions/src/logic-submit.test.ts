@@ -48,7 +48,7 @@ const fakeDb = {
 
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
-const { logicSubmitV2, LOGIC_DEADLINE_MS, LOGIC_ITEMS, clientItems } = await import("./logic");
+const { logicSubmitV2, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } = await import("./logic");
 const { version: GEN_VERSION } = await import("./logic-gen");
 
 const UID = "u1";
@@ -103,6 +103,35 @@ describe("submitting a logic test", () => {
     const result = (store.get(`v2_users/${UID}`)?.testResults as Doc)?.logic as Doc;
     expect(result?.verified, "a valid submit wrote no verified result").toBe(true);
     expect(typeof result?.pctile).toBe("number");
+  });
+
+  it("counts a sitting that took real time, and never a click-through (D402)", async () => {
+    // The fake's open attempt is submitted the instant it opens, which is
+    // exactly the click-through the effort floor exists for: scored, the
+    // result written, but the histogram untouched and the account still
+    // uncounted — so its next verified attempt is its first counted one.
+    openAttempt();
+    await submit();
+    const rushed = (store.get(`v2_users/${UID}`)?.testResults as Doc)?.logic as Doc;
+    expect(rushed?.verified).toBe(true);
+    expect(store.has("v2_logic_norms_private/global"), "a click-through fed the norms").toBe(false);
+    expect(store.get(ATTEMPT)?.normsCounted, "a click-through marked the account as counted").toBe(false);
+
+    // The control: the same attempt opened long enough ago counts once.
+    store.clear();
+    openAttempt({ startedAtMs: Date.now() - LOGIC_ITEMS * LOGIC_MIN_MS_PER_ITEM - 1000 });
+    await submit();
+    const norms = store.get("v2_logic_norms_private/global") as Doc;
+    expect(norms?.n, "a real sitting did not feed the norms").toBe(1);
+    expect(norms?.gv, "the histogram is not stamped with the generator era").toBe(GEN_VERSION);
+    expect(norms?.items).toBe(LOGIC_ITEMS);
+    expect(store.get(ATTEMPT)?.normsCounted).toBe(true);
+    expect(store.get("v2_logic_norms/global"), "the public mirror was not rewritten").toBeTruthy();
+    const counted = (store.get(`v2_users/${UID}`)?.testResults as Doc)?.logic as Doc;
+    // the likely range travels with the number, on the result as on the wire
+    expect(Array.isArray(counted?.band)).toBe(true);
+    expect((counted?.band as number[])[0]).toBeLessThanOrEqual(counted?.pctile as number);
+    expect((counted?.band as number[])[1]).toBeGreaterThanOrEqual(counted?.pctile as number);
   });
 
   it("refuses a second submit against one attempt", async () => {

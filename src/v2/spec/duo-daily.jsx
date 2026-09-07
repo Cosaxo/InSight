@@ -53,7 +53,7 @@ let DuoDomainsImpl;
             </span>
           </div>
         ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>
           {[['you read them', GOOD], [themName + ' reads you', themColor]].map(([t, c]) => (
             <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: c }}></span>{t}
@@ -86,7 +86,7 @@ let DuoDomainsImpl;
                   ? <span style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: ACC, border: '2px solid var(--surface)' }}></span>
                   : null}
               </span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: sel ? 800 : 600, color: sel ? 'var(--ink)' : 'var(--ink-3)' }}>{first(p)}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: sel ? 800 : 600, color: sel ? 'var(--ink)' : 'var(--ink-3)' }}>{first(p)}</span>
             </button>
           );
         })}
@@ -94,7 +94,7 @@ let DuoDomainsImpl;
           <button onClick={onAdd} aria-label="Start a new 1v1"
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 7px', WebkitAppearance: 'none', flexShrink: 0 }}>
             <span style={{ width: 38, height: 38, margin: 2, borderRadius: '50%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px dashed color-mix(in oklch, var(--ink-3) 55%, transparent)', color: 'var(--ink-2)', fontSize: 19, fontWeight: 600, lineHeight: 1 }}>+</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>New</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>New</span>
           </button>
         )}
       </div>
@@ -115,8 +115,12 @@ let DuoDomainsImpl;
     const romantic = mode === 'romantic';
     const tint = romantic ? ROMANCE : ACC;
 
+    // serif since 2026-09-06 (§6.3): the question is the app's voice, and the
+    // 09-02 voice reaches the duel prompts last. Balance, not pretty: a duel
+    // prompt is 1-3 lines and centred in its beat, where a ragged last word
+    // reads as a typo.
     const prompt = (s) => (
-      <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 25, lineHeight: 1.12, letterSpacing: -0.5, textWrap: 'pretty' }}>{s}</div>
+      <div style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 27, lineHeight: 1.14, letterSpacing: '-0.01em', textWrap: 'balance' }}>{s}</div>
     );
     const optBtn = (label, onClick, lead) => (
       <button key={label} className="press" onClick={onClick} style={{
@@ -152,7 +156,7 @@ let DuoDomainsImpl;
         <span style={{ fontWeight: 800, fontSize: 14.5 }}>{first(p)}</span>
         {romantic && <span aria-label="romantic mode" style={{ width: 7, height: 7, borderRadius: '50%', background: ROMANCE, flexShrink: 0 }}></span>}
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {p.streak > 0 && <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{p.streak}-day run</span>}
+          {p.streak > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>{p.streak}-day run</span>}
           {!invited && (
             <button className="tap44" aria-label={'Options for ' + first(p)} aria-expanded={menu} onClick={() => setMenu((v) => !v)}
               style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 17, fontWeight: 800, padding: '0 3px', lineHeight: 1, WebkitAppearance: 'none' }}>{'\u22ef'}</button>
@@ -201,7 +205,7 @@ let DuoDomainsImpl;
               <span className="kicker" style={{ marginBottom: 0 }}>Yesterday {'\u00b7'} revealed</span>
               {revealRow('you read ' + first(p), yday.readRight, yday.q.options[yday.theirAns], yday.q.options[yday.myGuess], <GDAv p={p} size={20}></GDAv>)}
               {revealRow(first(p) + ' read you', yday.byRight, yday.q.options[yday.myAns], yday.q.options[yday.theirGuess],
-                <span style={{ height: 20, padding: '0 7px', borderRadius: 999, display: 'flex', alignItems: 'center', fontWeight: 800, fontSize: 10, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>)}
+                <span style={{ height: 20, padding: '0 7px', borderRadius: 999, display: 'flex', alignItems: 'center', fontWeight: 800, fontSize: 12, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>)}
             </div>
           )}
           {prompt(today.q.prompt)}
@@ -232,7 +236,7 @@ let DuoDomainsImpl;
           {prompt(today.q.prompt)}
           <div style={{ ...col(0), border: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .05s both' }}>
-              <span style={{ flexShrink: 0, padding: '3px 9px', borderRadius: 999, fontWeight: 800, fontSize: 10.5, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>
+              <span style={{ flexShrink: 0, padding: '3px 9px', borderRadius: 999, fontWeight: 800, fontSize: 12, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>
               {/* value sits next to its label — 200px of gap between them made
                   the pair impossible to read as one statement */}
               <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>said</span>
@@ -401,7 +405,7 @@ let DuoDomainsImpl;
     return (
       <div ref={rootRef} style={col(10)}>
         <div style={{ display: 'flex', alignItems: 'baseline', padding: '0 2px', scrollSnapAlign: 'start' }}>
-          {nLeft > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
+          {nLeft > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
         </div>
         <div ref={railRef} style={{ position: 'sticky', top: 0, zIndex: 6, margin: '-1px -16px 0', padding: '1px 10px 0', background: 'var(--surface-a, var(--surface))', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
           <DuoRail ps={ordered} cur={cur} onPick={jump} onAdd={() => setAddOpen(true)}></DuoRail>
@@ -426,7 +430,7 @@ let DuoDomainsImpl;
                     <GDAv p={p} size={34} plain></GDAv>
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
                       <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, color: 'var(--ink)' }}>{p.name}</span>
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{p.rel}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{p.rel}</span>
                     </span>
                     <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: 'var(--surface)', background: 'var(--ink)', padding: '6px 14px', borderRadius: 999 }}>Invite</span>
                   </button>

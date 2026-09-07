@@ -298,3 +298,16 @@ nearness anywhere on the surface; any change to the account panel's
 public-answers sentence or `web/privacy.html`. And nothing here touches
 the corpus: core only, two options only — `PATTERNS_QIDS` stays the one
 list (D161).
+
+> **The last sentence moved on 2026-09-06 (D395, D396), on the owner's
+> call.** Core only still holds — every instrument item is served to
+> everyone, so D161's sample-bias argument is satisfied — but "two options
+> only" describes the ONLINE engine's rows now, not the corpus. The
+> candidate engine fits every option-shaped core item (ordinal and
+> one-hot rows beside the two-option ones), and this lens's own dot is
+> solved from the viewer's answers of every kind through `foldPeople`'s
+> `viewerObs`. Strangers are still placed from the fetched two-option
+> lists, because a voter row is one option index on one two-option
+> question; the fetch set, the floors and the drawn crowd are unchanged.
+> `PATTERNS_QIDS` is still one list — the online engine's, and the
+> scorecard's common currency — beside `PATTERNS_ITEMS`, the wider one.

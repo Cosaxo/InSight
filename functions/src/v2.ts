@@ -41,6 +41,13 @@ import {
   catalogEntityKey,
   foldAnchors,
   foldCanonAnchors,
+  type OnBucketCap,
+  type BucketTail,
+  type OverflowShards,
+  capBoundShards,
+  overflowTail,
+  overflowDocId,
+  retargetTail,
   canonTopN,
   foldEditFlow,
   retargetAnchors,
@@ -152,10 +159,96 @@ export function breakdownFor(
   storedBy: BreakdownCounts | null | undefined,
   anchors: unknown,
   optionIdx: number,
+  onCap?: OnBucketCap,
+  tail?: BucketTail,
 ): BreakdownCounts {
   const by: BreakdownCounts = storedBy || {};
-  foldAnchors(by, anchors, optionIdx);
+  foldAnchors(by, anchors, optionIdx, onCap, tail);
   return by;
+}
+
+/** The tail's document for one shard of one question (D400). */
+export const overflowRef = (db: Firestore, qid: string, shard: number) =>
+  db.collection("v2_agg_overflow").doc(overflowDocId(qid, shard));
+
+/**
+ * Read the shards this answer's fold may consult — only where a dimension
+ * is at the cap and lacks the bucket (pure.ts capBoundShards), so the hot
+ * path pays nothing until a tail exists. One `getAll`, inside the
+ * transaction, before any write.
+ */
+export async function readOverflowShards(
+  tx: Transaction,
+  db: Firestore,
+  qid: string,
+  shardIds: readonly number[],
+): Promise<OverflowShards> {
+  const shards: OverflowShards = new Map();
+  if (!shardIds.length) return shards;
+  const snaps = await tx.getAll(...shardIds.map((s) => overflowRef(db, qid, s)));
+  snaps.forEach((snap, i) => {
+    shards.set(shardIds[i], (snap.exists ? (snap.data() as BreakdownCounts) : {}));
+  });
+  return shards;
+}
+
+/** Counts → `FieldValue.increment`s, nested as the shard document is, so
+ * the write is a blind merge: a victim's cell moves into a shard nobody
+ * read, and two answers landing in one shard commute. */
+export function overflowIncrements(counts: BreakdownCounts): Record<string, Record<string, Record<string, FieldValue>>> {
+  const out: Record<string, Record<string, Record<string, FieldValue>>> = {};
+  for (const [dim, buckets] of Object.entries(counts)) {
+    out[dim] = {};
+    for (const [bucket, cell] of Object.entries(buckets)) {
+      out[dim][bucket] = {};
+      for (const [k, n] of Object.entries(cell)) out[dim][bucket][k] = FieldValue.increment(n);
+    }
+  }
+  return out;
+}
+
+/** One thing the bucket cap did while folding an answer — see
+ * `OnBucketCap` in pure.ts for the two kinds. */
+export interface BucketCapEvent {
+  kind: "evicted" | "refused";
+  dim: string;
+  bucket: string;
+  total: number;
+}
+
+/**
+ * The cap's discards, as log lines the alert chain can count (D398).
+ *
+ * `BREAKDOWN_MAX_BUCKETS` bounds the breakdown document (D7's growth
+ * arithmetic) and the bound has two silent outcomes — a sub-floor bucket
+ * evicted to admit a newcomer, or the newcomer refused because every slot
+ * is published — both of which discard an answer's cohort count without a
+ * word. Dormant at launch scale; the first daily question with answers
+ * from 25 cities wakes it, and ALGORITHM-REFLECTION §4.4 builds the
+ * overflow document on the evidence of its FIRST firing rather than on a
+ * guess. So the line exists to be counted: `metric: "agg_evict"` is what
+ * `monitoring/onV2AnswerCreated-evictions.json` thresholds, and `kind`,
+ * `dim` and `bucket` are what an operator then wants to know.
+ *
+ * Called AFTER the transaction commits, with the events of the attempt
+ * that committed. Logging from inside the body would count one line per
+ * attempt on a contended answer, and the metric would read contention
+ * rather than the cap.
+ */
+export function logBucketCaps(qid: string, events: readonly BucketCapEvent[]): void {
+  for (const e of events) {
+    const what = e.kind === "evicted"
+      ? `evicted ${e.dim}/${e.bucket} (${e.total} answers)`
+      : `refused ${e.dim}/${e.bucket}`;
+    logger.warn(`[v2] breakdown cap on ${qid} — ${what}`, {
+      metric: "agg_evict",
+      qid,
+      kind: e.kind,
+      dim: e.dim,
+      bucket: e.bucket,
+      total: e.total,
+    });
+  }
 }
 
 // How long a ledger entry lives (expireAt powers the Firestore TTL policy —
@@ -190,11 +283,29 @@ export const LEDGER_RETENTION_DAYS = 90;
 // account (index.ts phase 4c). Absent on catalog entries — the fit's
 // pool is two-option questions only — and an edit's entry carries the
 // NEW side, so a refit leans toward what the person now says.
-function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number) {
+//
+// `anchors` joined for the nightly voter samples (D397): the sample a
+// device reads instead of querying two hundred answer documents carries
+// each voter's FROZEN cohort chips (D8), and the ledger is the one place
+// the sample builder can take them from without a second read per entry.
+// The snapshot the answer itself carries, string values only; public like
+// the answer (D98); same TTL, same erasure. Absent on catalog entries.
+function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.length <= 80) out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown) {
+  const a = ledgerAnchors(anchors);
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
+    ...(a ? { anchors: a } : {}),
     // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
     // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
     // byte-identical in shape to the create it supersedes — which is
@@ -744,7 +855,11 @@ export const onV2AnswerCreated = onDocumentCreated(
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      // The cap's discards from the attempt that commits — reset per
+      // attempt, logged once the transaction returns (logBucketCaps).
+      const capped: BucketCapEvent[] = [];
       await runAggTransaction(db, qid, async (tx) => {
+        capped.length = 0;
         // Batched for the same reason as the vote path below: three
         // sequential round trips inside the transaction is three times the
         // lock window on the contended per-qid document.
@@ -777,7 +892,9 @@ export const onV2AnswerCreated = onDocumentCreated(
         // Every catalog question slices too (D98 — see the vote path).
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
-        foldCanonAnchors(entBy, snap.get("anchors"), key);
+        foldCanonAnchors(entBy, snap.get("anchors"), key, (kind, dim, bucket, total) => {
+          capped.push({ kind, dim, bucket, total });
+        });
         // The leaderboard, cut to a DISPLAY size rather than a floor.
         // canonTopN keeps the N biggest entities and folds the remainder
         // into `rest`; it used to also drop every entity under the
@@ -807,6 +924,7 @@ export const onV2AnswerCreated = onDocumentCreated(
           { merge: false },
         );
       });
+      logBucketCaps(qid, capped);
       return;
     }
     // Rank answers carry `order`, never `optionIdx` (D233) — the item
@@ -867,7 +985,11 @@ export const onV2AnswerCreated = onDocumentCreated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    // The cap's discards from the attempt that commits — reset per attempt,
+    // logged once the transaction returns (logBucketCaps).
+    const capped: BucketCapEvent[] = [];
     await runAggTransaction(db, qid, async (tx) => {
+      capped.length = 0;
       // ONE aggregate document, and it is the published one. See "the
       // private mirror is gone" in the header: since D98 the private doc
       // held byte-identical bytes to this one on this path, so the write
@@ -911,18 +1033,28 @@ export const onV2AnswerCreated = onDocumentCreated(
       // Every question slices since D98 — there is no political carve-out
       // and no per-cell floor. The breakdown folded here is the breakdown
       // published, whole.
+      // The tail (D400): the shards this fold may need, read only where a
+      // dimension is at the cap and lacks this answer's bucket — never
+      // before the cap, so the ordinary answer still pays the one getAll
+      // above and nothing more. What the cap then evicts or refuses goes
+      // to the tail as blind increments after the hot write below.
+      const storedBy = agg.exists ? (agg.get("by") as BreakdownCounts) : null;
+      const anchors = snap.get("anchors");
+      const flow = overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
       const by = breakdownFor(
         qid,
-        agg.exists ? (agg.get("by") as BreakdownCounts) : null,
-        snap.get("anchors"),
+        storedBy,
+        anchors,
         optionIdx,
+        (kind, dim, bucket, total) => { capped.push({ kind, dim, bucket, total }); },
+        flow.tail,
       );
       // The edit-flow matrix (D226) rides these same docs, and this write
       // replaces the doc whole (merge: false) — so carry it, or the first
       // create after an edit erases the flows. Emit-when-set: the common,
       // never-edited question's doc gains no key.
       const edits = agg.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx, undefined, snap.get("anchors")));
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -943,7 +1075,15 @@ export const onV2AnswerCreated = onDocumentCreated(
       // remedy and is now taken; what is left when this bites is sharding,
       // not a floor.
       tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
+      // The tail's own writes — one merge per shard touched, increments
+      // only. Dormant until a dimension reaches the cap; from then on, +1
+      // write per answer whose city or country the hot document cannot
+      // hold (COSTS.md's row).
+      for (const [shard, inc] of flow.pending) {
+        tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
+      }
     });
+    logBucketCaps(qid, capped);
   },
 );
 
@@ -1005,13 +1145,25 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // churn means the old vote is no longer represented (pure.ts has the
       // accounting). Bucket totals never move.
       retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
+      // …and the same move inside the tail (D400), for a bucket the hot
+      // map does not hold: its shard is read (only then — capBoundShards
+      // is empty for a bucket in the hot map or a dimension under the
+      // cap) and the -old/+new lands as increments under retargetAnchors'
+      // own skip rule. Read here, before the writes below, as a
+      // transaction requires.
+      const tailMoves = retargetTail(
+        await readOverflowShards(tx, db, qid, capBoundShards(by, after.get("anchors"))),
+        after.get("anchors"),
+        fromIdx,
+        toIdx,
+      );
       // The move itself is a published fact (D226): one cell of the
       // from → to matrix, folded after the retry guard above so a
       // deferred edit counts once, on the delivery that actually moves.
       const edits: EditFlow =
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone
@@ -1019,6 +1171,9 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // their mind. With no cadence there is no stream to hide in and
       // nothing to hide from: the answer itself is readable.
       tx.set(pubRef, { counts, total, by, edits }, { merge: false });
+      for (const [shard, inc] of tailMoves) {
+        tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
+      }
     });
   },
 );

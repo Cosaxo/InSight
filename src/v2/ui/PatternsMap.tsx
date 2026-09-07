@@ -4,16 +4,28 @@
 // question-map.jsx (design/standalone-2026-09-02/); the engine stayed
 // data/patternsMap.ts over the REAL published loadings.
 //
-// What the picture says, in plain words (and the card says them too):
+// What the picture says, in plain words (the guide ⓘ says them too):
 //   dot        · solid = you answered it, hollow = still open — one size
-//   band       · the coloured arc outside the rim names the topic
+//   band       · the coloured arc outside the rim names the topic; a
+//                short group's name sits INSIDE the rim instead, straight,
+//                where it can never overrun its own band (2026-09-06)
 //   chord      · the two answers go together; dashed = they go opposite
 //                ways; thicker = stronger. At rest only the strongest ten
-//                speak, the rest whisper — every link at once is a hairball.
-//   callout    · the strongest link is written on the field itself
-//   hub        · how many of the pool you have answered
+//                speak, the rest whisper at a breath — every link at once
+//                is a hairball.
+//   hub        · how many of the pool you have answered, in the serif
 // Tap a dot and the field dims to that question's own three ties; the card
 // underneath says each one out loud: "Pick this — and 78% pick that."
+//
+// PAPER, AND CHROME INTO WORDS (2026-09-06, VISION-2026-09-06 §2.1): the
+// card lost its box and its standing title/legend — the legend renders
+// under the tab's one ⓘ (the `guide` prop), reworded but with every basis
+// sentence intact (D146: a claim may move one tap away, never be
+// deleted). The on-field callout pill and the beacon's text label went
+// with them — the beacon keeps its pulse and its tap, labelled for a
+// screen reader; the strongest link is said once, under the field. The
+// ring's arcs, chords and dots draw themselves in as ink (patterns.css,
+// the ink-in family).
 //
 // WHAT THE RING STOPS SAYING, because a port that quietly kept the old
 // sentence would be lying: on the plane this replaced, POSITION was a claim
@@ -60,7 +72,15 @@ const f1 = (v: number): number => Math.round(v * 10) / 10;
 
 interface RimPoint { i: number; a: number; x: number; y: number }
 interface RimArc { cat: string; h: number; d: string }
-interface RimLabel { cat: string; h: number; x: number; y: number; tr: string; text: string; fits: boolean }
+interface RimLabel {
+  cat: string; h: number; x: number; y: number;
+  /** Along-the-arc labels rotate; in-rim labels sit straight. */
+  tr?: string;
+  /** In-rim labels anchor toward the hub side; arc labels centre. */
+  anchor?: "start" | "middle" | "end";
+  text: string;
+  fits: boolean;
+}
 
 /**
  * The ring: questions grouped by topic (WORLD_TOPICS order, unknown cats
@@ -83,6 +103,7 @@ function ringOf(items: readonly PoolItem[]): { pts: RimPoint[]; arcs: RimArc[]; 
   const pts = new Array<RimPoint>(items.length);
   const arcs: RimArc[] = [];
   const labels: RimLabel[] = [];
+  const lblBoxes: { x0: number; x1: number; y0: number; y1: number }[] = [];
   let ang = -Math.PI / 2 + (step * GAP) / 2;
   for (const g of groups) {
     const a0 = ang;
@@ -99,42 +120,80 @@ function ringOf(items: readonly PoolItem[]): { pts: RimPoint[]; arcs: RimArc[]; 
     const big = a1 - a0 + step * 0.9 > Math.PI ? 1 : 0;
     arcs.push({ cat: g.cat, h, d: `M ${sx} ${sy} A ${RA} ${RA} 0 ${big} 1 ${ex} ${ey}` });
     const mid = (a0 + a1) / 2;
-    const [lx, ly] = pt(RL, mid);
-    const deg = (mid * 180) / Math.PI + (Math.sin(mid) < 0 ? 90 : -90);
-    const text = catLabel(g.cat).toUpperCase();
-    labels.push({
-      cat: g.cat, h, x: lx, y: ly,
-      tr: `rotate(${deg.toFixed(1)} ${lx} ${ly})`,
-      text,
-      // a short group gets no arc label — it would overrun its own band
-      fits: g.idx.length * step * RL > text.length * 7.6 + 8,
-    });
+    // A long group carries its name along the band. A short one would
+    // overrun its band, so its name sits INSIDE the rim, straight,
+    // pointing at the hub — where it can never leave the field or cross
+    // the dots (2026-09-06). Full name first, then the first word; four
+    // radii before giving up; a neighbour's placed label is a refusal.
+    const full = catLabel(g.cat).toUpperCase();
+    if (g.idx.length * step * RL > full.length * 7.6 + 8) {
+      const [lx, ly] = pt(RL, mid);
+      const deg = (mid * 180) / Math.PI + (Math.sin(mid) < 0 ? 90 : -90);
+      labels.push({
+        cat: g.cat, h, x: lx, y: ly,
+        tr: `rotate(${deg.toFixed(1)} ${lx} ${ly})`,
+        anchor: "middle", text: full, fits: true,
+      });
+      continue;
+    }
+    const cs = Math.cos(mid);
+    const anchor: "start" | "middle" | "end" = Math.abs(cs) < 0.35 ? "middle" : cs > 0 ? "end" : "start";
+    const words = full.split(/[\s&]+/).filter(Boolean);
+    const short = words[0].length >= 4 ? words[0] : words.slice(0, 2).join(" ");
+    const cands = [...new Set(anchor === "middle" ? [short, full, words[0]] : [full, short, words[0]])];
+    let hit: { x: number; y: number; box: { x0: number; x1: number; y0: number; y1: number }; text: string } | null = null;
+    outer: for (const text of cands) {
+      const w = text.length * 6.6 + 2;
+      for (const rr of anchor === "middle" ? [R - 26, R - 40, R - 54, R - 68] : [R - 14, R - 28, R - 42, R - 56]) {
+        const [x, y] = pt(rr, mid);
+        const x0 = anchor === "start" ? x : anchor === "end" ? x - w : x - w / 2;
+        const box = { x0, x1: x0 + w, y0: y - 7, y1: y + 7 };
+        const dx = Math.max(box.x0 - C, 0, C - box.x1);
+        const dy = Math.max(box.y0 - C, 0, C - box.y1);
+        if (Math.hypot(dx, dy) < 52) continue; // would touch the hub
+        const far = Math.max(...[[box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1]]
+          .map(([px, py]) => Math.hypot(px - C, py - C)));
+        if (far > R - 8) continue; // would reach the dots
+        // the label must sit in its own group's wedge, never over a
+        // neighbour's dots
+        let dA = Math.atan2((box.y0 + box.y1) / 2 - C, (box.x0 + box.x1) / 2 - C) - mid;
+        dA = Math.atan2(Math.sin(dA), Math.cos(dA));
+        if (Math.abs(dA) > (a1 - a0) / 2 + 0.25) continue;
+        if (box.x0 < 2 || box.x1 > S - 2 || box.y0 < 2 || box.y1 > S - 2) continue;
+        if (lblBoxes.some((b) => box.x0 < b.x1 + 4 && box.x1 > b.x0 - 4 && box.y0 < b.y1 + 2 && box.y1 > b.y0 - 2)) continue;
+        hit = { x: f1(x), y: f1(y), box, text };
+        break outer;
+      }
+    }
+    if (hit) {
+      lblBoxes.push(hit.box);
+      labels.push({ cat: g.cat, h, x: hit.x, y: hit.y, anchor, text: hit.text, fits: true });
+    } else {
+      labels.push({ cat: g.cat, h, x: 0, y: 0, anchor, text: full, fits: false });
+    }
   }
   return { pts, arcs, labels, step };
 }
 
-/** A chord bundled toward the hub; `chordAt` walks it for the callout. */
+/** A chord bundled toward the hub. (Its `chordAt` walker went with the
+ * on-field callout, 2026-09-06 — nothing is written on a chord now.) */
 const chordD = (A: RimPoint, B: RimPoint): { d: string; qx: number; qy: number } => {
   const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, k = 0.2;
   const qx = C + (mx - C) * k, qy = C + (my - C) * k;
   return { d: `M ${A.x} ${A.y} Q ${f1(qx)} ${f1(qy)} ${B.x} ${B.y}`, qx, qy };
-};
-const chordAt = (A: RimPoint, B: RimPoint, t: number): { x: number; y: number } => {
-  const c = chordD(A, B);
-  return {
-    x: (1 - t) * (1 - t) * A.x + 2 * (1 - t) * t * c.qx + t * t * B.x,
-    y: (1 - t) * (1 - t) * A.y + 2 * (1 - t) * t * c.qy + t * t * B.y,
-  };
 };
 
 /** The viewer's option index on an item, from the encoded ±1. */
 const mineIdx = (p: PoolItem | undefined): 0 | 1 | null =>
   !p || p.mine == null ? null : p.mine === 1 ? 0 : 1;
 
-export default function PatternsMap({ items, version, topic }: {
+export default function PatternsMap({ items, version, topic, guide = false }: {
   items: PoolItem[];
   version: number;
   topic: string;
+  /** The tab's one ⓘ — the legend renders only while it is open
+   * (VISION-2026-09-06 §2.4). */
+  guide?: boolean;
 }): React.ReactElement {
   const [sel, setSel] = React.useState<number | null>(null);
   const [burst, setBurst] = React.useState<{ i: number; t: number } | null>(null);
@@ -224,25 +283,13 @@ export default function PatternsMap({ items, version, topic }: {
     );
   }
 
-  // the strongest link, written on the field itself — placed a quarter of
-  // the way along its own chord so the pill never sits on the rim
-  const callout = chain && top ? (() => {
-    const A = RG.pts[top.i], B = RG.pts[top.j];
-    if (!A || !B) return null;
-    const P = chordAt(A, B, 0.26);
-    const text = `${chain.pick} ↔ ${chain.then} · ${chain.pct}%`;
-    return { x: f1(P.x), y: f1(P.y), w: Math.min(150, text.length * 6.1 + 18), text };
-  })() : null;
-
   return (
     <>
-      <div className="card ln-card">
-        <div className="ln-head">
-          <div className="ln-title">How your questions connect</div>
-          <div className="ln-sub">
-            Every question is a dot. A line joins two questions when how people answer one predicts how they answer the other. Thicker line = stronger link.
-          </div>
-        </div>
+      <div className="ln-card">
+        {/* the title, the one-sentence explainer and the on-field callout
+            pill all retired (2026-09-06): the sentence lives in the guide
+            legend below, the strongest link is said once under the field,
+            and the card lost its box — the field sits on the page */}
         <div className="ln-field">
           <svg className="ln-svg" viewBox={`0 0 ${S} ${S}`} role="img"
             aria-label="Every question on a ring, grouped by topic; lines join questions whose answers predict each other"
@@ -258,33 +305,37 @@ export default function PatternsMap({ items, version, topic }: {
                 return (
                   <path key={`${l.i}-${l.j}${bt}`} d={chordD(a, b).d} fill="none"
                     pathLength={draw ? 1 : undefined}
-                    className={draw ? "qm-drawin" : undefined}
+                    className={draw ? "qm-drawin" : fig ? "qm-fig" : undefined}
                     style={draw ? { animationDelay: `${k * 0.07}s` } : undefined}
-                    stroke={lit && selHue != null ? dotCol(selHue) : "var(--ln-line)"}
-                    strokeWidth={lit ? 1.4 + Math.abs(l.r) * 2.6 : fig ? 1.2 + Math.abs(l.r) * 1.6 : 0.8}
+                    stroke={lit && selHue != null ? dotCol(selHue) : "var(--ln-ink)"}
+                    strokeWidth={lit ? 1.4 + Math.abs(l.r) * 2.6 : fig ? 1.1 + Math.abs(l.r) * 1.2 : 0.8}
                     strokeDasharray={l.r < 0 ? "2.5 3.5" : undefined}
                     strokeLinecap="round"
-                    opacity={lit ? 0.85 : fig ? 0.6 : 0.13}></path>
+                    opacity={lit ? 0.85 : fig ? 0.5 : 0.05}></path>
                 );
               })}
             </g>
             <g>
-              {RG.arcs.map((a) => (
-                <path key={a.cat} d={a.d} fill="none" stroke={arcCol(a.h)} strokeWidth="3" strokeLinecap="round"
+              {RG.arcs.map((a, k) => (
+                <path key={a.cat} className="qm-arc" pathLength={1} style={{ animationDelay: `${k * 0.05}s` }}
+                  d={a.d} fill="none" stroke={arcCol(a.h)} strokeWidth="4" strokeLinecap="round"
                   opacity={topic === "all" || topic === a.cat ? 0.92 : 0.28}></path>
               ))}
               {RG.labels.map((l) => (l.fits ? (
-                <text key={l.cat} x={l.x} y={l.y} transform={l.tr} fill={labCol(l.h)}
-                  textAnchor="middle" dominantBaseline="middle"
+                <text key={l.cat} className="qm-ink" x={l.x} y={l.y} transform={l.tr} fill={labCol(l.h)}
+                  textAnchor={l.anchor ?? "middle"} dominantBaseline="middle"
                   opacity={topic === "all" || topic === l.cat ? 1 : 0.35}
-                  style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".11em" }}>{l.text}</text>
+                  style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".07em" }}>{l.text}</text>
               ) : null))}
             </g>
-            <circle cx={C} cy={C} r="42" fill="var(--ln-hub)" stroke="var(--ln-ring)" strokeWidth="1"></circle>
-            <text x={C} y={C - 2} fill="var(--ln-ink)" textAnchor="middle"
-              style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>{nAns} of {items.length}</text>
-            <text x={C} y={C + 14} fill="var(--ln-sub)" textAnchor="middle"
-              style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".1em" }}>ANSWERED</text>
+            {/* the hub speaks in the serif (2026-09-06) — the figure IS the
+                progress line the sub-row used to carry, so it earns the
+                prompt voice; no ring stroke, the paper does the framing */}
+            <circle className="qm-ink" cx={C} cy={C} r="44" fill="var(--ln-hub)"></circle>
+            <text className="qm-ink" x={C} y={C + 4} fill="var(--ln-ink)" textAnchor="middle"
+              style={{ fontSize: 36, fontWeight: 500, letterSpacing: "-0.02em", fontFamily: "var(--serif)" }}>{nAns}</text>
+            <text className="qm-ink" x={C} y={C + 22} fill="var(--ln-sub)" textAnchor="middle"
+              style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".14em" }}>OF {items.length}</text>
             <g>
               {RG.pts.map((p) => {
                 if (!p) return null;
@@ -294,7 +345,14 @@ export default function PatternsMap({ items, version, topic }: {
                 const dim = sel != null ? i !== sel && !(near?.has(i) ?? false) : !inTopic(i);
                 const col = dotCol(catHue(i));
                 return (
-                  <g key={items[i].q.id} onClick={(e) => { e.stopPropagation(); pick(i); }} style={{ cursor: "pointer" }}>
+                  <g key={items[i].q.id} className="qm-dot"
+                    onClick={(e) => { e.stopPropagation(); pick(i); }}
+                    style={{
+                      cursor: "pointer",
+                      // ink-in, staggered by rim angle — the ring draws
+                      // itself clockwise from the top
+                      animationDelay: `${0.1 + (((p.a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 0.5}s`,
+                    }}>
                     <circle cx={p.x} cy={p.y} r="11" fill="transparent"></circle>
                     {i === sel && <circle cx={p.x} cy={p.y} r="8" fill="none" stroke={col} strokeWidth="1.4" opacity="0.7"></circle>}
                     {burst && burst.i === i && <circle key={`b${burst.t}`} className="qm-bloom" cx={p.x} cy={p.y} r="9" fill="none" stroke={col} strokeWidth="2"></circle>}
@@ -308,46 +366,41 @@ export default function PatternsMap({ items, version, topic }: {
                 );
               })}
             </g>
-            {callout && (
-              <g style={{ pointerEvents: "none" }}>
-                <rect x={f1(callout.x - callout.w / 2)} y={callout.y - 10} width={callout.w} height="20" rx="10"
-                  fill="var(--ln-hub)" stroke="var(--ln-ring)" strokeWidth="1"></rect>
-                <text x={callout.x} y={callout.y} fill="var(--ln-ink)" textAnchor="middle" dominantBaseline="central"
-                  style={{ fontSize: 10.5, fontWeight: 800 }}>{callout.text}</text>
-              </g>
-            )}
-            {/* the next-up beacon rides its own top layer (2026-08-24) — drawn
-                after every dot so neither the ring nor the label is ever
-                buried by a neighbour. Since 2026-08-26 it is also a tap
-                target of its own: the map's one instruction should be its
-                easiest button. */}
+            {/* the next-up beacon rides its own top layer (2026-08-24) —
+                drawn after every dot so the ring is never buried by a
+                neighbour, and a tap target of its own since 2026-08-26.
+                Its TEXT label went with the quieting (2026-09-06); the
+                pulse is the instruction now, so the label moves onto the
+                accessible name — a control that lost its visible words
+                may not lose its name too. */}
             {nxt != null && RG.pts[nxt] && (() => {
               const p = RG.pts[nxt as number];
-              const right = p.x > C;
-              const lx = f1(C + (R - 14) * Math.cos(p.a));
-              const ly = f1(C + (R - 14) * Math.sin(p.a) + 3.5);
               return (
-                <g onClick={(e) => { e.stopPropagation(); pick(p.i); }} style={{ cursor: "pointer" }}>
+                <g role="button" tabIndex={0} aria-label={`Answer next: ${items[p.i].q.text}`}
+                  onClick={(e) => { e.stopPropagation(); pick(p.i); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(p.i); } }}
+                  style={{ cursor: "pointer", outline: "none" }}>
                   <circle cx={p.x} cy={p.y} r="15" fill="transparent"></circle>
                   <circle className="ln-pulse" cx={p.x} cy={p.y} r="6" fill="none" stroke="var(--ln-beacon)" strokeWidth="1.5"></circle>
                   <circle cx={p.x} cy={p.y} r="5" fill="var(--ln-beacon)"></circle>
-                  <text x={lx} y={ly} textAnchor={right ? "end" : "start"} fill="var(--ln-beacon)"
-                    stroke="var(--ln-halo)" strokeWidth="4" strokeLinejoin="round" paintOrder="stroke"
-                    style={{ fontSize: 10.5, fontWeight: 800 }}>Answer next →</text>
                 </g>
               );
             })()}
           </svg>
         </div>
-        <div className="ln-key" aria-hidden="true">
-          <span><i className="k-dot"></i>you answered it</span>
-          <span><i className="k-ring"></i>not yet</span>
-          <span><i className="k-line"></i>answers go together</span>
-          <span><i className="k-dash"></i>answers go opposite ways</span>
-        </div>
-        <div className="ln-hint">
-          {sel == null ? "Tap a dot to light up only its links." : "Tap the field to see every link again."}
-        </div>
+        {/* the legend, on demand (the tab's ⓘ): the retired title's
+            sentence leads it, because "what is this picture" is the first
+            question the ⓘ answers */}
+        {guide && (
+          <div className="ln-key fade-in" aria-label="How to read the map">
+            <span>a line joins two questions when how people answer one predicts how they answer the other · thicker = stronger</span>
+            <span><i className="k-dot"></i>you answered it</span>
+            <span><i className="k-ring"></i>still open</span>
+            <span><i className="k-line"></i>answers go together</span>
+            <span><i className="k-dash"></i>go opposite ways</span>
+            <span>tap a dot for its links</span>
+          </div>
+        )}
       </div>
 
       {q && sel != null && selHue != null ? (
@@ -425,19 +478,26 @@ export default function PatternsMap({ items, version, topic }: {
       ) : (
         <div className="qm-read">
           {chain && top ? (
+            // the compact form (2026-09-06): the sentence in the serif with
+            // the two picks as inked words, the figure beside it in plain
+            // ink. The design reads each question's `short` name here; the
+            // live bank carries none, so the design's own fallback — the
+            // full prompt — is what always renders. The basis line stays:
+            // the figure is a count, and D310's bounded-sample wording is
+            // not the design's to delete.
             <button className="qm-tie2" onClick={() => pick(top.i)}>
               <span className="pt-kick" style={{ color: "var(--accent-ink)" }}>Strongest link{topicWord}</span>
-              <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: "var(--ink-2)", textWrap: "pretty" }}>
-                People who pick <b style={{ fontWeight: 800, color: inkCol(catHue(top.i)) }}>{chain.pick}</b> on{" "}
-                <span style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}>{"“" + items[top.i].q.text + "”"}</span>{" "}
-                mostly go on to pick <b style={{ fontWeight: 800, color: inkCol(catHue(top.j)) }}>{chain.then}</b> on{" "}
-                <span style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}>{"“" + items[top.j].q.text + "”"}</span>
-              </span>
-              <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <b style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1, color: "var(--accent-ink)" }}>{chain.pct}%</b>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
-                  of them do · counted over the {chain.both} people in both samples · tap to open
+              <span style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+                <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--serif)", fontSize: 17, fontWeight: 500, lineHeight: 1.3, color: "var(--ink)", textWrap: "pretty" }}>
+                  <b style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 800, color: inkCol(catHue(top.i)) }}>{chain.pick}</b>
+                  {" on "}{items[top.i].q.text}{" → "}
+                  <b style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 800, color: inkCol(catHue(top.j)) }}>{chain.then}</b>
+                  {" on "}{items[top.j].q.text}
                 </span>
+                <b style={{ flex: "none", fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, color: "var(--ink)" }}>{chain.pct}%</b>
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
+                of them do · counted over the {chain.both} people in both samples · tap to open
               </span>
             </button>
           ) : (

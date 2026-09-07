@@ -8,7 +8,10 @@
 // window.LIVE's pinned member surface stays untouched).
 //
 // What leaves the device, exactly: the start call (bare, authenticated),
-// and the submit call carrying twelve pick indexes. The server stores the
+// and the submit call carrying one pick index per item — 25 of them for a
+// generated form since D61, and this line said "twelve" long after that,
+// which is the v1/v2 count. Phrased against the form rather than as a
+// number, because `logic-gen.ts` owns it. The server stores the
 // scored result on the owner-only profile doc and folds the first scored
 // attempt per account into an anonymous score histogram. Per-item timings
 // never leave the device — the server records only the attempt duration it
@@ -36,6 +39,13 @@ export interface VerifiedScore {
   marks: boolean[];
   score: number;
   pctile: number;
+  /** the likely range round pctile — the score ± one standard error,
+   *  ranked the same way the score was (D402) */
+  band?: [number, number];
+  /** what the percentile IS: the modelled curve, or a measured rank among
+   *  `n` verified first attempts once the histogram clears the D60 floor */
+  source?: "model" | "measured";
+  n?: number;
   durationMs: number;
   /** disclosed only after scoring — no longer an answer key (D57) */
   seed: number;

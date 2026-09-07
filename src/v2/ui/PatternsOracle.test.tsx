@@ -60,9 +60,12 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("the sealed instrument", () => {
-  it("shows the sealed badge and votes through the ordinary path on a tap", () => {
+  it("states the seal and votes through the ordinary path on a tap", () => {
+    // the *sealed* chip retired with the captions (2026-09-06) — the
+    // field's accessible name is where the state is still SAID, and the
+    // pulsing disc is where it is shown
     render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
-    expect(screen.getByText("sealed")).toBeTruthy();
+    expect(screen.getByLabelText(/sealed — pick a side/)).toBeTruthy();
     expect(PATTERNS.seal).toHaveBeenCalledWith("qa");
     fireEvent.click(screen.getByText("qa-no"));
     expect(LIVE.vote).toHaveBeenCalledWith("qa", "qa:1");
@@ -72,6 +75,17 @@ describe("the sealed instrument", () => {
     expect(document.querySelectorAll(".or2-fill").length).toBe(1);
     expect(screen.getByText(/It called/)).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/\d%/);
+  });
+
+  it("speaks its options in their real words — no caps, no caption under them", () => {
+    // the halves carry the bank's own labels in the serif (2026-09-06);
+    // *tap to pick*, *SEALED GUESS* and the confidence word are gone, and
+    // the kicker counts the pool instead of numbering the session
+    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
+    expect(screen.getByText("qa-yes")).toBeTruthy();
+    expect(screen.queryByText("tap to pick")).toBeNull();
+    expect(screen.queryByText(/SEALED GUESS/)).toBeNull();
+    expect(screen.getByText("1 of 2")).toBeTruthy();
   });
 
   it("fills to the confidence of the side it actually called", () => {
@@ -217,17 +231,32 @@ describe("the working (2026-08-26)", () => {
     expect(screen.getByText("qb-no")).toBeTruthy();
   });
 
-  it("the record says its own marks, without a legend to look up", () => {
+  it("the record counts always; its key waits behind the guide ⓘ", () => {
     PATTERNS.meter.mockReturnValue({
       records: [{ qid: "qb", p0: 0.7, pred: 0, at: 1, mine: 1, bits: 1.2 }],
       called: 0,
       avgBits: 1.2,
     });
-    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
-    // the kicker over the strip IS the key (2026-09-02) — the one-time
-    // hints and the standing .or-cap row both retired into this sentence
-    expect(screen.getByText(/up = you broke it, tick = it had you/)).toBeTruthy();
+    // the kicker's key (2026-09-02's standing sentence) moved behind the
+    // tab's ⓘ with the other explainers (2026-09-06) — the counts, which
+    // are claims about the record, stay standing
+    const { rerender } = render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
     expect(screen.getByText(/1 answer\b/)).toBeTruthy();
+    expect(screen.queryByText(/up = you broke it/)).toBeNull();
+    rerender(<PatternsOracle items={[QA, item("qb", 1)]} version={1} guide={true} />);
+    expect(screen.getByText(/up = you broke it, tick = it had you/)).toBeTruthy();
+  });
+
+  it("teaches the game only when asked — the 1·2·3 strip rides the guide", () => {
+    const { rerender } = render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
+    expect(screen.queryByText(/it guesses, sealed/)).toBeNull();
+    rerender(<PatternsOracle items={[QA, item("qb", 1)]} version={1} guide={true} />);
+    expect(screen.getByText(/it guesses, sealed/)).toBeTruthy();
+    expect(screen.getByText(/did it have you\?/)).toBeTruthy();
+    // …and after the tap the strip yields to the verdict, guide or not
+    fireEvent.click(screen.getByText("qa-no"));
+    expect(screen.queryByText(/it guesses, sealed/)).toBeNull();
+    expect(screen.getByText(/It called/)).toBeTruthy();
   });
 
   it("keeps no device state of its own — the retired hints wrote a key", () => {

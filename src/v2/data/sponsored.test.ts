@@ -155,6 +155,29 @@ describe("the paid places in the stream", () => {
     expect(woven.map((x) => x.id)).toEqual(["feed-w0", "feed-paid-a", "feed-paid-b"]);
   });
 
+  it("does NOT stack the campaigns that found no place at the end of the feed", () => {
+    // The rescue above is for a feed too short for the cadence to fire at
+    // all. Past that it was unbounded, and demand reaches it: measured on
+    // the shipped cadences with a 60-card world, 12 concurrent campaigns
+    // ended the feed with 2 paid cards in a row, 20 with 10, and 100 with
+    // NINETY — an ad break at the bottom of the stream, under a density
+    // the seller's page calls one card in six.
+    const world = Array.from({ length: 30 }, (_, i) => q(`feed-w${i}`));
+    const paid = Array.from({ length: 20 }, (_, i) => q(`feed-paid-${i}`, { sponsor: { buyer: "X" } }));
+    const woven = interleaveFeed(world, { tests: [], lenses: [], paid, paidEvery: SPONSOR_EVERY });
+    const isPaid = (x: { id: string }) => x.id.startsWith("feed-paid-");
+    // Five places in thirty cards, and five cards take them.
+    expect(woven.filter(isPaid), "the cadence stopped placing cards").toHaveLength(
+      Math.floor(world.length / SPONSOR_EVERY),
+    );
+    // NEVER TWO IN A ROW. One at the end is the cadence's own last place
+    // (position 30 of 30), which is a place the reader scrolled to; two
+    // in a row can only be the tail dumping what found no place.
+    let run = 0, longest = 0;
+    for (const x of woven) { run = isPaid(x) ? run + 1 : 0; longest = Math.max(longest, run); }
+    expect(longest, "paid cards were stacked back to back").toBeLessThanOrEqual(1);
+  });
+
   it("changes nothing when there is no paid card", () => {
     const world = Array.from({ length: 12 }, (_, i) => q(`feed-w${i}`));
     const before = interleaveFeed(world, { tests: [], lenses: [] });
@@ -200,12 +223,47 @@ describe("the shipped bank", () => {
     // because the dim list lives in typed client code the stdlib-only
     // gates deliberately do not import. A tag outside it matches nobody
     // and the card is bought and never delivered.
+    //
+    // THIS LOOP RUNS ZERO TIMES, deliberately and permanently — `paid` is
+    // what the case above asserts is empty. It stays because it costs
+    // nothing and would bite if a sponsored card were ever authored into
+    // the committed bank by hand. The invariant it was WRITTEN for is the
+    // one below, which this file could not reach: since D313 a sold
+    // question is written to `v2_questions` by the webhook and never to
+    // this file, so no amount of scanning it can protect a buyer.
     for (const x of paid) {
       expect(x.core, `${x.id} is core`).not.toBe(true);
       expect(typeof x.until, `${x.id} has no window`).toBe("string");
       for (const dim of Object.keys(x.sponsor!.audience ?? {})) {
         expect(COHORT_DIMS as readonly string[], `${x.id} targets ${dim}`).toContain(dim);
       }
+    }
+  });
+
+  it("sells no audience the device cannot match", () => {
+    // THE REAL BINDING, across the two packages. `AUDIENCE_DIMS` is what
+    // the server ACCEPTS on a booking; `COHORT_DIMS` is what a device can
+    // match a reader against. A dim on the selling side that is missing
+    // from the matching side is a card that is bought, charged and served
+    // to nobody — the failure the case above names and cannot see, because
+    // a sold question never lands in the committed bank.
+    //
+    // Read out of the functions source rather than imported: this is the
+    // client package, and the shape is the one `overflow.test.ts` already
+    // uses for the same cross-package reason.
+    const paidSrc = readFileSync(
+      resolve(__dirname, "../../../functions/src/paid.ts"), "utf8",
+    );
+    const m = /export const AUDIENCE_DIMS = new Set\(\[([\s\S]*?)\]\)/.exec(paidSrc);
+    expect(m, "AUDIENCE_DIMS moved or changed shape — this pin reads nothing").toBeTruthy();
+    const sold = [...m![1].matchAll(/"([a-zA-Z]+)"/g)].map((x) => x[1]);
+    // The vacuity guard: an empty list would satisfy every subset check.
+    expect(sold.length, "the regex matched no dims at all").toBeGreaterThan(3);
+    for (const dim of sold) {
+      expect(
+        COHORT_DIMS as readonly string[],
+        `the server sells "${dim}" and no device can match it`,
+      ).toContain(dim);
     }
   });
 });

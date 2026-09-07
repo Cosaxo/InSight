@@ -79,6 +79,49 @@ export function laneOfBranch(name) {
 
 export const isNoPrBranch = (name) => NO_PR_BRANCHES.some((re) => re.test(name || ""));
 
+// ── a night that has already been reviewed ──────────────────────────
+// A night shift's branch is never merged as itself: the review composes
+// both shifts with `main` and that PR is SQUASH-merged, so
+// `night-YYYYMMDD` stays ahead of `main` forever with every one of its
+// commits already in it. The console had no way to know that and drew
+// each one as an approvable `no PR yet` row — eight of them by
+// 2026-09-06, every one merged days earlier, and the row is not merely
+// noise: a tick opens a PR proposing that night's tree back over main.
+// Measured on all four of the newest branches, every one of them
+// conflicts against `main` today, and `night-20260906` also restores the
+// ad path #401 removed seven hours before the row was drawn —
+// `checkoutLineItem`'s `isAd` arm and 307 lines of `paid.test.ts`.
+// D387 has the ledger.
+//
+// The receipt is the review's own record, because there is no other:
+// every night review since D360 states the branches it took and how many
+// commits each carried, in one table shape, and DECISIONS.md is on `main`
+// where the console already reads. A count that has GROWN since is the
+// one thing such a row still has to say — it has happened once, and the
+// commit was the ceiling raise D365 made itself five hours later.
+//
+// Fails toward the row: a record that names no branch, a table shape that
+// changes, an unreadable DECISIONS.md all leave the box where it is.
+const NIGHT_REVIEW_ROW = /^\|\s*`((?:night|nightb)-\d{8})`\s*\|\s*(\d+)\s*\|/;
+
+export function parseNightReviews(text) {
+  const out = new Map();
+  let record = null;
+  for (const line of String(text || "").split("\n")) {
+    const h = /^## (D\d+)/.exec(line);
+    if (h) { record = h[1]; continue; }
+    const m = NIGHT_REVIEW_ROW.exec(line);
+    // The record that accounts for MOST of the branch wins, so a later one
+    // can take a tail its review missed: `nightb-20260905` gained a commit
+    // five hours after D365 composed 18 of its 19, and D387 is where the
+    // nineteenth is accounted for. A record that re-states an old table
+    // therefore changes nothing.
+    const commits = m ? Number(m[2]) : 0;
+    if (m && record && commits > (out.get(m[1])?.commits ?? -1)) out.set(m[1], { record, commits });
+  }
+  return out;
+}
+
 // ── what / how ──────────────────────────────────────────────────────
 // Every program prompt asks a PR body to open with a `what:` and a `how:`
 // line, because the owner reads the merge list on a phone and the diff is
@@ -188,16 +231,24 @@ export function prRow(pr, extras = {}) {
   };
 }
 
-export function branchRow(branch) {
+export function branchRow(branch, reviews = null) {
   const { lane } = laneOfBranch(branch.name);
+  const reviewed = (reviews instanceof Map ? reviews.get(branch.name) : null) || null;
+  const aheadBy = branch.aheadBy ?? null;
+  // Merged when the record accounts for every commit the branch carries.
+  // A branch that gained commits after its review keeps its box and says
+  // how many of them are already in — nightb-20260905 did, at 09:56 UTC,
+  // five hours after D365 composed 18 of its 19.
+  const landed = !!reviewed && aheadBy != null && aheadBy <= reviewed.commits;
   return {
     kind: "branch",
     key: branch.name,
     branch: branch.name,
     from: lane,
-    aheadBy: branch.aheadBy ?? null,
+    aheadBy,
     lastCommitAt: branch.lastCommitAt || null,
-    stage: "no PR yet",
+    reviewed,
+    stage: landed ? "merged" : "no PR yet",
   };
 }
 
@@ -239,7 +290,10 @@ export function decideActions(rows, file, issue) {
     (issue.now.get(key) === false && issue.rendered.has(key));
   for (const row of rows) {
     if (row.kind === "branch") {
-      if (newTick(row.key)) actions.push({ type: "open-pr", key: row.key, branch: row.branch, from: row.from });
+      // A merged night draws no box, so a tick on one can only be a line
+      // left over from a render before its review landed — and acting on
+      // it would open a PR proposing that night's tree back over main.
+      if (row.stage !== "merged" && newTick(row.key)) actions.push({ type: "open-pr", key: row.key, branch: row.branch, from: row.from });
       continue;
     }
     if (row.selfMerge) continue;
@@ -275,7 +329,13 @@ export function rowLine(row, { box = true } = {}) {
   const head = box ? `- [${tick}] ` : "- ";
   if (row.kind === "branch") {
     const n = row.aheadBy == null ? "commits unknown" : `${row.aheadBy} commit${row.aheadBy === 1 ? "" : "s"}`;
-    return `${head}**${row.branch}** (no PR yet) · ${row.from} · ${n} · last ${fmtTime(row.lastCommitAt)}`;
+    // A row that says how much of the branch is already in: the only
+    // night this has ever applied to gained one commit five hours after
+    // its review composed. A night with nothing outstanding is not drawn
+    // here at all — `nightsMerged` says it in one line, and a box on it
+    // would open a PR proposing a merged tree back over main.
+    const carried = row.reviewed ? `, ${row.reviewed.commits} of them merged as ${row.reviewed.record}` : "";
+    return `${head}**${row.branch}** (no PR yet) · ${row.from} · ${n}${carried} · last ${fmtTime(row.lastCommitAt)}`;
   }
   const state = [
     checksWord(row.checks),
@@ -285,6 +345,19 @@ export function rowLine(row, { box = true } = {}) {
   ].filter(Boolean).join(" · ");
   const stage = row.stage === "shift" ? "in the shift" : row.stage === "blocked" ? "could not be made green" : row.stage;
   return `${head}**${row.key}** · ${row.from} · *what:* ${row.what || "—"} · *how:* ${row.how || "—"} · ${state} · opened ${fmtDay(row.createdAt)} · stage **${stage}**`;
+}
+
+// The nights whose review has landed, in one line rather than a row each:
+// they accumulate two a night and never leave the remote, so a row apiece
+// would bury the rows that still want a tick. Newest first, six named.
+export function nightsMerged(rows) {
+  const landed = rows
+    .filter((r) => r.kind === "branch" && r.stage === "merged")
+    .sort((a, b) => String(b.lastCommitAt || "").localeCompare(String(a.lastCommitAt || "")));
+  if (!landed.length) return null;
+  const named = landed.slice(0, 6).map((r) => `${r.branch} (${r.reviewed.record})`).join(" · ");
+  const rest = landed.length - 6;
+  return `**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of \`main\` carrying nothing new: ${named}${rest > 0 ? ` · and ${rest} more` : ""}.`;
 }
 
 const MERGE_LIST_HEAD = `# Merge list — what the automation built, and what you approved
@@ -311,11 +384,13 @@ the pinned **Console** issue with clickable boxes; a tick there is the
 same act, mirrored back into this file. Untick here to withdraw an
 approval the shift has not yet acted on. Ticking a *no PR yet* row
 makes the workflow open the pull request from that branch and label
-it.
+it — which is why a night shift whose review has already merged is
+listed in one line without a box instead (D387): its branch stays
+ahead of \`main\` forever, carrying nothing that is not already in.
 
 | Section | A row is here when | Who moves it |
 | --- | --- | --- |
-| **Open** | a PR is open and not yet approved (stage \`new\`), or a branch has commits and no PR (stage \`no PR yet\`) | the workflow |
+| **Open** | a PR is open and not yet approved (stage \`new\`), or a branch has commits, no PR, and no review record that accounts for them (stage \`no PR yet\`) | the workflow |
 | **In the shift** | the tick landed and the merge shift is bringing it to green | the workflow, on the label |
 | **Ready** | \`merge-when-green\` is applied; green and waiting for your merge | the workflow, on the label |
 | **Could not be made green** | the shift stopped, with what is red and why in its comment | the shift's comment, the workflow's row |
@@ -348,8 +423,10 @@ export function renderMergeList({ rows, merged = [], generatedAt, githubState = 
     for (const r of list) lines.push(rowLine(r, opts));
     lines.push("");
   };
-  const open = [...by("new"), ...branches];
+  const open = [...by("new"), ...branches.filter((r) => r.stage !== "merged")];
   section("Open", open);
+  const nights = nightsMerged(branches);
+  if (nights) { lines.push(nights); lines.push(""); }
   if (deps.length) {
     lines.push(`**Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):`);
     lines.push("");
@@ -723,7 +800,10 @@ export function trailRow(state) {
     // row set the run itself declared short is a real zero nobody can tell
     // from an empty one. That is the rule the console's own header states
     // and the one a commit four earlier put back; this writer never asked.
-    noPrYet: listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete }) ? rows.filter((r) => r.kind === "branch").length : null,
+    // Branches WAITING for a tick, which is what the name says: a night
+    // whose review has merged is no longer one of them, and counting it
+    // made the trail read as eight untouched approvals a day (D387).
+    noPrYet: listIsWritable({ ok: state.github.ok, rowsComplete: state.rowsComplete }) ? rows.filter((r) => r.kind === "branch" && r.stage !== "merged").length : null,
     mergedWeek: state.github.ok ? (state.merged || []).length : null,
     // Null, not zero, for the same reason the GitHub fields above are:
     // the trail is the only record of what the program looked like on a
@@ -786,10 +866,12 @@ export function renderConsole(state, priorBody = "") {
   }
   const rows = state.rows || [];
   const prs = rows.filter((r) => r.kind === "pr" && !r.selfMerge);
-  const open = [...prs.filter((r) => r.stage === "new"), ...rows.filter((r) => r.kind === "branch")];
+  const open = [...prs.filter((r) => r.stage === "new"), ...rows.filter((r) => r.kind === "branch" && r.stage !== "merged")];
   L.push("### Approve");
   if (!open.length) L.push("*(nothing waiting for a tick)*");
   for (const r of open) L.push(rowLine(r));
+  const nights = nightsMerged(rows);
+  if (nights) L.push(nights);
   for (const [title, stage] of [["In the shift", "shift"], ["Ready — merge-when-green, green and waiting for your merge", "ready"], ["Could not be made green — your call", "blocked"]]) {
     const list = prs.filter((r) => r.stage === stage);
     L.push(`### ${title}`);

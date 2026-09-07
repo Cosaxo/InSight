@@ -317,7 +317,10 @@
     <p>
       Prices come from <b id="provFile">content/pricing.json</b>, committed
       <b id="provDate">—</b> — the same file the app reads. Nobody is quoted a
-      number another buyer cannot see.
+      number another buyer cannot see. Your rate is confirmed when the
+      question is approved: this page prices off the committed card, and
+      the server re-reads demand at approval, so a busy scope can settle
+      higher than the figure above.
     </p>
     <p class="prov">
       <a href="/terms.html">Terms</a> ·
@@ -568,9 +571,16 @@
       });
       box.appendChild(b);
     });
+    // "IN THE FEED" WAS THE WRONG DENOMINATOR. The cadence places a paid
+    // card after every Nth ORDINARY QUESTION (the generator's own comment
+    // says so: "a paid card after every this many world cards"), and the
+    // feed also carries test cards, lenses and knowledge cards between
+    // them. Measured on the shipped rhythm over a sixty-card feed with the
+    // places full: one card in nine or ten, not one in six. A buyer prices
+    // exposure off this sentence.
     $("menuNote").textContent =
       "Billed per answer at the line you lock, up to your budget; unserved answers refund at close. "
-      + "One card in " + st.P.paidEvery + " in the feed is paid, and each says PAID.";
+      + "One paid card after every " + st.P.paidEvery + " ordinary questions, and each says PAID.";
   }
 
   function drawBudgets() {
@@ -674,11 +684,11 @@
     $("panelStatus").textContent =
       state === "declined" ? "Declined" :
       state === "held" ? "Held" :
-      state === "paying" ? "Paying" : "Ready to pay";
+      state === "paying" ? "Not open yet" : "Ready to pay";
     $("panelKicker").textContent =
       state === "declined" ? "reviewed" :
       state === "held" ? "review is down" :
-      state === "paying" ? "leaving for stripe" : "quoted · price locked";
+      state === "paying" ? "card payment isn\u2019t live yet" : "quoted \u00b7 locked when approved";
 
     $("quoteWell").hidden = state === "declined";
     $("quotePrompt").textContent = st.prompt;
@@ -712,7 +722,13 @@
 
     $("payBtn").hidden = state !== "quoted";
     $("backBtn").textContent = state === "declined" ? "Rewrite it" : "Change it";
-    $("payNote").textContent = state === "quoted" ? PAY_NOTE : "";
+    // KEPT AFTER THE TAP, and this is the half that was backwards. The
+    // header of this file says "the pay tap reports the door as closed
+    // rather than throwing a raw 403 at a buyer" — but the tap moved to a
+    // state announcing "Paying · leaving for stripe" and ERASED the only
+    // sentence saying payment is not open, while making no request at all.
+    // A buyer was told a payment was under way, and then nothing happened.
+    $("payNote").textContent = (state === "quoted" || state === "paying") ? PAY_NOTE : "";
     $("panel").scrollIntoView({ block: "nearest" });
   }
 
@@ -821,8 +837,8 @@
       $("provFile").textContent = P.source;
       $("provDate").textContent = P.committed;
       $("placesLine").textContent =
-        "Every answer on InSight is public. One card in " + P.paidEvery
-        + " in the feed is paid, and a sponsored question is labelled as one wherever it appears.";
+        "Every answer on InSight is public. One paid card follows every " + P.paidEvery
+        + " ordinary questions, and a sponsored question is labelled as one wherever it appears.";
       drawCurrencies();
       draw();
     })
