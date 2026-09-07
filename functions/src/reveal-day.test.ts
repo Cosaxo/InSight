@@ -308,3 +308,86 @@ describe("a day behind the last reveal cannot move the present", () => {
     ).toBe(0);
   });
 });
+
+// ── WHOSE NAME THE REVEAL CARRIES ───────────────────────────────────
+//
+// The reveal document's `names` map is narrowed to `revealMembersFor(...)`
+// — the roster minus anyone who joined after the day ended and did not
+// play. Reverting that loop to the whole roster left the functions suite
+// at 794/794.
+//
+// It matters because `names` is a DISPLAY NAME in a document every signed
+// -in user may read, and `deleteAccount` sweeps reveals by walking
+// `members`. So a person named in a reveal whose `members` array does not
+// carry them is a person erasure never reaches: they ask to be deleted and
+// their name stays, permanently, in a world-readable document. The code's
+// own comment records the fix being "confirmed against the real callable
+// in the emulator, not reasoned: the name survived the erasure" — and
+// nothing was added to hold it.
+//
+// The erasure e2e cannot stand in. It SEEDS reveal documents by hand and
+// never produces one through `revealGroupDay`, so this line is executed by
+// no runner in the repository.
+describe("the reveal names only the people its members array carries", () => {
+  const DAY_END = Date.parse(`${DAY}T00:00:00Z`) + 86400000;
+  // A Firestore Timestamp, near enough: `joinedAtMs` reads `toMillis()` and
+  // DROPS anything without it, and a dropped join time means "unknown",
+  // which keeps the member. A fixture of raw numbers would therefore keep
+  // everybody and pass whatever the narrowing did — the first draft of this
+  // case did exactly that, and looked like a real failure.
+  const at = (ms: number) => ({ toMillis: () => ms });
+
+  it("leaves out someone who joined after the day ended and did not play", async () => {
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], pendingDays: [DAY], streak: 0,
+      // u3 arrived the day after — they were not in the room for this one.
+      memberJoinedAt: { u1: at(DAY_END - 86400000), u2: at(DAY_END - 86400000), u3: at(DAY_END + 3600000) },
+    });
+    store.set("v2_users/u1", { displayName: "Ada" });
+    store.set("v2_users/u2", { displayName: "Bo" });
+    store.set("v2_users/u3", { displayName: "Cai" });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+    ).toBe(true);
+
+    const reveal = store.get(`v2_groups/${GID}/reveals/${DAY}`)!;
+    expect(Object.keys(reveal.names as Doc).sort(), "the reveal names a non-member").toEqual(["u1", "u2"]);
+    // The two must agree, and THIS is the reason: erasure walks `members`,
+    // so a name outside it is a name erasure cannot find.
+    expect((reveal.members as string[]).slice().sort()).toEqual(["u1", "u2"]);
+    expect(
+      JSON.stringify(reveal.names),
+      "a display name is in a world-readable document that erasure will never sweep",
+    ).not.toContain("Cai");
+  });
+
+  it("…and DOES name a late joiner who actually played", async () => {
+    // THE CONTROL, and the narrowing's own rule: playing puts you in the
+    // room whatever the timestamps say. Without this the case above passes
+    // the day the map is narrowed to nothing at all.
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2", "u3"], pendingDays: [DAY], streak: 0,
+      memberJoinedAt: { u1: at(DAY_END - 86400000), u2: at(DAY_END - 86400000), u3: at(DAY_END + 3600000) },
+    });
+    store.set("v2_users/u1", { displayName: "Ada" });
+    store.set("v2_users/u2", { displayName: "Bo" });
+    store.set("v2_users/u3", { displayName: "Cai" });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    store.set(...answer("u3", "qA", 2));
+
+    expect(
+      await revealGroupDay(group as unknown as FirebaseFirestore.QueryDocumentSnapshot, DAY),
+    ).toBe(true);
+
+    const reveal = store.get(`v2_groups/${GID}/reveals/${DAY}`)!;
+    expect(
+      Object.keys(reveal.names as Doc).sort(),
+      "a late joiner who answered was left out of their own reveal",
+    ).toEqual(["u1", "u2", "u3"]);
+    expect(JSON.stringify(reveal.names)).toContain("Cai");
+  });
+});
