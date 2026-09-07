@@ -542,9 +542,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             rows={rows}
             whom={shortName}
             emptyNote={
-              <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
-                No answers here yet — the first one starts the count.
-              </LnNote>
+              /* THE SAME GUARD THE HERO ABOVE CARRIES, and this tab did
+                 not: an empty row list before the network boot completes
+                 is a device that has not looked, not a place with no
+                 answers. One screen used to say "counting who has
+                 answered…" in the header and "No answers here yet — the
+                 first one starts the count" one tap below it, and the
+                 second one is the flat assertion. Persistent for the
+                 session on a boot that never attaches, not just a frame. */
+              LIVE.attached
+                ? <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
+                    No answers here yet — the first one starts the count.
+                  </LnNote>
+                : <LnNote title="Counting who has answered…">
+                    Reading the answers for {scope === "world" ? "today" : shortName}.
+                  </LnNote>
             }
           />
           {!!rows.length && empty > 0 && (

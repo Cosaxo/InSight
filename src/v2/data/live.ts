@@ -4005,7 +4005,22 @@ const SOCIAL = {
     // The read breaker (D332): takes are the fourth D98 surface. Absent,
     // not empty, for the reason the cache comment above gives.
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO — the fourth loader, and the one whose bad frame is an
+    // INVITATION. The panel mounts this from an effect, so it has already
+    // painted by the time the read starts: without this notify the first
+    // frame — no data, no flag — stood for the whole of the query, and it
+    // reads "No takes yet. Say the first thing." That is a definite claim
+    // about a room that may be full, and it invites the reader to be first
+    // in it. Its three siblings carry the same two lines and the same
+    // reasoning (loadVoters, loadFollows, loadKindred's recorded
+    // exemption); this one was in neither the fix nor the block that pins
+    // them.
+    //
+    // Not visible from the mount tests: live-fixture stubs `takesLoading`
+    // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
+    // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    notify();
     try {
       const db = await getDb();
       const snap = await getDocs(
@@ -5520,7 +5535,25 @@ const LIVE = {
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       if (on) {
-        if ((state.circle?.length || 0) >= circleMod.FOLLOW_CAP) return;
+        // THE FOLLOW SET, not the circle fold. `state.circle` is written
+        // by `loadCircle` alone, and `loadCircle` is mounted by exactly
+        // one component — the Circle stop, which only ever passes `false`
+        // here. Every surface that can ADD a follow (the People lens, the
+        // city constellation's person card, people search) loads
+        // `follows` and never `circle`, so `state.circle` was null at each
+        // of them and this read `0 >= 50`: the cap did not bind anywhere
+        // it could be reached. Measured — forcing the guard to fire on
+        // every follow, and swapping it to this cache, both left all 2806
+        // unit tests green.
+        //
+        // It also counted the wrong thing when `circle` WAS loaded:
+        // `loadCircle` drops a followed account whose answer read failed,
+        // so the fold's survivors are not the follow rows.
+        //
+        // Null means "not read yet", which must not block — the same
+        // shape as before, on the cache the callers actually fill.
+        const known = state.follows ?? state.circle;
+        if (known && known.length >= circleMod.FOLLOW_CAP) return;
         await circleMod.follow(db, me, uid);
       } else {
         await circleMod.unfollow(db, me, uid);
@@ -6998,6 +7031,37 @@ const LIVE = {
   pulsePending(baseQid: string): number | null {
     const aid = `${baseQid}_${utcDayKey(0)}`;
     return aid in state.unaggregated ? state.unaggregated[aid] : null;
+  },
+  /**
+   * Your own vote on ONE question while it is not yet in the published
+   * aggregate — the option index, or null once the fold has counted it.
+   *
+   * The general form of `pulsePending` above, which is this read against
+   * the pulse's day-keyed id; `pickCanon` does the same inline for a
+   * catalogue board. An ordinary feed or daily answer's id IS its qid, so
+   * there is nothing to derive.
+   *
+   * WHY A READER EXISTS AT ALL. `countsFor` (data/deck.ts) subtracts the
+   * viewer's own vote back out of `o.count` only `if (!ctx.pending)`, so
+   * in the seconds between the write and the fold, a consumer that adds
+   * its own `+1` has counted the viewer while the published breakdown
+   * cells have not. That is the D365 mismatch, and every surface that
+   * folds a cohort needs to know which side of the fold it is on.
+   *
+   * Null rather than -1, the D72 shape: a caller that forgets the check
+   * draws nothing readable and fails a test, rather than shifting a share
+   * by one and looking plausible.
+   *
+   * WHAT THE NUMBER IS NOT. `unaggregated` is keyed by question for every
+   * kind of answer, and only `vote()` and its edit arm store an option
+   * index in it: `voteRank` stores a placeholder `0` it documents as
+   * unread, and `votePick` stores a catalogue key. So the PRESENCE of a
+   * key is the reliable half — has the fold counted this answer yet — and
+   * a caller that needs an option index must either know the question is
+   * an ordinary vote or carry its own. `feed-read.js` does the latter.
+   */
+  votePending(qid: string): number | null {
+    return qid in state.unaggregated ? state.unaggregated[qid] : null;
   },
   /** Every pulse day this device knows it answered: day → optionIdx.
    * Derived from the hydrated vote mirror, so a second device's answers

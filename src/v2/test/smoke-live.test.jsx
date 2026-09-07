@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FIXTURE_THIRD_DAY, FEED_PROMPT, LEARN_CARD_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { TYPE_SMALL } from "../data/typeMix";
@@ -498,6 +498,91 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("mirror/live/tooSmall");
   });
 
+  it("does not draw a spread for a crowd it is withholding", async () => {
+    // THE THIRD GATE. daily-split.jsx's header says the feed ruled on this
+    // state three times and "the daily was the one answer surface with no
+    // such gate" — then gated the numeral and the option tiles and left the
+    // rating card's ridge drawing unconditionally. The ridge scales to the
+    // biggest count, so the FIRST voter's single answer is a full-height
+    // column beside empty steps: a published spread under a line saying
+    // nobody has answered yet.
+    //
+    // Reachable at all only since the fixture can put the ordinal card
+    // TODAY — the deck draws today's card and has no day dots, so the
+    // rating render had no mount test of any kind.
+    const expectNoBoundary = mountLive({ tooSmall: true, ratingToday: true });
+    const ballot = document.querySelector('[data-screen-label="Split daily v2"] [role="group"], [data-screen-label="Split daily v2"]');
+    expect(ballot, "the daily did not mount").toBeTruthy();
+    // Vote the first step.
+    const first = screen.getByRole("button", { name: "Yes" });
+    fireEvent.click(first);
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+
+    const ridge = screen.queryByRole("img", { name: /Spread across/ });
+    expect(ridge, "the rating card drew no ridge after the vote").toBeTruthy();
+    // The words were already honest — the numeral is withheld — and the
+    // SHAPE is what this pins: every column the same height, so nothing is
+    // claimed about a crowd the card is refusing to count.
+    const bars = [...ridge.querySelectorAll("span > span[style*='height']")];
+    expect(bars.length, "the ridge drew no columns").toBeGreaterThan(1);
+    const heights = new Set(bars.map((b) => b.style.height));
+    expect(
+      heights.size,
+      `a withheld crowd was drawn as a spread: ${[...heights].join(", ")}`,
+    ).toBe(1);
+    // …and it still says nothing about a peak.
+    expect(ridge.getAttribute("aria-label")).not.toMatch(/most at/);
+    expectNoBoundary("daily/live/rating/floored");
+  });
+
+  it("…and DOES draw the spread once the counts publish", async () => {
+    // The control. Without it, "every column the same height" is also what
+    // a ridge that stopped drawing anything looks like — and flattening a
+    // real crowd would cost the card the reading it exists for.
+    const expectNoBoundary = mountLive({ ratingToday: true });
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+    const ridge = screen.queryByRole("img", { name: /Spread across/ });
+    expect(ridge, "the rating card drew no ridge").toBeTruthy();
+    const heights = new Set(
+      [...ridge.querySelectorAll("span > span[style*='height']")].map((b) => b.style.height),
+    );
+    expect(heights.size, "a published crowd was flattened").toBeGreaterThan(1);
+    expectNoBoundary("daily/live/rating/published");
+  });
+
+  // ── the day dots say which day they open ────────────────────────────
+  //
+  // The dots carry no text, so their `aria-label` is the whole of what a
+  // screen reader gets: "Yesterday — answered". It was read off a frozen
+  // list of weekday names — `['Today','Yesterday','Tue','Mon','Sun',...]`
+  // — which is correct on a Thursday and on no other day, while the kicker
+  // one screen up printed the card's own label, derived from the date. Six
+  // days in seven a dot announced a different day from the card it opens,
+  // by up to three days.
+  //
+  // NOT PINNABLE UNTIL NOW, and the reason is the fixture: its deck is two
+  // cards, and the frozen list agrees with a real label at both of those
+  // positions. `deckDays` adds the third, which is where they part.
+  it("names the day the card itself names, not the frozen weekday list", async () => {
+    const expectNoBoundary = mountLive({ deckDays: true });
+    // The dots appear only once today is answered — before the vote they
+    // read as pagination competing with the question.
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+
+    const dots = screen.getAllByRole("button", { name: /— (answered|not answered)$/ });
+    expect(dots.length, "the day dots did not render").toBe(3);
+    const labels = dots.map((d) => d.getAttribute("aria-label").split(" — ")[0]);
+    // Rendered right-to-left (today on the right), so the third day is
+    // first in the DOM.
+    expect(
+      labels,
+      `a dot announced a day the card it opens does not claim: ${labels.join(", ")}`,
+    ).toEqual([FIXTURE_THIRD_DAY, "Yesterday", "Today"]);
+    expectNoBoundary("daily/live/day-dots");
+  });
+
   it("renders the demoInProd fallback without tripping the boundary", () => {
     // A live build that could not attach and fell back to mock data. Its own
     // branch again — and the one where D11 suppresses the most.
@@ -755,6 +840,32 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(body, "the result stage still prints a zero share").not.toMatch(/\b0%/);
     expect(body, "the consequence beat still announces the crowd").not.toMatch(/you.re with them/i);
     expectNoBoundary("live daily, first voter");
+  });
+
+  it("does not print a share when the only vote in the crowd is yours", async () => {
+    // ONE FOLD LATER THAN THE CASE ABOVE, and the state that case cannot
+    // reach. `tooSmall` is the window BEFORE the trigger folds your vote:
+    // counts zero, `noCountsYet` true, floor on. Once the fold lands the
+    // aggregate has published — its total is 1, and that 1 is you — so
+    // `noCountsYet` goes FALSE while `countsFor` subtracts you back out
+    // and every drawn count stays zero. The floor lifted, `wfPcts` added
+    // its own +1 for "you", and the card printed 100% over a crowd of
+    // nobody.
+    //
+    // Not off-screen: `unaggregated` clears on the next aggregate read
+    // and the refresh fires a couple of seconds after the write acks, so
+    // the card flips from floored to "100% · 1 vote" while the reader is
+    // still looking at it. On the daily this is a state EVERY reader
+    // passes through on a question they answer first.
+    const expectNoBoundary = mountLive({ soloVoter: true });
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 250)); });
+
+    const body = document.body.textContent;
+    expect(body, "the card printed a share over a crowd of one").not.toMatch(/100%/);
+    expect(body, "the card printed a zero share over a crowd of one").not.toMatch(/\b0%/);
+    expect(body, "the consequence beat announced a crowd of nobody").not.toMatch(/you.re with them/i);
+    expectNoBoundary("live daily, solo voter past the fold");
   });
 
   // The control, and it is the half that keeps the gate from being "never

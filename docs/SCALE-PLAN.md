@@ -271,9 +271,23 @@ a truncated corpus with nothing failing anywhere. `BANK_PAGE = 1000` is a
 page size now, `BANK_MAX_PAGES` bounds the loop, and tripping it reports
 rather than truncating. `bank-cache.test.ts` asserts completeness.
 
-**What trips next is the localStorage bank cache, and it is silent in the
-same way.** `question-quality.mjs`'s `BANK_WARN`/`BANK_FAIL` were
-re-pointed at that budget when pagination landed, and they are stated in
+**BUILT AT D312 — this section describes a ceiling that no longer
+exists, and is kept for its arithmetic.** The bank cache moved to
+IndexedDB on 2026-08-26: `live.ts` reads the `insight.*` keys once as
+migration sources and removes them. `BANK_WARN`/`BANK_FAIL` are gone too —
+`question-quality.mjs` calls them "the retired BANK_FAIL/BANK_WARN pair"
+and the live tripwire is `INSTALL_WARN`.
+
+`SCALE-RUNBOOK.md` had this right (§1.2, ticked, "the move happened
+2026-08-26 (D312)") while this page did not — and this page's own header
+says that where the two disagree, THIS one is right and the runbook is
+stale. The authority was inverted, which is worse than either page being
+wrong alone: a reader following the stated precedence would have taken
+the out-of-date answer.
+
+What follows is the measurement that justified the move, in the past
+tense. `question-quality.mjs`'s `BANK_WARN`/`BANK_FAIL` were
+re-pointed at that budget when pagination landed, and they were stated in
 MB for it: **6,000 docs ≈ 1.6 MB, 10,000 ≈ 2.7 MB**, against a ~5 MB
 origin quota shared with ~29 other `insight.*` keys. The failure mode is
 the one this whole section is about — `live.ts` caches the whole bank in
@@ -286,8 +300,8 @@ identical rows above hold *because* the bank is a one-time install cost
 absorbed by that cache; lose it and bank size starts billing per boot per
 user, which is precisely the regression the table says to watch for.
 
-**The remedy is named at the call site: move the cache to IndexedDB
-before promoting past the budget** — and it is smaller than it sounds,
+**The remedy was named at the call site — move the cache to IndexedDB
+before promoting past the budget — and it was done (D312)** — and it is smaller than it sounds,
 because `persistentLocalCache()` already puts Firestore's own document
 cache there. [`BANK-DELIVERY.md`](BANK-DELIVERY.md) is the plan, and it
 carries a finding this section did not have: the cache is the SECOND

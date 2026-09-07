@@ -45,7 +45,11 @@ describe("the menu (D376)", () => {
     expect(rows.map((r) => sp(r.querySelector(".buys").textContent))).toEqual([
       "up to 500 answers · 29 days", "up to 1 250 answers · 29 days", "up to 2 500 answers · 29 days",
     ]);
-    expect($("menuNote").textContent).toMatch(/One card in 6 in the feed is paid/);
+    // The DENOMINATOR is the claim: the cadence counts ordinary questions,
+    // not feed cards, and the feed carries tests, lenses and knowledge
+    // cards between them (one in nine or ten of the feed, measured).
+    expect($("menuNote").textContent).toMatch(/One paid card after every 6 ordinary questions/);
+    expect($("menuNote").textContent, "the old, wrong denominator came back").not.toMatch(/in the feed is paid/);
   });
 
   it("a row opens the composer on that reach at that budget, the chips still there to adjust", () => {
@@ -107,5 +111,80 @@ describe("the link (D378) and the quote", () => {
     expect($("linkHint").textContent).toMatch(/whole https address/);
     $("quoteBtn").click();
     expect($("qLink").hidden).toBe(true);
+  });
+});
+
+// ── the pay tap, which is a closed door and must say so ─────────────────
+//
+// The page's own header says "the pay tap reports the door as closed
+// rather than throwing a raw 403 at a buyer". It did the opposite: the tap
+// moved the panel to "Paying · leaving for stripe", HID the button, ERASED
+// the only sentence saying card payment is not open — and made no request
+// at all. The page's single fetch is the boot read of the price resource.
+//
+// Nothing pinned any of it: erasing the notice outright left all of
+// test:scripts green, because no case here had ever tapped Pay.
+describe("what the quote promises about its own price", () => {
+  it("does not call the quote locked before the question is approved", () => {
+    // The page prices off the COMMITTED card; the server re-reads demand
+    // when the question is approved and locks the quote there. Measured on
+    // the shipped fold at six concurrent city campaigns: the door offered
+    // 500 answers for €10 where the server locks 166 for the same €10, and
+    // the door's refund line promised money back that the server's quote
+    // pays at zero. Calling that "price locked" is the one word this page
+    // must not use.
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+    expect($("panelKicker").textContent, "the quote called itself locked").not.toMatch(/price locked/);
+    expect($("panelKicker").textContent).toMatch(/locked when approved/);
+    // …and the page says WHY, in its own provenance line rather than only
+    // in a kicker somebody may not read.
+    expect(sp(text()), "the page never says the rate is confirmed at approval")
+      .toMatch(/confirmed when the question is approved/);
+  });
+});
+
+describe("the pay tap (the door is not open)", () => {
+  // The options matter: the quote button is disabled until a binary
+  // question has two of them, so a case that skipped them would be
+  // asserting about a panel that never opened.
+  const quote = () => {
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+    expect($("panel").hidden, "the quote panel never opened").toBe(false);
+  };
+
+  it("says payment is not open, before and after the tap", () => {
+    quote();
+    expect($("payNote").textContent, "the quote never carried the notice")
+      .toMatch(/not open yet/i);
+    $("payBtn").click();
+    expect($("payNote").textContent, "the tap erased the sentence that says payment is closed")
+      .toMatch(/not open yet/i);
+  });
+
+  it("does not announce a payment it is not making", () => {
+    quote();
+    $("payBtn").click();
+    const said = sp(text());
+    expect(said, "the page announced a payment in progress").not.toMatch(/Paying/);
+    expect(said, "the page said it was leaving for the payment provider").not.toMatch(/leaving for stripe/i);
+    expect($("panelStatus").textContent).toMatch(/not open yet/i);
+  });
+
+  it("makes no request when it is tapped — the fetch is the price read alone", () => {
+    quote();
+    const before = globalThis.fetch.mock.calls.length;
+    $("payBtn").click();
+    expect(globalThis.fetch.mock.calls.length, "the tap issued a request it cannot complete")
+      .toBe(before);
   });
 });

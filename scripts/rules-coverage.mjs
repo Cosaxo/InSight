@@ -128,7 +128,7 @@ export function verdict(count, total, baseline) {
 }
 
 // ── the run ──────────────────────────────────────────────────────
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const host = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
   const project = process.env.RULES_COVERAGE_PROJECT || "insight-rules-test";
   const url = `http://${host}/emulator/v1/projects/${project}:ruleCoverage.html`;
