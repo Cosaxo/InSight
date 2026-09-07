@@ -41445,3 +41445,65 @@ keeps them, a stored capture keeps everything and is the store whose
 breach is a breach in the street). The reviewer returned twenty-five
 findings and the paper answers all of them; the rest are in it as
 conditions rather than here as prose. Nothing in the app moves.
+
+## D389 amendment (2026-09-07) · Paper 10: the key in the relation, and why it has to be earned
+
+The owner: *"keep going with the next paper."* Paper 10 is the first of
+the planned crossings after the four unbuilt axes — the logic test
+against the bank, which the plan called *reasoning items in the clothes
+of opinions*.
+
+Paper 1 gave the bank a per-item residual discrimination and stopped at
+the sentence that an ability tilt gives no opinion a right answer. Paper
+10's move is that the key can live in the *relation* between two items
+rather than in either: one entails the other given a premise, two
+positions exclude each other at a stated scope, a likelihood comparison
+bounds another, one proposition in two frames should draw one answer. A
+person's two answers are scored on the relation and neither item is a
+question anyone could fail, so a bank authored to carry relations
+measures reasoning with the test situation removed, and the same ability
+is measured under a test and under none.
+
+The draft wrote the key as a defence — every relation carrying a written
+argument against its strongest reinterpretation. The adversarial
+review's first finding was a bind the draft never saw: a relation nobody
+could read another way is one nearly everybody answers coherently, so it
+carries no between-person variance, and a relation many people violate
+is by that fact evidence a reading was available under which their
+answers cohere. Informative relations are presumptively undefended and
+defended relations presumptively uninformative, and the same
+transparency that defends a relation cues recall of the first answer, so
+the best-defended relations have the narrowest windows. A written
+defence is a claim by the party that gains from it, judged by nobody. So
+the paper now earns its keys: a relation's violations must track the
+keyed score after response style and the profile facts are removed, and
+its violators must fail to supply a reinterpretation when asked, and a
+relation failing either is retired. Even an earned key is common to
+everyone who meets it, so a key error shifts every rate alike and no
+level in the paper is readable — only contrasts, which is paper 8's
+lesson in a form the draft had imported wrongly.
+
+The other corrections worth the record: entailment between opinions is
+three-place and the bridging premise is an item; a constraint binds only
+for some positions, so the binding rate is published beside the
+violation rate and people with unusual positions are not scored as less
+coherent by arithmetic; response style, which papers 3, 8 and 9 all
+remove first, is removed first here too; the draft's "second
+measurement with no situation attached" was false, since the wild has a
+situation of its own, and the situation contrast is identified only by
+a randomized disclosed arm — which is also where every cover-breaking
+probe runs and where the cost of the honest consent shape is measured
+rather than asserted; a relation has no occasion, so its day is the
+second item's and replicates are of items; the reveal moves the
+antecedent, so the first item is re-asked sealed; and the counts are
+derived from a between-person spread the first study returns and priced
+in shares of paper 0a's one observation a day rather than as if the day
+were the paper's own.
+
+The consent shape is the owner's decision, stated as five enumerated
+shapes — nothing disclosed; general disclosure; general disclosure with
+a debrief per relation; an opt-in scored stream; per-item disclosure —
+with what each exposes and to whom, and with the cost of disclosure
+measured by the arm before the decision is made. The reviewer returned
+twenty-six findings and the paper answers all of them; the rest are in
+it as conditions rather than here as prose. Nothing in the app moves.
