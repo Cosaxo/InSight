@@ -137,10 +137,16 @@ function GateField({ id, label, ...rest }: {
     <label htmlFor={id} style={{ display: "block", marginTop: 10 }}>
       <span style={{ display: "block", fontFamily: "var(--sans)", fontSize: 12,
         fontWeight: 700, color: "var(--ink-3)", marginBottom: 5 }}>{label}</span>
+      {/* fontSize is the TOKEN, never a literal — 16 included. styles.css
+          owns the number and the reasoning (a field under 16px makes iOS
+          zoom the whole fixed app shell and nothing zooms it back), and
+          `check:touch-zoom` fails a literal precisely so the number stays
+          in one place. It caught this line. */}
       <input id={id} {...rest}
         style={{ width: "100%", border: GATE_LINE, borderRadius: 14,
           padding: "13px 15px", background: "var(--surface)", color: "var(--ink)",
-          fontFamily: "var(--sans)", fontWeight: 600, fontSize: 16,
+          fontFamily: "var(--sans)", fontWeight: 600,
+          fontSize: "var(--field-size)",
           WebkitAppearance: "none" }} />
     </label>
   );
