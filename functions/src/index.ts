@@ -223,6 +223,12 @@ export const deleteAccount = onCall(
       // that bought a question is the signal that the pointer was gone
       // before this ran.
       paidQuestionBylines: 0,
+      // …and how many of those were STILL RUNNING and were stopped with
+      // the byline (phase 4e). Separate from the line above because the
+      // two are different acts: emptying a byline is erasure, stopping a
+      // campaign is the consequence of erasing its targeting. A non-zero
+      // here is an operator's cue that a paid window ended early.
+      paidQuestionsStopped: 0,
       // Paid-question bookings swept by phase 4f (paid.ts, D313) — the
       // pre-payment half of a sale, keyed by uid.
       paidBookings: 0,
@@ -1107,20 +1113,71 @@ export const deleteAccount = onCall(
       const boughtQids = bought.docs
         .map((d) => String(d.get("qid") ?? ""))
         .filter((id) => id.length > 0);
+      // A RUNNING CAMPAIGN STOPS HERE TOO, and this is not tidiness.
+      //
+      // `sponsor.audience` is not only personal data — it is the SERVING
+      // FILTER. `matches()` (data/sponsored.ts) reads `if (!tag) return
+      // true`, so an untagged sponsored question matches every device on
+      // earth. Deleting the field for erasure therefore did not narrow the
+      // campaign, it WIDENED it: a card bought for Oslo went worldwide the
+      // moment its buyer deleted their account, the PAID band flipped from
+      // "City: Oslo, NO" to the empty list it renders as shown-to-everyone,
+      // and the question's public aggregate began mixing a one-city frame
+      // with a global one, with nothing recording the seam.
+      //
+      // Nothing could stop it afterwards either: `closePaidCampaignsV2`
+      // finds its work with `state == "running"` on the purchase rows, and
+      // this same phase is about to delete the row. So the widened card ran
+      // to its `until` and, on the results page, presented itself as having
+      // been asked of everyone.
+      //
+      // RUNNING ONLY. A campaign whose window has closed is past `until`
+      // and already unservable, and `active: false` is read far beyond the
+      // feed — the Mirror's folds drop an inactive question — so retiring a
+      // finished one would take the crowd's own answers off the Mirror to
+      // settle something between the buyer and this app. The answers belong
+      // to the people who wrote them.
+      const runningQids = new Set(
+        bought.docs
+          .filter((d) => d.get("state") === "running")
+          .map((d) => String(d.get("qid") ?? ""))
+          .filter((id) => id.length > 0),
+      );
       let stripped = 0;
+      let stopped = 0;
       for (const qid of boughtQids) {
+        const stop = runningQids.has(qid);
         try {
           await db.collection("v2_questions").doc(qid).update({
             "sponsor.buyer": FieldValue.delete(),
             "sponsor.audience": FieldValue.delete(),
+            // A MARKER, because absence is ambiguous and the ambiguity is
+            // published. `sponsor.buyer` absent means "bought without a
+            // name" (D228) and `sponsor.audience` absent means "bought
+            // untargeted" — both real, deliberate purchases — so a page
+            // reading the stripped document cannot tell those from an
+            // erasure, and the public results page said the buyer "chose
+            // not to wear a name" and that the question was "asked
+            // everyone". Two definite statements, both false, about a
+            // sample that was one city's.
+            //
+            // Not personal data: it is a fact about this QUESTION, that
+            // its provenance is gone. Nothing in it points at anybody.
+            "sponsor.erased": true,
+            // Every servable path in the client is `active !== false`
+            // (data/live.ts), so this is the one field that takes a card
+            // off every surface at once rather than one filter at a time.
+            ...(stop ? { active: false } : {}),
           });
           stripped += 1;
+          if (stop) stopped += 1;
         } catch (err) {
           // NOT_FOUND (5) is the abandoned-booking case above.
           if ((err as { code?: number }).code !== 5) throw err;
         }
       }
       counts.paidQuestionBylines = stripped;
+      counts.paidQuestionsStopped = stopped;
 
       // A RUNNING campaign's row is the only pointer at the money it owes
       // back, and this sweep is about to delete it.

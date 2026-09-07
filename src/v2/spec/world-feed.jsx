@@ -237,7 +237,30 @@ function WfCount({ to, animate, dur = 650, delay = 180 }) {
 // daily-split.jsx, and the consequence beat was the copy that never got
 // written: it replayed 100% on your own option with "you're with them"
 // under it, on the one card that has nothing to be with.
-function wfNoCrowd(q) { return !!(q.live && q.noCountsYet); }
+// AND "NO CROWD" HAS TO MEAN "NOBODY BUT ME", which `noCountsYet` does
+// not. It is `agg.total > 0` (data/deck.ts), computed over a population
+// that INCLUDES the viewer — while every `o.count` the card draws has the
+// viewer subtracted back out by `countsFor` once the trigger has folded
+// them. So on a question whose only answer is yours, the moment the fold
+// lands `noCountsYet` goes false, the floor lifts, and the card draws
+// `wfPcts`'s own +1 as "100%" over a crowd of nobody.
+//
+// Not a race that resolves off-screen: `unaggregated` clears on the next
+// aggregate read and `scheduleAggRefresh` fires a couple of seconds after
+// the write acks, so the card flips from floored to "100% · 1 vote" while
+// the reader is still looking at it. `renderMeta` one method over already
+// knows the state — `alone = total <= 1`, "a majority needs somebody to be
+// in it besides the reader" — and suppresses its sentence; the
+// percentages above it made the same claim anyway.
+//
+// The counts are the honest test because they are the numbers on screen.
+// FIFTH site of the D365 +1 mismatch family, one level up from the other
+// four: those were counts computed over the wrong population, this is a
+// PREDICATE computed over the wrong population and deciding whether the
+// counts are shown at all.
+function wfNoCrowd(q) {
+  return !!(q.live && (q.noCountsYet || (q.options || []).every((o) => !o.count)));
+}
 
 function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
 function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }
@@ -1626,7 +1649,7 @@ class WorldFeed extends React.Component {
                 <>
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>Saved to your map.</span>
-                  <button onClick={() => { window.MAP_OPEN_GROUP = 'g-know'; NAV.goTab('mirror'); }} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>See it</button>
+                  <button onClick={() => { window.MAP_OPEN_GROUP = 'g-know'; NAV.goTab('you'); }} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>See it</button>
                 </>
               ) : r.ok && r.wasKnown ? (
                 <>
@@ -2223,7 +2246,7 @@ class WorldFeed extends React.Component {
     const quiet = { fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' };
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     if (rip) return (
-      <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>
+      <button onClick={() => NAV.goTab('you')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>
     );
     if (insight) return insight;
     if (q.type === 'rate') {
@@ -2259,7 +2282,7 @@ class WorldFeed extends React.Component {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
         <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (alone ? '' : (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog'))}</span>
-        {rip && <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
+        {rip && <button onClick={() => NAV.goTab('you')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
   }
@@ -4422,7 +4445,18 @@ class WorldFeed extends React.Component {
     // Nor a story (D341): the ring is renderCard's to draw and PathsCard
     // never would, so a hash that landed on one would silently spend the
     // grace note on a card that cannot wear it.
-    const clockable = feedList.filter((q) => !askWindow(q) && q.type !== 'path');
+    // NOT A SPONSORED CARD, and `askWindow` cannot answer for one. The
+    // ring is invented — renderClock's own note says the invented one and
+    // a real deadline "must never appear on the same card, or the invented
+    // one borrows the credibility of the real one" — and the window check
+    // above is what keeps them apart. A sponsored card emits `until`
+    // WITHOUT `from` on purpose (live.ts: "that one already states its
+    // window in the PAID band"), and askWindow needs both ends, so it
+    // returns null and the paid card fell straight into this pool.
+    // Verified by running the shipped function: askWindow({ until }) is
+    // null, askWindow({ from, until }) is a window. With a paid place after
+    // every sixth card, one sits inside the eight this picks from.
+    const clockable = feedList.filter((q) => !askWindow(q) && !q.sponsor && q.type !== 'path');
     const closingId = this.opts.clock
       ? ((clockable.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || clockable[1] || {}).id)
       : null;

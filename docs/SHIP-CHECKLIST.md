@@ -516,14 +516,24 @@ Both apps must be registered under `com.cosaxo.insight`:
   over: the surface shipped at D83 with the report control alongside it,
   and D98 attached names. Both obligations are met above; keep them met.
 
-  **The second trap is guideline 3.1, and nothing in this checklist saw
-  it until 2026-08-31.** The app carries a complete purchase funnel:
-  `SuggestOverlay` (`src/v2/spec/suggestions.jsx`) is the paid door —
-  rate card, scope ruler, composer, and a pay tap that opens Stripe —
-  entered from the profile tab, selling a question window at EUR 320 or
-  an ad at EUR 288. D313's *"commerce stays on the web side"* is a true
-  sentence about where the payment **form** renders; 3.1.1 is about
-  where the **call to action** lives, and that is inside the binary.
+  **The second trap was guideline 3.1, and it is CLOSED — the door left
+  the binary at D368 (2026-09-05).** `src/v2/spec/suggestions.jsx` and
+  its `SuggestOverlay` no longer exist, and nothing in `src/` or `web/`
+  references them. This section described the funnel in the present
+  tense, and asked for a decision that had already been taken, until
+  2026-09-07: an operator reading the canonical release document met a
+  live 3.1 risk that was not there. Kept below as the REASONING, because
+  it is why the door moved and a reviewer may still ask.
+
+  What it said, as of 2026-08-31: the app carries a complete purchase
+  funnel — `SuggestOverlay` is the paid door, rate card, scope ruler,
+  composer, and a pay tap that opens Stripe, entered from the profile
+  tab, selling a question window at EUR 320 or an ad at EUR 288. (Both
+  prices are also gone: the card is now a menu of EUR 10 / 25 / 50 with a
+  EUR 50 cap, and the ad lane retired at D375.) D313's *"commerce stays
+  on the web side"* is a true sentence about where the payment **form**
+  renders; 3.1.1 is about where the **call to action** lives, and that
+  was inside the binary.
 
   Two readings, and the gap between them is the risk. What is sold is
   **advertising** — distribution to other people, not a feature unlocked
@@ -536,10 +546,10 @@ Both apps must be registered under `com.cosaxo.insight`:
   consumer app with a B2B door in its profile tab — Meta's "Boost Post"
   shape, which Apple charged for.
 
-  **Decide it before the first submission, not after a rejection.**
-  There are zero sales and no submission yet, so the door can leave at
-  no cost today; removing it after a review costs a cycle and a flag on
-  the account. [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is the working —
+  **Decided before the first submission, which is what this paragraph
+  asked for.** It read "decide it before the first submission, not after
+  a rejection … the door can leave at no cost today", and that is what
+  happened at D368 — zero sales, no submission, no cycle spent. [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is the working —
   including the finding that IAP could not express this product's
   billing at all, since the closer's partial refund (D164) has no
   in-app-purchase primitive, and the four legal facts to verify before

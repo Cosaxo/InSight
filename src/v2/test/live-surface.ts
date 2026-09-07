@@ -169,6 +169,7 @@ export const LIVE_MEMBERS = [
   // Today's pulse answer while the fold has not counted it yet, so the
   // card can report a crowd the reader is actually in.
   "pulsePending",
+  "votePending",
   "pulseVotes",
   // Crossroads' stories with their folded ending counts (D136). A story is
   // an ordinary bank question — real options, real fold, the ordinary vote

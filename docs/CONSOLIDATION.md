@@ -111,12 +111,15 @@ daily state.
 
 ## 2 · The floor: what survives any cut
 
-**Eighteen GitHub Actions workflows already run the mechanical half of
-the program on no subscription at all**, and three of them arrived by
+**Nineteen GitHub Actions workflows already run the mechanical half of
+the program on no subscription at all**, and four of them arrived by
 moving work off an account rather than by adding anything: the console
 (`console.yml`, D352), the production reader (`production-reader.yml`,
-D359) and the App Check watch (`appcheck.yml`, D367). Each was a Claude
-lane; each is now a script that costs nothing from any bucket.
+D359), the App Check watch (`appcheck.yml`, D367) and the device screens
+(`device-screens.yml`, D404 — a night shift asks for a device pass by
+pushing a pointer, and GitHub's runners take the shells). Each was a
+Claude lane or would have been one; each now costs nothing from any
+bucket.
 
 A fourth was moved and then **retired outright**: the PR shepherd ran as
 `pr-shepherd.yml` for two days and D385 deleted it, because merging

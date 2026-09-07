@@ -29,6 +29,7 @@
 // replacement literal, so lowering the baseline is a copy-paste and never a
 // guess. Deleting a file's entry entirely is correct once it reaches zero.
 
+import { sep } from "node:path";
 import { readdirSync, readFileSync } from "node:fs";
 import { ESLint } from "eslint";
 
@@ -287,9 +288,12 @@ if (!baselineClaim) {
 // the same in a worktree, a CI checkout and an export.
 let suppressions = 0;
 let suppressionFiles = 0;
-for (const f of readdirSync("src/v2/spec")) {
+// Recursive: this produces a COUNT the tree is held to, so a file one
+// directory down would lower it silently — a suppression census that
+// under-reports reads as progress.
+for (const f of readdirSync("src/v2/spec", { recursive: true })) {
   if (!/\.jsx?$/.test(f)) continue;
-  const hits = readFileSync(`src/v2/spec/${f}`, "utf8")
+  const hits = readFileSync(`src/v2/spec/${String(f).split(sep).join("/")}`, "utf8")
     .split("\n")
     .filter((l) => l.includes("eslint-disable-next-line")).length;
   if (hits) { suppressions += hits; suppressionFiles += 1; }

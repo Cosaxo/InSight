@@ -433,7 +433,17 @@ export class DailySplit extends React.Component {
     // the render branch, because `st.beat` also gates the live Takes and
     // Who-voted doors below (`st.beat !== S.id`) — skipping the render with
     // `beat` still set would strand it and take both doors with it.
-    beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating' && !(S.live && S.noCountsYet)) ? S.id : null }));
+    // `noCrowd` below is "nobody but me", not "nobody" — the same
+    // widening as `floored`, and it belongs here most of all, because the
+    // beat's whole payload is the crowd claim. `S.noCountsYet` counts the
+    // viewer (`agg.total > 0`) while every `o.count` has the viewer taken
+    // back out, so on a question whose only answer is your own — a second
+    // device's, or your own edit under D86 — the old gate let the beat
+    // through to say "100% chose Yes — you're with them" with nobody to
+    // be with. Measured in a mount test, which is how it was found: the
+    // ballot's own floor was fixed first and the beat still said it.
+    beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating'
+      && !(S.live && (S.noCountsYet || S.options.every((o) => !o.count)))) ? S.id : null }));
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
@@ -730,6 +740,9 @@ export class DailySplit extends React.Component {
 
     // ===== WORLD =====
     const DATA = this.worldDeck;
+    // A FALLBACK, and only that: this reads correctly on a Thursday and on
+    // no other day. Every consumer prefers the card's own `dayLabel`,
+    // which deck.ts derives from the date.
     const dayNames = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
     if (!DATA.length) {
       const placeholder = h('div', { className: 'card', style: { padding: '26px 18px', textAlign: 'center', margin: '4px 1px' } },
@@ -774,7 +787,14 @@ export class DailySplit extends React.Component {
     // "would publish the split geometrically instead of numerically, which
     // is the same disclosure in a different alphabet". The daily was the one
     // answer surface with no such gate.
-    const floored = !!(S.live && S.noCountsYet);
+    // "Nobody but me" rather than "nobody", for wfNoCrowd's reason
+    // (world-feed.jsx, where the same widening is written out):
+    // `noCountsYet` is `agg.total > 0` and counts the viewer, while every
+    // `o.count` here has had the viewer subtracted back out. On the day's
+    // first vote — which on the daily is a state every reader passes
+    // through — the fold lands, the floor lifts, and the card prints 100%
+    // over a crowd of one.
+    const floored = !!(S.live && (S.noCountsYet || S.options.every((o) => !o.count)));
     const myIdx = S.options.findIndex(o => o.id === myVote);
     // THE WINNER IS THE BIGGEST COUNT, not the biggest drawn percentage.
     // `rp` is rounded, so two different counts land on the same integer —
@@ -1100,7 +1120,23 @@ export class DailySplit extends React.Component {
                     h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, (avg && !floored) ? (Math.round(avg * 10) / 10).toFixed(1) : '\u2014'),
                     h('span', { style: { fontWeight: 700, fontSize: 12.5, color: 'var(--ink-3)' } }, '/ ' + S.options.length + ' average'),
                     myIdx >= 0 && h('span', { style: { marginLeft: 'auto', fontWeight: 700, fontSize: 12.5, color: 'var(--ink-2)' } }, 'you said ' + (myIdx + 1))),
-                  h(RatingRidge, { counts, mine: myIdx, color: topicCol, height: 64 }));
+                  // FLOORED MEANS FLOORED HERE TOO. The numeral above is
+                  // already withheld on a live card with no published
+                  // counts, and this ridge was drawn regardless — and it
+                  // scales to `max(1, ...counts)`, so the FIRST voter's own
+                  // single answer becomes a full-height column with two
+                  // empty steps beside it. Measured on a live fixture: the
+                  // card read "— / 3 average … You're first — the count
+                  // lands in a moment." over columns at 7%, 7%, 100%.
+                  //
+                  // Zeroed rather than hidden: the scale is worth seeing and
+                  // so is where you landed, and with a zero total the
+                  // component floors every step and drops "most at N" from
+                  // its own description. This is what the option-tile
+                  // branch below already does when floored (`flex: 10`),
+                  // and the third of the three gates this file's header
+                  // says the feed had and the daily did not.
+                  h(RatingRidge, { counts: floored ? counts.map(() => 0) : counts, mine: myIdx, color: topicCol, height: 64 }));
               })()
             // the ballot again, its seam now at the crowd's split: two
             // sides read left-to-right (width is share), three or more
@@ -1222,7 +1258,15 @@ export class DailySplit extends React.Component {
           const v = st.votes[q.id], cur = i === wIdx;
           return h('button', {
             key: q.id, className: 'press tap44 is-tight', onClick: () => this.jumpTo(i), title: q.text,
-            'aria-label': (dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
+            // THE CARD'S OWN LABEL FIRST, the frozen list only as a
+            // fallback. `dayNames` is a literal that reads correctly on a
+            // THURSDAY and on no other day: the kicker one screen up
+            // already prefers `S.dayLabel` — the real weekday, derived
+            // from the date — and these dots did not, so six days in seven
+            // a dot announced a different day from the card it opens, by
+            // up to three days. Screen-reader only, since the dots
+            // themselves carry no text.
+            'aria-label': (q.dayLabel || dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
             'aria-current': cur ? 'true' : undefined,
             style: { width: 22, height: 22, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitAppearance: 'none' }
           }, h('span', { style: { width: cur ? 18 : 6, height: 6, borderRadius: 999, background: cur ? 'var(--accent)' : v ? 'color-mix(in oklch, var(--accent) 45%, var(--surface-3))' : 'color-mix(in oklch, var(--ink-3) 30%, transparent)', transition: 'width .25s ease, background .2s ease' } }));

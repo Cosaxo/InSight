@@ -173,7 +173,24 @@ function notFound(): string {
 export function renderResultsPage(input: ResultsInput): { status: number; html: string } {
   const q = input.question;
   const sponsor = q && q.sponsor && typeof q.sponsor === "object" ? (q.sponsor as Record<string, unknown>) : null;
-  if (!q || q.surface !== "feed" || !sponsor || q.active === false) return { status: 404, html: notFound() };
+  // THE BUYER ERASED THEIR ACCOUNT, which is not a retirement — see the
+  // `erased` const below for what the marker is. Erasure sets `active:
+  // false` on a RUNNING bought question, to take the card off every
+  // surface at once now that the audience deciding who sees it is gone.
+  // That is right for SERVING and wrong here: this page's whole purpose
+  // (D379) is a link somebody has already shared, and its own 404 copy
+  // promises the results stay "while it is live and after". Refusing on
+  // `active` alone killed every one of those links permanently — nothing
+  // ever sets `active` back on a runtime paid question — and made the
+  // erased byline three lines down unreachable in exactly the case it was
+  // written for.
+  //
+  // A retired question still 404s. This is the one absence that means
+  // something else.
+  const erasedBuyer = sponsor?.erased === true;
+  if (!q || q.surface !== "feed" || !sponsor || (q.active === false && !erasedBuyer)) {
+    return { status: 404, html: notFound() };
+  }
   const prompt = String(q.prompt ?? "");
   const options = Array.isArray(q.options) ? (q.options as unknown[]).map((o) => String(o ?? "")) : [];
   const counts = options.map((_, i) => {
@@ -184,6 +201,13 @@ export function renderResultsPage(input: ResultsInput): { status: number; html: 
   const pcts = sharePcts(counts);
   const lead = total ? counts.indexOf(Math.max(...counts)) : -1;
   const buyer = typeof sponsor.buyer === "string" && sponsor.buyer.trim() ? sponsor.buyer.trim() : null;
+  // THE BUYER ERASED THEIR ACCOUNT, which is not the same as either of the
+  // two absences below and used to be printed as both of them. A nameless
+  // purchase is a choice (D228); an untargeted one is a choice; an erasure
+  // is neither, and the page claimed both on the buyer's behalf. Written by
+  // the erasure sweep (index.ts phase 4e) precisely so this page can tell
+  // the difference.
+  const erased = erasedBuyer;
   const audience = sponsor.audience && typeof sponsor.audience === "object" ? (sponsor.audience as Record<string, unknown>) : {};
   const audLine = Object.entries(audience).map(([d, b]) => `${DIM_LABEL[d] ?? d}: ${String(b)}`);
   const from = dayLabel(q.from);
@@ -227,7 +251,7 @@ export function renderResultsPage(input: ResultsInput): { status: number; html: 
   const body = `
   <div class="kicker"><span class="paid">PAID</span><span>InSight · a question somebody paid to ask</span></div>
   <h1>${esc(prompt)}</h1>
-  <p class="by">${buyer ? `Asked by <strong>${esc(buyer)}</strong>` : "Asked by a buyer who chose not to wear a name"}${audLine.length ? ` · asked ${esc(audLine.join(" · "))}` : " · asked everyone"}${from && until ? ` · ${live ? "runs" : "ran"} ${esc(from)} → ${esc(until)}` : ""}</p>
+  <p class="by">${buyer ? `Asked by <strong>${esc(buyer)}</strong>` : erased ? "Asked by a buyer who has since deleted their account" : "Asked by a buyer who chose not to wear a name"}${audLine.length ? ` · asked ${esc(audLine.join(" · "))}` : erased ? " · audience not recorded" : " · asked everyone"}${from && until ? ` · ${live ? "runs" : "ran"} ${esc(from)} → ${esc(until)}` : ""}</p>
   ${split}
   <p class="total"><strong>${fmtN(total)}</strong> ${total === 1 ? "answer" : "answers"}${total ? "" : " so far — the split appears with the first one"}</p>
   ${breakdown}

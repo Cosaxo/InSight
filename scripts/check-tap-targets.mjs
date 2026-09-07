@@ -86,7 +86,7 @@ export function headOf(src, start, kind) {
 const findings = [];
 // Only when RUN, so a test can import the scanner above without this
 // walking src/ and calling process.exit.
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   let buttons = 0;
 
   for (const file of files.sort()) {

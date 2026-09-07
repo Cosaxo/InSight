@@ -121,14 +121,22 @@ because it is a promise: the prototype's *"never names, never your
 profile"* is FALSE post-D98, and the shipped line is *they get the same
 public numbers you do; there is no private cut.*
 
-**3 · Ads in the world feed** — **BUILT (D197), and SELF-SERVE since
+**3 · Ads in the world feed** — **RETIRED at D375 (2026-09-05).** It was
+built at D197 and made self-serve at
 [D315](DECISIONS.md#d315--ads-sell-themselves-too--flat-priced-windows-through-the-same-loop-and-no-google)
-(2026-08-26): an ad books through the same door and review as a paid
-question, pays a flat committed window price (adBase × idx — nothing to
-meter, so nothing else is honest), queues day-exclusively behind the
-scope's running ad, and is written into `v2_ads` by the payment
-webhook. Google ad networks were weighed and refused in the same
-record.**
+(2026-08-26): an ad booked through the same door and review as a paid
+question, paid a flat committed window price (`adBase` × idx), queued
+day-exclusively behind the scope's running ad, and was written into
+`v2_ads` by the payment webhook. Google ad networks were weighed and
+refused in the same record.
+
+This paragraph described all of that in the present tense until
+2026-09-07, and `adBase` is not merely unused — `check:pricing` FAILS the
+build on it ("adBase is no longer a price — the ad lane retired at D375;
+drop it from the card"), and `content/pricing.json` carries no such key.
+The contradiction was inside this file: §"What the store cut costs"
+already said "the self-serve ad lane D315 built on it retired at D375",
+fifty-five lines below.
 A text card: advertiser, headline, one line, the same disclosure band a
 sponsored question wears, and no image, logo, brand colour or link —
 `check:content` refuses each by name. **No tap-through is the design, not
@@ -170,9 +178,17 @@ At EUR 320 a question and EUR 288 an ad, a store cut is EUR 48-96 a sale
 against roughly EUR 5 of card processing; and the closer's partial refund
 (D164) has no in-app-purchase primitive at all, so the billing model and
 IAP are not merely expensive together, they are incompatible.
-[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) sets out the three shapes and
-recommends moving the door to the web. **Nothing is adopted** — the door
-is where it has always been until a decision record says otherwise.
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) set out the three shapes and
+recommended moving the door to the web.
+
+**ADOPTED — shape A, at D368 (2026-09-05).** This paragraph said "Nothing
+is adopted … until a decision record says otherwise"; the record exists
+and the door is out of the binary. `src/v2/spec/suggestions.jsx` and its
+`SuggestOverlay` were deleted, and the prices above are stale with them:
+`content/pricing.json` is a `menu` of EUR 10 / 25 / 50 with a EUR 50 cap,
+not EUR 320 a question, and there is no ad price at all. The 3.1.1
+arithmetic in this paragraph is kept as the REASONING that produced the
+decision, not as a live question.
 
 ## Ruled out by standing posture
 
