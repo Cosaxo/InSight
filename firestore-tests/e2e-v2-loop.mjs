@@ -24,7 +24,7 @@ import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
 // The breakdown dims and their closed vocabularies, from the same
 // compiled output — the report builder takes them as input so it never
 // grows the second copy check:anchors exists to prevent.
-import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
+import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB, BREAKDOWN_MAX_BUCKETS, OVERFLOW_SHARDS } from "../functions/lib/pure.js";
 // The report builder (PAID-PLAN §9.2): §7g drives it through THIS
 // harness's signed-in client, so the deployed rules referee every read.
 import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
@@ -191,6 +191,19 @@ const uid = cred.user.uid;
 // The city split is 5/5 across Oslo and Bergen by the end, so the
 // dimension D9 added is exercised through the whole pipeline rather than
 // only in the pure unit tests.
+// THE PROFILE IS WRITTEN FIRST, as the app writes it (D410). Anchors on an
+// answer are a SNAPSHOT of the author's profile, and since D410 the fold
+// checks that: a claimed anchor the profile does not carry is corrected
+// away, because firestore.rules can only check the anchors are plausible,
+// never that they are the author's. This suite used to write answers with
+// anchors and no profile at all — a state the client cannot produce, since
+// `answerAnchors()` reads `state.profile.anchors` and `saveAnchors` writes
+// the profile before any of it exists. So the shortcut was not just a
+// shortcut: it meant the profile-then-answer ordering the fold now depends
+// on had never been exercised end to end.
+await setDoc(doc(db, "v2_users", uid), {
+  anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+}, { mergeFields: ["anchors"] });
 await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
   qid: q0.id, surface: "daily", optionIdx: 1,
   answeredAt: serverTimestamp(),
@@ -255,6 +268,12 @@ for (let n = 0; n < 4; n++) {
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: {
+    ageBand: n % 2 === 0 ? "25-34" : "35-44",
+    country: "NO",
+    city: n < 2 ? "Oslo, NO" : "Bergen, NO",
+  } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
     answeredAt: serverTimestamp(),
@@ -321,6 +340,12 @@ for (let m = 0; m < 5; m++) {
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: {
+    ageBand: m < 2 ? "25-34" : "35-44",
+    country: "NO",
+    city: m < 2 ? "Oslo, NO" : "Bergen, NO",
+  } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(),
@@ -368,6 +393,8 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: { ageBand: "25-34", country: "Norway" } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
@@ -461,6 +488,9 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid),
+    { anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" } },
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 1,
     answeredAt: serverTimestamp(),
@@ -639,6 +669,89 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 
   await adminDb.doc(`v2_questions/${EMPTY}`).delete();
   await adminDb.doc(`v2_question_aggs/${EMPTY}`).delete();
+}
+
+// 7j · the cap's tail (D400), through the real trigger. Twenty-five more
+// voters from twenty-five cities nobody else is in — no age band, so the
+// band totals 7b–7f asserted stand. Oslo and Bergen sit at the floor, so
+// with 22 free slots the hot map fills to BREAKDOWN_MAX_BUCKETS and each
+// of the last three newcomers evicts the OLDEST one-answer city into
+// v2_agg_overflow/{qid}-{shard}. What this proves that the unit tests
+// cannot: the transaction's conditional shard read and its blind
+// merge-increments land in the emulator, and hot ∪ tail is exact.
+{
+  const cityKeys = (by) => Object.keys((by && by.city) || {});
+  const cellSumOf = (cell) => Object.values(cell || {}).reduce((a, c) => a + c, 0);
+  const before = (await getDoc(doc(db, "v2_question_aggs", q0.id))).data();
+  const beforeCitySum = cityKeys(before.by).reduce((a, c) => a + cellSumOf(before.by.city[c]), 0);
+  if (cityKeys(before.by).length >= BREAKDOWN_MAX_BUCKETS)
+    fail("7j assumes the hot map is under the cap before it runs: " + cityKeys(before.by).length);
+  const TAIL_N = 25;
+  for (let t = 0; t < TAIL_N; t++) {
+    const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "tail" + t);
+    const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+    const u = await signInAnonymously(vAuth);
+    // The profile first (D410), as every one of these voters' real
+    // counterparts would: the fold checks a claimed anchor against the
+    // author's profile, so a tail voter with no profile has no city to be
+    // counted under and the cap this case exists to reach is never reached.
+    await setDoc(doc(vDb, "v2_users", u.user.uid),
+      { anchors: { country: "NO", city: `Tail${String(t).padStart(2, "0")}, NO` } },
+      { mergeFields: ["anchors"] });
+    await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
+      qid: q0.id, surface: "daily", optionIdx: t % 2,
+      answeredAt: serverTimestamp(),
+      anchors: { country: "NO", city: `Tail${String(t).padStart(2, "0")}, NO` },
+    });
+  }
+  let tailed = null;
+  for (let i = 0; i < 80; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    if (snap.exists() && snap.get("total") === before.total + TAIL_N) { tailed = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!tailed) fail("the tail voters never all folded (total " + (before.total + TAIL_N) + " not reached)");
+  const hot = tailed.by.city;
+  if (Object.keys(hot).length !== BREAKDOWN_MAX_BUCKETS)
+    fail("hot city map is not at the cap: " + Object.keys(hot).length);
+  if (!hot["Oslo, NO"] || !hot["Bergen, NO"])
+    fail("a bucket at the floor was evicted: " + JSON.stringify(Object.keys(hot)));
+  // Every shard, through the admin handle (the docs are public; the point
+  // of the handle is that a missing shard reads as missing, not as denied).
+  const tailCells = {};
+  let tailShardsSeen = 0;
+  for (let s = 0; s < OVERFLOW_SHARDS; s++) {
+    const snap = await adminDb.doc(`v2_agg_overflow/${q0.id}-${s}`).get();
+    if (!snap.exists) continue;
+    tailShardsSeen += 1;
+    for (const [c, cell] of Object.entries(snap.get("city") || {})) {
+      if (hot[c]) fail("a bucket is in both the hot map and the tail: " + c);
+      if (tailCells[c]) fail("a bucket is in two shards: " + c);
+      tailCells[c] = cell;
+    }
+  }
+  const expectedTail = cityKeys(before.by).length + TAIL_N - BREAKDOWN_MAX_BUCKETS;
+  if (Object.keys(tailCells).length !== expectedTail)
+    fail(`tail holds ${Object.keys(tailCells).length} cities, expected ${expectedTail}: ` + JSON.stringify(Object.keys(tailCells)));
+  for (const [c, cell] of Object.entries(tailCells)) {
+    if (cellSumOf(cell) !== 1) fail(`tail cell ${c} should hold one answer: ` + JSON.stringify(cell));
+    if (!c.startsWith("Tail0")) fail("the evicted buckets should be the OLDEST one-answer cities: " + c);
+  }
+  const unionSum = Object.keys(hot).reduce((a, c) => a + cellSumOf(hot[c]), 0)
+    + Object.values(tailCells).reduce((a, cell) => a + cellSumOf(cell), 0);
+  if (unionSum !== beforeCitySum + TAIL_N)
+    fail(`hot ∪ tail is not exact: ${unionSum} against ${beforeCitySum + TAIL_N}`);
+  ok(`the cap's tail: hot at ${BREAKDOWN_MAX_BUCKETS}, ${expectedTail} evicted cities in ${tailShardsSeen} shard(s), hot ∪ tail exact`);
+
+  // …and the rebuild sees the same shape from the answers alone (D290
+  // meets D400): the dry run reports the capped dimension and the shards
+  // the fold would write, at the same total.
+  const dryTail = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
+  if (dryTail.total !== before.total + TAIL_N) fail("rebuild total after the tail: " + JSON.stringify(dryTail));
+  if (!dryTail.cappedDims.includes("city")) fail("rebuild did not report the capped city dim: " + JSON.stringify(dryTail.cappedDims));
+  if (dryTail.tailShards !== tailShardsSeen) fail(`rebuild would write ${dryTail.tailShards} shards; the trigger wrote ${tailShardsSeen}`);
+  ok("D290 × D400: the rebuild reproduces the tail's shard count from the answers");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -1006,12 +1119,48 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
 // the failure message's own `40 * 500` — and a message that quotes a number
 // the loop no longer uses is this repo's most-repeated documentation error
 // pointed at a test.
+// MEASURED 2026-09-07 (D411), and it overturns the paragraph above twice
+// over. The ceiling was never the lever: across seven passing runs on a
+// clean `main` the fold commits 6-15 ms BEFORE this poll starts — ~40 ms
+// after the answer write, against a 30,000 ms ceiling. Raising it (20s,
+// then 30s) could not have helped and did not.
+//
+// And when it failed, the fold was not late OR missing — it was INVISIBLE
+// to this client. See the block below the constants for the mechanism and
+// the fix. The constants stay as they are: three orders of magnitude of
+// margin is not the problem, and shrinking them would only fail sooner.
 const LEARN_TRIES = 60;
 const LEARN_EVERY = 500;
+//
+// READ THROUGH THE ADMIN HANDLE, not the client one, and this is the fix —
+// the mechanism is in D411. Measured on a failing run: the aggregate EXISTS
+// (admin sees `{counts:{2:1},total:1}`), the ledger holds its one entry, the
+// answer document is there — and the client's own read says absent, sixty
+// times, every one of them `fromCache: false`. The trigger was never the
+// problem and neither was the ceiling.
+//
+// Why the client cannot see it: the JS SDK implements getDoc AND
+// getDocFromServer as a one-shot WATCH listener, not a direct read. The two
+// deliberate permission-denied writes immediately above this leg tear the
+// write stream (`GrpcConnection RPC 'Write' stream error`), and the client's
+// watch resumes at a snapshot version older than the trigger's commit — so
+// every later one-shot read on that stream reports the document absent, and
+// waiting longer never converges. That is why raising this ceiling twice
+// changed nothing.
+//
+// The admin SDK uses direct RPCs with no watch state, which is also why this
+// file already reaches for it to check a server repair a client cannot see.
+// And it is the RIGHT instrument for this assertion anyway: the question is
+// "did the trigger fold the learn answer into the database", not "can one
+// disturbed client stream observe it".
+//
+// THE HAZARD TO CARRY: a poll placed after an expectDenied() inherits this.
+// The world-aggregate polls above are safe only because they run BEFORE
+// their deny block, not by design.
 let lpub = null;
 for (let i = 0; i < LEARN_TRIES; i++) {
-  const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
-  if (snap.exists()) { lpub = snap.data(); break; }
+  const snap = await adminDb.collection("v2_question_aggs").doc(LQ).get();
+  if (snap.exists) { lpub = snap.data(); break; }
   await new Promise((r) => setTimeout(r, LEARN_EVERY));
 }
 // Two failures, two messages — the same split the world-question check at
@@ -1019,7 +1168,13 @@ for (let i = 0; i < LEARN_TRIES; i++) {
 // reports itself as a counts mismatch on null, which reads as a privacy
 // regression and sends the next person hunting for one. It cost exactly
 // that detour on 2026-08-05.
-if (!lpub) fail(`learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms — the trigger did not fire, or did not finish in time`);
+if (!lpub) fail(
+  `learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms — and `
+  + "this read is the ADMIN handle, so the aggregate genuinely is not in the "
+  + "database. Do NOT raise the ceiling: this fold commits ~40ms after the "
+  + "write, and the client-read flake that made this assertion look flaky for "
+  + "weeks was fixed at D411 by reading through admin. A failure here now "
+  + "means the trigger really did not fold.");
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
 if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)

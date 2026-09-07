@@ -148,19 +148,52 @@
     been republished.
   </p>
 
-  <h2>You do not need an account</h2>
+  <h2>The account, and the three ways in</h2>
 
   <p>
-    The app works the moment you open it. It signs you in anonymously —
-    a random identifier, no email, no name, no phone number. You can use
-    InSight indefinitely without ever telling us who you are.
+    InSight asks you to sign in before you answer anything. Until
+    2026-09-07 it did not, and this section said so; the app changed
+    because an answer is only worth something if it belongs to a person,
+    and an account that dies with a handset — or that anyone can mint a
+    second of in one tap — cannot carry that.
   </p>
 
   <p>
-    Linking a Google account is optional, and it is an <em>upgrade</em>:
-    it keeps the same identifier and the same history, so your answers
-    survive losing your phone. We receive your Google account identifier
-    and nothing else from it.
+    There are three ways in, and you pick one:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Sign in with Apple.</strong> We receive the identifier Apple
+      issues for this app and an email address. If you choose Apple's
+      <em>Hide My Email</em>, that address is a relay Apple owns and your
+      real one never reaches us.
+    </li>
+    <li>
+      <strong>Continue with Google.</strong> We receive your Google account
+      identifier, and the email address and display name Google sends by
+      default.
+    </li>
+    <li>
+      <strong>Email and password.</strong> We receive the address you type.
+      <strong>The password goes to Firebase Authentication, which stores
+      it hashed; this app never sees it and never stores it.</strong>
+      Firebase sends a confirmation link to that address, and the app
+      stays behind its sign-in screen until you open it &mdash; so an
+      address that was mistyped, or that is not yours, does not end up
+      with an InSight account behind it. A reset link is sent the same
+      way at your request. Apple and Google hand us an address they have
+      already confirmed, so neither of those asks you to do this.
+    </li>
+  </ul>
+
+  <p>
+    The app still creates the session the moment you open it, and signing
+    in <em>attaches an identity to that same session</em> rather than
+    starting a new one — so anything you answered before signing in is
+    kept, with the same identifier behind it. Signing in to an account
+    that already exists is the one exception, and the app says so on the
+    screen before it happens: two histories are not merged.
   </p>
 
   <h2>What is stored</h2>
@@ -337,8 +370,10 @@
       kept on your account — what was asked, the place and window it was
       bought for, the rate and the cap — and only you can read it. What a
       buyer receives is the same public numbers everyone reads; there is
-      no private cut. The current prices are published in the app and in
-      its source. A bought question may carry the buyer&rsquo;s own link:
+      no private cut. The current prices are published in the app&rsquo;s
+      source and on the page where a question is bought, which quotes from
+      that same committed card; the rate itself is fixed when the question
+      is approved. A bought question may carry the buyer&rsquo;s own link:
       it is shown only after you have answered, as the site&rsquo;s name,
       and tapping it opens their site in your browser &mdash; we count
       nothing, log no tap, and add nothing of yours to the address. The

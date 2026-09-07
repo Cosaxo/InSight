@@ -242,7 +242,12 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
           </div>
         ) : questions.length === 0 && adRows.length === 0 && subsRows.length === 0 ? (
           <div className="card" style={{ marginTop: 16, padding: "22px 18px", textAlign: "center", fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-            {`Nothing bought from this account yet. A bought question takes one card in ${SPONSOR_EVERY} in the feed, and every one says PAID.`}
+            {/* NOT "one card in N in the feed": the cadence counts ORDINARY
+                QUESTIONS, and the feed carries test cards, lenses and
+                knowledge cards between them — measured at one in nine or
+                ten of the feed with the places full, against the one in
+                six this used to promise. */}
+            {`Nothing bought from this account yet. A bought question takes one place after every ${SPONSOR_EVERY} ordinary questions, and every one says PAID.`}
           </div>
         ) : (
           <>

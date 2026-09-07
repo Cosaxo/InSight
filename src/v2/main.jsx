@@ -102,23 +102,34 @@ initLive().finally(() => {
   // overlay is two or more.
   loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
 
-  // The account-creation questions (D151) — the anchors every answer
-  // snapshots (D8), asked once, at the top of a new account instead of
-  // sitting four taps deep in the profile where nothing pointed at them.
+  // The first-launch walkthrough (D393), then the account-creation
+  // questions (D151) — the anchors every answer snapshots (D8), asked
+  // once, at the top of a new account instead of sitting four taps deep
+  // in the profile where nothing pointed at them.
   //
-  // DYNAMIC, and it mounts its OWN root rather than wrapping <App />.
+  // IN THAT ORDER, and sequenced rather than raced: the walkthrough's
+  // third page is the sentence that makes the questions make sense — an
+  // answer is filed with your city, age and field — so it goes first,
+  // and mountWalkthrough() settles only once its screen is off the page.
+  // Each is a no-op for a device that has seen it.
+  //
+  // DYNAMIC, and each mounts its OWN root rather than wrapping <App />.
   // Both halves are the bundle gate's doing rather than taste: a gate
   // component would have to be imported here statically, and
   // `check:bundle` measured the decision alone at 1 KB over MAX_EAGER_KB —
   // the constant that keeps the Firestore SDK out of first paint, which
   // has no headroom and whose own note says a raise there is the thing to
-  // refuse. So the decision travels with the screen, and first paint does
-  // not move at all. mountProfileSetup() is a no-op for every account that
-  // has answered these or been asked.
+  // refuse. So each decision travels with its screen, and first paint
+  // does not move at all.
   //
-  // Last of the three deferrals, not first: the feed is what a user
-  // reaches for, and this screen is in front of it either way.
-  import('./ui/profileSetup')
+  // Last of the deferrals, not first: the feed is what a user reaches
+  // for, and these screens are in front of it either way. A walkthrough
+  // chunk that fails to load must not cost the questions, so its catch
+  // sits BEFORE the chain continues and the second import runs either way.
+  import('./ui/walkthrough')
+    .then((m) => m.mountWalkthrough())
+    .catch((err) => reportError(err, { where: 'mountWalkthrough' }))
+    .then(() => import('./ui/profileSetup'))
     .then((m) => m.mountProfileSetup())
     .catch((err) => reportError(err, { where: 'mountProfileSetup' }));
   // Native: drop the splash only now that real content is painted —

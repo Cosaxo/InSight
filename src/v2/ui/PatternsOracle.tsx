@@ -21,6 +21,17 @@
 // verdict means after it, and the record's kicker says the marks. A legend
 // that is always true beats three that are shown once.
 //
+// THE OPTIONS MOVED INTO THE HALVES (2026-09-06, VISION-2026-09-06 §2.2):
+// each half carries its option's real words in the serif — the prompt
+// voice, because a half IS an answer you give — broken at the most even
+// space when they run long. The field's captions (*tap to pick*, *SEALED
+// GUESS*, *sealed here*, the confidence word, the *sealed* chip) all
+// retired: the pulsing disc is the standing signal, the kicker counts the
+// pool, and the explainers render under the tab's one ⓘ (the `guide`
+// prop) — a 1·2·3 strip before the tap, the standing sentence and the
+// ledger key with it. What a sentence CLAIMS still ships somewhere: the
+// verdict paragraph after the tap is unchanged and unconditional.
+//
 // The live wiring keeps every discipline the shipped lens had: the guess
 // is SEALED before a half will take a tap (PATTERNS.seal, pinned in
 // patterns.test.ts — a side without a seal behind it does nothing), the
@@ -71,7 +82,20 @@ const orSure = (c: number): string =>
 
 // the field: a 280 box, the seam down the middle, a seat either side
 const OR_S = 280, OR_C = 140;
-const orSeat = (i: number): number => (i === 0 ? OR_C - 64 : OR_C + 64);
+const orSeat = (i: number): number => (i === 0 ? OR_C - 66 : OR_C + 66);
+// a label of up to ~11 chars fits a half on one line; longer ones break at
+// the most even space, so neither line hugs the seam or the rim
+const orLines = (s: string): string[] => {
+  if (s.length <= 11) return [s];
+  const ws = s.split(" ");
+  if (ws.length < 2) return [s];
+  let best = 1, bd = Infinity;
+  for (let k = 1; k < ws.length; k++) {
+    const d = Math.abs(ws.slice(0, k).join(" ").length - ws.slice(k).join(" ").length);
+    if (d < bd) { bd = d; best = k; }
+  }
+  return [ws.slice(0, best).join(" "), ws.slice(best).join(" ")];
+};
 /**
  * The called half fills from the bottom to the oracle's confidence: the
  * region of that half-disc below the water line, as one path. `conf` is a
@@ -218,9 +242,12 @@ function OrDone({ log, qOf, anyOpen }: {
   );
 }
 
-export default function PatternsOracle({ items }: {
+export default function PatternsOracle({ items, guide = false }: {
   items: PoolItem[];
   version: number;
+  /** The tab's one ⓘ — the 1·2·3 strip, the standing explainer and the
+   * ledger key render only while it is open (VISION-2026-09-06 §2.4). */
+  guide?: boolean;
 }): React.ReactElement {
   const [rec, setRec] = React.useState<OracleRecord | null>(null); // the reveal, held until you move on
   const [landed, setLanded] = React.useState(false); // the verdict has resolved
@@ -310,8 +337,11 @@ export default function PatternsOracle({ items }: {
   // public before the tap — only the SIDE is sealed, so nothing leaks.
   const dR = 15 + Math.min(1, Math.max(0, (conf - 0.5) / 0.45)) * 11;
   const discX = rec ? orSeat(rec.pred) : OR_C;
-  const discY = OR_C + 18;
+  // the disc rests low on the seam (2026-09-06) — the halves' words own
+  // the upper field now, and the disc reads as a weight on the line
+  const discY = OR_C + 66;
   const discOp = 0.35 + 0.65 * sol;
+  const nAns = items.filter((p) => p.mine != null).length;
   const rc = sel != null ? log[sel] : null;
   const rq = rc ? qOf(rc.qid) : undefined;
 
@@ -324,21 +354,33 @@ export default function PatternsOracle({ items }: {
 
   return (
     <div className="or-lens">
-      <div key={q.id} className="card ln-card fade-in"
-        style={{ padding: "14px 16px 12px", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      <div key={q.id} className="ln-card fade-in"
+        style={{ padding: "14px 4px 12px", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {t && <span className="pt-cat" style={{ background: WPAL.wash(tint, 16) as string, color: WPAL.ink(t.color) as string }}>{t.label}</span>}
-          <span className="pt-kick">Question {log.length + 1}</span>
+          {/* how far through the pool — the sub-row's progress track
+              retired into this kicker (2026-09-06); the *sealed* chip
+              went with the captions, the pulsing disc is that signal */}
+          <span className="pt-kick">{nAns} of {items.length}</span>
           {rec ? (
             <button onClick={next} className="tap44"
               style={{ marginLeft: "auto", border: "none", background: "var(--ink)", color: "var(--surface)", borderRadius: 999, padding: "6px 14px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.01em", WebkitAppearance: "none" }}>
               Next →
             </button>
-          ) : <span className="or-sealed" style={{ marginLeft: "auto" }}>sealed</span>}
+          ) : null}
         </div>
-        <p style={{ margin: "8px 0 0", fontFamily: "var(--serif)", fontSize: 21, fontWeight: 500, lineHeight: 1.2, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{q.text}</p>
+        <p style={{ margin: "8px 0 0", fontFamily: "var(--serif)", fontSize: 24, fontWeight: 500, lineHeight: 1.2, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{q.text}</p>
+        {!rec && guide && (
+          <div className="or2-how"
+            style={{ marginTop: 12, padding: "10px 0", borderTop: "1px dashed var(--rule)", borderBottom: "1px dashed var(--rule)" }}
+            aria-label="How the oracle works: it guesses your side sealed, you tap a half, then you see whether it had you">
+            <span><i className="or2-g or2-g1"></i>1 · it guesses, sealed</span>
+            <span><i className="or2-g or2-g2"></i>2 · you tap a half</span>
+            <span><i className="or2-g or2-g3">✓</i>3 · did it have you?</span>
+          </div>
+        )}
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginTop: 10 }}>
-          <div className="ln-field" style={{ flex: "1 1 0px", width: "auto", minHeight: 190, maxHeight: 300, maxWidth: "100%", aspectRatio: "1 / 1" }}>
+          <div className="ln-field is-bare" style={{ flex: "1 1 0px", width: "auto", minHeight: 190, maxHeight: 300, maxWidth: "100%", aspectRatio: "1 / 1" }}>
             {/* the prototype advanced on a tap anywhere in the field; that
                 was a clickable <div> a keyboard can never reach (the a11y
                 ratchet's exact case, D215), and "Next →" already does the
@@ -350,7 +392,10 @@ export default function PatternsOracle({ items }: {
                 ? "It called " + (q.options[rec.pred]?.label ?? "") + "; you said " + (rec.mine != null ? q.options[rec.mine]?.label ?? "" : "")
                 : "Its guess is sealed — pick a side"}>
               {rec && <path key={"f" + rec.qid} className="or2-fill" d={orFillPath(rec.pred, conf)} fill="var(--ln-beacon)"></path>}
-              <line x1={OR_C} y1="22" x2={OR_C} y2={OR_S - 22} stroke="var(--ln-ring)" strokeWidth="1" strokeDasharray="3 4"></line>
+              {/* a bare field draws its own frame: a quiet ink rim and a
+                  full-height seam — the coin, as one hairline (2026-09-06) */}
+              <circle cx={OR_C} cy={OR_C} r={OR_C - 0.5} fill="none" stroke="var(--ln-ink)" strokeOpacity="0.16" strokeWidth="1"></circle>
+              <line x1={OR_C} y1="0" x2={OR_C} y2={OR_S} stroke="var(--ln-ink)" strokeOpacity="0.16" strokeWidth="1"></line>
               {/* The halves ARE the options, and they can be because the
                   pool is two-option BY CONSTRUCTION: patterns.ts's
                   `pool()` skips anything else (`q.options.length !== 2`),
@@ -367,21 +412,30 @@ export default function PatternsOracle({ items }: {
                 const half = i === 0
                   ? "M 140 0 A 140 140 0 0 0 140 280 Z"
                   : "M 140 0 A 140 140 0 0 1 140 280 Z";
+                const lines = orLines(op.label);
                 const inner = (
                   <>
-                    <path d={half} fill="transparent"></path>
-                    {/* uppercased by CSS, not by String.toUpperCase: the
-                        accessible name and the DOM text stay the option's
-                        real label, so a screen reader reads the word the
-                        bank wrote and no locale gets its casing mangled */}
-                    <text x={cx} y="70" fill={called || !rec ? "var(--ln-ink)" : "var(--ln-sub)"} textAnchor="middle"
-                      style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase" }}>{op.label}</text>
-                    {!rec && <text x={cx} y="88" fill="var(--ln-sub)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 600 }}>tap to pick</text>}
+                    {/* the picked half breathes a tint until the reveal
+                        lands — feedback, not a claim */}
+                    <path className="or2-halfbg" d={half} fill="var(--ln-beacon)"
+                      fillOpacity={mine && !landed ? 0.08 : 0}></path>
+                    {/* the option's real words, in the serif — a half IS an
+                        answer you give, so it speaks in the prompt voice
+                        (2026-09-06; the shouting caps went with the
+                        captions, and the DOM text stays the bank's label) */}
+                    {lines.map((ln, k) => (
+                      <text key={k} x={cx} y={OR_C - 34 + (k - (lines.length - 1) / 2) * 24}
+                        fill={called || !rec ? "var(--ln-ink)" : "var(--ln-sub)"} textAnchor="middle" dominantBaseline="central"
+                        style={{ fontSize: lines.some((w) => w.length > 9) ? 17 : 20, fontWeight: 500, letterSpacing: "-0.01em", fontFamily: "var(--serif)" }}>{ln}</text>
+                    ))}
                     {mine && (
                       <g>
-                        <rect x={cx - 16} y="80" width="32" height="16" rx="8" fill="var(--ln-beacon)"></rect>
-                        <text x={cx} y="88" fill="var(--ln-halo)" textAnchor="middle" dominantBaseline="central"
-                          style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em" }}>YOU</text>
+                        <rect x={cx - 16} y="152" width="32" height="16" rx="8" fill="var(--ln-beacon)"></rect>
+                        {/* the design draws this tag at 10.5; it ports at
+                            the 12px floor, the same call the rate rows made
+                            at 10.5 (D362 §4.1) */}
+                        <text x={cx} y="160" fill="var(--ln-halo)" textAnchor="middle" dominantBaseline="central"
+                          style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em" }}>YOU</text>
                       </g>
                     )}
                   </>
@@ -395,12 +449,14 @@ export default function PatternsOracle({ items }: {
                   </g>
                 );
               })}
+              {/* where the seal sat, once the disc has travelled — the
+                  ghost ring, wordless since 2026-09-06 */}
               {rec && (
-                <g style={{ pointerEvents: "none" }}>
-                  <circle cx={OR_C} cy={discY} r={dR} fill="none" stroke="var(--ln-ring)" strokeWidth="1.2" strokeDasharray="3 4"></circle>
-                  <text x={OR_C} y={discY + dR + 16} fill="var(--ln-sub)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 700 }}>sealed here</text>
-                </g>
+                <circle cx={OR_C} cy={discY} r={dR} fill="none" stroke="var(--ln-ring)" strokeWidth="1.2" strokeDasharray="3 4" style={{ pointerEvents: "none" }}></circle>
               )}
+              {/* the disc carries no caption now: its size is the
+                  confidence, its ink the evidence, and the words live in
+                  the verdict paragraph and the guide (2026-09-06) */}
               <g className="or2-disc" style={{ transform: `translate(${discX}px, ${discY}px)`, pointerEvents: "none" }}>
                 {!rec && <circle className="ln-pulse" cx="0" cy="0" r={dR} fill="none" stroke="var(--ln-beacon)" strokeWidth="1.5"></circle>}
                 <circle cx="0" cy="0" r={dR + 10} fill="var(--ln-beacon)" opacity={rec ? 0.18 : 0.1}></circle>
@@ -409,12 +465,6 @@ export default function PatternsOracle({ items }: {
                 ) : (
                   <circle cx="0" cy="0" r={dR} fill="var(--ln-beacon)" opacity={discOp}></circle>
                 )}
-                <text x="0" y={dR + 26} fill="var(--ln-ink)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".1em" }}>
-                  {rec ? "ITS GUESS" : "SEALED GUESS"}
-                </text>
-                <text x="0" y={dR + 40} fill="var(--ln-sub)" textAnchor="middle" style={{ fontSize: 10.5, fontWeight: 600 }}>
-                  {sol < 0.15 ? "nothing to go on" : orSure(conf)}
-                </text>
               </g>
             </svg>
           </div>
@@ -426,12 +476,14 @@ export default function PatternsOracle({ items }: {
               {landed ? (brokeIt ? <b>You broke it.</b> : <b>It had you.</b>) : "…"}
               {landed && <span style={{ color: "var(--ink-3)" }}> {brokeIt ? "A broken ring means you surprised it." : "A solid disc means it had you."}</span>}
             </p>
-          ) : (
-            <p className="or2-verdict" style={{ flex: 1, margin: 0 }}>
-              It guessed your side before you answer, sealed until you tap a half.{" "}
-              <span style={{ color: "var(--ink-3)" }}>A bigger disc means it is surer; a fainter one has little to go on.</span>
+          ) : guide ? (
+            // pre-tap the sentence is an explainer, not a verdict, so it
+            // renders with the guide (2026-09-06) — the 1·2·3 strip above
+            // says the game, this says the disc
+            <p className="or2-verdict" style={{ flex: 1, margin: 0, color: "var(--ink-3)" }}>
+              A bigger disc means it is surer; a fainter one has little to go on.
             </p>
-          )}
+          ) : <span style={{ flex: 1 }}></span>}
           {rec && (
             <button className="tap44" onClick={() => { setSel(null); setWhy(!why); }}
               aria-label={why ? "Hide the evidence" : "Why it called " + (q.options[rec.pred]?.label ?? "")}
@@ -492,12 +544,15 @@ export default function PatternsOracle({ items }: {
             <span className="or-proof-base">sealed before your tap · counted only from answers you’d already given · the mark is the coin</span>
           </div>
         )}
-        {/* the record, with its key in the kicker — the standing legend the
-            one-time hints used to teach (2026-09-02) */}
+        {/* the record; its key joins the guide (2026-09-06) — the counts
+            stand, the reading of the marks is one ⓘ away */}
         <div style={{ flex: "none", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--rule)" }}>
           <div className="pt-kick">
-            Your record · {log.length} answer{log.length === 1 ? "" : "s"} ·{" "}
-            <span style={{ fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>up = you broke it, tick = it had you</span>
+            Your record · {log.length} answer{log.length === 1 ? "" : "s"}
+            {guide && <>
+              {" · "}
+              <span style={{ fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>up = you broke it, tick = it had you</span>
+            </>}
           </div>
           <OrLedger log={log} qOf={qOf} sel={sel} onPick={(k) => { setSel(k); setWhy(false); }}></OrLedger>
         </div>

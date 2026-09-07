@@ -645,7 +645,7 @@ describe("foldShards · qids", () => {
 
 // ── the rollup fold (R3/D272) ───────────────────────────────────────────
 import {
-  ROLLUP_FOLD_CAP, advanceFgWindow, runRollupFold,
+  ROLLUP_FOLD_CAP, advanceFgWindow, foldRollups, runRollupFold,
   type PeopleDelta, type RollupRow, type RollupStore,
 } from "./engagement";
 
@@ -671,12 +671,15 @@ function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
       const doc = state.days.get(day) ?? {
         rollups: 0, sessions: 0, quiet: 0, answers: 0, depthEnd: 0,
         dayparts: [0, 0, 0, 0], fgBuckets: [0, 0, 0, 0, 0], fading: 0,
+        mirrorRead: 0, lensOpen: 0, feedBuckets: [0, 0, 0, 0, 0],
       };
       doc.rollups += delta.rollups; doc.sessions += delta.sessions;
       doc.quiet += delta.quiet; doc.answers += delta.answers;
       doc.depthEnd += delta.depthEnd; doc.fading += delta.fading;
       for (let i = 0; i < 4; i++) doc.dayparts[i] += delta.dayparts[i];
       for (let i = 0; i < 5; i++) doc.fgBuckets[i] += delta.fgBuckets[i];
+      doc.mirrorRead += delta.mirrorRead; doc.lensOpen += delta.lensOpen;
+      for (let i = 0; i < 5; i++) doc.feedBuckets[i] += delta.feedBuckets[i];
       state.days.set(day, doc);
       await Promise.resolve();
     },
@@ -686,7 +689,58 @@ function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
 
 const rr = (uid: string, day: string, over: Partial<RollupRow> = {}): RollupRow => ({
   uid, day, sessions: 2, fgMin: 2, quiet: 1, answers: 3, depthEnd: 0,
-  dayparts: [0, 1, 1, 0], ...over,
+  dayparts: [0, 1, 1, 0], feedB: 0, stops: 0, lenses: 0, ...over,
+});
+
+describe("foldRollups and the Mirror-reading three (D407)", () => {
+  // ENGAGEMENT-PLAN.md's rung-0 table names this blind spot in as many
+  // words: "The entire Mirror — does anyone open it, which stops, which
+  // lenses | reading is the point and reading writes nothing". The three
+  // fields were the fix and were written by every device for weeks while
+  // the fold dropped them on the floor.
+  it("counts PEOPLE who read, not stops visited", () => {
+    // The distinction is the whole design: one person opening nine stops
+    // must not read as nine. `depthEnd`'s shape, for `depthEnd`'s reason.
+    const d = foldRollups([
+      rr("a", "2026-09-06", { stops: 9, lenses: 4 }),
+      rr("b", "2026-09-06", { stops: 1, lenses: 0 }),
+      rr("c", "2026-09-06", { stops: 0, lenses: 0 }),
+    ]);
+    expect(d.rollups).toBe(3);
+    expect(d.mirrorRead, "a sum of stops leaked in").toBe(2);
+    expect(d.lensOpen, "a lens open is a tap inside a stop, counted per person").toBe(1);
+  });
+
+  it("brackets feed depth as a histogram rather than an average", () => {
+    const d = foldRollups([
+      rr("a", "2026-09-06", { feedB: 0 }),
+      rr("b", "2026-09-06", { feedB: 4 }),
+      rr("c", "2026-09-06", { feedB: 4 }),
+    ]);
+    expect(d.feedBuckets).toEqual([1, 0, 0, 0, 2]);
+  });
+
+  it("clamps a dishonest client rather than trusting the rules alone", () => {
+    // Every other field in this fold is clamped for this reason; these
+    // three are only ever compared to zero or used as an index, so an
+    // out-of-range bracket would throw rather than lie.
+    const d = foldRollups([
+      rr("a", "2026-09-06", { feedB: 99, stops: -5, lenses: "many" }),
+      rr("b", "2026-09-06", { feedB: -1, stops: 1.9, lenses: 2 }),
+    ]);
+    expect(d.feedBuckets).toEqual([1, 0, 0, 0, 1]);
+    expect(d.mirrorRead, "a negative or fractional count read as presence").toBe(1);
+    expect(d.lensOpen, "a non-number read as presence").toBe(1);
+  });
+
+  it("a day nobody read the Mirror on is zero, not absent", () => {
+    // The console draws a share against `rollups`; a missing key and a
+    // real zero must not look the same to it.
+    const d = foldRollups([rr("a", "2026-09-06"), rr("b", "2026-09-06")]);
+    expect(d.mirrorRead).toBe(0);
+    expect(d.lensOpen).toBe(0);
+    expect(d.feedBuckets).toEqual([2, 0, 0, 0, 0]);
+  });
 });
 
 describe("advanceFgWindow", () => {
@@ -1023,87 +1077,24 @@ describe("the cohort day an account never got", () => {
   });
 });
 
-describe("a paged query's projection has to carry the field it orders by", () => {
-  // A cursor is BUILT FROM THE SNAPSHOT: `startAfter(doc)` reads, off that
-  // document, every field the query orders by. `select()` decides which
-  // fields the document actually carries, so a projection that omits the
-  // orderBy field yields a snapshot the cursor cannot be built from and the
-  // Admin SDK throws rather than paging.
-  //
-  // ledgerDay ordered by "at" and projected only uid + qid, so page two of
-  // any day threw — and since putLastDay never runs on a throw, the digest
-  // would come back to the same day every night forever, taking
-  // runAttentionFold and runRollupFold down with it (both are awaited after
-  // it in digestEngagementV2). The two sibling paged readers, patterns.ts
-  // and velocity.ts, both include "at"; this one was the deviation.
-  //
-  // Asserted on the ADAPTER for the same reason as the merge case above:
-  // the injected memoryStore the pure passes use never pages at all.
-  it("ledgerDay pages a second time instead of throwing on the cursor", async () => {
-    const PAGE = 5000;
-    let projection: string[] = [];
-    const orderBys: string[] = [];
-    let pages = 0;
-
-    // A document carries ONLY the projected fields — the whole point of
-    // select(), and what makes the missing cursor field undefined.
-    const docAt = (i: number) => ({
-      get: (f: string) =>
-        projection.includes(f)
-          ? f === "at"
-            ? new Date(Date.UTC(2026, 7, 25, 0, 0, i % 60))
-            : `${f}-${i}`
-          : undefined,
-    });
-
-    const query = {
+describe("the digest's ledger read (D399)", () => {
+  // The pager that lived here — projected uid + qid + at, its own page
+  // loop, and the "at"-in-the-projection lesson its test carried — is
+  // `readLedgerDay` in ledger.ts since D399, where ledger.test.ts pins
+  // the projection against the entry type. What the adapter owes now is
+  // smaller and worth one case: it hands the day to the reader it was
+  // built with, which in production is the night's shared memo.
+  it("ledgerDay is the reader the store was built with (D399: one read a night, three folds)", async () => {
+    const asked: string[] = [];
+    const reader = async (day: string) => { asked.push(day); return [{ uid: "u1", qid: "daily-000" }]; };
+    const db = {
       // firestoreEngagementStore takes a metaRef off its first collection
       // before returning; ledgerDay never touches it.
-      doc: () => ({}),
-      where: () => query,
-      orderBy: (f: string) => {
-        orderBys.push(f);
-        return query;
-      },
-      select: (...f: string[]) => {
-        projection = f;
-        return query;
-      },
-      limit: () => query,
-      startAfter: (d: { get: (f: string) => unknown }) => {
-        for (const f of orderBys) {
-          if (d.get(f) === undefined) {
-            // The Admin SDK's own wording, so a failure here reads like
-            // the one that would happen in production.
-            throw new Error(
-              `Field "${f}" is missing in the provided DocumentSnapshot. Please provide a document that contains values for all specified orderBy() and where() constraints.`,
-            );
-          }
-        }
-        return query;
-      },
-      async get() {
-        pages++;
-        // A full page first, so the loop is forced to ask for a second one;
-        // a short page second, so it terminates.
-        const size = pages === 1 ? PAGE : 3;
-        return { size, docs: Array.from({ length: size }, (_, i) => docAt(i)) };
-      },
-    };
-    const db = {
-      collection: () => query,
-      doc: () => ({}),
+      collection: () => ({ doc: () => ({}) }),
     } as unknown as Parameters<typeof firestoreEngagementStore>[0];
-
-    const store = firestoreEngagementStore(db);
-    const rows = await store.ledgerDay("2026-08-25");
-
-    expect(pages, "the second page was never requested").toBe(2);
-    expect(rows).toHaveLength(PAGE + 3);
-    expect(
-      projection,
-      'ledgerDay orders by "at" but did not project it, so startAfter cannot build a cursor and every day past one page throws',
-    ).toContain("at");
+    const rows = await firestoreEngagementStore(db, reader).ledgerDay("2026-08-25");
+    expect(asked).toEqual(["2026-08-25"]);
+    expect(rows).toEqual([{ uid: "u1", qid: "daily-000" }]);
   });
 });
 

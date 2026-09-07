@@ -27,12 +27,17 @@ vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
 
 /**
- * Every ballot on the screen — the daily's world card first (it sits
- * above the feed), then the feed's own vote cards. Found by the shape
- * itself rather than through a store, because the shape IS the claim:
- * one block, a 2px seam showing through its ground.
+ * The two ballot shapes, found by the shapes themselves rather than
+ * through a store, because the shape IS the claim. Since 2026-09-06 the
+ * DAILY asks as a hairline ROW (.ds-ballot — two paper halves between a
+ * top and bottom rule, the seam an inner hairline); the FEED's vote
+ * cards keep the 09-02 seam block (a 2px seam showing through the
+ * ground) — the hero card went boxless, the stream kept its block, and
+ * that split is the design's own (the InSight_9 daily patch redraws the
+ * ballot, its feed patch does not touch renderVote).
  */
-const ballots = () =>
+const dailyBallot = () => document.querySelector(".ds-ballot");
+const feedBallots = () =>
   [...document.querySelectorAll('div[style*="grid-template-columns"]')]
     .filter((el) => el.style.gap === "2px" && el.style.background === "var(--rule)");
 
@@ -67,7 +72,7 @@ async function voteAndReveal(sideIdx = 0) {
   const beat = window.ConsequenceBeat;
   delete window.ConsequenceBeat;
   try {
-    const daily = ballots()[0];
+    const daily = dailyBallot();
     const sides = daily.children.length;
     fireEvent.click(daily.children[sideIdx]);
     await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
@@ -78,20 +83,29 @@ async function voteAndReveal(sideIdx = 0) {
 }
 
 describe("the split ballot", () => {
-  it("asks with one block, its sides divided by a seam — the daily and the feed alike", () => {
+  it("asks as a hairline row on the daily, and as the seam block in the feed", () => {
     const expectNoBoundary = mountApp();
-    const all = ballots();
-    // the daily's world card and the feed's vote cards both draw one
-    expect(all.length, "no ballot on the daily tab at all").toBeGreaterThan(1);
-    for (const el of all) {
-      const n = el.children.length;
-      // two sides side by side; three or more stack inside the same block
-      expect(el.style.gridTemplateColumns).toBe(n === 2 ? "1fr 1fr" : "1fr");
+    // the daily: two paper halves on one rule-bounded row (2026-09-06) —
+    // no box, no clipping, no colour dots; the hue waits on --oc
+    const daily = dailyBallot();
+    expect(daily, "the daily lost its ballot").not.toBeNull();
+    const n = daily.children.length;
+    expect(daily.style.gridTemplateColumns).toBe(n === 2 ? "1fr 1fr" : "1fr");
+    expect(daily.style.borderTop, "the row lost its top rule").not.toBe("");
+    expect(daily.style.borderBottom, "the row lost its bottom rule").not.toBe("");
+    for (const side of daily.children) {
+      expect(side.tagName, "a side is not a real control").toBe("BUTTON");
+      expect(side.classList.contains("ds-half"), "a half lost its press class").toBe(true);
+      expect(side.style.background).toBe("transparent");
+      expect(side.style.getPropertyValue("--oc"), "a half lost its hue").not.toBe("");
+    }
+    // the feed's vote cards keep the 09-02 block — the design's own split
+    const feed = feedBallots();
+    expect(feed.length, "no seam-block ballot in the feed").toBeGreaterThan(0);
+    for (const el of feed) {
       expect(el.style.overflow, "the block does not clip its sides' corners").toBe("hidden");
       for (const side of el.children) {
-        expect(side.tagName, "a side is not a real control").toBe("BUTTON");
-        expect(side.style.borderRadius, "a side kept its own corner inside the block").toBe("0px");
-        expect(side.querySelector("span[aria-hidden]"), "a side lost its hue mark").toBeTruthy();
+        expect(side.querySelector("span[aria-hidden]"), "a feed side lost its hue mark").toBeTruthy();
       }
     }
     expectNoBoundary("the ballots");

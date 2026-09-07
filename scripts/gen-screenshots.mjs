@@ -152,7 +152,21 @@ const SCENES = [
     async drive(p) {
       // Count-free on purpose: the accessible name states the test count in
       // words and is derived from PASSIVE.KEYS, so a new test changes it.
-      await p.getByRole("button", { name: /Your \w+ profiles/ }).first().click();
+      const chip = p.getByRole("button", { name: /Your \w+ profiles/ }).first();
+      // Screenshots run 9 (2026-09-06) found the chip and then waited the
+      // full 30s for it to become actionable on the Play viewport, one
+      // minute after the same click had landed on the iPhone one. A
+      // Playwright click waits for the element to hold still for two
+      // frames, and a chip that is still settling never does — so after a
+      // bounded wait the click goes through without the stability check.
+      // It is still a click at the chip's own position: nothing covers it,
+      // and a covered chip would fail the capture rather than this line.
+      try {
+        await chip.click({ timeout: 10_000 });
+      } catch {
+        console.log("    (profiles chip was never still — clicked it anyway)");
+        await chip.click({ force: true });
+      }
       await p.waitForTimeout(900);
     },
   },

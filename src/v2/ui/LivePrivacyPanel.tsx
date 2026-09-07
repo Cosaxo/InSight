@@ -348,6 +348,18 @@ function LivePrivacyPanel() {
         </div>
       </div>
 
+      {/* The first-launch walkthrough, again (D393). Shown once, before
+          the account questions; a person who skipped it, or who wants the
+          Mirror explained a second time, finds it here beside the policy
+          the app points at — the one place the app explains itself. A
+          dynamic import, so this panel's chunk does not carry the screen:
+          it is fetched on the tap, off local disk, like the first time. */}
+      <LpRow title="How InSight works">
+        {btn("Show again", () => {
+          void import("./walkthrough").then((m) => m.mountWalkthrough({ again: true }));
+        })}
+      </LpRow>
+
       {/* The buyer's room's door — the account sheet is its natural home
           (PAID-PLAN §7, D288). Rendered only for an account that HAS
           purchases: the buying path's own door is the composer, and a

@@ -59,6 +59,7 @@
 //      counting.
 import React from "react";
 import LIVE from "../data/live";
+import { pushBackLayer } from "../data/backLayers";
 import CityPicker from "./CityPicker";
 import { mergeProfileVitals } from "../data/cityAnchor";
 import { CITY_OK_LEAF } from "../data/cityConfirm";
@@ -125,6 +126,34 @@ interface Vitals { [k: string]: string }
 
 function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   const [v, setV] = React.useState<Vitals>({});
+
+  // ANDROID'S BACK BUTTON, which `useDialog` above does not cover. D24 gave
+  // this overlay Escape and a focus trap — the keyboard path — and
+  // `backLayers.ts` is the Android one, deliberately a separate mechanism
+  // because Escape is a DOM event a focused dialog receives and the back
+  // button is not.
+  //
+  // Without this, Back on D151's account questions falls through the shell's handler
+  // (app-shell.jsx peels person → city → overlay → tab, and this screen is
+  // none of them — it lives on its own root outside `<App/>`), the handler
+  // returns false, and `back.ts` calls `App.exitApp()`. That is verbatim
+  // the failure backLayers.ts was written to stop, one screen earlier:
+  // the questions are still on screen and the app quits under them.
+  // `markProfileSetupSeen()` is written by `onDone` alone, so the quit
+  // recorded nothing and the next launch asks the same seven again.
+  //
+  // Back DISMISSES rather than stepping a page, because that is what the
+  // Escape this pairs with does, and `closeTopBackLayer` pops the layer as
+  // it calls it — a stepping closer would have to re-register itself on
+  // every press, which is exactly the stack churn `pushBackLayer`'s own
+  // docstring rules out.
+  //
+  // The ref is Sheet's, for Sheet's reason (primitives.jsx): registered
+  // once per mount so the LIFO order means something, reading the current
+  // handler through a ref rather than re-registering on it.
+  const doneRef = React.useRef(onDone);
+  React.useEffect(() => { doneRef.current = onDone; });
+  React.useEffect(() => pushBackLayer(() => doneRef.current()), []);
   const [busy, setBusy] = React.useState(false);
   // Identity (D190). Seeded from whatever the account already holds, so a
   // returning account is shown its own name rather than an empty box.

@@ -279,7 +279,7 @@ function MirrorPopPicker({ stopId, onPick }) {
               }}></span>
               <span style={{
                 position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap',
-                fontFamily: 'var(--sans)', fontSize: on ? 12 : 10.5, fontWeight: on ? 800 : 600,
+                fontFamily: 'var(--sans)', fontSize: on ? 13 : 12, fontWeight: on ? 800 : 600,
                 letterSpacing: '-0.02em', color: on ? 'var(--ink)' : 'var(--ink-3)',
                 transition: 'color .2s, font-size .2s',
               }}>{p.label}</span>
@@ -330,7 +330,7 @@ function MirrorPreviewTag({ popId }) {
     : demoInProd ? 'Preview · sample people — reconnecting…' : 'Preview · sample people until there’s live data here';
   return (
     <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 6px' }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
+      <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
         {label}
       </span>
     </div>

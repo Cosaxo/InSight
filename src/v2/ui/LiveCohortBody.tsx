@@ -102,6 +102,14 @@ function LnNote({ title, children }: { title: string; children: React.ReactNode 
 function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  // The breakdown cap's tail (D400): where a question's hot map is at
+  // its cap without this reader's own city or country, the one shard
+  // that key hashes to is read and merged into the aggregate every fold
+  // below reads. Once per scope per session, and nothing while no
+  // question is at the cap — the store decides, not the stop.
+  React.useEffect(() => {
+    if (scope !== "world") void LIVE.loadOverflow(scope);
+  }, [scope]);
   // The Answers tab's own controls (branch chips, sort, which row is open)
   // moved into LiveAnswerRows at D120 — they belong to the list, and the
   // host had them only because the list used to be inline.
@@ -534,9 +542,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             rows={rows}
             whom={shortName}
             emptyNote={
-              <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
-                No answers here yet — the first one starts the count.
-              </LnNote>
+              /* THE SAME GUARD THE HERO ABOVE CARRIES, and this tab did
+                 not: an empty row list before the network boot completes
+                 is a device that has not looked, not a place with no
+                 answers. One screen used to say "counting who has
+                 answered…" in the header and "No answers here yet — the
+                 first one starts the count" one tap below it, and the
+                 second one is the flat assertion. Persistent for the
+                 session on a boot that never attaches, not just a frame. */
+              LIVE.attached
+                ? <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
+                    No answers here yet — the first one starts the count.
+                  </LnNote>
+                : <LnNote title="Counting who has answered…">
+                    Reading the answers for {scope === "world" ? "today" : shortName}.
+                  </LnNote>
             }
           />
           {!!rows.length && empty > 0 && (

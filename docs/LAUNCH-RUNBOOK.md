@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 134
-questions of 913 seeded; the production backend is deployed. **Measured
+questions of 917 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      913 questions land in `v2_questions` — idempotent and, since D34,
+      917 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **913** after the K=5 test expansion, D103's
+      and the bank is **917** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1107,7 +1107,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 913 seeded questions are live regardless.
+      working, not a leak — the 917 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1170,26 +1170,27 @@ empty bank puts *"You're first"* where every crowd figure should be
 (there is no floor since D98 — the first answer publishes exactly).
 That is a tester-count problem, not a workflow problem.
 
-- [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
-      *Screenshots* → Run workflow.** Capture with upload unticked, download
-      the `store-screenshots` artifact, **look at them**, then re-run with
+- [x] **4.1 Recapture the screenshots in LIVE mode — UPLOADED 2026-09-06
+      (run 10, six to App Store Connect).** Actions → *Screenshots* → Run
+      workflow. Capture with upload unticked, download the
+      `store-screenshots` artifact, **look at them**, then re-run with
       upload ticked. Six scenes × both store sizes (1320×2868 and
       1080×1920), asserted against the store specs at generation.
 
-      **CAPTURED LIVE 2026-09-06; UPLOAD HELD by the owner until the new
-      visuals land.** Screenshots run 8 (#414's head) captured `mode =
-      LIVE`, 12/12, after two harness regressions were fixed on the same
-      branch — the reveal's `sd-opt` marker and D356's paint-before-attach
-      (the commit on `scripts/gen-screenshots.mjs` has both). The set is
-      correct and is not the shipping set: the owner's word the same day
-      — *"wait a bit more for the screenshot until the new visuals are
-      uploaded, they are being made now"* — holds the upload until the
-      next Claude Design standalone is extracted into `design/`, made the
-      vision (D361's sentence: a new visual is the vision until the owner
-      updates it) and built into the tree. Then this row runs again from
-      the top: capture, look, upload — not upload what run 8 holds, which
-      would put a look in the store that the app no longer has by the
-      time a reviewer opens it.
+      **How it closed.** Run 8 (#414's head) captured `mode = LIVE`,
+      12/12, after two harness regressions were fixed on the same branch
+      — the reveal's `sd-opt` marker and D356's paint-before-attach (the
+      commit on `scripts/gen-screenshots.mjs` has both). The owner held
+      the upload that morning for the new visuals being made in Claude
+      Design, then chose the release over the wait — *"current look,
+      upload the screenshots"* — so the visuals ship with a later version
+      and this row runs again from capture when they do. Run 9 with
+      upload on lost the Play-size profiles scene to a click that never
+      found the chip still (the drive is bounded now; its commit says
+      why); run 10 captured 12/12 and `asc-push` uploaded the six 6.9"
+      captures into a new en-US `APP_IPHONE_67` set — Apple files the
+      1320×2868 size under that display type, which is why the workflow
+      defaults to it. The Play set stays local until 3.1.
 
       **The committed captures are a demo preview, not the shipping set.**
       The harness names the one that must not ship: the reveal shows
@@ -1341,8 +1342,21 @@ That is a tester-count problem, not a workflow problem.
       launch and add them on verification without a new review, which
       stays the way to register the ENK (D69's way out) before the home
       address publishes on any listing.
-- [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
-      Mandatory; Apple accepts no submission without it.
+- [x] **4.4 The privacy nutrition label — PUBLISHED 2026-09-06.** The
+      last form, and it is manual; Apple accepts no submission without it.
+
+      **How it closed.** Eleven data types, typed by the owner from App
+      Store metadata run 13's `privacy (report only)` summary into the
+      App Privacy form and published the same afternoon: ten with App
+      Functionality (Other User Content also Product Personalization),
+      Product Interaction with Analytics, every row linked to identity,
+      tracking off — `app-privacy.json` as it stands, `check:store-forms`
+      green. One transcription slip was caught on the review pass before
+      Publish: Product Personalization had landed on Photos or Videos
+      instead of Other User Content. Eleven near-identical dialogs with
+      the two that differ side by side is exactly why the printout ends
+      *"read docs/STORE-FORMS.md before ticking anything"*, and why the
+      pass was worth the minutes.
 
       **NINE ROWS SINCE D175 AND D178, AND THIS STEP SAID SEVEN UNTIL
       BUILD 18's PRE-FLIGHT.** Precise Location and Photos or Videos are
@@ -1567,8 +1581,9 @@ That is a tester-count problem, not a workflow problem.
       reason it went this way: delete the objects **before** reducing the
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
-- [x] **5.5 Apply the nine monitoring alerts — ALL NINE VERIFIED ARMED
-      2026-09-06; eight of them armed and wired 2026-08-27 (D333).**
+- [x] **5.5 The first nine monitoring alerts, applied — ALL NINE VERIFIED
+      ARMED 2026-09-06; eight of them armed and wired 2026-08-27 (D333).
+      The tenth is 5.5b.**
       **CLOSED 2026-09-06.** The ninth, `monitoring/paid-refund-stuck.json`,
       went up in two dispatches of **Arm monitoring**, and the gap between
       them is the thing to know before the next new policy: run 9 created
@@ -1656,7 +1671,19 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 31.**
+- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+      TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
+      committed and not applied.** The breakdown cap's `agg_evict`
+      metric and its policy landed after run 16 verified the nine, so
+      **Arm monitoring** owes one more dispatch, and 5.5's own lesson
+      applies to it: a freshly created log-based metric is not selectable
+      by a policy for up to ten minutes (run 9's `404 … Cannot find
+      metric`), so expect two dispatches, or one after the window. Since
+      D400 the line the alert counts means the cap's tail is live for a
+      question, not that a count was lost — its runbook says what to do,
+      which is to move one number in the cost model. *Source:* D398, D400;
+      `docs/DEPLOYMENT.md` § The cap alert.
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 32.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -2219,9 +2246,22 @@ That is a tester-count problem, not a workflow problem.
       Recorded here because its absence reads like an omission. An ad is a
       CARD that takes no answer and produces no data; a sponsored question
       is a QUESTION that folds into the same public aggregate everyone
-      reads (D196 keeps the two apart on purpose). Since D315 a self-serve
-      ad is written by the payment webhook straight into `v2_ads` at
-      `paidad-*` ids — so **turning on ads is 5.14 and nothing else**.
+      reads (D196 keeps the two apart on purpose).
+
+      **The self-serve half of this row is gone, and this sentence said
+      otherwise for two days (D375, 2026-09-05).** It read *"since D315 a
+      self-serve ad is written by the payment webhook straight into
+      `v2_ads` at `paidad-*` ids — so turning on ads is 5.14 and nothing
+      else"*, which stopped being true when the sponsored question became
+      the one paid product: `validatePaidBooking` now refuses `kind: "ad"`
+      by name. **The ad CARD is untouched** and ships in every build —
+      `ui/AdCard.tsx`, `runSeedAds`, `v2_ads`, its rules, and
+      `check:content`'s five authoring rules. What an ad needs is a
+      CONTRACT and a row in `content/ads.json`, which is 5.14-independent:
+      no Stripe key is involved in a hand-sold card, and turning on ads is
+      therefore not 5.14 at all. D412 holds ad-network tracking deferred
+      with a trigger, and names what is not deferred (aggregate counting,
+      which `v2_attention` already does).
 
       `content/ads.json` is the committed pen for hand contracts and is
       **empty deliberately**: writing a row there without a contract would
@@ -2231,6 +2271,43 @@ That is a tester-count problem, not a workflow problem.
       most one audience tag matched on the device, and the app's own
       disclosure band. Nothing here is a launch step; it is the answer to
       "why is there no ads step".
+
+- [ ] **5.16 The two Firebase auth emails now stand between a user and
+      the app (D414).** Ten minutes, one console, and it is not cosmetic:
+      since the wall reads `linked && !needsEmailVerify`, someone who
+      creates an account with an address **cannot open InSight at all**
+      until the confirmation mail arrives and is opened. The mail is the
+      product's front door for that door.
+
+      Firebase console → Authentication → **Templates**. Both templates
+      work untouched, so nothing here blocks a build — what it buys is
+      that the mail is opened rather than binned:
+
+      1. **Email address verification** and **Password reset** — check
+         the **sender name**. It defaults to the PROJECT ID, so the mail
+         arrives from *prvfire33*, which is a name no user has ever seen
+         and reads as phishing for an app called InSight. Set it to
+         `InSight`. The sender ADDRESS
+         (`noreply@prvfire33.firebaseapp.com`) needs a verified custom
+         domain to change and is not worth one before launch.
+      2. Send yourself one of each and read them on a phone. A link that
+         404s or an action URL pointing at a project you renamed is
+         invisible from this side and total from the user's.
+
+      **What does NOT need doing.** No template edit is required for the
+      app to work, no new data is collected (Contact Info → Email Address
+      is already on the published label), and the address is verified by
+      Firebase rather than by anything in this repo — the app only asks
+      `reload()` whether the flag moved. `web/privacy.html` already says
+      the link is sent and that the app waits for it.
+
+      **The typo escape is in the app, not here.** An account created on
+      a mistyped address can never be verified and its reset mail goes to
+      the same wrong inbox, so the verify screen carries *"Use a
+      different address"*, which signs out and lets D3's anonymous
+      recovery hand the device a fresh session. Test it once on a build
+      before submitting: type a wrong address, create, and check that the
+      doors come back.
 
 ## Phase 6 — Submit
 
@@ -2330,6 +2407,33 @@ That is a tester-count problem, not a workflow problem.
       workflow runs it too: the privacy panel is compiled into the binary,
       so a false claim about who can read an answer ships to the phone
       rather than staying in the repo.
+- [ ] **6.1b App Review Information — a demo account is now MANDATORY
+      (D414).** Ten minutes, and skipping it costs a full review round on
+      guideline 2.1 rather than on anything about the app. App Store
+      Connect → the version → **App Review Information**:
+
+      - **Sign-in required: YES.** It was NO for every build before 32,
+        truthfully. It is a lie now, and a reviewer who opens the app to
+        a wall with that box unticked files "we were unable to review"
+        without reading further.
+      - **Username / password.** Hand them a real account. **Make it
+        through the app, not through the Firebase console** — a user
+        created in the console has `emailVerified: false`, so the wall
+        holds it exactly where it holds everyone else, and the console
+        exposes no toggle for that flag (only the Admin SDK does). So:
+        install the build, create an account on an address you can read,
+        open the confirmation link, and put that pair in the form.
+      - **Notes.** One sentence: the fastest way in is **Sign in with
+        Apple**, which needs no mail round trip because Apple hands over
+        an address it has already confirmed. A reviewer who takes the
+        email door with an address they cannot read will be held at
+        *Confirm your address* and may report the app as broken.
+
+      Answer 5.1.1(v) here too if you want to pre-empt it, in the
+      reviewer's terms rather than ours: the account is not gatekeeping a
+      feature, it is the unit the product is about. D414 §5 has it
+      written out.
+
 - [ ] **6.2 Submit to App Store review.** Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
@@ -2368,6 +2472,36 @@ That is a tester-count problem, not a workflow problem.
       cannot die with their handset. Build 13 is a test-track build and
       ships walled on purpose. The flag becomes a blocker at exactly one
       moment, which is this step.
+
+      **REVERSED 2026-09-07 (D414): the wall goes back up, and every
+      paragraph above about the drop is now history rather than
+      instruction.** D219's own condition — everyone has an account,
+      answers attributed, duplicates hard — was tested by the owner on
+      2026-09-07 by deleting their account inside the app and answering
+      again as a fresh anonymous session, one tap. It had never held.
+      `ios-release.yml` defaults `VITE_REQUIRE_SIGNIN` to `'true'` again.
+
+      So **the 4.8 answer drafted in `SHIP-CHECKLIST § hardening` is
+      retired, not deferred**: it rested on "no account is required",
+      which is false of every build this workflow now makes. Sign in with
+      Apple is BUILT and leads the gate — the exemption for an app using
+      exclusively its own account system does not apply once Google is
+      offered, so pre-building it was the cheap side of the round D219
+      told you to budget.
+
+      **5.1.1(v) is still the expensive half and is still unbudgeted.**
+      The reply, if it is asked for: the account is not gatekeeping a
+      feature, it is the unit the product is about — a daily question
+      answered by nobody in particular produces nothing the app can show
+      you back. D414 §5 has it written out, including what a wall costs
+      in installs, which is unknown here because the app has never had
+      one under measurement.
+
+      **The wall now has TWO conditions, and the second is 5.16's.** It
+      passes on `linked && !needsEmailVerify`, so an email account that
+      never opens its confirmation mail never reaches the app. Read 5.16
+      before submitting: the mail is a real dependency of the wall, and
+      the one test worth doing by hand is the mistyped-address escape.
 
       **This step used to end "…and no email or name is collected through
       it". It is deleted, and do not say it.** Google's default scopes put

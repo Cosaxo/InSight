@@ -63,6 +63,7 @@
     "duel:budget": "node scripts/duel-budget.mjs",
     "now:budget": "node scripts/now-budget.mjs",
     "costs": "node scripts/cost-model.mjs",
+    "probe:fit": "node --experimental-strip-types --no-warnings scripts/fit-probe.mjs",
     "costs:compare": "node scripts/cost-compare.mjs",
     "costs:levers": "node scripts/cost-levers.mjs",
     "costs:scale": "node scripts/cost-scale.mjs",
@@ -99,6 +100,7 @@
     "check:data-inventory": "node scripts/check-data-inventory.mjs",
     "check:docs": "node scripts/doc-index.mjs",
     "build:screenshots": "node scripts/gen-screenshots.mjs",
+    "screens": "node scripts/device-screens.mjs",
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
     "check:monitoring": "node scripts/check-monitoring.mjs",
@@ -161,5 +163,5 @@
   "overrides": {
     "tar": "^7.5.22"
   },
-  "appBuild": 31
+  "appBuild": 32
 }

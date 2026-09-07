@@ -129,6 +129,20 @@
       ]
     },
     {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "answeredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "invites",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
@@ -161,6 +175,20 @@
         {
           "fieldPath": "answeredAt",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
         }
       ]
     },

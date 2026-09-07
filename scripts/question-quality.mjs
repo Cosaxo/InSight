@@ -271,6 +271,14 @@ export const PATH_AXES = new Set([
  * The two stories that cannot obey the axis rule, and why it is a permanent
  * exemption rather than a to-do.
  *
+ * RETIRED AT D413 (`active: false`, the operator's call this comment
+ * anticipated below) — the owner read them as "completely uninteresting",
+ * which is the same finding as the arithmetic under this map, heard from
+ * the reader's side. The waiver stays because the rows stay: a retired
+ * feed entry is still in the bank (the seed and the deck read the flag
+ * there), still walks this gate, and is still exactly as flat as it was.
+ * Dropping the waiver would fail CI on two stories nobody is served.
+ *
  * A path's OPTIONS are its eight ending names (pathOptions, gen-v2content),
  * so renaming one is an option edit — frozen by D52 and refused by the seed,
  * because the stored optionIdx would silently mean a different ending. And

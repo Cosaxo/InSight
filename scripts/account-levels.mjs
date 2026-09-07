@@ -34,6 +34,8 @@
 // Raising the bar is a code edit and a deploy, deliberately — a script that
 // could re-level accounts would be a way to grant the claim without the
 // device check that is supposed to earn it.
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { adminAuth } from "./admin-db.mjs";
 import { loadLadder, resolveBar } from "./account-level-lib.mjs";
 
@@ -128,7 +130,7 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((err) => {
     console.error(err.message || err);
     process.exit(1);

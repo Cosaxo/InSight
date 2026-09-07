@@ -121,27 +121,31 @@ const WFD_DEMO_POOL = [
   { id: 'f37', cat: 'culture', type: 'vote', prompt: 'Small talk is a skill, not a chore.', options: [ { label: 'A skill', count: 4700 }, { label: 'A chore', count: 4100 } ] },
 
   // dilemmas
-  // The two Crossroads stories ride the pool as members (D341) — a story is
-  // a feed question, placed by the mix like everything else, and both can
-  // be on screen at once. Only what the feed mechanics read lives here (id,
-  // home topic, a prompt for search and the pass row); the CONTENT is
-  // paths-data.js's, resolved by id at render (paths-card.jsx srcOf), so
-  // the story is written once. 'dilemma' is their genre AND an always-on
-  // channel, which is what keeps them reachable with no scene followed.
-  // One early and one deep in the group on purpose: the mix serves streams
-  // round-robin, so the reader meets the first story a few cards in and
-  // the second a couple of screens later — not stacked, not pinned.
-  { id: 'wallet', cat: 'dilemma', type: 'path', prompt: 'The Wallet' },
+  // (The two Crossroads stubs used to sit here — the prototype's pair were
+  // both dilemmas. D413 retired those stories and the demo pool now
+  // carries two of the bank's, filed under their own genres: 'blackout'
+  // opens the world events group and 'capsule' closes big questions.)
   { id: 'f38', cat: 'dilemma', type: 'vote', prompt: 'Read minds \u2014 but everyone knows you can. Take it?', options: [ { label: 'Take it', count: 2600 }, { label: 'Pass', count: 7900 } ] },
   { id: 'f39', cat: 'dilemma', type: 'vote', prompt: '$1M now, but a stranger somewhere loses everything. Press the button?', options: [ { label: 'Press', count: 1400 }, { label: 'Never', count: 9800 } ] },
   { id: 'f40', cat: 'dilemma', type: 'vote', prompt: 'Would you want to know the date of your death?', options: [ { label: 'Tell me', count: 2900 }, { label: 'Never', count: 8400 } ] },
-  { id: 'text', cat: 'dilemma', type: 'path', prompt: 'The Wrong Text' },
   { id: 'f41', cat: 'dilemma', type: 'vote', prompt: 'Five years in a job you hate, then never work again?', options: [ { label: 'Take the deal', count: 6600 }, { label: 'Keep working', count: 4100 } ] },
   { id: 'f42', cat: 'dilemma', type: 'vote', prompt: 'Restart life at 10, everything you know intact?', options: [ { label: 'Restart', count: 5100 }, { label: 'Stay here', count: 5600 } ] },
   { id: 'f43', cat: 'dilemma', type: 'vote', prompt: 'Perfect memory \u2014 but you can never forget anything. Take it?', options: [ { label: 'Take it', count: 3300 }, { label: 'Keep forgetting', count: 6200 } ] },
   { id: 'f44', cat: 'dilemma', type: 'vote', prompt: 'Your dog talks for one day, or understands you forever?', options: [ { label: 'Talks one day', count: 2800 }, { label: 'Understands forever', count: 7700 } ] },
 
   // world events
+  // The two Crossroads stories ride the pool as members (D341) — a story is
+  // a feed question, placed by the mix like everything else, and both can
+  // be on screen at once. Only what the feed mechanics read lives here (id,
+  // home topic, a prompt for search and the pass row); the CONTENT is
+  // paths-data.js's, resolved by id at render (paths-card.jsx srcOf), so
+  // the story is written once. Each stub's genre is ALSO an always-on
+  // channel ('event' here, 'bigq' for the other), which is what keeps them
+  // reachable with no scene followed. One early in its group and one deep
+  // in a later one on purpose: the mix serves streams round-robin, so the
+  // reader meets the first story a few cards in and the second a couple of
+  // screens later — not stacked, not pinned.
+  { id: 'blackout', cat: 'event', type: 'path', prompt: 'The Blackout' },
   { id: 'f45', cat: 'event', type: 'vote', prompt: 'Should voting be mandatory?', options: [ { label: 'Mandatory', count: 3900 }, { label: 'A right, not a duty', count: 5600 } ] },
   { id: 'f46', cat: 'event', type: 'vote', prompt: 'Four-day work week: inevitable or fantasy?', options: [ { label: 'Inevitable', count: 7200 }, { label: 'Fantasy', count: 2700 } ] },
   { id: 'f47', cat: 'event', type: 'vote', prompt: 'City centers should be car-free.', options: [ { label: 'Car-free', count: 5800 }, { label: 'Keep cars', count: 3900 } ] },
@@ -158,6 +162,7 @@ const WFD_DEMO_POOL = [
   { id: 'f54', cat: 'bigq', type: 'vote', prompt: 'Money can buy happiness.', options: [ { label: 'It can', count: 5500 }, { label: 'It can\u2019t', count: 4300 } ] },
   { id: 'f55', cat: 'bigq', type: 'vote', prompt: 'Humanity\u2019s best days are ahead.', options: [ { label: 'Ahead', count: 6100 }, { label: 'Behind', count: 3600 } ] },
   { id: 'f56', cat: 'bigq', type: 'rank', prompt: 'What matters most \u2014 rank them', items: ['People', 'Meaning', 'Pleasure', 'Legacy'], crowd: [1, 2, 3, 4], votes: 3800 },
+  { id: 'capsule', cat: 'bigq', type: 'path', prompt: 'The Time Capsule' },
 
   // \u2500\u2500 dials & fields \u2500\u2500 continuum answers.
   // dial: a value on a range \u2014 dist: 12 crowd buckets lo\u2192hi, med: crowd median.

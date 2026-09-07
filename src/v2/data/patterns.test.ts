@@ -22,19 +22,35 @@
 //      writing the key back (check:purge's contract).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const live = vi.hoisted(() => ({
-  enabled: true,
-  myVotes: vi.fn((): Record<string, string> => ({})),
-  aggregated: vi.fn((): unknown[] => []),
-  coreFeedAggregated: vi.fn((): unknown[] => []),
-  subscribe: vi.fn(() => () => {}),
-}));
+const live = vi.hoisted(() => {
+  const l = {
+    enabled: true,
+    myVotes: vi.fn((): Record<string, string> => ({})),
+    aggregated: vi.fn((): unknown[] => []),
+    coreFeedAggregated: vi.fn((): unknown[] => []),
+    subscribe: vi.fn(() => () => {}),
+    // The viewer's answers as option indexes (D396). Derived from the vote
+    // mock by default — this file's option ids are `${qid}:${idx}` — so a
+    // case that sets myVotes gets consistent evidence for free; a case
+    // about the wider corpus sets it directly.
+    answeredIndex: vi.fn((): Record<string, number> => Object.fromEntries(
+      Object.entries(l.myVotes()).map(([qid, id]) => [qid, Number(String(id).split(":").pop())]),
+    )),
+  };
+  return l;
+});
 vi.mock("./live", () => ({ default: live }));
 
 // One mutable holder the mocked getDoc reads through, so each test can
 // publish its own loadings doc (or absence) without re-mocking.
 const remote = vi.hoisted(() => ({
-  doc: null as null | { k: number; q: Record<string, { v: number[]; n: number; sum: number }> },
+  doc: null as null | {
+    k: number;
+    engine?: string;
+    lambdaU?: number;
+    items?: Record<string, { kind: string; qid: string; opt?: number; nOptions: number }>;
+    q: Record<string, { v: number[]; n: number; sum: number; sd?: number }>;
+  },
 }));
 vi.mock("../../lib/firebase", () => ({
   getDb: async () => ({}),
@@ -55,10 +71,16 @@ const voters = vi.hoisted(() => ({
   // read is pure waste on this path — up to VOTER_FETCH_CAP profile
   // documents per question, billed, thrown away.
   fetchVoters: vi.fn(async () => []),
+  // The nightly sample (D397): null means none published yet, and the
+  // pair card falls back to the live picks — which is what every case
+  // below that counts rows exercises. The case about the sample sets it.
+  fetchVoterSample: vi.fn<(db: unknown, qid: string) => Promise<{ uid: string; optionIdx: number }[] | null>>(
+    async () => null),
 }));
 vi.mock("./voters", () => ({
   fetchVoterPicks: voters.fetchVoterPicks,
   fetchVoters: voters.fetchVoters,
+  fetchVoterSample: voters.fetchVoterSample,
   VOTER_FETCH_CAP: 200,
 }));
 
@@ -141,16 +163,110 @@ describe("the pool join", () => {
     expect(qa.n).toBe(40);
   });
 
-  it("nextAsk refuses a thin basis and skips the answered", async () => {
+  it("nextAsk asks what it knows least about, refuses a thin basis and skips the answered", async () => {
     publishFixture();
     live.myVotes.mockReturnValue({ qa: "qa:0" });
     await ensureLive();
-    // qa answered, qb has basis 30 — thin (n=5) is never offered
-    expect(PATTERNS.nextAsk()?.q.id).toBe("qb");
-    live.myVotes.mockReturnValue({ qa: "qa:0", qb: "qb:1" });
-    expect(PATTERNS.nextAsk()?.q.id).toBe("qc"); // thin stays refused
+    // qa answered pins factor 0; qb (0.9, 0.1) is nearly called already,
+    // qc (0, 1) is the direction nothing has spoken to — the information
+    // rule asks qc first (the owner's call, 2026-09-06). thin (n=5) is
+    // never offered.
+    expect(PATTERNS.nextAsk()?.q.id).toBe("qc");
+    live.myVotes.mockReturnValue({ qa: "qa:0", qc: "qc:0" });
+    expect(PATTERNS.nextAsk()?.q.id).toBe("qb"); // thin stays refused
     live.myVotes.mockReturnValue({ qa: "qa:0", qb: "qb:1", qc: "qc:0" });
     expect(PATTERNS.nextAsk()).toBeNull();
+  });
+
+  it("with nothing answered, the first eligible question in pool order is as informative as any", async () => {
+    publishFixture();
+    await ensureLive();
+    // an empty solve leaves every direction equally undetermined up to
+    // the loadings' own norms: qa (norm 1) and qc (norm 1) tie, and a tie
+    // keeps pool order
+    expect(PATTERNS.nextAsk()?.q.id).toBe("qa");
+  });
+});
+
+describe("the evidence and the ridge (D396)", () => {
+  /** The candidate engine's document: two-option rows beside an ordinal
+   * scale and a three-option pick, with the metadata that says which. */
+  const publishWide = () => {
+    live.aggregated.mockReturnValue([bankQ("qa"), bankQ("qb"), bankQ("scale", 5), bankQ("pick", 3)]);
+    live.coreFeedAggregated.mockReturnValue([]);
+    remote.doc = {
+      k: K,
+      engine: "als",
+      lambdaU: 2,
+      q: {
+        qa: { v: vec(1, 0), n: 40, sum: 0 },
+        qb: { v: vec(0.9, 0.1), n: 30, sum: 0 },
+        scale: { v: vec(0, 1), n: 50, sum: 100, sd: 1.25 },
+        "pick~0": { v: vec(0.5, 0.5), n: 20, sum: -10 },
+        "pick~1": { v: vec(-0.5, 0.5), n: 20, sum: 0 },
+        "pick~2": { v: vec(0, -1), n: 20, sum: 10 },
+      },
+      items: {
+        qa: { kind: "bin", qid: "qa", nOptions: 2 },
+        qb: { kind: "bin", qid: "qb", nOptions: 2 },
+        scale: { kind: "ord", qid: "scale", nOptions: 5 },
+        "pick~0": { kind: "opt", qid: "pick", opt: 0, nOptions: 3 },
+        "pick~1": { kind: "opt", qid: "pick", opt: 1, nOptions: 3 },
+        "pick~2": { kind: "opt", qid: "pick", opt: 2, nOptions: 3 },
+      },
+    };
+  };
+
+  it("reads the ridge off the document, and falls back to the shipped value", async () => {
+    publishFixture();
+    await ensureLive();
+    expect(PATTERNS.lambdaU()).toBe(0.5);
+    publishWide();
+    await ensureLive(true);
+    expect(PATTERNS.lambdaU()).toBe(2);
+  });
+
+  it("encodes every kind the rows can carry — bin ±1, ord standardised, pick one-hot — and the pool still draws two-option only", async () => {
+    publishWide();
+    live.myVotes.mockReturnValue({ qa: "qa:1", scale: "scale:4", pick: "pick:2" });
+    await ensureLive();
+    const ev = PATTERNS.evidence();
+    // qa: option 1 → −1, marginal 0 → r = −1
+    expect(ev).toContainEqual({ L: vec(1, 0), r: -1 });
+    // scale: index 4 against mean 2, sd 1.25 → +1.6
+    expect(ev.find((o) => o.L === remote.doc!.q.scale.v)?.r).toBeCloseTo(1.6, 9);
+    // pick option 2: −1 against pick~0's mean −0.5 → −0.5; +1 against pick~2's mean 0.5 → +0.5
+    expect(ev.find((o) => o.L === remote.doc!.q["pick~0"].v)?.r).toBeCloseTo(-0.5, 9);
+    expect(ev.find((o) => o.L === remote.doc!.q["pick~1"].v)?.r).toBeCloseTo(-1, 9);
+    expect(ev.find((o) => o.L === remote.doc!.q["pick~2"].v)?.r).toBeCloseTo(0.5, 9);
+    expect(ev).toHaveLength(5);
+    // the drawn pool is unchanged: two-option questions, nothing else
+    expect(PATTERNS.pool().map((p) => p.q.id)).toEqual(["qa", "qb"]);
+    // and the seal reads the wider evidence: a scale answer along factor 1
+    // says nothing about qb (factor 0), the qa answer says option 1
+    const rec = PATTERNS.seal("qb")!;
+    expect(rec.pred).toBe(1);
+  });
+
+  it("an ordinal row with no spread and a row with no basis carry nothing", async () => {
+    publishWide();
+    remote.doc!.q.scale = { v: vec(0, 1), n: 50, sum: 100, sd: 0 };
+    remote.doc!.q.qa = { v: vec(1, 0), n: 0, sum: 0 };
+    live.myVotes.mockReturnValue({ qa: "qa:0", scale: "scale:3" });
+    await ensureLive();
+    expect(PATTERNS.evidence()).toEqual([]);
+  });
+
+  it("under the online engine's rows, only two-option answers are evidence", async () => {
+    publishFixture(); // no `items`: the online engine's document
+    live.myVotes.mockReturnValue({ qa: "qa:0", trio: "trio:2" });
+    await ensureLive();
+    // trio has a row in this fixture but three options; the online rows
+    // are two-option by construction, so an index of 2 is not ±1 and is
+    // not read as one
+    expect(PATTERNS.evidence()).toEqual([{ L: vec(1, 0), r: 1 }]);
+    // and a target's own answer stays out of the solve that guesses it
+    expect(PATTERNS.evidence("qa")).toEqual([]);
   });
 });
 
@@ -301,6 +417,30 @@ describe("the pair card", () => {
     await PATTERNS.say("qa", "qb");
     expect(voters.fetchVoterPicks).toHaveBeenCalled();
     expect(voters.fetchVoters).not.toHaveBeenCalled();
+  });
+});
+
+describe("the pair card reads the nightly sample first (D397)", () => {
+  it("counts the sample's rows and never issues the live query when a sample exists", async () => {
+    publishFixture();
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    const crowd = (side: number) => Array.from({ length: 20 }, (_, i) => ({ uid: `s${i}`, optionIdx: i < 15 ? side : 1 - side }));
+    voters.fetchVoterSample.mockImplementation(async (_db, qid) => (qid === "qa" ? crowd(0) : crowd(0)));
+    const say = await PATTERNS.say("qa", "qb");
+    expect(say?.both).toBe(20);
+    expect(voters.fetchVoterPicks).not.toHaveBeenCalled();
+    expect(voters.fetchVoterSample).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to the live picks for a question with no sample yet", async () => {
+    publishFixture();
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    voters.fetchVoterSample.mockResolvedValue(null);
+    voters.fetchVoterPicks.mockResolvedValue([]);
+    await PATTERNS.say("qa", "qb");
+    expect(voters.fetchVoterPicks).toHaveBeenCalledTimes(2);
   });
 });
 

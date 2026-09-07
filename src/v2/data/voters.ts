@@ -212,6 +212,71 @@ export async function fetchVoterPicks(
 }
 
 /**
+ * The nightly voter SAMPLE for `qid` (D397) — the newest VOTER_FETCH_CAP
+ * voters as the fit published them last night at `v2_patterns/sample-{qid}`:
+ * one document read where `fetchVoterPicks` is up to two hundred. Same
+ * rows in the same shape — uid, option index, the answer's frozen chips
+ * (D8) — newest first, so every fold that only COUNTS (Kindred, the People
+ * lens, the pair card) reads it in place of the live query. The who-voted
+ * sheet, a live list of names on screen that must show the viewer's own
+ * answer the moment it lands, keeps the live query.
+ *
+ * Null when no sample exists yet — a question the nightly run has not
+ * touched since D397, or the tail — so the caller falls back to the live
+ * query rather than reading absence as an empty crowd.
+ *
+ * AND NULL FOR AN EXISTING DOCUMENT WITH NO USABLE ROWS, which is the
+ * same fact and used not to be the same answer. `[] ?? live` is `[]`, so
+ * both callers took the empty array and reported a crowd of nobody:
+ * `sayRows` (data/patterns.ts) cached it, and `loadVoterSample`
+ * (live.ts) took the else branch, resolved no names and never set its
+ * fallback flag. Reachable, not theoretical — `deleteAccount`'s scrub
+ * (index.ts § 1a') field-deletes one uid's row and leaves the document
+ * standing, so a sample whose only voter erases their account becomes
+ * `rows: {}` on disk.
+ *
+ * WHAT THIS DOES NOT FIX, named so it is not mistaken for fixed: the
+ * sample is the newest cap voters *the nightly has seen since D397*, not
+ * the newest cap voters. `mergeSample` is fed only by the ledger day the
+ * run reads and nothing seeds it from the answers already written, so a
+ * question answered two hundred times before the samples existed
+ * publishes a sample of however many people answered it since. Those are
+ * real rows and this reader cannot tell them from a complete sample —
+ * the floors downstream (`say()` and `tell()` want 12) then report
+ * `thin` about the crowd when the true subject is the deploy date.
+ */
+export async function fetchVoterSample(
+  db: Firestore,
+  qid: string,
+  myUid: string | null = null,
+): Promise<Voter[] | null> {
+  const { doc, getDoc } = await getFirestoreApi();
+  const snap = await getDoc(doc(db, "v2_patterns", `sample-${qid}`));
+  if (!snap.exists()) return null;
+  const rows = (snap.get("rows") as Record<string, { o?: unknown; a?: unknown; d?: unknown }> | undefined) ?? {};
+  const out: { v: Voter; d: string }[] = [];
+  for (const [uid, r] of Object.entries(rows)) {
+    if (!uid || typeof r?.o !== "number") continue;
+    out.push({
+      v: {
+        uid,
+        optionIdx: r.o,
+        anchors: (r.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
+        name: "",
+        isMe: uid === myUid,
+      },
+      d: typeof r.d === "string" ? r.d : "",
+    });
+  }
+  // newest first, then uid — the server's own total order
+  out.sort((a, b) => (a.d !== b.d ? (a.d < b.d ? 1 : -1) : a.v.uid < b.v.uid ? -1 : a.v.uid > b.v.uid ? 1 : 0));
+  // Empty reads as absent, per the docstring's own promise. Both callers
+  // key their fallback on null, and neither has any other way to tell a
+  // sample that holds nobody from one that was never written.
+  return out.length ? out.map((x) => x.v) : null;
+}
+
+/**
  * Everyone who answered `qid`, with their frozen cohort and their name.
  *
  * `names` is an inout session cache owned by the caller (live.ts), so two

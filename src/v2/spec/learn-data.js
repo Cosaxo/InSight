@@ -276,6 +276,29 @@ export function LEARN_RATE(card) {
   if (learnLive()) return { pct: null, src: 'none' };
   return { pct: card.p, src: 'estimate' };
 }
+/**
+ * Where a mastered fact's dot sits on the Map: 0 is the outer edge, 1 the
+ * centre, and `map-layout` turns it into a ±80px radial push.
+ *
+ * A POSITION IS A CLAIM, so this may only be a MEASUREMENT. map-tab.jsx
+ * used to pass `card.p / 100` — the authoring hint, "the % of the crowd
+ * expected to get it right", chosen by whoever wrote the card — so on a
+ * live build the dot's distance from You was a guess, while the card that
+ * opens on tapping that same dot says "Nobody else has answered this one
+ * yet" (LEARN_RATE returns `estimate` only when LIVE is off). The daily
+ * branch beside it already refuses exactly this and takes the neutral
+ * radius instead.
+ *
+ * `estimate` is kept because it cannot occur on a live build: in the demo
+ * every number on the map is the demo's own, and flattening its learn
+ * dots would trade one honest map for a duller one.
+ */
+export function LEARN_TYP(card) {
+  const rate = LEARN_RATE(card);
+  const usable = rate.src === 'measured' || rate.src === 'estimate';
+  return usable && rate.pct != null ? rate.pct / 100 : 0.5;
+}
+
 export function LEARN_SPLIT(card) {
   const measured = learnMeasured(card);
   if (measured) return measured;

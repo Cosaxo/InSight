@@ -28,12 +28,14 @@
 // sharing an endpoint cost four lists, not six.
 import LIVE from "./live";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
-import { fetchVoterPicks, VOTER_FETCH_CAP } from "./voters";
+import { fetchVoterPicks, fetchVoterSample, VOTER_FETCH_CAP } from "./voters";
 import type { LiveQuestion } from "./deck";
 import {
-  estimateTheta,
+  DEFAULT_LAMBDA_U,
   mapGeometry,
+  mostInformative,
   oracleGuess,
+  ridgeSolve,
   surprisalBits,
   type MapNode,
 } from "./patternsMap";
@@ -133,7 +135,21 @@ export interface Working {
   failed: boolean;
 }
 
-interface LoadingsDoc { k: number; q: Record<string, { v: number[]; n: number; sum: number }> }
+/** A published row: the vector, its basis, the sum of raw encoded answers
+ * (mean = sum/n for every kind) and an ordinal row's sd (D395). */
+interface LoadingsRow { v: number[]; n: number; sum: number; sd?: number }
+/** How a device encodes its own answer into a row — the candidate
+ * engine's item metadata (D395); absent while the online engine owns the
+ * rows, which are then all two-option. */
+interface LoadingsItem { kind: "bin" | "ord" | "opt"; qid: string; opt?: number; nOptions: number }
+interface LoadingsDoc {
+  k: number;
+  q: Record<string, LoadingsRow>;
+  items?: Record<string, LoadingsItem>;
+  /** The device ridge the engine's scorecard was measured at (D395). */
+  lambdaU?: number;
+  engine?: "sgd" | "als";
+}
 
 let loadings: LoadingsDoc | null = null;
 let loaded = false; // fetched-and-absent is an answer too
@@ -160,7 +176,10 @@ function sayRows(qid: string): Promise<{ uid: string; optionIdx: number }[]> {
   if (!p) {
     p = (async () => {
       const db = await getDb();
-      return fetchVoterPicks(db, qid);
+      // The nightly sample first (D397): one document for the same rows the
+      // live query would read two hundred documents for. The live query
+      // stays as the fallback for a question no sample exists for yet.
+      return (await fetchVoterSample(db, qid)) ?? fetchVoterPicks(db, qid);
     })();
     // a failed fetch must not be cached as the crowd — drop it so the next
     // open retries (the loadVoters absent-vs-empty rule, applied here)
@@ -197,7 +216,13 @@ export function ensureLive(force = false): Promise<void> {
       const { doc, getDoc } = await getFirestoreApi();
       const snap = await getDoc(doc(db, "v2_patterns", "loadings"));
       loadings = snap.exists()
-        ? { k: (snap.get("k") as number) ?? 8, q: (snap.get("q") as LoadingsDoc["q"]) ?? {} }
+        ? {
+          k: (snap.get("k") as number) ?? 8,
+          q: (snap.get("q") as LoadingsDoc["q"]) ?? {},
+          ...(snap.get("items") ? { items: snap.get("items") as LoadingsDoc["items"] } : {}),
+          ...(typeof snap.get("lambdaU") === "number" ? { lambdaU: snap.get("lambdaU") as number } : {}),
+          ...(snap.get("engine") ? { engine: snap.get("engine") as LoadingsDoc["engine"] } : {}),
+        }
         : null;
       loaded = true;
       notify();
@@ -244,13 +269,58 @@ function pool(): PoolItem[] {
   return out;
 }
 
-/** The viewer's latent vector — a device-side solve over their own
- * answered pool. Never stored, never sent; recomputed per read. */
-function theta(items: readonly PoolItem[], k: number): number[] {
-  const obs = items
-    .filter((p) => p.mine != null)
-    .map((p) => ({ L: p.L, r: (p.mine as number) - p.marginal }));
-  return estimateTheta(obs, k);
+/** The device ridge: the one the fit's scorecard was measured at, read
+ * off the doc (D395), with the shipped value as the fallback for a
+ * document that predates the field. */
+function lambdaU(): number {
+  return loadings?.lambdaU ?? DEFAULT_LAMBDA_U;
+}
+
+/**
+ * The viewer's evidence: every answer of theirs the published rows can
+ * encode, as the centred residuals the fit itself is written in (D396).
+ * Under the candidate engine that is the whole corpus — a two-option
+ * answer as ±1 minus the row's marginal, an ordinal one as the index
+ * standardised by the row's mean and sd, a pick as ±1 against each of the
+ * question's one-hot rows — and under the online engine its two-option
+ * rows alone. Read through `LIVE.answeredIndex()`, the banks × the vote
+ * mirror, so an instrument item counts whether or not its crowd counts
+ * are cached here. `excludeQid` keeps a target's own answer out of the
+ * solve that guesses it.
+ */
+function evidence(excludeQid?: string): { L: readonly number[]; r: number }[] {
+  if (!LIVE.enabled || !loadings) return [];
+  const answered = LIVE.answeredIndex();
+  const meta = loadings.items;
+  const out: { L: readonly number[]; r: number }[] = [];
+  const centred = (row: LoadingsRow, x: number): number => x - row.sum / row.n;
+  for (const [qid, idx] of Object.entries(answered)) {
+    if (qid === excludeQid) continue;
+    const row = loadings.q[qid];
+    if (!meta) {
+      // the online engine's rows: two-option only, ±1
+      if (row && row.n > 0 && (idx === 0 || idx === 1)) out.push({ L: row.v, r: centred(row, idx === 0 ? 1 : -1) });
+      continue;
+    }
+    const m = meta[qid];
+    if (m && row && row.n > 0) {
+      if (m.kind === "ord") {
+        if (row.sd && row.sd >= 1e-6) out.push({ L: row.v, r: (idx - row.sum / row.n) / row.sd });
+      } else if (m.kind === "bin") {
+        out.push({ L: row.v, r: centred(row, idx === 0 ? 1 : -1) });
+      }
+      continue;
+    }
+    // a pick: one row per option, keyed off the qid
+    for (let i = 0; ; i++) {
+      const key = `${qid}~${i}`;
+      const r = loadings.q[key];
+      const mm = meta[key];
+      if (!r || !mm) break;
+      if (r.n > 0) out.push({ L: r.v, r: centred(r, idx === i ? 1 : -1) });
+    }
+  }
+  return out;
 }
 
 export const PATTERNS = {
@@ -259,12 +329,24 @@ export const PATTERNS = {
   /** The fit has published something to draw. */
   hasLoadings(): boolean { return !!loadings && Object.keys(loadings.q).length > 0; },
   pool,
-  /** The pool item the Oracle asks next: the first unanswered question
+  /** The pool item the Oracle asks next: among the unanswered questions
    * with enough basis to guess against — reading a vector fitted on a
-   * handful of answers as a prediction would be the map lying quietly. */
+   * handful of answers as a prediction would be the map lying quietly —
+   * the one whose loading points where the viewer's vector is least
+   * determined (patternsMap.mostInformative; the owner's call,
+   * 2026-09-06). It learns the viewer fastest and looks worst for a
+   * while, because it asks what it cannot yet call. */
   nextAsk(minBasis = 8): PoolItem | null {
-    return pool().find((p) => p.mine == null && p.n >= minBasis) ?? null;
+    const cands = pool().filter((p) => p.mine == null && p.n >= minBasis);
+    if (!cands.length || !loadings) return null;
+    const { invA } = ridgeSolve(evidence(), loadings.k, lambdaU());
+    const i = mostInformative(invA, cands);
+    return cands[i] ?? null;
   },
+  /** The viewer's evidence, for a fold that solves them itself (the
+   * People lens's own dot). */
+  evidence,
+  lambdaU,
   /** Seal the guess for a question — computed and PERSISTED before the
    * options render. Re-sealing an already-sealed question returns the
    * standing record: the first look is the one that counts. */
@@ -274,8 +356,11 @@ export const PATTERNS = {
     const items = pool();
     const target = items.find((p) => p.q.id === qid);
     if (!target || !loadings) return null;
-    const th = theta(items.filter((p) => p.q.id !== qid), loadings.k);
-    const g = oracleGuess(th, target.L, target.marginal);
+    // the viewer's vector from everything they have answered — every kind
+    // the rows can encode — minus the target itself, under the ridge the
+    // fit's scorecard was measured at
+    const { theta } = ridgeSolve(evidence(qid), loadings.k, lambdaU());
+    const g = oracleGuess(theta, target.L, target.marginal);
     const rec: OracleRecord = { qid, p0: g.p0, pred: g.pred, at: Date.now() };
     logSaved().push(rec);
     persistLog();

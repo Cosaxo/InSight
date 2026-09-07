@@ -185,6 +185,8 @@ export const deleteAccount = onCall(
 
     const counts = {
       ownSubtree: 0,
+      // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
+      patternSamples: 0,
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
@@ -221,6 +223,12 @@ export const deleteAccount = onCall(
       // that bought a question is the signal that the pointer was gone
       // before this ran.
       paidQuestionBylines: 0,
+      // …and how many of those were STILL RUNNING and were stopped with
+      // the byline (phase 4e). Separate from the line above because the
+      // two are different acts: emptying a byline is erasure, stopping a
+      // campaign is the consequence of erasing its targeting. A non-zero
+      // here is an operator's cue that a paid window ended early.
+      paidQuestionsStopped: 0,
       // Paid-question bookings swept by phase 4f (paid.ts, D313) — the
       // pre-payment half of a sale, keyed by uid.
       paidBookings: 0,
@@ -284,6 +292,45 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
       failed.push("aggEvents");
+    }
+
+    // 1a′. THE VOTER SAMPLES (D397) — the one derived, world-readable
+    //     document family that holds uids: `v2_patterns/sample-{qid}`, the
+    //     newest two hundred voters per question, rows keyed by uid so
+    //     this arm is a field delete and never a rewrite of anyone else's
+    //     row. Every sample is checked rather than the ones this
+    //     account's answer map names, because the map and the samples
+    //     are written by the same nightly run and a crash between the two
+    //     writes could leave a row the map does not know about — a few
+    //     hundred reads once per deletion is the price of "gone means
+    //     gone" holding without a caveat. e2e-delete-account.mjs asserts
+    //     it, and that the other voters' rows stay.
+    try {
+      const refs = (await db.collection("v2_patterns").listDocuments())
+        .filter((r) => r.id.startsWith("sample-"));
+      let scrubbed = 0;
+      for (let i = 0; i < refs.length; i += 300) {
+        const snaps = await db.getAll(...refs.slice(i, i + 300));
+        let batch = db.batch();
+        let ops = 0;
+        for (const snap of snaps) {
+          if (!snap.exists) continue;
+          const rows = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+          if (!(uid in rows)) continue;
+          batch.update(snap.ref, { [`rows.${uid}`]: FieldValue.delete(), n: FieldValue.increment(-1) });
+          scrubbed += 1;
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+      }
+      counts.patternSamples = scrubbed;
+    } catch (err) {
+      logger.error("[deleteAccount] voter sample scrub failed:", err);
+      failed.push("patternSamples");
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
@@ -1066,20 +1113,71 @@ export const deleteAccount = onCall(
       const boughtQids = bought.docs
         .map((d) => String(d.get("qid") ?? ""))
         .filter((id) => id.length > 0);
+      // A RUNNING CAMPAIGN STOPS HERE TOO, and this is not tidiness.
+      //
+      // `sponsor.audience` is not only personal data — it is the SERVING
+      // FILTER. `matches()` (data/sponsored.ts) reads `if (!tag) return
+      // true`, so an untagged sponsored question matches every device on
+      // earth. Deleting the field for erasure therefore did not narrow the
+      // campaign, it WIDENED it: a card bought for Oslo went worldwide the
+      // moment its buyer deleted their account, the PAID band flipped from
+      // "City: Oslo, NO" to the empty list it renders as shown-to-everyone,
+      // and the question's public aggregate began mixing a one-city frame
+      // with a global one, with nothing recording the seam.
+      //
+      // Nothing could stop it afterwards either: `closePaidCampaignsV2`
+      // finds its work with `state == "running"` on the purchase rows, and
+      // this same phase is about to delete the row. So the widened card ran
+      // to its `until` and, on the results page, presented itself as having
+      // been asked of everyone.
+      //
+      // RUNNING ONLY. A campaign whose window has closed is past `until`
+      // and already unservable, and `active: false` is read far beyond the
+      // feed — the Mirror's folds drop an inactive question — so retiring a
+      // finished one would take the crowd's own answers off the Mirror to
+      // settle something between the buyer and this app. The answers belong
+      // to the people who wrote them.
+      const runningQids = new Set(
+        bought.docs
+          .filter((d) => d.get("state") === "running")
+          .map((d) => String(d.get("qid") ?? ""))
+          .filter((id) => id.length > 0),
+      );
       let stripped = 0;
+      let stopped = 0;
       for (const qid of boughtQids) {
+        const stop = runningQids.has(qid);
         try {
           await db.collection("v2_questions").doc(qid).update({
             "sponsor.buyer": FieldValue.delete(),
             "sponsor.audience": FieldValue.delete(),
+            // A MARKER, because absence is ambiguous and the ambiguity is
+            // published. `sponsor.buyer` absent means "bought without a
+            // name" (D228) and `sponsor.audience` absent means "bought
+            // untargeted" — both real, deliberate purchases — so a page
+            // reading the stripped document cannot tell those from an
+            // erasure, and the public results page said the buyer "chose
+            // not to wear a name" and that the question was "asked
+            // everyone". Two definite statements, both false, about a
+            // sample that was one city's.
+            //
+            // Not personal data: it is a fact about this QUESTION, that
+            // its provenance is gone. Nothing in it points at anybody.
+            "sponsor.erased": true,
+            // Every servable path in the client is `active !== false`
+            // (data/live.ts), so this is the one field that takes a card
+            // off every surface at once rather than one filter at a time.
+            ...(stop ? { active: false } : {}),
           });
           stripped += 1;
+          if (stop) stopped += 1;
         } catch (err) {
           // NOT_FOUND (5) is the abandoned-booking case above.
           if ((err as { code?: number }).code !== 5) throw err;
         }
       }
       counts.paidQuestionBylines = stripped;
+      counts.paidQuestionsStopped = stopped;
 
       // A RUNNING campaign's row is the only pointer at the money it owes
       // back, and this sweep is about to delete it.
@@ -1251,8 +1349,9 @@ export { logicStartV2, logicSubmitV2 } from "./logic";
 export { resolveCallsV2 } from "./calls";
 // v28 §2 (trial per D166 §1): the nightly Patterns fit — per-question
 // loading vectors from the vote log, core corpus only (D161). The fold
-// that has to exist before the Patterns tab may ship (D167).
-export { fitPatternsV2 } from "./patterns";
+// that has to exist before the Patterns tab may ship (D167). Since D399
+// it runs inside the nightly pass below (`digestEngagementV2`), not as a
+// scheduled function of its own — `fitPatternsV2` is retired.
 // D316: the nightly published serving order — per-topic question order
 // (volume, landslides sunk) onto v2_rank/{feed,learn}, the spine the
 // paged read path fetches against. Global signal only; no uid enters
@@ -1261,13 +1360,15 @@ export { rankBankV2 } from "./rank";
 // D317 phase 1 (D322): the per-person interest profile — feed answers
 // counted by topic, nightly, onto v2_users/{uid}/taste/profile. Derived
 // from answers alone (public by D98); the pager sizes topic pages by it
-// and nothing else reads it.
-export { fitTasteV2 } from "./taste";
-// R1/D268: the nightly engagement digest — anonymous population counts
-// (actives, retention returns, answers by surface) folded from the same
-// ledger, one public day doc per UTC day. The rung-0 half of
-// docs/ENGAGEMENT-PLAN.md; nothing per-person leaves it.
-export { digestEngagementV2 } from "./engagement";
+// and nothing else reads it. Inside the nightly pass since D399;
+// `fitTasteV2` is retired.
+// THE NIGHTLY PASS (D399): one read of yesterday's ledger feeding the
+// engagement digest (R1/D268 — anonymous population counts, one public
+// day doc per UTC day; nothing per-person leaves it), the Patterns fit
+// and the taste fold, then the attention and rollup folds. It keeps the
+// digest's deploy name and heartbeat because the armed alert policy is
+// keyed on them — nightly.ts's header has the reasoning.
+export { digestEngagementV2 } from "./nightly";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

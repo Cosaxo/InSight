@@ -158,7 +158,17 @@ function LgEmpty({ children }: { children: React.ReactNode }) {
 // ── Answers: what the group landed on, one row per revealed day ──
 function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   const [open, setOpen] = React.useState<string | null>(null);
-  const rows = P.rows.slice(0, 7);
+  const ROW_CAP = 7;
+  const rows = P.rows.slice(0, ROW_CAP);
+  // A CAP THAT SAYS SO. The header one line down prints `P.days` — up to
+  // REVEAL_HIST_DAYS (14) — over at most seven rows, with nothing between
+  // them saying where the rest went, so "14 days revealed" read as a list
+  // of fourteen that stopped after seven. Every sibling states its own
+  // cap out loud: LiveAnswerRows offers "Show N more", and the places
+  // field says "N more … placed further out than this field draws" with
+  // the comment "a cap that silently eats rows reads as 'that is all of
+  // them'".
+  const hidden = Math.max(0, P.rows.length - rows.length);
   // A TAB SAYS WHY IT IS EMPTY (D190). This returned null, which was right
   // while the card was one of two things stacked on the stop — a card that
   // draws nothing takes no space. Behind a tab somebody tapped, nothing at
@@ -223,6 +233,11 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
           );
         })}
       </div>
+      {hidden > 0 && (
+        <div style={{ paddingTop: 9, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>
+          {hidden} older {hidden === 1 ? "day" : "days"} not shown.
+        </div>
+      )}
     </div>
   );
 }

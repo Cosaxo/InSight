@@ -850,22 +850,85 @@ export const sweepPaidReviewsV2 = onSchedule(
  * path on main; the caller now refuses an approved-but-unpaid ad outright,
  * so a second branch here would be a shape nothing can reach — which is
  * the class of thing this whole extraction exists to stop shipping.
+ *
+ * THE WHOLE LINE ITEM, `quantity` included. The extraction stopped one
+ * token short of it: `quantity` stayed at the call site, inside the block
+ * the emulator cannot reach, so `quantity: 1` -> `quantity: 10` charged a
+ * €50 buyer €500 with the entire functions suite and the functions build
+ * green — and the purchase row still says €50, so `refundEurFor` (clamped
+ * to `capEur`) can never hand the difference back. What is charged is one
+ * multiplication, and all of it belongs where the tests can see it.
  */
 export function checkoutLineItem(quote: PaidQuote): {
-  currency: "eur";
-  unit_amount: number;
-  product_data: { name: string; description: string };
+  quantity: number;
+  price_data: {
+    currency: "eur";
+    unit_amount: number;
+    product_data: { name: string; description: string };
+  };
 } {
   return {
-    currency: "eur",
-    unit_amount: Math.round(quote.capEur * 100),
-    product_data: {
-      name: "InSight paid question",
-      description:
-        `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
-        + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
+    // ONE. The unit amount is already the whole cap, so any other value
+    // here multiplies the buyer's contract by a number nobody quoted.
+    quantity: 1,
+    price_data: {
+      currency: "eur",
+      unit_amount: Math.round(quote.capEur * 100),
+      product_data: {
+        name: "InSight paid question",
+        description:
+          `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
+          + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
+      },
     },
   };
+}
+
+/** The narrow slice of the Stripe client this needs — so a test can hand
+ *  it a stand-in without a key, a network or the SDK. */
+export interface SessionExpirer {
+  checkout: { sessions: { expire: (id: string) => Promise<unknown> } };
+}
+
+/**
+ * ONE PAYABLE SESSION AT A TIME.
+ *
+ * `createPaidCheckoutV2` used to mint a fresh Checkout session on every
+ * call and overwrite the stored id without touching the old one, which
+ * stays payable for Stripe's default day — and `web/paid-cancel.html`
+ * actively tells the buyer that pressing Pay again "opens a fresh payment
+ * page". Two open sessions is two ways to be charged for one question,
+ * and `goLive` LOGS a second payment (`duplicatePayments`) without
+ * refunding it. This line is the whole of the defence.
+ *
+ * EXTRACTED, AND THAT IS THE POINT. It lived inside the block that begins
+ * one line after the missing-Stripe-key throw, so the emulator cannot
+ * reach it and the e2e asserts exactly that refusal: swapping `expire` for
+ * `retrieve` — which leaves the old session payable — kept all 769
+ * functions tests, the functions build and 957 script tests green.
+ *
+ * Best-effort by construction: Stripe refuses to expire a session that is
+ * already complete or expired, and a session that completed while this ran
+ * is exactly the case goLive's duplicate guard exists for. A failure here
+ * must not stop the buyer paying, so it is logged and the caller mints the
+ * new session regardless.
+ */
+export async function expirePriorSession(
+  stripe: SessionExpirer,
+  stored: unknown,
+  bid: string,
+): Promise<void> {
+  const priorSession = (stored as { sessionId?: string } | undefined)?.sessionId;
+  if (!priorSession) return;
+  try {
+    await stripe.checkout.sessions.expire(priorSession);
+  } catch (err) {
+    logger.info(`[paid] could not expire the prior session for ${bid}`, {
+      metric: "paid_session_expire_skipped",
+      bid,
+      message: String((err as Error)?.message ?? err),
+    });
+  }
 }
 
 export const createPaidCheckoutV2 = onCall(
@@ -897,35 +960,12 @@ export const createPaidCheckoutV2 = onCall(
     const quote = snap.get("quote") as PaidQuote;
     const { default: Stripe } = await import("stripe");
     const stripe = new Stripe(key);
-    // ONE PAYABLE SESSION AT A TIME. Every call here used to mint a fresh
-    // Checkout session and overwrite the stored id without touching the
-    // old one, which stays payable for Stripe's default day — and
-    // web/paid-cancel.html actively tells the buyer that pressing Pay
-    // again "opens a fresh payment page". Two open sessions is two ways
-    // to be charged for one question.
-    //
-    // Expiring is best-effort by construction: Stripe refuses to expire a
-    // session that is already complete or expired, and a session that
-    // completed while this ran is exactly the case goLive's duplicate
-    // guard exists for. A failure here must not stop the buyer paying, so
-    // it is logged and the new session is minted regardless.
-    const priorSession = (snap.get("stripe") as { sessionId?: string } | undefined)?.sessionId;
-    if (priorSession) {
-      try {
-        await stripe.checkout.sessions.expire(priorSession);
-      } catch (err) {
-        logger.info(`[paid] could not expire the prior session for ${bid}`, {
-          metric: "paid_session_expire_skipped",
-          bid,
-          message: String((err as Error)?.message ?? err),
-        });
-      }
-    }
+    await expirePriorSession(stripe, snap.get("stripe"), bid);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       client_reference_id: bid,
       metadata: { bid, uid },
-      line_items: [{ quantity: 1, price_data: checkoutLineItem(quote) }],
+      line_items: [checkoutLineItem(quote)],
       // The web pages exist for exactly this hop (commerce stays on the
       // web side): web/paid-done.html and web/paid-cancel.html on the
       // hosting origin home.html already serves. The app never learns of

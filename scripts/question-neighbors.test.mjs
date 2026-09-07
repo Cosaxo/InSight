@@ -159,14 +159,18 @@ describe("the live corpus", () => {
     // actually holds, i.e. the gate comparing 3% of the question and
     // scoring two stories that differ only in their prompt line at 0.000.
     //
-    // Asserted on tokens only in a node and an ending — "clinic" is in the
-    // A fork's scene, "virtue" in an ending's line — because a size
+    // Asserted on tokens only in a node and an ending — "stairwell" is in
+    // the opening scene, "coffee" in an ending's line — because a size
     // assertion alone would pass on a textOf that folded in some other
-    // field by accident.
-    const pt1 = domains.feed.find((e) => e.id === "pt1");
-    expect(pt1.tokens.size).toBeGreaterThan(100);
-    expect(pt1.tokens.has("clinic")).toBe(true);
-    expect(pt1.tokens.has("virtu")).toBe(true); // "virtue", folded
+    // field by accident. This read pt1 ("clinic" / "virtue") until D413
+    // retired it: a retired row leaves the domain (the exclusion this
+    // file makes at buildDomains), so the case follows the bank to a story
+    // that is still served.
+    const pt4 = domains.feed.find((e) => e.id === "pt4");
+    expect(pt4, "pt4 (The Blackout) is not in the feed domain — retired, or renamed?").toBeTruthy();
+    expect(pt4.tokens.size).toBeGreaterThan(100);
+    expect(pt4.tokens.has("stairwell")).toBe(true);
+    expect(pt4.tokens.has("coff")).toBe(true); // "coffee", folded
   });
 
   it("holds every gated domain under GATE", () => {

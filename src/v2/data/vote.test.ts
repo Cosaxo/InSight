@@ -22,6 +22,7 @@ import { IDBFactory, IDBDatabase } from "fake-indexeddb";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 import { FUNCTIONS_REGION } from "../../lib/region";
 import { CANON_BOARD_N } from "./deck";
+import { FOLLOW_CAP } from "./circle";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -32,6 +33,19 @@ interface CapturedListener {
   path: string | undefined;
   next: (snap: unknown) => void;
   error?: (err: unknown) => void;
+}
+
+// The four fields live.ts's auth observer reads, and no more. `uid` alone
+// was enough while `linked` was the only thing derived from the user; the
+// verify wall (D414) derives a second flag from three more, and a mock
+// that cannot express "linked, but the address is unconfirmed" cannot test
+// the rule that keeps a Google account out of that state.
+interface AuthUser {
+  uid: string;
+  isAnonymous?: boolean;
+  emailVerified?: boolean;
+  email?: string | null;
+  providerData?: Array<{ providerId: string }>;
 }
 
 const h = vi.hoisted(() => ({
@@ -99,8 +113,11 @@ const h = vi.hoisted(() => ({
   // only some come back (D169's loadSimilarity).
   aggFailIds: [] as string[],
   // live.ts observes auth for the whole session; capture the callback so a
-  // test can drive a uid change or a revoked session.
-  authCb: null as null | ((u: { uid: string } | null) => void),
+  // test can drive a uid change, a revoked session, or an account whose
+  // address is not confirmed yet. The shape is the SDK's User narrowed to
+  // the fields the observer reads — widening it further would invite a
+  // test to assert on something live.ts never looks at.
+  authCb: null as null | ((u: AuthUser | null) => void),
   snapshots: [] as CapturedListener[],
   // The offline-cache teardown deleteAccount owes the privacy policy. Named
   // rather than counted so the ORDER is assertable: clearIndexedDbPersistence
@@ -145,9 +162,15 @@ vi.mock("../../lib/firebase", () => {
   // every case in it now also exercises the bind step.
   getFirestoreApi: () => fsApi,
   getFunctionsApi: () => fnsApi,
+  emailCreate: () => Promise.resolve(),
+  refreshVerification: () => Promise.resolve(true),
+  sendVerification: () => Promise.resolve(),
+  emailReset: () => Promise.resolve(),
+  emailSignIn: () => Promise.resolve(),
+  linkApple: () => Promise.resolve(),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+  subscribeToAuth: (cb: (u: AuthUser | null) => void) => {
     h.authCb = cb;
     return () => { h.authCb = null; };
   },
@@ -491,6 +514,7 @@ beforeEach(() => {
   h.voterDocs = {};
   h.voterQueries.length = 0;
   h.voterFailQids.clear();
+  h.followDocs.length = 0;
   h.engagementCalls.length = 0;
   h.bankDocs = [
     {
@@ -766,6 +790,16 @@ describe("a loader that starts tells its subscribers it started", () => {
     await flush();
   });
 
+  it("loadTakes — the one whose bad frame invites you to write", async () => {
+    // "No takes yet. Say the first thing." is what the panel says with no
+    // data and no flag, and it stood for the whole read. The flag was
+    // always armed; nobody was told.
+    const { LIVE, calls } = await armed((l) => void l.social.loadTakes("world", "q_1"));
+    expect(LIVE.social.takesLoading("world", "q_1"), "the flag was not even armed").toBe(true);
+    expect(calls, "the takes panel was not told the read started").toBeGreaterThan(0);
+    await flush();
+  });
+
   it("loadKindred inherits it from loadVoters, which is the only reason it needs none", () => {
     // Recorded rather than left implicit: loadKindred's only suspension
     // point is the loadVoters call in its loop, so the People lens's
@@ -776,6 +810,64 @@ describe("a loader that starts tells its subscribers it started", () => {
     const body = /async loadKindred\(\)[\s\S]*?\n {2}\},/.exec(src);
     expect(body).toBeTruthy();
     expect(body![0]).toMatch(/await this\.loadVoters\(qid\)/);
+  });
+});
+
+// ── the follow cap binds where a follow can be MADE ─────────────────
+//
+// FOLLOW_CAP is a bound on a fan-out, not a product limit: the Circle
+// stop reads every followed account's whole answer set. Past the cap
+// `fetchFollowing` keeps the oldest fifty rows and the rest of a circle
+// stops existing with nothing saying so — the follow button on a dropped
+// account reads "Follow" again, and the tap re-writes a follow that is
+// already there, forever.
+//
+// The guard read `state.circle`, which `loadCircle` alone writes, and
+// `loadCircle` is mounted by exactly one component — the Circle stop,
+// which never adds a follow. Every surface that CAN add one (the People
+// lens, the city constellation's person card, people search) loads
+// `follows` instead. So at every reachable call site the guard read
+// `null` and the cap bound nowhere. Nothing pinned that: forcing the
+// guard to fire on every follow, and swapping the cache under it, both
+// left the whole unit suite green.
+describe("the follow cap binds on the cache the follow buttons fill", () => {
+  const followRows = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `u_${i}`,
+      data: { to: `u_${i}`, at: { seconds: i + 1 } },
+    }));
+  const writesTo = (uid: string) =>
+    h.setDocCalls.filter((c) => c.path === `v2_users/uid_test/following/${uid}`);
+
+  it("refuses the follow that would pass the cap", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    expect(LIVE.follows()?.length, "the fixture did not fill the set").toBe(FOLLOW_CAP);
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new"), "a follow past the cap was written anyway").toEqual([]);
+  });
+
+  // THE CONTROL. Every assertion above is an absence, and an absence
+  // passes just as happily when this path writes nothing at all — so the
+  // same mount, one row under the cap, has to write.
+  it("…and makes the one that fills it", async () => {
+    h.followDocs = followRows(FOLLOW_CAP - 1);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "a follow under the cap was refused").toBe(1);
+  });
+
+  // AND THE OTHER DIRECTION. `null` means "not asked for yet", not
+  // "nobody followed" — a guard that counted it as zero-known would be
+  // fine here and refuse every follow made before the set had loaded,
+  // which is the same bug pointing the other way.
+  it("does not refuse a follow made before the set has been read", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "refused on a set nobody had asked for").toBe(1);
   });
 });
 
@@ -1481,6 +1573,82 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Blanking to the demo deck would be a worse lie than a stale-but-true
     // view, so enabled must survive while a new anon session is fetched.
     expect(LIVE.enabled).toBe(true);
+  });
+
+  // ── the verify flag (D414) ────────────────────────────────────────
+  //
+  // The wall reads `linked && !needsEmailVerify`, so an over-broad rule
+  // here locks a perfectly good account out of the app with no control on
+  // screen that can fix it — there is no verification mail to resend for a
+  // provider that does not send one. That failure is invisible to every
+  // other suite, which is why the rule is pinned at the observer rather
+  // than through the screen.
+  it("only the password door needs a confirmed address", async () => {
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+
+    // Anonymous: not linked, and nothing to confirm.
+    h.authCb!({ uid, isAnonymous: true });
+    expect(LIVE.linked).toBe(false);
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // Google/Apple hand over an address they have already verified.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "a@b.co",
+      providerData: [{ providerId: "google.com" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(false);
+    expect(LIVE.accountEmail).toBe("a@b.co");
+
+    // …and even if the flag were somehow false, a provider with no
+    // verification mail must not be walled: the screen would offer a
+    // Resend that can never resolve.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "apple.com" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+
+    // The case the wall exists for.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.needsEmailVerify).toBe(true);
+    expect(LIVE.accountEmail).toBe("typo@b.co");
+
+    // Confirmed — and a password account that ALSO linked a social door
+    // is verified from that side, which is the same branch.
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: true, email: "typo@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(false);
+  });
+
+  it("refreshVerification lowers the wall itself rather than waiting on the SDK", async () => {
+    // reload() notifying its listeners is an implementation detail of the
+    // Firebase SDK. If the store trusted it and it changed, the screen
+    // would sit on "Confirm your address" after a successful confirm with
+    // no way forward — so the store writes the flag on the answer it got.
+    const LIVE = await bootLive();
+    const uid = LIVE.uid!;
+    h.authCb!({
+      uid, isAnonymous: false, emailVerified: false, email: "a@b.co",
+      providerData: [{ providerId: "password" }],
+    });
+    expect(LIVE.needsEmailVerify).toBe(true);
+    let told = 0;
+    const off = LIVE.subscribe(() => { told += 1; });
+    // The module mock's refreshVerification resolves true (the address was
+    // confirmed in a mail app), and no auth callback follows it.
+    await expect(LIVE.refreshVerification()).resolves.toBe(true);
+    off();
+    expect(LIVE.needsEmailVerify).toBe(false);
+    // …and the subscribers heard, or a gate already mounted stays up.
+    expect(told).toBe(1);
   });
 
   it("rank-type feed questions serve as RANK cards — never flattened to votes", async () => {
