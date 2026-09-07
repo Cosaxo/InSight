@@ -131,3 +131,58 @@ describe("check:figures and the drift figure", () => {
     }
   });
 });
+
+// THE COLD-BOOT ROW'S CASES CAME BACK, pointed at main's design instead of
+// this branch's. They were deleted in the merge that took main's fix — the
+// better one, since `coldBootBankDocs` counts the feed's CORE questions the
+// boot really does fetch and this branch's 250 missed — and the deletion
+// left a note saying what had gone unheld: main's gate reads only
+// v2content.ts, so CHANGING `BANK_SURFACES` in live.ts moves what a boot
+// fetches and the gate does not notice, keeping the row green at the wrong
+// number. The same shape as the bug the row is famous for, one input over.
+//
+// That note called the fix "new work, not a merge resolution". It is done
+// now: main's list stays written out, for its own good reason — "a regex
+// over a source array would silently agree with itself if the array were
+// renamed" — and is held EQUAL to live.ts's, so a divergence fails loudly
+// instead of never. Copied, and proved still equal.
+//
+// Measured before it was written: dropping "call" from BANK_SURFACES left
+// check:figures green. These two cases are that probe, kept.
+
+describe("the cold-boot list is copied, and held equal to the code", () => {
+  it("FAILS when live.ts's list and the gate's copy diverge", () => {
+    const live = join(tree, "src/v2/data/live.ts");
+    const before = readFileSync(live, "utf8");
+    try {
+      writeFileSync(live, before.replace(
+        /const BANK_SURFACES = \["test", "group", "duo", "pulse", "call"\];/,
+        'const BANK_SURFACES = ["test", "group", "duo", "pulse"];',
+      ));
+      const r = runGate(tree);
+      expect(r.code, "a surface left the boot and the gate stayed green").toBe(1);
+      expect(r.out).toMatch(/no longer matches BANK_SURFACES/);
+      // The message names BOTH lists, because the fix is to reconcile them
+      // and a message naming one sends the reader to the wrong file.
+      expect(r.out).toMatch(/test, group, duo, pulse, call/);
+    } finally {
+      writeFileSync(live, before);
+    }
+  });
+
+  it("REFUSES rather than passing by default when the list is renamed", () => {
+    // The D197 shape: a second copy whose check cannot find its counterpart
+    // must say so. Passing by default is how a copy stops being checked at
+    // all while still looking guarded.
+    const live = join(tree, "src/v2/data/live.ts");
+    const before = readFileSync(live, "utf8");
+    try {
+      writeFileSync(live, before.replace("const BANK_SURFACES = ", "const RENAMED = "));
+      const r = runGate(tree);
+      expect(r.code).toBe(1);
+      expect(r.out).toMatch(/could not find BANK_SURFACES/);
+    } finally {
+      writeFileSync(live, before);
+    }
+  });
+});

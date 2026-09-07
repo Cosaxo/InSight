@@ -401,7 +401,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "rank (D233) branches each read one more — the question doc — which "
       + "the model deliberately absorbs into the vote rate (see the "
       + "constant's comment). Recount before changing the constant.",
-    ).toBe(8);
+    ).toBe(9);
   });
 
   it("the velocity scan still walks the ledger once per entry", () => {
