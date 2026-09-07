@@ -43813,6 +43813,300 @@ early in either direction.
 - Anything about the current release. No build, label or store form
   moves on this record.
 
+## D413 · The first two Crossroads stories are retired, and four take their place
+
+**Date:** 2026-09-07 · **Status:** Adopted. Takes the call D185 §3 left
+to the operator — *"exempt the two or retire them"* — and amends nothing
+in D136's form, D185's rules or D341's placement.
+
+> *"lets clean up the crossroad at the start some of them had completly
+> unitresting storys"* — the owner, 2026-09-07.
+
+### 1 · What "at the start" names, and why the arithmetic agrees
+
+The stories at the start are D136's pair: **pt1 "The Wallet"** and
+**pt2 "The Wrong Text"**, written before the form had a brief. D185 had
+already measured what the owner was reading: pt1 flat on 6 of its 8
+walks, pt2 on 8 of 8, *"one story written twice"* — both a lone adult's
+moral test, both turning one axis at every fork, so the reveal ranked
+the reader along a gradient instead of placing them. D185 could not fix
+them (§2 below) and left the choice between a permanent waiver and
+retirement to the operator. This is that choice, made by the owner from
+the reader's side: what the gate calls flat, a reader calls
+uninteresting. The two findings are the same finding.
+
+**pt3 "The Reunion" stays.** It was written against the brief and turns
+three axes on every walk. The owner's *"some of them"* is read as the
+two the record already names; if it reaches pt3 too, that is one more
+`active: false` and the same click as §5.
+
+### 2 · Retire, never rewrite — D52's shape
+
+A story's options are its eight ending names (`pathOptions`), the names
+are frozen once seeded, and both trees encode their single axis IN those
+names — so a rewrite is not on the table and never was. The retirement is
+`active: false` on the two rows, which is what D52 gave the feed for
+exactly this: the rows stay in the bank (the seed and the deck read the
+flag there), still walk `check:quality`, still count as the genre
+ratchet's predecessors, and still carry `PATH_AXIS_LEGACY`'s waiver,
+because a retired row is exactly as flat as it was and dropping the
+waiver would fail CI on two stories nobody is served. What the waiver may
+not do now is cover a story a reader can meet: a new case in
+`question-quality.test.mjs` pins that every waived story is retired and
+every served story passes the spread rule unwaived.
+
+### 3 · Four stories, on four topics that had never had one
+
+| id | title | `cat` | first fork turns |
+| --- | --- | --- | --- |
+| pt4 | The Blackout | event | company |
+| pt5 | The Wildcard | sport | risk |
+| pt6 | The Premiere | movies | risk |
+| pt7 | The Time Capsule | bigq | time |
+
+What changed in KIND, against the pair they replace: none is a moral
+test, none has a virtuous road, and each is a scene with three turns
+rather than a temptation with three chances — a city gone dark for a
+night, a marathon place with six weeks to use it, a friend's film with
+you in it, a letter from yourself at fifteen. Every walk of every tree
+turns three distinct axes (gated, unwaived), the endings are nouns for
+kinds of people (*The Stargazer*, *The Secret Marathoner*, *The Silent
+Cameo*, *The Quiet Looker*), and the genre ratchet holds down the
+sequence: event ∉ {dilemma, culture}, sport ∉ {culture, event}, movies
+∉ {event, sport}, bigq ∉ {sport, movies}. Pre-flighted as a `--batch`
+of four: four ✓, and one batch line — *"4 of 4 feed questions are form
+path — vary the forms"* — which is the lane's mix rule reading a farm
+run of eight, not a corpus rule, and is the expected reading of a PR
+that is only stories. Provenance rows ride as `farm · 2026-09-07 · ai ·
+unaudited`, pt3's shape: written by a routine, read by the owner in
+this pull request, not in the audit sample.
+
+### 4 · The demo pool follows the bank
+
+`spec/paths-data.js` carried the prototype's two stories, which are
+the retired two verbatim — and the demo build is what the device and
+store-screenshot lanes draw (D404). A demo pool that kept telling the
+stories the live app had just dropped would be the one place they
+survived, in the screenshots. So the pool now carries the bank's pt4
+and pt7 under demo ids (`blackout`, `capsule`), prose verbatim, `p`
+shares authored — D136's rule unchanged: those numbers reach a screen
+only in a demo build, and `smoke-live` still asserts the pool's titles
+are absent on a live mount. The two stubs in `world-feed-data.js` file
+under `event` and `bigq`, both always-on channels, which is what keeps a
+stub reachable with no scene followed. The three suites that bound on
+"The Wallet" / "The Wrong Text" by name now bind on `PATHS.stories()`,
+so the next swap cannot leave a suite asserting on retired titles.
+
+### 5 · What is owed in production, and by whom
+
+The seed writes `active` on FIRST create only — the console flip is the
+kill switch and the seed must not fight it in either direction
+(`functions/src/v2.ts`, D34's shape). So the merge SEEDS pt4–pt7 and
+leaves pt1 and pt2 serving until the operator flips them to
+`active: false` in the Firebase console and reseeds with **bump_rev** —
+`LAUNCH-RUNBOOK.md` §1's standing instruction, the same case as its
+`test-cognitive-*` docs and D358's fourteen dials. On
+`docs/OWNER-LIST.md` § Clicks. Answers already on the two ids are kept,
+keyed to them; the four new ids start empty, which is the honest arm the
+card already has (*"You are the first to reach the end of this one"*).
+
+### What proves it
+
+`check:quality` (998 questions, all bounds hold — the four stories
+unwaived), `check:content` (v2content.ts regenerated: feed 353 → 357),
+`check:neighbors` (feed's closest pair unmoved at dl23 ~ dl32 @ 0.400,
+the four trees read whole), `test:scripts`, `test:unit`, `lint`,
+`tsc -b`, `check:globals` (coupling unchanged at 30), `check:figures`
+(seventeen quoted bank figures moved with the tree — 329 → 333 feed,
+913 → 917 seeded, 82 → 86 core), `check:docs`, and `check:bundle` on the
+CI-equivalent live build (2183 KB / 602 KB eager, inside 2440 / 607).
+One new script case (§2); one moved to a served story
+(`question-neighbors.test.mjs` read pt1 whole, and a retired row leaves
+that domain); three mount suites rebound (§4).
+
+### When to revisit
+
+- If the owner reads pt3 as they read the first two: retire it the same
+  way, one line and one click. Nothing else is coupled to it.
+- The ratchet's lookback is still two; with five stories in the bank on
+  five topics, the next story may not use `movies` or `bigq`.
+
+## D414 · The account wall goes back up, and D219's own condition is why
+
+**Date:** 2026-09-07 · **Status:** Adopted. **Reverses
+[D219](#d219--the-wall-comes-down-for-the-store-build-d134s-fork-resolved)** and, with it,
+[D3](#d3--anonymous-first-auth-with-account-linking)'s anonymous-first posture for the shipping
+build. D3's mechanism is untouched and still load-bearing: the app
+still signs a session in anonymously at boot, and every door but one
+LINKS that session rather than replacing it.
+
+### 1 · The owner's condition, tested by the owner
+
+D219 took the wall down on a condition its own record quotes: *"as long
+as that means that everyone has a account and question can be attribute
+to a spesific user that cant easly create duplicate acounts."*
+
+On 2026-09-07 the owner deleted their account inside the app, was
+returned to it as a fresh anonymous session, and answered again — a
+duplicate in one tap, performed by the person who set the condition,
+without trying to break anything. That is the whole finding.
+
+It was not new. `ui/LivePrivacyPanel.tsx` has carried a comment saying
+the same from the other side since D219's week: every reinstall and
+every new handset mints a second account, and those duplicates are
+indistinguishable from new users. **The condition had never been met and
+the tree said so in a place nobody re-read.**
+
+### 2 · What D219 argued, and which half of it does not survive
+
+D219's workflow comment claimed duplicate resistance "was never the
+wall's job (App Check + D29 device binding own it)". Checked against
+the tree rather than accepted:
+
+- **App Check attests the BUILD, not the person.** It answers "is this
+  a genuine copy of the app", which is worth having and is orthogonal.
+  Ten installs of a genuine app are ten attested duplicates. (It was
+  also, per [D388](#d388--no-phone-ever-sent-an-app-check-token-the-native-sdk-was-initialised-and-the-javascript-sdk-that-makes-every-call-was-not), not
+  reaching any phone at all when that sentence was written.)
+- **D29's device binding was and is unset.** `DC_PRIVATE_KEY` is empty
+  on the deploy environment, and `activateDeviceV2` is documented as
+  fail-safe while that holds. It owned nothing.
+
+So the sentence was true of a design and false of the deployment, which
+is the same shape as the `operatorModeratorOverlap` finding one file
+over. **The wall is the only mechanism in the tree that actually raises
+the cost of a duplicate**, from one tap to one new Apple, Google or
+email account.
+
+### 3 · What ships
+
+Three doors, because guideline 4.8 binds the moment a wall exists and
+the app offers a third-party login:
+
+| Door | State |
+| --- | --- |
+| Sign in with Apple | built today; the nonce is the whole of the difference from Google, and a test asserts the exact credential object |
+| Continue with Google | unchanged since D134 |
+| Email and password | built today: sign in, create, reset |
+
+**Create LINKS, sign-in replaces, and the screen says which.** Apple,
+Google and create-with-email all upgrade the anonymous session, so
+anything answered before the wall is kept under the same uid. Signing
+in to an account that already exists is the one path that abandons the
+session, and it is a second, named tap with the consequence written on
+it — never what the first tap does.
+
+The screen is
+[`design/front-door-2026-09-07/`](../design/front-door-2026-09-07/)
+(visual request 9), designed before it was built per D352. Three of its
+decisions were the design's rather than the request's and are recorded
+because a later reader will otherwise sand them off: every error names
+its own way out, Apple's label follows the mode where Google's does
+not, and the toggle and the legal footer both hide while the keyboard is
+up.
+
+### 4 · What moved outside the code
+
+- **`web/privacy.html` first (D183).** "You do not need an account" was
+  the section title and is now false. It names the three doors, what
+  each hands over, and that Firebase holds the password hashed while the
+  app never sees it.
+- **The App Privacy label does not move.** Contact Info → Email Address
+  is already declared, collected, linked, App Functionality — verified
+  against `design/store/app-privacy.json` rather than assumed, so 4.4
+  does not reopen and the label published on 2026-09-06 stands.
+- **`SHIP-CHECKLIST.md` § hardening.** Its 4.8 reply is retired: it
+  rested on the app requiring no account. Its flag paragraph was stale
+  in the other direction for eighteen days (it described a `true`
+  default that D219 had made `false`), which is kept as the warning.
+- **`ios-release.yml`.** `VITE_REQUIRE_SIGNIN` defaults to `'true'`.
+  The variable survives as the override, pointed the other way.
+
+### 5 · What this costs, stated
+
+**A wall costs installs.** Some proportion of people who open the app
+will not sign in, and that number is unknown here because the app has
+never had it. The trade is deliberate: a smaller number of attributable
+people beats a larger number that cannot be told apart, for an app whose
+entire claim is that *your* answers say something about *you*.
+
+**It also costs a review round.** The app has never been submitted with
+a wall, and 5.1.1(v) — an app may not require an account for features
+that do not need one — is a fairer question to us now than 4.8 is. The
+answer, if asked: the account is not gatekeeping a feature, it is the
+unit the product is about; a daily question answered by nobody in
+particular produces nothing the app can show you.
+
+### 6 · What this does NOT decide
+
+- **Android's Play Integrity half** of 1.4, unchanged and still parked
+  with Play itself.
+- **The production reset.** The test answers in the live bank predate
+  all of this and are a separate job.
+
+**Amendment (same day) — address verification ships with the wall, not
+after it.** §6 listed it as deferred, with the arithmetic: a round trip
+through an inbox before the first answer, on the wall's own worst
+screen. The owner read that and answered *"add the email verification
+before launch"*, which settles the conversion question — the wall's
+whole purpose is an account that can be told apart from another, and an
+account on an address nobody confirmed is exactly the account that
+cannot.
+
+What the deferral had not priced is the trap on the other side, and it
+is worse than the round trip. **A password account exists the moment
+Firebase accepts the password**, before anything has looked at the
+address — so a typo produces a real account, on a real uid, whose
+verification mail goes to somebody else. The reset link, which is the
+only other way into such an account, goes to the same wrong inbox.
+Shipping the wall without verification would therefore have shipped a
+locked room: the app would come back to the same screen on every
+relaunch, with no control on it that could help.
+
+So three things ship together:
+
+- **The wall reads two flags, not one.** `linked && !needsEmailVerify`.
+  Two rather than a single `passed` boolean so the screen can say WHICH
+  it is — "sign in" and "confirm your address" are different screens
+  with different controls, and a gate that only knew it was closed would
+  have to guess.
+- **`needsEmailVerify` names the password door precisely.** Not
+  `!emailVerified`: Apple and Google hand Firebase an address they have
+  already confirmed, and a provider whose flag was somehow false would
+  otherwise be walled out with a Resend button that can never resolve —
+  there is no verification mail to resend for a door that does not send
+  one. The rule is pinned at the observer in `vote.test.ts`, because
+  that failure is invisible to every screen-level test.
+- **`abandonSignIn` is the way out of the typo.** Signing out is the
+  whole mechanism: the auth observer mints a fresh anonymous session
+  (D3, unchanged), `linked` and `needsEmailVerify` fall back to false,
+  and the doors return. Nothing is deleted — the abandoned account keeps
+  its unconfirmed address, which is the correct outcome for an address
+  its owner never confirmed.
+
+Two smaller things were found while wiring it, and both were live bugs
+rather than new work:
+
+- **`refreshVerification` writes the flag itself.** Following the link
+  happens in a MAIL APP, so no token refresh reaches this process on its
+  own and only a `reload()` can learn about it. The store then sets the
+  flag on the answer it got rather than waiting for the auth observer:
+  `reload()` notifying its listeners is an SDK implementation detail,
+  and a wall that stayed up because it stopped doing so is the exact bug
+  this path exists to prevent.
+- **The session-recovery latch was one-shot for the life of the
+  process.** `sessionRecoveryTried` is set before the recovery
+  `anonSignIn()` and was never cleared, so a SECOND session loss — a
+  deliberate sign-out at the wall, a revoked token hours later — was
+  silently unrecoverable. Cleared on success, which is what its own
+  comment ("one attempt") always claimed.
+
+`web/privacy.html` moved first, as D183 requires: the email bullet now
+says a confirmation link is sent and that the app stays behind its
+sign-in screen until it is opened, and says that Apple and Google do not
+ask for this. The App Privacy label still does not move — no new data is
+collected, and Firebase sends the mail on the same address already
+declared.
 ## D415 · The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions
 
 **2026-09-07.** **Status:** binding for what the vision points at;

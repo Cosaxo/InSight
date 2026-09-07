@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   1069 questions land in `v2_questions`. Re-running is safe (idempotent,
+   1073 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 1069-read
+   alone, so a reseed no longer costs every returning device a 1073-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -879,34 +879,44 @@ anything a user does.
      confirm nothing sensitive is tracked. A `git add -A` after a signing
      session is an incident a revert cannot fix — the object stays in
      history and the key must be rotated.
-- **Sign in with Apple (guideline 4.8) — prepared, not built.** Google is
-  currently the only third-party sign-in on iOS, which 4.8 says must be
-  accompanied by an equivalent privacy-preserving option. We expect to
-  pass without it, because the app's *primary* path is anonymous: no
-  account is required, nothing is requested, and Google is an optional
-  upgrade rather than a login wall. If a reviewer cites 4.8, reply with
-  that — and **stop there**.
+- **Sign in with Apple (guideline 4.8) — BUILT 2026-09-07 (D414), and
+  the reply below is retired with the posture that justified it.** 4.8
+  says a third-party sign-in must be accompanied by an equivalent
+  privacy-preserving option. The app now offers Apple's door beside
+  Google's and an email/password door of its own, so it satisfies the
+  rule directly rather than by argument. **Do not send the old reply**:
+  it rested on the app requiring no account, which stopped being true
+  the day the wall went up.
 
-  **Every word of that reply is conditional on a build flag, and the flag
-  defaults the wrong way for it (D134, D142).** `ios-release.yml` sets
-  `VITE_REQUIRE_SIGNIN` from `vars.REQUIRE_SIGNIN` and **defaults it to
-  `true`**, so a release build opens on a mandatory Google sign-in and
-  nothing else works until it succeeds. Against such a binary *"no account
-  is required"* and *"an optional upgrade rather than a login wall"* are
-  both false, and sending them would argue against the app the reviewer is
-  holding — the same failure as the deleted email clause below, one level
-  up: not a sentence that went stale, but one a build setting can falsify
-  on any given run.
+  **This paragraph was itself stale in BOTH directions, which is worth
+  keeping as the warning.** It said `ios-release.yml` "defaults it to
+  `true`" — D219 changed that to `'false'` on 2026-08-20 and nobody came
+  back here, so for eighteen days the canonical release document
+  described a wall the builds did not have. D414 has now flipped it back
+  to `'true'`, which makes the sentence accidentally correct again for a
+  reason it never stated. The lesson is not about this flag: a document
+  that reads a build setting has to be updated by whoever moves the
+  setting, and neither D219 nor this file's own gate could see the
+  divergence.
 
-  So this reply is usable **only** from a build with `REQUIRE_SIGNIN` set
-  to `false`. The wall is right for TestFlight and wrong for submission;
-  D134 states that fork and leaves the choice — drop the wall, or build
-  Sign in with Apple — deliberately open. **Check the flag before quoting
-  this bullet**, and note that a wall raises 5.1.1(v) (an app should be
-  usable without an account unless its core features need one) before it
-  raises 4.8: this app's loop ran anonymously for twelve builds, so that
-  argument is about the product and costs more than adding a provider.
-  Runbook 6.2 carries the operational half.
+  D134's fork — drop the wall, or build Sign in with Apple — is closed:
+  D414 took the second branch, and both doors ship. What is left is the
+  half a provider cannot answer. **A wall raises 5.1.1(v)** (an app
+  should be usable without an account unless its core features need one)
+  **before it raises 4.8**, and this app's loop ran anonymously for
+  twelve builds, so that argument is about the product and costs more
+  than adding a provider. D414 §5 has the reply written out. Runbook
+  6.2 carries the operational half.
+
+  **The wall now passes on two conditions, not one** (D414's amendment):
+  the session is linked AND no address is waiting to be confirmed. An
+  account made at the email door does not reach the app until its
+  confirmation mail is opened — so if a reviewer creates an account with
+  a throwaway address they cannot read, they will be held at *Confirm
+  your address* and may report the app as broken. **Apple's own door
+  does not do this** (Apple hands over an address it has already
+  verified), and the review guide should point a reviewer at it. Runbook
+  5.16 is the mail's own dependency.
 
   **This bullet used to add "and the app collects no email or name via
   Google either". Delete that from any reply; it is false.**

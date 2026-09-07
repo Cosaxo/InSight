@@ -28,10 +28,36 @@
 	     ARCHIVE, not just the links. -->
 	<!-- (App ID capabilities registered 2026-08-05: Push Notifications +
 	     Associated Domains, and deliberately nothing else — an unused
-	     capability is an entitlement to carry and a question to answer.) -->
+	     capability is an entitlement to carry and a question to answer.
+	     Sign in with Apple joined on 2026-09-07, and it is not an
+	     exception to that rule: it is required rather than useful, see
+	     below.) -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:prvfire33.web.app</string>
+	</array>
+	<!-- Sign in with Apple (2026-09-07). NOT a preference: guideline 4.8
+	     requires it wherever a third-party login is offered, and the app
+	     is gaining an account wall with Google behind it
+	     (docs/SIGNIN-PLAN.md §4). Without the wall the app passed 4.8 by
+	     requiring no login at all, which is why this was absent until now.
+
+	     THE ORDERING TRAP IS THE SAME ONE THE ASSOCIATED-DOMAINS COMMENT
+	     ABOVE RECORDS, and it is why this key landed in its own commit
+	     after the code: a provisioning profile cannot grant an entitlement
+	     the App ID does not have, so if Sign in with Apple is not ticked
+	     on com.cosaxo.insight in the developer portal, this fails the
+	     ARCHIVE — a red release run on a tree where nothing else is wrong,
+	     and an error that names the entitlement rather than the portal.
+	     The dry run (ios-release.yml with upload off) is the cheap proof:
+	     it archives, signs and exports without spending a build number.
+
+	     "Default" is the whole value — the array exists because Apple also
+	     defines it for the sibling flow where an app signs users in on
+	     another app's behalf, which this is not. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
 	</array>
 </dict>
 </plist>

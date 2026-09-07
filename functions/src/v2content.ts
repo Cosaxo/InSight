@@ -4467,7 +4467,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
     "name": "Not My Story",
     "line": "You never found out. That was the choice, too."
    }
-  }
+  },
+  "active": false
  },
  {
   "id": "feed-pt2",
@@ -4605,7 +4606,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
     "name": "The Long Game",
     "line": "You stayed with the receipts. Leverage keeps better than anger."
    }
-  }
+  },
+  "active": false
  },
  {
   "id": "feed-f57",
@@ -9419,6 +9421,558 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "from": "2026-09-06",
   "until": "2026-09-14",
   "bg": "The 78th Primetime Emmy Awards air live from the Peacock Theater in Los Angeles on 14 September 2026, hosted by Mariska Hargitay, with the Creative Arts ceremonies held the weekend before."
+ },
+ {
+  "id": "feed-pt4",
+  "surface": "feed",
+  "seq": 329,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Blackout — the night the whole city went dark",
+  "options": [
+   "The Ridge Walker",
+   "The Scout",
+   "The Open Book",
+   "The Listener",
+   "The Stargazer",
+   "The Night Watch",
+   "The Morning Reader",
+   "The Sleeper"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Blackout",
+  "intro": "9:40 on a Friday night and the whole city goes dark at once — every window, every streetlight, the fridge’s hum. Your phone says 31%.",
+  "hue": 45,
+  "nodes": {
+   "_": {
+    "q": "Out in the stairwell, neighbours’ voices you have never heard before.",
+    "a": [
+     {
+      "t": "Go out and join them"
+     },
+     {
+      "t": "Stay in, light a candle"
+     }
+    ]
+   },
+   "A": {
+    "q": "Somebody’s radio says \"grid failure\", then static. Two neighbours are heading for the hill to see how far it goes.",
+    "a": [
+     {
+      "t": "Go and see how far it goes"
+     },
+     {
+      "t": "Wait for the news to come to you"
+     }
+    ]
+   },
+   "B": {
+    "q": "Candlelight, and a quiet you have never heard in this flat. It could be an hour. It could be the night.",
+    "a": [
+     {
+      "t": "Wait up for the lights"
+     },
+     {
+      "t": "Sleep through it"
+     }
+    ]
+   },
+   "AA": {
+    "q": "From the hill: the dark runs to the horizon in every direction. The ridge above would show the next town.",
+    "a": [
+     {
+      "t": "Push on up to the ridge"
+     },
+     {
+      "t": "Head back while you know the way"
+     }
+    ]
+   },
+   "AB": {
+    "q": "The step fills up — a guitar, a bottle, no plan. A stranger asks what you actually do all day, and there is no screen to hide behind.",
+    "a": [
+     {
+      "t": "Tell them, properly"
+     },
+     {
+      "t": "Deflect — ask about them"
+     }
+    ]
+   },
+   "BA": {
+    "q": "2 a.m. Still dark, and the sky over the roofs has stars this window has never shown.",
+    "a": [
+     {
+      "t": "Climb up to the roof"
+     },
+     {
+      "t": "Watch from the window"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Morning. The power is back, and the group chat has 212 messages about a night you slept through.",
+    "a": [
+     {
+      "t": "Read all 212"
+     },
+     {
+      "t": "Mark as read"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Ridge Walker",
+    "line": "You saw the whole dark city from above. Nobody else on your street did."
+   },
+   "AAB": {
+    "name": "The Scout",
+    "line": "Far enough to know, close enough to get home. You came back with the news."
+   },
+   "ABA": {
+    "name": "The Open Book",
+    "line": "No screen, no small talk. You told a stranger the real answer."
+   },
+   "ABB": {
+    "name": "The Listener",
+    "line": "You learned every story on the step and gave away none of yours."
+   },
+   "BAA": {
+    "name": "The Stargazer",
+    "line": "The city went dark and you climbed towards the sky."
+   },
+   "BAB": {
+    "name": "The Night Watch",
+    "line": "You kept the candle going and saw the lights come back, one street at a time."
+   },
+   "BBA": {
+    "name": "The Morning Reader",
+    "line": "You missed the night, then lived it twice — in the chat, with coffee."
+   },
+   "BBB": {
+    "name": "The Sleeper",
+    "line": "The city had a night. You had a night’s sleep. Both are true."
+   }
+  }
+ },
+ {
+  "id": "feed-pt5",
+  "surface": "feed",
+  "seq": 330,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Wildcard — a marathon place, six weeks out",
+  "options": [
+   "The Announcer",
+   "The Secret Marathoner",
+   "The Walker-In",
+   "The Next-Year Runner",
+   "The Pacer",
+   "The Barrier Voice",
+   "The Parallel Runner",
+   "The Dot Watcher"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Wildcard",
+  "intro": "A letter with a race number in it: a wildcard place in the city marathon, six weeks from Sunday. The longest you have ever run is five kilometres.",
+  "hue": 145,
+  "nodes": {
+   "_": {
+    "q": "The place is yours if you reply by Friday. Six weeks is either plenty or nothing at all.",
+    "a": [
+     {
+      "t": "Reply yes"
+     },
+     {
+      "t": "Give the place back"
+     }
+    ]
+   },
+   "A": {
+    "q": "Week one. The training plan wants five runs a week; your calendar has room for two.",
+    "a": [
+     {
+      "t": "Rebuild the weeks around it"
+     },
+     {
+      "t": "Two runs a week, no more"
+     }
+    ]
+   },
+   "B": {
+    "q": "Your returned place goes to a friend, who asks you to be their support crew — long runs, race day, the lot.",
+    "a": [
+     {
+      "t": "Join their crew"
+     },
+     {
+      "t": "Wish them luck, from a distance"
+     }
+    ]
+   },
+   "AA": {
+    "q": "Week four: 25 kilometres on a Sunday, and it went fine. Nobody knows you are doing this yet.",
+    "a": [
+     {
+      "t": "Post the whole plan"
+     },
+     {
+      "t": "Say nothing until race day"
+     }
+    ]
+   },
+   "AB": {
+    "q": "Race week. Two runs a week got you to 16 kilometres, once. The organiser allows one deferral.",
+    "a": [
+     {
+      "t": "Run it anyway, this Sunday"
+     },
+     {
+      "t": "Defer to next year"
+     }
+    ]
+   },
+   "BA": {
+    "q": "Race day, kilometre 35. Your friend is walking, grey-faced, and the sweeper bus is a minute behind them.",
+    "a": [
+     {
+      "t": "Duck the barrier, walk them in"
+     },
+     {
+      "t": "Stay behind the rope and shout"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Race morning. The tracking app shows your friend’s dot moving through streets you know. Your trainers are by the door.",
+    "a": [
+     {
+      "t": "Go out for your own 5k"
+     },
+     {
+      "t": "Follow the dot from bed"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Announcer",
+    "line": "Six weeks of updates, one medal. The whole feed ran it with you."
+   },
+   "AAB": {
+    "name": "The Secret Marathoner",
+    "line": "Forty-two kilometres nobody knew about until the photo."
+   },
+   "ABA": {
+    "name": "The Walker-In",
+    "line": "Ran the half you had, walked the half you didn’t. Same medal."
+   },
+   "ABB": {
+    "name": "The Next-Year Runner",
+    "line": "The place kept. The plan starts again in fifty-two weeks."
+   },
+   "BAA": {
+    "name": "The Pacer",
+    "line": "No number on your chest. You crossed the line anyway, one step behind."
+   },
+   "BAB": {
+    "name": "The Barrier Voice",
+    "line": "The rules held, and so did your voice. They finished hearing it."
+   },
+   "BBA": {
+    "name": "The Parallel Runner",
+    "line": "Five kilometres, your own streets, the same start time. A race of one."
+   },
+   "BBB": {
+    "name": "The Dot Watcher",
+    "line": "You followed a friend through the whole city without leaving the duvet."
+   }
+  }
+ },
+ {
+  "id": "feed-pt6",
+  "surface": "feed",
+  "seq": 331,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Premiere — a friend’s film, and you are in it",
+  "options": [
+   "The Co-Author",
+   "The Muse",
+   "The Straight Talker",
+   "The Gracious Guest",
+   "The Franchise",
+   "The Retired Character",
+   "The Thumbnail",
+   "The Silent Cameo"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Premiere",
+  "intro": "A friend’s first short film premieres tonight, and you are in the front row. Ten minutes in, the main character has your job, your laugh and your worst habit.",
+  "hue": 300,
+  "nodes": {
+   "_": {
+    "q": "The audience laughs at a line you actually said once. Your friend, two seats down, does not look at you.",
+    "a": [
+     {
+      "t": "Sit through all of it"
+     },
+     {
+      "t": "Slip out before the lights come up"
+     }
+    ]
+   },
+   "A": {
+    "q": "Credits. The Q&A host asks whether the character is based on anyone real. Your friend hesitates.",
+    "a": [
+     {
+      "t": "Raise your hand: \"That’s me\""
+     },
+     {
+      "t": "Let the question pass"
+     }
+    ]
+   },
+   "B": {
+    "q": "Outside, cold air. Your phone buzzes: \"Where did you go? Drinks after — please come.\"",
+    "a": [
+     {
+      "t": "Go to the drinks"
+     },
+     {
+      "t": "Home, alone with it"
+     }
+    ]
+   },
+   "AA": {
+    "q": "The room turns to look. Someone asks what it is like to see yourself on screen, and the director is filming this too.",
+    "a": [
+     {
+      "t": "Ask for a say in the final cut"
+     },
+     {
+      "t": "Let the film be theirs"
+     }
+    ]
+   },
+   "AB": {
+    "q": "At the bar, your friend finally comes over. \"You know, right?\" A whole evening in three words.",
+    "a": [
+     {
+      "t": "Have it out tonight"
+     },
+     {
+      "t": "\"Not tonight. Congratulations.\""
+     }
+    ]
+   },
+   "BA": {
+    "q": "Your friend is glowing, surrounded. A producer wants to make it a feature — \"with the same character\".",
+    "a": [
+     {
+      "t": "Toast it — the character is theirs"
+     },
+     {
+      "t": "Say the character retires tonight"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Midnight. The trailer is online with 400 views, and your laugh is the thumbnail.",
+    "a": [
+     {
+      "t": "Post it: \"Apparently this is me\""
+     },
+     {
+      "t": "Watch the count climb, say nothing"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Co-Author",
+    "line": "Your name is in the credits after all — under \"story consultant\"."
+   },
+   "AAB": {
+    "name": "The Muse",
+    "line": "You stood up and gave the film away. It was always going to be theirs."
+   },
+   "ABA": {
+    "name": "The Straight Talker",
+    "line": "Two drinks, one honest hour. The friendship survived the film."
+   },
+   "ABB": {
+    "name": "The Gracious Guest",
+    "line": "Congratulations, and a conversation you are still saving for later."
+   },
+   "BAA": {
+    "name": "The Franchise",
+    "line": "A feature, then. You will be in it either way, so you raised a glass."
+   },
+   "BAB": {
+    "name": "The Retired Character",
+    "line": "One short film. The character’s whole life, and you wrote its ending."
+   },
+   "BBA": {
+    "name": "The Thumbnail",
+    "line": "Four hundred strangers know your laugh. You made sure they knew whose."
+   },
+   "BBB": {
+    "name": "The Silent Cameo",
+    "line": "You watched the count climb from the dark. Nobody knows you were in it."
+   }
+  }
+ },
+ {
+  "id": "feed-pt7",
+  "surface": "feed",
+  "seq": 332,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Time Capsule — a letter from you at fifteen",
+  "options": [
+   "The Lake Returner",
+   "The Kitchen Reader",
+   "The Sender",
+   "The Keeper of Page Two",
+   "The Finder",
+   "The Quiet Looker",
+   "The Next Letter Writer",
+   "The One-Time Reader"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Time Capsule",
+  "intro": "A padded envelope from your old school: a letter you wrote to yourself at fifteen, sealed for a project everyone forgot. The teacher’s note says: \"Open alone.\"",
+  "hue": 100,
+  "nodes": {
+   "_": {
+    "q": "It is 8 a.m. on a working day, and the envelope is thick.",
+    "a": [
+     {
+      "t": "Open it now, coffee going cold"
+     },
+     {
+      "t": "Save it for the weekend"
+     }
+    ]
+   },
+   "A": {
+    "q": "Page one is everything fifteen-year-old you was sure of. Someone is in the kitchen, asking what came in the post.",
+    "a": [
+     {
+      "t": "Read it aloud to them"
+     },
+     {
+      "t": "Read it alone, as instructed"
+     }
+    ]
+   },
+   "B": {
+    "q": "Saturday. Page one is a list of predictions. Page two names your best friend then — someone you could look up before you read on.",
+    "a": [
+     {
+      "t": "Search their name first"
+     },
+     {
+      "t": "Read on without looking"
+     }
+    ]
+   },
+   "AA": {
+    "q": "They laugh at the predictions, then go quiet at the one that came true. The letter ends with a request: \"Go back to the lake.\"",
+    "a": [
+     {
+      "t": "Drive to the lake this month"
+     },
+     {
+      "t": "Leave the lake where it is"
+     }
+    ]
+   },
+   "AB": {
+    "q": "Fifteen-year-old you names the person you were in love with. They are still in your contacts.",
+    "a": [
+     {
+      "t": "Send them the page"
+     },
+     {
+      "t": "Keep the page to yourself"
+     }
+    ]
+   },
+   "BA": {
+    "q": "Your old best friend: a nurse in another city now, two kids, a public page full of the lake you both swam in.",
+    "a": [
+     {
+      "t": "Message them: \"I found a letter\""
+     },
+     {
+      "t": "Close the tab and read on"
+     }
+    ]
+   },
+   "BB": {
+    "q": "The last line: \"If you are reading this with someone, tell them the lake thing.\" You are alone.",
+    "a": [
+     {
+      "t": "Write the next one, to you at fifty"
+     },
+     {
+      "t": "Fold it away"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Lake Returner",
+    "line": "You went back. It was smaller, and you were not."
+   },
+   "AAB": {
+    "name": "The Kitchen Reader",
+    "line": "Read aloud over cold coffee. The lake stays a line on a page."
+   },
+   "ABA": {
+    "name": "The Sender",
+    "line": "One photo, one old name. Whatever comes back, you started it."
+   },
+   "ABB": {
+    "name": "The Keeper of Page Two",
+    "line": "Some names stay in the envelope. You know which one."
+   },
+   "BAA": {
+    "name": "The Finder",
+    "line": "A letter, a search, a message: one afternoon. Twenty years, undone in an hour."
+   },
+   "BAB": {
+    "name": "The Quiet Looker",
+    "line": "You know exactly where they are now. They will never know you looked."
+   },
+   "BBA": {
+    "name": "The Next Letter Writer",
+    "line": "Sealed again, addressed to fifty. The project outlived the school."
+   },
+   "BBB": {
+    "name": "The One-Time Reader",
+    "line": "Read once, alone, as instructed. Filed with the things you don’t reread."
+   }
+  }
  },
  {
   "id": "pick-pk04",

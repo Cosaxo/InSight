@@ -172,6 +172,7 @@ directions.
 | [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |
 | [`PAID-PLAN.md`](PAID-PLAN.md) | Paid questions with downloadable reports, place-score subscriptions, and cohort pricing by size and demand — the owner's 2026-08-21 ask measured against the standing constraints. §3's edit-flow matrix (D226), §4's logic cut (D227) and §2's report builder (D251) are built; the rest waits on demand evidence | mixed |
 | [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D368)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | decided |
+| [`SIGNIN-PLAN.md`](SIGNIN-PLAN.md) | The account wall and its three doors — Apple, Google and email/password, all BUILT 2026-09-07 and adopted as D414, on the owner's decision that the app should require an account. Why D219's condition was not met, what Apple guideline 4.8 binds the moment the wall goes up, why address verification stopped being deferrable, and what each of the five steps actually cost | describes |
 | [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md) | The paid system remade around one product — the sponsored question with its own places in the feed, a menu price by reach with the per-answer refund as the guarantee, a shareable results page and one reviewed link after answering; the self-serve ad lane retired. Five steps, each sized as a PR, the three decisions it reverses named, and the owner's four calls listed; built in full on the owner's go — §2.1 (D375), §2.3 (D376), §2.2 (D377), §2.4 (D378) and §2.5 (D379); the page stays as the reasoning behind the five records | plan |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
@@ -190,6 +191,7 @@ than of a subject:
 | `design/README.md` | The frozen prototype and its revisions |
 | `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
 | `design/ask-2026-09-05/README.md` | The web ask door (D368 shape A), and **the adapter contract the build needs** — the draft was fed a shaped pricing resource, so eight names differ from `content/pricing.json`, and `refundDays` must come from `WINDOW_DAYS` rather than from `trailingDays`, which is a day shorter than the promise |
+| `design/front-door-2026-09-07/README.md` | The sign-in screen the account wall needs (visual request 9, `SIGNIN-PLAN.md`), twelve live artboards. **The README is the readable half**: the delivered file is a bundle, so the copy it settled, the three keyboard-and-flight behaviours, and the errors that each name their own way out are written out rather than left in a gzipped asset |
 
 ## 5 · The gates
 
