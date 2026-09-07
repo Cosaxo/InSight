@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 425 lines instead of
-43,041. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 426 lines instead of
+43,116. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -439,3 +439,4 @@ detect it.
 | **D404** | [A decision-number hole is reported, not refused — merge order stops being a gate](DECISIONS.md#d404--a-decision-number-hole-is-reported-not-refused--merge-order-stops-being-a-gate) | — | 42747 |
 | **D405** | [The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success](DECISIONS.md#d405--the-answer-rules-are-not-at-firestores-expression-ceiling--measuring-the-failure-instead-of-the-success) | D406 | 42858 |
 | **D406** | [You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist](DECISIONS.md#d406--you-may-withhold-an-anchor-you-may-not-invent-one--and-why-the-rule-that-would-say-so-cannot-exist) | — | 42955 |
+| **D407** | [`main`'s e2e is red one run in four, and the ceiling everyone raised was never the lever](DECISIONS.md#d407--mains-e2e-is-red-one-run-in-four-and-the-ceiling-everyone-raised-was-never-the-lever) | — | 43042 |

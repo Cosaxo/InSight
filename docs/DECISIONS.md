@@ -43038,3 +43038,78 @@ profile-then-answer ordering the fold now depends on had never been
 exercised end to end, in the suite whose whole job is the real loop. All
 five now write the profile first, and the run reports **zero**
 corrections.
+
+## D407 · `main`'s e2e is red one run in four, and the ceiling everyone raised was never the lever
+
+**Decided:** 2026-09-07 · **Status:** binding for what it corrects; the
+mechanism is an ASK on `OWNER-LIST.md`. **Requested** by the owner —
+*"fix the main e2e failure too"*.
+
+### What was believed
+
+That `learn public agg never appeared` is a **first-delivery window**
+that is sometimes too short. The wait was raised twice on that belief —
+30 → 60 iterations, then 20s → 30s — each time with the reasoning
+written out, and the feed lane counted five occurrences before either.
+`WORKLIST.md` carries the row ticked as done.
+
+### What is true
+
+Instrumented across seven passing runs on a clean `main` worktree, with
+none of this branch's code:
+
+| | |
+| --- | --- |
+| answer written → fold committed | **~40 ms** |
+| fold commit vs. the poll's first tick | **6–15 ms BEFORE it** |
+| the ceiling | **30,000 ms** |
+
+The fold lands before the poll it is supposedly racing has started. There
+is no window here too short to fit in, and **three orders of magnitude of
+margin means neither raise could have helped, and neither did.**
+
+When it fails — reproduced **twice**, roughly one run in four — the fold
+is not late, it is **absent**. Probed: the trigger enters its
+transaction with `seen.exists` false, so it is past the ledger's
+redelivery guard; it logs no error; `runAggTransaction` trips no
+contention warning; the trigger reports Finished in ~29 ms; and no
+aggregate ever appears.
+
+Adding log lines to narrow it further stopped it reproducing across seven
+runs, which is itself evidence — a bound does not care whether you are
+watching, and a race does.
+
+### The finding under the finding
+
+**The explanation was never measured, and the fix was applied twice to
+the wrong thing.** "Sometimes too short" is the kind of account that
+survives because it is plausible and because raising a ceiling always
+*looks* like progress — the run after a raise usually passes, since the
+failure is one in four. Two raises, five reported occurrences, and a
+ticked worklist row later, the first actual measurement took one
+instrumented run to overturn it.
+
+The near-miss worth naming: this session first reported the failure as
+"`main` fails identically" from a worktree that had **no compiled
+functions at all** — `functions/lib` is gitignored and `predeploy` runs
+only on deploy, so the emulator had nothing to run. That reading was
+invalid and the real measurement came from a properly built one. A
+worktree is not a checkout of a project that builds.
+
+### What changed here
+
+Nothing about the ceiling — it is not the lever, and lowering it would
+only fail sooner. What changed is that the tree stops asserting the
+wrong cause:
+
+- the learn wait's comment carries the measurement instead of the
+  first-delivery argument;
+- the failure message no longer offers *"did not finish in time"*, and
+  says outright that raising the ceiling will not help;
+- `WORKLIST.md`'s row keeps the owner's tick and gains the correction
+  beside it.
+
+The mechanism is on `OWNER-LIST.md` with what finding it would cost:
+instrumenting the emulator's Eventarc delivery, or reproducing against a
+real project. Meanwhile every pull request inherits a ~25% chance of a
+red run that is not its own — a tax this session paid an hour of.

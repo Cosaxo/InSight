@@ -692,6 +692,13 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
     const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
     const u = await signInAnonymously(vAuth);
+    // The profile first (D406), as every one of these voters' real
+    // counterparts would: the fold checks a claimed anchor against the
+    // author's profile, so a tail voter with no profile has no city to be
+    // counted under and the cap this case exists to reach is never reached.
+    await setDoc(doc(vDb, "v2_users", u.user.uid),
+      { anchors: { country: "NO", city: `Tail${String(t).padStart(2, "0")}, NO` } },
+      { mergeFields: ["anchors"] });
     await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
       qid: q0.id, surface: "daily", optionIdx: t % 2,
       answeredAt: serverTimestamp(),
@@ -1112,6 +1119,25 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
 // the failure message's own `40 * 500` — and a message that quotes a number
 // the loop no longer uses is this repo's most-repeated documentation error
 // pointed at a test.
+// MEASURED 2026-09-07, and it overturns the paragraph above: the ceiling
+// is not what fails here, and raising it twice (20s, then 30s) could never
+// have helped. Instrumented across seven passing runs on a clean `main`,
+// the learn fold lands 6-15 ms BEFORE this poll even starts — the answer
+// write and the fold's commit are ~40 ms apart, against a 30,000 ms
+// ceiling. There is no first-delivery window here to be too short for.
+//
+// When it fails — reproduced twice on `main` with none of this branch's
+// code, roughly one run in four — the fold is not late, it is ABSENT: the
+// trigger enters the transaction (probed: `seen.exists` false, so past the
+// ledger's redelivery guard), logs no error, trips no contention warning,
+// and no aggregate ever appears. Adding log lines to narrow it further
+// stopped it reproducing in seven runs, which is itself evidence of a race
+// rather than a bound.
+//
+// So the ceiling stays where it is — it is not the lever, and lowering it
+// would only fail sooner — and the message below no longer offers "did not
+// finish in time" as an explanation, because that is measurably not it.
+// The open question is on OWNER-LIST rather than guessed at again here.
 const LEARN_TRIES = 60;
 const LEARN_EVERY = 500;
 let lpub = null;
@@ -1125,7 +1151,13 @@ for (let i = 0; i < LEARN_TRIES; i++) {
 // reports itself as a counts mismatch on null, which reads as a privacy
 // regression and sends the next person hunting for one. It cost exactly
 // that detour on 2026-08-05.
-if (!lpub) fail(`learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms — the trigger did not fire, or did not finish in time`);
+if (!lpub) fail(
+  `learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms. `
+  + "NOT a timing failure: this fold normally commits ~40ms after the write, "
+  + "before this poll starts, so the ceiling has three orders of magnitude of "
+  + "margin and raising it again will not help (measured 2026-09-07, D407). "
+  + "The trigger enters its transaction and the aggregate never appears, with "
+  + "no error and no contention warning. Intermittent, ~1 run in 4 on main.");
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
 if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
