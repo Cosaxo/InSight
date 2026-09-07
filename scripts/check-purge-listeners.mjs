@@ -49,6 +49,11 @@ import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+// The event's one spelling in this gate. The listener rule below matches
+// it with a `(?![\w-])` guard so a superstring cannot pass; the
+// dispatcher rule uses the same name so the two halves cannot drift.
+const EVENT = "insight:local-purge";
+
 // Files that write insight.* keys and legitimately carry no listener.
 // Every entry is a claim a reviewer can check; a file listed here that no
 // longer matches the predicate fails as stale.
@@ -145,6 +150,43 @@ for (const file of files) {
     + "    or add an EXEMPT entry in scripts/check-purge-listeners.mjs\n"
     + "    with the reason it cannot resurrect old data.",
   );
+}
+
+// AND SOMEBODY HAS TO ANNOUNCE IT. Every rule above asks whether a store
+// LISTENS; none asked whether anything dispatches, because the one file
+// that does is exempt as "the dispatcher itself" and the listener test
+// only runs on non-exempt files. So this gate — named for the purge
+// contract, and whose header calls the announcement "the fix" — could not
+// see the announcement at all: delete the dispatch, or rename the event
+// in `live.ts` alone, and it printed OK either way.
+//
+// NOT A LIVE HOLE, and the commit that added this says so: `test:unit`
+// fails four cases under either mutation, measured both ways. What was
+// wrong is narrower and worth fixing anyway — the gate under-claimed. A
+// reader trusting `check:purge` to hold the contract its own header
+// describes was trusting it for something it did not check, which is the
+// same shape as every other finding this night turned up.
+//
+// One dispatcher, exactly. More than one would mean two paths could
+// diverge; none means the listeners below are wired to nothing.
+{
+  const dispatchers = [...matched, ...Object.keys(EXEMPT)]
+    .filter((rel, i, a) => a.indexOf(rel) === i)
+    .filter((rel) => {
+      try {
+        return new RegExp(`dispatchEvent\\(\\s*new Event\\(\\s*["']${EVENT}["']`)
+          .test(readFileSync(join(root, rel), "utf8"));
+      } catch { return false; }
+    });
+  if (dispatchers.length !== 1) {
+    failed = true;
+    console.error(
+      `✗ ${dispatchers.length} modules dispatch "${EVENT}" — expected exactly one. `
+      + "None means every listener below is wired to nothing and the purge is "
+      + "half a wipe again (D50/D51); more than one means two paths that can "
+      + `diverge. Found: ${dispatchers.join(", ") || "(none)"}`,
+    );
+  }
 }
 
 for (const rel of Object.keys(EXEMPT)) {
