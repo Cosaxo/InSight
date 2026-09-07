@@ -362,7 +362,16 @@ export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
     // thing a null gmode already means one line down. `cohortN` is null in
     // demo mode, where the numbers are invented and labelled elsewhere, so
     // the demo keeps the wording it had.
-    const cn = MapStats.cohortN ? MapStats.cohortN(node.qid, gkey, n, node.aidx) : null;
+    // `MapStats.cohortN(…)`, not `MapStats.cohortN ? … : null`. The
+    // member test was dead: `MapStats` is an ESM import here and its
+    // object literal always defines `cohortN`, so the ternary could only
+    // ever take its first branch — CLAUDE.md lists this exact shape as
+    // what a conversion leaves behind, and warns that it reads as a
+    // feature flag, which is the failure mode. The FUNCTION returning null
+    // is the real condition and it is unchanged: `cohortN` returns null in
+    // demo mode (its own first line), which is what the comment above is
+    // about and what `cn != null` below already handles.
+    const cn = MapStats.cohortN(node.qid, gkey, n, node.aidx);
     const thin = cn != null && cn < 2;
     return { node, gmode: thin ? null : gmode, match: !thin && gmode === node.aidx };
   });
