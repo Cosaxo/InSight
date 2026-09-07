@@ -319,3 +319,86 @@ describe("free-text inputs never reach a run body", () => {
     ).toEqual([]);
   });
 });
+
+/**
+ * Each job's own text, so a rule can be about a JOB rather than a file.
+ *
+ * File scope is not close enough for the rule below — a workflow with two
+ * jobs would satisfy it on the strength of the other one's checkout — and
+ * it is the same weakness this file's continue-on-error rule already has,
+ * written down here so whoever fixes that one has the splitter to hand.
+ */
+function jobs(src) {
+  const lines = src.split("\n");
+  const start = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  if (start < 0) return [];
+  const out = [];
+  let cur = null;
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const m = /^ {2}([A-Za-z_][\w-]*):\s*$/.exec(lines[i]);
+    if (m) { cur = { name: m[1], lines: [] }; out.push(cur); continue; }
+    if (lines[i].trim() !== "" && /^\S/.test(lines[i])) break;
+    if (cur) cur.lines.push(lines[i]);
+  }
+  return out.map((j) => ({ name: j.name, text: j.lines.join("\n") }));
+}
+
+/** `curl … | bash`, and the three other spellings of the same thing. */
+const PIPE_TO_SHELL = /\b(?:curl|wget)\b[^\n|]*\|\s*(?:ba|z|k)?sh\b/;
+
+/**
+ * WHY THIS RULE EXISTS. `device-screens.yml`'s iOS job pipes an unpinned
+ * installer into bash. That is a DELIBERATE trade with its reasoning at
+ * the step — the version that works is recorded into the results and
+ * pinned from there rather than guessed — so this rule does not forbid it.
+ * What came with it by accident was a repo write token: the job runs under
+ * `permissions: contents: write`, and `actions/checkout` leaves that
+ * credential in `.git/config` by default, where anything running
+ * afterwards can read it. Nothing in that job needed it — publish.sh does
+ * `git init` in a fresh directory and pushes with an explicit
+ * x-access-token URL — so the fix cost one line and left the trade alone.
+ *
+ * The rule is the general form: run somebody else's script if you must,
+ * but not beside a credential you are not using.
+ */
+describe("a job that runs a remote script keeps no credential on disk", () => {
+  const risky = [];
+  for (const f of files) {
+    const src = readWorkflow(join(dir, f));
+    for (const j of jobs(src)) if (PIPE_TO_SHELL.test(j.text)) risky.push({ f, j });
+  }
+
+  it("finds the jobs this rule is about — vacuous otherwise", () => {
+    // If the tree ever stops piping anything into a shell this becomes a
+    // rule about nothing, and it should be deleted rather than left
+    // passing. Until then a zero here means the splitter broke.
+    expect(risky.length, "no job pipes a remote script into a shell — has jobs() stopped parsing?").toBeGreaterThan(0);
+  });
+
+  it("none of them persists its checkout credentials", () => {
+    const bad = risky
+      .filter(({ j }) => /actions\/checkout/.test(j.text) && !/persist-credentials:\s*false/.test(j.text))
+      .map(({ f, j }) => `${f}:${j.name}`);
+    expect(
+      bad,
+      "a job pipes a remote script into a shell AND leaves its checkout credentials in .git/config — "
+        + "add `with: persist-credentials: false` to that job's checkout, or stop piping",
+    ).toEqual([]);
+  });
+
+  it("the rule can actually fail — a positive control", () => {
+    const job = [
+      "  demo:",
+      "    steps:",
+      "      - uses: actions/checkout@abc",
+      "      - run: curl -fsSL https://example.test/i | bash",
+    ].join("\n");
+    const src = `jobs:\n${job}\n`;
+    const [only] = jobs(src);
+    expect(only.name).toBe("demo");
+    expect(PIPE_TO_SHELL.test(only.text)).toBe(true);
+    expect(/persist-credentials:\s*false/.test(only.text)).toBe(false);
+    const fixed = src.replace("checkout@abc", "checkout@abc\n        with:\n          persist-credentials: false");
+    expect(/persist-credentials:\s*false/.test(jobs(fixed)[0].text)).toBe(true);
+  });
+});

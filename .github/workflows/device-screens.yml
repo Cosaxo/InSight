@@ -43,9 +43,14 @@
 # run reports every wall, and the results branch lands even when a driver
 # failed — the PNGs it did get are the ones worth looking at then.
 #
-# No third-party actions beyond the ones ci.yml already pins. The emulator
-# is scripted by hand rather than through a marketplace action, so the
-# supply chain stays what it was.
+# No third-party ACTIONS beyond the ones ci.yml already pins — the emulator
+# is scripted by hand rather than through a marketplace action. That
+# sentence used to end "so the supply chain stays what it was", which is
+# true about actions and false about the iOS job: it pipes an unpinned
+# remote installer into bash (see the Maestro step, where the reason is
+# argued and the version is recorded for pinning later). What does NOT
+# have to come with that trade is a repo write token sitting on disk while
+# the downloaded script runs, so the iOS checkout no longer persists one.
 
 name: Device screens
 
@@ -262,7 +267,16 @@ jobs:
       # raise here.
       MAESTRO_DRIVER_STARTUP_TIMEOUT: "240000"
     steps:
+      # NO PERSISTED CREDENTIAL, and this job is the reason. Its Maestro
+      # step pipes an unpinned remote installer into bash — a deliberate,
+      # argued trade, see that step — and the default checkout leaves a
+      # repo write token in .git/config for anything running afterwards to
+      # read. Nothing here needs it: publish.sh does `git init` in a fresh
+      # directory and pushes with an explicit x-access-token URL, and the
+      # cleanup job does the same. Held by workflow-pipefail.test.mjs.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
