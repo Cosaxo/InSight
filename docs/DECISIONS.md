@@ -43106,3 +43106,147 @@ Restore the three labels and the header flip, delete the ring line, and
 record it here. D288 §2's other halves — the two crowds, the viewing
 lens, the refusal to collect a self-declared role — are untouched by
 this and still bind.
+
+## D406 · The 2026-09-07 night review: two shifts merged as one tree — 67 commits kept, three defects the composition created, and a guard fix that was the same fix twice
+
+**2026-09-07.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty-seven commits are kept as written; nothing was reverted. What this
+review adds is the composition, three fixes for defects no shift could
+see alone, and one renumbering `main` forced while the night ran.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260907` | 35 | 9 behind | shift A, Claude 2's, 21:05–05:26 UTC |
+| `nightb-20260907` | 32 | 11 behind | shift B, Claude 1's, 20:26–04:13 UTC |
+
+Twenty files were touched by both, fifteen of them gate scripts — the
+same concentration D380 saw a night earlier and for the same reason:
+both shifts spent the night on gates that certify something without
+executing it, so they collided on the same files for the same reason.
+Shift B's own `0b341e5` names the pattern from inside it.
+
+### The guard collision: one defect, two correct fixes, nine files
+
+Both shifts independently found that
+``import.meta.url === `file://${process.argv[1]}` `` compares a
+percent-encoded URL against a raw path, so on any checkout whose path
+holds a space the guard is false, the check body never runs, and the
+script exits 0 having printed nothing — a pass, indistinguishable from
+a real one. A fixed seven scripts with
+`import.meta.url === pathToFileURL(process.argv[1]).href`; B fixed
+nine with `resolve(process.argv[1]) === fileURLToPath(import.meta.url)`
+and pinned the safe form with a ratchet in `scripts/source-pins.test.mjs`.
+
+**Resolved to B's spelling throughout**, on B's own argument rather than
+on a preference: thirteen scripts on `main` already used it, so the
+ratchet pins the majority instead of inventing a rule. A's edits to
+those eight overlapping files were the guard and nothing else, so
+nothing of A's was lost — the two shifts had written the same fix.
+
+**The composition defect underneath it.** In five of those files git
+auto-merged A's *import* addition into B's import line while the guard
+line conflicted, leaving `pathToFileURL` imported and unused beside a
+guard that uses `fileURLToPath`. Dead, and invisible to every gate.
+Stripped in all five.
+
+Measured rather than reasoned, because the ratchet's regex looked too
+narrow: ``new URL(`file://${process.argv[1]}`).href`` — the spelling
+`gen-pricing-ts.mjs` and `play-upload.mjs` still carry — **is not the
+defect**. `new URL()` normalises and percent-encodes, so on
+`/tmp/sp ace dir/probe.mjs` it matches `import.meta.url` where the bare
+template does not. The ratchet is correctly scoped; those two need no fix.
+
+### The second defect: a test file whose two halves each held the other's import
+
+`scripts/check-appcheck.test.mjs`. A's `const ROOT = resolve(…)`
+auto-merged in cleanly while `resolve` lived only in A's import line,
+which conflicted — so taking B's side alone ships a `ReferenceError`,
+and taking A's side alone drops B's rule. The same file class D380
+found here a night earlier.
+
+Resolved by unioning the imports and keeping **both** blocks, because
+they prove different things and each argument is right about its own
+half: A's drives the real gate as a subprocess against a copy of the
+tracked tree with an opt-out callable planted in a subdirectory, plus
+the control at the top level — behaviour. B's asserts on the script's
+source that both walks over `functions/src` carry `recursive: true`,
+with a floor that fails loudly if the walks are renamed — drift. The
+whole `test:scripts` runner is 17s for 985 tests with A's tree copy in
+it, so the behavioural half costs nothing worth trading.
+
+### The third defect: a silent arity shift in the mount fixture
+
+`src/v2/test/live-fixture.ts`, and this is the one that would have
+shipped green. B inserted `soloVoter` as `liveQuestion`'s **fourth
+positional parameter**; A added two call sites written against the old
+arity. One of them — the `daily-002` card behind A's new `deckDays`
+option — auto-merged with no conflict at all, and under B's signature
+it passes `"Morals"` as `soloVoter` (truthy, so every option count
+drops to zero) and `"binary"` as the branch. A fixture quietly
+describing a state nobody wrote a case for.
+
+Both options now compose, and the proof is that both shifts' new cases
+pass in one mount: A's *"names the day the card itself names, not the
+frozen weekday list"* and B's *"does not print a share when the only
+vote in the crowd is yours"*, together in `smoke-live.test.jsx`.
+
+### The renumbering `main` forced
+
+Shift A wrote its closing record as D404 while `main` took D404 for the
+device pass (#427) during the night — the standing collision D289
+describes. A's is **D405** here, its two citations in
+`VISION-2026-08-24.md` moved with it, and `DECISIONS-INDEX.md`
+regenerated rather than hand-edited.
+
+### What was verified, not assumed
+
+`tsc -b` · `lint` · `check:globals` (30 cross-module refs, at baseline)
+· `check:figures` · `check:docs` · every other CI and backend-checks
+gate · `test:scripts` 985 · `test:unit` 2838 · functions 778 ·
+`test:rules` 199 with `rules-coverage` at baseline 46 ·
+`test:e2e:all` green on one emulator boot, including the two assertions
+this night added — *"the running campaign stops; the finished one keeps
+its answers on the Mirror"* and the erased buyer's byline. The bundle
+is 2183 KB / 602 KB eager against 2440 / 607.
+
+`firestore.rules` changed in **comments only** — the D399 function
+names it still cited — which is why the rules suite and its coverage
+baseline did not move.
+
+`check:store-copy` is red on `main` and red here, on an unfilled Play
+signing SHA that only the owner can supply. It is not on any CI path
+and the night did not touch it.
+
+### What is the owner's
+
+Three things this review merged but did not decide:
+
+1. **D405** renames the place scorecard's second crowd and un-flips the
+   heading. It is a copy change on a live surface that reverses a small
+   deliberate choice, and it says so. Checked rather than trusted: all
+   24 place-rating questions in the bank are written self-referentially
+   — *"Rate the food where you live"*, *"How safe do you feel walking
+   home at night?"* — so nobody outside Oslo has ever rated Oslo, and
+   *"How Oslo is rated"* was a claim the data cannot support. Merged as
+   an honesty correction under D1, reversible in one commit; D405's own
+   Reversal section says how.
+2. **The display-name row on `OWNER-LIST.md`** (shift B). Clearing your
+   display name leaves you findable under it, permanently, because the
+   writer skips an empty name and `allow delete: if false` closes the
+   only other path. B wrote the fix, verified it, **reverted it**, and
+   put it to the owner because lifting a recorded refusal on a rules
+   write surface is not a shift's call. That is D334's protocol
+   followed exactly.
+3. **The `testResults` row on `OWNER-LIST.md`** (shift B). The last
+   client-writable field on `v2_users` bounded in key count and never in
+   bytes, on a path that fetches whole documents thirty at a time. Three
+   shapes priced; no rules expression can bound it, so every way through
+   is a product decision.
+
+### Reversal
+
+Each half is its own commit and the merge is one squash. Reverting this
+record's tree restores `main` at `525edac`; reverting D405 alone is the
+one commit its own record names.
