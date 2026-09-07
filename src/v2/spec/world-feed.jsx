@@ -4422,7 +4422,18 @@ class WorldFeed extends React.Component {
     // Nor a story (D341): the ring is renderCard's to draw and PathsCard
     // never would, so a hash that landed on one would silently spend the
     // grace note on a card that cannot wear it.
-    const clockable = feedList.filter((q) => !askWindow(q) && q.type !== 'path');
+    // NOT A SPONSORED CARD, and `askWindow` cannot answer for one. The
+    // ring is invented — renderClock's own note says the invented one and
+    // a real deadline "must never appear on the same card, or the invented
+    // one borrows the credibility of the real one" — and the window check
+    // above is what keeps them apart. A sponsored card emits `until`
+    // WITHOUT `from` on purpose (live.ts: "that one already states its
+    // window in the PAID band"), and askWindow needs both ends, so it
+    // returns null and the paid card fell straight into this pool.
+    // Verified by running the shipped function: askWindow({ until }) is
+    // null, askWindow({ from, until }) is a window. With a paid place after
+    // every sixth card, one sits inside the eight this picks from.
+    const clockable = feedList.filter((q) => !askWindow(q) && !q.sponsor && q.type !== 'path');
     const closingId = this.opts.clock
       ? ((clockable.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || clockable[1] || {}).id)
       : null;
