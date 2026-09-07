@@ -75,8 +75,30 @@ afterAll(() => new Promise((r) => server.close(r)));
 
 beforeEach(() => {
   calls = [];
-  config = { notification: { sendEmail: { senderLocalPart: "noreply" } } };
+  // The shape the LIVE project actually returned on 2026-09-07: a
+  // `sendEmail` carrying the delivery method, and per-mail templates under
+  // it. The first version of this fixture invented a flat
+  // `senderDisplayName` on `sendEmail`, which let the script's own wrong
+  // field path pass — the test agreed with the bug because it was written
+  // from the same misreading. Fixtures copied from a real response, not
+  // from the code under test.
+  config = {
+    notification: {
+      sendEmail: {
+        method: "DEFAULT",
+        resetPasswordTemplate: { subject: "Reset your password for %APP_NAME%" },
+      },
+    },
+  };
 });
+
+/** Put a display name on both templates, the way a configured project has it. */
+function named(n) {
+  config.notification.sendEmail.verifyEmailTemplate = { senderDisplayName: n };
+  config.notification.sendEmail.resetPasswordTemplate = {
+    subject: "Reset your password for %APP_NAME%", senderDisplayName: n,
+  };
+}
 
 const exec = (args = []) => run("node", [SCRIPT, ...args], {
   env: {
@@ -88,25 +110,45 @@ const exec = (args = []) => run("node", [SCRIPT, ...args], {
 });
 
 describe("the report", () => {
-  it("says the sender name is unset, and names what a recipient therefore sees", async () => {
+  it("names what a recipient sees when no template sets a sender", async () => {
     const { stdout } = await exec();
-    expect(stdout).toMatch(/senderDisplayName is UNSET/);
+    expect(stdout).toMatch(/does not send as "InSight"/);
     // The project id, because that is what the runbook step is about.
     expect(stdout).toMatch(/prvfire33/);
     expect(calls.every((c) => c.method === "GET"), "the report wrote something").toBe(true);
   });
 
-  it("reports a name it finds rather than the conclusion it expects", async () => {
-    config.notification.sendEmail.senderDisplayName = "Something Else";
+  it("tells an ABSENT template apart from a present one with an empty field", async () => {
+    // The distinction the flat-field version could not draw, and the one
+    // that made its "(unset)" meaningless: a template Firebase has never
+    // been asked about is missing entirely.
     const { stdout } = await exec();
-    expect(stdout).toMatch(/"Something Else", not "InSight"/);
-    expect(stdout).not.toMatch(/UNSET/);
+    expect(stdout).toMatch(/verification: no template stored/);
+    // …while reset EXISTS here, carrying a subject and no sender name.
+    expect(stdout).toMatch(/password reset:/);
+    expect(stdout).toMatch(/Reset your password for %APP_NAME%/);
   });
 
-  it("says nothing needs doing once the name is right", async () => {
-    config.notification.sendEmail.senderDisplayName = "InSight";
+  it("reports a name it finds rather than the conclusion it expects", async () => {
+    named("Something Else");
     const { stdout } = await exec();
-    expect(stdout).toMatch(/already "InSight"/);
+    expect(stdout).toMatch(/Something Else/);
+    expect(stdout).toMatch(/does not send as "InSight"/);
+  });
+
+  it("says nothing needs doing once BOTH mails carry the name", async () => {
+    named("InSight");
+    const { stdout } = await exec();
+    expect(stdout).toMatch(/both mails send as "InSight"/);
+  });
+
+  it("is not satisfied by ONE of the two", async () => {
+    // A verification mail from InSight and a reset from prvfire33 is worse
+    // than neither: the inconsistency is what reads as a spoof.
+    named("InSight");
+    delete config.notification.sendEmail.verifyEmailTemplate.senderDisplayName;
+    const { stdout } = await exec();
+    expect(stdout).toMatch(/at least one mail does not send as/);
   });
 });
 
@@ -119,22 +161,39 @@ describe("--sender-name", () => {
     expect(calls.filter((c) => c.method !== "GET")).toEqual([]);
   });
 
-  it("with --apply, PATCHes exactly one field under a narrow mask", async () => {
+  it("with --apply, writes BOTH templates in one PATCH under a leaf mask", async () => {
+    // The path the live API rejected with a 400 on 2026-09-07 was
+    // `notification.sendEmail.senderDisplayName` — a field that does not
+    // exist. It is per TEMPLATE, and both templates move together or the
+    // pair disagrees.
     await exec(["--sender-name", "--apply"]);
     const writes = calls.filter((c) => c.method === "PATCH");
     expect(writes).toHaveLength(1);
-    expect(writes[0].url).toContain(
-      `updateMask=${encodeURIComponent("notification.sendEmail.senderDisplayName")}`,
+    const mask = decodeURIComponent(writes[0].url.split("updateMask=")[1] || "");
+    expect(mask).toBe(
+      "notification.sendEmail.verifyEmailTemplate.senderDisplayName,"
+      + "notification.sendEmail.resetPasswordTemplate.senderDisplayName",
     );
-    // The body carries the one field and no other, so a partial read of
-    // the config cannot flatten the templates on the way back.
+    // Leaves only: nothing here can carry a body or a subject back, so
+    // Firebase keeps supplying and localising those.
     expect(writes[0].body).toEqual({
-      notification: { sendEmail: { senderDisplayName: "InSight" } },
+      notification: {
+        sendEmail: {
+          verifyEmailTemplate: { senderDisplayName: "InSight" },
+          resetPasswordTemplate: { senderDisplayName: "InSight" },
+        },
+      },
     });
   });
 
-  it("does not write when the name is already right", async () => {
-    config.notification.sendEmail.senderDisplayName = "InSight";
+  it("warns that the write marks the template customized", async () => {
+    // A real side effect, said before it happens rather than discovered.
+    const { stdout } = await exec(["--sender-name"]);
+    expect(stdout).toMatch(/marks it `customized`/);
+  });
+
+  it("does not write when both names are already right", async () => {
+    named("InSight");
     await exec(["--sender-name", "--apply"]);
     expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
   });

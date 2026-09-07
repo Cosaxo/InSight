@@ -120,54 +120,110 @@ function newPassword() {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }
 
+// THE SENDER NAME IS PER TEMPLATE, NOT PER PROJECT — and the first
+// version of this file had it wrong in both directions, which is worth
+// keeping rather than quietly correcting.
+//
+// It read `notification.sendEmail.senderDisplayName` and reported the
+// field as "(unset)". That was not a reading of the project: the field
+// does not EXIST at that path, so the read was `undefined` and the code
+// could not tell "nobody set it" from "I asked the wrong question". It
+// then tried to write there and Apple's opposite number said so plainly:
+//
+//   400 — Unknown name "senderDisplayName" at 'config.notification.
+//   send_email': Cannot find field.
+//
+// In the Identity Platform Admin API `sendEmail` carries the METHOD and
+// the SMTP settings; `senderDisplayName`, `senderLocalPart`, `replyTo`,
+// `subject` and `body` live on each EmailTemplate under it. So there is
+// no single sender name — there is one per mail, and the wall depends on
+// two of them.
+//
+// The lesson is the one CLAUDE.md states: verify rather than assume, and
+// say which it was. A report that prints "(unset)" for a path that does
+// not exist is a report that cannot fail, which is worse than no report.
+const TEMPLATES = [
+  ["verifyEmailTemplate", "verification"],
+  ["resetPasswordTemplate", "password reset"],
+];
+
 async function reportTemplates() {
   const cfg = await readConfig();
   const send = cfg.notification?.sendEmail || {};
-  const rows = [
-    ["method", send.method || "(default: Firebase sends it)"],
-    ["sender local part", send.senderLocalPart || "(default: noreply)"],
-    ["sender DISPLAY NAME", send.senderDisplayName || "(unset)"],
-    ["reply-to", send.replyTo || "(unset)"],
-    ["verification subject", send.verifyEmail?.subject || "(Firebase default)"],
-    ["reset subject", send.resetPasswordTemplate?.subject || "(Firebase default)"],
-  ];
   console.log("\nFirebase Authentication — the mail the wall depends on\n");
-  for (const [k, v] of rows) console.log(`  ${k.padEnd(22)} ${v}`);
+  console.log(`  delivery method        ${send.method || "(default: Firebase sends it)"}`);
 
-  const name = send.senderDisplayName;
+  const names = [];
+  for (const [key, label] of TEMPLATES) {
+    const t = send[key];
+    // A template Firebase has never been asked about is absent entirely,
+    // which is a different fact from one that exists with empty fields —
+    // and the difference is exactly what the old code could not see.
+    if (!t) {
+      console.log(`\n  ${label}: no template stored — Firebase's own default, in every field.`);
+      names.push(null);
+      continue;
+    }
+    console.log(`\n  ${label}:`);
+    console.log(`    sender display name  ${t.senderDisplayName || "(unset)"}`);
+    console.log(`    sender local part    ${t.senderLocalPart || "(default: noreply)"}`);
+    console.log(`    reply-to             ${t.replyTo || "(unset)"}`);
+    console.log(`    subject              ${t.subject || "(Firebase default)"}`);
+    console.log(`    customized           ${t.customized ? "yes" : "no"}`);
+    names.push(t.senderDisplayName || null);
+  }
+
   console.log("");
-  if (name === SENDER_NAME) {
-    console.log(`  ✓ the sender name is already "${SENDER_NAME}" — 5.16's first half is done.`);
-  } else if (!name) {
-    // The claim runbook 5.16 was written on, now measured. Firebase shows
-    // the project id in the console when this field is empty, and that is
-    // what a recipient sees.
-    console.log(`  ! senderDisplayName is UNSET, so the mail arrives from the project id`);
-    console.log(`    ("${PROJECT}"), which reads as phishing for an app called InSight.`);
-    console.log(`    Fix: node scripts/auth-config.mjs --sender-name --apply`);
+  if (names.every((n) => n === SENDER_NAME)) {
+    console.log(`  ✓ both mails send as "${SENDER_NAME}" — 5.16's first half is done.`);
   } else {
-    console.log(`  ! senderDisplayName is "${name}", not "${SENDER_NAME}".`);
+    console.log(`  ! at least one mail does not send as "${SENDER_NAME}", so it arrives`);
+    console.log(`    from the project id ("${PROJECT}"), which reads as phishing for`);
+    console.log(`    an app called InSight.`);
+    console.log(`    Fix: node scripts/auth-config.mjs --sender-name --apply`);
   }
   return cfg;
 }
 
 async function setSenderName() {
   const cfg = await readConfig();
-  const current = cfg.notification?.sendEmail?.senderDisplayName || "";
-  if (current === SENDER_NAME) {
-    console.log(`sender name already "${SENDER_NAME}" — nothing to write.`);
+  const send = cfg.notification?.sendEmail || {};
+  const todo = TEMPLATES.filter(([key]) => (send[key]?.senderDisplayName || "") !== SENDER_NAME);
+  if (!todo.length) {
+    console.log(`both mails already send as "${SENDER_NAME}" — nothing to write.`);
     return;
   }
-  console.log(`sender name: "${current || "(unset)"}"  →  "${SENDER_NAME}"`);
-  if (!APPLY) { console.log("(dry run — pass --apply to write it)"); return; }
-  // The narrowest mask that does the job. A broader one would send back
-  // whatever this process happened to hold for every other notification
-  // field, which on a partial read is how a config gets flattened.
+  for (const [key, label] of todo) {
+    console.log(`${label}: "${send[key]?.senderDisplayName || "(unset)"}"  →  "${SENDER_NAME}"`);
+  }
+  console.log("");
+  // SAID OUT LOUD BEFORE IT IS DONE, because it is a real side effect and
+  // not a footnote: setting any field on a template marks it `customized`,
+  // and a customized template stops tracking Firebase's own defaults for
+  // the fields it does not set. The body is left absent on purpose so
+  // Firebase keeps supplying it — but if a future edit sets a body, the
+  // localisation Firebase does for free stops.
+  console.log("note: writing a template field marks it `customized`. Body and");
+  console.log("subject are left unset, so Firebase keeps supplying (and");
+  console.log("localising) those; only the sender name becomes ours.");
+  if (!APPLY) { console.log("\n(dry run — pass --apply to write it)"); return; }
+
+  // ONE PATCH, both templates, with a mask naming exactly the two leaves.
+  // A mask per template would be two round trips and two chances to leave
+  // the pair disagreeing — a verification mail from InSight and a reset
+  // from prvfire33 is worse than neither being set, because the
+  // inconsistency is what looks like a spoof.
   await patchConfig(
-    { notification: { sendEmail: { senderDisplayName: SENDER_NAME } } },
-    "notification.sendEmail.senderDisplayName",
+    {
+      notification: {
+        sendEmail: Object.fromEntries(
+          TEMPLATES.map(([key]) => [key, { senderDisplayName: SENDER_NAME }]),
+        ),
+      },
+    },
+    TEMPLATES.map(([key]) => `notification.sendEmail.${key}.senderDisplayName`).join(","),
   );
-  console.log("written.");
+  console.log("\nwritten.");
 }
 
 async function demoAccount() {
