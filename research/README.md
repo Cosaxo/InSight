@@ -103,8 +103,7 @@ Read in this order. Each file opens with its own status line.
 | 9 | `research/axiom-theory/paper-09-appearance.md` | What is seen first: appearance as two instruments kept apart — morphology, a physical measurement with a calibration and a drift problem, and perception, an observer rating with a face as its stimulus, whose readers agree with each other far more than the face agrees with the person. The step the subject always takes, scoring the readers' consensus against a criterion that never saw the face and calling it validity, is not available: a face predicts a person through two doors, shared biology and a lifetime of treatment, and every criterion the series holds is downstream of the second, so the estimand is the coupling with its doors named. The treatment door is identified per exposure by randomizing whether one person is displayed to another, as an interaction with appearance at the choice-set level against a placeholder; its lifetime integral by nothing; within-person appearance change is the one timing handle. Presentation as three acts, the visible state as a fourth instrument that is itself a perceived signal, two clocks as residuals validated against outcomes, one session-binding claim for paper 7 under an enrolment requirement, and two decisions stated as enumerated shapes for the owner |
 | 10 | `research/axiom-theory/paper-10-reasoning-in-opinion.md` | Reasoning in the clothes of opinion: a key that lives in the relation between two items rather than in either — entailment as a triple conditional on the person's own bridging premise, exclusion at a stated scope, a bound only on explicit likelihood comparisons, equivalence as the weakest of the four because a frame carries information by having been chosen — so a bank authored to carry relations measures reasoning with the test situation removed. The centre is a bind: a relation is informative in proportion to how many violate it and defended in proportion to how few could have read it another way, and those are one quantity, so a key cannot be written and is earned from violations that track the keyed score after style and profile are removed and from violators who cannot supply a reinterpretation when asked, and is retired on failing either. A key error is common to everyone, so only contrasts are readable; the scoring is a constraint region that binds only for some positions; a randomized disclosed arm identifies the situation contrast, hosts every cover-breaking probe and measures the consent cost the draft asserted; motivated reasoning read with difficulty from neutral analogues and the stake from an unscored item, with topic-specific defence failure named as its twin; counts derived from the between-person spread and priced in shares of one observation a day |
 
-Planned, in the order the ranked crossings suggest: the learned
-representation with its auditable distilled layer; custody-preserving
+Planned, in the order the ranked crossings suggest: custody-preserving
 computation for the genome crossings; causal patterns from within-unit
 events. Every one of the four unbuilt axes now has a paper.
 
@@ -122,6 +121,17 @@ grains and budget abstractly, and `check:theory` holds them to that and
 fails one that reaches for this app's sources as its example. The axiom
 series' papers 0 and 0a are the instance of this track for the sources
 this app has; the general track is now the foundation both stand on.
+
+**The owner's second pivot, 2026-09-07:** *"axiom theory could be used
+in other fields as well from psychology to economics to AI development
+… focusing on only creating new data axis and seeing the patterns in the
+most efficient way turns the focus from human bias and theory to a more
+pure data optimization effort where the way to advance is to add a new
+or better axis and or find a better way to find patterns between
+them."* That is a thesis about research programmes rather than about
+any one population, and G4 is it written as a general paper — the two
+moves, where theory relocates rather than disappears, and why a mature
+programme is source-driven.
 
 | Paper | File | What it argues |
 | --- | --- | --- |
