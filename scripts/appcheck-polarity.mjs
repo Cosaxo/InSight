@@ -109,7 +109,11 @@ export function checkAppCheckProvenance(files, owner = "ops.ts") {
       );
       continue;
     }
-    const imports = new RegExp(`import\\s*\\{[^}]*\\b${NAME}\\b[^}]*\\}\\s*from\\s*["']\\./ops["']`)
+    // `./ops` OR `../ops`, however deep: the gate's file map is recursive
+    // now, and a module one directory down imports the constant by a path
+    // this used to reject — which would have failed a file that was doing
+    // exactly the right thing.
+    const imports = new RegExp(`import\\s*\\{[^}]*\\b${NAME}\\b[^}]*\\}\\s*from\\s*["'](?:\\.\\.?/)+ops["']`)
       .test(src);
     if (!imports) {
       errors.push(
