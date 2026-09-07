@@ -166,6 +166,15 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_RELEASE_TAG: ${{ github.sha }}
         run: |
+          # SAY WHICH APP THIS IS, in the log, before anything is signed.
+          # `VITE_REQUIRE_SIGNIN` resolves from a repository VARIABLE that
+          # is not visible from the repo, so "does this build have the
+          # account wall" was a question nobody could answer without
+          # installing the result — and D414's whole point is that the
+          # answer is yes. One line, no gate: the override exists on
+          # purpose (a deliberately wall-less build), so this reports
+          # rather than refuses. What it removes is the silence.
+          echo "VITE_REQUIRE_SIGNIN=${VITE_REQUIRE_SIGNIN:-<unset>}  (D414: 'true' is the wall)"
           npm run build
           # Assert against dist/ rather than against the environment: the
           # question is whether THIS build saw the config, and a stale dist/
