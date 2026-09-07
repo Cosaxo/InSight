@@ -191,8 +191,8 @@ const uid = cred.user.uid;
 // The city split is 5/5 across Oslo and Bergen by the end, so the
 // dimension D9 added is exercised through the whole pipeline rather than
 // only in the pure unit tests.
-// THE PROFILE IS WRITTEN FIRST, as the app writes it (D406). Anchors on an
-// answer are a SNAPSHOT of the author's profile, and since D406 the fold
+// THE PROFILE IS WRITTEN FIRST, as the app writes it (D410). Anchors on an
+// answer are a SNAPSHOT of the author's profile, and since D410 the fold
 // checks that: a claimed anchor the profile does not carry is corrected
 // away, because firestore.rules can only check the anchors are plausible,
 // never that they are the author's. This suite used to write answers with
@@ -273,7 +273,7 @@ for (let n = 0; n < 4; n++) {
     country: "NO",
     city: n < 2 ? "Oslo, NO" : "Bergen, NO",
   } },
-    { mergeFields: ["anchors"] });   // the profile first (D406)
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
     answeredAt: serverTimestamp(),
@@ -345,7 +345,7 @@ for (let m = 0; m < 5; m++) {
     country: "NO",
     city: m < 2 ? "Oslo, NO" : "Bergen, NO",
   } },
-    { mergeFields: ["anchors"] });   // the profile first (D406)
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(),
@@ -394,7 +394,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid), { anchors: { ageBand: "25-34", country: "Norway" } },
-    { mergeFields: ["anchors"] });   // the profile first (D406)
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
@@ -490,7 +490,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid),
     { anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" } },
-    { mergeFields: ["anchors"] });   // the profile first (D406)
+    { mergeFields: ["anchors"] });   // the profile first (D410)
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 1,
     answeredAt: serverTimestamp(),
@@ -692,7 +692,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
     const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
     const u = await signInAnonymously(vAuth);
-    // The profile first (D406), as every one of these voters' real
+    // The profile first (D410), as every one of these voters' real
     // counterparts would: the fold checks a claimed anchor against the
     // author's profile, so a tail voter with no profile has no city to be
     // counted under and the cap this case exists to reach is never reached.
@@ -1119,7 +1119,7 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
 // the failure message's own `40 * 500` — and a message that quotes a number
 // the loop no longer uses is this repo's most-repeated documentation error
 // pointed at a test.
-// MEASURED 2026-09-07 (D407), and it overturns the paragraph above twice
+// MEASURED 2026-09-07 (D411), and it overturns the paragraph above twice
 // over. The ceiling was never the lever: across seven passing runs on a
 // clean `main` the fold commits 6-15 ms BEFORE this poll starts — ~40 ms
 // after the answer write, against a 30,000 ms ceiling. Raising it (20s,
@@ -1133,7 +1133,7 @@ const LEARN_TRIES = 60;
 const LEARN_EVERY = 500;
 //
 // READ THROUGH THE ADMIN HANDLE, not the client one, and this is the fix —
-// the mechanism is in D407. Measured on a failing run: the aggregate EXISTS
+// the mechanism is in D411. Measured on a failing run: the aggregate EXISTS
 // (admin sees `{counts:{2:1},total:1}`), the ledger holds its one entry, the
 // answer document is there — and the client's own read says absent, sixty
 // times, every one of them `fromCache: false`. The trigger was never the
@@ -1173,7 +1173,7 @@ if (!lpub) fail(
   + "this read is the ADMIN handle, so the aggregate genuinely is not in the "
   + "database. Do NOT raise the ceiling: this fold commits ~40ms after the "
   + "write, and the client-read flake that made this assertion look flaky for "
-  + "weeks was fixed at D407 by reading through admin. A failure here now "
+  + "weeks was fixed at D411 by reading through admin. A failure here now "
   + "means the trigger really did not fold.");
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.

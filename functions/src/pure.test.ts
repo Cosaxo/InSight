@@ -2355,7 +2355,7 @@ describe("the breakdown cap's tail (D400)", () => {
   });
 });
 
-describe("honestAnchors (D406): you may withhold, you may not invent", () => {
+describe("honestAnchors (D410): you may withhold, you may not invent", () => {
   const PROFILE = { city: "Oslo", country: "NO", ageBand: "25-34", profession: "Ceramicist" };
 
   it("passes an honest claim through unchanged", () => {

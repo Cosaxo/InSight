@@ -319,7 +319,7 @@ const rules = stripComments(readFileSync(resolve(root, RULES), "utf8"));
 const live = stripComments(readFileSync(resolve(root, LIVE), "utf8"));
 
 // THE FORM IS `isShortAnchor(anchors, "city", 80)`, and it was
-// `isOptionalShortString(anchors.get("city", null), 80)` until D405 rewrote
+// `isOptionalShortString(anchors.get("city", null), 80)` until D409 rewrote
 // the ruleset to spend two expansions per anchor instead of three. This scan
 // was left on the old form, so the rewrite landed with the gate RED — which
 // is the empty-match guard below doing exactly the job it was written for,

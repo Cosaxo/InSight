@@ -42744,7 +42744,7 @@ Retiring the lane is disabling five Routines, a dated line in
 `ROUTINES.md` §9 and this record, and the contract's status line
 moved to *past* — the same shape D385 gave the merge lane.
 
-## D404 · A decision-number hole is reported, not refused — merge order stops being a gate
+## D408 · A decision-number hole is reported, not refused — merge order stops being a gate
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
 — *"fix the gate so merge order doesn't matter"* — after it cost a
@@ -42794,7 +42794,7 @@ because a tree-wide scan would read every `D385` in a code comment as a
 claim about this file.
 
 **It failed on this record.** The first run refused the tree three
-times: D404 cites D387, D388 and D389 — the three pull requests holding
+times: D408 cites D387, D388 and D389 — the three pull requests holding
 them, named in the paragraph above explaining why the gate had to
 change.
 
@@ -42803,11 +42803,11 @@ was. **A hole and a citation into that hole are one fact seen twice** —
 this head does not have that number, because another head does. Failing
 on the second while excusing the first only puts merge order back under
 a different name. So both are reported together, and the note names the
-citers when there are any, because *"D387 is unclaimed and D404 points
+citers when there are any, because *"D387 is unclaimed and D408 points
 at it"* is the sentence a reader actually wants:
 
 ```
-note: D387 (cited by D404), D388 (cited by D404), D389 (cited by D404)
+note: D387 (cited by D408), D388 (cited by D408), D389 (cited by D408)
       unclaimed — an open branch is holding them, or a record was lost.
 ```
 
@@ -42831,11 +42831,19 @@ green at a time, and it was always the **lowest-numbered** one — not
 because its work was ready first, but because nothing was sitting under
 it. #415 had to wait for two merges it has no relationship to.
 
-This branch is the fourth case: written as D387, moved to **D404**, the
-first number no open branch claims, leaving holes at D387, D388 and
-D389, one per pull request waiting. Under the rule being removed, the
+This branch is the fourth case, and the worst of them: written as D387 and moved, by the
+condition it describes, to D390 → D393 → D394 → D400 → D404 → **D408** —
+six times, none of them because anything about the work changed. The
+last move is the plainest of them: `main` took D404, D405 AND D406 in a
+single morning (#427, then #429's two), so all three of this branch's
+own numbers were duplicates at once, and D407 had gone to #415 in the
+hour before. D408 is simply the first number nothing else claims, and it
+leaves a hole at D407 — printed, under the rule this record installs,
+rather than refused. Under the rule being removed, the
 change fixing the problem could not pass its own gate until three
-unrelated merges landed first. The unit cases pin both directions.
+unrelated merges landed first — and could not have been written at all
+at the sixth move, since by then there was no number both free and
+contiguous. The unit cases pin both directions.
 
 **The table aged in the hours it took to write this, which is the
 argument.** #408 merged, and so did #414 — whose own record took D388,
@@ -42843,7 +42851,7 @@ the number #411 was holding. So #411 now carries a genuine
 **duplicate** (renumbered to D391, before merging main and not after —
 doing it the other way round is what corrupted D370–D372 across four
 source files and eight documents earlier the same day), and with it
-fixed its head has holes at D389 and D404 and is refused by the rule
+fixed its head has holes at D389 and D408 and is refused by the rule
 this record removes. The two halves land exactly where they should: the
 duplicate is caught, and the hole is the gate holding #411 hostage to
 #416 — itself. Numbers move on their own while pull requests are open;
@@ -42855,7 +42863,7 @@ Nothing about `main`'s history changed — records are still amended,
 never deleted, and a hole there still gets printed every run until its
 pull request lands. Duplicates still fail.
 
-## D405 · The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success
+## D409 · The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success
 
 **Decided:** 2026-09-06 · **Status:** binding. **This record replaces its
 own first version**, which said the opposite and was wrong.
@@ -42952,10 +42960,10 @@ where a profile edit and an answer race (measured: the answer is refused
 until the profile write lands). `OWNER-LIST.md` carries it as that
 question instead.
 
-## D406 · You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist
+## D410 · You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the owner
-after D405 surfaced it — *"fix the invented cohort thing too"*.
+after D409 surfaced it — *"fix the invented cohort thing too"*.
 
 ### The hole
 
@@ -43039,7 +43047,7 @@ exercised end to end, in the suite whose whole job is the real loop. All
 five now write the profile first, and the run reports **zero**
 corrections.
 
-## D407 · `main`'s e2e flake: the aggregate was always there, and the client could not see it
+## D411 · `main`'s e2e flake: the aggregate was always there, and the client could not see it
 
 **Decided:** 2026-09-07 · **Status:** binding. **Requested** by the owner
 — *"fix the main e2e failure too"*, then *"find the mechanism"*.

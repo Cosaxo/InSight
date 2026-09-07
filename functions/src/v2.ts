@@ -1017,7 +1017,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       //
       // Idempotency: Eventarc is at-least-once and retry is on — the
       // ledger makes redelivery a no-op instead of a double count.
-      // THE PROFILE RIDES THIS READ (D406). The anchors on an answer are
+      // THE PROFILE RIDES THIS READ (D410). The anchors on an answer are
       // the client's claim about its own cohort, and firestore.rules can
       // only check they are plausible, never that they are the author's —
       // honestAnchors() in pure.ts has why the rule that would check it
