@@ -985,6 +985,65 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
       "the caption counted questions whose voter query failed").toBe(1);
   });
 
+  // ── ASKED AND GOT NOTHING IS A FAILURE, NOT AN EMPTY CROWD ───────
+  //
+  // `kindredFailed` is assigned in exactly one place and only the
+  // NOT-a-failure direction was tested. Forcing it to `false` left the
+  // whole vitest surface green — 285 files, 4548 tests — while the City
+  // field says "Nobody from Oslo yet — fills in as the city answers" after
+  // twelve collection-group queries that all threw.
+  //
+  // The lens has the arm for it: LiveSimilarityField reads
+  // `LIVE.kindredState()` and draws "Couldn't read the crowd here" on
+  // 'failed'. Nothing could reach that arm from the store, because every
+  // UI suite stubs the getter — so the sentence existed and the state that
+  // produces it was never produced.
+  //
+  // `loadVoters` swallows each failure and leaves its key ABSENT rather
+  // than empty, deliberately, so that absent and empty stay
+  // distinguishable — and this is the line that makes that distinction
+  // mean something downstream.
+  it("says the read FAILED when it asked for lists and got none", async () => {
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+      h.voterFailQids.add(qid);
+    }
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes()), "the votes did not seed — this case would prove nothing")
+      .toHaveLength(3);
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "no fan-out ran, so nothing could have failed")
+      .toBeGreaterThan(0);
+    expect(LIVE.kindredDepth(), "a query landed after all").toBe(0);
+    expect(
+      LIVE.kindredState(),
+      "twelve refused queries were reported to the Mirror as an empty city",
+    ).toBe("failed");
+  });
+
+  it("…and reports 'ready' the moment ONE of them lands", async () => {
+    // THE CONTROL, and the rule it pins is deliberate: a partial pool is a
+    // real pool as far as it goes, so one surviving list is a crowd and not
+    // a failure. Without this, "failed" would also be what a flag stuck on
+    // looks like.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+    }
+    h.voterFailQids.add("q_2");
+    h.voterFailQids.add("q_3");
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(LIVE.kindredDepth()).toBe(1);
+    expect(LIVE.kindredState(), "one list landed and the crowd was called unreadable")
+      .toBe("ready");
+  });
+
   it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
     // The city half of the same fan-out (D278) — a second twelve queries,
     // behind its own copy of the gate, and until now behind no test at
