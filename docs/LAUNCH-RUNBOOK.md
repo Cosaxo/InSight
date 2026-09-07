@@ -26,7 +26,7 @@ zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 134
-questions of 913 seeded; the production backend is deployed. **Measured
+questions of 917 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      913 questions land in `v2_questions` — idempotent and, since D34,
+      917 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **913** after the K=5 test expansion, D103's
+      and the bank is **917** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1107,7 +1107,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 913 seeded questions are live regardless.
+      working, not a leak — the 917 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -2273,7 +2273,7 @@ That is a tester-count problem, not a workflow problem.
       "why is there no ads step".
 
 - [ ] **5.16 The two Firebase auth emails now stand between a user and
-      the app (D413).** Ten minutes, one console, and it is not cosmetic:
+      the app (D414).** Ten minutes, one console, and it is not cosmetic:
       since the wall reads `linked && !needsEmailVerify`, someone who
       creates an account with an address **cannot open InSight at all**
       until the confirmation mail arrives and is opened. The mail is the
@@ -2408,7 +2408,7 @@ That is a tester-count problem, not a workflow problem.
       so a false claim about who can read an answer ships to the phone
       rather than staying in the repo.
 - [ ] **6.1b App Review Information — a demo account is now MANDATORY
-      (D413).** Ten minutes, and skipping it costs a full review round on
+      (D414).** Ten minutes, and skipping it costs a full review round on
       guideline 2.1 rather than on anything about the app. App Store
       Connect → the version → **App Review Information**:
 
@@ -2431,7 +2431,7 @@ That is a tester-count problem, not a workflow problem.
 
       Answer 5.1.1(v) here too if you want to pre-empt it, in the
       reviewer's terms rather than ours: the account is not gatekeeping a
-      feature, it is the unit the product is about. D413 §5 has it
+      feature, it is the unit the product is about. D414 §5 has it
       written out.
 
 - [ ] **6.2 Submit to App Store review.** Budget one rejection round on
@@ -2473,7 +2473,7 @@ That is a tester-count problem, not a workflow problem.
       ships walled on purpose. The flag becomes a blocker at exactly one
       moment, which is this step.
 
-      **REVERSED 2026-09-07 (D413): the wall goes back up, and every
+      **REVERSED 2026-09-07 (D414): the wall goes back up, and every
       paragraph above about the drop is now history rather than
       instruction.** D219's own condition — everyone has an account,
       answers attributed, duplicates hard — was tested by the owner on
@@ -2493,7 +2493,7 @@ That is a tester-count problem, not a workflow problem.
       The reply, if it is asked for: the account is not gatekeeping a
       feature, it is the unit the product is about — a daily question
       answered by nobody in particular produces nothing the app can show
-      you back. D413 §5 has it written out, including what a wall costs
+      you back. D414 §5 has it written out, including what a wall costs
       in installs, which is unknown here because the app has never had
       one under measurement.
 

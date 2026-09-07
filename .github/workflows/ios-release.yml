@@ -129,7 +129,7 @@ jobs:
           CAPACITOR_BUILD: "1"
           VITE_V2_LIVE: "true"
           # D134 put the wall up for the TEST TRACK. D219 took it down for
-          # the store build. D413 (2026-09-07) puts it back for good, and
+          # the store build. D414 (2026-09-07) puts it back for good, and
           # the default here is the record of that: the app requires an
           # account.
           #

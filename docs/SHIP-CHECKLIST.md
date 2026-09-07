@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   913 questions land in `v2_questions`. Re-running is safe (idempotent,
+   917 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 913-read
+   alone, so a reseed no longer costs every returning device a 917-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -879,7 +879,7 @@ anything a user does.
      confirm nothing sensitive is tracked. A `git add -A` after a signing
      session is an incident a revert cannot fix — the object stays in
      history and the key must be rotated.
-- **Sign in with Apple (guideline 4.8) — BUILT 2026-09-07 (D413), and
+- **Sign in with Apple (guideline 4.8) — BUILT 2026-09-07 (D414), and
   the reply below is retired with the posture that justified it.** 4.8
   says a third-party sign-in must be accompanied by an equivalent
   privacy-preserving option. The app now offers Apple's door beside
@@ -892,7 +892,7 @@ anything a user does.
   keeping as the warning.** It said `ios-release.yml` "defaults it to
   `true`" — D219 changed that to `'false'` on 2026-08-20 and nobody came
   back here, so for eighteen days the canonical release document
-  described a wall the builds did not have. D413 has now flipped it back
+  described a wall the builds did not have. D414 has now flipped it back
   to `'true'`, which makes the sentence accidentally correct again for a
   reason it never stated. The lesson is not about this flag: a document
   that reads a build setting has to be updated by whoever moves the
@@ -900,15 +900,15 @@ anything a user does.
   divergence.
 
   D134's fork — drop the wall, or build Sign in with Apple — is closed:
-  D413 took the second branch, and both doors ship. What is left is the
+  D414 took the second branch, and both doors ship. What is left is the
   half a provider cannot answer. **A wall raises 5.1.1(v)** (an app
   should be usable without an account unless its core features need one)
   **before it raises 4.8**, and this app's loop ran anonymously for
   twelve builds, so that argument is about the product and costs more
-  than adding a provider. D413 §5 has the reply written out. Runbook
+  than adding a provider. D414 §5 has the reply written out. Runbook
   6.2 carries the operational half.
 
-  **The wall now passes on two conditions, not one** (D413's amendment):
+  **The wall now passes on two conditions, not one** (D414's amendment):
   the session is linked AND no address is waiting to be confirmed. An
   account made at the email door does not reach the app until its
   confirmation mail is opened — so if a reviewer creates an account with

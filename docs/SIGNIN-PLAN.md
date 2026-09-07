@@ -1,7 +1,7 @@
 # The account wall and its three doors — the plan
 
 **Status: BUILT, 2026-09-07 — adopted as
-[D413](DECISIONS.md#d413--the-account-wall-goes-back-up-and-d219s-own-condition-is-why),
+[D414](DECISIONS.md#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why),
 which reverses D219. This page is kept as the reasoning, not as a
 worklist; §7 records what each step actually cost.** The owner's
 decision, 2026-09-07: *"i think this app defenenetly should have a
@@ -68,7 +68,7 @@ before the first answer — and missed the cost of NOT doing it, which
 is larger: a password account exists the moment Firebase accepts the
 password, so a typo produces a real account whose confirmation mail
 and whose reset mail both go to a stranger. Without a way out, the
-wall would be a locked room on that device. D413's amendment has the
+wall would be a locked room on that device. D414's amendment has the
 three pieces that ship (two flags on the wall, a rule that names the
 password door precisely, and `abandonSignIn` as the escape).
 

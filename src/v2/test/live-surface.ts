@@ -138,7 +138,7 @@ export const LIVE_MEMBERS = [
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",
   "emailCreate", "emailReset", "emailSignIn",
-  // The email door's second half (D413): the account exists before its
+  // The email door's second half (D414): the account exists before its
   // address is confirmed, so the wall reads BOTH flags and the verify
   // screen drives these three. `abandonSignIn` is the way out of a typo.
   "abandonSignIn", "accountEmail",

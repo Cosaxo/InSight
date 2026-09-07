@@ -37,7 +37,7 @@ interface CapturedListener {
 
 // The four fields live.ts's auth observer reads, and no more. `uid` alone
 // was enough while `linked` was the only thing derived from the user; the
-// verify wall (D413) derives a second flag from three more, and a mock
+// verify wall (D414) derives a second flag from three more, and a mock
 // that cannot express "linked, but the address is unconfirmed" cannot test
 // the rule that keeps a Google account out of that state.
 interface AuthUser {
@@ -1575,7 +1575,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.enabled).toBe(true);
   });
 
-  // ── the verify flag (D413) ────────────────────────────────────────
+  // ── the verify flag (D414) ────────────────────────────────────────
   //
   // The wall reads `linked && !needsEmailVerify`, so an over-broad rule
   // here locks a perfectly good account out of the app with no control on
