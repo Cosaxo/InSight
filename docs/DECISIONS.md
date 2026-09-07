@@ -41855,3 +41855,60 @@ arguments from the setting and citations to G1–G5 alone.
 
 Sixteen axiom papers and six general ones carry the form, every one
 reviewed and revised. Nothing in the app moves.
+
+## D389 amendment (2026-09-07, eighth) · G7: the relational grain, and a condition corrected in G1 and G3
+
+The owner's *"sure lets look at that"* took the paper three reviews had
+flagged as deferred by everyone: the relation as an object of
+measurement. G7's twenty-eight-finding review was the series' hardest
+on algebra, and its first result reaches back into two earlier papers.
+G1's second section said that observing a pair in both directions
+separates what the pair carries from error, and that one observation
+per pair confounds the pair's term, the members' terms and error alike;
+G3's second section repeated the first half. Both are wrong: degree in
+each role separates the pair's term from the members', replication of
+the same pair inside its timescale separates it from error, and
+reciprocal observation identifies the dyadic covariance and nothing
+else. A design that followed the earlier sentence bought reciprocal
+pairs without replication and identified no pair's term. G7 states the
+table, and G1, G3 and G6 are corrected in place with the correction
+named, under the sweep's rule that a withdrawn claim does not stay
+cited.
+
+The review's other structural findings, each now in the paper: the
+anchor set was used as if it contained a unit-level counterpart for
+every relational construct, where it is a fixed set of sources, so the
+pin on a comparison's quotient is a design purchase linked through
+its estimated parameters and priced with its invariance; the
+cancellation in a comparison is a property of a stated model class and
+not a definition; the odd-cycle attribution of a joint outcome was
+stated with a pair term present and nothing to solve, so the kernel
+result is scoped to the fixed part with degree and replication doing
+the rest; G1's steering rule had been inverted into a flat prohibition
+on pairing by the relational latent, where G1 permits any function of
+the log with the propensity entered and forbids only what is measured
+with or after the response, and G1's roles were never applied, so every
+coupling against a unit-level source is now estimated on a blind share
+of pairings; the design effect had been given in the form for a mean
+and applied to couplings, with no sign and no magnitude, and G6's
+interval by resampling units is invalid on a related population, so
+the paper now gives both forms, the sign condition, a worked magnitude
+and the replacement estimator; the sizing sentence disagreed with
+itself eightfold and omitted the relationship terms' reliability, so
+a reciprocity of a tenth now costs about eighteen hundred replicated
+pairs rather than "several hundred"; the "eligible-drawn stream at this
+grain" and "candidate set" collided with settled terms and are the
+assigned stream and the partner pool, with the uniform share of the
+first being the settled evaluation stream; the partner pool, the
+floor, the weights and the standing charge are derived as one decision;
+the disclosure fork gains the coarsen and defer shapes and its
+measurement arm G3's consent and clustering conditions; and the paper
+gains what it lacked — invariance across relation types, erasure by a
+member, G5's double-counting rule, the value ledger with identification
+beside it, the admission test and shrinkage at this grain, the
+post-placement stratum on which homophily is identifiable at all, and
+the "most expensive observation" superlative replaced by the comparison
+actually computed.
+
+Sixteen axiom papers and seven general ones carry the form, every one
+reviewed and revised. Nothing in the app moves.
