@@ -224,11 +224,56 @@ describe("the demo account's credentials", () => {
     // by everyone with repo read and is kept for months, so a credential
     // must not be printed even once.
     const src = readFileSync(SCRIPT, "utf8");
-    // The word may appear in prose ("the credential has nowhere to go");
-    // what must never appear is the VALUE, so this keys on the variable
-    // being interpolated into a log line rather than on the noun.
-    const printsPassword = /console\.log\([^)]*\$\{\s*password\s*\}/.test(src);
-    expect(printsPassword, "the password value reaches a log line").toBe(false);
+    // The word may appear in prose ("password will be reset"); what must
+    // never appear is the VALUE. This used to key on ONE spelling —
+    // `console.log(…${password}…)` — and three ordinary ways of writing
+    // the same leak walked straight through it. Measured, four one-line
+    // mutants inserted into auth-config.mjs and run against this file:
+    //
+    //   console.error(`pw ${password}`)                   GREEN
+    //   console.log("password: " + password)              GREEN
+    //   console.log(JSON.stringify({ email, password }))  GREEN
+    //   console.log(`password: ${password}`)              RED
+    //
+    // and the mutated script really printed the credential. It matters at
+    // this address in particular: auth-config.yml runs the script
+    // `2>&1 | tee` and a later step `cat`s that log into
+    // $GITHUB_STEP_SUMMARY, where a password generated at runtime is not a
+    // registered secret and would not be masked — readable by everyone
+    // with repo read, for months, which is the exact failure the file
+    // arrangement exists to prevent.
+    //
+    // So: every writer, and the identifier rather than the noun. String
+    // literals are removed before looking, keeping only a template's
+    // `${…}` parts, because that is the only half of a template that is
+    // code — which is what lets prose keep saying "password" while a
+    // reference to the variable cannot hide anywhere.
+    const codeOnly = (t) => t
+      .replace(/`(?:[^`\\]|\\[\s\S])*`/g, (lit) => [...lit.matchAll(/\$\{([^}]*)\}/g)].map((m) => m[1]).join(" "))
+      .replace(/'(?:[^'\\]|\\[\s\S])*'/g, " ")
+      .replace(/"(?:[^"\\]|\\[\s\S])*"/g, " ");
+    // Balanced-paren, not `[^)]*`: the nested-call form is exactly what a
+    // character class cannot cross, and `console.log(JSON.stringify({…}))`
+    // is one of the three that got through.
+    const callArgs = (text, open) => {
+      let depth = 0;
+      for (let i = open; i < text.length; i += 1) {
+        if (text[i] === "(") depth += 1;
+        else if (text[i] === ")") { depth -= 1; if (!depth) return text.slice(open + 1, i); }
+      }
+      return text.slice(open + 1);
+    };
+    // `die()` is this script's own stderr writer, so it belongs here with
+    // the built-ins rather than being trusted because it is local.
+    const WRITERS = /\b(?:console\.(?:log|error|warn|info|debug|trace)|process\.(?:stdout|stderr)\.write|die)\s*\(/g;
+    const leaks = [];
+    for (const m of src.matchAll(WRITERS)) {
+      const args = callArgs(src, m.index + m[0].length - 1);
+      if (/\bpassword\b/.test(codeOnly(args))) {
+        leaks.push(`${m[0]}${args.split("\n")[0].trim().slice(0, 70)}`);
+      }
+    }
+    expect(leaks, "the password value reaches a log line").toEqual([]);
     expect(src).toMatch(/writeFileSync\(out/);
     // …and the flag that makes the whole account worth having.
     expect(src).toMatch(/emailVerified: true/);
