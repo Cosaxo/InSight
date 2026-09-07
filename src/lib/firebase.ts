@@ -117,6 +117,16 @@ export async function googleSignIn(): Promise<void> {
   return m.googleSignIn();
 }
 
+export async function linkApple(): Promise<void> {
+  const m = await impl();
+  return m.linkApple();
+}
+
+export async function appleSignIn(): Promise<void> {
+  const m = await impl();
+  return m.appleSignIn();
+}
+
 export async function googleSignOut(): Promise<void> {
   const m = await impl();
   return m.googleSignOut();

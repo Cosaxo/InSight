@@ -102,6 +102,39 @@ before it is built. Two extra buttons on the existing gate would be
 controls and would need no request — but sign-up, forgotten-password
 and their error states are a screen family. Request **7** carries it.
 
+## 6b · Step 1 is built (2026-09-07), except the entitlement
+
+`appleSignIn` and `linkApple` are in `src/lib/firebaseImpl.ts` beside
+Google's pair, exposed through `firebase.ts` and `LIVE.linkApple`, with
+a provisional second button on the existing gate that request 9 will
+replace. The native timeout race is now ONE helper serving both
+providers rather than a second copy: the subtle half is the `finally`
+that clears the timer, and a duplicate is a second place for that to go
+missing in the failure path only.
+
+**What the tests pin, and why each exists.** That the exchange carries
+the RAW NONCE — Apple binds its token to one, the plugin returns it
+under `nonce`, the SDK wants it as `rawNonce`, and dropping it fails
+`auth/invalid-credential`, a message naming neither Apple nor nonces.
+Nothing else in the stack sees it: the field is optional in the
+plugin's type and `credential()` takes a loose object, so tsc, eslint
+and a hand test that happens to pass all stay quiet. That `linkApple`
+LINKS when a session exists and signs in fresh when it does not, both
+branches, because a gate that linked Google and signed in fresh with
+Apple would strand a session's answers exactly as badly while the
+Google case stayed green. And that the gate offers Apple's door at all,
+since 4.8 is about its presence.
+
+**The entitlement is deliberately NOT in this commit.** `App.entitlements`
+records the rule in its own comment: a provisioning profile cannot grant
+an entitlement the App ID does not have, so adding
+`com.apple.developer.applesignin` before the capability is enabled fails
+the ARCHIVE — `ios-release.yml` would go red on a tree that is otherwise
+fine. The order is: the owner enables Sign in with Apple on the App ID,
+then the entitlement lands, then a build. Until then the code is
+complete and inert on device, because the native sheet has nothing to
+open.
+
 ## 7 · The order
 
 1. **Sign in with Apple** — code, tests, the entitlement. Independent

@@ -146,6 +146,7 @@ vi.mock("../../lib/firebase", () => {
   // every case in it now also exercises the bind step.
   getFirestoreApi: () => fsApi,
   getFunctionsApi: () => fnsApi,
+  linkApple: () => Promise.resolve(),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
   subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {

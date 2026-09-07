@@ -106,6 +106,30 @@ function GateButton({ label, onClick, busy }: {
   );
 }
 
+// The second door. Same metrics as GateButton so the two read as a pair,
+// inverted fill so one of them is plainly the primary — WHICH one is a
+// design question, not this file's: request 9 in VISUAL-REQUESTS.md is the
+// screen, and Apple's guideline 4.8 wants its button offered as
+// prominently as any other social login, which this shape satisfies and a
+// text link would not. Provisional on purpose; the design pass replaces
+// both buttons and this comment with it.
+function GateButtonAlt({ label, onClick, busy }: {
+  label: string;
+  onClick: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <button className="press" onClick={onClick} disabled={busy}
+      style={{ width: "100%", marginTop: 10, border: GATE_LINE, borderRadius: 999,
+        padding: "14px 18px", background: "var(--surface)", color: "var(--ink)",
+        cursor: busy ? "default" : "pointer",
+        fontFamily: "var(--sans)", fontWeight: 800, fontSize: 15,
+        WebkitAppearance: "none", opacity: busy ? 0.5 : 1 }}>
+      {busy ? "\u2026" : label}
+    </button>
+  );
+}
+
 /**
  * The Google account already belongs to another InSight uid.
  *
@@ -141,6 +165,23 @@ function LiveSignInGate() {
       // The store's auth observer is what flips `linked`, and it will not
       // fire for a failed link — so the error has to land on screen or the
       // gate just sits there.
+      if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse(true);
+      else setErr(clean(e));
+    }
+    setBusy(false);
+  };
+
+  // Apple's twin of `link` above, and it shares the IN_USE arm for the same
+  // reason: Firebase refuses a link to an identity another uid already
+  // holds whichever provider it came from, so the destructive second
+  // button covers both. `signInToExisting` stays Google-only for now
+  // because the message it shows names Google — a shared one is the
+  // design's to word (request 9's error states).
+  const linkAppleNow = async () => {
+    setBusy(true); setErr(null);
+    try {
+      await LIVE.linkApple();
+    } catch (e) {
       if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse(true);
       else setErr(clean(e));
     }
@@ -191,6 +232,9 @@ function LiveSignInGate() {
         onClick={() => void (inUse ? signInToExisting() : link())}
         busy={busy}
       />
+      {!inUse && (
+        <GateButtonAlt label="Sign in with Apple" onClick={() => void linkAppleNow()} busy={busy} />
+      )}
       {inUse && (
         <button className="press" onClick={() => { setInUse(false); setErr(null); }} disabled={busy}
           style={{ width: "100%", marginTop: 10, border: "none", background: "none", padding: "10px 0",

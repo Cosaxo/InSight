@@ -868,6 +868,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // null: the fixture has no aggregates, so the honest state it renders
     // is the labelled estimate.
     loadLearnAggs: async () => {},
+    linkApple: async () => {},
     linkGoogle: async () => {},
     // Anonymous-first (D3) is the default state, so that is what the fixture
     // renders — the identity row's "anonymous session" branch

@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const linkGoogle = vi.fn(async () => {});
+const linkApple = vi.fn(async () => {});
 const googleSignIn = vi.fn(async () => {});
 
 vi.mock("../../lib/firebase", () => ({
@@ -44,21 +45,27 @@ const Child = () => <div>the app</div>;
 const gate = () => render(<SignInGate><Child /></SignInGate>);
 async function gateReady() {
   const r = gate();
-  // Every arm of the screen ends in a button ("Continue with Google" or
-  // "Try again"), so this is the one wait that works for all of them.
-  // findBy* rather than a fixed number of ticks: React.lazy memoises the
-  // resolved component, so only the FIRST case in this file pays the
-  // suspend and a tick-counting helper would pass for the wrong reason
-  // whenever the order changed.
-  await screen.findByRole("button");
+  // Every arm of the screen ends in at least one button ("Continue with
+  // Google" and "Sign in with Apple", or "Try again"), so this is the one
+  // wait that works for all of them. findBy* rather than a fixed number of
+  // ticks: React.lazy memoises the resolved component, so only the FIRST
+  // case in this file pays the suspend and a tick-counting helper would
+  // pass for the wrong reason whenever the order changed.
+  //
+  // findAllBy, not findBy: the live arm has carried two doors since Apple
+  // joined, and the singular form throws "found multiple elements" — which
+  // reads as a broken screen rather than as a second button arriving.
+  await screen.findAllByRole("button");
   return r;
 }
 
 beforeEach(() => {
   linkGoogle.mockClear();
+  linkApple.mockClear();
   googleSignIn.mockClear();
   stub("subscribe", () => () => {});
   stub("linkGoogle", linkGoogle);
+  stub("linkApple", linkApple);
   stub("enabled", true);
   stub("linked", false);
   stub("bootError", "");
@@ -101,6 +108,10 @@ describe("with the flag on", () => {
     await gateReady();
     expect(screen.queryByText("the app")).toBeNull();
     expect(screen.getByText("Continue with Google")).toBeTruthy();
+    // Apple's door is not optional decoration: guideline 4.8 wants it
+    // offered as prominently as any other social login the moment this
+    // wall is the way in, so its ABSENCE is the regression to catch.
+    expect(screen.getByText("Sign in with Apple")).toBeTruthy();
   });
 
   it("lets a linked session straight through, with no chunk to wait for", () => {
@@ -120,6 +131,17 @@ describe("with the flag on", () => {
     expect(googleSignIn).not.toHaveBeenCalled();
   });
 
+  it("Apple LINKS too — the same property, the other door", async () => {
+    // The reason this is its own case rather than a parameter on the one
+    // above: the two doors are separate call paths, and a gate that linked
+    // Google and signed in fresh with Apple would strand a session's
+    // answers exactly as badly, while the Google case stayed green.
+    await gateReady();
+    fireEvent.click(screen.getByText("Sign in with Apple"));
+    expect(linkApple).toHaveBeenCalledTimes(1);
+    expect(googleSignIn).not.toHaveBeenCalled();
+  });
+
   it("waits for a connection instead of falling back to the demo app", async () => {
     // A build whose premise is "your answers are kept" must not hand
     // someone sample questions when boot fails — the answers would not be
@@ -129,6 +151,7 @@ describe("with the flag on", () => {
     await gateReady();
     expect(screen.queryByText("the app")).toBeNull();
     expect(screen.queryByText("Continue with Google")).toBeNull();
+    expect(screen.queryByText("Sign in with Apple")).toBeNull();
     expect(screen.getByText(/still connecting — signing in/)).toBeTruthy();
     expect(screen.getByText("Try again")).toBeTruthy();
   });

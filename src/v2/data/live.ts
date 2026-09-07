@@ -83,6 +83,7 @@ import {
   getFirestoreApi,
   getFunctionsApi,
   googleSignOut,
+  linkApple,
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
@@ -6134,6 +6135,19 @@ const LIVE = {
     } catch (err) {
       reportError(err, { where: "syncPassiveResults" });
     }
+  },
+  // Apple's twin, and deliberately not a `provider` parameter on one
+  // method: the two differ only in which import they call, but a single
+  // entry point taking a string is one where a typo picks the wrong
+  // provider at runtime and the memo below still gets dropped. Two names,
+  // both pinned by vote.test.ts, is the cheaper shape.
+  async linkApple(): Promise<void> {
+    await linkApple();
+    // Same reason as linkGoogle below: the account just gained an identity
+    // provider, which is what accountLevel.ts's level 2 grades on, and the
+    // activation memo would otherwise never look again.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
   },
   async linkGoogle(): Promise<void> {
     await linkGoogle();

@@ -8,6 +8,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
   GoogleAuthProvider,
+  OAuthProvider,
   connectAuthEmulator,
   getAuth,
   indexedDBLocalPersistence,
@@ -296,26 +297,61 @@ export async function anonSignIn(): Promise<string> {
 // instead — a wrong config should look like a bug, not a hang.
 const NATIVE_AUTH_TIMEOUT_MS = 90_000;
 
-async function nativeGoogleIdToken(): Promise<string> {
+// One race, two providers. This was Google's alone and is factored here
+// rather than copied for Apple, because the subtle half is the `finally`
+// that clears the timer: a second copy is a second place for that to go
+// missing, and the symptom (a process kept alive by a stray timer, only
+// in the failure path) is one nobody reads a stack trace for.
+async function nativeSignIn(
+  provider: "Google" | "Apple",
+  run: () => Promise<{ credential?: { idToken?: string; nonce?: string } | null }>,
+): Promise<{ idToken: string; rawNonce?: string }> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
-      FirebaseAuthentication.signInWithGoogle(),
+      run(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new Error(
-            "Native Google sign-in did not respond. Check that the app has its "
-            + "Firebase config file and that Google is enabled for this build.")),
+            `Native ${provider} sign-in did not respond. Check that the app has its `
+            + `Firebase config file and that ${provider} is enabled for this build.`)),
           NATIVE_AUTH_TIMEOUT_MS,
         );
       }),
     ]);
     const idToken = result.credential?.idToken;
-    if (!idToken) throw new Error("Native Google sign-in returned no idToken");
-    return idToken;
+    if (!idToken) throw new Error(`Native ${provider} sign-in returned no idToken`);
+    // Google's exchange ignores this; Apple's cannot — see appleCredential.
+    return { idToken, rawNonce: result.credential?.nonce };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function nativeGoogleIdToken(): Promise<string> {
+  const { idToken } = await nativeSignIn(
+    "Google", () => FirebaseAuthentication.signInWithGoogle(),
+  );
+  return idToken;
+}
+
+// APPLE'S CREDENTIAL IS NOT GOOGLE'S WITH A DIFFERENT NAME, and the
+// difference is the nonce. Apple binds the identity token to a nonce so a
+// token captured once cannot be replayed: the plugin generates one, sends
+// its SHA-256 to Apple, and hands back the RAW value. Firebase re-hashes
+// the raw value and compares. Pass the token without it and the exchange
+// fails `auth/invalid-credential` — a message that says nothing about
+// nonces and sends you looking at the provider config instead.
+//
+// `rawNonce` and not `nonce`: the JS SDK's field name is the raw one
+// precisely because it does the hashing itself, and the two are one
+// letter apart in a shape TypeScript will not check for you (the
+// provider's credential() takes a loose object).
+async function appleCredential() {
+  const { idToken, rawNonce } = await nativeSignIn(
+    "Apple", () => FirebaseAuthentication.signInWithApple(),
+  );
+  return new OAuthProvider("apple.com").credential({ idToken, rawNonce });
 }
 
 // Upgrade the current (anonymous) account to Google, keeping the uid —
@@ -347,6 +383,33 @@ export async function googleSignIn(): Promise<void> {
   // Web fallback — popup flow (or installed PWA on Android, which
   // still uses the web auth runtime).
   await signInWithPopup(auth(), new GoogleAuthProvider());
+}
+
+// The Apple pair, mirroring linkGoogle/googleSignIn above — same rule:
+// LINK when there is a session to keep, sign in fresh when there is not.
+//
+// The web branch exists for symmetry and is close to dead in practice:
+// Apple's web flow needs a Services ID and a private key registered
+// separately from the native app, and D337 records that this app has no
+// public web client — the browser paths serve developers and CI. It is a
+// popup rather than a thrown "native only" because a developer meeting a
+// Firebase config error learns more than one meeting our refusal.
+export async function linkApple(): Promise<void> {
+  const user = auth().currentUser;
+  if (!user) return appleSignIn();
+  if (Capacitor.isNativePlatform()) {
+    await linkWithCredential(user, await appleCredential());
+    return;
+  }
+  await linkWithPopup(user, new OAuthProvider("apple.com"));
+}
+
+export async function appleSignIn(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await signInWithCredential(auth(), await appleCredential());
+    return;
+  }
+  await signInWithPopup(auth(), new OAuthProvider("apple.com"));
 }
 
 export async function googleSignOut(): Promise<void> {
