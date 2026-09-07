@@ -1626,7 +1626,7 @@ class WorldFeed extends React.Component {
                 <>
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>Saved to your map.</span>
-                  <button onClick={() => { window.MAP_OPEN_GROUP = 'g-know'; NAV.goTab('mirror'); }} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>See it</button>
+                  <button onClick={() => { window.MAP_OPEN_GROUP = 'g-know'; NAV.goTab('you'); }} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>See it</button>
                 </>
               ) : r.ok && r.wasKnown ? (
                 <>
@@ -2223,7 +2223,7 @@ class WorldFeed extends React.Component {
     const quiet = { fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' };
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     if (rip) return (
-      <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>
+      <button onClick={() => NAV.goTab('you')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>
     );
     if (insight) return insight;
     if (q.type === 'rate') {
@@ -2259,7 +2259,7 @@ class WorldFeed extends React.Component {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
         <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (alone ? '' : (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog'))}</span>
-        {rip && <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
+        {rip && <button onClick={() => NAV.goTab('you')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
   }
