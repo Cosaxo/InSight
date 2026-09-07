@@ -184,6 +184,13 @@ export function renderResultsPage(input: ResultsInput): { status: number; html: 
   const pcts = sharePcts(counts);
   const lead = total ? counts.indexOf(Math.max(...counts)) : -1;
   const buyer = typeof sponsor.buyer === "string" && sponsor.buyer.trim() ? sponsor.buyer.trim() : null;
+  // THE BUYER ERASED THEIR ACCOUNT, which is not the same as either of the
+  // two absences below and used to be printed as both of them. A nameless
+  // purchase is a choice (D228); an untargeted one is a choice; an erasure
+  // is neither, and the page claimed both on the buyer's behalf. Written by
+  // the erasure sweep (index.ts phase 4e) precisely so this page can tell
+  // the difference.
+  const erased = sponsor.erased === true;
   const audience = sponsor.audience && typeof sponsor.audience === "object" ? (sponsor.audience as Record<string, unknown>) : {};
   const audLine = Object.entries(audience).map(([d, b]) => `${DIM_LABEL[d] ?? d}: ${String(b)}`);
   const from = dayLabel(q.from);
@@ -227,7 +234,7 @@ export function renderResultsPage(input: ResultsInput): { status: number; html: 
   const body = `
   <div class="kicker"><span class="paid">PAID</span><span>InSight · a question somebody paid to ask</span></div>
   <h1>${esc(prompt)}</h1>
-  <p class="by">${buyer ? `Asked by <strong>${esc(buyer)}</strong>` : "Asked by a buyer who chose not to wear a name"}${audLine.length ? ` · asked ${esc(audLine.join(" · "))}` : " · asked everyone"}${from && until ? ` · ${live ? "runs" : "ran"} ${esc(from)} → ${esc(until)}` : ""}</p>
+  <p class="by">${buyer ? `Asked by <strong>${esc(buyer)}</strong>` : erased ? "Asked by a buyer who has since deleted their account" : "Asked by a buyer who chose not to wear a name"}${audLine.length ? ` · asked ${esc(audLine.join(" · "))}` : erased ? " · audience not recorded" : " · asked everyone"}${from && until ? ` · ${live ? "runs" : "ran"} ${esc(from)} → ${esc(until)}` : ""}</p>
   ${split}
   <p class="total"><strong>${fmtN(total)}</strong> ${total === 1 ? "answer" : "answers"}${total ? "" : " so far — the split appears with the first one"}</p>
   ${breakdown}

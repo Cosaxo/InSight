@@ -744,6 +744,14 @@ ok("every owned document, subcollection and cross-user reference is gone");
     fail(`an erased buyer's name survives on their bought question: ${sp.buyer}`);
   if (sp.audience !== undefined)
     fail("an erased buyer's audience dims survive on their bought question");
+  // …and the document SAYS which absence this is. A nameless purchase
+  // (D228) and an untargeted one are both real, deliberate choices that
+  // look exactly like this once the fields are gone — so the public
+  // results page printed "chose not to wear a name" and "asked everyone"
+  // about a one-city sample. `share.ts` reads this marker to tell them
+  // apart.
+  if (sp.erased !== true)
+    fail("the strip left no mark, so the public page reads it as a nameless untargeted purchase");
   if (mine.get("prompt") !== "Should night buses run later?")
     fail("the question's own content was damaged by the byline strip");
   // The control — one byline, not every sponsor block in the bank.

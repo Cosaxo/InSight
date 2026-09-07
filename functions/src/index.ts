@@ -1151,6 +1151,19 @@ export const deleteAccount = onCall(
           await db.collection("v2_questions").doc(qid).update({
             "sponsor.buyer": FieldValue.delete(),
             "sponsor.audience": FieldValue.delete(),
+            // A MARKER, because absence is ambiguous and the ambiguity is
+            // published. `sponsor.buyer` absent means "bought without a
+            // name" (D228) and `sponsor.audience` absent means "bought
+            // untargeted" — both real, deliberate purchases — so a page
+            // reading the stripped document cannot tell those from an
+            // erasure, and the public results page said the buyer "chose
+            // not to wear a name" and that the question was "asked
+            // everyone". Two definite statements, both false, about a
+            // sample that was one city's.
+            //
+            // Not personal data: it is a fact about this QUESTION, that
+            // its provenance is gone. Nothing in it points at anybody.
+            "sponsor.erased": true,
             // Every servable path in the client is `active !== false`
             // (data/live.ts), so this is the one field that takes a card
             // off every surface at once rather than one filter at a time.
