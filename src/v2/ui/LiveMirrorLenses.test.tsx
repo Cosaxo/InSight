@@ -822,6 +822,55 @@ describe("Explore", () => {
     open(/^City$/);
     expect(screen.getByText(/no answers carry a city yet/i)).toBeTruthy();
   });
+
+  // ── THE CHIP COUNTS PEOPLE, NOT ANSWERS ────────────────────────────
+  //
+  // It summed `b.n` across every question in view, so one person who
+  // answered three questions was three. That is the mistake LiveCohortBody
+  // writes out in full to avoid for the hero figure ONE LINE ABOVE this
+  // lens — and the result was a chip larger than the population the
+  // header states: "25 people have answered somewhere" over "35-44 · 26".
+  //
+  // Same cohort in both fixtures, so the only thing that changes is how
+  // many questions they answered. The chip must not move.
+  const SAME_PEOPLE = (id: string): LensQuestion => ({
+    id, text: `Question ${id}`, options: ["Yes", "No"],
+    counts: [10, 10], all: [10, 10],
+    by: { ageBand: { "25-34": { "0": 6, "1": 4 } } },
+    mine: -1,
+  });
+
+  it("does not count one person once per question they answered", () => {
+    mount("explore", [SAME_PEOPLE("a")]);
+    expect(screen.getByRole("button", { name: "25-34 · 10" }), "one question").toBeTruthy();
+    cleanup();
+    // The SAME ten people, three questions each.
+    mount("explore", [SAME_PEOPLE("a"), SAME_PEOPLE("b"), SAME_PEOPLE("c")]);
+    expect(
+      screen.getByRole("button", { name: "25-34 · 10" }),
+      "the bucket grew because the same people answered more questions",
+    ).toBeTruthy();
+  });
+
+  // THE CONTROL, and it has to span QUESTIONS rather than buckets: with one
+  // question a max and a min are the same number, so a first attempt at
+  // this passed just as happily with `Math.min`. Here the same bucket is
+  // ten people on one question and forty on another — the reading is
+  // forty, the count of people who have answered anything.
+  it("…and takes the biggest of them, not the smallest", () => {
+    mount("explore", [
+      SAME_PEOPLE("a"),
+      {
+        ...SAME_PEOPLE("b"),
+        counts: [40, 0], all: [40, 0],
+        by: { ageBand: { "25-34": { "0": 24, "1": 16 } } },
+      },
+    ]);
+    expect(
+      screen.getByRole("button", { name: "25-34 · 40" }),
+      "the bucket shrank to its thinnest question",
+    ).toBeTruthy();
+  });
 });
 
 // ── who may score the place (D205) ──────────────────────────────────────

@@ -629,10 +629,34 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   // not the render being saved. The one being saved is this lens's OWN:
   // a bucket chip tapped below re-ranks the rows and used to re-tally the
   // whole archive first, for a `dim` that had not changed.
+  //
+  // THE LARGEST SINGLE-QUESTION COUNT, NOT THE SUM, and the chip prints
+  // this number. Summing across questions counts the same person once per
+  // question they answered — LiveCohortBody writes that out in full for
+  // the hero figure directly above this lens ("Summing across questions
+  // would not be [people] — it would count the same person once per
+  // question they answered, which is the mistake this is written out to
+  // avoid") and takes the max for exactly this reason: one person answers
+  // a question at most once, so the biggest single-question count is a
+  // number of PEOPLE.
+  //
+  // The chip was the sum. So the World stop read "25 people have answered
+  // somewhere" and the Age chips under it read "35-44 · 26" and
+  // "25-34 · 24" — two buckets each larger than the whole population
+  // stated one line above, with no word on the chip saying what it
+  // counted. Measured: twenty people answering three questions each gave
+  // "25-34 · 30" while every row underneath still said "from 10 answers".
+  //
+  // A floor rather than a total, like the hero: somebody who answered only
+  // a question this device holds no aggregate for is not in it. That is
+  // the right direction to be wrong in, and it keeps the chip a number the
+  // reader can put beside the sentence above it.
   const { tally, buckets } = React.useMemo(() => {
     const t: Record<string, number> = {};
     for (const q of qs) {
-      for (const b of mixFor(q.by, dim, q.options.length)) t[b.bucket] = (t[b.bucket] || 0) + b.n;
+      for (const b of mixFor(q.by, dim, q.options.length)) {
+        t[b.bucket] = Math.max(t[b.bucket] || 0, b.n);
+      }
     }
     return { tally: t, buckets: Object.keys(t).sort((a, b) => t[b] - t[a]) };
   }, [qs, dim]);
