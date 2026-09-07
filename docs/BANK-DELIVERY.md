@@ -239,10 +239,14 @@ one.
 
 What currently assumes the whole bank is in hand:
 
-- **The daily deck is positional.** `computeDeckIds` indexes
-  `questionIds[(today − epoch − back) % n]`, so it needs every daily id
-  to know what today's question is. 130 documents, growing slowly — this
-  one is fine and should stay.
+- **The daily deck WAS positional, and D383 took it apart.** This bullet
+  read "it needs every daily id to know what today's question is. 130
+  documents, growing slowly — this one is fine and should stay", and
+  D383's record quotes and rebuts exactly that: *"The conclusion drawn
+  from it was that the daily could not page. That does not follow."* The
+  server now publishes a shape document (`dailyShape`, `v2_rank/daily`)
+  and the device fetches seven deck rows at any bank size; `daily` left
+  `BANK_SURFACES` in `live.ts`. The count was also 134, not 130.
 - **The feed's pool.** `buildFeedGlobals` maps every feed question into
   `WORLD_FEED_QS`, and the feed then filters by topic, weaves its
   cadences, and partitions answered from fresh over the whole list.
