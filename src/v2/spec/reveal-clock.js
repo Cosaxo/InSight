@@ -29,9 +29,22 @@ function fmt(ms) {
   const h = Math.floor(m / 60);
   return h > 0 ? h + 'h ' + String(m % 60).padStart(2, '0') + 'm' : m + 'm';
 }
-// Converted off the shared-global bridge (D39, "convert on touch"): the
-// duo and group bodies import this by name. The window mirror stays for the
-// consumers that have not moved.
+// Converted off the shared-global bridge (D39, "convert on touch"): every
+// consumer imports this by name — `duo-daily.jsx`, `group-daily.jsx` and
+// `ui/LiveDuelPanel.tsx`, which is all three of them.
+//
+// The `window.RevealClock` mirror that used to sit at the bottom of this
+// file is gone with them. Its comment said it stayed "for the consumers
+// that have not moved", and there were none: the publication reached
+// nobody from the day the third consumer converted.
+//
+// `check:globals` rule 5 could not see it, and this is the exact blind
+// spot D280 wrote down — the rule asks whether the name appears ANYWHERE
+// outside its publisher, and three `import { RevealClock }` lines satisfy
+// that while reading the binding rather than the global. A single writer
+// is what makes removing it safe here (D280's own warning is about a name
+// written from two places); `no-undef` covers the other direction, since
+// a bare tag with no import would already fail the spec layer's lint.
 export function RevealClock({ prefix = 'Reveals in', suffix = '', style }) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
   // 30s cadence: the display's finest unit is a minute, so anything faster
@@ -43,4 +56,3 @@ export function RevealClock({ prefix = 'Reveals in', suffix = '', style }) {
   }, []);
   return React.createElement('span', { style: { fontVariantNumeric: 'tabular-nums', ...style } }, prefix + ' ' + fmt(msToMidnight()) + suffix);
 }
-window.RevealClock = RevealClock;
