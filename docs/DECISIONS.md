@@ -41670,3 +41670,78 @@ of a fraction.
 Sixteen axiom papers and four general ones now carry the form, every
 one reviewed and revised. The cross-paper coherence review of the
 earlier papers runs, and its sweep follows. Nothing in the app moves.
+
+## D389 amendment (2026-09-07, fifth) · The coherence sweep: what nineteen papers written in sequence had drifted into
+
+Every paper in the series was adversarially reviewed and rewritten
+against its findings, and several rewrites reversed a thesis an earlier
+paper had already cited. So the whole series was read at once, by a
+reviewer given all twenty papers and asked for the seams that leaves:
+withdrawn claims still cited, one term naming several objects, rules
+stated in one paper and broken in another, and stale index rows. It
+returned findings in all four classes, and this record is the sweep.
+
+**Withdrawn claims still cited.** Papers 0 and 0a priced whole axes on
+a single "uniform stream" drawn from the anchor set — which G1 shows
+calibrates the anchors and nothing else, so it cannot price any other
+source — and papers 6, 10, 13 and 14 inherited the name. Paper 0's
+admission test ran three of G3's five clauses and required the
+propensity in the form G3 forbids, entering it as a term rather than
+weighting or matching on it; G1 stated four of the five. Paper 0's
+aliasing bound was a wall where papers 5 and G3 make it a precision,
+and paper 4 cited the wall. Papers 0, 3 and 6 defeated differencing by
+freezing a cohort, which G2 says does not work — two releases on one
+frozen cohort compose, two frozen cohorts difference on their overlap —
+and paper 12's finite lifetime cap is the correct consequence. Paper 0
+discounted the whole objective by the continuation hazard where G1
+multiplies only the continuation term; paper 0a argued a coverage term
+corrects a bias the objective has, which G1 and G4 both say it does
+not, since the objective seeks the uncertain and coverage beyond the
+weight and the exploration share is a stated preference. Paper 0's
+anchor set was never retired where G1 retires one through a linking
+period; paper 0a guaranteed a floor for every pair where G1 shows that
+is quadratic and unaffordable; papers 0, 0a and 10 banned steering on
+the current fit where G1 permits it and bans only steering on what is
+measured jointly with the response. Paper 7 still said session binding
+had no instrument after paper 9 built one. Paper 12 cited G4's value
+ledger for pricing a release, which is G2's publication ledger's job,
+and cited a limit paper 11 no longer states.
+
+**One term, several objects.** Three names for two evaluation streams;
+five referents for "the ledger"; six for "anchors", two of them in
+adjacent bullets of one paper. The convention now: **anchor-drawn** and
+**eligible-drawn**, never "uniform"; **anchors** for the shared item set
+and **profile facts** for a person's recorded categories; the
+**co-observation graph** in G1, the **publication ledger** in G2, the
+**value ledger** in G4.
+
+**Rules broken.** Paper 2 stated the rule against difference scores and
+then published a plane of raw self-other differences as a person-trait
+reading; it is now two discrepancy factors in a bivariate latent model,
+which is what its own section 5 demanded. Flat privacy refusals
+survived in papers 2 and 4 — no per-person projection, no release at
+all, published as directions and never as weights — after papers 9, 11,
+12 and 13 had established that a privacy constraint is a fork with its
+arithmetic; each is now enumerated shapes with what it exposes and what
+it kills. Minors were an absolute refusal in papers 4 and 6 where paper
+9's rule is that a consent requirement is met by building the consent.
+Eleven papers carried citation-shaped universals — "no discipline has",
+"the first", "no biobank holds", "the oldest confound" — which rule 4
+forbids; each is now a statement about what a design measures. Paper 1
+had no requirements section at all, against the series' own form, and
+papers 0, 0a, 2, 3, 4 priced requirements with no quantity; each now
+carries the counts the later papers derive. The seven earliest papers
+asserted their potential where the later nine condition every score;
+each now names its condition.
+
+**The index.** Rows for papers 13 and 14 were missing and rows for 0, 3
+and 7 and for G4 described superseded claims; all are corrected, and
+the README gains an index of the nine papers that put enumerated
+decisions to the owner, which the "how a paper reaches the product"
+step depends on and which was previously readable only by reading
+nineteen papers.
+
+What the sweep did not do is re-argue any paper. It moved withdrawn
+claims to their current form, split terms, converted refusals to forks
+and universals to design statements, and priced what was unpriced.
+Nothing in the app moves.
