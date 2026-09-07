@@ -380,6 +380,25 @@ await adb.doc("v2_questions/pd_e2e_other").set({
   sponsor: { buyer: "Someone Else", audience: { city: "Bergen, NO" } },
 });
 
+// …and the SAME buyer's campaign that has already FINISHED. The control for
+// the stop below: `sponsor.audience` is the serving filter, so erasing it
+// while a campaign runs would widen that campaign from one city to
+// everybody — but a campaign whose window has closed is already unservable,
+// and `active: false` reaches far past the feed (the Mirror's folds drop an
+// inactive question). Retiring this one would take the crowd's own answers
+// off the Mirror to settle something between the buyer and this app.
+await adb.doc(`v2_purchases/${uid}_done`).set({
+  uid, kind: "question", qid: "pd_e2e_done", scope: "city", place: "Oslo",
+  dims: ["city:Oslo"], window: { start: "2026-07-01", until: "2026-07-29" },
+  cadence: "once", budget: { cap: 4000, capEur: 640, ratePerAnswer: 0.16 },
+  state: "closed", reports: [], at: new Date(),
+});
+await adb.doc("v2_questions/pd_e2e_done").set({
+  surface: "feed", seq: 9003, type: "binary", prompt: "Should trams run later?",
+  options: ["Yes", "No"], paid: true, from: "2026-07-01", until: "2026-07-29",
+  sponsor: { buyer: "Erasable Person", audience: { city: "Oslo, NO" } },
+});
+
 // A bought AD and its purchase row (D315). The ad document is NOT uid-keyed
 // and no query from the sweep can find one: the row's `adId` is the only
 // pointer at it, and the only thing that ever deletes an ad is the closer,
@@ -694,6 +713,7 @@ for (const [path, label] of [
   [`v2_suggestions/${uid}_e2e`, "their question suggestion (phase 4d)"],
   [`v2_purchases/${uid}_e2e`, "their purchase record (phase 4e)"],
   [`v2_purchases/${uid}_ad`, "their AD purchase record (phase 4e)"],
+  [`v2_purchases/${uid}_done`, "their finished campaign's purchase record (phase 4e)"],
   [`v2_ads/paidad-${uid}_ad`, "the ad that row was the only pointer at (phase 4e)"],
   [`v2_paid_bookings/${uid}_e2e`, "their paid-question booking (phase 4f)"],
   [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
@@ -731,6 +751,31 @@ ok("every owned document, subcollection and cross-user reference is gone");
   if (theirs.get("sponsor")?.buyer !== "Someone Else")
     fail("somebody else's sponsor byline was stripped too");
   ok("the bought question keeps its content and loses its erased buyer's byline");
+
+  // AND THE RUNNING CAMPAIGN STOPS, because the field that was just deleted
+  // is the one deciding who the card is shown to. `matches()`
+  // (src/v2/data/sponsored.ts) reads `if (!tag) return true`: an untagged
+  // sponsored question matches every device on earth. So stripping the
+  // audience mid-window did not narrow this campaign, it widened it — the
+  // Oslo card went worldwide, the PAID band flipped to the empty list it
+  // renders as shown-to-everyone, and nothing could close it afterwards
+  // because the closer finds its work on the purchase row this phase is
+  // about to delete.
+  if (mine.get("active") !== false)
+    fail("an erased buyer's RUNNING campaign is still being served, and now to everyone");
+  if (theirs.get("active") === false)
+    fail("somebody else's running campaign was stopped too");
+
+  // …and a campaign that had already finished is NOT retired. Its window
+  // has closed, so it serves nobody either way, and `active: false` would
+  // drop it out of the Mirror's folds — taking the crowd's own answers off
+  // the Mirror to settle something between the buyer and this app.
+  const done = await adb.doc("v2_questions/pd_e2e_done").get();
+  if (done.get("sponsor")?.buyer !== undefined)
+    fail("the finished campaign kept its erased buyer's byline");
+  if (done.get("active") === false)
+    fail("a campaign that had already closed was retired as well — its answers leave the Mirror with it");
+  ok("the running campaign stops; the finished one keeps its answers on the Mirror");
 }
 
 // THE BYTES, not only the document (D178). The photo is the app's first
