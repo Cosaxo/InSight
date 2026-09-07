@@ -28,14 +28,22 @@ describe("loadWorldFeed assembles the whole demo pool", () => {
   it("joins every deferred set and leaves none of them eager", async () => {
     const specIndex = await import("../spec-index.js");
 
-    // Before the feed group: world-feed-data's own module scope has run, so
-    // the pool exists — and holds nothing but its own literal. All four
-    // demo sets that used to reach it by writing at module scope are now
-    // handed over by a loader, so their absence HERE is the deferral seen
-    // from outside. Each id names the module that would be back in the
-    // first-paint graph if its assertion failed.
+    // Before the feed group: the pool is EMPTY, and that is the assertion
+    // this case exists for now. It used to read "world-feed-data's own
+    // module scope has run, so the pool exists — and holds nothing but its
+    // own literal", which was true while spec-index.js imported that file
+    // eagerly. It no longer does: the base literal is the feed lane's own
+    // write surface (the continuum twins are appended to it every run), so
+    // holding it in the first-paint graph made writing a feed question a
+    // start-up cost. Its topic palette moved to world-feed-topics.js — the
+    // one thing daily-split.jsx needed — and the file itself now arrives
+    // with the loader like the four sets that join it.
+    //
+    // So nothing feed-shaped is eager at all, which is a stronger property
+    // than the one this replaced. Each id below still names the module that
+    // would be back in the first-paint graph if its assertion failed.
     const eager = window.WORLD_FEED_QS || [];
-    expect(eager.length).toBeGreaterThan(0);
+    expect(eager.length, "world-feed-data's pool ran eagerly").toBe(0);
     expect(eager.some((q) => q.id === "pk01"), "pick-data ran eagerly (48 KB)").toBe(false);
     expect(eager.some((q) => q.id === "c02"), "world-catalogs ran eagerly").toBe(false);
     expect(eager.some((q) => q.sub === "sub_tennis"), "world-subtopics ran eagerly").toBe(false);
@@ -50,6 +58,10 @@ describe("loadWorldFeed assembles the whole demo pool", () => {
       pick: pool.filter((q) => q.type === "pick").length,
       sub: pool.filter((q) => q.sub).length,
     };
+    // The base literal itself, which now arrives with the loader rather
+    // than before it — if the deferral ever loses the pool instead of
+    // moving it, every id below would still pass on the joined sets alone.
+    expect(pool.some((q) => q.id === "f01"), `world-feed-data's own pool missing: ${JSON.stringify(shape)}`).toBe(true);
     expect(pool.some((q) => q.id === "pk01"), `pick-data's cards missing: ${JSON.stringify(shape)}`).toBe(true);
     expect(pool.some((q) => q.id === "c02"), `world-catalogs' cards missing: ${JSON.stringify(shape)}`).toBe(true);
     expect(pool.some((q) => q.sub === "sub_tennis"), `the subtopic stock missing: ${JSON.stringify(shape)}`).toBe(true);
