@@ -633,6 +633,49 @@ gates what the doors say.
 
 ## Built
 
+### 11 · The pictures on the pick tiles — the catalogue's own faces
+
+- **title · asked by** — *Catalogue pictures* · the owner, 2026-09-07,
+  directly to a session, on being told what copyright allowed:
+  *"i feel if letterbox can do it so can we i think we can atemt it and
+  if we recive a complain we take it down."* **Built the same day on the
+  direct ask, without the drafted step** — recorded here rather than
+  skipped silently, for item 7's reason. D420 is the record.
+- **surface** — the pick card's browse row (`ui/PickTiles.tsx`, D308's
+  faces) and the reveal's "your pick" / "the crowd" faces
+  (`world-feed.jsx` `renderPick`), plus one *Image credits* door under
+  each (`ui/PickCredits.tsx`). The search's rows and the demo store's
+  invented catalogues draw none.
+- **data and basis** — `web/catalog-art/<domain>/<key>.<ext>`, a
+  committed thumbnail on our own hosting per catalogue key, and its
+  `credits.tsv` row (author, licence, source), written by an operator
+  running `scripts/build-catalog-art.mjs` against Wikidata + Commons
+  (P18, P41) or TMDB. Nothing at runtime but the file. The generated
+  index `src/v2/data/catalogArtIndex.ts` says which keys have one.
+- **states** — no picture for the key: the generated face, unchanged;
+  a picture: the face, then the picture fading in once decoded; a failed
+  load (a takedown, an outage): the face again; a domain with no
+  pictures: no door. Credits: a door, then loading, then the list, or
+  one sentence when hosting cannot be reached.
+- **interaction** — none new on the tiles (a tap is still the pick).
+  The credits door toggles the list; each row's *source* is a link out.
+- **vocabulary** — `.wf-tileimg`, the duel tile's one treatment (fade
+  on decode, the same saturation), shared rather than copied; D308's
+  pattern faces as the ground; `.tap44` on the small door.
+- **constraints** — zero eager bytes, measured (544 KB before and
+  after, against 552; +3 KB in the deferred feed chunk); no hotlink,
+  ever; `check:catalog-art` on the directories, `check:tap-targets`
+  and `check:a11y` unchanged; the picture is decorative to assistive
+  tech because the tile already carries the name.
+- **why** — a browse row of patterned rectangles under "the greatest
+  athlete who ever lived" was the design's placeholder for portraits,
+  and the owner asked why the portraits were not there.
+- **status** — `built` 2026-09-07 (D420). **What a canvas would still
+  improve:** the reveal's box is 92 px landscape and a poster is
+  portrait, so a film reveal crops to the poster's middle third; and
+  the credits list is a plain list. Optional, and on `OWNER-LIST.md` §
+  Designs as such.
+
 ### 7 · The first-launch walkthrough — how the app works, before the questions
 
 - **title · asked by** — *How InSight works* · the owner, 2026-09-06,

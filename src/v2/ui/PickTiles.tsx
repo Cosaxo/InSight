@@ -20,7 +20,16 @@
 // one. Domains with their own iconography use it instead: emoji draw the
 // character itself, colours their own hue. Tapping a tile is exactly the
 // search's pick — same key, same path.
+//
+// And where the catalogue HAS a picture (D420 — a committed thumbnail on
+// our own hosting, never a hotlink), PickArt draws it over the pattern:
+// the pattern stays underneath as the permanent fallback, the picture
+// fades in once decoded and leaves on a failed load, so a half-pictured
+// catalogue reads as a row of faces, some of them photographs, and a
+// taken-down picture reads as the face it had before. The credits the
+// licence requires are the caller's (PickCredits, under the row).
 import React from "react";
+import PickArt from "./PickArt";
 
 export interface PickTileEntry {
   id: number;
@@ -86,6 +95,8 @@ const faceBase: React.CSSProperties = {
   height: FACE_H, borderRadius: 13,
   border: "1px solid color-mix(in oklch, var(--rule), transparent 25%)",
   overflow: "hidden",
+  // the picture (PickArt) is an absolutely positioned child of the face
+  position: "relative",
 };
 const captionBase: React.CSSProperties = {
   display: "block", marginTop: 5, fontFamily: "var(--sans)",
@@ -151,7 +162,7 @@ export default function PickTiles({ domain, entries, accent, onPick, page = PICK
               display: domain === "emoji" ? "flex" : "block",
               fontSize: 34, alignItems: "center", justifyContent: "center",
               ...face,
-            }}>{domain === "emoji" ? emojiGlyph(e.name) : ""}</span>
+            }}>{domain === "emoji" ? emojiGlyph(e.name) : ""}<PickArt domain={domain} id={e.id} /></span>
             <span style={captionBase}>
               {caption}
               {/* the key, where it is the order: "#25" is why Pikachu sits

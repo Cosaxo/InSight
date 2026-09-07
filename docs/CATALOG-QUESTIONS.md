@@ -104,37 +104,98 @@ picker UX.
   (the `check:bundle` argument in `scripts/build-cities.mjs` applies
   verbatim).
 
-## Entity images — where they could come from, and why launch is text-first
+## Entity images — where they come from, and what the owner ruled
+
+**Status: BUILT, PICTURES PENDING THE OPERATOR RUN (D420, 2026-09-07).**
+The owner's ruling, on being told the copyright map below: *"why is it
+limeted by copyright wikipedia uses images cant we use them as well"*,
+then *"i feel if letterbox can do it so can we i think we can atemt it
+and if we recive a complain we take it down."* That is the policy —
+**attempt, and take down on complaint** — and the build is shaped by its
+second half: a picture is a committed file on our own hosting
+(`web/catalog-art/<domain>/<key>.<ext>`, served from `SITE_ORIGIN`),
+so a takedown is `node scripts/build-catalog-art.mjs <domain> --remove
+<key>`, a commit, and the hosting deploy the merge triggers — never an
+app-store release. A device stops drawing the picture within
+Cache-Control's hour, and `check:catalog-art` holds that hour. The
+tree carries the whole pipeline and no pictures yet: the builder needs
+Wikidata, Commons and TMDB, which the session that wrote it could not
+reach (D15's reason, one artifact over), so the first pictures land when
+an operator runs it from a machine with network and commits what it
+writes (`OWNER-LIST.md` § Clicks).
 
 Names and keys are data: CC0 facts (Wikidata) or nominative use in a
 "favourite" poll. **Images are creative works with their own copyright**,
 so the licensing class changes per domain and there is no single "image
-source" to adopt. The honest per-domain map (owner question, 2026-08-01):
+source" to adopt. The honest per-domain map (owner question, 2026-08-01;
+the third column is what D420 made of each row):
 
-| Domain | Image source | Verdict |
+| Domain | Image source | Standing after D420 |
 | --- | --- | --- |
-| Emoji | the character itself | **Solved by construction.** The catalogue stores the glyph in the display name; the platform emoji font renders it. Zero licensing. (Twemoji CC-BY / Noto OFL exist if pixel-identical cross-platform rendering ever matters — it doesn't today.) |
-| Pokémon | official art / game sprites | **Refused, the D15 way.** The artwork is Nintendo/Creatures/Game Freak copyright; PokéAPI *hosts* sprites but hosting is not a licence, and reproducing the art in a commercial store app would be the largest IP exposure in the product — against a famously litigious rights-holder, on top of the nominative-use trademark check the names already owe. Silhouettes and fan art are still derivative works. Names stay text; at most, generic decoration (type-coloured chips) that reproduces nothing. |
-| Films | posters | **Not at launch; TMDB is the route if ever.** Posters are studio copyright; Wikimedia Commons doesn't host them (Wikipedia's fair-use rationales do not transfer to us). The industry-standard path is TMDB's API (posters + required attribution) — that is a terms review plus a network-surface decision (external image CDN vs the app's Firebase-only egress posture), and it gets its own DECISIONS entry post-launch or not at all. |
-| Music artists | Wikidata P18 → Wikimedia Commons | **The one real free-content route.** Many notable artists have CC-licensed portraits on Commons, reachable mechanically: `build-catalog.mjs` already speaks SPARQL, so the build can pull P18 + licence + author per row. Costs that make it post-launch: coverage is partial and uneven (a half-illustrated picker reads as broken), every image needs its attribution shipped in-app, and thumbnails must be rehosted — never hotlinked, never bundled. |
-| People in daily/duel prompts (Messi, Tarantino…) | same Commons route | **Out.** The text is the product; likeness/publicity considerations arrive for zero mechanical benefit to a blind-answer card. |
+| Emoji | the character itself | **Solved by construction, drawn since D308.** The catalogue stores the glyph in the display name; the platform emoji font renders it. Zero licensing. |
+| Colours | the key itself | **Solved by construction, drawn since D308.** The key is the hex plus one, so the tile wears the colour. |
+| Elements | the symbol, in the name | Nothing to picture. |
+| Countries | Wikidata P41 → the flag on Commons | **Free, the builder's `countries` route** (ISO numeric → P299 → P41). Flags are public domain almost without exception; the thumbnail is a PNG render of the SVG. |
+| Athletes · Artists · Video games | Wikidata P18 → Wikimedia Commons | **The free-content route, built.** The builder pulls the P18 file, reads its licence and author from Commons' own metadata, admits only what `licenceAllowed` admits (CC0, public domain, CC BY, CC BY-SA, FAL — never NC, ND, GFDL-only or anything unrecognised), and writes the credit beside the key. Coverage is partial and uneven, which is why the generated face stays underneath (D308's pattern is the permanent fallback, the way initials are under a profile photo). One question is not copyright and is recorded rather than decided: Norwegian law protects a person's picture separately (åndsverkloven § 104) and wants consent unless the picture has current and general interest — a famous athlete on a favourite-athlete card is very likely inside that exception, but it is the same judgement D178 made about faces and it is the owner's. |
+| Films | posters | **The tolerated route, built as TMDB.** Posters are studio copyright; Commons does not host them, and Wikipedia's own copies sit under a fair-use rationale its policy confines to one article each — a grid of a thousand posters is the gallery use Wikipedia forbids itself. What the owner's Letterboxd comparison names is the industry route: TMDB's API serves posters with attribution, free for non-commercial use and under a commercial licence otherwise, and studios treat posters as the marketing they are. Tolerance is not a licence, and the terms page names Norway, where there is no general fair-use rule to fall back on — so this row runs under the take-down policy on the record, and the key and the licence question are the owner's (`OWNER-LIST.md` § Decisions). |
+| Video games (covers) | publisher cover art | Same class as posters; the API route is IGDB (a Twitch developer registration), for which the builder has no route yet. The P18 route above catches what Commons has, which for games is mostly logos. |
+| Pokémon | official art / game sprites | **Still refused, and the one row the ruling did not reach.** The owner cleared the NAMES on 2026-08-23 with the art refusal standing; the 2026-09-07 ruling was about posters. Nintendo is the rights-holder in this table whose first letter is not a request, and a complaint would land at the stores, not in an inbox. Asked, not decided: `OWNER-LIST.md` § Decisions, with the recommendation to leave it. |
+| Dogs · Languages | catalogue-minted keys | No mechanical route from a minted key to a Commons file — the builder refuses the domain with a sentence rather than matching by name. A name-resolution route is a later addition. |
+| People in daily/duel prompts (Messi, Tarantino…) | same Commons route | **Out, unchanged.** The text is the product; likeness considerations arrive for zero mechanical benefit to a blind-answer card. |
 
-If any domain ever goes visual, the rules (recorded now so it is a
-decision, not drift):
+**What "we don't do anything that violates copyright" gets wrong, kept
+here so the next reader does not re-derive it:** the right copyright
+protects is the right to copy and to show. Putting a poster in the app
+makes a copy on our hosting and displays it to the public, which are the
+two acts the studio owns, whether or not anything is sold and whether or
+not the studio minds. Whether a rights-holder would ever act is a
+separate question — risk — from whether the act is licensed — law — and
+the owner's ruling is a risk decision, recorded as one. It licenses
+nothing and claims nothing about the law; what it decides is who answers
+a complaint and how fast: with a takedown, within the hour.
 
-1. **Images are sourced at build time by the operator scripts**, with
-   per-file licence, author, and source-URL columns beside the key —
-   never fetched from third parties at runtime, and **never sourced by
-   the farm or any scheduled run** (the D15 "never from model memory"
-   rule, applied to media: every image needs a verifiable licence, which
-   is a human-verifiable-source problem).
-2. **Rehosted on our hosting as sized thumbnails, lazy-loaded** on first
-   picker open — never in the JS bundle (`check:bundle`/D27 applies
-   verbatim), never hotlinked from Commons or anyone's CDN.
-3. **Attribution renders in-app** wherever the images do.
-4. `check:catalogs` extends to bind image and licence columns the same
-   both-directions way it binds keys.
-5. One DECISIONS entry per domain that goes visual.
+The rules for a domain that goes visual (recorded 2026-08-01, made
+concrete by D420 — each is now code, and the gate names the file):
+
+1. **Images are sourced at build time by an operator running
+   `scripts/build-catalog-art.mjs`**, with licence, author and
+   source-URL columns beside the key in `credits.tsv` — never fetched
+   from third parties at runtime, and **never sourced by the farm or any
+   scheduled run** (the D15 "never from model memory" rule, applied to
+   media: every image needs a verifiable licence, which is a
+   human-verifiable-source problem; the source URL is on every row).
+2. **Rehosted on our hosting as sized thumbnails** (184 px wide, under 64
+   KB each, `web/catalog-art/`), **lazy-loaded** by the tile that draws
+   them — never in the JS bundle (`check:bundle`/D27 applies verbatim;
+   `web/` is not the app), never hotlinked from Commons or anyone's
+   CDN (the viewer's IP, and a picture that could change after it was
+   reported — `avatar.ts`'s third property). Hosting rather than the
+   native package because of the policy's second half: a file in the
+   package comes down with a release and a review; a file on hosting
+   comes down with a commit.
+3. **Attribution renders in-app** wherever the images do —
+   `ui/PickCredits.tsx`, the *Image credits* door under the browse row
+   and under the reveal's two faces, opening into the domain's whole
+   credits list fetched from hosting on first open. For a CC BY picture
+   that door is the licence's one condition; for TMDB it carries the
+   sentence their terms ask for verbatim.
+4. **`check:catalog-art`** binds image ↔ credits row ↔ catalogue key ↔
+   `src/v2/data/catalogArtIndex.ts` ↔ the hosting headers, both
+   directions each, absence included — the same shape `check:catalogs`
+   gives keys.
+5. One DECISIONS entry per domain that goes visual. D420 is the
+   pipeline's and the first run's; Pokémon, if ever, is its own.
+
+**Where a picture draws.** `ui/PickArt.tsx` is the one component: an
+`<img>` over the generated face, transparent until decoded and gone on a
+failed load, so a half-pictured catalogue reads as a row of faces some of
+which are photographs, and a taken-down picture reads as the face it had
+before. The browse row's tiles (`ui/PickTiles.tsx`) and the reveal's
+"your pick" / "the crowd" faces (`world-feed.jsx`'s `renderPick`) draw
+it; the search's result rows do not, and the demo store's invented
+catalogues (`q.catalog`) never will. The app asks the generated index
+before it asks the network, so a key with no picture never fires a
+request, and a domain with none costs nothing at all.
 
 ## The card: a new `pick` type
 

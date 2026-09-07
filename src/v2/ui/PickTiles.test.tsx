@@ -12,7 +12,16 @@
 // the door these cases go through — which is also the keyboard's.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+
+// One pictured entry (D420), so the picture case has something to draw
+// and every other case shows the row is unchanged around it — the
+// pattern face stays under a photograph, and a keyless entry has none.
+vi.mock("../data/catalogArtIndex", () => ({
+  CATALOG_ART: { athletes: { jpg: [615] } },
+}));
+
 import PickTiles, { PICK_TILE_PAGE } from "./PickTiles";
+import { SITE_ORIGIN } from "../data/siteOrigin";
 
 afterEach(cleanup);
 
@@ -49,6 +58,20 @@ describe("PickTiles", () => {
     const again = [...second.container.querySelectorAll("[data-tile-face='pattern']")]
       .map((el) => (el as HTMLElement).style.background);
     expect(again).toEqual(faces);
+  });
+
+  it("draws the hosted picture over the face where the catalogue has one, and only there", () => {
+    const { container } = render(
+      <PickTiles domain="athletes" entries={ATHLETES} accent="var(--ink)" onPick={() => {}} />,
+    );
+    const messi = screen.getByRole("button", { name: "Lionel Messi" });
+    const img = messi.querySelector("img[data-pick-art]") as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.getAttribute("src")).toBe(`${SITE_ORIGIN}/catalog-art/athletes/615.jpg`);
+    // inside the face, which stays a pattern underneath the picture
+    expect(img.closest("[data-tile-face='pattern']")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Serena Williams" }).querySelector("img")).toBeNull();
+    expect(container.querySelectorAll("img[data-pick-art]")).toHaveLength(1);
   });
 
   it("lets an emoji be its own face, with the word as the caption", () => {

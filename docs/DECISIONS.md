@@ -44760,3 +44760,217 @@ install or a different Google account is what would confirm it.
   the file makes against it (*"a required demographic form is how you
   teach people to lie to one"*) so the canvas answers it rather than
   discovers it.
+
+## D420 · The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys
+
+**Date:** 2026-09-07. **Status:** built; the first pictures land when an
+operator runs the builder (`OWNER-LIST.md` § Clicks).
+
+The owner asked whether catalogue questions have pictures and whether
+they could (*"one question for cataloge questions does they have
+pictures, and could they have them with the current system"*). They did
+not: every catalogue file is two columns, key and name; the pick bank
+carries id, domain, category and prompt; the browse row draws generated
+patterns, the emoji glyph and the colour swatch because those are in the
+data by construction (D308), and the reveal's faces draw
+`wfCatArt`, whose own comment says it stands in for *"real posters and
+portraits"*. The session's answer was the licensing map
+`CATALOG-QUESTIONS.md` had carried since 2026-08-01, and the owner
+pushed on it twice, in order:
+
+> *"but why is it limeted by copyright wikipedia uses images cant we use
+> them as well i feel like we dont do anything that violates the
+> copyright"*
+
+> *"i feel if letterbox can do it so can we i think we can atemt it and
+> if we recive a complain we take it down"*
+
+The second is the ruling. This entry records what it decides, what it
+does not, and what was built to carry it.
+
+### 1 · The ruling, and what it is not
+
+**Attempt, and take down on complaint.** That is a *risk* decision, and
+it is the owner's to make: the app is in both stores under their name,
+the exposure is theirs, and D334's rule is that the owner decides. It is
+recorded here as what it is. It is **not** a finding that the use is
+licensed, and nothing in the tree says so. The map that was put to the
+owner, kept short so the next reader does not re-derive it:
+
+- Wikipedia's images are two kinds. **Free images on Wikimedia Commons**
+  (CC0, public domain, CC BY, CC BY-SA) may be reused by anyone, a
+  commercial app included, on the licence's conditions — author and
+  licence shown. **Non-free images hosted on English Wikipedia itself**
+  (posters, cover art, Pokémon art) are shown under a US fair-use
+  rationale that Wikipedia's own policy confines to one article about
+  that one work; its policy forbids their use in lists and galleries even
+  on Wikipedia, and every such file page says that other uses, on
+  Wikipedia or elsewhere, may be infringement. So "Wikipedia does it" is
+  right for the first kind and is Wikipedia's own statement that it does
+  not transfer for the second. (Stated from memory: the sandbox could not
+  fetch either page.)
+- *"We don't do anything that violates copyright"* mistakes what the
+  right is. Copyright is the right to copy and to show; putting a poster
+  in the app copies it to our hosting and displays it to the public,
+  which are the two acts the studio owns, whether or not anything is
+  sold. Whether a studio would act is a separate question — risk — from
+  whether the act is licensed — law. `web/terms.html` names Norway, where
+  there is no general fair-use rule, only narrow exceptions none of which
+  covers a poster as decoration in a store app; so the ground is weaker
+  than Wikipedia's, not equal to it.
+- The Letterboxd comparison names the real industry route: TMDB's API
+  serves posters with attribution, free for non-commercial use and under
+  a commercial licence otherwise, and studios treat posters as the
+  marketing they are. **Tolerance is not a licence**, and this entry
+  does not pretend it is. What the ruling decides is who answers a
+  complaint and how fast: a takedown, within the hour, by a commit.
+
+Two things the session did NOT do with the ruling, and the reasons:
+
+- **Pokémon stays text.** The owner cleared the names on 2026-08-23 with
+  the art refusal standing; the 2026-09-07 ruling was about posters.
+  Nintendo is the one rights-holder in the table whose first letter is
+  not a request, and a complaint would land at the stores rather than in
+  an inbox. Extending the policy to it is the owner's call, put to them
+  on `OWNER-LIST.md` with the recommendation to leave it — D334's shape,
+  the ask going both ways: shipping past the refusal silently would be
+  the same failure pointed the other way.
+- **The TMDB key and its commercial terms are the owner's.** The builder
+  refuses to run the film route without `TMDB_API_KEY`, and the row on
+  `OWNER-LIST.md` names the two shapes (run the free key under the
+  policy and record it, or ask TMDB for the licence Letterboxd holds).
+
+### 2 · What was built
+
+Everything the pipeline needs, and no pictures: the builder fetches from
+Wikidata, Commons and TMDB, and the session could reach none of the
+three (`EGRESS_BLOCKED` on all of them — D15's reason, one artifact
+over), so the machinery and the data land separately, as they did for
+the catalogues themselves.
+
+- **`scripts/build-catalog-art.mjs`** — the operator step. Two routes:
+  `commons` (a QID-keyed domain's keys → Wikidata P18 → Commons'
+  `imageinfo` for the licence, the author and a 184 px thumbnail;
+  countries go ISO numeric → P299 → P41, the flag) and `tmdb`
+  (`/find/Q<qid>?external_source=wikidata_id` → the `w185` poster).
+  Writes `web/catalog-art/<domain>/<key>.<ext>` and `credits.tsv`
+  (key · file · name · author · licence · source), regenerates the app
+  index, deletes what a re-run no longer finds, and refuses: a domain
+  with no mechanical key→entity route (dogs, languages, the range
+  domains), an SVG or a GIF, a file over 64 KB, and every licence the
+  policy refuses. **`--remove <key>` is the takedown.** Every offline
+  path was exercised here — usage, an unknown domain, a routeless
+  domain, the film route without a key, and a takedown on a domain with
+  no art, which must not touch the network and does not; the first draft
+  left an empty directory behind on a refused run, which the gate then
+  caught and the builder now does not do.
+- **`scripts/catalog-art-lib.mjs`** — what the builder and its tests
+  share: `licenceAllowed` (CC0 · public domain · CC BY · CC BY-SA ·
+  FAL · TMDB admitted; NC, ND, fair use, GFDL-only and anything
+  unrecognised refused, each by name), the credits format both ways, the
+  HTML-stripping of Commons' author field, and the writer of
+  `src/v2/data/catalogArtIndex.ts` (any domain's run regenerates every
+  domain's entry — `catalog-keys-lib`'s pattern).
+- **`scripts/check-catalog-art.mjs`**, `check:catalog-art`, on
+  `ci.yml`'s lint job — its own parser, the lib's policy and paths.
+  Image ↔ credits row ↔ catalogue key ↔ index ↔ hosting rule, both
+  directions each, absence included; a licence the policy refuses; a
+  file over the cap or named other than by its key; a stray file at the
+  top level; and `firebase.json` serving `/catalog-art/**` with
+  `Access-Control-Allow-Origin: *` (the credits fetch is cross-origin
+  from the shells) and a `max-age` no longer than 3600 — the hour that
+  makes the takedown promise true on a device. Eleven cases in
+  `check-catalog-art.test.mjs`, each breaking one thing on a green
+  fixture through the gate's `--root` seam.
+- **`src/v2/data/catalogArt.ts`** — the URL is BUILT from
+  `SITE_ORIGIN` and the index, never stored (`avatar.ts`'s third
+  property: a stored URL could name a host we do not control); the app
+  asks the index before it asks the network, so a key with no picture
+  fires no request; the credits load on first open, session-cached,
+  failure forgotten. `SITE_ORIGIN` moved to `siteOrigin.ts` and
+  `links.ts` re-exports it — still the single edit D3 promised, without
+  the feed's tiles dragging the deep-link plumbing in.
+- **`ui/PickArt.tsx`** — one `<img>` over the generated face, in the
+  duel tile's `.wf-tileimg` treatment (shared, not copied): transparent
+  until decoded, fading in, unmounted on a failed load so the face is
+  what remains. Decorative to assistive tech because every surface that
+  draws it already names the entry beside it.
+- **`ui/PickCredits.tsx`** — the *Image credits* door under the browse
+  row and under the reveal's two faces, opening into the domain's list
+  (name — author · licence · *source*), with TMDB's sentence verbatim
+  where a poster is on it. Nothing renders for a domain with no
+  pictures: the door is the licence's condition, not furniture.
+- **`ui/PickTiles.tsx`** and **`world-feed.jsx`'s `renderPick`** draw
+  it — the tiles' faces, the reveal's "your pick" and "the crowd". The
+  search's rows and the demo store's invented catalogues do not.
+- **`firebase.json`** — the `/catalog-art/**` headers rule, and
+  `**/README.md` on the hosting ignore list so the directory's README
+  is not served.
+
+### 3 · Hosting, not the package — the takedown arithmetic
+
+The policy's second half is what chose where the bytes live. A picture
+inside the native package comes down with a release: a build, a review,
+days. A picture on Firebase Hosting comes down with a commit: the
+firebase-deploy workflow already watches `web/**`, the CDN purges on
+deploy, and a device that holds the picture drops it within
+`Cache-Control`'s hour — which is why the gate holds `max-age` to 3600
+rather than leaving it to the default. Three alternatives and why not:
+
+- **The JS bundle** — `check:bundle`/D27, verbatim. Content is not code.
+- **Firebase Storage** — the profile photo's home, and the natural one
+  for a takedown by console click; but a gate cannot see a bucket from
+  CI, and the whole value of `check:catalog-art` is binding files to
+  credits offline on every push. Hosting keeps both in the repo.
+- **Hotlinking Commons or TMDB** — never: the viewer's IP would reach a
+  third party on every tile, the picture could change after it was
+  reported, and Commons asks not to be hotlinked at scale.
+
+The cost accepted: thumbnails in git, roughly 4 MB for the athletes and
+3 MB for the flags at 184 px, growing only when a picture changes.
+
+### 4 · Where each domain stands
+
+The table in `CATALOG-QUESTIONS.md` § Entity images is the record; in
+one line each: emoji and colours drawn by construction since D308;
+athletes, artists and video games on the Commons route (partial
+coverage, the face underneath); countries on the flag route; films on
+TMDB behind the owner's key; Pokémon refused and asked; dogs and
+languages routeless until a name-resolution route exists; people in
+prompts out, unchanged. One question in the athletes row is not
+copyright and is recorded rather than decided: a person's picture has
+its own protection in Norwegian law (åndsverkloven § 104), with an
+exception for pictures of current and general interest that a famous
+athlete on a favourite-athlete card is very likely inside. It is D178's
+judgement about faces, one surface over, and the owner's.
+
+### 5 · What this does not decide
+
+- Whether the films run under the free key or the commercial licence
+  (`OWNER-LIST.md` § Decisions).
+- Pokémon (same list; recommendation: no).
+- Video game covers via IGDB, and a name route for dogs — neither has
+  a builder path; the credits format and the gate need no change for
+  either.
+- The reveal's aspect: its box is 92 px landscape and a poster is
+  portrait, so a film reveal crops to the poster's middle third. A
+  canvas decides that (`VISUAL-REQUESTS.md` § Built, item 11 — built on
+  the direct ask without the canvas step, like item 7, and said so).
+
+### 6 · Measured
+
+Every gate and every runner the change can reach, green: `lint`,
+`tsc -b`, `check:globals` (30, baseline 30), `check:eager-content`,
+`check:web-headers`, `check:csp-hashes`, `check:a11y`,
+`check:tap-targets`, `check:labels`, `check:public-copy`,
+`check:policy-claims`, `check:catalogs`, `check:catalog-art` (*no art
+yet; index agrees; hosting rule present*), `check:store-forms`,
+`check:content`, `check:touch-zoom`, `check:docs`, `check:figures`,
+`check:bundle` on the shipping build, measured against the base commit
+built the same way in a worktree: **544 KB eager before and after**
+(against 552), **2194 → 2197 KB total** (against 2440) — the 3 KB is
+PickArt, PickCredits and the empty index, all in the deferred feed
+chunk, so first paint carries none of this. `test:unit` and
+`test:scripts` in full. Not run: the rules and e2e runners (no rule and no
+function changed) and the builder's network half (no egress) — the
+operator run on `OWNER-LIST.md` is where that is proved.
