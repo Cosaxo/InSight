@@ -11,7 +11,7 @@
 // Node stdlib only, like every deploy-adjacent script here.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   costModel, authCost, writesPerSec, CONTENTION_DAU, B, SCENARIOS,
@@ -786,7 +786,9 @@ export function collectEngagement() {
 // to add it — the failure mode this whole console exists to reduce.
 
 export function collectInstrumentation() {
-  const fnFiles = readdirSync(join(ROOT, "functions/src"))
+  // Recursive, with the sibling gates over this directory.
+  const fnFiles = readdirSync(join(ROOT, "functions/src"), { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
 
   const functions = [];

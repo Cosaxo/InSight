@@ -110,7 +110,7 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { stripComments } from "./strip-comments.mjs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -343,7 +343,12 @@ for (const f of onDisk) {
 // check-appcheck.mjs records the identical failure — `// assertOperator(
 // request);` answered yes — and `strip-comments.mjs` exists because four
 // gates needed this and each had its own copy.
-const fnSrc = readdirSync(join(root, "functions/src"))
+// Recursive, like check-deploy-targets' and check-appcheck's walks over
+// this same directory, and for the reason the first of those wrote down:
+// latent while functions/src is flat, which is exactly how the
+// moderation.ts miss happened there.
+const fnSrc = readdirSync(join(root, "functions/src"), { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
   .map((f) => stripComments(read(`functions/src/${f}`)))
   .join("\n");

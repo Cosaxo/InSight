@@ -101,7 +101,11 @@ const dirs = ["src/v2/spec", "src/v2/ui", "src/v2/data", "src/lib"];
 const files = [];
 for (const d of dirs) {
   const abs = join(root, d);
-  for (const f of readdirSync(abs)) {
+  // Recursive, and the `isFile` test below already handles what that
+  // newly returns. Without it a store filed one directory down persists
+  // `insight.*` state that no listener rule ever reads — the gate's whole
+  // subject, invisible to it.
+  for (const f of readdirSync(abs, { recursive: true })) {
     const p = join(abs, f);
     if (!statSync(p).isFile()) continue;
     if (!/\.(jsx?|tsx?)$/.test(f) || /\.test\.[jt]sx?$/.test(f)) continue;

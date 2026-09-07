@@ -12,7 +12,7 @@
 // <GroupLevelTab> shipped without anything noticing.
 
 import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { join, resolve, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripComments } from "./strip-comments.mjs";
 // Re-exported: check-spec-globals.mjs has imported it from here since
@@ -70,15 +70,21 @@ const RUNTIME_ALLOWLIST = new Set([
 // a name and masked a genuinely dangling reference in production code.
 const notATest = (f) => /\.(jsx?|tsx?)$/.test(f) && !/\.test\.[jt]sx?$/.test(f);
 
+// RECURSIVE, and this walk matters more than most: its output seeds both
+// `check:globals` and eslint's `no-undef` for the spec layer
+// (eslint.config.js imports it). A module one directory down would be
+// invisible to BOTH — its dangling `window.X` unreported, its own
+// definitions missing from the globals list, so a legitimate name it
+// declares would fire no-undef somewhere else and the advice in CLAUDE.md
+// ("fix the scanner, do not add an eslint exception") would point at a
+// scanner that could not see the file.
 const files = [];
-for (const dir of [specDir, uiDir]) {
-  for (const f of readdirSync(dir)) {
-    if (notATest(f)) files.push(join(dir, f));
-  }
-}
-for (const f of readdirSync(dataDir)) {
-  if (notATest(f)) files.push(join(dataDir, f));
-}
+const walk = (dir) => readdirSync(dir, { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
+  .filter((f) => notATest(f))
+  .map((f) => join(dir, f));
+for (const dir of [specDir, uiDir]) files.push(...walk(dir));
+files.push(...walk(dataDir));
 files.push(join(root, "src/v2/main.jsx"));
 files.push(join(root, "src/v2/spec-index.js"));
 

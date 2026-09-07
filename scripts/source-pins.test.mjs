@@ -158,3 +158,136 @@ describe("no gate hides behind a path-fragile main-module guard", () => {
     ).toEqual([]);
   });
 });
+
+// ── a gate that walks source must walk ALL of it ────────────────────
+//
+// Third class in this file, same failure as the other two: a gate that
+// reports green while the thing it exists to catch is true — here because
+// the file carrying it was never read.
+//
+// `readdirSync(dir)` returns one level. Every gate that walks a source
+// root and stops there is blind to a file one directory down: a callable
+// whose module disables App Check, a store that persists `insight.*` and
+// never listens for the purge, a panel that owes a suite, a module the
+// figure count is supposed to include. The gate does not fail — it counts
+// what it can see and calls that agreement, which is worse.
+//
+// Found by mutation on 2026-09-06: the same probe file at
+// `functions/src/sub/zzprobe.ts` left `check:appcheck` exiting 0 with its
+// enforcing count going UP, and flat at `functions/src/` it exited 1.
+// `check-deploy-targets.mjs` already carried the argument in its own
+// comment — "latent while functions/src is flat, which is exactly how the
+// moderation.ts miss … happened" — which is the point: latent is what
+// this class looks like right up until it is not.
+//
+// SCOPED TO SOURCE ROOTS, deliberately. There are fifty-odd
+// `readdirSync` calls under scripts/ and most are legitimately flat —
+// build output, fixtures, the scripts directory itself. A blanket rule
+// would need forty-nine exemptions and would be noise. These five roots
+// are where the tree's own code lives, and a walk over one of them that
+// stops at the top level is always wrong.
+const SOURCE_ROOTS = ["functions/src", "src/v2/spec", "src/v2/ui", "src/v2/data", "src/lib"];
+
+describe("no gate walks a source root one level deep", () => {
+  /** Every readdirSync in `src` whose directory argument is a source root,
+   *  resolving one level of `const NAME = …` so `readdirSync(UI)` counts. */
+  function sourceWalks(src) {
+    // const names bound to an expression naming a source root
+    const bound = new Set();
+    // ONE LINE PER BINDING. An earlier version let the expression span a
+    // line break, and on `const X = (() => { const dir = "functions/src";`
+    // it consumed across the IIFE — binding the OUTER name and stepping
+    // over the inner `const dir` entirely, so a walk on `dir` was invisible.
+    // Measured by de-recursing check-figures' own walk and watching this
+    // stay green.
+    for (const m of src.matchAll(/^[ \t]*(?:const|let)\s+(\w+)\s*=\s*([^;\n]+);[ \t]*$/gm)) {
+      const [, name, expr] = m;
+      if (SOURCE_ROOTS.some((r) => expr.includes(r) || expr.includes(r.split("/").map((x) => `"${x}"`).join(", ")))) {
+        bound.add(name);
+      }
+    }
+    const out = [];
+    const lines = src.split("\n");
+    for (const [i, line] of lines.entries()) {
+      if (!line.includes("readdirSync(")) continue;
+      const stmt = lines.slice(i, i + 3).join("\n");
+      const arg = stmt.slice(stmt.indexOf("readdirSync(") + "readdirSync(".length);
+      // A bound name ANYWHERE in the argument, not just as the whole of
+      // it: `readdirSync(join(root, dir))` is the common spelling and an
+      // earlier version of this rule, which anchored the name to the start
+      // of the argument, could not see it — measured by de-recursing
+      // check-figures' own walk and watching this stay green.
+      const head = arg.slice(0, 120);
+      // The directory argument, up to its closing paren.
+      const dirArg = head.split(")")[0] + ")";
+      // A bound name has to appear as an IDENTIFIER, not inside a string:
+      // `join(root, "src/v2/test")` was being credited to a binding named
+      // `src`, because the word is in the literal. Quotes stripped first,
+      // and the root-literal test below runs on the unstripped text where
+      // a literal is exactly what it is looking for.
+      const idsOnly = dirArg.replace(/"[^"]*"|'[^']*'/g, "");
+      const namesRoot = SOURCE_ROOTS.some((r) => head.includes(r))
+        || [...bound].some((n) => new RegExp(`\\b${n}\\b`).test(idsOnly));
+      if (namesRoot) out.push({ line: i + 1, stmt: stmt.slice(0, 200) });
+    }
+    return out;
+  }
+
+  it("finds the source walks — vacuous otherwise", () => {
+    const total = gates.reduce((n, g) => n + sourceWalks(g.src).length, 0);
+    // The floor. If the detector stops matching, every assertion below
+    // passes over an empty list — this file's own subject, again.
+    expect(total, "the source-root walk detector stopped matching").toBeGreaterThanOrEqual(6);
+  });
+
+  it("every one of them recurses", () => {
+    const offenders = [];
+    for (const { f, src } of gates) {
+      for (const w of sourceWalks(src)) {
+        if (!/recursive:\s*true/.test(w.stmt)) offenders.push(`${f}:${w.line}`);
+      }
+    }
+    expect(
+      offenders,
+      "a gate walks a source root one level deep — a file one directory down is invisible to it, "
+        + "so it counts what it can see and calls that agreement. Pass { recursive: true } and "
+        + "normalise with String(f).split(sep).join('/').",
+    ).toEqual([]);
+  });
+});
+
+// ── the two the rule above cannot see ───────────────────────────────
+//
+// Named explicitly, because the general rule's reach ends where a
+// directory arrives through a chain it cannot follow: `check-purge-
+// listeners` walks `abs`, assigned from a loop variable over an array of
+// roots, and `spec-globals` walks a function PARAMETER. Following either
+// needs real dataflow, which is more machinery than this file should
+// carry for two call sites.
+//
+// A maintained list of two is the honest cost, and it is stated rather
+// than hidden: the rule above covers the rest, these two are pinned by
+// name, and a third of this shape has to be added here by hand — which is
+// why the general rule exists at all and why this list must stay short.
+//
+// `spec-globals` is the one that matters most in the whole class. Its
+// output seeds BOTH `check:globals` and eslint's `no-undef` for the spec
+// layer, so a module it cannot see gets its dangling `window.X` unreported
+// AND its own definitions left out of the globals list — at which point
+// CLAUDE.md's standing advice ("if no-undef fires on a legitimate global,
+// fix the scanner") would be pointing at a scanner that never read the
+// file.
+describe("the two source walks the general rule cannot reach", () => {
+  const named = {
+    "check-purge-listeners.mjs": "readdirSync(abs, { recursive: true })",
+    "spec-globals.mjs": "readdirSync(dir, { recursive: true })",
+  };
+
+  it("both still exist and both recurse", () => {
+    for (const [f, expected] of Object.entries(named)) {
+      const g = gates.find((x) => x.f === f);
+      expect(g, `${f} vanished — this pin no longer covers it`).toBeTruthy();
+      expect(g.src, `${f} walks a source root one level deep`).toContain(expected);
+    }
+  });
+});

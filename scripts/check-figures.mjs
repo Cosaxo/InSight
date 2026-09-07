@@ -375,7 +375,10 @@ const feedTailCount = feedQs.filter((q) => q.core === false).length;
 // reason as the shippedFunctions walk above.
 const convertedSpecModules = (() => {
   const dir = join(root, "src/v2/spec");
-  return readdirSync(dir)
+  // Recursive: this is the converted-module COUNT that CLAUDE.md's prose
+  // is held to, so a module one directory down would lower it silently.
+  return readdirSync(dir, { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
     .filter((f) => /\.(js|jsx)$/.test(f))
     .filter((f) => {
       const src = readFileSync(join(dir, f), "utf8");
@@ -447,7 +450,10 @@ const callSites = (call) => {
   const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
   let n = 0;
   for (const dir of dirs) {
-    for (const f of readdirSync(join(root, dir))) {
+    // Recursive, with the other walks in this file: this counts call
+    // sites, and a missed file is a count that reads as agreement.
+    for (const raw of readdirSync(join(root, dir), { recursive: true })) {
+      const f = String(raw).split(sep).join("/");
       if (!/\.(ts|tsx|js|jsx)$/.test(f) || /\.test\./.test(f)) continue;
       const src = stripComments(read(`${dir}/${f}`));
       n += src.split(call).length - 1;
@@ -491,7 +497,13 @@ const fnModules = (() => {
   // join(root, …) like every other block here. A bare relative read is the
   // one thing in this file that depends on the caller's cwd, and it dies
   // with ENOENT when the gate is run from scripts/ rather than the root.
-  return readdirSync(join(root, dir))
+  // RECURSIVE, and it matters more here than in the gates that merely
+  // scan: this walk produces a COUNT that the tree's prose is held to. A
+  // module in a subdirectory would be missed and the figure would be
+  // wrong in the direction nobody checks — a gate under-reporting and
+  // calling it agreement.
+  return readdirSync(join(root, dir), { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
     // Through stripComments, for the reason two other gates adopted it
     // tonight: a commented-out `onCall(` would count as a definition.
