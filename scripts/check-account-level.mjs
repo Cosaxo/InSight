@@ -15,6 +15,7 @@
 //
 // Neither shows up in any test — the rules tests construct their own
 // claims, and the callable's tests never read the rules file.
+import { pathToFileURL } from "node:url";
 import { readFileSync } from "node:fs";
 import {
   RULES,
@@ -77,7 +78,16 @@ export function checkAccountLevel(read = (p) => readFileSync(p, "utf8")) {
   return problems;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// THE ENTRY GUARD USES pathToFileURL, not a `file://` template.
+// `import.meta.url` percent-encodes; a template literal does not. On a
+// checkout whose path holds a space, a `#`, a `%` or a non-ASCII
+// character — "/Users/olaf/My Projects/InSight" — the two never match, so
+// this file is imported and the gate below simply does not run: exit 0,
+// zero output, nothing checked. Measured on a copy of this tree under a
+// path with a space: a real violation reported by the gate on a normal
+// path produced rc=0 and no output there. CI's path is clean, so this was
+// latent there and live for anyone running the gates before pushing.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const problems = checkAccountLevel();
   if (problems.length) {
     console.error("check:account-level FAILED:");
