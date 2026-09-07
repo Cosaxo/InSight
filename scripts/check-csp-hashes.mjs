@@ -30,7 +30,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve, dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 /** Every inline <script> body in a page, in order. Scripts with a `src`
  *  are not inline and carry no hash, so they are skipped. */
@@ -123,16 +123,7 @@ export function checkHashes({ rules, readPage, pageExists }) {
   return problems;
 }
 
-// THE ENTRY GUARD USES pathToFileURL, not a `file://` template.
-// `import.meta.url` percent-encodes; a template literal does not. On a
-// checkout whose path holds a space, a `#`, a `%` or a non-ASCII
-// character — "/Users/olaf/My Projects/InSight" — the two never match, so
-// this file is imported and the gate below simply does not run: exit 0,
-// zero output, nothing checked. Measured on a copy of this tree under a
-// path with a space: a real violation reported by the gate on a normal
-// path produced rc=0 and no output there. CI's path is clean, so this was
-// latent there and live for anyone running the gates before pushing.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const cfg = JSON.parse(readFileSync(join(root, "firebase.json"), "utf8"));
   const hosting = Array.isArray(cfg.hosting) ? cfg.hosting[0] : cfg.hosting;

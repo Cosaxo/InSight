@@ -27,7 +27,8 @@
 // pbxproj, Capacitor scaffolds MainActivity), so check-devicebind.test.mjs
 // feeds the checker a broken tree per link — otherwise an upstream format
 // change turns a real check into a vacuous one without failing.
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import { stripComments } from "./strip-comments.mjs";
 
@@ -169,16 +170,7 @@ export function checkDeviceBind(read = (p) => readFileSync(p, "utf8"), exists = 
   return problems;
 }
 
-// THE ENTRY GUARD USES pathToFileURL, not a `file://` template.
-// `import.meta.url` percent-encodes; a template literal does not. On a
-// checkout whose path holds a space, a `#`, a `%` or a non-ASCII
-// character — "/Users/olaf/My Projects/InSight" — the two never match, so
-// this file is imported and the gate below simply does not run: exit 0,
-// zero output, nothing checked. Measured on a copy of this tree under a
-// path with a space: a real violation reported by the gate on a normal
-// path produced rc=0 and no output there. CI's path is clean, so this was
-// latent there and live for anyone running the gates before pushing.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const problems = checkDeviceBind();
   if (problems.length) {
     console.error("check:devicebind FAILED — a D29 bridge is not wired:");

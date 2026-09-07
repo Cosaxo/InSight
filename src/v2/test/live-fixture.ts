@@ -74,6 +74,19 @@ export interface LiveFixtureOptions {
    * for.
    */
   deckDays?: boolean;
+  /**
+   * The state one fold LATER: every drawn count zero, but the aggregate
+   * has published — because the only answer in it is the viewer's own,
+   * and `countsFor` subtracts the viewer back out once the trigger has
+   * folded them (data/deck.ts). `noCountsYet` stays FALSE here, since it
+   * is `agg.total > 0` and that total counts the viewer.
+   *
+   * `tooSmall` cannot express it: it sets the counts to zero AND
+   * `noCountsYet` to true, which is the window BEFORE the fold. The gap
+   * between the two is where the daily and the feed printed "100% · 1
+   * vote" over a crowd of nobody, a couple of seconds after the write.
+   */
+  soloVoter?: boolean;
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
   /**
@@ -294,6 +307,7 @@ function liveQuestion(
   id: string,
   prompt: string,
   tooSmall: boolean,
+  soloVoter: boolean,
   // D100's bank fields. Defaulted rather than required so the two
   // existing call sites stay readable, but supplied by both — a fixture
   // where every question shares one branch and no ordinal type would
@@ -318,7 +332,7 @@ function liveQuestion(
     options: ["Yes", "No", "Both"].map((label, i) => ({
       id: String(i),
       label,
-      count: tooSmall ? 0 : DAILY_COUNTS[i],
+      count: (tooSmall || soloVoter) ? 0 : DAILY_COUNTS[i],
       color: OPTION_COLORS[i % OPTION_COLORS.length],
     })),
     comments: [],
@@ -335,6 +349,9 @@ function liveQuestion(
     // still handed the daily a card that said the crowd had published —
     // and the first-voter state on the app's front door was unreachable
     // from any mount test. That is why it went unseen.
+    // NOT `tooSmall || soloVoter`: the whole point of the solo case is
+    // that the aggregate HAS published (its total is 1 — you), so the
+    // floor keyed on this flag alone lifts while every count is zero.
     noCountsYet: tooSmall,
     test: null,
   };
@@ -356,6 +373,7 @@ export interface LiveHandle {
 
 export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const tooSmall = !!opts.tooSmall;
+  const soloVoter = !!opts.soloVoter;
   const aggCounts = opts.aggCounts;
   // One Crossroads story (D136), shaped as the store folds it: eight
   // per-ending counts in PATH_ENDINGS order, and a total. The counts are
@@ -391,7 +409,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const deck = [
     {
       ...liveQuestion(
-        "daily-000", "Would you rather know, or be known?", tooSmall,
+        "daily-000", "Would you rather know, or be known?", tooSmall, soloVoter,
         "Mind", opts.ratingToday ? "rating" : "binary",
       ),
       // D306: the daily's About sheet leads with a background when the
@@ -402,7 +420,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // A second branch and an ordinal type, so the archive the Mirror
     // reads exercises the branch filter and the Scores lens rather than
     // only their "nothing here" arms.
-    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, "Morals", "rating"),
+    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, soloVoter, "Morals", "rating"),
   ];
   if (opts.deckDays) {
     // The labels a real deck carries. `liveQuestion` stamps "Today" on
@@ -411,7 +429,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fallback ("Tue") parts company with the truth.
     deck[1] = { ...deck[1], dayLabel: "Yesterday" };
     deck.push({
-      ...liveQuestion("daily-002", "Does a rule nobody has tested still bind?", tooSmall, "Morals", "binary"),
+      ...liveQuestion("daily-002", "Does a rule nobody has tested still bind?", tooSmall, soloVoter, "Morals", "binary"),
       dayLabel: FIXTURE_THIRD_DAY,
     });
   }
@@ -719,6 +737,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fold has counted them. The real store returns the option index only
     // while `unaggregated` still holds it.
     pulsePending: () => null,
+    // Same reason, one question wider: the fixture's votes are seeded as
+    // folded, so nothing here is unaggregated and every question answers
+    // null. A case that wants the other side of the fold overrides this
+    // member on the store it was handed, the way feed-insight-round does.
+    votePending: () => null,
     pulseVotes: (baseQid: string) => {
       const out: Record<string, number> = {};
       for (const [aid, v] of Object.entries(votes)) {
