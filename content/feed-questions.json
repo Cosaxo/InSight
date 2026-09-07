@@ -5977,6 +5977,1022 @@
           "label": "Neither, honestly"
         }
       ]
+    },
+    {
+      "id": "f227",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "World records: still meaningful, or engineered stunts?",
+      "options": [
+        {
+          "label": "Still meaningful",
+          "count": 2900
+        },
+        {
+          "label": "Engineered stunts",
+          "count": 2400
+        },
+        {
+          "label": "Only the weird ones",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f228",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Museums: free for everyone, or tickets keep them alive?",
+      "options": [
+        {
+          "label": "Free for everyone",
+          "count": 4100
+        },
+        {
+          "label": "Tickets keep them alive",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f229",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Public holidays: more of them, or longer weekends instead?",
+      "options": [
+        {
+          "label": "More holidays",
+          "count": 3300
+        },
+        {
+          "label": "Longer weekends",
+          "count": 3600
+        }
+      ]
+    },
+    {
+      "id": "f230",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Lotteries: a harmless dream, or a tax on hope?",
+      "options": [
+        {
+          "label": "A harmless dream",
+          "count": 3100
+        },
+        {
+          "label": "A tax on hope",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f231",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Black and white films: a barrier, or a mood?",
+      "options": [
+        {
+          "label": "A barrier",
+          "count": 2200
+        },
+        {
+          "label": "A mood",
+          "count": 4100
+        },
+        {
+          "label": "Never tried one",
+          "count": 1300
+        }
+      ]
+    },
+    {
+      "id": "f232",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Owning films: pointless now, or more important than ever?",
+      "options": [
+        {
+          "label": "Pointless now",
+          "count": 2800
+        },
+        {
+          "label": "More important than ever",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "f233",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "The interval: bring it back for long films, or never stop the film?",
+      "options": [
+        {
+          "label": "Bring back the interval",
+          "count": 3400
+        },
+        {
+          "label": "Never stop the film",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f234",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Musicals: joy in its purest form, or people bursting into song?",
+      "options": [
+        {
+          "label": "Purest joy",
+          "count": 3100
+        },
+        {
+          "label": "Why are they singing",
+          "count": 2700
+        },
+        {
+          "label": "Depends on the songs",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f235",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Your biography’s ghostwriter: Jane Austen, Mark Twain, or Zadie Smith?",
+      "options": [
+        {
+          "label": "Jane Austen",
+          "count": 2600
+        },
+        {
+          "label": "Mark Twain",
+          "count": 2900
+        },
+        {
+          "label": "Zadie Smith",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f236",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "One day as a fly on the wall: Shakespeare’s Globe, Marie Curie’s lab, or Studio 54?",
+      "options": [
+        {
+          "label": "Shakespeare’s Globe",
+          "count": 2400
+        },
+        {
+          "label": "Curie’s lab",
+          "count": 2700
+        },
+        {
+          "label": "Studio 54",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f237",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The group chat you’d join: the Beatles, the Avengers, or the Spice Girls?",
+      "options": [
+        {
+          "label": "The Beatles",
+          "count": 3300
+        },
+        {
+          "label": "The Avengers",
+          "count": 2600
+        },
+        {
+          "label": "The Spice Girls",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f238",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Your motivational speaker: a drill sergeant, Ted Lasso, or Serena Williams?",
+      "options": [
+        {
+          "label": "A drill sergeant",
+          "count": 1700
+        },
+        {
+          "label": "Ted Lasso",
+          "count": 3800
+        },
+        {
+          "label": "Serena Williams",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f239",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Live to 150 — but the only one who does. Take it?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2300
+        },
+        {
+          "label": "No thanks",
+          "count": 4600
+        }
+      ]
+    },
+    {
+      "id": "f240",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Never queue again, or never hit a red light again?",
+      "options": [
+        {
+          "label": "Never queue",
+          "count": 3900
+        },
+        {
+          "label": "Never a red light",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f241",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "A pause button for the world, or a rewind for your day?",
+      "options": [
+        {
+          "label": "The pause button",
+          "count": 3600
+        },
+        {
+          "label": "The rewind",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f242",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Know every answer, or ask the perfect question?",
+      "options": [
+        {
+          "label": "Every answer",
+          "count": 2900
+        },
+        {
+          "label": "The perfect question",
+          "count": 3300
+        }
+      ]
+    },
+    {
+      "id": "f243",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Underdog stories or dynasties — which makes a sport better?",
+      "options": [
+        {
+          "label": "Underdogs",
+          "count": 4200
+        },
+        {
+          "label": "Dynasties",
+          "count": 1800
+        },
+        {
+          "label": "One needs the other",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f244",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Lovable losers or ruthless winners — which team is yours?",
+      "options": [
+        {
+          "label": "Lovable losers",
+          "count": 3100
+        },
+        {
+          "label": "Ruthless winners",
+          "count": 3500
+        }
+      ]
+    },
+    {
+      "id": "f245",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Golf: a sport, a walk, or a mindset?",
+      "options": [
+        {
+          "label": "A sport",
+          "count": 2700
+        },
+        {
+          "label": "A walk",
+          "count": 2200
+        },
+        {
+          "label": "A mindset",
+          "count": 2000
+        }
+      ]
+    },
+    {
+      "id": "f246",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Fantasy leagues: deepen the love, or ruin the watching?",
+      "options": [
+        {
+          "label": "Deepen the love",
+          "count": 2800
+        },
+        {
+          "label": "Ruin the watching",
+          "count": 2500
+        },
+        {
+          "label": "Never played",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f247",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Slow-motion replays: the best part, or killing the flow?",
+      "options": [
+        {
+          "label": "The best part",
+          "count": 3300
+        },
+        {
+          "label": "Killing the flow",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f248",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Voice assistants: full sentences, or bark commands?",
+      "options": [
+        {
+          "label": "Full sentences",
+          "count": 2400
+        },
+        {
+          "label": "Bark commands",
+          "count": 3300
+        },
+        {
+          "label": "Never use them",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f249",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Phone-free restaurants: bliss, or overreach?",
+      "options": [
+        {
+          "label": "Bliss",
+          "count": 3500
+        },
+        {
+          "label": "Overreach",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f250",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Autocorrect: silent saviour, or public menace?",
+      "options": [
+        {
+          "label": "Silent saviour",
+          "count": 3000
+        },
+        {
+          "label": "Public menace",
+          "count": 3300
+        }
+      ]
+    },
+    {
+      "id": "f251",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Tech support for your family: an honour, or a life sentence?",
+      "options": [
+        {
+          "label": "An honour",
+          "count": 1900
+        },
+        {
+          "label": "A life sentence",
+          "count": 3700
+        },
+        {
+          "label": "I AM the problem",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f252",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Your camera roll: curated, or a landfill?",
+      "options": [
+        {
+          "label": "Curated",
+          "count": 1800
+        },
+        {
+          "label": "A landfill",
+          "count": 3900
+        },
+        {
+          "label": "A landfill I love",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f253",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Does the universe owe us meaning, or do we make our own?",
+      "options": [
+        {
+          "label": "It owes us one",
+          "count": 1700
+        },
+        {
+          "label": "We make our own",
+          "count": 4800
+        }
+      ]
+    },
+    {
+      "id": "f254",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "If nobody ever knew what you did, would you act better, or worse?",
+      "options": [
+        {
+          "label": "Better",
+          "count": 1900
+        },
+        {
+          "label": "Worse",
+          "count": 2800
+        },
+        {
+          "label": "Exactly the same",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f255",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "A life is best measured in: years, moments, or people changed?",
+      "options": [
+        {
+          "label": "Years",
+          "count": 900
+        },
+        {
+          "label": "Moments",
+          "count": 4100
+        },
+        {
+          "label": "People changed",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "f256",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "A one-way trip to another star: go, or stay?",
+      "options": [
+        {
+          "label": "Go",
+          "count": 2100
+        },
+        {
+          "label": "Stay",
+          "count": 3800
+        },
+        {
+          "label": "Only with company",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f257",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Luck or effort — which wrote more of your story?",
+      "options": [
+        {
+          "label": "Luck",
+          "count": 2600
+        },
+        {
+          "label": "Effort",
+          "count": 3900
+        }
+      ]
+    },
+    {
+      "id": "f258",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Re-gifting: sensible recycling, or unforgivable?",
+      "options": [
+        {
+          "label": "Sensible recycling",
+          "count": 3700
+        },
+        {
+          "label": "Unforgivable",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f259",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Punctuality: “on time is late”, or “five minutes late is on time”?",
+      "options": [
+        {
+          "label": "On time is late",
+          "count": 3400
+        },
+        {
+          "label": "Five late is on time",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f260",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Loud phone calls in public: say something, judge silently, or live and let live?",
+      "options": [
+        {
+          "label": "Say something",
+          "count": 1400
+        },
+        {
+          "label": "Judge silently",
+          "count": 4300
+        },
+        {
+          "label": "Live and let live",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f261",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "House rules for guests: say them out loud, or hope they guess?",
+      "options": [
+        {
+          "label": "Say them out loud",
+          "count": 3300
+        },
+        {
+          "label": "Hope they guess",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f262",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Small talk: the glue of society, or a tax on it?",
+      "options": [
+        {
+          "label": "The glue",
+          "count": 3200
+        },
+        {
+          "label": "A tax",
+          "count": 3000
+        }
+      ]
+    },
+    {
+      "id": "f263",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Breakfast for dinner: a treat, or chaos?",
+      "options": [
+        {
+          "label": "A treat",
+          "count": 4400
+        },
+        {
+          "label": "Chaos",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f264",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "The last bite: save the best, or eat the best first?",
+      "options": [
+        {
+          "label": "Save the best",
+          "count": 4100
+        },
+        {
+          "label": "Best first",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f265",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Sharing plates: the point of eating out, or a scam?",
+      "options": [
+        {
+          "label": "The point",
+          "count": 3100
+        },
+        {
+          "label": "A scam",
+          "count": 2400
+        },
+        {
+          "label": "Depends on the table",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f266",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Cooking for one: a ritual worth the effort, or cereal night?",
+      "options": [
+        {
+          "label": "A ritual",
+          "count": 3000
+        },
+        {
+          "label": "Cereal night",
+          "count": 3300
+        }
+      ]
+    },
+    {
+      "id": "f267",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Live albums: the real thing, or a pale copy?",
+      "options": [
+        {
+          "label": "The real thing",
+          "count": 2900
+        },
+        {
+          "label": "A pale copy",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f268",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Where do you stand at a gig: up front, by the desk, or at the back?",
+      "options": [
+        {
+          "label": "Up front",
+          "count": 2800
+        },
+        {
+          "label": "By the desk",
+          "count": 1700
+        },
+        {
+          "label": "At the back",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f269",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Old songs you loved: revisit them, or protect the memory?",
+      "options": [
+        {
+          "label": "Revisit them",
+          "count": 4200
+        },
+        {
+          "label": "Protect the memory",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f270",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Headphones in public: one ear out, or fully sealed?",
+      "options": [
+        {
+          "label": "One ear out",
+          "count": 2700
+        },
+        {
+          "label": "Fully sealed",
+          "count": 3800
+        }
+      ]
+    },
+    {
+      "id": "f271",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "A song in a language you don’t speak: no barrier, or half the picture?",
+      "options": [
+        {
+          "label": "No barrier",
+          "count": 4000
+        },
+        {
+          "label": "Half the picture",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "dl54",
+      "core": false,
+      "cat": "event",
+      "type": "dial",
+      "prompt": "New Year’s resolutions you actually kept, of your last 12?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "kept"
+    },
+    {
+      "id": "dl55",
+      "core": false,
+      "cat": "movies",
+      "type": "dial",
+      "prompt": "Films you watched last month?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "films"
+    },
+    {
+      "id": "dl56",
+      "core": false,
+      "cat": "people",
+      "type": "dial",
+      "prompt": "Biographies you’ve read, roughly, ever?",
+      "lo": 0,
+      "hi": 48,
+      "unit": "biographies"
+    },
+    {
+      "id": "dl57",
+      "core": false,
+      "cat": "dilemma",
+      "type": "dial",
+      "prompt": "Minutes you can sit with a menu before deciding?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "minutes"
+    },
+    {
+      "id": "dl58",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "Workouts in your last month?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "workouts"
+    },
+    {
+      "id": "dl59",
+      "core": false,
+      "cat": "tech",
+      "type": "dial",
+      "prompt": "Apps on your phone right now?",
+      "lo": 0,
+      "hi": 120,
+      "unit": "apps"
+    },
+    {
+      "id": "dl60",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many people truly know you?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "people"
+    },
+    {
+      "id": "dl61",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Holiday cards you send a year?",
+      "lo": 0,
+      "hi": 48,
+      "unit": "cards"
+    },
+    {
+      "id": "dl62",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "Meals out in a month?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "meals"
+    },
+    {
+      "id": "dl63",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "Concerts in your last year?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "concerts"
+    },
+    {
+      "id": "fd15",
+      "core": false,
+      "cat": "event",
+      "type": "field",
+      "prompt": "The Olympics — place it",
+      "ax": [
+        "pure sport",
+        "pure show"
+      ],
+      "ay": [
+        "must-watch",
+        "skippable"
+      ]
+    },
+    {
+      "id": "fd16",
+      "core": false,
+      "cat": "movies",
+      "type": "field",
+      "prompt": "Cinemas — place it",
+      "ax": [
+        "dying out",
+        "here forever"
+      ],
+      "ay": [
+        "go often",
+        "rarely go"
+      ]
+    },
+    {
+      "id": "fd17",
+      "core": false,
+      "cat": "people",
+      "type": "field",
+      "prompt": "Celebrity culture — place it",
+      "ax": [
+        "harmless fun",
+        "corrosive"
+      ],
+      "ay": [
+        "I follow it",
+        "I avoid it"
+      ]
+    },
+    {
+      "id": "fd18",
+      "core": false,
+      "cat": "dilemma",
+      "type": "field",
+      "prompt": "Hard choices — place it",
+      "ax": [
+        "head decides",
+        "heart decides"
+      ],
+      "ay": [
+        "agonise",
+        "decide fast"
+      ]
+    },
+    {
+      "id": "fd19",
+      "core": false,
+      "cat": "food",
+      "type": "field",
+      "prompt": "Eating out — place it",
+      "ax": [
+        "a treat",
+        "routine"
+      ],
+      "ay": [
+        "food first",
+        "company first"
+      ]
     }
   ]
 }

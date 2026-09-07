@@ -9417,6 +9417,1145 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "bg": "The 78th Primetime Emmy Awards air live from the Peacock Theater in Los Angeles on 14 September 2026, hosted by Mariska Hargitay, with the Creative Arts ceremonies held the weekend before."
  },
  {
+  "id": "feed-f227",
+  "surface": "feed",
+  "seq": 329,
+  "type": "vote",
+  "domain": null,
+  "prompt": "World records: still meaningful, or engineered stunts?",
+  "options": [
+   "Still meaningful",
+   "Engineered stunts",
+   "Only the weird ones"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f228",
+  "surface": "feed",
+  "seq": 330,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Museums: free for everyone, or tickets keep them alive?",
+  "options": [
+   "Free for everyone",
+   "Tickets keep them alive"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f229",
+  "surface": "feed",
+  "seq": 331,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Public holidays: more of them, or longer weekends instead?",
+  "options": [
+   "More holidays",
+   "Longer weekends"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f230",
+  "surface": "feed",
+  "seq": 332,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Lotteries: a harmless dream, or a tax on hope?",
+  "options": [
+   "A harmless dream",
+   "A tax on hope"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f231",
+  "surface": "feed",
+  "seq": 333,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Black and white films: a barrier, or a mood?",
+  "options": [
+   "A barrier",
+   "A mood",
+   "Never tried one"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f232",
+  "surface": "feed",
+  "seq": 334,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Owning films: pointless now, or more important than ever?",
+  "options": [
+   "Pointless now",
+   "More important than ever"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f233",
+  "surface": "feed",
+  "seq": 335,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The interval: bring it back for long films, or never stop the film?",
+  "options": [
+   "Bring back the interval",
+   "Never stop the film"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f234",
+  "surface": "feed",
+  "seq": 336,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Musicals: joy in its purest form, or people bursting into song?",
+  "options": [
+   "Purest joy",
+   "Why are they singing",
+   "Depends on the songs"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f235",
+  "surface": "feed",
+  "seq": 337,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your biography’s ghostwriter: Jane Austen, Mark Twain, or Zadie Smith?",
+  "options": [
+   "Jane Austen",
+   "Mark Twain",
+   "Zadie Smith"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f236",
+  "surface": "feed",
+  "seq": 338,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One day as a fly on the wall: Shakespeare’s Globe, Marie Curie’s lab, or Studio 54?",
+  "options": [
+   "Shakespeare’s Globe",
+   "Curie’s lab",
+   "Studio 54"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f237",
+  "surface": "feed",
+  "seq": 339,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The group chat you’d join: the Beatles, the Avengers, or the Spice Girls?",
+  "options": [
+   "The Beatles",
+   "The Avengers",
+   "The Spice Girls"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f238",
+  "surface": "feed",
+  "seq": 340,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your motivational speaker: a drill sergeant, Ted Lasso, or Serena Williams?",
+  "options": [
+   "A drill sergeant",
+   "Ted Lasso",
+   "Serena Williams"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f239",
+  "surface": "feed",
+  "seq": 341,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Live to 150 — but the only one who does. Take it?",
+  "options": [
+   "Take it",
+   "No thanks"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f240",
+  "surface": "feed",
+  "seq": 342,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Never queue again, or never hit a red light again?",
+  "options": [
+   "Never queue",
+   "Never a red light"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f241",
+  "surface": "feed",
+  "seq": 343,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A pause button for the world, or a rewind for your day?",
+  "options": [
+   "The pause button",
+   "The rewind"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f242",
+  "surface": "feed",
+  "seq": 344,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Know every answer, or ask the perfect question?",
+  "options": [
+   "Every answer",
+   "The perfect question"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f243",
+  "surface": "feed",
+  "seq": 345,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Underdog stories or dynasties — which makes a sport better?",
+  "options": [
+   "Underdogs",
+   "Dynasties",
+   "One needs the other"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f244",
+  "surface": "feed",
+  "seq": 346,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Lovable losers or ruthless winners — which team is yours?",
+  "options": [
+   "Lovable losers",
+   "Ruthless winners"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f245",
+  "surface": "feed",
+  "seq": 347,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Golf: a sport, a walk, or a mindset?",
+  "options": [
+   "A sport",
+   "A walk",
+   "A mindset"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f246",
+  "surface": "feed",
+  "seq": 348,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Fantasy leagues: deepen the love, or ruin the watching?",
+  "options": [
+   "Deepen the love",
+   "Ruin the watching",
+   "Never played"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f247",
+  "surface": "feed",
+  "seq": 349,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Slow-motion replays: the best part, or killing the flow?",
+  "options": [
+   "The best part",
+   "Killing the flow"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f248",
+  "surface": "feed",
+  "seq": 350,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Voice assistants: full sentences, or bark commands?",
+  "options": [
+   "Full sentences",
+   "Bark commands",
+   "Never use them"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f249",
+  "surface": "feed",
+  "seq": 351,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Phone-free restaurants: bliss, or overreach?",
+  "options": [
+   "Bliss",
+   "Overreach"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f250",
+  "surface": "feed",
+  "seq": 352,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Autocorrect: silent saviour, or public menace?",
+  "options": [
+   "Silent saviour",
+   "Public menace"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f251",
+  "surface": "feed",
+  "seq": 353,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Tech support for your family: an honour, or a life sentence?",
+  "options": [
+   "An honour",
+   "A life sentence",
+   "I AM the problem"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f252",
+  "surface": "feed",
+  "seq": 354,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your camera roll: curated, or a landfill?",
+  "options": [
+   "Curated",
+   "A landfill",
+   "A landfill I love"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f253",
+  "surface": "feed",
+  "seq": 355,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Does the universe owe us meaning, or do we make our own?",
+  "options": [
+   "It owes us one",
+   "We make our own"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f254",
+  "surface": "feed",
+  "seq": 356,
+  "type": "vote",
+  "domain": null,
+  "prompt": "If nobody ever knew what you did, would you act better, or worse?",
+  "options": [
+   "Better",
+   "Worse",
+   "Exactly the same"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f255",
+  "surface": "feed",
+  "seq": 357,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A life is best measured in: years, moments, or people changed?",
+  "options": [
+   "Years",
+   "Moments",
+   "People changed"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f256",
+  "surface": "feed",
+  "seq": 358,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A one-way trip to another star: go, or stay?",
+  "options": [
+   "Go",
+   "Stay",
+   "Only with company"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f257",
+  "surface": "feed",
+  "seq": 359,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Luck or effort — which wrote more of your story?",
+  "options": [
+   "Luck",
+   "Effort"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f258",
+  "surface": "feed",
+  "seq": 360,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Re-gifting: sensible recycling, or unforgivable?",
+  "options": [
+   "Sensible recycling",
+   "Unforgivable"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f259",
+  "surface": "feed",
+  "seq": 361,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Punctuality: “on time is late”, or “five minutes late is on time”?",
+  "options": [
+   "On time is late",
+   "Five late is on time"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f260",
+  "surface": "feed",
+  "seq": 362,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Loud phone calls in public: say something, judge silently, or live and let live?",
+  "options": [
+   "Say something",
+   "Judge silently",
+   "Live and let live"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f261",
+  "surface": "feed",
+  "seq": 363,
+  "type": "vote",
+  "domain": null,
+  "prompt": "House rules for guests: say them out loud, or hope they guess?",
+  "options": [
+   "Say them out loud",
+   "Hope they guess"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f262",
+  "surface": "feed",
+  "seq": 364,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Small talk: the glue of society, or a tax on it?",
+  "options": [
+   "The glue",
+   "A tax"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f263",
+  "surface": "feed",
+  "seq": 365,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Breakfast for dinner: a treat, or chaos?",
+  "options": [
+   "A treat",
+   "Chaos"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f264",
+  "surface": "feed",
+  "seq": 366,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The last bite: save the best, or eat the best first?",
+  "options": [
+   "Save the best",
+   "Best first"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f265",
+  "surface": "feed",
+  "seq": 367,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sharing plates: the point of eating out, or a scam?",
+  "options": [
+   "The point",
+   "A scam",
+   "Depends on the table"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f266",
+  "surface": "feed",
+  "seq": 368,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cooking for one: a ritual worth the effort, or cereal night?",
+  "options": [
+   "A ritual",
+   "Cereal night"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f267",
+  "surface": "feed",
+  "seq": 369,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Live albums: the real thing, or a pale copy?",
+  "options": [
+   "The real thing",
+   "A pale copy"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f268",
+  "surface": "feed",
+  "seq": 370,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Where do you stand at a gig: up front, by the desk, or at the back?",
+  "options": [
+   "Up front",
+   "By the desk",
+   "At the back"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f269",
+  "surface": "feed",
+  "seq": 371,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Old songs you loved: revisit them, or protect the memory?",
+  "options": [
+   "Revisit them",
+   "Protect the memory"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f270",
+  "surface": "feed",
+  "seq": 372,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Headphones in public: one ear out, or fully sealed?",
+  "options": [
+   "One ear out",
+   "Fully sealed"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f271",
+  "surface": "feed",
+  "seq": 373,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A song in a language you don’t speak: no barrier, or half the picture?",
+  "options": [
+   "No barrier",
+   "Half the picture"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl54",
+  "surface": "feed",
+  "seq": 374,
+  "type": "dial",
+  "domain": null,
+  "prompt": "New Year’s resolutions you actually kept, of your last 12?",
+  "options": [
+   "0–1 kept",
+   "1–2 kept",
+   "2–3 kept",
+   "3–4 kept",
+   "4–5 kept",
+   "5–6 kept",
+   "6–7 kept",
+   "7–8 kept",
+   "8–9 kept",
+   "9–10 kept",
+   "10–11 kept",
+   "11–12 kept"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "kept"
+ },
+ {
+  "id": "feed-dl55",
+  "surface": "feed",
+  "seq": 375,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Films you watched last month?",
+  "options": [
+   "0–2 films",
+   "2–4 films",
+   "4–6 films",
+   "6–8 films",
+   "8–10 films",
+   "10–12 films",
+   "12–14 films",
+   "14–16 films",
+   "16–18 films",
+   "18–20 films",
+   "20–22 films",
+   "22–24 films"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "films"
+ },
+ {
+  "id": "feed-dl56",
+  "surface": "feed",
+  "seq": 376,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Biographies you’ve read, roughly, ever?",
+  "options": [
+   "0–4 biographies",
+   "4–8 biographies",
+   "8–12 biographies",
+   "12–16 biographies",
+   "16–20 biographies",
+   "20–24 biographies",
+   "24–28 biographies",
+   "28–32 biographies",
+   "32–36 biographies",
+   "36–40 biographies",
+   "40–44 biographies",
+   "44–48 biographies"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 48,
+  "unit": "biographies"
+ },
+ {
+  "id": "feed-dl57",
+  "surface": "feed",
+  "seq": 377,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes you can sit with a menu before deciding?",
+  "options": [
+   "0–2 minutes",
+   "2–4 minutes",
+   "4–6 minutes",
+   "6–8 minutes",
+   "8–10 minutes",
+   "10–12 minutes",
+   "12–14 minutes",
+   "14–16 minutes",
+   "16–18 minutes",
+   "18–20 minutes",
+   "20–22 minutes",
+   "22–24 minutes"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "minutes"
+ },
+ {
+  "id": "feed-dl58",
+  "surface": "feed",
+  "seq": 378,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Workouts in your last month?",
+  "options": [
+   "0–2 workouts",
+   "2–4 workouts",
+   "4–6 workouts",
+   "6–8 workouts",
+   "8–10 workouts",
+   "10–12 workouts",
+   "12–14 workouts",
+   "14–16 workouts",
+   "16–18 workouts",
+   "18–20 workouts",
+   "20–22 workouts",
+   "22–24 workouts"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "workouts"
+ },
+ {
+  "id": "feed-dl59",
+  "surface": "feed",
+  "seq": 379,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Apps on your phone right now?",
+  "options": [
+   "0–10 apps",
+   "10–20 apps",
+   "20–30 apps",
+   "30–40 apps",
+   "40–50 apps",
+   "50–60 apps",
+   "60–70 apps",
+   "70–80 apps",
+   "80–90 apps",
+   "90–100 apps",
+   "100–110 apps",
+   "110–120 apps"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 120,
+  "unit": "apps"
+ },
+ {
+  "id": "feed-dl60",
+  "surface": "feed",
+  "seq": 380,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many people truly know you?",
+  "options": [
+   "0–1 people",
+   "1–2 people",
+   "2–3 people",
+   "3–4 people",
+   "4–5 people",
+   "5–6 people",
+   "6–7 people",
+   "7–8 people",
+   "8–9 people",
+   "9–10 people",
+   "10–11 people",
+   "11–12 people"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "people"
+ },
+ {
+  "id": "feed-dl61",
+  "surface": "feed",
+  "seq": 381,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Holiday cards you send a year?",
+  "options": [
+   "0–4 cards",
+   "4–8 cards",
+   "8–12 cards",
+   "12–16 cards",
+   "16–20 cards",
+   "20–24 cards",
+   "24–28 cards",
+   "28–32 cards",
+   "32–36 cards",
+   "36–40 cards",
+   "40–44 cards",
+   "44–48 cards"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 48,
+  "unit": "cards"
+ },
+ {
+  "id": "feed-dl62",
+  "surface": "feed",
+  "seq": 382,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Meals out in a month?",
+  "options": [
+   "0–2 meals",
+   "2–4 meals",
+   "4–6 meals",
+   "6–8 meals",
+   "8–10 meals",
+   "10–12 meals",
+   "12–14 meals",
+   "14–16 meals",
+   "16–18 meals",
+   "18–20 meals",
+   "20–22 meals",
+   "22–24 meals"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "meals"
+ },
+ {
+  "id": "feed-dl63",
+  "surface": "feed",
+  "seq": 383,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Concerts in your last year?",
+  "options": [
+   "0–2 concerts",
+   "2–4 concerts",
+   "4–6 concerts",
+   "6–8 concerts",
+   "8–10 concerts",
+   "10–12 concerts",
+   "12–14 concerts",
+   "14–16 concerts",
+   "16–18 concerts",
+   "18–20 concerts",
+   "20–22 concerts",
+   "22–24 concerts"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 24,
+  "unit": "concerts"
+ },
+ {
+  "id": "feed-fd15",
+  "surface": "feed",
+  "seq": 384,
+  "type": "field",
+  "domain": null,
+  "prompt": "The Olympics — place it",
+  "options": [
+   "pure sport · skippable",
+   "lean pure sport · skippable",
+   "lean pure show · skippable",
+   "pure show · skippable",
+   "pure sport · middle",
+   "lean pure sport · middle",
+   "lean pure show · middle",
+   "pure show · middle",
+   "pure sport · must-watch",
+   "lean pure sport · must-watch",
+   "lean pure show · must-watch",
+   "pure show · must-watch"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "pure sport",
+   "pure show"
+  ],
+  "ay": [
+   "must-watch",
+   "skippable"
+  ]
+ },
+ {
+  "id": "feed-fd16",
+  "surface": "feed",
+  "seq": 385,
+  "type": "field",
+  "domain": null,
+  "prompt": "Cinemas — place it",
+  "options": [
+   "dying out · rarely go",
+   "lean dying out · rarely go",
+   "lean here forever · rarely go",
+   "here forever · rarely go",
+   "dying out · middle",
+   "lean dying out · middle",
+   "lean here forever · middle",
+   "here forever · middle",
+   "dying out · go often",
+   "lean dying out · go often",
+   "lean here forever · go often",
+   "here forever · go often"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "dying out",
+   "here forever"
+  ],
+  "ay": [
+   "go often",
+   "rarely go"
+  ]
+ },
+ {
+  "id": "feed-fd17",
+  "surface": "feed",
+  "seq": 386,
+  "type": "field",
+  "domain": null,
+  "prompt": "Celebrity culture — place it",
+  "options": [
+   "harmless fun · I avoid it",
+   "lean harmless fun · I avoid it",
+   "lean corrosive · I avoid it",
+   "corrosive · I avoid it",
+   "harmless fun · middle",
+   "lean harmless fun · middle",
+   "lean corrosive · middle",
+   "corrosive · middle",
+   "harmless fun · I follow it",
+   "lean harmless fun · I follow it",
+   "lean corrosive · I follow it",
+   "corrosive · I follow it"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "harmless fun",
+   "corrosive"
+  ],
+  "ay": [
+   "I follow it",
+   "I avoid it"
+  ]
+ },
+ {
+  "id": "feed-fd18",
+  "surface": "feed",
+  "seq": 387,
+  "type": "field",
+  "domain": null,
+  "prompt": "Hard choices — place it",
+  "options": [
+   "head decides · decide fast",
+   "lean head decides · decide fast",
+   "lean heart decides · decide fast",
+   "heart decides · decide fast",
+   "head decides · middle",
+   "lean head decides · middle",
+   "lean heart decides · middle",
+   "heart decides · middle",
+   "head decides · agonise",
+   "lean head decides · agonise",
+   "lean heart decides · agonise",
+   "heart decides · agonise"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "head decides",
+   "heart decides"
+  ],
+  "ay": [
+   "agonise",
+   "decide fast"
+  ]
+ },
+ {
+  "id": "feed-fd19",
+  "surface": "feed",
+  "seq": 388,
+  "type": "field",
+  "domain": null,
+  "prompt": "Eating out — place it",
+  "options": [
+   "a treat · company first",
+   "lean a treat · company first",
+   "lean routine · company first",
+   "routine · company first",
+   "a treat · middle",
+   "lean a treat · middle",
+   "lean routine · middle",
+   "routine · middle",
+   "a treat · food first",
+   "lean a treat · food first",
+   "lean routine · food first",
+   "routine · food first"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "a treat",
+   "routine"
+  ],
+  "ay": [
+   "food first",
+   "company first"
+  ]
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
