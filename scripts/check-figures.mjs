@@ -136,6 +136,30 @@ const patternsEligibleCount = (() => {
     && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
 })();
 
+// WHAT A COLD BOOT ACTUALLY FETCHES, which stopped being "the whole
+// question bank" at D383 and was still pinned to the bank's size.
+//
+// `live.ts`'s boot reads five whole surfaces (BANK_SURFACES) plus the
+// FEED's core questions only; the daily left that list at D383, which
+// publishes a shape document and seven deck rows instead, and the tail
+// pages in after first paint. So the old pin — the bank's total document
+// count, beside prose reading "the whole question bank" — was enforcing a
+// number the app has not read since D383, and enforcing it FRESH: every
+// promotion cycle the gate rewrote it to the new bank size, so the row got
+// more wrong the more diligently the gate maintained it.
+//
+// The surfaces are listed here rather than parsed out of live.ts on
+// purpose: a regex over a source array would silently agree with itself if
+// the array were renamed. Listed, a change there fails this and someone
+// reads both.
+const COLD_BOOT_SURFACES = ["test", "group", "duo", "pulse", "call"];
+const coldBootBankDocs = (() => {
+  const arr = bankArray(v2content);
+  const whole = arr.filter((q) => COLD_BOOT_SURFACES.includes(q.surface)).length;
+  const coreFeed = arr.filter((q) => q.surface === "feed" && q.core === true).length;
+  return whole + coreFeed;
+})();
+
 if (!seededQuestions || !dailyQuestions) {
   console.error(
     "check-figures: found no questions in functions/src/v2content.ts.\n"
@@ -1221,9 +1245,9 @@ const FIGURES = [
   // cycle, and they are what the cold-boot row is computed from.
   {
     file: "docs/COSTS.md",
-    what: "the question bank's document count (the cold-boot row)",
-    re: /\*\*\+(\d+) reads\*\* — the whole question bank/,
-    actual: seededQuestions,
+    what: "the documents a cold boot reads from the bank (the cold-boot row)",
+    re: /\*\*\+(\d+) reads\*\* — five whole surfaces plus the feed's core/,
+    actual: coldBootBankDocs,
     fix: (n) => `"**+${n} reads** — the whole question bank"`,
   },
   {
@@ -1247,6 +1271,10 @@ const FIGURES = [
   // sentence to be noticed.
   {
     file: "docs/COSTS.md",
+    // Still a real figure and still worth stating — it is what the
+    // install and cache budgets are sized against. What changed is that
+    // it is no longer what a boot READS, so it now sits beside a sentence
+    // saying which of the two it is.
     what: "the question bank's document count (the cold-boot row, second half)",
     re: /`V2_QUESTIONS`, (\d+) docs/,
     actual: seededQuestions,
