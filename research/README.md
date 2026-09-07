@@ -102,11 +102,10 @@ Read in this order. Each file opens with its own status line.
 | 8 | `research/axiom-theory/paper-08-arranged-competition.md` | What a person does when it counts: competitions the system arranges, where difficulty, opponent and payoff are all set per encounter — and the cancellation that decides what such a design can measure, since a paired-comparison likelihood sees only the difference between two sides, so the common part of a stakes effect vanishes exactly and the level of "how much better people do when it matters" is invisible in principle rather than imprecise. What survives is the between-person contrast; the level returns only through asymmetric stakes, a graded score, or fixed-difficulty anchors outside the network, which are also the only thing that makes a learning rate absolute. Priced in encounters, since a binary result's information about a latent difference is at most a quarter; two arms that cannot be one, because assigned stakes forbid the after-loss behaviours that chosen stakes exist to show; the reported-against-enacted reading rebuilt as a discrepancy factor rather than the difference score papers 1 and 2 refuse; dropout caused by the outcome published as a non-ignorability band |
 | 9 | `research/axiom-theory/paper-09-appearance.md` | What is seen first: appearance as two instruments kept apart — morphology, a physical measurement with a calibration and a drift problem, and perception, an observer rating with a face as its stimulus, whose readers agree with each other far more than the face agrees with the person. The step the subject always takes, scoring the readers' consensus against a criterion that never saw the face and calling it validity, is not available: a face predicts a person through two doors, shared biology and a lifetime of treatment, and every criterion the series holds is downstream of the second, so the estimand is the coupling with its doors named. The treatment door is identified per exposure by randomizing whether one person is displayed to another, as an interaction with appearance at the choice-set level against a placeholder; its lifetime integral by nothing; within-person appearance change is the one timing handle. Presentation as three acts, the visible state as a fourth instrument that is itself a perceived signal, two clocks as residuals validated against outcomes, one session-binding claim for paper 7 under an enrolment requirement, and two decisions stated as enumerated shapes for the owner |
 
-Planned, in the order the ranked crossings suggest: the logic test
-against the bank (reasoning items in the clothes of opinions); the
-learned representation with its auditable distilled layer; custody-
-preserving computation for the genome crossings; causal patterns from
-within-unit events. Every one of the four unbuilt axes now has a paper.
+Planned, in the order the ranked crossings suggest: the learned
+representation with its auditable distilled layer; custody-preserving
+computation for the genome crossings; causal patterns from within-unit
+events. Every one of the four unbuilt axes now has a paper.
 
 ## The general track
 
