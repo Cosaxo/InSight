@@ -314,6 +314,49 @@ for (const f of onDisk) {
       + "    field; autoClose carries no such restriction and stays.");
   }
 
+  // RULE 8 — every condition carries exactly one RECOGNISED type, and a
+  // log-match carries a filter.
+  //
+  // Two holes, both measured on this tree by mutation rather than argued.
+  //
+  // Rule 3 above walks `conditionThreshold` and `conditionAbsent` only, so
+  // a `conditionMatchedLog` with its `filter` deleted passed every rule in
+  // this file — a log-match with no filter matches nothing, which is the
+  // silent failure this whole gate exists for: the policy creates fine and
+  // never fires.
+  //
+  // And a condition whose type key is not one this file knows — a typo, or
+  // a v3 type nobody has taught it — fell through every loop. It was
+  // caught only where `notificationRateLimit` happens to be present, via
+  // rule 6's `isLogMatch` going false, which is one policy of eleven.
+  // Verified both ways: renaming the type key on the file that HAS the
+  // rate limit fails, and doing the same on one that does not passes.
+  //
+  // Listed rather than inferred, so a genuinely new condition type fails
+  // here and someone reads the API before adding it to the list.
+  const KNOWN_CONDITIONS = ["conditionThreshold", "conditionAbsent", "conditionMatchedLog"];
+  for (const cond of conditions) {
+    const kinds = Object.keys(cond).filter((k) => k.startsWith("condition"));
+    const known = kinds.filter((k) => KNOWN_CONDITIONS.includes(k));
+    if (known.length !== 1) {
+      fail(`monitoring/${f}: condition "${cond.displayName ?? "(unnamed)"}" carries `
+        + `${known.length === 0 ? "no recognised condition type" : `${known.length} condition types`}`
+        + ` (found: ${kinds.join(", ") || "none"}).\n`
+        + "    Every rule in this file keys on the type, so a condition with none is walked\n"
+        + "    by nothing and checked by nothing — it is not a schema slip, it is the gate\n"
+        + "    going quiet. If this is a real v3 type, add it to KNOWN_CONDITIONS and give\n"
+        + `    it a filter rule of its own. Known: ${KNOWN_CONDITIONS.join(", ")}.`);
+      continue;
+    }
+    if (known[0] === "conditionMatchedLog" && !cond.conditionMatchedLog?.filter) {
+      fail(`monitoring/${f}: conditionMatchedLog has no filter.\n`
+        + "    A log-match with no filter matches nothing. The policy creates without\n"
+        + "    complaint and never fires, which is exactly the shape this gate exists to\n"
+        + "    refuse — rule 3's filter walk covers conditionThreshold and conditionAbsent\n"
+        + "    only, so nothing else in this file would have noticed.");
+    }
+  }
+
   for (const cond of conditions) {
     const d = cond.conditionAbsent?.duration;
     if (!d) continue;
