@@ -41507,3 +41507,67 @@ with what each exposes and to whom, and with the cost of disclosure
 measured by the arm before the decision is made. The reviewer returned
 twenty-six findings and the paper answers all of them; the rest are in
 it as conditions rather than here as prose. Nothing in the app moves.
+
+## D389 amendment (2026-09-07, later) · G4, paper 11 and paper 12 — the method as a general paper, the learned representation, and where the join runs
+
+Three papers in one batch, on the owner's 2026-09-07 pivot and the two
+planned crossings after the four axes.
+
+**G4** is the owner's thesis — axiom theory as a method for any field,
+where a programme advances only by a new or better axis or a better
+pattern-finder — written as a general paper, then hardened by a
+twenty-seven-finding review that made it far more honest. The draft
+asserted a product identity, knowledge equals what the observations
+carry times what the mechanism extracts; the review showed that is
+either a tautology or presumes an information measure G1 keeps three
+apart, so the paper now keeps two levers as two levers and names its
+measure. It claimed "no third move" as a result; the review showed the
+Setting defines a programme as making exactly those decisions, so it is
+a stipulation, and the paper says which real decisions strain it
+(budget, target-change, governance). The source-driven asymmetry was
+circular — the bound was defined against a fixed model class while G3's
+own mechanism expands the class — so it is now stated under named
+conditions and premises rather than as a law. Theory relocates to four
+written objects, not three (the model class was missing). Identification
+is added as a state the value ledger cannot see, so the most valuable
+observation G1 admits can register near zero in it. Goodhart is engaged
+as the method's own failure the evaluation stream does not catch, with a
+fourth constraint for it. The transfers were de-enumerated so the
+science-of-persons case stops mirroring this app's own axis list, which
+is the drift the general track exists to prevent.
+
+**Paper 11** is the learned representation as an axis paper — the
+instrument G4's ledger runs on. Its twenty-five-finding review killed
+the draft's headline contrast (a covariance model's transfer is not
+symmetric, so "covariance is symmetric and the teacher is not" was wrong
+twice); the real contrast is that the teacher's transfer is conditional
+on a person's history, which covariance cannot carry. The value ledger
+recovered G1's per-attention denominator and a single shared target so
+its rows compare; the coupling column is priced in posterior information
+because code length is flat where structure lives. The anchor share is
+an interval, not a guarantee, because the anchors are recoverable from
+proxies — paper 9's two-doors lesson the draft cited and then dropped.
+The loop is two hazards: selection, corrected by importance weighting
+and the five-clause admission test in full rather than by feeding a
+propensity to a predictor with no estimand; and performativity, the
+teacher's outputs moving the phenomena it predicts, identified by
+randomized withholding and absent from the draft entirely. Two per-person
+releases are put to the owner.
+
+**Paper 12** completes the crossing paper 11 could not: the genome is
+the column that must not move, so its crossings are computations where
+only a summary leaves the device. A coupling whose sufficient statistic
+is a sum runs by each attested device contributing its term against a
+phenotype public on the other side; an unattested summary is a rumour;
+every release spends an output-privacy budget and an unbounded bank
+makes the budget the binding resource, allocated by a policy. Kinship is
+pairwise and needs paper 7's separate primitive. And the join paper 11's
+teacher needs — a per-person cross-axis sequence including the genome —
+is the one summation cannot make, so the teacher consumes a device-side
+attested summary whose adequacy against the file is measured once in an
+enclave, which is the honest limit paper 11 left open.
+
+Every one of the four unbuilt axes and the first two planned crossings
+now have a paper; fourteen axiom papers and four general ones carry the
+form. G4 and paper 11 are revised against their reviews; paper 12's
+review is running and its revision follows. Nothing in the app moves.

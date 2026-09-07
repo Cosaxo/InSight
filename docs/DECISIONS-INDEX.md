@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 413 lines instead of
-41,510. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 414 lines instead of
+41,574. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -427,3 +427,4 @@ detect it.
 |  | ↳ *amendment 2026-09-06, later* — [Four unbuilt axes, not two — and papers 7 and 8](DECISIONS.md#d389-amendment-2026-09-06-later--four-unbuilt-axes-not-two--and-papers-7-and-8) | — | 41316 |
 |  | ↳ *amendment 2026-09-06, third* — [Paper 9: appearance, and the fourth unbuilt axis has its paper](DECISIONS.md#d389-amendment-2026-09-06-third--paper-9-appearance-and-the-fourth-unbuilt-axis-has-its-paper) | — | 41392 |
 |  | ↳ *amendment 2026-09-07* — [Paper 10: the key in the relation, and why it has to be earned](DECISIONS.md#d389-amendment-2026-09-07--paper-10-the-key-in-the-relation-and-why-it-has-to-be-earned) | — | 41449 |
+|  | ↳ *amendment 2026-09-07, later* — [G4, paper 11 and paper 12 — the method as a general paper, the learned representation, and where the join runs](DECISIONS.md#d389-amendment-2026-09-07-later--g4-paper-11-and-paper-12--the-method-as-a-general-paper-the-learned-representation-and-where-the-join-runs) | — | 41511 |
