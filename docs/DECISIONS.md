@@ -41745,3 +41745,51 @@ What the sweep did not do is re-argue any paper. It moved withdrawn
 claims to their current form, split terms, converted refusals to forks
 and universals to design statements, and priced what was unpriced.
 Nothing in the app moves.
+
+## D389 amendment (2026-09-07, sixth) · G5: the sequence-learning recipe, read against a collected corpus
+
+The owner's third pivot — *"i really want to explore and research how
+to find patterns and structure the data in ways to find patterns, maybe
+we can take some inspiration from llms"* — is a question none of G1–G4
+answers: they say what can be known, how to hold it, how to estimate it
+and how a programme moves, and none says how a single learner finds
+structure nobody specified. G5 reads the recipe that does — a corpus,
+a cut into tokens, one predictive objective, scale, then reading the
+representation — against the series' setting, and its twenty-five-
+finding review restructured the draft in five places.
+
+The draft treated tokenization as a new data-structure decision; it is
+G2's fold version over a ledger cut, and each choice in the cut is a
+versioned claim about what may be compared with what, so the paper now
+enumerates the decisions rather than inventing a layer. The draft
+called next-token loss "honest by construction" on three justifications
+that did not agree, and entered the serving propensity as a token —
+the move paper 11's revision had already withdrawn and G3's admission
+test forbids; the objective is now factored into a serving factor and a
+response factor with only the second scored, the propensity by import
+weighting toward a target stated first, and a masked objective is that
+reweighting and nothing else. The draft had no custody section and
+assembled a sequence across sources as if the join were free; it is
+G2's join, run only where one custodian holds every column, and every
+learner version is a release with a differencing budget. The draft's
+per-unit map was read off attention weights, which are a routing
+mechanism and not an estimand; it is now an ablation quantity on the
+eligible-drawn stream with an interval, and the paper no longer depends
+on how a learner attends to its past at all. And the draft's four
+non-transfers were re-sorted: one is a non-transfer (the loop, in which
+the learner chooses its own corpus), the other three are things the
+setting adds — the honesty scaffolding with the channel through which
+a hard-optimized learner would cost it least named, an interval rather
+than a point on the prior a text-pretrained shortcut imports, and a
+limit that transfers intact, that a lower loss settles a predictive
+claim and no other. Scaling is a constrained frontier under the budget
+with a loss form stated and its asymptote checked against
+replication-identified noise; placement is amortized inference with the
+learner's edge smallest exactly there. Axiom-track examples and
+authorities the draft had drifted into are removed, so the paper holds
+the general track's rule on sources.
+
+**G6** is drafted beside it — the space every paper calls "one", which
+is three spaces sharing a name, and what a distance in it licenses —
+and is under adversarial review; its revision follows. Sixteen axiom
+papers and six general ones carry the form. Nothing in the app moves.

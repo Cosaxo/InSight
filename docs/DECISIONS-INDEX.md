@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 417 lines instead of
-41,748. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 418 lines instead of
+41,796. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -431,3 +431,4 @@ detect it.
 |  | ↳ *amendment 2026-09-07, third* — [Paper 13 revised, paper 14 drafted, and the planned list is spent](DECISIONS.md#d389-amendment-2026-09-07-third--paper-13-revised-paper-14-drafted-and-the-planned-list-is-spent) | — | 41586 |
 |  | ↳ *amendment 2026-09-07, fourth* — [Paper 14 revised: interest as the content of a propensity the series already models](DECISIONS.md#d389-amendment-2026-09-07-fourth--paper-14-revised-interest-as-the-content-of-a-propensity-the-series-already-models) | — | 41628 |
 |  | ↳ *amendment 2026-09-07, fifth* — [The coherence sweep: what nineteen papers written in sequence had drifted into](DECISIONS.md#d389-amendment-2026-09-07-fifth--the-coherence-sweep-what-nineteen-papers-written-in-sequence-had-drifted-into) | — | 41674 |
+|  | ↳ *amendment 2026-09-07, sixth* — [G5: the sequence-learning recipe, read against a collected corpus](DECISIONS.md#d389-amendment-2026-09-07-sixth--g5-the-sequence-learning-recipe-read-against-a-collected-corpus) | — | 41749 |
