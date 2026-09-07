@@ -590,7 +590,7 @@ function LdCopyLink({ g }: { g: LiveGroup }) {
     } catch { /* clipboard unavailable */ }
   };
   return (
-    <button onClick={copy} aria-label="Copy invite link — no account needed" title="Copy invite link"
+    <button onClick={copy} aria-label="Copy invite link" title="Copy invite link"
       style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 999, padding: "6px 13px",
         cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700,
         color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -1042,7 +1042,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: LD_HAIR, paddingTop: 10 }}>
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
-          Or send a link — no account needed.
+          Or send a link — they sign in when they open it.
         </span>
         <LdCopyLink g={g} />
       </div>

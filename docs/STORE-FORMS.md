@@ -325,10 +325,22 @@ Firebase Auth is your server.
 
 **Never say that line to a reviewer while the nutrition label declares
 Email Address** — a listing that contradicts its own developer response is
-a worse problem than the one the sentence was trying to solve. The rest of
-the 4.8 reply stands and is the strong part: the primary path is anonymous,
-no account is required to use the app, and Google is an optional upgrade
-rather than a login wall.
+a worse problem than the one the sentence was trying to solve.
+
+**And the rest of that reply is retired too, as of D414 (2026-09-07).** It
+argued three things — that the app's primary path was anonymous, that no
+sign-in stood between a user and the questions, and that Google was an
+optional upgrade rather than a login wall. Each was true when written and
+none is now: the app requires an account. The wording is deliberately
+paraphrased rather than quoted, because `check:public-copy` scans this
+file and a verbatim copy of a retired claim is a claim somebody can still
+paste into a developer response.
+
+This was the THIRD place that reply lived, after `SHIP-CHECKLIST.md` and
+`LAUNCH-RUNBOOK.md`, and it is the copy that survived D414's own sweep of
+the other two. The gate holds the vocabulary now, so a fourth cannot
+outlive a fifth sweep. Guideline 4.8 is answered by Sign in with Apple
+leading the gate, not by argument.
 
 If you would rather the claim were true than the label complete, that is a
 code change and not a forms change: request no scopes at all, accept that

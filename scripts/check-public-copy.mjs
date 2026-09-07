@@ -232,6 +232,55 @@ export const RETIRED = [
     re: /\b(?:takes?|free text|posts?)\b[^.!?]{0,60}\banonymous by construction\b/i,
     why: "takes carry the author's name at both scopes since D98",
   },
+
+  // ── the anonymous-first vocabulary, retired by D414 ───────────────
+  //
+  // A SECOND retired model, and it went the same way as the first: on
+  // 2026-09-07 the account wall went up, and three surfaces kept
+  // promising the opposite for the rest of the afternoon —
+  // `design/store/listing.json` (BOTH store descriptions: "No sign-up
+  // wall. Open it and start: no email, no phone number"), `web/join.html`
+  // ("the app works anonymously from the first tap") and, worst,
+  // `web/privacy.html`'s Children section ("there is little to collect:
+  // no account is required"). The listing was hours from being submitted
+  // to Apple beside a build that opens on a wall, which is guideline
+  // 2.3.1 and a rejection round.
+  //
+  // That is this file's own founding failure, repeated: its header
+  // records listing.json shipping "answers are owner-only" to App Store
+  // Connect while the rules said otherwise. The remedy the header argues
+  // for is a word list rather than a discipline — so D414's vocabulary
+  // joins D98's here rather than being swept once and trusted.
+  //
+  // NOT a ban on the word "anonymous". The app still signs every session
+  // in anonymously (D3, untouched), the attention tally is genuinely
+  // unlinkable, and both are described in copy that must keep saying so.
+  // What is retired is the claim that a user may USE the app without an
+  // account.
+  {
+    re: /\bno (?:sign[- ]?up|signup|log[- ]?in|login) wall\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\bno account (?:or [a-z]+ )?(?:is )?(?:needed|required)\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\b(?:works?|usable|use it) anonymously\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\byou do not need an account\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\bwithout (?:an account|signing in|an email)\b[^.!?]{0,40}\b(?:answer|use|start|open)\b/i,
+    why: "the app requires an account since D414",
+  },
+  {
+    re: /\b(?:linking|signing in)\b[^.!?]{0,30}\bis optional\b/i,
+    why: "the app requires an account since D414",
+  },
 ];
 
 // Strings a scan must not read as copy. `$`-prefixed keys in listing.json
