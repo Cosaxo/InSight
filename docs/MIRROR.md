@@ -1,7 +1,9 @@
 # The Mirror — where the answers add up
 
 Described as "one blind question a day", InSight sounds like a poll with
-a streak. Open it and answering is the *smaller* half — a few taps, then
+a streak — which is why that description is retired (the owner,
+2026-09-07: *"some old focus"*). The daily card is what opens; the
+questions run to hundreds, and answering at all is the *smaller* half — a few taps, then
 a split — and everything else is the Mirror: one tab, one verb, seven
 stops from *you* to *the world*, every one of them reading the same
 numbers through a different cut. It is not the small tab either — the

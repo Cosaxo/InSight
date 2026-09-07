@@ -44628,3 +44628,135 @@ qualified `window.X`, which `no-undef` cannot flag and which therefore
 looks like ordinary code. The count is deliberately not quoted here — it is
 a figure no gate holds, and this file's own section 1 names an unheld
 figure as the documentation error the repo keeps re-committing.
+
+## D419 · Build 33 on a real phone: the wall would not lift, the setup sheet did not fit, and the cadence is not the product
+
+**Date:** 2026-09-07 · **Status:** Adopted. The first time this app's
+account wall met a phone, and it found two defects no gate could see plus
+one piece of positioning the owner has now retired.
+
+> *"Sign in worked i tested with google but i had to close and reoprn the
+> app to advance… the shert for filling in data is scaled wrong an looks
+> bad… I think the first slide focus to much on one question a day this
+> app is more questions in general. That is some old focus."* — the
+> owner, 2026-09-07.
+
+It also answered the question D414's amendment could not: **build 33
+carries the wall.** The gate is the first screen. The sandbox could not
+verify that (the flag resolves from a repository variable, the artifact
+host is blocked by egress policy, the build log's middle is 700 KB of
+Xcode output), so it was an inference and is now an observation.
+
+### 1 · The wall would not lift — `onAuthStateChanged` cannot see a link
+
+A tester signed in with Google, the link succeeded, and the wall stayed
+up until the app was force-quit and relaunched.
+
+**Read out of the SDK rather than reasoned about**
+(`@firebase/auth` → `notifyAuthListeners`):
+
+```js
+this.idTokenSubscription.next(this.currentUser);      // always
+const currentUid = this.currentUser?.uid ?? null;
+if (this.lastNotifiedUid !== currentUid) {            // only on a UID CHANGE
+  this.lastNotifiedUid = currentUid;
+  this.authStateSubscription.next(this.currentUser);
+}
+```
+
+**Linking keeps the uid.** That is the whole point of linking and D3's
+reason the wall is affordable at all — every answer given before it
+survives under the same account. So `onAuthStateChanged`, which
+`subscribeToAuth` used, cannot fire for the one event the wall waits on.
+The user object flipped `isAnonymous` to false and nothing told the app.
+A relaunch then restored a non-anonymous user as a fresh sign-in, the uid
+went null → value, and the wall finally dropped.
+
+**D134 saw half of this and could not have seen the other half.** Its
+comment in `live.ts` reads: *"the anonymous → Google upgrade keeps the
+uid, so this callback set `linked` and then fell past every branch below
+without a notify()"* — and it fixed the notify. It could not fix the
+callback, because with `onAuthStateChanged` the callback does not run.
+The fix is one word, `onIdTokenChanged`, and the guard D134 added for a
+condition that could not happen is what makes it free: the observer
+notifies nobody unless a flag moved, so the extra hourly token-refresh
+callbacks cost nothing.
+
+**Why every test was green.** `live.ts`'s tests drive the subscription
+callback directly; the gate's tests stub `LIVE.linked`. Both are green
+with the wrong observer, because nothing anywhere exercised the real
+SDK's choice about when to call us. The new test is name-level and owns
+exactly that fact — which registry the app joined — on
+`appcheck.test.ts`'s argument: whether the SDK honours its own
+subscriptions is Firebase's contract, not ours.
+
+**A second thing this explains.** D414's amendment had
+`refreshVerification` write `needsEmailVerify` itself rather than trust
+`reload()` to notify, and called that defensive. It was not defensive:
+`reload()` goes through the same `notifyAuthListeners`, so under
+`onAuthStateChanged` it would not have notified either. That line was
+load-bearing and the reasoning under it was wrong about why.
+
+### 2 · The setup sheet overflowed every phone by 44px
+
+`src/v2/ui/LiveProfileSetup.tsx`'s column is `width: 100%` with 22px of
+padding a side. **`styles.css` has no universal
+`* { box-sizing: border-box }`** — it is set per rule — so the content box
+was 446px inside a 402px window and every field ran off the right edge,
+the sentence about the handle cut mid-word. One property.
+
+The general shape is worth naming because the tree invites it: an inline
+`width: 100%` with horizontal padding is wrong by default here, not right
+by default. `<button>`, `<input>` and `<select>` escape it because the UA
+stylesheet gives form controls `border-box`; a `<div>` does not. The
+sheet was the only live instance.
+
+### 3 · The cadence is not the product
+
+*"One question a day"* led the walkthrough's first page, the sign-in
+gate, both store descriptions, `CLAUDE.md`'s own paragraph and
+`MIRROR.md`'s opening line. The owner has retired it: the app is *"more
+questions in general"*, and the daily is what OPENS rather than what the
+app is. What replaces it is the blind answer — committing before the
+crowd can anchor you — and the volume underneath.
+
+**And "sealed until tomorrow" stops naming a day.** The owner intends to
+loosen the one-a-day limit on Circle and 1v1 (*"i actualy hope to make
+the 1v1 and group less lineted to move to unlimeted questions per day"*).
+That is not built and nothing here claims it is — what changed is that
+copy no longer hard-codes a cadence it is meant to outlive. *"Until the
+reveal"* is true at any cadence; *"until tomorrow"* goes false the day
+the limit moves, which is how a sentence outlives the thing it described.
+The walkthrough test that pinned the exact phrase now pins the two halves
+of the PROMISE instead — unreadable until the reveal, then named — so a
+cadence change moves the copy without moving the test, and dropping the
+promise still fails it.
+
+### 4 · What was reported and is NOT a defect
+
+*"the daily question didnt work/was allready answared."* The screenshot
+shows the card answered, marked YOU, with one vote. That is almost
+certainly correct behaviour on that device: the owner deleted their
+account earlier the same day, answered again as the fresh anonymous
+session that followed, and then signed in with Google — which LINKS,
+keeping the uid, so the answer is theirs and the single vote is their
+own. Nothing is fabricated and nothing is stale.
+
+Recorded rather than fixed, because the alternative would be worse: a
+sign-in that discarded answers given before it is exactly what D3 and the
+gate's own copy promise not to do. **Not verified on a device from here**,
+so it is stated as the likely reading and not as a finding; a fresh
+install or a different Google account is what would confirm it.
+
+### 5 · What this does not decide
+
+- **Unlimited questions per day for Circle and 1v1.** The owner's
+  intention, recorded so it is not lost, and unbuilt. The reveal is
+  still next-day; only the copy stopped depending on that.
+- **The setup sheet's redesign.** Visual request 10, on D352's rule —
+  including the owner's ask that some fields become REQUIRED before the
+  sheet can be skipped, which reverses that file's own "it does not
+  block" and is the owner's to reverse. The request carries the argument
+  the file makes against it (*"a required demographic form is how you
+  teach people to lie to one"*) so the canvas answers it rather than
+  discovers it.

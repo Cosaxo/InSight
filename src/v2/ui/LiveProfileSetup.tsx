@@ -295,7 +295,19 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
       paddingTop: "calc(env(safe-area-inset-top) + 22px)",
       paddingBottom: "calc(env(safe-area-inset-bottom) + 28px)",
     }}>
-      <div style={{ width: "100%", maxWidth: 420, margin: "0 auto", padding: "0 22px" }}>
+      {/* boxSizing, and it is the whole of build 33's "scaled wrong" bug.
+          There is NO universal `* { box-sizing: border-box }` in
+          styles.css — it is set per rule — so `width: 100%` here meant
+          100% of the viewport PLUS 44px of padding, and every field ran
+          44px off the right edge on every phone narrower than 464. The
+          screenshot that reported it shows the sentence about the handle
+          cut mid-word.
+          Measured, not assumed: at 402pt (iPhone 16 Pro) maxWidth never
+          binds, so the content box was 446px inside a 402px window. */}
+      <div style={{
+        width: "100%", maxWidth: 420, margin: "0 auto", padding: "0 22px",
+        boxSizing: "border-box",
+      }}>
         <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 26, letterSpacing: "-0.03em" }}>
           A few things about you
         </div>

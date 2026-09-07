@@ -488,3 +488,34 @@ describe("the hardware back button", () => {
     expect(backLayerCount()).toBe(0);
   });
 });
+
+// ── the sheet fits the phone (build 33) ────────────────────────────
+//
+// The owner's screenshot of build 33 showed every field running off the
+// right edge, the sentence about the handle cut mid-word. One property:
+// the column is `width: 100%` with 22px of padding a side, and
+// `src/v2/styles.css` has NO universal `* { box-sizing: border-box }` —
+// it is set per rule, which is exactly the arrangement that makes an
+// inline style like this one wrong by default rather than right by
+// default.
+//
+// jsdom computes no layout, so this cannot assert a rendered width. What
+// it CAN do is pin the property whose absence produced the overflow, on
+// the element that carries the padding — which is the fact that was
+// missing, not a proxy for it.
+describe("the column fits its phone", () => {
+  it("sizes the padded column as a border box", () => {
+    const { container } = render(<LiveProfileSetup onDone={onDone} />);
+    // The one element with horizontal padding and a percentage width.
+    const col = Array.from(container.querySelectorAll("div")).find((d) => {
+      const s = (d as HTMLElement).style;
+      return s.width === "100%" && /\d+px/.test(s.paddingLeft || "");
+    }) as HTMLElement | undefined;
+    expect(col, "the padded column is gone — re-point this test").toBeTruthy();
+    expect(
+      col!.style.boxSizing,
+      "width:100% plus horizontal padding overflows the viewport by twice "
+      + "the padding; styles.css has no universal border-box reset",
+    ).toBe("border-box");
+  });
+});

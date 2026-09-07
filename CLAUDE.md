@@ -29,8 +29,17 @@ carry a third**: **patterns** is built, and it puts itself in the bar
 when the nightly fit has published enough to draw and you have answered
 enough to be drawn in it (D265 — see the patterns note below). Nobody
 flips a flag. The **daily** tab is where you
-answer: one blind question a day, a feed under it, and sealed
-group/1v1 duels revealed the next day. The feed is finite *today* and the
+answer, and **the cadence is not the product** (the owner, 2026-09-07,
+reading build 33: *"this app is more questions in general… that is some
+old focus"*). What is distinctive is answering BLIND — committing before
+the crowd can anchor you — and the volume underneath: a daily card
+leads, a feed of hundreds runs under it, and group/1v1 duels stay sealed
+until their reveal. Write copy and documentation against the blind
+answer and the volume, not against "one a day": the daily is what
+OPENS, not what the app is. The one-a-day limit on Circle and 1v1 is a
+limit the owner intends to loosen, so a sentence naming a cadence is a
+sentence with an expiry date — say *"until the reveal"*, never *"until
+tomorrow"*. The feed is finite *today* and the
 owner has decided it should not stay that way —
 [`docs/SCALE-PLAN.md`](docs/SCALE-PLAN.md) is what an unbounded feed
 costs, what trips first, and the core/tail split it forces. Read it
