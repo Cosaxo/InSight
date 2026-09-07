@@ -79,6 +79,18 @@ export interface QuestionDoc {
   tag?: string;
   rates?: string;
   test: string | null;
+  // The instrument axis a test item scores — seeded on every doc, read
+  // by the deep join below and by nothing else on the device: the core
+  // items' scoring metadata lives in IS_TESTS and joins by prompt.
+  axis?: string | null;
+  // The instruments' deep items (D414): which sub-scale an item scores —
+  // a Big Five facet or a compass position — and whether it is keyed
+  // against it. On the document rather than in IS_TESTS so the device
+  // joins by id and the 156 prompts stay out of first paint
+  // (docs/VISION-2026-09-07.md §2.5). Absent on the core items and on
+  // every other surface.
+  facet?: string;
+  invert?: boolean;
   active: boolean;
   // Current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231): a
   // feed entry is OFFERED only between these two inclusive UTC day keys;

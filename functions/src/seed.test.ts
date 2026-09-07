@@ -106,6 +106,11 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
     ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
     ...(q.rubric ? { rubric: q.rubric } : {}),
+    // The instruments' deep items (D414) — emit-when-set like the rest,
+    // and in SEEDED_FIELDS, so the no-op case cannot report the 156 deep
+    // docs as phantom writes.
+    ...(typeof q.facet === "string" ? { facet: q.facet } : {}),
+    ...(q.invert === true ? { invert: true } : {}),
     // The card's background (D281) and the learn card's metadata (D284),
     // mirrored for the same reason as everything above: this function IS
     // what the seed writes, so a field the payload carries and this does

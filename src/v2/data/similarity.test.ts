@@ -19,6 +19,7 @@ import {
   placeProfiles,
   rankKindred,
   scoreMatch,
+  testDeepMeta,
   testItemMeta,
   voteIndices,
   type KindredPerson,
@@ -631,5 +632,37 @@ describe("pickKindredQids — chosen, not inherited", () => {
     const votes = { a: "1", b: "1", c: "1" };
     const score = () => 0.5; // every question equally divisive
     expect(pickKindredQids(votes, score, 2)).toEqual(pickKindredQids(votes, score, 2));
+  });
+});
+
+// ── the deep items join by the document, not by prompt (D414) ────────
+describe("testDeepMeta", () => {
+  const DEEP = [
+    // a facet item, plainly keyed
+    { id: "test-big5-25", prompt: "I get tense about things that haven't happened yet.", test: "big5", options: LIKERT5, axis: "N", facet: "anxiety" },
+    // …and one keyed against its facet
+    { id: "test-big5-27", prompt: "I rarely feel nervous, even when there is reason to.", test: "big5", options: LIKERT5, axis: "N", facet: "anxiety", invert: true },
+    // a core item: no facet on the doc, so it is level one's and not here
+    { id: "test-big5-00", prompt: "New ideas beat familiar ones.", test: "big5", options: LIKERT5, axis: "O" },
+    // a lens item: the test surface, no instrument
+    { id: "lq-moral-1", prompt: "…", test: null, options: LIKERT5, axis: "m", facet: "x" },
+    // a deep doc that lost its axis — refused, never guessed
+    { id: "test-big5-99", prompt: "…", test: "big5", options: LIKERT5, facet: "anxiety" },
+    // the wrong scale shape
+    { id: "test-big5-98", prompt: "…", test: "big5", options: ["a", "b"], axis: "N", facet: "anxiety" },
+  ];
+
+  it("reads facet, axis and keying off the document and nothing else", () => {
+    expect(testDeepMeta(DEEP)).toEqual([
+      { qid: "test-big5-25", test: "big5", dim: "N", facet: "anxiety", invert: false },
+      { qid: "test-big5-27", test: "big5", dim: "N", facet: "anxiety", invert: true },
+    ]);
+  });
+
+  it("leaves level one exactly where it was: the prompt join sees no deep item", () => {
+    // A deep item's prompt matches no IS_TESTS definition, so the fold the
+    // axes, the norms and the similarity fields run over is unchanged by
+    // the bank growing — the property the eager-graph decision rests on.
+    expect(testItemMeta(DEEP, DEFS).map((m) => m.qid)).toEqual(["test-big5-00"]);
   });
 });

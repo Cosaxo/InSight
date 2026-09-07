@@ -69,7 +69,12 @@ const ID_SHAPE = {
   // `test-<key>-NN`, and the lens items' `lq-<lens>-<N>` — UNPADDED,
   // because the client minted those ids before the items had a backend
   // (lens-defs.js) and devices hold local state keyed by them (D91).
-  test: /^(test-[a-z0-9]+-\d{2}|lq-[a-z]+-\d{1,2})$/,
+  //
+  // Two OR THREE digits on the core instruments' family since D414: each
+  // instrument's deep items (its facets' or positions') continue its own
+  // numbering past the core items — big5 runs 00–24 then 25–144 — so the
+  // hundreds arrived with them. Widening the shape touches no shipped id.
+  test: /^(test-[a-z0-9]+-\d{2,3}|lq-[a-z]+-\d{1,2})$/,
   learn: /^learn-[a-z0-9]+$/,
   // The daily pulse's TEMPLATE ids (D139). Answers are keyed
   // {baseQid}_{day} against these, so the shape is forever like all of
@@ -508,6 +513,25 @@ for (const [key, t] of Object.entries(content.tests)) {
     if (q.test === key && !dims.has(q.axis)) {
       errors.push(`${q.id}: axis ${JSON.stringify(q.axis)} not a ${key} dimension`);
     }
+  }
+}
+
+// ---- deep items (D414) must name a facet their test declares, under the
+// axis they score. tests.json declares `facets` for exactly this check, the
+// way `dims` exists for the one above: a facet id the device's fold does
+// not know is a scored answer nobody can read, and a facet filed under the
+// wrong axis would fold an Anxiety answer into Extraversion.
+for (const [key, t] of Object.entries(content.tests)) {
+  const facets = new Map((t.facets || []).map((f) => [f.id, f]));
+  const dims = new Set(t.dims.map((d) => d.id));
+  for (const f of t.facets || []) {
+    if (!dims.has(f.d)) errors.push(`${key} facet ${f.id}: axis ${JSON.stringify(f.d)} not a ${key} dimension`);
+  }
+  for (const q of entries) {
+    if (q.test !== key || q.facet === undefined) continue;
+    const f = facets.get(q.facet);
+    if (!f) errors.push(`${q.id}: facet ${JSON.stringify(q.facet)} not declared by ${key}`);
+    else if (f.d !== q.axis) errors.push(`${q.id}: facet ${q.facet} belongs to ${f.d}, the item scores ${q.axis}`);
   }
 }
 

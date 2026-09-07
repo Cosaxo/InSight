@@ -447,7 +447,8 @@ const answerableTotal = (() => {
     daily: j("content/daily-questions.json").length,
     feed: feedQs.filter((q) => q.active !== false).length,
     test: Object.values(j("content/tests.json"))
-      .reduce((a, t) => a + (t.questions || []).length, 0),
+      // The deep items (D414) are answerable cards like the core ones.
+      .reduce((a, t) => a + (t.questions || []).length + (t.deep || []).length, 0),
     learn: j("content/learn-questions.json").cards.length,
     pulse: j("content/pulse-questions.json").questions.length,
     call: j("content/call-questions.json").questions.length,

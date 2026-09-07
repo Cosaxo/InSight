@@ -38,6 +38,12 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
   options: string[]   (scale → the 5-point agree scale; rating → "1".."10";
                        pulse → exactly five steps; call → exactly two, and
                        index 0 is the call coming true)
+  facet?, invert?     the instruments' DEEP items only (D414): the Big
+                       Five facet or compass position an item scores, and
+                       whether it is keyed against it. On the document so
+                       the device joins by id rather than by prompt text —
+                       which is what keeps the 156 prompts out of first
+                       paint. Absent on the 110 core items and the lenses
   topic, axis, test   metadata (test != null only on a test's own items;
                        topic is the feed's topic id, a group question's kind
                        us|pick|classic, and since D386 a 1v1 question's
@@ -685,7 +691,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (913 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (1069 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -758,7 +764,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (913 docs) caches in localStorage keyed by
+everything. The question bank (1069 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

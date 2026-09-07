@@ -43997,3 +43997,129 @@ which steps remain.
 ### Gates
 
 `check:docs`, `check:figures`, `test:scripts` — documents only.
+
+## D415 · The instruments' deep items land in the bank: thirty facets written, eighteen positions carried, and the prompts kept out of first paint
+
+**2026-09-07.** **Status:** binding, **built** — step 1 of
+`VISION-2026-09-07.md` §6, on the owner's ruling of the same day (D414:
+*"that will be your next task to create those questions in a good
+way"*). Written on `claude/new-visual-direction-plan-whjnb2`; the
+standing collision pattern (D289, D408) may renumber this at merge.
+
+### What was written
+
+**The Big Five's thirty facets, four items each — 120, in the app's
+voice.** Not IPIP-NEO-120's items: the bank's copy is the product
+voice (`content/README.md`), and the owner's word was *create*. What
+was kept from IPIP-NEO is the map — its thirty constructs, six under
+each domain, in its order, with the readings the 2026-09-07 design
+draws (`design/standalone-2026-09-07/big5-deep.jsx`: *calm, fearless ↔
+tense, on alert*, and so on) — and the 4–20 scale the design's tracks
+and IPIP-NEO's report text both assume, which is why the count is four.
+The rules each item was held to, and the suite that pins them
+(`src/v2/test/content-parity.test.jsx`, the deep block):
+
+- **Two keyed toward the facet and two against**, every facet, so an
+  agree-with-everything style scores as nothing — the D85 lesson one
+  level down, made exact rather than "at least one".
+- **First person, one concrete idea, a statement with a stop**, inside
+  the farm's measured prompt bounds (14–97 characters), on the same
+  five-step agreement scale the 110 core items use.
+- **No near-twin of a core item.** Every facet refines a domain the 25
+  core items already measure, so the risk was a facet item that restated
+  a domain item in other clothes (*I finish what I start, even when it
+  gets dull* is a core item; the Self-Discipline facet asks *I can make
+  myself work when I'd rather not* instead). Checked by token overlap
+  against the core items and against each other before the bank was
+  written; the parity suite pins exact repetition.
+- **The clinical-sounding facets are asked plainly.** IPIP-NEO's
+  Depression items say *often feel blue*; the bank's say *Some days I
+  can't find the energy to start anything* and, keyed against, *I'm
+  mostly at peace with who I am*. Every answer is public (D98); the
+  facet's name and the reading are the panel's business (step 3), and
+  its publication is the owner's (D414 §2).
+
+**The compass's eighteen positions, two items each — 36, the design's
+own.** Verbatim from `politics-deep.jsx` (typographic apostrophes
+straightened to the bank's), one reverse-keyed per position as the
+design keyed them, under the position ids and readings the design
+names. One pair reads as a twin on purpose and is recorded rather than
+reworded: *When jobs and green rules clash, jobs should win* (the
+Growth trade-off position, keyed against) against the core item *Green
+rules should hold even when jobs are on the line* — the same tension
+asked from the other side, which is what a position refining an axis
+is.
+
+### How they landed, and what did not move
+
+`content/tests.json` gains `facets` (the declarations: id, axis, label,
+the two readings) and `deep` (the items) beside `questions` on the two
+instruments; `questions` is untouched, so `content-parity`'s core
+contract — `IS_TESTS` ≡ the bank, item for item — holds as written.
+The generator emits the deep items **after the lens loop**, continuing
+the test surface's counter past every standing test and lens doc, so
+**no shipped seq moved** and, inside each instrument's round-robin
+stream (`live.ts`), the domain items still come first. Each doc carries
+`facet` and (when keyed against) `invert`; the seed's four field lists
+transport and compare them (`check:seed-fields`, the gate D234 earned);
+`QuestionDoc` and the feed's test card carry them. The bank is 1069
+documents (test 316: 110 core, 50 lens, 156 deep); the ids continue
+each instrument's own numbering (`test-big5-25`…`144`,
+`test-political-30`…`65`), which widened the id shape to three digits
+without touching a shipped id.
+
+**Level one is byte-for-byte where it was.** The core items' scoring
+metadata joins by prompt text against `IS_TESTS`; a deep item's prompt
+matches no definition, so `testItemMeta` drops it and the axes, the
+norms, the similarity fields, `MIN_AXIS_ITEMS` and the progress
+denominators all read exactly what they read before the bank grew —
+pinned in `similarity.test.ts`. The deep items join **by id, off the
+document**: `testDeepMeta` (`data/similarity.ts`) reads `facet`, `axis`
+and `invert` from the doc and refuses a doc that lost its axis rather
+than guessing one. Nothing consumes it yet; it is the seam the plan's
+step 2 (the facet fold) reads.
+
+**First paint did not move.** `test-definitions.js` is
+`check:eager-content`'s named debt and the shipping graph measured 602
+KB against a 607 ceiling before this landed; the 156 prompts ride the
+seeded document instead of the spec layer, and the shipping build
+measures **602 KB eager after** — the same number.
+
+**The feed serves them; the ring ignores them.** A deep item is a
+`surface: "test"` card with its instrument's marker, so the feed's
+test stream carries it (one in four, `TEST_EVERY`) and its aggregate
+publishes from the first answer like any other question's. The passive
+ring (`spec/passive-progress.js`) skips a card carrying `facet`: its
+denominator is the domain-level set `IS_TESTS` carries, and a facet
+answer counted there would fill a ring whose 25 never included it.
+`testFor` still says yes to the card — the feed filters its stream
+through it, and a card the tracker disowned would never be served.
+
+**What it costs.** A cold boot reads the whole test surface, so a
+fresh device reads 156 more documents once (`COSTS.md`'s cold-boot row:
+332 → 488 reads, 260.7 → 304.6 KiB); deltas thereafter. No rules
+change, no new collection, no new read on a warm boot. A seed run
+appends the 156 documents (`seedContentV2` never re-keys, D52).
+
+### What this changes elsewhere
+
+`content/README.md`'s row, `SCHEMA-V2.md`'s field list, `MIRROR.md`
+§4's sentence, `VISION-2026-09-07.md` §6 step 1 (as built, with the
+two things settled against the plan's first wording: level one left
+alone, the ring skipping deep cards), the worklist's line ticked, and
+the bank-size figures `check:figures` holds (thirteen sentences, 913 →
+1069 and the cold-boot row), plus the pulse console's bank row
+(`scripts/pulse-collect.mjs`), whose two-path size check caught the
+row lagging the day they landed — five for five.
+
+### Gates
+
+`check:content` (1069 in sync), `check:seed-fields` (40 fields, all
+transported, compared and mirrored), `check:eager-content` (7 of 96,
+unchanged), `check:quality`, `check:neighbors`, `check:figures`,
+`check:docs`, `check:bundle` on the shipping build (602 KB eager, the
+same), `tsc -b`, the functions workspace's `tsc` and its 792 tests,
+`test:scripts` 997, `lint`, and `test:unit` — 2851 cases, with the
+logic generator's drawability walk once over its 5-second limit while
+six jobs shared the machine — green alone (67 of 67) and on the clean
+re-run of the whole suite: **2851 of 2851**.

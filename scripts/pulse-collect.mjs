@@ -365,8 +365,14 @@ export function collectPipeline() {
     { surface: "call", count: call.questions.length, source: "content/call-questions.json" },
     {
       surface: "test items",
+      // The core items and, since D414, each instrument's DEEP items (the
+      // Big Five's facets, the compass's positions) — bank docs on the same
+      // surface, in `deep` beside `questions`. The two-path bank-size check
+      // in pulse.test.mjs caught this row lagging the day they landed,
+      // which makes it five for five.
       count: Object.values(tests).reduce(
-        (a, t) => a + (Array.isArray(t?.questions) ? t.questions.length : 0), 0),
+        (a, t) => a + (Array.isArray(t?.questions) ? t.questions.length : 0)
+          + (Array.isArray(t?.deep) ? t.deep.length : 0), 0),
       source: "content/tests.json",
     },
     // The minor instruments' items, seeded on the SAME "test" surface since

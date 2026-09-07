@@ -581,6 +581,15 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The instruments' deep items (D414): which sub-scale an item scores
+      // and how it is keyed, on the document — the device joins these by
+      // id rather than by prompt text, which is what keeps the 156 new
+      // prompts out of first paint (docs/VISION-2026-09-07.md §2.5).
+      // Emit-when-set: the 110 core items and every lens item carry
+      // neither, and writing null onto them would rewrite the whole test
+      // surface to say nothing.
+      ...(typeof q.facet === "string" ? { facet: q.facet } : {}),
+      ...(q.invert === true ? { invert: true } : {}),
       // The card's background (D281) and the learn card's own metadata
       // (D284) — the third and fourth times this whitelist has been the
       // thing a new field died in. Both would have shipped dark: the
