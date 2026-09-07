@@ -318,9 +318,19 @@ if (!declaredDims.length) {
 const rules = stripComments(readFileSync(resolve(root, RULES), "utf8"));
 const live = stripComments(readFileSync(resolve(root, LIVE), "utf8"));
 
+// THE FORM IS `isShortAnchor(anchors, "city", 80)`, and it was
+// `isOptionalShortString(anchors.get("city", null), 80)` until D405 rewrote
+// the ruleset to spend two expansions per anchor instead of three. This scan
+// was left on the old form, so the rewrite landed with the gate RED — which
+// is the empty-match guard below doing exactly the job it was written for,
+// and the reason it is worth more than a scan that quietly matches nothing.
+//
+// ONE form on purpose, not both. A scan that accepts the old shape as well
+// would pass a half-converted ruleset, where the anchors still written the
+// old way go unheld while the gate reports success.
 const ruleCaps = new Map();
 for (const m of rules.matchAll(
-  /isOptionalShortString\(\s*anchors\.get\(\s*"(\w+)"\s*,\s*null\s*\)\s*,\s*(\d+)\s*\)/g,
+  /isShortAnchor\(\s*anchors\s*,\s*"(\w+)"\s*,\s*(\d+)\s*\)/g,
 )) ruleCaps.set(m[1], Number(m[2]));
 
 const liveBlock = live.match(/const ANCHOR_FIELDS[^=]*=\s*\{([\s\S]*?)\}/);
@@ -333,7 +343,7 @@ if (liveBlock) {
 // this stops meaning anything without ever failing.
 if (!ruleCaps.size) {
   errors.push(
-    `${RULES}: found no isOptionalShortString(anchors.get("x", null), N) calls.\n`
+    `${RULES}: found no isShortAnchor(anchors, "x", N) calls.\n`
     + "    The ruleset's anchor validation was rewritten — fix this scan.",
   );
 } else if (!liveCaps.size) {
