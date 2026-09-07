@@ -366,6 +366,43 @@ const feedCount = feedQs.length;
 const feedCoreCount = feedQs.filter((q) => q.core === true).length;
 const feedTailCount = feedQs.filter((q) => q.core === false).length;
 
+// EVERY QUESTION ONE ACCOUNT CAN ANSWER, across the six surfaces a Circle
+// member's answers are read from (WORLD_ANSWER_SURFACES, src/v2/data/voters.ts).
+//
+// CIRCLE_ANSWER_CAP's docstring does this arithmetic to argue that the cap
+// binds, and it did it by hand: "daily 130, feed 166, test 110, learn 156,
+// pulse 5, call 3 = 570" against banks that hold 737 between them today —
+// the feed alone had gone from 166 answerable cards to 309. The conclusion
+// never moved, which is exactly how a figure like this goes stale
+// unnoticed: the sentence stays persuasive while every number in it stops
+// being true. The nightly lane appends to these banks, so a hand-count
+// there is stale within days.
+//
+// ANSWERABLE, not "in the file": a feed card carrying `active: false` is
+// retired and nobody can answer it, and counting it would overstate the
+// very thing the cap is being argued about.
+const answerableTotal = (() => {
+  const j = (rel) => JSON.parse(read(rel));
+  const perSurface = {
+    daily: j("content/daily-questions.json").length,
+    feed: feedQs.filter((q) => q.active !== false).length,
+    test: Object.values(j("content/tests.json"))
+      .reduce((a, t) => a + (t.questions || []).length, 0),
+    learn: j("content/learn-questions.json").cards.length,
+    pulse: j("content/pulse-questions.json").questions.length,
+    call: j("content/call-questions.json").questions.length,
+  };
+  for (const [k, v] of Object.entries(perSurface)) {
+    if (!v) {
+      throw new Error(
+        `check-figures: the ${k} bank gave 0 answerable questions — its shape `
+        + "changed; fix this reader, do not delete the entry.",
+      );
+    }
+  }
+  return Object.values(perSurface).reduce((a, b) => a + b, 0);
+})();
+
 // Spec modules fully off the shared-global bridge: they export something and
 // assign nothing to window/globalThis, so an importer gets a binding and
 // there is no publication left behind. Read from the directory, never from a
@@ -698,6 +735,15 @@ const FIGURES = [
     re: /(\d+) declare\s+`core: false`/,
     actual: String(feedTailCount),
     fix: (n) => `"${n} declare \`core: false\`"`,
+  },
+  {
+    file: "src/v2/data/circle.ts",
+    what: "answerable questions across the six surfaces CIRCLE_ANSWER_CAP argues about",
+    // `\s+` across the wrap, as elsewhere in this table: the sentence
+    // breaks after "surfaces —" and a re-wrap must not stop matching.
+    re: /six surfaces — (\d+) answerable\s+\* questions across the committed banks/,
+    actual: String(answerableTotal),
+    fix: (n) => `"six surfaces — ${n} answerable questions across the committed banks"`,
   },
   {
     file: "content/README.md",

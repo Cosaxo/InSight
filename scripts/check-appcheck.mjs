@@ -356,10 +356,24 @@ errors.push(...checkAppCheckPolarity(readFileSync(join(SRC, "ops.ts"), "utf8")))
 // file that dropped the import and declared its own `const
 // ENFORCE_APP_CHECK = false` was tsc-clean and left this script printing
 // "20 enforcing". Measured against deviceBind.ts, restored after.
+// RECURSIVE, like the census two hundred lines up and for the same reason
+// check-deploy-targets.mjs was fixed: this scan read the top level only,
+// so a callable in ANY subdirectory of functions/src could declare its own
+// `const ENFORCE_APP_CHECK = false` and be counted as enforcing. The census
+// above already reads subdirectories, so the file was scanned, its callable
+// was listed as attested, and the one check that would have noticed the
+// constant is not the shared one never opened the file. Measured: a probe
+// callable at functions/src/probe/zzz.ts left the gate at rc=0, and the
+// byte-identical file at functions/src/zzz.ts failed it.
+//
+// Latent only while functions/src is flat — which is exactly the state
+// check-deploy-targets was in when the same gap was fixed there.
 errors.push(...checkAppCheckProvenance(
   Object.fromEntries(
-    readdirSync(SRC)
+    readdirSync(SRC, { recursive: true })
+      .map((f) => String(f).split(sep).join("/"))
       .filter((f) => f.endsWith(".ts"))
+      .sort()
       .map((f) => [`functions/src/${f}`, readFileSync(join(SRC, f), "utf8")]),
   ),
 ));

@@ -4005,7 +4005,22 @@ const SOCIAL = {
     // The read breaker (D332): takes are the fourth D98 surface. Absent,
     // not empty, for the reason the cache comment above gives.
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO — the fourth loader, and the one whose bad frame is an
+    // INVITATION. The panel mounts this from an effect, so it has already
+    // painted by the time the read starts: without this notify the first
+    // frame — no data, no flag — stood for the whole of the query, and it
+    // reads "No takes yet. Say the first thing." That is a definite claim
+    // about a room that may be full, and it invites the reader to be first
+    // in it. Its three siblings carry the same two lines and the same
+    // reasoning (loadVoters, loadFollows, loadKindred's recorded
+    // exemption); this one was in neither the fix nor the block that pins
+    // them.
+    //
+    // Not visible from the mount tests: live-fixture stubs `takesLoading`
+    // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
+    // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    notify();
     try {
       const db = await getDb();
       const snap = await getDocs(
@@ -5520,7 +5535,25 @@ const LIVE = {
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       if (on) {
-        if ((state.circle?.length || 0) >= circleMod.FOLLOW_CAP) return;
+        // THE FOLLOW SET, not the circle fold. `state.circle` is written
+        // by `loadCircle` alone, and `loadCircle` is mounted by exactly
+        // one component — the Circle stop, which only ever passes `false`
+        // here. Every surface that can ADD a follow (the People lens, the
+        // city constellation's person card, people search) loads
+        // `follows` and never `circle`, so `state.circle` was null at each
+        // of them and this read `0 >= 50`: the cap did not bind anywhere
+        // it could be reached. Measured — forcing the guard to fire on
+        // every follow, and swapping it to this cache, both left all 2806
+        // unit tests green.
+        //
+        // It also counted the wrong thing when `circle` WAS loaded:
+        // `loadCircle` drops a followed account whose answer read failed,
+        // so the fold's survivors are not the follow rows.
+        //
+        // Null means "not read yet", which must not block — the same
+        // shape as before, on the cache the callers actually fill.
+        const known = state.follows ?? state.circle;
+        if (known && known.length >= circleMod.FOLLOW_CAP) return;
         await circleMod.follow(db, me, uid);
       } else {
         await circleMod.unfollow(db, me, uid);

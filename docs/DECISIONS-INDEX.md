@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 423 lines instead of
-43,050. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 424 lines instead of
+43,109. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -307,8 +307,8 @@ detect it.
 | **D285** | [The seed's whitelist, held to the generator — after the third time](DECISIONS.md#d285--the-seeds-whitelist-held-to-the-generator--after-the-third-time) | D328 | 28907 |
 | **D286** | [An account switch cannot delete the outgoing account's presence cell](DECISIONS.md#d286--an-account-switch-cannot-delete-the-outgoing-accounts-presence-cell) | D326 | 29002 |
 | **D287** | [The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners](DECISIONS.md#d287--the-2026-08-24-visual-passes-ship-the-paid-door-and-the-two-crowd-scorecards-wait-on-their-owners) | D362 (+2) | 29065 |
-| **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D372 (+3) | 29147 |
-| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D403 (+12) | 29202 |
+| **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D405 (+4) | 29147 |
+| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D405 (+13) | 29202 |
 | **D290** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d290--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D403 (+7) | 29270 |
 |  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d290-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 29487 |
 |  | ↳ *amendment 2026-08-25* — [The other two fold arms, so the thesis stops being one third true](DECISIONS.md#d290-amendment-2026-08-25--the-other-two-fold-arms-so-the-thesis-stops-being-one-third-true) | — | 29818 |
@@ -436,4 +436,5 @@ detect it.
 | **D401** | [A top-up fills a topic to a page, not by a page — the paged accumulation D350's amendment named, bounded at its source](DECISIONS.md#d401--a-top-up-fills-a-topic-to-a-page-not-by-a-page--the-paged-accumulation-d350s-amendment-named-bounded-at-its-source) | — | 42339 |
 | **D402** | [The logic test learns two spatial attributes: orientation and position, ten families for the tail, and a percentile that says how sure it is](DECISIONS.md#d402--the-logic-test-learns-two-spatial-attributes-orientation-and-position-ten-families-for-the-tail-and-a-percentile-that-says-how-sure-it-is) | — | 42387 |
 | **D403** | [The cost hunt: four Opus hunters a night and a Fable reviewer, on the owner's ask — proposed](DECISIONS.md#d403--the-cost-hunt-four-opus-hunters-a-night-and-a-fable-reviewer-on-the-owners-ask--proposed) | D404 | 42602 |
-| **D404** | [The night shift looks at the phones: a device pass at phone geometry in its container, the real shells on GitHub's runners, and a brief that reads both](DECISIONS.md#d404--the-night-shift-looks-at-the-phones-a-device-pass-at-phone-geometry-in-its-container-the-real-shells-on-githubs-runners-and-a-brief-that-reads-both) | — | 42747 |
+| **D404** | [The night shift looks at the phones: a device pass at phone geometry in its container, the real shells on GitHub's runners, and a brief that reads both](DECISIONS.md#d404--the-night-shift-looks-at-the-phones-a-device-pass-at-phone-geometry-in-its-container-the-real-shells-on-githubs-runners-and-a-brief-that-reads-both) | D405 | 42747 |
+| **D405** | [The place scorecard's second crowd is renamed "everywhere else", and D288 §2's "from elsewhere" is retired — the night shipped it, the owner rules on it](DECISIONS.md#d405--the-place-scorecards-second-crowd-is-renamed-everywhere-else-and-d288-2s-from-elsewhere-is-retired--the-night-shipped-it-the-owner-rules-on-it) | — | 43051 |

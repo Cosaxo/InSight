@@ -7,6 +7,7 @@ import React from 'react';
 import { DAILYQ } from './daily-questions.js';
 import { DUELS } from './duels-data.js';
 import { LEARN } from './learn-progress.js';
+import { LEARN_TYP } from './learn-data.js';
 import { list as anchorList } from './map-anchors.js';
 // The Map's own family, imported (v28 §5): until the Map went lazy,
 // spec-index's eager list carried these six and their order. Now the ESM
@@ -218,7 +219,23 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         out.push({
           id: 'lrn-' + c.id, parentId: subId, cid: c.id, qid: c.id, top: sj.label,
           daily: true, learn: true, label: c.k, tag: c.k, ans: c.a[c.c], prompt: c.q,
-          note: 'known', age, typ: c.p / 100, maj: true,
+          // TYPICALITY IS A MEASUREMENT, and this read the AUTHORING
+          // HINT. `c.p` is documented in data/learnBank.ts as "the % of
+          // the crowd expected to get it right" — a number the question
+          // writer chose — and map-layout turns `typ` into a ±80px radial
+          // push, so the dot's distance from You was that guess. On a live
+          // build the card that opens on tapping this very dot refuses the
+          // same number in words: LEARN_RATE returns `estimate` only when
+          // LIVE is off, so the card says "Nobody else has answered this
+          // one yet" while the dot sits where the hint put it. A position
+          // IS a claim (LiveSimilarityField says so in as many words), and
+          // this is the one Mirror stop that wears no Preview tag.
+          //
+          // The daily branch two dozen lines up already does this — real
+          // distribution or the neutral radius — and carries the comment
+          // explaining why. `estimate` is kept because it occurs ONLY when
+          // LIVE is off, where every number on the map is the demo's own.
+          note: 'known', age, typ: LEARN_TYP(c), maj: true,
         });
       });
     }

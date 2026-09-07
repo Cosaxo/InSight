@@ -12,7 +12,14 @@
 // narrows a list and an empty list is exactly what "nothing wrong" looks
 // like. That is the whole argument for driving them on fixtures.
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { scanCallables, appCheckProblems } from "./check-appcheck.mjs";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const SRC = `
 export const good = onCall(
@@ -106,5 +113,69 @@ describe("appCheckProblems", () => {
   it("fails when the parse did not reach every onCall site", () => {
     const out = appCheckProblems({ ...scan, onCallSites: scan.onCallSites + 1 }, withGate);
     expect(out.join("\n")).toMatch(/cannot parse|option blocks/);
+  });
+});
+
+// ── the scan's REACH, driven as a subprocess ────────────────────────
+//
+// Everything above tests the two pure functions. The gap that shipped was
+// in neither of them: the gate's census reads functions/src RECURSIVELY,
+// while the scan that checks nobody has declared their own
+// ENFORCE_APP_CHECK read the top level only. So a callable in a
+// subdirectory was scanned, listed as attested, and never opened by the
+// one check that would have noticed its local `= false`. Measured before
+// the fix: the gate printed "29 callables, 21 enforcing App Check" and
+// exited 0 with an unattested callable in the tree.
+//
+// Driven against a COPY of the real tree, because the reach is a property
+// of the script's own body — there is nothing to import — and the claim is
+// about what the gate does when a file is somewhere it did not look.
+describe("the provenance scan reaches a subdirectory", () => {
+  const run = (dir) => {
+    try {
+      return { code: 0, out: execFileSync("node", [join(dir, "scripts", "check-appcheck.mjs")],
+        { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }) };
+    } catch (e) {
+      return { code: e.status ?? 1, out: `${e.stdout ?? ""}${e.stderr ?? ""}` };
+    }
+  };
+  const OPT_OUT = [
+    "const ENFORCE_APP_CHECK = false;",
+    "export const zzProbeV2 = onCall(",
+    "  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },",
+    "  async (request) => { return 1; },",
+    ");",
+    "",
+  ].join("\n");
+
+  /** The tracked tree, plus one planted callable at `rel`. */
+  const treeWith = (rel) => {
+    const dir = mkdtempSync(join(tmpdir(), "check-appcheck-"));
+    execFileSync("bash", ["-c",
+      `cd ${JSON.stringify(ROOT)} && git ls-files -z | tar --null -T - -cf - | tar -xf - -C ${JSON.stringify(dir)}`,
+    ], { stdio: ["ignore", "ignore", "pipe"] });
+    const at = join(dir, rel);
+    mkdirSync(dirname(at), { recursive: true });
+    writeFileSync(at, OPT_OUT);
+    return dir;
+  };
+
+  it("catches a callable that opts out from a subdirectory", () => {
+    const dir = treeWith("functions/src/zzprobe/zz.ts");
+    try {
+      const r = run(dir);
+      expect(r.code, `the gate passed an unattested callable:\n${r.out}`).toBe(1);
+      expect(r.out).toMatch(/declared in more than one module[\s\S]*zzprobe\/zz\.ts/);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  // THE CONTROL, and it is the one that says the case above is about REACH
+  // rather than about the plant being malformed: the byte-identical file at
+  // the top level was always caught, which is exactly why the gap survived.
+  it("caught the byte-identical file at the top level all along", () => {
+    const dir = treeWith("functions/src/zz.ts");
+    try {
+      expect(run(dir).code).toBe(1);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

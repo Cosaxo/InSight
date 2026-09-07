@@ -63,6 +63,7 @@
 // failures. All three are how this gate goes quietly green on the failure
 // it is named after.
 
+import { pathToFileURL } from "node:url";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { stripComments } from "./strip-comments.mjs";
 import { join, relative } from "node:path";
@@ -214,7 +215,16 @@ export const badCssFontSize = (body) => {
 
 // Only when RUN, so a test can import the two matchers above without this
 // walking src/, reading every sheet and calling process.exit.
-if (import.meta.url === `file://${process.argv[1]}`) {
+// THE ENTRY GUARD USES pathToFileURL, not a `file://` template.
+// `import.meta.url` percent-encodes; a template literal does not. On a
+// checkout whose path holds a space, a `#`, a `%` or a non-ASCII
+// character — "/Users/olaf/My Projects/InSight" — the two never match, so
+// this file is imported and the gate below simply does not run: exit 0,
+// zero output, nothing checked. Measured on a copy of this tree under a
+// path with a space: a real violation reported by the gate on a normal
+// path produced rc=0 and no output there. CI's path is clean, so this was
+// latent there and live for anyone running the gates before pushing.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   // A NON-EMPTY FLOOR, the shape check-deploy-targets.mjs already uses
   // ("found NO exported functions, which cannot be right"). Without it this
   // gate reports "every text field defers to --field-size ✓" and exits 0 on a

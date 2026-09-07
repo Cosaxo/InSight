@@ -43047,3 +43047,62 @@ iOS job 20–30; a results ref 5–12 MB; the runner minutes free. A
 session's git channel cannot delete a ref (every deletion push was cut
 off), so the first night's results refs are the lane's cleanup job's to
 sweep, seven days on.
+
+## D405 · The place scorecard's second crowd is renamed "everywhere else", and D288 §2's "from elsewhere" is retired — the night shipped it, the owner rules on it
+
+**2026-09-07.** **Status:** built, awaiting the owner — the code
+shipped on `night-20260907` at `b6ca0689` and the reversal was NOT
+recorded with it. This record is the closing flow of that night
+correcting its own omission; the label change is on the branch and can
+be reverted in one commit if the owner wants "from elsewhere" back.
+Numbered D404 on the branch's base and moved to D405 by the
+2026-09-07 night review — `main` had taken D404 for the device pass
+(#427) while the night ran, which is the standing renumber-on-merge
+collision D289 describes.
+
+### What D288 §2 bound, and what changed
+
+D288 §2 is marked binding and names the labels verbatim: *"the place
+scorecards hold two crowds, named for what the data can know: 'live
+there' and 'from elsewhere' — never 'visitors'"*. `b6ca0689` kept "live
+there", replaced "from elsewhere" with **"everywhere else"**, stopped
+the card's header widening to "How Oslo is rated" when the second crowd
+appears, and added the line *"The ring is everywhere else rating their
+own place, not this one."* CLAUDE.md says a decision stays binding
+until an explicitly recorded reversal, and the night's whole diff
+touched no `docs/` file. The closing review found it.
+
+### The arithmetic
+
+D288 §2 was right about WHO the two crowds are and read as being about
+what they had answered. Every one of the bank's 24 `rates` questions is
+self-referential — it asks the answerer about their own place — so
+nobody outside Oslo has ever rated Oslo. "From elsewhere" names the
+raters correctly and invites the reading that they rated THIS place;
+under it, the header flipped to "How Oslo is rated" the moment one
+outsider appeared, which was a claim the data could not support.
+"Everywhere else" names the same crowd and cannot be read as a verdict
+on the stop, and the added line says what the ring measured. So this
+narrows a label to what the data can know, which is the sentence D288
+§2 chose its own labels by — but the words were the binding part, and
+the substance is the owner's to confirm.
+
+Cost of reverting: three label sites in `LiveMirrorLenses.tsx`, one
+line, and the header flip, plus the test that pins them. Nothing on the
+server, no rule, no store form, and `web/privacy.html` has nothing to
+move for.
+
+### What still names the old label
+
+`docs/VISION-2026-08-24.md` names "from elsewhere" as the shipped label
+in three places (§ the built table, § the labels bullet, and the body).
+Pointed at this record rather than rewritten: that document is a plan's
+account of what D288 decided on the day, and this file's own rule keeps
+a decision's arithmetic as the state at the moment it was taken.
+
+### Reversal
+
+Restore the three labels and the header flip, delete the ring line, and
+record it here. D288 §2's other halves — the two crowds, the viewing
+lens, the refusal to collect a self-declared role — are untouched by
+this and still bind.
