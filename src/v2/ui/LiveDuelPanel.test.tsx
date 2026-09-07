@@ -1148,7 +1148,15 @@ describe("LiveDuelPanel · a tapped invite link", () => {
   it("says what joining exposes before the tap, not after", () => {
     sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
     render(<LiveDuelPanel mode="group" />);
-    expect(screen.getByText(/revealed with names to the people in it/i)).toBeTruthy();
+    // THE AUDIENCE, and it has to be the real one. This pinned "revealed
+    // with names to the people in it", which a revealed day is not:
+    // `match /reveals/{day}` is `request.auth != null`, and rules.test.ts
+    // asserts a stranger, a late joiner and somebody who left can each
+    // read one. A consent sentence that understates who reads your answer
+    // is worse than none, because it is the sentence somebody agrees on.
+    expect(screen.getByText(/opens[\s\S]*with names, to anyone signed in who has this invite/i)).toBeTruthy();
+    expect(document.body.textContent, "the retired audience claim is back")
+      .not.toMatch(/to the people in it/i);
   });
 
   it("takes no for an answer without joining anything", () => {

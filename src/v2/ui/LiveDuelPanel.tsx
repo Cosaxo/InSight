@@ -409,8 +409,8 @@ function LdOnboard({ mode }: { mode?: string }) {
       </div>
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
         {duo
-          ? "One question a day, sealed until tomorrow — if you both play."
-          : "One question a day, sealed until tomorrow, then revealed with names."}
+          ? "Everyone answers, sealed until the reveal — if you both play."
+          : "Everyone answers, sealed until the reveal, then it opens with names."}
       </div>
       {!known && <LdInput value={typedMe} onChange={setTypedMe} placeholder="Your name (what friends see)" />}
       <div style={{ display: "flex", gap: 8 }}>
@@ -708,12 +708,24 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
       <span className="kicker" style={{ marginBottom: 0 }}>An invitation</span>
       {/* A CLAIM, not a caption (COPY.md §3). What joining does is put
-          your name on a sealed answer that these people read the next
-          day, and D122 made consent the difference between an invitation
-          and a follow. Somebody arriving from a link has been told
-          nothing by the app yet, so this is where it gets said. */}
+          your name on a sealed answer that gets read, and D122 made
+          consent the difference between an invitation and a follow.
+          Somebody arriving from a link has been told nothing by the app
+          yet, so this is where it gets said — which is exactly why it has
+          to be TRUE.
+
+          It said "revealed with names to the people in it". A revealed day
+          is `request.auth != null` (`match /reveals/{day}`), and
+          rules.test.ts asserts that a stranger, a late joiner and somebody
+          who left can each read one. check-policy-claims retired that
+          promise from web/privacy.html under D98 and reads no other file,
+          so the consent sentence went on understating its own audience.
+
+          The cadence went with it (the owner, 2026-09-07): the reveal is
+          the fact, "tomorrow" is a limit intended to loosen. */}
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
-        One question a day, sealed until tomorrow, then revealed with names to the people in it.
+        Everyone answers the same question, sealed until the reveal — then it opens
+        with names, to anyone signed in who has this invite.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {/* ASK, not Join (D240). The link no longer admits its holder —
@@ -1252,7 +1264,7 @@ function LdCard({ g, vh, nextName, newest }: {
                 would look broken on the morning that happens. */}
             {newest
               ? <RevealClock prefix="Reveals in" suffix={duo ? " — if you both play." : ", with names."} />
-              : (duo ? "Reveals tomorrow — if you both play." : "Reveals tomorrow, with names.")}
+              : (duo ? "Reveals — if you both play." : "Reveals with names.")}
             {" Takes open with the reveal."}
           </div>
           {nextName && (
