@@ -236,8 +236,8 @@ export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
  * The third day's label under `deckDays`.
  *
  * Exported rather than repeated in the test, for the reason
- * split-stage.test.js is on the night list: a test holding its own copy of
- * a fixture constant passes when the fixture moves and the app does not.
+ * split-stage.test.js is worth reading first: a test holding its own copy
+ * of a fixture constant passes when the fixture moves and the app does not.
  * Deliberately NOT the weekday the dots' frozen fallback prints at this
  * position — that is the whole discrimination.
  */

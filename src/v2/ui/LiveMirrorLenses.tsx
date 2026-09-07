@@ -687,8 +687,18 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   // It did exactly that. A question where the picked bucket held ONE
   // answer scored the largest possible gap and headed the list, above a
   // fifty-answer question at 10 pts, with no count anywhere near the
-  // sentence — the chip's number is the bucket's total across ALL
-  // questions, which is a different denominator.
+  // sentence — the chip's number is about the BUCKET across every question
+  // in view, never about the question the row is describing, so it can
+  // neither confirm nor contradict what the row says.
+  //
+  // (That last clause used to read "the bucket's total across ALL
+  // questions, which is a different denominator", and it was quoted as
+  // evidence by the commit that then stopped it being a total: the chip is
+  // the largest single-question count now, so it is a number of people
+  // rather than of answers. Still a different denominator from the row's,
+  // which is why the row states its own basis either way — but a comment
+  // cited as proof and left saying the old thing is the documentation
+  // error this repo keeps re-committing, arriving inside the fix for it.)
   //
   // Two, not a bigger number invented here: below two answers a "split"
   // does not exist to be measured — one answer is 100/0 by construction,
@@ -697,8 +707,7 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   // both sibling surfaces handle it, by SAYING what it rests on
   // (LiveBreakdownPanel prints "{n} answers", LiveCircleBody "{n} of your
   // circle answered"). Whether the bar should be higher than "a split can
-  // exist" is a product judgement, and it is on the night list rather
-  // than decided here.
+  // exist" is a product judgement, and it has not been taken here.
   const rows = React.useMemo(() => (picked
     ? qs.map((q) => {
       const d = divergenceFor(q.by, dim, picked, q.all, q.options.length, EXPLORE_MIN_N);
