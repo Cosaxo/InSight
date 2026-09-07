@@ -146,7 +146,15 @@ jobs:
         env:
           CAPACITOR_BUILD: "1"
           VITE_V2_LIVE: "true"
-          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'false' }}
+          # D414 (2026-09-07) put the account wall back for good, and this
+          # default was left behind for an afternoon — ios-release.yml
+          # flipped and this did not, which is the exact shape
+          # SHIP-CHECKLIST warns about: a document (or here a second
+          # workflow) that reads a build setting has to be moved by
+          # whoever moves the setting. An Android build cut in that window
+          # would have shipped anonymous-first while the iOS one required
+          # an account, and nothing would have said so.
+          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'true' }}
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}

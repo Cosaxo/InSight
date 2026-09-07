@@ -56,7 +56,12 @@ describe("what it is", () => {
     render(<LiveWalkthrough onDone={onDone} />);
     const d = dialog();
     expect(d.getAttribute("aria-modal")).toBe("true");
-    expect(title()).toMatch(/one question a day/i);
+    // Not the cadence. The owner's 2026-09-07 reading of build 33 —
+    // "the first slide focus to much on one question a day this app is
+    // more questions in general" — moved page 1 onto the blind answer,
+    // which is what is distinctive and what stays true if the rhythm
+    // changes.
+    expect(title()).toMatch(/answer before you look/i);
     expect(screen.queryByRole("button", { name: /^Back$/ })).toBeNull();
     expect(screen.getByRole("button", { name: /^Next$/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Skip$/ })).toBeTruthy();
@@ -106,9 +111,17 @@ describe("what it claims", () => {
     const reach = pages.find((p) => /1v1/.test(p));
     expect(reach, "no page names the 1v1 stop").toBeTruthy();
     for (const stop of ["World", "Circle", "1v1"]) expect(reach).toContain(stop);
-    // Sealed until the reveal is web/privacy.html's D5 row, in the
-    // duel panel's own words ("sealed until tomorrow").
-    expect(reach).toMatch(/sealed until tomorrow/i);
+    // The SEALING, not the cadence. This asserted the exact phrase
+    // "sealed until tomorrow" and broke the day the copy stopped naming a
+    // day — which was the point of the change: the owner intends to
+    // loosen the one-a-day limit on Circle and 1v1, and a sentence that
+    // hard-codes "tomorrow" goes false the moment that lands. What
+    // web/privacy.html's D5 row actually promises is that a duel answer
+    // is unreadable until the reveal and then carries a name, so those
+    // are the two halves pinned here. A cadence change now moves the copy
+    // without moving this test; dropping the promise still fails it.
+    expect(reach).toMatch(/\bsealed\b/i);
+    expect(reach).toMatch(/with names/i);
 
     const mirror = pages.find((p) => /The Mirror/.test(p));
     expect(mirror, "no page is the Mirror's").toBeTruthy();

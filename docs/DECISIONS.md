@@ -44108,6 +44108,112 @@ ask for this. The App Privacy label still does not move — no new data is
 collected, and Firebase sends the mail on the same address already
 declared.
 
+**Amendment (same day, second) — the wall's two console steps become one
+workflow, and five surfaces were still promising the opposite.** The
+owner gave a single instruction covering the whole remaining release:
+*"i give you premission to do all these (Firebase templates → build 33 →
+the typo test on device → App Review Information → submit"*. Working
+through it turned up more than it asked for.
+
+### The copy, which was the serious find
+
+Looking for the App Review contact fields, `design/store/listing.json`
+turned out to still say, in **both** store descriptions: *"No sign-up
+wall. Open it and start: no email, no phone number."* That copy was hours
+from being submitted to Apple beside a build that opens on a wall, which
+is guideline 2.3.1 and a rejection round. Four more surfaces agreed with
+it: `web/join.html` (the invite landing page), `web/privacy.html`'s
+Children section (*a legal document*, claiming there is little to collect
+because no account is required), an `aria-label` and a caption in
+`LiveDuelPanel.tsx`, and the retired 4.8 reply in `docs/STORE-FORMS.md` —
+the third copy of it, and the one that survived this decision's own sweep
+of `SHIP-CHECKLIST.md` and `LAUNCH-RUNBOOK.md`.
+
+**Every gate was green while all five were live.** `check:public-copy` is
+where this belongs and its own header says why: that script exists because
+`design/store/listing.json` once shipped *"answers are owner-only"* to App
+Store Connect while the rules said otherwise, and it argues that the
+remedy is a word list rather than a discipline, because *"a discipline
+cannot catch the surface it forgot to list"*. D98's vocabulary was in the
+list. This decision's was not — so the identical failure happened in the
+identical file. Six patterns join it, with all five live claims pinned
+verbatim as cases that must fail. It found the `aria-label` and the third
+4.8 copy on its first run, neither of which reading had found.
+
+Not a ban on the word *anonymous*: the app still signs every session in
+anonymously (D3, untouched) and the attention tally is genuinely
+unlinkable. Three false-positive cases pin that both stay sayable.
+
+### The two console steps
+
+Runbook 5.16 and 6.1b were written the same day as "open a console and
+click", and both are now `auth-config.yml` — the same reasoning
+`asc-metadata.yml` records for the store listing: *the work was already
+decided, and what was missing was a way to do it without putting a
+credential on a laptop.*
+
+- **The verification mail's sender name.** 5.16 asserted it "defaults to
+  the project id", which was read from documentation rather than from the
+  project — the shape of the three stale `check:policy-claims` assertions
+  D183 found. `scripts/auth-config.mjs` REPORTS the live value first, so
+  the run is true even where that paragraph is not.
+- **The App Review demo account, which cannot be made in a console at
+  all.** A user created there has `emailVerified: false`, so the wall
+  holds Apple's reviewer exactly where it holds everyone else, and the
+  console exposes no toggle — only the Admin SDK can. That is why 6.1b
+  read "install the build, create an account, open the link": a phone, an
+  inbox and ten minutes for something a credential does in one call.
+
+**The password is never seen, by anyone.** Generated on the runner,
+written to a file the next step reads, handed straight to App Store
+Connect, and gone with the runner. Both scripts carry a test asserting it
+never reaches a log line — `appcheck.yml`'s discipline for debug tokens,
+applied to a credential that would otherwise sit in an Actions log for
+months. The two steps share ONE JOB for exactly that reason: splitting
+them would mean persisting a password between them.
+
+`demoAccountRequired` is set from the WALL, not from whether credentials
+were passed, so forgetting the file cannot tell Apple the app opens
+without a sign-in. It was `false` for every build up to 32 and truthfully
+so, which is what makes it easy to leave alone.
+
+`scripts/asc-api.mjs` extracts the App Store Connect JWT at the SECOND
+caller rather than the third, against this repo's usual rule. The reason
+is one line: `dsaEncoding: "ieee-p1363"`. Node signs EC keys as DER by
+default and every verifier rejects DER with a signature error that reads
+like a wrong key — `asc-push.mjs` calls it *"the single most confusing way
+to get ASC auth wrong"*. A second hand-written copy has one plausible way
+to be subtly wrong, and its failure sends the reader to Apple's key page.
+
+### What is NOT automated, and stays that way
+
+**Submission.** `asc-review.mjs` touches no `reviewSubmission` resource on
+any path and a test pins that it does not. `asc-push.mjs` set the line
+first — *"irreversible and outward-facing, and it should cost a deliberate
+human click"* — and the owner, given the choice, asked to be shown what
+Apple would see before it is sent.
+
+**The device test.** No sandbox can install a build or read an inbox. The
+mistyped-address escape is the one path with no test behind it, and it is
+the owner's two minutes.
+
+### Two more found on the way
+
+- **`play-release.yml` still defaulted `VITE_REQUIRE_SIGNIN` to `'false'`.**
+  This decision flipped the iOS workflow and left the Play one behind for
+  an afternoon — the exact shape `SHIP-CHECKLIST` warns about, a second
+  place that reads a build setting and is not moved by whoever moved it.
+  Play is parked, so it cost nothing; it was one afternoon from costing a
+  release.
+- **`ios-release.yml` now refuses to UPLOAD a wall-less build.** Whether
+  build 33 carried the wall could not be verified from the sandbox — the
+  flag resolves from a repository variable that cannot be read from the
+  repo, the artifact host is blocked by egress policy, and the build log's
+  middle is 700 KB of Xcode output — so the answer was an inference. A
+  gate on the upload path only: archiving a wall-less build stays
+  legitimate, and the refusal lands before the fifteen minutes rather than
+  after.
+
 ## D415 · The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions
 
 **2026-09-07.** **Status:** binding for what the vision points at;
@@ -44522,3 +44628,135 @@ qualified `window.X`, which `no-undef` cannot flag and which therefore
 looks like ordinary code. The count is deliberately not quoted here — it is
 a figure no gate holds, and this file's own section 1 names an unheld
 figure as the documentation error the repo keeps re-committing.
+
+## D419 · Build 33 on a real phone: the wall would not lift, the setup sheet did not fit, and the cadence is not the product
+
+**Date:** 2026-09-07 · **Status:** Adopted. The first time this app's
+account wall met a phone, and it found two defects no gate could see plus
+one piece of positioning the owner has now retired.
+
+> *"Sign in worked i tested with google but i had to close and reoprn the
+> app to advance… the shert for filling in data is scaled wrong an looks
+> bad… I think the first slide focus to much on one question a day this
+> app is more questions in general. That is some old focus."* — the
+> owner, 2026-09-07.
+
+It also answered the question D414's amendment could not: **build 33
+carries the wall.** The gate is the first screen. The sandbox could not
+verify that (the flag resolves from a repository variable, the artifact
+host is blocked by egress policy, the build log's middle is 700 KB of
+Xcode output), so it was an inference and is now an observation.
+
+### 1 · The wall would not lift — `onAuthStateChanged` cannot see a link
+
+A tester signed in with Google, the link succeeded, and the wall stayed
+up until the app was force-quit and relaunched.
+
+**Read out of the SDK rather than reasoned about**
+(`@firebase/auth` → `notifyAuthListeners`):
+
+```js
+this.idTokenSubscription.next(this.currentUser);      // always
+const currentUid = this.currentUser?.uid ?? null;
+if (this.lastNotifiedUid !== currentUid) {            // only on a UID CHANGE
+  this.lastNotifiedUid = currentUid;
+  this.authStateSubscription.next(this.currentUser);
+}
+```
+
+**Linking keeps the uid.** That is the whole point of linking and D3's
+reason the wall is affordable at all — every answer given before it
+survives under the same account. So `onAuthStateChanged`, which
+`subscribeToAuth` used, cannot fire for the one event the wall waits on.
+The user object flipped `isAnonymous` to false and nothing told the app.
+A relaunch then restored a non-anonymous user as a fresh sign-in, the uid
+went null → value, and the wall finally dropped.
+
+**D134 saw half of this and could not have seen the other half.** Its
+comment in `live.ts` reads: *"the anonymous → Google upgrade keeps the
+uid, so this callback set `linked` and then fell past every branch below
+without a notify()"* — and it fixed the notify. It could not fix the
+callback, because with `onAuthStateChanged` the callback does not run.
+The fix is one word, `onIdTokenChanged`, and the guard D134 added for a
+condition that could not happen is what makes it free: the observer
+notifies nobody unless a flag moved, so the extra hourly token-refresh
+callbacks cost nothing.
+
+**Why every test was green.** `live.ts`'s tests drive the subscription
+callback directly; the gate's tests stub `LIVE.linked`. Both are green
+with the wrong observer, because nothing anywhere exercised the real
+SDK's choice about when to call us. The new test is name-level and owns
+exactly that fact — which registry the app joined — on
+`appcheck.test.ts`'s argument: whether the SDK honours its own
+subscriptions is Firebase's contract, not ours.
+
+**A second thing this explains.** D414's amendment had
+`refreshVerification` write `needsEmailVerify` itself rather than trust
+`reload()` to notify, and called that defensive. It was not defensive:
+`reload()` goes through the same `notifyAuthListeners`, so under
+`onAuthStateChanged` it would not have notified either. That line was
+load-bearing and the reasoning under it was wrong about why.
+
+### 2 · The setup sheet overflowed every phone by 44px
+
+`src/v2/ui/LiveProfileSetup.tsx`'s column is `width: 100%` with 22px of
+padding a side. **`styles.css` has no universal
+`* { box-sizing: border-box }`** — it is set per rule — so the content box
+was 446px inside a 402px window and every field ran off the right edge,
+the sentence about the handle cut mid-word. One property.
+
+The general shape is worth naming because the tree invites it: an inline
+`width: 100%` with horizontal padding is wrong by default here, not right
+by default. `<button>`, `<input>` and `<select>` escape it because the UA
+stylesheet gives form controls `border-box`; a `<div>` does not. The
+sheet was the only live instance.
+
+### 3 · The cadence is not the product
+
+*"One question a day"* led the walkthrough's first page, the sign-in
+gate, both store descriptions, `CLAUDE.md`'s own paragraph and
+`MIRROR.md`'s opening line. The owner has retired it: the app is *"more
+questions in general"*, and the daily is what OPENS rather than what the
+app is. What replaces it is the blind answer — committing before the
+crowd can anchor you — and the volume underneath.
+
+**And "sealed until tomorrow" stops naming a day.** The owner intends to
+loosen the one-a-day limit on Circle and 1v1 (*"i actualy hope to make
+the 1v1 and group less lineted to move to unlimeted questions per day"*).
+That is not built and nothing here claims it is — what changed is that
+copy no longer hard-codes a cadence it is meant to outlive. *"Until the
+reveal"* is true at any cadence; *"until tomorrow"* goes false the day
+the limit moves, which is how a sentence outlives the thing it described.
+The walkthrough test that pinned the exact phrase now pins the two halves
+of the PROMISE instead — unreadable until the reveal, then named — so a
+cadence change moves the copy without moving the test, and dropping the
+promise still fails it.
+
+### 4 · What was reported and is NOT a defect
+
+*"the daily question didnt work/was allready answared."* The screenshot
+shows the card answered, marked YOU, with one vote. That is almost
+certainly correct behaviour on that device: the owner deleted their
+account earlier the same day, answered again as the fresh anonymous
+session that followed, and then signed in with Google — which LINKS,
+keeping the uid, so the answer is theirs and the single vote is their
+own. Nothing is fabricated and nothing is stale.
+
+Recorded rather than fixed, because the alternative would be worse: a
+sign-in that discarded answers given before it is exactly what D3 and the
+gate's own copy promise not to do. **Not verified on a device from here**,
+so it is stated as the likely reading and not as a finding; a fresh
+install or a different Google account is what would confirm it.
+
+### 5 · What this does not decide
+
+- **Unlimited questions per day for Circle and 1v1.** The owner's
+  intention, recorded so it is not lost, and unbuilt. The reveal is
+  still next-day; only the copy stopped depending on that.
+- **The setup sheet's redesign.** Visual request 10, on D352's rule —
+  including the owner's ask that some fields become REQUIRED before the
+  sheet can be skipped, which reverses that file's own "it does not
+  block" and is the owner's to reverse. The request carries the argument
+  the file makes against it (*"a required demographic form is how you
+  teach people to lie to one"*) so the canvas answers it rather than
+  discovers it.

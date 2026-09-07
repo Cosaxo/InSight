@@ -404,7 +404,10 @@ function LiveSignInGate() {
   return (
     <GateShell>
       <GateTitle />
-      <GateBody>One question a day. See what everyone&rsquo;s answers say about each other.</GateBody>
+      {/* The cadence was the lead here too, and it is the smaller half of
+          what the app does (the owner, 2026-09-07). What survives is the
+          sentence the whole product exists to say. */}
+      <GateBody>Answer blind. Then see what everyone&rsquo;s answers say about each other.</GateBody>
 
       {(f || err) && (
         <div role="alert" style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600,

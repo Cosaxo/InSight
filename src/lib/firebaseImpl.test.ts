@@ -33,6 +33,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   native: false,
   getAuthCalls: 0,
+  authStateSubs: 0,
+  idTokenSubs: 0,
   initializeAuthCalls: [] as Array<Record<string, unknown>>,
   // A signInAnonymously that never settles — the shape the device
   // produced, and the one an unbounded await turns into silence.
@@ -70,6 +72,16 @@ vi.mock("firebase/auth", () => ({
   onAuthStateChanged: (_a: unknown, cb: (u: null) => void) => {
     // Fires immediately with null — a first run with nothing to restore,
     // so the test reaches signInAnonymously rather than the restore wait.
+    h.authStateSubs += 1;
+    cb(null);
+    return () => {};
+  },
+  // The SDK's OTHER observer, and the one the app must watch. Counted
+  // rather than ignored so the case below can tell which registry
+  // subscribeToAuth joined — see its assertion for why that is the whole
+  // difference between a wall that lifts and one that needs a relaunch.
+  onIdTokenChanged: (_a: unknown, cb: (u: null) => void) => {
+    h.idTokenSubs += 1;
     cb(null);
     return () => {};
   },
@@ -135,6 +147,8 @@ beforeEach(() => {
   vi.resetModules();
   h.native = false;
   h.getAuthCalls = 0;
+  h.authStateSubs = 0;
+  h.idTokenSubs = 0;
   h.initializeAuthCalls.length = 0;
   h.hangSignIn = false;
   h.appleResult = { credential: { idToken: "apple-id-token", nonce: "raw-nonce" } };
@@ -290,5 +304,61 @@ describe("Sign in with Apple", () => {
     const m = await import("./firebaseImpl");
     m.init(CONFIG);
     await expect(m.appleSignIn()).rejects.toThrow(/Apple sign-in returned no idToken/);
+  });
+});
+
+// ── which observer the app watches (build 33's wall bug) ────────────
+//
+// Build 33 shipped the account wall, and a tester who signed in with
+// Google had to force-quit and relaunch before the app would let them
+// past. This is why.
+//
+// READ OUT OF THE SDK rather than reasoned about — `@firebase/auth`'s
+// `notifyAuthListeners`:
+//
+//     this.idTokenSubscription.next(this.currentUser);      // always
+//     const currentUid = this.currentUser?.uid ?? null;
+//     if (this.lastNotifiedUid !== currentUid) {            // only on a
+//       this.lastNotifiedUid = currentUid;                  // UID CHANGE
+//       this.authStateSubscription.next(this.currentUser);
+//     }
+//
+// LINKING KEEPS THE UID. That is the whole point of linking and the
+// reason D3 says the wall is affordable — every answer given before it
+// survives under the same uid. So `onAuthStateChanged` cannot fire for
+// the one event the wall is waiting on, and the app sat there with a
+// `linked` flag nobody had updated.
+//
+// A NAME-LEVEL TEST, deliberately, and the same argument appcheck.test.ts
+// makes: whether the SDK honours its own two registries is Firebase's
+// contract. What this file owns is WHICH ONE the app joined — and that is
+// exactly the fact no other test could see, because live.ts's tests drive
+// the subscription callback directly and the gate's tests stub
+// `LIVE.linked`. Both are green with the wrong observer.
+describe("subscribeToAuth", () => {
+  it("watches the ID-token registry, not the auth-state one", async () => {
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    // Reset AFTER init: init's own restore wait uses onAuthStateChanged
+    // legitimately (it waits for a user to EXIST, which is a uid change),
+    // and counting it here would hide the thing this asserts.
+    h.authStateSubs = 0;
+    h.idTokenSubs = 0;
+    m.subscribeToAuth(() => {});
+    expect(h.idTokenSubs, "subscribeToAuth did not use onIdTokenChanged — "
+      + "a link keeps the uid, so the wall will not lift until relaunch").toBe(1);
+    expect(h.authStateSubs, "subscribeToAuth used onAuthStateChanged").toBe(0);
+  });
+
+  it("hands the callback through, and returns something that unsubscribes", async () => {
+    // The counter above says which registry; this says the wiring is real
+    // rather than a subscription to nothing.
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    const seen: Array<unknown> = [];
+    const off = m.subscribeToAuth((u) => seen.push(u));
+    expect(seen).toEqual([null]);
+    expect(typeof off).toBe("function");
+    off();
   });
 });

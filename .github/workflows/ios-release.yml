@@ -166,6 +166,33 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_RELEASE_TAG: ${{ github.sha }}
         run: |
+          # SAY WHICH APP THIS IS, before anything is signed — and REFUSE
+          # to upload the wrong one.
+          #
+          # `VITE_REQUIRE_SIGNIN` resolves from a repository VARIABLE that
+          # cannot be read from the repo, so "does this build have the
+          # account wall" was a question nobody could answer without
+          # installing the result. It was asked for build 33 and could not
+          # be answered: the artifact host is unreachable from the sandbox
+          # and this log's middle is 700 KB of Xcode output, so the honest
+          # answer was an inference. That is the gap this closes.
+          #
+          # A REPORT on an artifact-only run and a GATE on an upload. The
+          # override exists on purpose — a deliberately wall-less build is
+          # a legitimate thing to archive and install — but a build that
+          # reaches App Store Connect is one Apple may review and testers
+          # will open, and D414 says that build requires an account. So the
+          # refusal is scoped to exactly the runs where being wrong is
+          # expensive, and it lands BEFORE the 15 minutes of archiving
+          # rather than after.
+          echo "VITE_REQUIRE_SIGNIN=${VITE_REQUIRE_SIGNIN:-<unset>}  (D414: 'true' is the wall)"
+          echo "wall=${VITE_REQUIRE_SIGNIN:-<unset>} upload=${{ inputs.upload }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.upload }}" = "true" ] && [ "$VITE_REQUIRE_SIGNIN" != "true" ]; then
+            echo "::error::VITE_REQUIRE_SIGNIN resolved to '${VITE_REQUIRE_SIGNIN:-<unset>}', not 'true'."
+            echo "::error::D414 requires an account in every build that reaches App Store Connect."
+            echo "::error::Either clear the REQUIRE_SIGNIN repository variable, or run with upload unticked."
+            exit 1
+          fi
           npm run build
           # Assert against dist/ rather than against the environment: the
           # question is whether THIS build saw the config, and a stale dist/

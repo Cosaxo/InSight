@@ -1,0 +1,176 @@
+# The Firebase Authentication settings the account wall depends on.
+#
+# WHY THIS EXISTS. D414 made two things in Firebase Auth part of the
+# product rather than part of the setup:
+#
+#   - the VERIFICATION MAIL, because a password account cannot reach the
+#     app until its link is opened. Its sender name is what a recipient
+#     decides to trust, and it defaults to the project id.
+#   - the DEMO ACCOUNT App Review needs (guideline 2.1), which cannot be
+#     made in the Firebase console at all: a user created there has
+#     `emailVerified: false`, so the wall holds Apple's reviewer exactly
+#     where it holds everyone else, and the console has no toggle for that
+#     flag. Only the Admin SDK can set it.
+#
+# Both were runbook steps that read "open a console and click". This is the
+# same reasoning asc-metadata.yml records for the store listing: the work
+# was already decided, and what was missing was a way to do it without
+# putting a credential on a laptop.
+#
+# DRY RUN IS THE DEFAULT and the default is the point. With apply unticked
+# it REPORTS — the current sender name, whether the demo account exists —
+# and changes nothing. Read that before ticking.
+#
+# THE PASSWORD IS NEVER PRINTED. It is generated per run and written to a
+# file the next step reads; an Actions log is readable by everyone with
+# repo read and kept for months. scripts/auth-config.test.mjs asserts the
+# value never reaches a log line, the same discipline appcheck.yml applies
+# to debug tokens.
+#
+# Secrets: FIREBASE_SERVICE_ACCOUNT, the same one firebase-deploy.yml and
+# seed-content.yml use, on the same `production` environment — plus the
+# three App Store Connect values ios-release.yml uses, for the step that
+# hands the demo credential straight to Apple.
+#
+# IT RUNS FROM `main` ONLY, and that is the `production` environment's own
+# rule rather than this file's: "Deployment branches and tags → Selected →
+# main only" (docs/DEPLOYMENT.md § The settings). Dispatching it from a
+# feature branch does not fail with a message about branches — it fails
+# because the secret is empty, and the script then exits saying
+# FIREBASE_SERVICE_ACCOUNT is unset, which reads like a missing secret
+# rather than a wrong ref. So: merge, then run.
+#
+# The run also PAUSES for the owner's approval before the runner is given
+# the credential, because `production` has required reviewers. That is the
+# gate working, not the job hanging.
+
+name: Auth config
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Write to Firebase (unticked = report, change nothing)"
+        type: boolean
+        default: false
+      what:
+        description: "Which part"
+        type: choice
+        options: ["report only", "sender name", "demo account", "both"]
+        default: "report only"
+      attach_build:
+        description: "Build number to attach to the version (blank = leave it)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-config
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The environment that scopes FIREBASE_SERVICE_ACCOUNT, matching
+    # seed-content.yml — without it the secret is empty and the script
+    # exits on its own first check.
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Configure
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+          # Where the demo credentials land. Outside the workspace, so an
+          # artifact upload cannot pick them up by accident.
+          DEMO_ACCOUNT_OUT: ${{ runner.temp }}/demo-account.json
+        run: |
+          # pipefail for seed-content.yml's reason: `cmd | tee` reports
+          # TEE's status, so without it a failed run is a GREEN job — which
+          # that workflow's run 1 actually did.
+          set -o pipefail
+          ARGS=""
+          case "${{ inputs.what }}" in
+            "sender name")  ARGS="--sender-name" ;;
+            "demo account") ARGS="--demo-account" ;;
+            "both")         ARGS="--sender-name --demo-account" ;;
+          esac
+          [ "${{ inputs.apply }}" = "true" ] && ARGS="$ARGS --apply"
+          # 2>&1 so a failure shows in the job summary rather than only in
+          # the step log — die() writes to stderr.
+          node scripts/auth-config.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/auth-config.log"
+
+      # The address only. It is not a secret — it goes to Apple — and
+      # having it in the summary is what lets the next step be typed
+      # without opening anything. The PASSWORD stays in the file.
+      - name: What to put in App Store Connect
+        if: ${{ always() && inputs.apply && (inputs.what == 'demo account' || inputs.what == 'both') }}
+        run: |
+          {
+            echo "### App Review demo account"
+            echo ""
+            if [ -f "$RUNNER_TEMP/demo-account.json" ]; then
+              echo "- **Sign-in required:** YES"
+              echo "- **User name:** \`$(node -p "require('$RUNNER_TEMP/demo-account.json').email")\`"
+              echo "- **Password:** written to the run's temp file, not printed here."
+              echo ""
+              echo "The password was pushed straight to App Store Connect by the"
+              echo "next step and is gone with this runner — it is never stored."
+              echo "To rotate it, run this again: the account is reused, the"
+              echo "password is new, and ASC is updated in the same run."
+            else
+              echo "No credentials file — the run did not get that far."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # THE SAME JOB, and that is the design rather than a convenience. The
+      # credential is written to a file on this runner and read from it
+      # here; it never reaches a log, an artifact, a secret or the repo,
+      # and it is gone when the runner is reclaimed. Splitting these into
+      # two workflows would mean persisting a password somewhere between
+      # them, which is the one thing this arrangement exists to avoid.
+      - name: Push the review details to App Store Connect
+        if: ${{ inputs.apply && (inputs.what == 'demo account' || inputs.what == 'both') }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          set -o pipefail
+          ARGS="--demo-file $RUNNER_TEMP/demo-account.json"
+          [ -n "${{ inputs.attach_build }}" ] && ARGS="$ARGS --attach-build ${{ inputs.attach_build }}"
+          # asc-review is dry-run by default like every operator script
+          # here; this step only runs when the caller already ticked apply.
+          node scripts/asc-review.mjs $ARGS --apply 2>&1 | tee "$RUNNER_TEMP/asc-review.log"
+
+      - name: The App Review form, in the summary
+        if: ${{ always() && inputs.apply && (inputs.what == 'demo account' || inputs.what == 'both') }}
+        run: |
+          {
+            echo "### App Review Information"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/asc-review.log" 2>/dev/null || echo "(did not run)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: The run's own output, in the summary
+        if: always()
+        run: |
+          {
+            echo "### auth-config"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/auth-config.log" 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -165,7 +165,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Six jobs — verified rather than assumed,
+**What the environment gates.** Seven jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -174,7 +174,8 @@ joined at D332, and this sentence moved in the same commit because
 `check:figures` now holds the count — the gate that grew out of exactly
 this paragraph's history — and it caught the sixth, `appcheck.yml`, in
 the commit that added it, which is the first time this count moved without
-a person noticing it had.)
+a person noticing it had. It caught the seventh, `auth-config.yml`, the
+same way and in the same commit.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -184,6 +185,7 @@ a person noticing it had.)
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 | `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
+| `auth-config.yml` | `configure` | the verification mail's sender name, and the App Review demo account (D414) |
 
 `ios-release.yml` uses a different environment and is unaffected.
 

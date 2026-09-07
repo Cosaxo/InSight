@@ -42,6 +42,27 @@ describe("the claims that were actually live", () => {
       "posted to the world it is published to everyone <em>with no name attached</em>, one per person per question."],
     ["privacy.html who-can-see-what, post-D106",
       "<strong>Your world takes:</strong> everyone, with no name attached."],
+
+    // ── D414's five, verbatim from the tree on 2026-09-07 ────────────
+    //
+    // Every one of these was live AFTER the account wall merged, and every
+    // one passed this gate as it then stood. The listing pair is the
+    // serious one: it was hours from going to App Store Connect beside a
+    // build that opens on a wall, which is the same failure this file's
+    // header records for "answers are owner-only" — same file, same
+    // consequence, thirteen months apart.
+    ["apple/play description, post-D414",
+      "• No sign-up wall. Open it and start: no email, no phone number. Linking a Google account later is optional and keeps everything you already have."],
+    ["join.html, post-D414",
+      "No account or email needed — the app works anonymously from the first tap."],
+    ["privacy.html Children, post-D414",
+      "There is little to collect: no account is required and no personal details are requested."],
+    // Not a page — an aria-label, which is copy a screen reader speaks and
+    // nothing else in the tree scans.
+    ["LiveDuelPanel invite button, post-D414",
+      "Copy invite link — no account needed"],
+    ["STORE-FORMS 4.8 reply, post-D414",
+      "the primary path is anonymous, no account is required to use the app, and Google is an optional upgrade rather than a login wall"],
   ];
 
   for (const [where, text] of WAS_LIVE) {
@@ -52,10 +73,14 @@ describe("the claims that were actually live", () => {
 
   it("names a reason for every finding, not just a match", () => {
     // The failure output is the whole value of the gate: whoever trips it
-    // is usually not the person who knows what D98 changed.
+    // is usually not the person who knows what changed. The reason must
+    // therefore cite the decision that retired the claim — and there are
+    // now TWO retired models in this list (D98's privacy vocabulary,
+    // D414's anonymous-first one), so the assertion is that a decision is
+    // named, not that it is the first one.
     for (const [, text] of WAS_LIVE) {
       for (const hit of scanText(text)) {
-        expect(hit.why).toMatch(/D98/);
+        expect(hit.why, `no decision cited for: ${text.slice(0, 40)}`).toMatch(/\bD\d+\b/);
         expect(hit.excerpt.length).toBeGreaterThan(0);
       }
     }
@@ -81,6 +106,13 @@ describe("history stays legal — the false positives that would matter", () => 
     // ("takes are anonymous") rather than on the word.
     expect(scanText("You're on an anonymous session — it lives only on this phone.")).toEqual([]);
     expect(scanText("anonymous crash and error reports (uid only, never your answers)")).toEqual([]);
+    // D414 retired the CLAIM that the app is usable without an account,
+    // not the word. The app still signs every session in anonymously (D3,
+    // untouched) and the attention tally is genuinely unlinkable, so both
+    // must keep being describable.
+    expect(scanText("The app signs you in anonymously at first launch, then the account attaches to that same session.")).toEqual([]);
+    expect(scanText("The tally carries no account, no name and no device id, so it cannot be linked back to you.")).toEqual([]);
+    expect(scanText("Until 2026-09-07 no account was required; that stopped being true when signing in became a requirement.")).toEqual([]);
   });
 
   it("allows the true post-D98 copy that replaced each claim", () => {
