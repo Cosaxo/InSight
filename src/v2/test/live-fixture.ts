@@ -868,6 +868,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // null: the fixture has no aggregates, so the honest state it renders
     // is the labelled estimate.
     loadLearnAggs: async () => {},
+    emailCreate: async () => {},
+    emailReset: async () => {},
+    emailSignIn: async () => {},
     linkApple: async () => {},
     linkGoogle: async () => {},
     // Anonymous-first (D3) is the default state, so that is what the fixture

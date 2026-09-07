@@ -879,24 +879,25 @@ anything a user does.
      confirm nothing sensitive is tracked. A `git add -A` after a signing
      session is an incident a revert cannot fix — the object stays in
      history and the key must be rotated.
-- **Sign in with Apple (guideline 4.8) — prepared, not built.** Google is
-  currently the only third-party sign-in on iOS, which 4.8 says must be
-  accompanied by an equivalent privacy-preserving option. We expect to
-  pass without it, because the app's *primary* path is anonymous: no
-  account is required, nothing is requested, and Google is an optional
-  upgrade rather than a login wall. If a reviewer cites 4.8, reply with
-  that — and **stop there**.
+- **Sign in with Apple (guideline 4.8) — BUILT 2026-09-07 (D413), and
+  the reply below is retired with the posture that justified it.** 4.8
+  says a third-party sign-in must be accompanied by an equivalent
+  privacy-preserving option. The app now offers Apple's door beside
+  Google's and an email/password door of its own, so it satisfies the
+  rule directly rather than by argument. **Do not send the old reply**:
+  it rested on the app requiring no account, which stopped being true
+  the day the wall went up.
 
-  **Every word of that reply is conditional on a build flag, and the flag
-  defaults the wrong way for it (D134, D142).** `ios-release.yml` sets
-  `VITE_REQUIRE_SIGNIN` from `vars.REQUIRE_SIGNIN` and **defaults it to
-  `true`**, so a release build opens on a mandatory Google sign-in and
-  nothing else works until it succeeds. Against such a binary *"no account
-  is required"* and *"an optional upgrade rather than a login wall"* are
-  both false, and sending them would argue against the app the reviewer is
-  holding — the same failure as the deleted email clause below, one level
-  up: not a sentence that went stale, but one a build setting can falsify
-  on any given run.
+  **This paragraph was itself stale in BOTH directions, which is worth
+  keeping as the warning.** It said `ios-release.yml` "defaults it to
+  `true`" — D219 changed that to `'false'` on 2026-08-20 and nobody came
+  back here, so for eighteen days the canonical release document
+  described a wall the builds did not have. D413 has now flipped it back
+  to `'true'`, which makes the sentence accidentally correct again for a
+  reason it never stated. The lesson is not about this flag: a document
+  that reads a build setting has to be updated by whoever moves the
+  setting, and neither D219 nor this file's own gate could see the
+  divergence.
 
   So this reply is usable **only** from a build with `REQUIRE_SIGNIN` set
   to `false`. The wall is right for TestFlight and wrong for submission;

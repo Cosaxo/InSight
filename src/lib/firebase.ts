@@ -117,6 +117,26 @@ export async function googleSignIn(): Promise<void> {
   return m.googleSignIn();
 }
 
+export async function emailSignIn(address: string, password: string): Promise<void> {
+  const m = await impl();
+  return m.emailSignIn(address, password);
+}
+
+export async function emailCreate(address: string, password: string): Promise<void> {
+  const m = await impl();
+  return m.emailCreate(address, password);
+}
+
+export async function emailReset(address: string): Promise<void> {
+  const m = await impl();
+  return m.emailReset(address);
+}
+
+// The screen switches on this, so it is re-exported rather than
+// re-derived: a second copy of the code list is a second thing to keep
+// in step with Firebase.
+export type { EmailFailure } from "./firebaseImpl";
+
 export async function linkApple(): Promise<void> {
   const m = await impl();
   return m.linkApple();

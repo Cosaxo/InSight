@@ -16,6 +16,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const linkGoogle = vi.fn(async () => {});
 const linkApple = vi.fn(async () => {});
+const emailSignIn = vi.fn(async () => {});
+const emailCreate = vi.fn(async () => {});
+const emailReset = vi.fn(async () => {});
 const googleSignIn = vi.fn(async () => {});
 
 vi.mock("../../lib/firebase", () => ({
@@ -62,10 +65,16 @@ async function gateReady() {
 beforeEach(() => {
   linkGoogle.mockClear();
   linkApple.mockClear();
+  emailSignIn.mockClear();
+  emailCreate.mockClear();
+  emailReset.mockClear();
   googleSignIn.mockClear();
   stub("subscribe", () => () => {});
   stub("linkGoogle", linkGoogle);
   stub("linkApple", linkApple);
+  stub("emailSignIn", emailSignIn);
+  stub("emailCreate", emailCreate);
+  stub("emailReset", emailReset);
   stub("enabled", true);
   stub("linked", false);
   stub("bootError", "");
@@ -165,7 +174,12 @@ describe("with the flag on", () => {
     fireEvent.click(screen.getByText("Continue with Google"));
     // The consequence is on the screen and on the button, in those words.
     expect(await screen.findByText(/they are not merged/i)).toBeTruthy();
-    const btn = screen.getByText(/Sign in and leave this phone's answers/);
+    // \u2019, not '. Every other string on this screen and in
+    // design/front-door-2026-09-07 uses the typographic apostrophe, and a
+    // screen that mixes the two is one nobody proofreads twice. The prop
+    // carries the character itself because an HTML entity in a STRING PROP
+    // is not decoded — which is the bug this assertion caught.
+    const btn = screen.getByText(/Sign in and leave this phone\u2019s answers/);
     expect(googleSignIn).not.toHaveBeenCalled();   // not yet — one more tap
     // …and there is a way back that does not take it.
     expect(screen.getByText("Use a different account")).toBeTruthy();
@@ -180,5 +194,103 @@ describe("with the flag on", () => {
     await gateReady();
     fireEvent.click(screen.getByText("Continue with Google"));
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "popup blocked");
+  });
+});
+
+// ── the email door ──────────────────────────────────────────────────
+//
+// Built to design/front-door-2026-09-07. What these pin is the part of
+// that canvas a screenshot cannot hold: which call each control makes,
+// and that a failure leaves a way out rather than a description.
+describe("the email door", () => {
+  beforeEach(() => vi.stubEnv("VITE_REQUIRE_SIGNIN", "true"));
+
+  const openEmail = async () => {
+    await gateReady();
+    fireEvent.click(screen.getByText("Use email instead"));
+  };
+  const fill = (addr = "a@b.co", pw = "secret1") => {
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: addr } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: pw } });
+  };
+
+  it("is folded by default, and the two one-tap doors are what you see", async () => {
+    // The design's whole ordering argument: most people take a one-tap
+    // door and should not read past a form to find it.
+    await gateReady();
+    expect(screen.queryByLabelText("Email")).toBeNull();
+    expect(screen.getByText("Sign in with Apple")).toBeTruthy();
+    expect(screen.getByText("Continue with Google")).toBeTruthy();
+    expect(screen.getByText("Use email instead")).toBeTruthy();
+  });
+
+  it("signs in with the address and password, and CREATE links instead", async () => {
+    // Two calls, not one with a flag: create links the anonymous session
+    // so answers survive, sign-in replaces it. Confusing them is how a
+    // first cohort loses its history.
+    await openEmail();
+    fill();
+    fireEvent.click(screen.getByText("Sign in"));
+    expect(emailSignIn).toHaveBeenCalledWith("a@b.co", "secret1");
+    expect(emailCreate).not.toHaveBeenCalled();
+
+    // findBy, not getBy: the toggle is hidden while a door is in flight
+    // (the design's rule), so it only comes back once the sign-in above
+    // has settled. A getBy here fails for a reason that looks like a
+    // missing control rather than a pending promise.
+    fireEvent.click(await screen.findByText("Create an account"));
+    fireEvent.click(screen.getByText("Create account"));
+    expect(emailCreate).toHaveBeenCalledWith("a@b.co", "secret1");
+  });
+
+  it("every failure names a way out, not just a description", async () => {
+    // The design's addition to the request, and the one worth a test: a
+    // dead end on the one screen a person cannot get past is the failure.
+    await openEmail();
+    fill();
+    emailSignIn.mockRejectedValueOnce(Object.assign(new Error("nope"), { failure: "taken" }));
+    fireEvent.click(screen.getByText("Sign in"));
+    expect(await screen.findByText(/already has an account/)).toBeTruthy();
+    expect(screen.getByText("Sign in instead")).toBeTruthy();
+  });
+
+  it("offline turns the primary into Try again rather than blaming the password", async () => {
+    await openEmail();
+    fill();
+    emailSignIn.mockRejectedValueOnce(Object.assign(new Error("net"), { failure: "offline" }));
+    fireEvent.click(screen.getByText("Sign in"));
+    expect(await screen.findByText(/You\u2019re offline/)).toBeTruthy();
+    expect(screen.getByText("Try again")).toBeTruthy();
+  });
+
+  it("sends a reset and then offers nothing but the inbox", async () => {
+    await openEmail();
+    fill();
+    fireEvent.click(screen.getByText("Forgot password?"));
+    expect(emailReset).toHaveBeenCalledWith("a@b.co");
+    expect(await screen.findByText("Check your inbox")).toBeTruthy();
+    // The form is gone: leaving it up invites a second send.
+    expect(screen.queryByLabelText("Password")).toBeNull();
+    expect(screen.getByText("Back to sign in")).toBeTruthy();
+  });
+
+  it("hides the toggle and the legal footer while the keyboard is up", async () => {
+    // The reason the design gave a 375x667 phone its own artboard. Focus
+    // is the honest proxy for the keyboard inside a WebView.
+    await openEmail();
+    expect(screen.getByText("Create an account")).toBeTruthy();
+    expect(screen.getByText(/Answers on InSight are public/)).toBeTruthy();
+    fireEvent.focus(screen.getByLabelText("Password"));
+    expect(screen.queryByText("Create an account")).toBeNull();
+    expect(screen.queryByText(/Answers on InSight are public/)).toBeNull();
+  });
+
+  it("says answers are public BEFORE anyone signs up", async () => {
+    // D98's obligation pointed forward: learning it afterwards from a
+    // stranger quoting your vote is the failure this sentence prevents.
+    await gateReady();
+    expect(screen.getByText(/Answers on InSight are public, yours included/)).toBeTruthy();
+    expect(screen.getByText("Terms")).toBeTruthy();
+    expect(screen.getByText("Privacy Policy")).toBeTruthy();
   });
 });

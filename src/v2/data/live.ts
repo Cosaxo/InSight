@@ -83,6 +83,9 @@ import {
   getFirestoreApi,
   getFunctionsApi,
   googleSignOut,
+  emailCreate,
+  emailReset,
+  emailSignIn,
   linkApple,
   linkGoogle,
   subscribeToAuth,
@@ -6141,6 +6144,23 @@ const LIVE = {
   // entry point taking a string is one where a typo picks the wrong
   // provider at runtime and the memo below still gets dropped. Two names,
   // both pinned by vote.test.ts, is the cheaper shape.
+  // The email door. Three methods rather than one with a mode, for the
+  // reason linkApple gives above: a string parameter is a typo away from
+  // the wrong call, and these three differ in what they do to an existing
+  // session (create LINKS it, sign-in replaces it, reset touches nothing).
+  async emailSignIn(address: string, password: string): Promise<void> {
+    await emailSignIn(address, password);
+  },
+  async emailCreate(address: string, password: string): Promise<void> {
+    await emailCreate(address, password);
+    // Same reason as the two social doors: the account just gained an
+    // identity provider, which is what accountLevel.ts grades on.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
+  },
+  async emailReset(address: string): Promise<void> {
+    await emailReset(address);
+  },
   async linkApple(): Promise<void> {
     await linkApple();
     // Same reason as linkGoogle below: the account just gained an identity

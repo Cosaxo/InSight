@@ -7,8 +7,12 @@
 
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
   OAuthProvider,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   connectAuthEmulator,
   getAuth,
   indexedDBLocalPersistence,
@@ -410,6 +414,101 @@ export async function appleSignIn(): Promise<void> {
     return;
   }
   await signInWithPopup(auth(), new OAuthProvider("apple.com"));
+}
+
+// ── the email door ──────────────────────────────────────────────────
+//
+// Firebase holds the password, hashed, and this app never sees it: the
+// three calls below hand it straight to the SDK and keep no copy. That is
+// the sentence web/privacy.html makes, and the reason it can.
+//
+// WHY THE ERRORS ARE TRANSLATED HERE rather than in the screen. Firebase
+// codes are stable and its messages are not — "Firebase: Error
+// (auth/wrong-password)." is what a user would otherwise read — and the
+// design (design/front-door-2026-09-07) gives each failure a way out
+// rather than a description. Mapping in one place keeps the screen about
+// layout and keeps this list reviewable.
+export type EmailFailure =
+  | "offline"        // the network, not the credentials
+  | "wrong-password" // this address exists, that password does not match
+  | "no-account"     // nothing uses this address yet
+  | "taken"          // creating, and it already exists
+  | "weak"           // creating, and the password is too short
+  | "bad-address"    // not an address at all
+  | "other";
+
+export class EmailAuthError extends Error {
+  readonly failure: EmailFailure;
+  constructor(failure: EmailFailure, cause: unknown) {
+    super(String((cause instanceof Error && cause.message) || cause));
+    this.failure = failure;
+  }
+}
+
+function emailFailure(err: unknown): EmailFailure {
+  const code = String((err as { code?: string })?.code || (err as Error)?.message || "");
+  if (/network-request-failed/.test(code)) return "offline";
+  if (/email-already-in-use/.test(code)) return "taken";
+  if (/weak-password/.test(code)) return "weak";
+  if (/invalid-email|missing-email/.test(code)) return "bad-address";
+  if (/user-not-found/.test(code)) return "no-account";
+  if (/wrong-password/.test(code)) return "wrong-password";
+  // EMAIL ENUMERATION PROTECTION COLLAPSES THE TWO, and this is the line
+  // to read before "improving" the screen's copy. Firebase projects
+  // created recently default it ON, which is correct — it stops an
+  // attacker learning which addresses have accounts — and the cost is
+  // that a wrong password and an unknown address BOTH answer
+  // `auth/invalid-credential`. So the honest mapping is the password
+  // message, which offers Forgot password? and is true of the case a real
+  // person is overwhelmingly more likely to be in; the design's separate
+  // "no account uses this address yet" survives on the CREATE path, where
+  // `email-already-in-use` is unambiguous, and its "Create one" way out
+  // stays reachable through the toggle. Guessing which of the two it was
+  // is exactly the guess the protection exists to prevent.
+  if (/invalid-credential|invalid-login/.test(code)) return "wrong-password";
+  return "other";
+}
+
+async function emailAttempt<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    throw new EmailAuthError(emailFailure(err), err);
+  }
+}
+
+/** Sign in to an account that exists. */
+export async function emailSignIn(address: string, password: string): Promise<void> {
+  await emailAttempt(() => signInWithEmailAndPassword(auth(), address, password));
+}
+
+/**
+ * Create an account — LINKING the anonymous session when there is one, so
+ * the answers given before the wall appeared survive. Same rule the Google
+ * and Apple doors follow, and the reason the gate is affordable at all.
+ */
+export async function emailCreate(address: string, password: string): Promise<void> {
+  const user = auth().currentUser;
+  if (user?.isAnonymous) {
+    await emailAttempt(() =>
+      linkWithCredential(user, EmailAuthProvider.credential(address, password)));
+    return;
+  }
+  await emailAttempt(() => createUserWithEmailAndPassword(auth(), address, password));
+}
+
+/**
+ * Send a reset link.
+ *
+ * Resolves even when nothing uses the address, and that is Firebase's
+ * choice rather than ours: answering "no such account" here would hand an
+ * attacker the enumeration the protection above denies them. The screen
+ * says a link was sent, because that is what was attempted, and the
+ * design's confirmation is deliberately about the inbox rather than about
+ * the account.
+ */
+export async function emailReset(address: string): Promise<void> {
+  await emailAttempt(() => sendPasswordResetEmail(auth(), address));
 }
 
 export async function googleSignOut(): Promise<void> {

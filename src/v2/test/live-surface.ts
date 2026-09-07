@@ -137,6 +137,7 @@ export const LIVE_MEMBERS = [
   // D91: the live half of a lens card — counts for a seeded lens question,
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",
+  "emailCreate", "emailReset", "emailSignIn",
   "linkApple",
   "linkGoogle", "linked", "myCity",
   "myVotes",
