@@ -4241,62 +4241,203 @@ describe("every write gated on sign-in refuses a signed-out client", () => {
   // a sign-in clause would not make these pass — they would go on refusing
   // for the wrong reason, silently.
   //
-  // Making all thirteen minimal-and-legal is real work against nine rules
-  // and it is on the open list rather than done in a hurry. The claim is
-  // corrected here so the next reader is not misled by it.
+  // ALL THIRTEEN ARE NOW MINIMAL-AND-LEGAL, and each carries the proof.
+  //
+  // The read block below already had the right shape and this one did not:
+  // there, `refuses()` asserts the signed-out read FAILS and the same read
+  // signed in SUCCEEDS, so the sign-in clause is demonstrably the thing
+  // doing the refusing. Here a payload that no rule would accept refuses
+  // identically whether the clause is present or not, which is a test that
+  // passes for a reason it does not name.
+  //
+  // So `refusesWrite` now takes both halves. Nine payloads were rewritten
+  // against their own rules to make the second half possible — `following`
+  // gained the `to` the rule pins to the document id, `foresight` its full
+  // seven-key shape, `v2_people` the `name`/`nameKey` its allowlist wants,
+  // `v2_takes` the author uid and the `qid_uid` document id a world take
+  // is addressed by, `v2_groups` the one field an update may touch — and
+  // five documents an update or delete targets are seeded, because
+  // `clearFirestore()` guarantees they do not exist and a write to nothing
+  // refuses for that reason alone.
+  //
+  // WHAT THAT BUYS, stated exactly, because the paragraph this replaces
+  // overclaimed and it would be a poor joke to repeat the shape.
+  //
+  // It buys this: each case now proves the write is refused BECAUSE the
+  // client is signed out, since the identical write signed in succeeds.
+  // Before, nine of the thirteen were refused twice over and would have
+  // gone on refusing — silently, for the wrong reason — if the clause they
+  // name were deleted.
+  //
+  // It does NOT buy "delete the clause and this case fails". Measured, by
+  // deleting `request.auth != null` from the v2_people arm and running the
+  // suite: 199 still passed. The reason is structural and worth knowing
+  // before anyone reaches for that mutation as a check — every one of
+  // these arms dereferences `request.auth` in its NEXT conjunct
+  // (`request.auth.uid == uid`, `request.auth.uid in resource.data.
+  // memberUids`, `authorUid == request.auth.uid`), and on a signed-out
+  // client that is an evaluation error, which denies. So on these arms the
+  // sign-in clause is a readable null-guard in front of a check that
+  // already fails closed, not the sole gate.
+  //
+  // That is exactly why the coverage ratchet's "never evaluates false"
+  // reading is worth having and is not the same question as "is this
+  // clause load-bearing". These cases make it evaluate false; they cannot
+  // make it decisive, because it is not.
   const DAY = dayOffset(-1);
-  const refusesWrite = async (fn: () => Promise<unknown>): Promise<void> => {
-    await assertFails(fn());
+  const TAKE_ID = `daily-000_${OWNER}`;
+
+  // The documents an update or a delete needs to find. Written with rules
+  // bypassed, so seeding cannot itself be the thing under test.
+  beforeEach(async () => {
+    await seed(async (db) => {
+      // BOTH bank questions. `isWorldAnswer` reads the question document
+      // by the answer's own id (a world answer is addressed `qid == aid`),
+      // so a create against an unseeded question dies on a null read
+      // rather than on the sign-in clause — which is this block's whole
+      // failure mode, one level down.
+      for (const qid of ["daily-000", "daily-000b"]) {
+        await setDoc(doc(db, "v2_questions", qid), {
+          surface: "daily", seq: 0, type: "vote", prompt: "?",
+          options: ["Yes", "No"], active: true,
+        });
+      }
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
+        qid: "daily-000", surface: "daily", optionIdx: 1,
+        answeredAt: new Date(), anchors: {},
+      });
+      await setDoc(doc(db, "v2_users", OWNER, "following", STRANGER), { to: STRANGER, at: new Date() });
+      await setDoc(doc(db, "v2_groups", "grp1"), {
+        mode: "duo", duoMode: "friends", memberUids: [OWNER, STRANGER],
+      });
+      await setDoc(doc(db, "v2_takes", TAKE_ID), {
+        gid: "world", authorUid: OWNER, qid: "daily-000",
+        text: "hello", createdAt: new Date(), hidden: false,
+      });
+      await setDoc(doc(db, "v2_avatars", OWNER), {
+        token: "abc123DEF456-_xyz", at: new Date(), hidden: false,
+      });
+    });
+  });
+
+  /**
+   * The signed-out write must be refused, AND the identical write by the
+   * account the rule is written for must be allowed. Both halves, or the
+   * case does not name what refuses it.
+   */
+  const refusesWrite = async (
+    out: () => Promise<unknown>,
+    inn: () => Promise<unknown>,
+  ): Promise<void> => {
+    await assertFails(out());
+    await assertSucceeds(inn());
   };
 
-  it("v2_users refuses a signed-out write", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_users", OWNER), { displayName: "Owner" })));
-  it("answers refuse a signed-out create", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "daily-000"), {
-      qid: "daily-000", surface: "daily", optionIdx: 1,
+  it("v2_users refuses a signed-out write", () => refusesWrite(
+    () => setDoc(doc(asSignedOut(), "v2_users", OWNER), { displayName: "Owner" }),
+    () => setDoc(doc(asUser(OWNER), "v2_users", OWNER), { displayName: "Owner" })));
+
+  it("answers refuse a signed-out create", () => refusesWrite(
+    () => setDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "feed-000"), {
+      qid: "feed-000", surface: "daily", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: {},
+    }),
+    // A DIFFERENT qid from the seeded one, because the seeded answer
+    // exists and a create over an existing document is an update.
+    () => setDoc(doc(asUser(OWNER), "v2_users", OWNER, "answers", "daily-000b"), {
+      qid: "daily-000b", surface: "daily", optionIdx: 1,
       answeredAt: serverTimestamp(), anchors: {},
     })));
-  it("answers refuse a signed-out update", () => refusesWrite(() =>
-    updateDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "daily-000"), {
+
+  it("answers refuse a signed-out update", () => refusesWrite(
+    () => updateDoc(doc(asSignedOut(), "v2_users", OWNER, "answers", "daily-000"), {
+      optionIdx: 0, editedAt: serverTimestamp(),
+    }),
+    // The D86 edit shape exactly: optionIdx and an editedAt stamp, on the
+    // answer the seed put there.
+    () => updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "answers", "daily-000"), {
       optionIdx: 0, editedAt: serverTimestamp(),
     })));
-  it("engagement refuses a signed-out create", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_users", OWNER, "engagement", DAY), {
-      day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
-      answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
-      // `build` is an INT in the rule, and `expireAt` must be in the
-      // future — this payload said "1" and `new Date()` until the rollup
-      // block below was written and its control caught both. It changes
-      // nothing here (the sign-in clause short-circuits first, and the
-      // coverage report confirms this arm records a false either way), but
-      // this case's own note promises a well-formed payload, and a fixture
-      // that is refused twice over stops proving what it names the moment
-      // somebody deletes the clause it is here to hold.
-      folded: false, build: 1, platform: "web",
-      expireAt: new Date(Date.now() + 86400000),
+
+  const engagementRow = () => ({
+    day: DAY, sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
+    answers: 1, feedB: 0, depthEnd: 0, stops: 0, lenses: 0,
+    // `build` is an INT in the rule, and `expireAt` must be in the
+    // future — this payload said "1" and `new Date()` until the rollup
+    // block below was written and its control caught both.
+    folded: false, build: 1, platform: "web",
+    expireAt: new Date(Date.now() + 86400000),
+  });
+  it("engagement refuses a signed-out create", () => refusesWrite(
+    () => setDoc(doc(asSignedOut(), "v2_users", OWNER, "engagement", DAY), engagementRow()),
+    () => setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", DAY), engagementRow())));
+
+  it("following refuses a signed-out create", () => refusesWrite(
+    // `to` is required and pinned equal to the document id — without it
+    // this refused on the allowlist rather than on sign-in.
+    () => setDoc(doc(asSignedOut(), "v2_users", OWNER, "following", FRIEND), {
+      to: FRIEND, at: serverTimestamp(),
+    }),
+    () => setDoc(doc(asUser(OWNER), "v2_users", OWNER, "following", FRIEND), {
+      to: FRIEND, at: serverTimestamp(),
     })));
-  it("following refuses a signed-out create", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER), { at: serverTimestamp() })));
-  it("following refuses a signed-out delete", () => refusesWrite(() =>
-    deleteDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER))));
-  it("foresight refuses a signed-out create", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_users", OWNER, "foresight", "q1__ageBand__25-34"), { pick: 0 })));
-  it("v2_groups refuses a signed-out update", () => refusesWrite(() =>
-    updateDoc(doc(asSignedOut(), "v2_groups", "grp1"), { name: "x" })));
-  it("v2_people refuses a signed-out write", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_people", OWNER), { handle: "owner" })));
-  it("v2_takes refuses a signed-out create", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_takes", "t9"), {
-      gid: "world", uid: OWNER, text: "hello", at: serverTimestamp(), hidden: false,
+
+  it("following refuses a signed-out delete", () => refusesWrite(
+    () => deleteDoc(doc(asSignedOut(), "v2_users", OWNER, "following", STRANGER)),
+    () => deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "following", STRANGER))));
+
+  const foresightRow = () => ({
+    qid: "q1", dim: "ageBand", bucket: "25-34",
+    guess: 0, answerIdx: 0, n: 0, at: serverTimestamp(),
+  });
+  it("foresight refuses a signed-out create", () => refusesWrite(
+    // The full seven-key shape; `{ pick: 0 }` was not a key the rule knows.
+    () => setDoc(doc(asSignedOut(), "v2_users", OWNER, "foresight", "q1__ageBand__25-34"), foresightRow()),
+    () => setDoc(doc(asUser(OWNER), "v2_users", OWNER, "foresight", "q1__ageBand__25-34"), foresightRow())));
+
+  it("v2_groups refuses a signed-out update", () => refusesWrite(
+    // `duoMode` is the ONLY field an update may touch, and the group has
+    // to be a duo whose members include the writer — both seeded.
+    () => updateDoc(doc(asSignedOut(), "v2_groups", "grp1"), { duoMode: "romantic" }),
+    () => updateDoc(doc(asUser(OWNER), "v2_groups", "grp1"), { duoMode: "romantic" })));
+
+  // NO `handle`. It is on the allowlist but immutable: the rule admits it
+  // only when a document already exists to preserve it FROM
+  // (`resource != null && handle == resource.data.handle`), and
+  // `clearFirestore()` guarantees none does. `nameKey` must equal
+  // `name.lower()`, which the rule pins.
+  const personRow = () => ({ name: "Owner", nameKey: "owner" });
+  it("v2_people refuses a signed-out write", () => refusesWrite(
+    () => setDoc(doc(asSignedOut(), "v2_people", OWNER), personRow()),
+    () => setDoc(doc(asUser(OWNER), "v2_people", OWNER), personRow())));
+
+  it("v2_takes refuses a signed-out create", () => refusesWrite(
+    // A world take is addressed `qid + "_" + uid`, carries `authorUid`
+    // rather than `uid`, and stamps `createdAt` — the old payload matched
+    // none of those and refused on its key allowlist.
+    () => setDoc(doc(asSignedOut(), "v2_takes", `daily-000_${STRANGER}`), {
+      gid: "world", authorUid: STRANGER, qid: "daily-000",
+      text: "hello", createdAt: serverTimestamp(), hidden: false,
+    }),
+    () => setDoc(doc(asUser(STRANGER), "v2_takes", `daily-000_${STRANGER}`), {
+      gid: "world", authorUid: STRANGER, qid: "daily-000",
+      text: "hello", createdAt: serverTimestamp(), hidden: false,
     })));
-  it("v2_takes refuses a signed-out delete", () => refusesWrite(() =>
-    deleteDoc(doc(asSignedOut(), "v2_takes", "t9"))));
-  it("v2_avatars refuses a signed-out write", () => refusesWrite(() =>
-    setDoc(doc(asSignedOut(), "v2_avatars", OWNER), {
-      token: "abc123DEF456-_xyz", at: serverTimestamp(), hidden: false,
-    })));
-  it("v2_avatars refuses a signed-out delete", () => refusesWrite(() =>
-    deleteDoc(doc(asSignedOut(), "v2_avatars", OWNER))));
+
+  it("v2_takes refuses a signed-out delete", () => refusesWrite(
+    () => deleteDoc(doc(asSignedOut(), "v2_takes", TAKE_ID)),
+    () => deleteDoc(doc(asUser(OWNER), "v2_takes", TAKE_ID))));
+
+  const avatarRow = () => ({
+    token: "abc123DEF456-_xyz", at: serverTimestamp(), hidden: false,
+  });
+  it("v2_avatars refuses a signed-out write", () => refusesWrite(
+    () => setDoc(doc(asSignedOut(), "v2_avatars", OWNER), avatarRow()),
+    () => setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), avatarRow())));
+
+  it("v2_avatars refuses a signed-out delete", () => refusesWrite(
+    () => deleteDoc(doc(asSignedOut(), "v2_avatars", OWNER)),
+    () => deleteDoc(doc(asUser(OWNER), "v2_avatars", OWNER))));
 });
 
 describe("every read gated on sign-in refuses a signed-out client", () => {
