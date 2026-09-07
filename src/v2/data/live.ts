@@ -5520,7 +5520,25 @@ const LIVE = {
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       if (on) {
-        if ((state.circle?.length || 0) >= circleMod.FOLLOW_CAP) return;
+        // THE FOLLOW SET, not the circle fold. `state.circle` is written
+        // by `loadCircle` alone, and `loadCircle` is mounted by exactly
+        // one component — the Circle stop, which only ever passes `false`
+        // here. Every surface that can ADD a follow (the People lens, the
+        // city constellation's person card, people search) loads
+        // `follows` and never `circle`, so `state.circle` was null at each
+        // of them and this read `0 >= 50`: the cap did not bind anywhere
+        // it could be reached. Measured — forcing the guard to fire on
+        // every follow, and swapping it to this cache, both left all 2806
+        // unit tests green.
+        //
+        // It also counted the wrong thing when `circle` WAS loaded:
+        // `loadCircle` drops a followed account whose answer read failed,
+        // so the fold's survivors are not the follow rows.
+        //
+        // Null means "not read yet", which must not block — the same
+        // shape as before, on the cache the callers actually fill.
+        const known = state.follows ?? state.circle;
+        if (known && known.length >= circleMod.FOLLOW_CAP) return;
         await circleMod.follow(db, me, uid);
       } else {
         await circleMod.unfollow(db, me, uid);

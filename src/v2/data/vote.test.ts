@@ -22,6 +22,7 @@ import { IDBFactory, IDBDatabase } from "fake-indexeddb";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 import { FUNCTIONS_REGION } from "../../lib/region";
 import { CANON_BOARD_N } from "./deck";
+import { FOLLOW_CAP } from "./circle";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -491,6 +492,7 @@ beforeEach(() => {
   h.voterDocs = {};
   h.voterQueries.length = 0;
   h.voterFailQids.clear();
+  h.followDocs.length = 0;
   h.engagementCalls.length = 0;
   h.bankDocs = [
     {
@@ -776,6 +778,64 @@ describe("a loader that starts tells its subscribers it started", () => {
     const body = /async loadKindred\(\)[\s\S]*?\n {2}\},/.exec(src);
     expect(body).toBeTruthy();
     expect(body![0]).toMatch(/await this\.loadVoters\(qid\)/);
+  });
+});
+
+// ── the follow cap binds where a follow can be MADE ─────────────────
+//
+// FOLLOW_CAP is a bound on a fan-out, not a product limit: the Circle
+// stop reads every followed account's whole answer set. Past the cap
+// `fetchFollowing` keeps the oldest fifty rows and the rest of a circle
+// stops existing with nothing saying so — the follow button on a dropped
+// account reads "Follow" again, and the tap re-writes a follow that is
+// already there, forever.
+//
+// The guard read `state.circle`, which `loadCircle` alone writes, and
+// `loadCircle` is mounted by exactly one component — the Circle stop,
+// which never adds a follow. Every surface that CAN add one (the People
+// lens, the city constellation's person card, people search) loads
+// `follows` instead. So at every reachable call site the guard read
+// `null` and the cap bound nowhere. Nothing pinned that: forcing the
+// guard to fire on every follow, and swapping the cache under it, both
+// left the whole unit suite green.
+describe("the follow cap binds on the cache the follow buttons fill", () => {
+  const followRows = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `u_${i}`,
+      data: { to: `u_${i}`, at: { seconds: i + 1 } },
+    }));
+  const writesTo = (uid: string) =>
+    h.setDocCalls.filter((c) => c.path === `v2_users/uid_test/following/${uid}`);
+
+  it("refuses the follow that would pass the cap", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    expect(LIVE.follows()?.length, "the fixture did not fill the set").toBe(FOLLOW_CAP);
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new"), "a follow past the cap was written anyway").toEqual([]);
+  });
+
+  // THE CONTROL. Every assertion above is an absence, and an absence
+  // passes just as happily when this path writes nothing at all — so the
+  // same mount, one row under the cap, has to write.
+  it("…and makes the one that fills it", async () => {
+    h.followDocs = followRows(FOLLOW_CAP - 1);
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "a follow under the cap was refused").toBe(1);
+  });
+
+  // AND THE OTHER DIRECTION. `null` means "not asked for yet", not
+  // "nobody followed" — a guard that counted it as zero-known would be
+  // fine here and refuse every follow made before the set had loaded,
+  // which is the same bug pointing the other way.
+  it("does not refuse a follow made before the set has been read", async () => {
+    h.followDocs = followRows(FOLLOW_CAP);
+    const LIVE = await bootLive();
+    await LIVE.setFollowing("u_new", true);
+    expect(writesTo("u_new").length, "refused on a set nobody had asked for").toBe(1);
   });
 });
 
