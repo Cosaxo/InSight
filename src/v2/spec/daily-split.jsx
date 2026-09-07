@@ -245,7 +245,18 @@ export class DailySplit extends React.Component {
     // Subscribes once the store lands; componentWillUnmount's guard
     // already tolerates the handle being absent, and a component
     // unmounted before then simply never subscribes.
-    {
+    //
+    // DEMO ONLY, the way the pending-count read far below already is
+    // (`liveDuels ? null : duels(…)`, and `liveDuels` is `LIVE.enabled`).
+    // This call was unconditional, so the gate held on one of the two
+    // call sites and a LIVE build fetched `duels-data.js` — and with it
+    // content/duel-questions.json, the duel lane's whole bank — on every
+    // daily mount, for a store the block's own comment says "on live this
+    // module is never needed at all". Measured with a live fixture and a
+    // full mount: DUELS.subscribe was reached once, which happens only if
+    // the dynamic import ran. `check:eager-content` cannot see it — that
+    // gate reads the STATIC first-paint graph.
+    if (!LIVE.enabled) {
       const sub = () => { this._unsubDuels = DUELSTORE.subscribe(() => this.forceUpdate()); };
       if (duels(() => { if (!this._duelsGone) { sub(); this.forceUpdate(); } })) sub();
     }
