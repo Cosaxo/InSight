@@ -6999,6 +6999,37 @@ const LIVE = {
     const aid = `${baseQid}_${utcDayKey(0)}`;
     return aid in state.unaggregated ? state.unaggregated[aid] : null;
   },
+  /**
+   * Your own vote on ONE question while it is not yet in the published
+   * aggregate — the option index, or null once the fold has counted it.
+   *
+   * The general form of `pulsePending` above, which is this read against
+   * the pulse's day-keyed id; `pickCanon` does the same inline for a
+   * catalogue board. An ordinary feed or daily answer's id IS its qid, so
+   * there is nothing to derive.
+   *
+   * WHY A READER EXISTS AT ALL. `countsFor` (data/deck.ts) subtracts the
+   * viewer's own vote back out of `o.count` only `if (!ctx.pending)`, so
+   * in the seconds between the write and the fold, a consumer that adds
+   * its own `+1` has counted the viewer while the published breakdown
+   * cells have not. That is the D365 mismatch, and every surface that
+   * folds a cohort needs to know which side of the fold it is on.
+   *
+   * Null rather than -1, the D72 shape: a caller that forgets the check
+   * draws nothing readable and fails a test, rather than shifting a share
+   * by one and looking plausible.
+   *
+   * WHAT THE NUMBER IS NOT. `unaggregated` is keyed by question for every
+   * kind of answer, and only `vote()` and its edit arm store an option
+   * index in it: `voteRank` stores a placeholder `0` it documents as
+   * unread, and `votePick` stores a catalogue key. So the PRESENCE of a
+   * key is the reliable half — has the fold counted this answer yet — and
+   * a caller that needs an option index must either know the question is
+   * an ordinary vote or carry its own. `feed-read.js` does the latter.
+   */
+  votePending(qid: string): number | null {
+    return qid in state.unaggregated ? state.unaggregated[qid] : null;
+  },
   /** Every pulse day this device knows it answered: day → optionIdx.
    * Derived from the hydrated vote mirror, so a second device's answers
    * arrive with ordinary hydration and no extra read. */

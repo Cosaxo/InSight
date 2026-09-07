@@ -835,11 +835,16 @@ would open Near at a party and see an empty room, because everyone else's
 app is shut. The feature would be dead on arrival. Find My and Snap Map
 keep a last-known position for exactly this reason.
 
-The machinery exists: `PRESENCE_TTL_MIN` (10 today) is the server's
-freshness window, so the linger is **one constant**.
+The machinery exists, and the linger is **one constant**. **Done at
+D174**, like the subsection beside it and like this section's own build
+order says at step 1 — this paragraph alone kept the pre-D174 wording.
+The constant is `PRESENCE_LINGER_MIN = 180` (`functions/src/pure.ts`);
+`PRESENCE_TTL_MIN`, named here as "10 today", was renamed in the same
+record and does not exist.
 
-**Set it to about 3 hours**, per the owner's "slightly longer" — long
-enough that a venue stays populated between pocket-checks, short enough
+What it asked for, and what shipped: **about 3 hours**, per the owner's
+"slightly longer" — long enough that a venue stays populated between
+pocket-checks, short enough
 that closing the app in bed does not leave you at home all night. It is
 one number and should be re-tuned from real use rather than defended.
 

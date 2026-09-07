@@ -433,7 +433,17 @@ export class DailySplit extends React.Component {
     // the render branch, because `st.beat` also gates the live Takes and
     // Who-voted doors below (`st.beat !== S.id`) — skipping the render with
     // `beat` still set would strand it and take both doors with it.
-    beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating' && !(S.live && S.noCountsYet)) ? S.id : null }));
+    // `noCrowd` below is "nobody but me", not "nobody" — the same
+    // widening as `floored`, and it belongs here most of all, because the
+    // beat's whole payload is the crowd claim. `S.noCountsYet` counts the
+    // viewer (`agg.total > 0`) while every `o.count` has the viewer taken
+    // back out, so on a question whose only answer is your own — a second
+    // device's, or your own edit under D86 — the old gate let the beat
+    // through to say "100% chose Yes — you're with them" with nobody to
+    // be with. Measured in a mount test, which is how it was found: the
+    // ballot's own floor was fixed first and the beat still said it.
+    beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating'
+      && !(S.live && (S.noCountsYet || S.options.every((o) => !o.count)))) ? S.id : null }));
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
@@ -774,7 +784,14 @@ export class DailySplit extends React.Component {
     // "would publish the split geometrically instead of numerically, which
     // is the same disclosure in a different alphabet". The daily was the one
     // answer surface with no such gate.
-    const floored = !!(S.live && S.noCountsYet);
+    // "Nobody but me" rather than "nobody", for wfNoCrowd's reason
+    // (world-feed.jsx, where the same widening is written out):
+    // `noCountsYet` is `agg.total > 0` and counts the viewer, while every
+    // `o.count` here has had the viewer subtracted back out. On the day's
+    // first vote — which on the daily is a state every reader passes
+    // through — the fold lands, the floor lifts, and the card prints 100%
+    // over a crowd of one.
+    const floored = !!(S.live && (S.noCountsYet || S.options.every((o) => !o.count)));
     const myIdx = S.options.findIndex(o => o.id === myVote);
     // THE WINNER IS THE BIGGEST COUNT, not the biggest drawn percentage.
     // `rp` is rounded, so two different counts land on the same integer —

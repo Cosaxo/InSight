@@ -24,7 +24,7 @@
 // backend-checks.yml — the placement rule every gate on that job obeys.
 
 import { readdirSync, existsSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -39,7 +39,12 @@ const UI = join(root, "src", "v2", "ui");
 // was ten when the list was written and the list is how it got to zero.
 const OWED = {};
 
-const panels = readdirSync(UI)
+// Recursive: a panel filed under a subdirectory would otherwise be
+// invisible to this gate, which means it would owe no suite and the
+// vacuity floor below would not notice — the debt list would simply be
+// missing it.
+const panels = readdirSync(UI, { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
   .filter((f) => f.endsWith(".tsx") && !f.endsWith(".test.tsx"))
   .map((f) => f.slice(0, -4))
   .sort();

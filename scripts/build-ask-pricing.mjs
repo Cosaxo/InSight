@@ -168,7 +168,7 @@ export function buildAskPricing(pricing, sponsoredSrc) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const check = process.argv.includes("--check");
   const pricing = JSON.parse(readFileSync(join(ROOT, SOURCE), "utf8"));
   const sponsoredSrc = readFileSync(join(ROOT, PLACES_SOURCE), "utf8");
