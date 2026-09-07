@@ -515,20 +515,57 @@ export function duelAggDelta(
     }
   } else if (mode === "group") {
     // A group's guess is a call on where the room lands (D386): a hit
-    // when it names an option tied for the top of the counted votes.
-    // Scored only against a room of two or more — with one counted vote
-    // the "room" is the guesser, and calling your own answer is not a
-    // read. The band the scorecard reads is the same one: near 100% the
-    // room is predictable, at chance nobody can tell where it goes.
-    const counted = Object.values(counts).reduce((a, b) => a + b, 0);
-    if (counted >= 2) {
-      const top = Math.max(...Object.values(counts));
-      for (const v of votes) {
-        const guess = v.guessIdx;
-        if (!inRange(guess)) continue;
-        guessTotal++;
-        if ((counts[String(guess)] || 0) === top) guessMatches++;
-      }
+    // when it names an option tied for the top. THE ROOM IS EVERYONE BUT
+    // THE GUESSER, which is the same thing the duo arm does one branch up
+    // — there each guess is checked against `votes[1 - i]`, the OTHER
+    // person, never against a tally holding the guesser's own pick.
+    //
+    // This arm scored every guess against the whole tally, the guesser's
+    // own vote included, so calling your own answer was partly
+    // self-fulfilling. The old guard (`counted >= 2`) states the
+    // invariant it exists for — "with one counted vote the room is the
+    // guesser, and calling your own answer is not a read" — and that is
+    // just as true at two, and at every scattered room where no option
+    // reaches two votes.
+    //
+    // MEASURED, 40k trials per cell, every member guessing their OWN
+    // answer and reading nothing at all:
+    //
+    //     n=2 k=2   1.000 -> 0.500        n=2 k=3   1.000 -> 0.335
+    //     n=4 k=2   0.875 -> 0.500        n=3 k=3   0.778 -> 0.554
+    //     n=6 k=2   0.812 -> 0.500        n=4 k=3   0.703 -> 0.482
+    //
+    // The left column is a published guess rate that says the room is
+    // almost perfectly predictable; the right column is chance, which is
+    // what zero room-reading should score. It matters because
+    // `scripts/question-scorecard.mjs` proposes RETIRING any duel at
+    // `guessTotal >= 20 && guessMatchRate >= 0.9` as "no tension — a dead
+    // question", and ten group-days from a circle of two is 20 guesses.
+    //
+    // n=3 k=2 is 0.750 both ways and is NOT this defect: with two others
+    // and two options a tie is half the outcomes, and a tie counts as a
+    // hit by D386's own choice. Below the retire threshold either way,
+    // and changing the tie rule is a decision, not a fix.
+    for (const v of votes) {
+      const guess = v.guessIdx;
+      if (!inRange(guess)) continue;
+      // A member whose own vote is out of range did not coherently play
+      // this question — the pool-flip race — so their guess is noise, the
+      // same reading the duo arm gives it. Also what keeps their guess
+      // from being scored against a room they were never in.
+      if (!inRange(v.optionIdx)) continue;
+      // The room this member was reading: the tally with their own vote
+      // taken out.
+      const others = { ...counts };
+      const key = String(v.optionIdx);
+      others[key] = (others[key] || 0) - 1;
+      if (others[key] <= 0) delete others[key];
+      const values = Object.values(others);
+      // Nobody else's vote counted, so there is no room to have read.
+      // The old floor's case, arrived at from the other side.
+      if (!values.length) continue;
+      guessTotal++;
+      if ((others[String(guess)] || 0) === Math.max(...values)) guessMatches++;
     }
   }
   return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
