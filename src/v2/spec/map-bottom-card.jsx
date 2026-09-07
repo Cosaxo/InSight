@@ -155,6 +155,21 @@ function MTGroupBars({ node, anchor }) {
   if (node.qtype === 'rating') {
     const you = node.aidx;
     const youMid = ((you + 0.5) / n) * 100;
+    // A CROWD OF ONE IS NOT A SPREAD, and this is the same defect the
+    // daily's rating card shipped: the verdict above already refuses at
+    // `cohortN < 2` and says "Yours is the only answer here yet — nobody
+    // else has answered this in your cell", and the ridge underneath drew
+    // anyway. `dist` for one answer is [0,…,100,…,0], so the heights come
+    // out [7,100,7,7,7,7,7,7,7,7]: a published distribution, one full
+    // column tall, under a line saying there is nobody in it. Your own
+    // step is already marked and labelled, so the shape added nothing but
+    // the claim.
+    //
+    // Flat rather than absent, for the reason the daily's fix gives: a
+    // ridge that vanishes reads as a card that failed to load, and the
+    // row is the reader's own answer on a scale they can still see
+    // themselves on.
+    const alone = cohortN != null && cohortN < 2;
     return (
       <div>
         <MTVerdict pct={d[you]} who={who} self={self} isMode={isMode} n={cohortN}></MTVerdict>
@@ -163,13 +178,14 @@ function MTGroupBars({ node, anchor }) {
           <div className="mmt-ridge-cols">
             {d.map((p, i) => (
               <span key={i} className={'mmt-ridge-col' + (i === you ? ' is-you' : '') + (i === gmode && gmode !== you ? ' is-peak' : '')}>
-                <i style={{ height: Math.max(7, (p / max) * 100) + '%' }}></i>
+                <i style={{ height: (alone ? 7 : Math.max(7, (p / max) * 100)) + '%' }}></i>
               </span>
             ))}
           </div>
           <div className="mmt-ridge-foot">
             <span>1</span>
-            {gmode !== you ? <span className="mmt-ridge-peaklab">most chose {gmode + 1}</span> : null}
+            {/* …and the peak label is a claim about the same crowd. */}
+            {!alone && gmode !== you ? <span className="mmt-ridge-peaklab">most chose {gmode + 1}</span> : null}
             <span>10</span>
           </div>
         </div>
