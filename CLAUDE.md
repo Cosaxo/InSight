@@ -189,7 +189,7 @@ Object.assign(window, { SearchOverlay });
 *(This example has now been false twice. It named `useTweaks` until D210:
 `app-shell.jsx` had long since converted to a real `import`, and the
 publication beneath it was the residue that sweep removed. It then named
-`group-daily.jsx`'s `GDAv` until D415, which converted it. `check:globals`
+`group-daily.jsx`'s `GDAv` until D418, which converted it. `check:globals`
 rule 5 could see neither — see D210 for why. The lesson is the one the
 paragraph two sections down states outright: pick a live pair from
 `check:globals`'s own output, because an example of the convention is the

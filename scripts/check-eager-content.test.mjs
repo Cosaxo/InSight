@@ -46,7 +46,7 @@ function runIn(files) {
 // Supplying them keeps each case about the one thing it is testing.
 //
 // FOUR, and none of them is a lane write surface: the feed and duel lanes
-// left first paint at D415, so `world-feed-data.js`, `duels-data.js` and
+// left first paint at D418, so `world-feed-data.js`, `duels-data.js` and
 // `content/duel-questions.json` are no longer eager and no longer here.
 // `test-definitions.js` is the one that ARRIVED rather than left — the 110
 // test items and their baselines were in the eager graph the whole time and
