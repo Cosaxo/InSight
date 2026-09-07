@@ -1683,7 +1683,7 @@ That is a tester-count problem, not a workflow problem.
       question, not that a count was lost — its runbook says what to do,
       which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 32.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 33.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
