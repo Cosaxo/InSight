@@ -158,8 +158,16 @@ export let feedInsight;
     // needed is `LIVE.votePending`, the general form of `pulsePending`;
     // adding it moves the surface `data/vote.test.ts` pins, which is why
     // it waited for a night when no other branch was rewriting that file.
-    // Fourth site of the D365 +1 mismatch and the last of them, after
-    // `bins`/`todayN`, `scope()`'s day series, and the two above.
+    // Fourth site of the D365 +1 mismatch, after `bins`/`todayN`,
+    // `scope()`'s day series, and the two above — and the last of the ones
+    // that are a COUNT computed over the wrong population.
+    //
+    // This said "and the last of them" flatly, and a fifth arrived the
+    // same night: `wfNoCrowd`/`floored` (world-feed.jsx, daily-split.jsx),
+    // where the wrong population decides a PREDICATE — whether the counts
+    // are drawn at all — rather than a count. Same mismatch, one level up.
+    // The correction is here rather than in a decision record because the
+    // sentence that was wrong is this one.
     //
     // What that produced: whenever your own vote made or changed the
     // leader — routine at the counts a question has in its first hours —

@@ -254,8 +254,8 @@ function WfCount({ to, animate, dur = 650, delay = 180 }) {
 // percentages above it made the same claim anyway.
 //
 // The counts are the honest test because they are the numbers on screen.
-// Fourth site of the D365 +1 mismatch family, one level up from the other
-// three: those were counts computed over the wrong population, this is a
+// FIFTH site of the D365 +1 mismatch family, one level up from the other
+// four: those were counts computed over the wrong population, this is a
 // PREDICATE computed over the wrong population and deciding whether the
 // counts are shown at all.
 function wfNoCrowd(q) {
