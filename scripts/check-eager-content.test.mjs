@@ -41,15 +41,21 @@ function runIn(files) {
   }
 }
 
-// The six real allowlist entries are eager in the repo but absent from a
+// The real allowlist entries are eager in the repo but absent from a
 // fixture, so every fixture run trips the ratchet unless they are present.
 // Supplying them keeps each case about the one thing it is testing.
+//
+// SEVEN, not six: `test-definitions.js` — the 110 test items and their
+// baselines — was in the eager graph the whole time and simply not in the
+// gate's CONTENT list, so the gate reported "all 6 named as debt" while a
+// seventh sat there unnamed.
 const DEBT = {
   "src/v2/spec/sample-data.js": "export const S = 1;\nimport '../../../content/duel-questions.json';\n",
   "src/v2/spec/duels-data.js": "import './sample-data.js';\nexport const D = 1;\n",
   "src/v2/spec/world-feed-data.js": "export const W = 1;\n",
   "src/v2/spec/test-feed-data.js": "export const T = 1;\n",
   "src/v2/spec/archetype-data.js": "export const A = 1;\n",
+  "src/v2/spec/test-definitions.js": "export const IS_TESTS = {};\n",
   "content/duel-questions.json": "{}\n",
 };
 const DEBT_IMPORTS = Object.keys(DEBT)
