@@ -648,9 +648,27 @@ export async function runPatternsFit(
   const crossed = streak >= PATTERNS_CROSSOVER_NIGHTS && (engine === "sgd" ? !!als : true);
   const nextEngine: PatternsEngine = crossed ? (engine === "sgd" ? "als" : "sgd") : engine;
 
-  // On a crossover the new engine's rows are rotated onto the rows the
-  // devices were reading last night, over the keys both carry, so the map
-  // moves as little as the change of engine allows.
+  // On a crossover TO ALS the new engine's rows are rotated onto the rows
+  // the devices were reading last night, over the keys both carry, so the
+  // map moves as little as the change of engine allows.
+  //
+  // ONE DIRECTION ONLY, and the asymmetry is deliberate rather than an
+  // omission — this said "on a crossover" flatly, which reads as both. The
+  // rotation lives inside the ALS arm below; the crossback to SGD
+  // publishes `sgdRowsOut` untouched.
+  //
+  // Why it must: the SGD rows share a basis with the per-person vectors
+  // (`user.v`) that the online fold steps every night. Rotating only the
+  // PUBLISHED copy would leave those two in different frames, and the next
+  // fold would step each person against rows that no longer mean what
+  // their vector means. ALS has no such tie — its rows are re-solved whole
+  // each night from the item side — so rotating its published copy costs
+  // nothing and buys the devices a map that does not jump.
+  //
+  // The crossback path is currently unreachable in the test suite:
+  // deleting this whole `if (crossed)` block leaves the functions suite
+  // green, which is on the night's list. That is a coverage gap, not a
+  // reason to make the two directions symmetric.
   let engineRows: Record<string, PublishedRow>;
   let engineItems: Record<string, ItemMeta> | undefined;
   if (nextEngine === "als" && als) {
