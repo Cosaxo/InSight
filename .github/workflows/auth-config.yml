@@ -62,6 +62,15 @@ on:
         description: "Build number to attach to the version (blank = leave it)"
         type: string
         default: ""
+      set_version:
+        description: "Version string for the App Store record, e.g. 2.0.0 (blank = leave it)"
+        type: string
+        default: ""
+      release_type:
+        description: "What Apple's approval means"
+        type: choice
+        options: ["leave it", "MANUAL", "AFTER_APPROVAL"]
+        default: "leave it"
 
 permissions:
   contents: read
@@ -149,6 +158,13 @@ jobs:
           set -o pipefail
           ARGS="--demo-file $RUNNER_TEMP/demo-account.json"
           [ -n "${{ inputs.attach_build }}" ] && ARGS="$ARGS --attach-build ${{ inputs.attach_build }}"
+          [ -n "${{ inputs.set_version }}" ] && ARGS="$ARGS --set-version ${{ inputs.set_version }}"
+          # MANUAL is not the default here for the reason asc-review's own
+          # comment gives: AFTER_APPROVAL publishes the app with nobody
+          # present, and a workflow input that silently changes when the
+          # app goes public is the wrong kind of default. "leave it" means
+          # leave it.
+          [ "${{ inputs.release_type }}" != "leave it" ] && ARGS="$ARGS --release-type ${{ inputs.release_type }}"
           # asc-review is dry-run by default like every operator script
           # here; this step only runs when the caller already ticked apply.
           node scripts/asc-review.mjs $ARGS --apply 2>&1 | tee "$RUNNER_TEMP/asc-review.log"
