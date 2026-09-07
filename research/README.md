@@ -156,6 +156,16 @@ any one population, and G4 is it written as a general paper — the two
 moves, where theory relocates rather than disappears, and why a mature
 programme is source-driven.
 
+**The owner's third pivot, 2026-09-07:** *"i really want to explore and
+research how to find patterns and structure the data in ways to find
+patterns, maybe we can take some inspiration from llms."* G1 said what
+can be known, G2 how to hold it, G3 how to estimate it, and none says
+how a single learner finds structure nobody specified. G5 is the
+language-model recipe read against this setting — the record as a
+sequence, tokenization as the data-structure decision, one predictive
+objective, scale, and reading the representation — with the four places
+it does not transfer stated as conditions.
+
 | Paper | File | What it argues |
 | --- | --- | --- |
 | G1 | `research/general-theory/paper-g1-discovery.md` | The discovery problem: a coupling between two sources is point-identified without assumption only from units observed on both, an interval fixed by the marginals otherwise, so the weighted co-observation graph is the map of what can be known and its connectivity is necessary but not sufficient; the choice of what to observe is the whole answer where it decides between a structural zero and a point, and elsewhere its advantage over estimation is measured against a named comparison; the objective as an explicit scalarization with a stated exploration rule, a hazard on the continuation term and a coverage preference written down as one; six honesty constraints; allocation as planned missingness over the per-unit source set; roles attached to observations rather than pairs; the value of a source relative to its portfolio on a stream the policy never chose |
