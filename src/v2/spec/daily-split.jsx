@@ -730,6 +730,9 @@ export class DailySplit extends React.Component {
 
     // ===== WORLD =====
     const DATA = this.worldDeck;
+    // A FALLBACK, and only that: this reads correctly on a Thursday and on
+    // no other day. Every consumer prefers the card's own `dayLabel`,
+    // which deck.ts derives from the date.
     const dayNames = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
     if (!DATA.length) {
       const placeholder = h('div', { className: 'card', style: { padding: '26px 18px', textAlign: 'center', margin: '4px 1px' } },
@@ -1238,7 +1241,15 @@ export class DailySplit extends React.Component {
           const v = st.votes[q.id], cur = i === wIdx;
           return h('button', {
             key: q.id, className: 'press tap44 is-tight', onClick: () => this.jumpTo(i), title: q.text,
-            'aria-label': (dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
+            // THE CARD'S OWN LABEL FIRST, the frozen list only as a
+            // fallback. `dayNames` is a literal that reads correctly on a
+            // THURSDAY and on no other day: the kicker one screen up
+            // already prefers `S.dayLabel` — the real weekday, derived
+            // from the date — and these dots did not, so six days in seven
+            // a dot announced a different day from the card it opens, by
+            // up to three days. Screen-reader only, since the dots
+            // themselves carry no text.
+            'aria-label': (q.dayLabel || dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
             'aria-current': cur ? 'true' : undefined,
             style: { width: 22, height: 22, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitAppearance: 'none' }
           }, h('span', { style: { width: cur ? 18 : 6, height: 6, borderRadius: 999, background: cur ? 'var(--accent)' : v ? 'color-mix(in oklch, var(--accent) 45%, var(--surface-3))' : 'color-mix(in oklch, var(--ink-3) 30%, transparent)', transition: 'width .25s ease, background .2s ease' } }));
