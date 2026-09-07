@@ -3534,6 +3534,9 @@ function buildFeedGlobals(): void {
         cat: "test",
         type: "vote",
         test: q.test,
+        // A deep item's facet rides the card (D416) so the feed's passive
+        // tracker can tell it from a domain item — see PASSIVE.record.
+        ...(q.facet ? { facet: q.facet } : {}),
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
         live: true,

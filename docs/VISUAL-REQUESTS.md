@@ -302,7 +302,13 @@ that lets a buyer read them.
 groups profile better … assume you have full creative freedom."*
 `ROLES-PLAN.md` is the plan; this is the screen half of it, and it
 waits on the plan's owner call (`OWNER-LIST.md` § Decisions) before
-it is planned here.
+it is planned here. **Noted 2026-09-07**: the owner's `InSight_10`
+upload draws the third surface — the person's page — on paper: *Play
+together* as doors whose sub-line carries the named type's one-line
+meaning, and the read-each-other card as a two-column hit-rate table
+under a sentence (`VISION-2026-09-07.md` §4, its step 6). That is the
+pair's card as this request wants it drawn; the plan's owner call still
+gates what the doors say.
 
 - **asked by** — the owner, 2026-09-06; the plan is `ROLES-PLAN.md`
   (§3.1 the three objects, §3.4–§3.5 the tables, §3.6 the name rule).

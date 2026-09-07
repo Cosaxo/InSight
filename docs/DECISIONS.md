@@ -44213,3 +44213,314 @@ the owner's two minutes.
   gate on the upload path only: archiving a wall-less build stays
   legitimate, and the refusal lands before the fifteen minutes rather than
   after.
+
+## D415 · The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions
+
+**2026-09-07.** **Status:** binding for what the vision points at;
+nothing of it is built. The owner's `InSight_10.html` upload of this
+date, made the current vision by D361's standing rule — an owner upload
+is a vision without a request — extracted, measured and named in one PR
+(`claude/new-visual-direction-plan-whjnb2`), with the owner's ask
+attached to the upload: *"politic test and big 5 have gotten
+subcategories as well so we need to make a plan for testing them as
+well."* `main` mints numbers while a branch is open, so the standing
+collision pattern (D289, D408) may renumber this at merge; the documents
+cite it by date where they can.
+
+### What arrived, and how it was diffed
+
+The tenth numbered standalone, in InSight_7's compiled fast-boot shape:
+one 2 MB bundle of **117 modules** (three more than 09-06's 114), 26
+assets. Diffed against the latest recorded state of every module — v18
++ the v28 patches + the eight later extractions + the two READMEs'
+prose hunks, compiled where the record is JSX, per the 09-02 README's
+recipe — **99 of 117 modules byte-identical**, eight more differing only
+by recorded hunks, and the residue exact: **three new modules, seven
+that moved, no stylesheet** (the ten `<style>` blocks reconstructed the
+same way are identical to their record but for the boot-splash lines
+09-02 carries in prose and the per-bundle font asset ids). The six
+patches in `design/standalone-2026-09-07/changes/` reproduce the upload
+byte-for-byte from that baseline; the four whole files are the upload's
+bytes. The inventory is that directory's README; the plan, with every
+item measured against the tree, is
+[`VISION-2026-09-07.md`](VISION-2026-09-07.md).
+
+### What the design says
+
+Three additions and a polish pass. **The two instruments most people
+know get a second level**: the Big Five's five domains unfold into the
+thirty IPIP-NEO facets (six per domain on a 4–20 track, IPIP-NEO's
+report text kept verbatim behind each) and the compass's six axes into
+eighteen positions (three per axis on a 0–100 track with a hollow *most
+people* ring), both on the profile's Big 5 and Politics tabs under the
+result card, as rows that unfold one at a time. **The compass carries
+its own way in**: an axis you have not gone deep on offers *Six
+questions place them →* — two per position, one at a time on the
+five-step scale — after which the axis's compass score becomes its
+positions' mean, *"so level one and level two never disagree"*; the Big
+Five module draws thirty demo scores and carries no questions at all.
+**Circle and 1v1 get a first day**: one day of the game drawn with
+nothing invented — today's World question sealed over the hairline
+ballot, tonight's reveal clock, tomorrow's reveal with your mark in the
+first seat and open seats as dashed rings — then *Start one* and the
+other door in one line; an invitation and a tapped link get hero beats
+(*A link asks, it does not admit*); a *Start another* row once circles
+exist. **The person overlay's three record sections go boxless**: the
+receipts led by a sentence with the exception side first and an *All
+N* toggle, *Play together* as doors carrying the named type's one-line
+meaning, the read-each-other card as a two-column hit-rate table under
+a sentence. And one line on the feed's two-option ballot.
+
+### What the mapping found
+
+- **The facets and positions have nothing behind them in the tree, and
+  the plan is mostly about that.** The Big Five is five axes and 25
+  items, the compass six and 30, both scored passively (D121) and
+  drawn by the result card; no item carries a facet, no fold computes
+  one, nothing stores one. `VISION-2026-09-07.md` §2 is the measurement
+  plan: the compass's 36 position items verbatim into the bank, the Big
+  Five's 120 from IPIP-NEO-120 (the form whose 4–20 scale and report
+  text the design already uses — an owner row on source and voice); a
+  facet fold with an all-items floor (four for a facet, two for a
+  position — D121's reasoning one level down); the design's level-one
+  rule pinned (an axis is its facets' mean once every one is measured);
+  bands as the side of the scale's midpoint; the *most people* rings
+  measured at D157's floors and authored in the demo only; v1 on the
+  device, publishing nothing new; and the suites, gate by gate, that
+  prove each of those.
+- **The design reopens D121.** *Six questions place them →* is a
+  sit-down flow of six, and D121 retired the sit-down flow on the
+  owner's own 2026-08-12 ask. Both are the owner's words; the row goes
+  to `OWNER-LIST.md` with the shape a tick would build (an in-place
+  answer is a `LIVE.vote` on the same bank document the feed writes —
+  no second store, no device key; the design's
+  `insight.politicsDeep.v1` does not port) and the arithmetic that
+  makes the door matter (156 items at one test card in four is ~624
+  feed cards to fill both instruments passively). The banks, the fold
+  and the read-only panels build regardless.
+- **First paint refuses the obvious port.** The eager graph measured
+  602 KB against 607 on the shipping build, and `test-definitions.js`
+  — the 110 prompts with their scoring keys — sits on
+  `check:eager-content`'s allowlist as named debt. 156 more prompts
+  there would be the thing the gate exists to refuse, so the scoring
+  metadata (`facet`, `invert`) rides the bank document and the join
+  moves from prompt text to id (§2.5).
+- **Publishing the sub-scales is a separate ask.** The positions extend
+  the political coordinate inside D331's gate, and publishing them
+  changes what the consent's words and the privacy page promise
+  (*six-axis*); one facet is named *Depression*. Nothing in the design
+  draws another person's facets, so v1 keeps them device-side; the row
+  is written so the deferral is not silent (D334).
+- **The first day has a live source for every state.** `LiveDuelPanel`
+  already IS the create-or-join flow on a first run (`LdOnboard`,
+  `LdInvites`, `LdJoinPending`, D122/D190/D236/D240); the port adds the
+  Day beats and redresses the heroes. The upload's `window.WORLD_TODAY`
+  does not port as a global (rule 4; the D280 shape) and its demo
+  `dailyStart` tweak becomes mount fixtures.
+- **The receipts were never ported.** The tree's person overlay draws
+  *What makes the number* and no receipts section, so the design's
+  *The answers behind it* is a first port rather than a redress; the
+  doors and the reading table redress D310's sections and draw the
+  person's-page half of `VISUAL-REQUESTS.md` request 5.
+
+### What this changes elsewhere
+
+`VISUAL-VISION.md` names the 2026-09-07 design the current vision and
+the lineage gains its row; request 5 gains a note; three rows join
+`OWNER-LIST.md` § Decisions (the D121 collision, the sub-scales'
+publication, the Big Five items' source); six `[claude-3]` build lines
+join the worklist in the plan's §6 order, one of them `[owner]`-tagged
+behind the D121 row. The committed style-diff reference does not move
+(`design/README.md`'s rule): v18 stays what the tree is measured
+against until a full sync.
+
+### Gates
+
+`check:docs` (the new plan registered as a plan, the vision re-pointed,
+every cited path resolving), `check:figures`, `test:scripts` — this PR
+is documents and provenance only, so the client suites are untouched by
+construction.
+
+## D416 · The owner rules on the 09-07 rows: the feed is the only door, the sub-scales stay on the device, and the facet items are written
+
+**2026-09-07.** **Status:** binding — the owner's three answers, in the
+session that extracted the upload, to the three rows D415 opened. Their
+words, in order: *"no they should only be in the feed"* · *"they can be
+only for the user for now but can be public later"* · *"that will be
+your next task to create those questions in a good way."* Written on
+`claude/new-visual-direction-plan-whjnb2`; the standing collision
+pattern (D289, D408) may renumber this at merge.
+
+### 1 · The feed is the only door — D121 stands
+
+The design's *Six questions place them →* does not build. The compass's
+`Questions` flow and its button do not port; an axis with no positions
+draws them empty with their counts; the deep panels read what the feed
+has filled. What the owner accepted with that: the time-to-reading
+arithmetic in `VISION-2026-09-07.md` §2.2 (156 new items at one test
+card in four is ~624 feed cards to fill both instruments passively).
+D121 is not amended; this record is the second time its rule was put to
+the owner and the second time it held. Step 4 of the plan is struck.
+
+### 2 · On the device for now; public later is the owner's to say
+
+Facets and positions are computed from your own answers on your own
+device and written nowhere. The OWNER-LIST row stays open for the day a
+surface asks to draw another person's — with what a tick then carries
+already written on it (the consent's words and `web/privacy.html` moved
+first, `POLITICAL_CONSENT_VERSION` bumped, the facet named
+*Depression*). Nothing publishes until that tick.
+
+### 3 · The facet items are written, next
+
+Not IPIP-NEO-120 verbatim: the items are written in the app's voice,
+which is the bank's own rule (*"copy in these files is the canonical
+product voice"*). The shape the plan fixes for them, so "a good way"
+is checkable: **four per facet** (120 in all, so the 4–20 scale the
+design draws and the report text describe holds); **two keyed toward
+and two against** each facet, so an agree-with-everything style scores
+as nothing (the D85 lesson one level down); IPIP-NEO's thirty constructs
+as the map of what each facet measures, and its report text as the
+reading; the bank's conventions — first person, one concrete idea, the
+five-step agreement scale, `check:quality`'s bounds — and no near-twin
+of a domain item already in the bank (`check:neighbors`). They land the
+way §2.5 says: `facet` + `invert` on the bank document, the join by id,
+the eager graph unchanged.
+
+### What this changes elsewhere
+
+`VISION-2026-09-07.md` carries the three rulings at §2.2, §5.1–§5.3, §6
+and §7; the worklist's step-4 line is closed as not built; the three
+OWNER-LIST rows carry the answers and keep their boxes (the tick is
+the owner's, D352); `VISUAL-VISION.md`'s *built from it* line says
+which steps remain.
+
+### Gates
+
+`check:docs`, `check:figures`, `test:scripts` — documents only.
+
+## D417 · The instruments' deep items land in the bank: thirty facets written, eighteen positions carried, and the prompts kept out of first paint
+
+**2026-09-07.** **Status:** binding, **built** — step 1 of
+`VISION-2026-09-07.md` §6, on the owner's ruling of the same day (D416:
+*"that will be your next task to create those questions in a good
+way"*). Written on `claude/new-visual-direction-plan-whjnb2`; the
+standing collision pattern (D289, D408) may renumber this at merge.
+
+### What was written
+
+**The Big Five's thirty facets, four items each — 120, in the app's
+voice.** Not IPIP-NEO-120's items: the bank's copy is the product
+voice (`content/README.md`), and the owner's word was *create*. What
+was kept from IPIP-NEO is the map — its thirty constructs, six under
+each domain, in its order, with the readings the 2026-09-07 design
+draws (`design/standalone-2026-09-07/big5-deep.jsx`: *calm, fearless ↔
+tense, on alert*, and so on) — and the 4–20 scale the design's tracks
+and IPIP-NEO's report text both assume, which is why the count is four.
+The rules each item was held to, and the suite that pins them
+(`src/v2/test/content-parity.test.jsx`, the deep block):
+
+- **Two keyed toward the facet and two against**, every facet, so an
+  agree-with-everything style scores as nothing — the D85 lesson one
+  level down, made exact rather than "at least one".
+- **First person, one concrete idea, a statement with a stop**, inside
+  the farm's measured prompt bounds (14–97 characters), on the same
+  five-step agreement scale the 110 core items use.
+- **No near-twin of a core item.** Every facet refines a domain the 25
+  core items already measure, so the risk was a facet item that restated
+  a domain item in other clothes (*I finish what I start, even when it
+  gets dull* is a core item; the Self-Discipline facet asks *I can make
+  myself work when I'd rather not* instead). Checked by token overlap
+  against the core items and against each other before the bank was
+  written; the parity suite pins exact repetition.
+- **The clinical-sounding facets are asked plainly.** IPIP-NEO's
+  Depression items say *often feel blue*; the bank's say *Some days I
+  can't find the energy to start anything* and, keyed against, *I'm
+  mostly at peace with who I am*. Every answer is public (D98); the
+  facet's name and the reading are the panel's business (step 3), and
+  its publication is the owner's (D416 §2).
+
+**The compass's eighteen positions, two items each — 36, the design's
+own.** Verbatim from `politics-deep.jsx` (typographic apostrophes
+straightened to the bank's), one reverse-keyed per position as the
+design keyed them, under the position ids and readings the design
+names. One pair reads as a twin on purpose and is recorded rather than
+reworded: *When jobs and green rules clash, jobs should win* (the
+Growth trade-off position, keyed against) against the core item *Green
+rules should hold even when jobs are on the line* — the same tension
+asked from the other side, which is what a position refining an axis
+is.
+
+### How they landed, and what did not move
+
+`content/tests.json` gains `facets` (the declarations: id, axis, label,
+the two readings) and `deep` (the items) beside `questions` on the two
+instruments; `questions` is untouched, so `content-parity`'s core
+contract — `IS_TESTS` ≡ the bank, item for item — holds as written.
+The generator emits the deep items **after the lens loop**, continuing
+the test surface's counter past every standing test and lens doc, so
+**no shipped seq moved** and, inside each instrument's round-robin
+stream (`live.ts`), the domain items still come first. Each doc carries
+`facet` and (when keyed against) `invert`; the seed's four field lists
+transport and compare them (`check:seed-fields`, the gate D234 earned);
+`QuestionDoc` and the feed's test card carry them. The bank is 1069
+documents (test 316: 110 core, 50 lens, 156 deep); the ids continue
+each instrument's own numbering (`test-big5-25`…`144`,
+`test-political-30`…`65`), which widened the id shape to three digits
+without touching a shipped id.
+
+**Level one is byte-for-byte where it was.** The core items' scoring
+metadata joins by prompt text against `IS_TESTS`; a deep item's prompt
+matches no definition, so `testItemMeta` drops it and the axes, the
+norms, the similarity fields, `MIN_AXIS_ITEMS` and the progress
+denominators all read exactly what they read before the bank grew —
+pinned in `similarity.test.ts`. The deep items join **by id, off the
+document**: `testDeepMeta` (`data/similarity.ts`) reads `facet`, `axis`
+and `invert` from the doc and refuses a doc that lost its axis rather
+than guessing one. Nothing consumes it yet; it is the seam the plan's
+step 2 (the facet fold) reads.
+
+**First paint did not move.** `test-definitions.js` is
+`check:eager-content`'s named debt and the shipping graph measured 602
+KB against a 607 ceiling before this landed; the 156 prompts ride the
+seeded document instead of the spec layer, and the shipping build
+measures **602 KB eager after** — the same number.
+
+**The feed serves them; the ring ignores them.** A deep item is a
+`surface: "test"` card with its instrument's marker, so the feed's
+test stream carries it (one in four, `TEST_EVERY`) and its aggregate
+publishes from the first answer like any other question's. The passive
+ring (`spec/passive-progress.js`) skips a card carrying `facet`: its
+denominator is the domain-level set `IS_TESTS` carries, and a facet
+answer counted there would fill a ring whose 25 never included it.
+`testFor` still says yes to the card — the feed filters its stream
+through it, and a card the tracker disowned would never be served.
+
+**What it costs.** A cold boot reads the whole test surface, so a
+fresh device reads 156 more documents once (`COSTS.md`'s cold-boot row:
+332 → 488 reads, 260.7 → 304.6 KiB); deltas thereafter. No rules
+change, no new collection, no new read on a warm boot. A seed run
+appends the 156 documents (`seedContentV2` never re-keys, D52).
+
+### What this changes elsewhere
+
+`content/README.md`'s row, `SCHEMA-V2.md`'s field list, `MIRROR.md`
+§4's sentence, `VISION-2026-09-07.md` §6 step 1 (as built, with the
+two things settled against the plan's first wording: level one left
+alone, the ring skipping deep cards), the worklist's line ticked, and
+the bank-size figures `check:figures` holds (thirteen sentences, 913 →
+1069 and the cold-boot row), plus the pulse console's bank row
+(`scripts/pulse-collect.mjs`), whose two-path size check caught the
+row lagging the day they landed — five for five.
+
+### Gates
+
+`check:content` (1069 in sync), `check:seed-fields` (40 fields, all
+transported, compared and mirrored), `check:eager-content` (7 of 96,
+unchanged), `check:quality`, `check:neighbors`, `check:figures`,
+`check:docs`, `check:bundle` on the shipping build (602 KB eager, the
+same), `tsc -b`, the functions workspace's `tsc` and its 792 tests,
+`test:scripts` 997, `lint`, and `test:unit` — 2851 cases, with the
+logic generator's drawability walk once over its 5-second limit while
+six jobs shared the machine — green alone (67 of 67) and on the clean
+re-run of the whole suite: **2851 of 2851**.

@@ -73,7 +73,13 @@ export const PASSIVE = (function () {
   // a test question in the feed was answered — one more of that test done
   function record(q) {
     const k = testFor(q);
-    if (!k || !META[k] || !q.id) return null;
+    // A DEEP item (D416 — a facet's or a position's card, `q.facet` on the
+    // feed card) is the instrument's question and still stays out of the
+    // ring: needed() counts the domain-level set IS_TESTS carries, and a
+    // facet answer counted here would fill a ring whose denominator never
+    // included it. testFor() itself still says yes to it, because the feed
+    // filters its test stream through testFor and the card must be served.
+    if (!k || !META[k] || !q.id || q.facet) return null;
     if (st.seen[q.id] != null) return null;
     st.seen[q.id] = k; save(); notify();
     return k;
