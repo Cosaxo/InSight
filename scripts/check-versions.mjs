@@ -13,6 +13,7 @@
 // package.json's values into the two native projects.
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -39,8 +40,27 @@ const warnings = [];
 // ── Android ──────────────────────────────────────────────────────
 const GRADLE = "android/app/build.gradle";
 let gradle = readFileSync(p(GRADLE), "utf8");
-const gCode = gradle.match(/versionCode\s+(\d+)/);
-const gName = gradle.match(/versionName\s+"([^"]+)"/);
+// MATCHED AGAINST THE COMMENT-STRIPPED SOURCE, because `.match` takes the
+// FIRST hit and a superseded value parked in a comment above the live line
+// is house style in this tree:
+//
+//     // was: versionCode 32 / versionName "2.0.0" before the downgrade
+//     versionCode 5
+//     versionName "1.0.0"
+//
+// Planted exactly that and the gate printed "versions OK — 2.0.0 (build
+// 32) across package.json, Android and iOS" while Android declared 1.0.0 /
+// 5. It names Android in its own success line, which is the shape that
+// makes it worse than silence.
+//
+// `scripts/source-pins.test.mjs` exists to ratchet this class and could
+// not see it: its pattern matches `readFileSync(…).match(`, and here the
+// read and the match are separate statements over a variable. The
+// FIX path below still rewrites the real file — `gradle` is the raw
+// source and only the matching is done on the stripped copy.
+const gradleSrc = stripComments(gradle);
+const gCode = gradleSrc.match(/versionCode\s+(\d+)/);
+const gName = gradleSrc.match(/versionName\s+"([^"]+)"/);
 if (!gCode || !gName) {
   problems.push(`${GRADLE}: could not find versionCode / versionName`);
 } else {

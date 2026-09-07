@@ -26,6 +26,7 @@
 // instead of on the day someone leaves a note above a value.
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,7 +38,13 @@ const RAW_MATCH = /readFileSync\([^)]*\)\s*\n?\s*\.match\(/;
 
 const gates = readdirSync(SCRIPTS)
   .filter((f) => f.endsWith(".mjs") && !f.endsWith(".test.mjs"))
-  .map((f) => ({ f, src: readFileSync(join(SCRIPTS, f), "utf8") }));
+  // COMMENTS BLANKED, which this ratchet of all things should not have
+  // needed telling. It scanned raw source for gates that read raw source,
+  // so a gate whose COMMENT quotes the offending shape — explaining the
+  // very defect, as check-versions.mjs now does — was reported as an
+  // offender. Blanking keeps every line number pointing at the real file,
+  // which is what the offender list is for.
+  .map((f) => ({ f, src: stripComments(readFileSync(join(SCRIPTS, f), "utf8")) }));
 
 describe("no gate reads a constant past a comment", () => {
   it("finds the gates to check — vacuous otherwise", () => {
