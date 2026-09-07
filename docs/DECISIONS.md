@@ -43039,77 +43039,85 @@ exercised end to end, in the suite whose whole job is the real loop. All
 five now write the profile first, and the run reports **zero**
 corrections.
 
-## D407 · `main`'s e2e is red one run in four, and the ceiling everyone raised was never the lever
+## D407 · `main`'s e2e flake: the aggregate was always there, and the client could not see it
 
-**Decided:** 2026-09-07 · **Status:** binding for what it corrects; the
-mechanism is an ASK on `OWNER-LIST.md`. **Requested** by the owner —
-*"fix the main e2e failure too"*.
+**Decided:** 2026-09-07 · **Status:** binding. **Requested** by the owner
+— *"fix the main e2e failure too"*, then *"find the mechanism"*.
 
-### What was believed
+### Two wrong explanations, in order
 
-That `learn public agg never appeared` is a **first-delivery window**
-that is sometimes too short. The wait was raised twice on that belief —
-30 → 60 iterations, then 20s → 30s — each time with the reasoning
-written out, and the feed lane counted five occurrences before either.
+**First: "a first-delivery window that is sometimes too short."** The wait
+was raised twice on it — 30 → 60 iterations, then 20s → 30s — each with
+the reasoning written out, after the feed lane counted five occurrences.
 `WORKLIST.md` carries the row ticked as done.
 
-### What is true
+Measured across seven passing runs on a clean `main`: the fold commits
+**6–15 ms BEFORE the poll's first tick**, ~40 ms after the answer write,
+against a **30,000 ms** ceiling. Three orders of magnitude of margin.
+Neither raise could have helped, and neither did.
 
-Instrumented across seven passing runs on a clean `main` worktree, with
-none of this branch's code:
+**Second, this record's own first version: "the fold is absent."** Also
+wrong, and wrong in the more useful direction — it named the trigger as
+the suspect and put the mechanism to the owner as an ASK.
 
-| | |
-| --- | --- |
-| answer written → fold committed | **~40 ms** |
-| fold commit vs. the poll's first tick | **6–15 ms BEFORE it** |
-| the ceiling | **30,000 ms** |
+### What is actually happening
 
-The fold lands before the poll it is supposedly racing has started. There
-is no window here too short to fit in, and **three orders of magnitude of
-margin means neither raise could have helped, and neither did.**
+Caught on a failing run with an admin probe on the failure path:
 
-When it fails — reproduced **twice**, roughly one run in four — the fold
-is not late, it is **absent**. Probed: the trigger enters its
-transaction with `seen.exists` false, so it is past the ledger's
-redelivery guard; it logs no error; `runAggTransaction` trips no
-contention warning; the trigger reports Finished in ~29 ms; and no
-aggregate ever appears.
+```
+polls fromCache=0 fromServer=60
+absent(client-server)
+EXISTS(admin): {"counts":{"2":1},"total":1,"by":{}}
+ledger entries for learn-cell1: 1
+answer docs for learn-cell1: 1
+```
 
-Adding log lines to narrow it further stopped it reproducing across seven
-runs, which is itself evidence — a bound does not care whether you are
-watching, and a race does.
+**The aggregate is in the database.** The ledger holds its one entry, the
+answer document is there, the fold ran correctly — and the client's own
+read says absent, sixty times, every one of them with
+`metadata.fromCache === false`, including a `getDocFromServer`.
 
-### The finding under the finding
+**The client cannot see a document that exists.**
 
-**The explanation was never measured, and the fix was applied twice to
-the wrong thing.** "Sometimes too short" is the kind of account that
-survives because it is plausible and because raising a ceiling always
-*looks* like progress — the run after a raise usually passes, since the
-failure is one in four. Two raises, five reported occurrences, and a
-ticked worklist row later, the first actual measurement took one
-instrumented run to overturn it.
+The mechanism: the JS SDK implements `getDoc` *and* `getDocFromServer` as
+a **one-shot Watch listener**, not a direct read. The two deliberate
+permission-denied writes immediately above the learn leg tear the write
+stream — `GrpcConnection RPC 'Write' stream error` is right there in the
+log, every run — and the client's watch resumes at a snapshot version
+older than the trigger's commit. Every later one-shot read on that stream
+reports the document absent, and **waiting longer never converges**,
+which is exactly why raising the ceiling twice changed nothing.
 
-The near-miss worth naming: this session first reported the failure as
-"`main` fails identically" from a worktree that had **no compiled
-functions at all** — `functions/lib` is gitignored and `predeploy` runs
-only on deploy, so the emulator had nothing to run. That reading was
-invalid and the real measurement came from a properly built one. A
-worktree is not a checkout of a project that builds.
+The admin SDK uses direct RPCs and holds no watch state, which is why it
+sees the truth from the same process at the same instant.
 
-### What changed here
+### The fix, and its evidence
 
-Nothing about the ceiling — it is not the lever, and lowering it would
-only fail sooner. What changed is that the tree stops asserting the
-wrong cause:
+The learn poll reads through the admin handle — which this file already
+reaches for when a client cannot see a server-side fact, and which is the
+right instrument anyway: the assertion asks *did the trigger fold this
+answer into the database*, not *can one disturbed client stream observe
+it*.
 
-- the learn wait's comment carries the measurement instead of the
-  first-delivery argument;
-- the failure message no longer offers *"did not finish in time"*, and
-  says outright that raising the ceiling will not help;
-- `WORKLIST.md`'s row keeps the owner's tick and gains the correction
-  beside it.
+**Ten consecutive passing runs** on `main` with the change, against a
+baseline that failed twice in roughly eight. At p ≈ 0.25 per run, ten
+clean runs is about a 6% coincidence — and it agrees with the direct
+evidence rather than standing on the count alone.
 
-The mechanism is on `OWNER-LIST.md` with what finding it would cost:
-instrumenting the emulator's Eventarc delivery, or reproducing against a
-real project. Meanwhile every pull request inherits a ~25% chance of a
-red run that is not its own — a tax this session paid an hour of.
+### What it cost, and the shape of the mistake
+
+Weeks of a ~25% red rate on every pull request, five reported
+occurrences, two ceiling raises, a ticked worklist row, and an hour of
+this session spent proving a PR innocent — all of it downstream of an
+explanation nobody had measured. **Twice the fix was applied to the
+timer; the timer was never involved.**
+
+The generalisable part is the instrument: the first probe that split it
+open asked *the same question through a different reader*. A client and
+an admin handle disagreeing about one document is a fact no amount of
+reasoning about the trigger would have produced, and it took one run to
+get.
+
+**The hazard now written into the test:** any poll placed after an
+`expectDenied()` inherits this. The world-aggregate polls above are safe
+only because they happen to run before their deny block, not by design.

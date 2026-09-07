@@ -1119,31 +1119,48 @@ await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
 // the failure message's own `40 * 500` — and a message that quotes a number
 // the loop no longer uses is this repo's most-repeated documentation error
 // pointed at a test.
-// MEASURED 2026-09-07, and it overturns the paragraph above: the ceiling
-// is not what fails here, and raising it twice (20s, then 30s) could never
-// have helped. Instrumented across seven passing runs on a clean `main`,
-// the learn fold lands 6-15 ms BEFORE this poll even starts — the answer
-// write and the fold's commit are ~40 ms apart, against a 30,000 ms
-// ceiling. There is no first-delivery window here to be too short for.
+// MEASURED 2026-09-07 (D407), and it overturns the paragraph above twice
+// over. The ceiling was never the lever: across seven passing runs on a
+// clean `main` the fold commits 6-15 ms BEFORE this poll starts — ~40 ms
+// after the answer write, against a 30,000 ms ceiling. Raising it (20s,
+// then 30s) could not have helped and did not.
 //
-// When it fails — reproduced twice on `main` with none of this branch's
-// code, roughly one run in four — the fold is not late, it is ABSENT: the
-// trigger enters the transaction (probed: `seen.exists` false, so past the
-// ledger's redelivery guard), logs no error, trips no contention warning,
-// and no aggregate ever appears. Adding log lines to narrow it further
-// stopped it reproducing in seven runs, which is itself evidence of a race
-// rather than a bound.
-//
-// So the ceiling stays where it is — it is not the lever, and lowering it
-// would only fail sooner — and the message below no longer offers "did not
-// finish in time" as an explanation, because that is measurably not it.
-// The open question is on OWNER-LIST rather than guessed at again here.
+// And when it failed, the fold was not late OR missing — it was INVISIBLE
+// to this client. See the block below the constants for the mechanism and
+// the fix. The constants stay as they are: three orders of magnitude of
+// margin is not the problem, and shrinking them would only fail sooner.
 const LEARN_TRIES = 60;
 const LEARN_EVERY = 500;
+//
+// READ THROUGH THE ADMIN HANDLE, not the client one, and this is the fix —
+// the mechanism is in D407. Measured on a failing run: the aggregate EXISTS
+// (admin sees `{counts:{2:1},total:1}`), the ledger holds its one entry, the
+// answer document is there — and the client's own read says absent, sixty
+// times, every one of them `fromCache: false`. The trigger was never the
+// problem and neither was the ceiling.
+//
+// Why the client cannot see it: the JS SDK implements getDoc AND
+// getDocFromServer as a one-shot WATCH listener, not a direct read. The two
+// deliberate permission-denied writes immediately above this leg tear the
+// write stream (`GrpcConnection RPC 'Write' stream error`), and the client's
+// watch resumes at a snapshot version older than the trigger's commit — so
+// every later one-shot read on that stream reports the document absent, and
+// waiting longer never converges. That is why raising this ceiling twice
+// changed nothing.
+//
+// The admin SDK uses direct RPCs with no watch state, which is also why this
+// file already reaches for it to check a server repair a client cannot see.
+// And it is the RIGHT instrument for this assertion anyway: the question is
+// "did the trigger fold the learn answer into the database", not "can one
+// disturbed client stream observe it".
+//
+// THE HAZARD TO CARRY: a poll placed after an expectDenied() inherits this.
+// The world-aggregate polls above are safe only because they run BEFORE
+// their deny block, not by design.
 let lpub = null;
 for (let i = 0; i < LEARN_TRIES; i++) {
-  const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
-  if (snap.exists()) { lpub = snap.data(); break; }
+  const snap = await adminDb.collection("v2_question_aggs").doc(LQ).get();
+  if (snap.exists) { lpub = snap.data(); break; }
   await new Promise((r) => setTimeout(r, LEARN_EVERY));
 }
 // Two failures, two messages — the same split the world-question check at
@@ -1152,12 +1169,12 @@ for (let i = 0; i < LEARN_TRIES; i++) {
 // regression and sends the next person hunting for one. It cost exactly
 // that detour on 2026-08-05.
 if (!lpub) fail(
-  `learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms. `
-  + "NOT a timing failure: this fold normally commits ~40ms after the write, "
-  + "before this poll starts, so the ceiling has three orders of magnitude of "
-  + "margin and raising it again will not help (measured 2026-09-07, D407). "
-  + "The trigger enters its transaction and the aggregate never appears, with "
-  + "no error and no contention warning. Intermittent, ~1 run in 4 on main.");
+  `learn public agg never appeared after ${LEARN_TRIES * LEARN_EVERY}ms — and `
+  + "this read is the ADMIN handle, so the aggregate genuinely is not in the "
+  + "database. Do NOT raise the ceiling: this fold commits ~40ms after the "
+  + "write, and the client-read flake that made this assertion look flaky for "
+  + "weeks was fixed at D407 by reading through admin. A failure here now "
+  + "means the trigger really did not fold.");
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
 if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
