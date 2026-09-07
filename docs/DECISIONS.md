@@ -43939,3 +43939,61 @@ against until a full sync.
 every cited path resolving), `check:figures`, `test:scripts` — this PR
 is documents and provenance only, so the client suites are untouched by
 construction.
+
+## D414 · The owner rules on the 09-07 rows: the feed is the only door, the sub-scales stay on the device, and the facet items are written
+
+**2026-09-07.** **Status:** binding — the owner's three answers, in the
+session that extracted the upload, to the three rows D413 opened. Their
+words, in order: *"no they should only be in the feed"* · *"they can be
+only for the user for now but can be public later"* · *"that will be
+your next task to create those questions in a good way."* Written on
+`claude/new-visual-direction-plan-whjnb2`; the standing collision
+pattern (D289, D408) may renumber this at merge.
+
+### 1 · The feed is the only door — D121 stands
+
+The design's *Six questions place them →* does not build. The compass's
+`Questions` flow and its button do not port; an axis with no positions
+draws them empty with their counts; the deep panels read what the feed
+has filled. What the owner accepted with that: the time-to-reading
+arithmetic in `VISION-2026-09-07.md` §2.2 (156 new items at one test
+card in four is ~624 feed cards to fill both instruments passively).
+D121 is not amended; this record is the second time its rule was put to
+the owner and the second time it held. Step 4 of the plan is struck.
+
+### 2 · On the device for now; public later is the owner's to say
+
+Facets and positions are computed from your own answers on your own
+device and written nowhere. The OWNER-LIST row stays open for the day a
+surface asks to draw another person's — with what a tick then carries
+already written on it (the consent's words and `web/privacy.html` moved
+first, `POLITICAL_CONSENT_VERSION` bumped, the facet named
+*Depression*). Nothing publishes until that tick.
+
+### 3 · The facet items are written, next
+
+Not IPIP-NEO-120 verbatim: the items are written in the app's voice,
+which is the bank's own rule (*"copy in these files is the canonical
+product voice"*). The shape the plan fixes for them, so "a good way"
+is checkable: **four per facet** (120 in all, so the 4–20 scale the
+design draws and the report text describe holds); **two keyed toward
+and two against** each facet, so an agree-with-everything style scores
+as nothing (the D85 lesson one level down); IPIP-NEO's thirty constructs
+as the map of what each facet measures, and its report text as the
+reading; the bank's conventions — first person, one concrete idea, the
+five-step agreement scale, `check:quality`'s bounds — and no near-twin
+of a domain item already in the bank (`check:neighbors`). They land the
+way §2.5 says: `facet` + `invert` on the bank document, the join by id,
+the eager graph unchanged.
+
+### What this changes elsewhere
+
+`VISION-2026-09-07.md` carries the three rulings at §2.2, §5.1–§5.3, §6
+and §7; the worklist's step-4 line is closed as not built; the three
+OWNER-LIST rows carry the answers and keep their boxes (the tick is
+the owner's, D352); `VISUAL-VISION.md`'s *built from it* line says
+which steps remain.
+
+### Gates
+
+`check:docs`, `check:figures`, `test:scripts` — documents only.

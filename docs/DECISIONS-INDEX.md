@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 432 lines instead of
-43,942. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 433 lines instead of
+44,000. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -102,7 +102,7 @@ detect it.
 | **D82** | [Near by radius (~500 m) — asked for, priced, and deferred](DECISIONS.md#d82--near-by-radius-500-m--asked-for-priced-and-deferred) | D316 (+2) | 8003 |
 | **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D378 (+9) | 8049 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D370 (+8) | 8171 |
-| **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D103 | 8248 |
+| **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D414 (+1) | 8248 |
 | **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D409 (+26) | 8349 |
 | **D87** | [Production writes require an approval; the `production` environment carries protection rules](DECISIONS.md#d87--production-writes-require-an-approval-the-production-environment-carries-protection-rules) | D303 (+5) | 8439 |
 | **D88** | [Seeding chains to the deploy, because the bank it writes is the deployed one](DECISIONS.md#d88--seeding-chains-to-the-deploy-because-the-bank-it-writes-is-the-deployed-one) | — | 8518 |
@@ -138,7 +138,7 @@ detect it.
 | **D118** | [Two gestures reported from a phone: a dial that stole the tab, and a Near that counted forever](DECISIONS.md#d118--two-gestures-reported-from-a-phone-a-dial-that-stole-the-tab-and-a-near-that-counted-forever) | D130 (+1) | 11389 |
 | **D119** | [Answers becomes a tab: the live Mirror stop gets the prototype's nav v2](DECISIONS.md#d119--answers-becomes-a-tab-the-live-mirror-stop-gets-the-prototypes-nav-v2) | D190 (+3) | 11472 |
 | **D120** | [The live answer row becomes the prototype's answer row](DECISIONS.md#d120--the-live-answer-row-becomes-the-prototypes-answer-row) | D193 (+1) | 11565 |
-| **D121** | [The instruments become passive for real: no sit-down flow, a fold that scores, one hue, and a skip that comes back](DECISIONS.md#d121--the-instruments-become-passive-for-real-no-sit-down-flow-a-fold-that-scores-one-hue-and-a-skip-that-comes-back) | D413 (+8) | 11642 |
+| **D121** | [The instruments become passive for real: no sit-down flow, a fold that scores, one hue, and a skip that comes back](DECISIONS.md#d121--the-instruments-become-passive-for-real-no-sit-down-flow-a-fold-that-scores-one-hue-and-a-skip-that-comes-back) | D414 (+9) | 11642 |
 | **D122** | [Handles: the app gets an address, and a circle gains members by invitation](DECISIONS.md#d122--handles-the-app-gets-an-address-and-a-circle-gains-members-by-invitation) | D413 (+12) | 11764 |
 |  | ↳ *amendment 2026-08-29* — [The registry is a lookup in the rule, not only in the prose](DECISIONS.md#d122-amendment-2026-08-29--the-registry-is-a-lookup-in-the-rule-not-only-in-the-prose) | — | 11935 |
 | **D123** | [The dedup gate learns morphology and synonyms, and pre-flights the batch against itself](DECISIONS.md#d123--the-dedup-gate-learns-morphology-and-synonyms-and-pre-flights-the-batch-against-itself) | — | 11965 |
@@ -308,7 +308,7 @@ detect it.
 | **D286** | [An account switch cannot delete the outgoing account's presence cell](DECISIONS.md#d286--an-account-switch-cannot-delete-the-outgoing-accounts-presence-cell) | D326 | 29002 |
 | **D287** | [The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners](DECISIONS.md#d287--the-2026-08-24-visual-passes-ship-the-paid-door-and-the-two-crowd-scorecards-wait-on-their-owners) | D362 (+2) | 29065 |
 | **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D405 (+4) | 29147 |
-| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D413 (+15) | 29202 |
+| **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D414 (+16) | 29202 |
 | **D290** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d290--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D403 (+7) | 29270 |
 |  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d290-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 29487 |
 |  | ↳ *amendment 2026-08-25* — [The other two fold arms, so the thesis stops being one third true](DECISIONS.md#d290-amendment-2026-08-25--the-other-two-fold-arms-so-the-thesis-stops-being-one-third-true) | — | 29818 |
@@ -379,7 +379,7 @@ detect it.
 | **D350** | [The lane regulators lose their ceilings: floors, demand shares, and the holdover inventory](DECISIONS.md#d350--the-lane-regulators-lose-their-ceilings-floors-demand-shares-and-the-holdover-inventory) | D401 | 35990 |
 |  | ↳ *amendment 2026-09-01* — [The bank-size failure was a question limit in everything but name](DECISIONS.md#d350-amendment-2026-09-01--the-bank-size-failure-was-a-question-limit-in-everything-but-name) | — | 36197 |
 | **D351** | [Current events get their lane: found by searching, never from memory](DECISIONS.md#d351--current-events-get-their-lane-found-by-searching-never-from-memory) | — | 36227 |
-| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D409 (+10) | 36282 |
+| **D352** | [The program: six lists, the axiom builder, the merge shift and the owner's tick — adopted, and the label rule amended](DECISIONS.md#d352--the-program-six-lists-the-axiom-builder-the-merge-shift-and-the-owners-tick--adopted-and-the-label-rule-amended) | D414 (+11) | 36282 |
 | **D353** | [The dispatcher's charter becomes a contract: a standing instruction a session cannot verify is one it should refuse](DECISIONS.md#d353--the-dispatchers-charter-becomes-a-contract-a-standing-instruction-a-session-cannot-verify-is-one-it-should-refuse) | D403 (+1) | 36389 |
 | **D354** | [The store leaves the bridge, and the sweep behind it takes the coupling ratchet 234 → 32](DECISIONS.md#d354--the-store-leaves-the-bridge-and-the-sweep-behind-it-takes-the-coupling-ratchet-234--32) | D382 (+4) | 36532 |
 | **D355** | [The Mirror leaves the eager graph through a same-tick slot: 761 → 619 KB](DECISIONS.md#d355--the-mirror-leaves-the-eager-graph-through-a-same-tick-slot-761--619-kb) | D363 (+1) | 36631 |
@@ -440,9 +440,10 @@ detect it.
 | **D405** | [The place scorecard's second crowd is renamed "everywhere else", and D288 §2's "from elsewhere" is retired — the night shipped it, the owner rules on it](DECISIONS.md#d405--the-place-scorecards-second-crowd-is-renamed-everywhere-else-and-d288-2s-from-elsewhere-is-retired--the-night-shipped-it-the-owner-rules-on-it) | D408 (+1) | 43051 |
 | **D406** | [The 2026-09-07 night review: two shifts merged as one tree — 67 commits kept, three defects the composition created, and a guard fix that was the same fix twice](DECISIONS.md#d406--the-2026-09-07-night-review-two-shifts-merged-as-one-tree--67-commits-kept-three-defects-the-composition-created-and-a-guard-fix-that-was-the-same-fix-twice) | D408 | 43110 |
 | **D407** | [Three behaviour signals get a reader: whether the Mirror is READ, not only answered into](DECISIONS.md#d407--three-behaviour-signals-get-a-reader-whether-the-mirror-is-read-not-only-answered-into) | D408 | 43254 |
-| **D408** | [A decision-number hole is reported, not refused — merge order stops being a gate](DECISIONS.md#d408--a-decision-number-hole-is-reported-not-refused--merge-order-stops-being-a-gate) | D413 | 43330 |
+| **D408** | [A decision-number hole is reported, not refused — merge order stops being a gate](DECISIONS.md#d408--a-decision-number-hole-is-reported-not-refused--merge-order-stops-being-a-gate) | D414 (+1) | 43330 |
 | **D409** | [The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success](DECISIONS.md#d409--the-answer-rules-are-not-at-firestores-expression-ceiling--measuring-the-failure-instead-of-the-success) | D410 | 43449 |
 | **D410** | [You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist](DECISIONS.md#d410--you-may-withhold-an-anchor-you-may-not-invent-one--and-why-the-rule-that-would-say-so-cannot-exist) | — | 43546 |
 | **D411** | [`main`'s e2e flake: the aggregate was always there, and the client could not see it](DECISIONS.md#d411--mains-e2e-flake-the-aggregate-was-always-there-and-the-client-could-not-see-it) | — | 43633 |
 | **D412** | [Ad-network tracking is deferred with a trigger, not refused — and counting was never the thing being deferred](DECISIONS.md#d412--ad-network-tracking-is-deferred-with-a-trigger-not-refused--and-counting-was-never-the-thing-being-deferred) | — | 43716 |
-| **D413** | [The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions](DECISIONS.md#d413--the-2026-09-07-vision-arrives-the-instruments-in-depth-the-first-day-of-circle-and-1v1-and-the-plan-for-measuring-the-facets-and-positions) | — | 43816 |
+| **D413** | [The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions](DECISIONS.md#d413--the-2026-09-07-vision-arrives-the-instruments-in-depth-the-first-day-of-circle-and-1v1-and-the-plan-for-measuring-the-facets-and-positions) | D414 | 43816 |
+| **D414** | [The owner rules on the 09-07 rows: the feed is the only door, the sub-scales stay on the device, and the facet items are written](DECISIONS.md#d414--the-owner-rules-on-the-09-07-rows-the-feed-is-the-only-door-the-sub-scales-stay-on-the-device-and-the-facet-items-are-written) | — | 43943 |

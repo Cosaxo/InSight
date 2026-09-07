@@ -43,10 +43,11 @@ it is moving toward.
   sentence with the exception side first, *Play together* as doors, the
   read-each-other card as a two-column hit-rate table. One line on the
   feed's two-option ballot.
-- **Built from it:** nothing yet. The plan's steps 1–3 and 5–6 need no
-  decision; step 4 — the in-place questions — waits on the D121 row the
-  design reopens (`OWNER-LIST.md` § Decisions), and two more rows carry
-  the facets' publication and the Big Five items' source.
+- **Built from it:** nothing yet. The owner ruled the plan's three rows
+  on 2026-09-07 (D414): the in-place questions do not build (the feed is
+  the only door, D121 stands), the facets and positions stay on the
+  device for now, and the Big Five's facet items are written next — so
+  steps 1–3 and 5–6 build in order and step 4 is struck.
 - **Requests it closed:** none. It **draws the person's-page half of
   request 5** (the pair's card: the doors and the reading table), which
   still waits on `ROLES-PLAN.md`'s owner call.
