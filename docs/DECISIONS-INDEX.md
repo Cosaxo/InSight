@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 430 lines instead of
-43,715. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 431 lines instead of
+43,815. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -201,7 +201,7 @@ detect it.
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17864 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18094 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18199 |
-| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D393 (+11) | 18297 |
+| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D412 (+12) | 18297 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18456 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D341 (+2) | 18607 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18781 |
@@ -289,8 +289,8 @@ detect it.
 | **D267** | [The artists catalogue gets a rule and a reviewer, because no rule alone finishes](DECISIONS.md#d267--the-artists-catalogue-gets-a-rule-and-a-reviewer-because-no-rule-alone-finishes) | D308 | 26911 |
 | **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D332 (+4) | 26998 |
 | **D269** | [The ceiling: what stays refused at every engagement rung](DECISIONS.md#d269--the-ceiling-what-stays-refused-at-every-engagement-rung) | D334 (+4) | 27086 |
-| **D270** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d270--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D393 (+5) | 27125 |
-| **D271** | [Per-question attention, aggregate-only — the R4 gate](DECISIONS.md#d271--per-question-attention-aggregate-only--the-r4-gate) | D329 (+1) | 27217 |
+| **D270** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d270--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D412 (+6) | 27125 |
+| **D271** | [Per-question attention, aggregate-only — the R4 gate](DECISIONS.md#d271--per-question-attention-aggregate-only--the-r4-gate) | D412 (+2) | 27217 |
 | **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D356 (+3) | 27258 |
 | **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D381 (+3) | 27329 |
 | **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | D381 (+2) | 27451 |
@@ -408,7 +408,7 @@ detect it.
 | **D375** | [Ads leave the door: the sponsored question is the one paid product](DECISIONS.md#d375--ads-leave-the-door-the-sponsored-question-is-the-one-paid-product) | D392 (+3) | 39545 |
 | **D376** | [The menu: the door prints a price per reach, and a row opens the composer at it](DECISIONS.md#d376--the-menu-the-door-prints-a-price-per-reach-and-a-row-opens-the-composer-at-it) | — | 39630 |
 | **D377** | [Paid cards get their own places in the feed, and the price counts crowding beyond them](DECISIONS.md#d377--paid-cards-get-their-own-places-in-the-feed-and-the-price-counts-crowding-beyond-them) | D390 | 39699 |
-| **D378** | [A sponsored question may carry one reviewed link, shown after the answer and counted by nobody](DECISIONS.md#d378--a-sponsored-question-may-carry-one-reviewed-link-shown-after-the-answer-and-counted-by-nobody) | D379 | 39786 |
+| **D378** | [A sponsored question may carry one reviewed link, shown after the answer and counted by nobody](DECISIONS.md#d378--a-sponsored-question-may-carry-one-reviewed-link-shown-after-the-answer-and-counted-by-nobody) | D412 (+1) | 39786 |
 | **D379** | [The shareable results page: a sponsored question's numbers as one public web page](DECISIONS.md#d379--the-shareable-results-page-a-sponsored-questions-numbers-as-one-public-web-page) | D380 | 39870 |
 | **D380** | [The 2026-09-06 night review: two shifts merged as one tree — 68 commits kept, two defects the composition created, and a fix whose tests a third PR deleted](DECISIONS.md#d380--the-2026-09-06-night-review-two-shifts-merged-as-one-tree--68-commits-kept-two-defects-the-composition-created-and-a-fix-whose-tests-a-third-pr-deleted) | D406 (+1) | 39948 |
 | **D381** | [Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on](DECISIONS.md#d381--build-29-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-again-and-the-gate-built-to-stop-that-has-never-been-switched-on) | D398 (+2) | 40193 |
@@ -444,3 +444,4 @@ detect it.
 | **D409** | [The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success](DECISIONS.md#d409--the-answer-rules-are-not-at-firestores-expression-ceiling--measuring-the-failure-instead-of-the-success) | D410 | 43449 |
 | **D410** | [You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist](DECISIONS.md#d410--you-may-withhold-an-anchor-you-may-not-invent-one--and-why-the-rule-that-would-say-so-cannot-exist) | — | 43546 |
 | **D411** | [`main`'s e2e flake: the aggregate was always there, and the client could not see it](DECISIONS.md#d411--mains-e2e-flake-the-aggregate-was-always-there-and-the-client-could-not-see-it) | — | 43633 |
+| **D412** | [Ad-network tracking is deferred with a trigger, not refused — and counting was never the thing being deferred](DECISIONS.md#d412--ad-network-tracking-is-deferred-with-a-trigger-not-refused--and-counting-was-never-the-thing-being-deferred) | — | 43716 |
