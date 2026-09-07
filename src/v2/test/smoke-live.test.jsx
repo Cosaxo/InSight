@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FIXTURE_THIRD_DAY, FEED_PROMPT, LEARN_CARD_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { TYPE_SMALL } from "../data/typeMix";
@@ -549,6 +549,38 @@ describe("spec layer mounts in live mode", () => {
     );
     expect(heights.size, "a published crowd was flattened").toBeGreaterThan(1);
     expectNoBoundary("daily/live/rating/published");
+  });
+
+  // ── the day dots say which day they open ────────────────────────────
+  //
+  // The dots carry no text, so their `aria-label` is the whole of what a
+  // screen reader gets: "Yesterday — answered". It was read off a frozen
+  // list of weekday names — `['Today','Yesterday','Tue','Mon','Sun',...]`
+  // — which is correct on a Thursday and on no other day, while the kicker
+  // one screen up printed the card's own label, derived from the date. Six
+  // days in seven a dot announced a different day from the card it opens,
+  // by up to three days.
+  //
+  // NOT PINNABLE UNTIL NOW, and the reason is the fixture: its deck is two
+  // cards, and the frozen list agrees with a real label at both of those
+  // positions. `deckDays` adds the third, which is where they part.
+  it("names the day the card itself names, not the frozen weekday list", async () => {
+    const expectNoBoundary = mountLive({ deckDays: true });
+    // The dots appear only once today is answered — before the vote they
+    // read as pagination competing with the question.
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+
+    const dots = screen.getAllByRole("button", { name: /— (answered|not answered)$/ });
+    expect(dots.length, "the day dots did not render").toBe(3);
+    const labels = dots.map((d) => d.getAttribute("aria-label").split(" — ")[0]);
+    // Rendered right-to-left (today on the right), so the third day is
+    // first in the DOM.
+    expect(
+      labels,
+      `a dot announced a day the card it opens does not claim: ${labels.join(", ")}`,
+    ).toEqual([FIXTURE_THIRD_DAY, "Yesterday", "Today"]);
+    expectNoBoundary("daily/live/day-dots");
   });
 
   it("renders the demoInProd fallback without tripping the boundary", () => {

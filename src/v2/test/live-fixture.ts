@@ -61,6 +61,19 @@ export interface LiveFixtureOptions {
    * read what it drew.
    */
   ratingToday?: boolean;
+  /**
+   * A THIRD DAY in the deck, with the day labels a real deck carries.
+   *
+   * The default deck is two cards both stamped "Today", which is enough
+   * for everything that only asks whether an archive exists — and not
+   * enough for the day dots. Their fallback list of weekday names is
+   * frozen to a Thursday, and it first disagrees with a real label at the
+   * THIRD position (index 2 is "Tue"), so with two cards a dot that
+   * ignored the card's own label and a dot that read it could not be told
+   * apart. Opt-in, so no existing mount gains a card it was not written
+   * for.
+   */
+  deckDays?: boolean;
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
   /**
@@ -218,6 +231,17 @@ const dayKey = (n: number) => new Date(Date.now() + n * 86400000).toISOString().
 // to appear nowhere else in the spec layer's demo data.
 export const FEED_PROMPT = "Fixture feed card: does the gate hold?";
 export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
+
+/**
+ * The third day's label under `deckDays`.
+ *
+ * Exported rather than repeated in the test, for the reason
+ * split-stage.test.js is on the night list: a test holding its own copy of
+ * a fixture constant passes when the fixture moves and the app does not.
+ * Deliberately NOT the weekday the dots' frozen fallback prints at this
+ * position — that is the whole discrimination.
+ */
+export const FIXTURE_THIRD_DAY = "Fri";
 /** The fixture Crossroads story's title — unique, so a query binds to the card. */
 export const PATH_TITLE = "Fixture Crossroads: the forked road";
 
@@ -380,6 +404,17 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // only their "nothing here" arms.
     liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, "Morals", "rating"),
   ];
+  if (opts.deckDays) {
+    // The labels a real deck carries. `liveQuestion` stamps "Today" on
+    // every card, which is fine while nothing reads the label as a claim
+    // about WHICH day — the dots do, and index 2 is where their frozen
+    // fallback ("Tue") parts company with the truth.
+    deck[1] = { ...deck[1], dayLabel: "Yesterday" };
+    deck.push({
+      ...liveQuestion("daily-002", "Does a rule nobody has tested still bind?", tooSmall, "Morals", "binary"),
+      dayLabel: FIXTURE_THIRD_DAY,
+    });
+  }
 
   const social: Dict = {
     todayKey: () => "2026-07-30",
