@@ -116,7 +116,36 @@ for (const name of Object.keys(EXEMPT)) {
   }
 }
 
-const missing = collections.filter((c) => !(c in EXEMPT) && !inventory.includes(c));
+// A PATH SEGMENT INSIDE A BACKTICKED PATH, not the word anywhere in the
+// page. `inventory.includes(c)` was satisfied by any prose mention — and
+// measured, two world-readable collections added to firestore.rules
+// (`replies`, `photos`) passed this gate with no row at all: `replies`
+// because the word appears in the localStorage row's list of device keys,
+// and `photos` because it appears in the line "**Not collected:**
+// contacts, photos, free-text from strangers, advertising". A gate cleared
+// a collection on the strength of a sentence saying that data is NOT
+// collected, in the file the App Store privacy label is derived from —
+// D130's own failure, inside the gate written to stop it.
+//
+// Twenty-six plausible collection names are already present verbatim
+// somewhere in the prose (answers, cards, cells, comments, days, entries,
+// events, history, items, likes, meta, photos, profiles, records, replies,
+// reports, results, scores, sessions, shares, state, streaks, tokens,
+// users, votes …), so this is not a narrow escape.
+//
+// Every backticked span, split on "/", because a collection is named in a
+// PATH — the table's own second column, and the paths rows quote inline
+// for the nested ones (`insight_ratelimits`, `v2_handles`,
+// `v2_logic_norms_private` are all named that way rather than as a row's
+// leading path).
+const inventoryPaths = new Set();
+for (const m of inventory.matchAll(/`([^`]+)`/g)) {
+  for (const seg of m[1].split("/")) {
+    const name = seg.trim();
+    if (name) inventoryPaths.add(name.replace(/^\{|\}$/g, ""));
+  }
+}
+const missing = collections.filter((c) => !(c in EXEMPT) && !inventoryPaths.has(c));
 for (const name of missing) {
   problems.push(
     `${name} is reachable through firestore.rules but is not named in docs/data-inventory.md\n` +
