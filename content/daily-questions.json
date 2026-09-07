@@ -3301,5 +3301,57 @@
         "The long game"
       ]
     ]
+  },
+  {
+    "id": "134",
+    "type": "binary",
+    "prompt": "Keep score, or just play?",
+    "tag": "Keeping score",
+    "options": [
+      "Keep score",
+      "Just play"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "How you play"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Competition"
+      ],
+      [
+        "Interests",
+        "Games"
+      ]
+    ]
+  },
+  {
+    "id": "135",
+    "type": "choice",
+    "prompt": "What makes a great rivalry?",
+    "tag": "Rivalries",
+    "options": [
+      "History",
+      "Respect",
+      "High stakes",
+      "Closeness"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "Rivalries"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Drama"
+      ],
+      [
+        "Values",
+        "What you admire"
+      ]
+    ]
   }
 ]
