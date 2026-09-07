@@ -173,7 +173,24 @@ function notFound(): string {
 export function renderResultsPage(input: ResultsInput): { status: number; html: string } {
   const q = input.question;
   const sponsor = q && q.sponsor && typeof q.sponsor === "object" ? (q.sponsor as Record<string, unknown>) : null;
-  if (!q || q.surface !== "feed" || !sponsor || q.active === false) return { status: 404, html: notFound() };
+  // THE BUYER ERASED THEIR ACCOUNT, which is not a retirement — see the
+  // `erased` const below for what the marker is. Erasure sets `active:
+  // false` on a RUNNING bought question, to take the card off every
+  // surface at once now that the audience deciding who sees it is gone.
+  // That is right for SERVING and wrong here: this page's whole purpose
+  // (D379) is a link somebody has already shared, and its own 404 copy
+  // promises the results stay "while it is live and after". Refusing on
+  // `active` alone killed every one of those links permanently — nothing
+  // ever sets `active` back on a runtime paid question — and made the
+  // erased byline three lines down unreachable in exactly the case it was
+  // written for.
+  //
+  // A retired question still 404s. This is the one absence that means
+  // something else.
+  const erasedBuyer = sponsor?.erased === true;
+  if (!q || q.surface !== "feed" || !sponsor || (q.active === false && !erasedBuyer)) {
+    return { status: 404, html: notFound() };
+  }
   const prompt = String(q.prompt ?? "");
   const options = Array.isArray(q.options) ? (q.options as unknown[]).map((o) => String(o ?? "")) : [];
   const counts = options.map((_, i) => {
@@ -190,7 +207,7 @@ export function renderResultsPage(input: ResultsInput): { status: number; html: 
   // is neither, and the page claimed both on the buyer's behalf. Written by
   // the erasure sweep (index.ts phase 4e) precisely so this page can tell
   // the difference.
-  const erased = sponsor.erased === true;
+  const erased = erasedBuyer;
   const audience = sponsor.audience && typeof sponsor.audience === "object" ? (sponsor.audience as Record<string, unknown>) : {};
   const audLine = Object.entries(audience).map(([d, b]) => `${DIM_LABEL[d] ?? d}: ${String(b)}`);
   const from = dayLabel(q.from);

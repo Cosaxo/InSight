@@ -80,6 +80,38 @@ describe("renderResultsPage", () => {
     expect(html).toContain("audience not recorded");
   });
 
+  // …AND THE STOPPED CAMPAIGN'S PAGE IS STILL THERE. Erasure sets
+  // `active: false` on a RUNNING bought question, to take the card off
+  // every surface now that the audience deciding who sees it is gone.
+  // This page refused on `active` alone, so every link already shared for
+  // that question went permanently dead — nothing sets `active` back on a
+  // runtime paid question — and the erased byline above could only ever
+  // render for a campaign that had ALREADY closed, which is the one case
+  // the sweep deliberately leaves alone. The marker was written and never
+  // read in the case it was written for.
+  it("keeps the page for a campaign erasure stopped, and prints the erased byline on it", () => {
+    const { sponsor, ...rest } = QUESTION;
+    void sponsor;
+    const out = renderResultsPage({
+      qid: "x",
+      // Exactly what phase 4e leaves on a RUNNING bought question.
+      question: { ...rest, sponsor: { erased: true }, active: false },
+      agg: AGG, today: TODAY,
+    });
+    expect(out.status, "a link already shared for this question went dead").toBe(200);
+    expect(out.html).toContain("Asked by a buyer who has since deleted their account");
+    expect(out.html).toContain("audience not recorded");
+  });
+
+  // THE CONTROL, and it is the one that keeps the line above from being a
+  // hole: a question retired for any OTHER reason still has no page.
+  it("still refuses a retired question that nobody erased", () => {
+    expect(
+      renderResultsPage({ qid: "x", question: { ...QUESTION, active: false }, agg: AGG, today: TODAY }).status,
+      "an ordinary retired question got a page",
+    ).toBe(404);
+  });
+
   // THE TWO CONTROLS, because both sentences above are absences and an
   // absence passes when the clause is deleted outright. A real untargeted
   // purchase still says everyone; a real targeted one still names its dims.
