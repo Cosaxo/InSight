@@ -30,6 +30,34 @@
     "privacyPolicyUrl": "https://prvfire33.web.app/privacy.html",
     "termsUrl": "https://prvfire33.web.app/terms.html",
     "supportEmail": "olaftaule01@gmail.com",
+    "$appReview": [
+      "App Review Information — the form Apple shows a reviewer before they",
+      "open the app. It became a SUBMISSION BLOCKER at D414: the app now",
+      "requires an account, so guideline 2.1 wants a way in, and",
+      "demoAccountRequired had been false for every build up to 32 because",
+      "it was true. A reviewer who meets the wall with that box unticked",
+      "files 'we were unable to review' without reading further.",
+      "",
+      "The contact number is the owner's, given for this purpose on",
+      "2026-09-07. It lives here rather than in a secret because this",
+      "repository is private and this file already carries the support",
+      "address it sits beside — and because a value nobody can see is a",
+      "value nobody can check, which is the argument for every other field",
+      "in this file. If the repository is ever made public, this block and",
+      "supportEmail move to secrets together.",
+      "",
+      "The demo account's CREDENTIALS are deliberately absent: they are",
+      "minted by scripts/auth-config.mjs and handed to scripts/asc-review.mjs",
+      "through a file inside one workflow run, so the password never lands",
+      "in the repo or in a log."
+    ],
+    "appReview": {
+      "contactFirstName": "Olaf",
+      "contactLastName": "Taule",
+      "contactPhone": "+47 90229680",
+      "contactEmail": "olaftaule01@gmail.com",
+      "notes": "InSight requires an account before any question can be answered. The FASTEST way in is Sign in with Apple, which needs no email round trip.\n\nIf you prefer the email door, please use the demo account supplied above — it is already confirmed. An account created with a fresh address will be held at a \"Confirm your address\" screen until its confirmation link is opened, which is the app working as intended rather than a defect.\n\nWhy the account is required rather than optional (guideline 5.1.1(v)): the account is not gatekeeping a feature, it is the unit the product is about. Every screen in the app compares your own answers to other people's over time — a daily question answered by nobody in particular produces nothing the app can show back. Answers are public and attributed by design; the sign-in screen says so before anyone signs up.\n\nSign in with Apple, Google and email/password are all offered (guideline 4.8)."
+    },
     "bundleId": "com.cosaxo.insight"
   },
   "apple": {

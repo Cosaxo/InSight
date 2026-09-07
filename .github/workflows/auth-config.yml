@@ -28,7 +28,21 @@
 # to debug tokens.
 #
 # Secrets: FIREBASE_SERVICE_ACCOUNT, the same one firebase-deploy.yml and
-# seed-content.yml use, on the same `production` environment.
+# seed-content.yml use, on the same `production` environment — plus the
+# three App Store Connect values ios-release.yml uses, for the step that
+# hands the demo credential straight to Apple.
+#
+# IT RUNS FROM `main` ONLY, and that is the `production` environment's own
+# rule rather than this file's: "Deployment branches and tags → Selected →
+# main only" (docs/DEPLOYMENT.md § The settings). Dispatching it from a
+# feature branch does not fail with a message about branches — it fails
+# because the secret is empty, and the script then exits saying
+# FIREBASE_SERVICE_ACCOUNT is unset, which reads like a missing secret
+# rather than a wrong ref. So: merge, then run.
+#
+# The run also PAUSES for the owner's approval before the runner is given
+# the credential, because `production` has required reviewers. That is the
+# gate working, not the job hanging.
 
 name: Auth config
 
@@ -44,6 +58,10 @@ on:
         type: choice
         options: ["report only", "sender name", "demo account", "both"]
         default: "report only"
+      attach_build:
+        description: "Build number to attach to the version (blank = leave it)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -106,12 +124,44 @@ jobs:
               echo "- **User name:** \`$(node -p "require('$RUNNER_TEMP/demo-account.json').email")\`"
               echo "- **Password:** written to the run's temp file, not printed here."
               echo ""
-              echo "Re-run \`asc-review.yml\` in the same session to push it to"
-              echo "App Store Connect, or run this with \`--apply\` again to mint"
-              echo "a fresh one — the account is reused, only the password rotates."
+              echo "The password was pushed straight to App Store Connect by the"
+              echo "next step and is gone with this runner — it is never stored."
+              echo "To rotate it, run this again: the account is reused, the"
+              echo "password is new, and ASC is updated in the same run."
             else
               echo "No credentials file — the run did not get that far."
             fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # THE SAME JOB, and that is the design rather than a convenience. The
+      # credential is written to a file on this runner and read from it
+      # here; it never reaches a log, an artifact, a secret or the repo,
+      # and it is gone when the runner is reclaimed. Splitting these into
+      # two workflows would mean persisting a password somewhere between
+      # them, which is the one thing this arrangement exists to avoid.
+      - name: Push the review details to App Store Connect
+        if: ${{ inputs.apply && (inputs.what == 'demo account' || inputs.what == 'both') }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          set -o pipefail
+          ARGS="--demo-file $RUNNER_TEMP/demo-account.json"
+          [ -n "${{ inputs.attach_build }}" ] && ARGS="$ARGS --attach-build ${{ inputs.attach_build }}"
+          # asc-review is dry-run by default like every operator script
+          # here; this step only runs when the caller already ticked apply.
+          node scripts/asc-review.mjs $ARGS --apply 2>&1 | tee "$RUNNER_TEMP/asc-review.log"
+
+      - name: The App Review form, in the summary
+        if: ${{ always() && inputs.apply && (inputs.what == 'demo account' || inputs.what == 'both') }}
+        run: |
+          {
+            echo "### App Review Information"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/asc-review.log" 2>/dev/null || echo "(did not run)"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: The run's own output, in the summary

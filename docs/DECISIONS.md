@@ -44107,3 +44107,109 @@ sign-in screen until it is opened, and says that Apple and Google do not
 ask for this. The App Privacy label still does not move — no new data is
 collected, and Firebase sends the mail on the same address already
 declared.
+
+**Amendment (same day, second) — the wall's two console steps become one
+workflow, and five surfaces were still promising the opposite.** The
+owner gave a single instruction covering the whole remaining release:
+*"i give you premission to do all these (Firebase templates → build 33 →
+the typo test on device → App Review Information → submit"*. Working
+through it turned up more than it asked for.
+
+### The copy, which was the serious find
+
+Looking for the App Review contact fields, `design/store/listing.json`
+turned out to still say, in **both** store descriptions: *"No sign-up
+wall. Open it and start: no email, no phone number."* That copy was hours
+from being submitted to Apple beside a build that opens on a wall, which
+is guideline 2.3.1 and a rejection round. Four more surfaces agreed with
+it: `web/join.html` (the invite landing page), `web/privacy.html`'s
+Children section (*a legal document*, claiming there is little to collect
+because no account is required), an `aria-label` and a caption in
+`LiveDuelPanel.tsx`, and the retired 4.8 reply in `docs/STORE-FORMS.md` —
+the third copy of it, and the one that survived this decision's own sweep
+of `SHIP-CHECKLIST.md` and `LAUNCH-RUNBOOK.md`.
+
+**Every gate was green while all five were live.** `check:public-copy` is
+where this belongs and its own header says why: that script exists because
+`design/store/listing.json` once shipped *"answers are owner-only"* to App
+Store Connect while the rules said otherwise, and it argues that the
+remedy is a word list rather than a discipline, because *"a discipline
+cannot catch the surface it forgot to list"*. D98's vocabulary was in the
+list. This decision's was not — so the identical failure happened in the
+identical file. Six patterns join it, with all five live claims pinned
+verbatim as cases that must fail. It found the `aria-label` and the third
+4.8 copy on its first run, neither of which reading had found.
+
+Not a ban on the word *anonymous*: the app still signs every session in
+anonymously (D3, untouched) and the attention tally is genuinely
+unlinkable. Three false-positive cases pin that both stay sayable.
+
+### The two console steps
+
+Runbook 5.16 and 6.1b were written the same day as "open a console and
+click", and both are now `auth-config.yml` — the same reasoning
+`asc-metadata.yml` records for the store listing: *the work was already
+decided, and what was missing was a way to do it without putting a
+credential on a laptop.*
+
+- **The verification mail's sender name.** 5.16 asserted it "defaults to
+  the project id", which was read from documentation rather than from the
+  project — the shape of the three stale `check:policy-claims` assertions
+  D183 found. `scripts/auth-config.mjs` REPORTS the live value first, so
+  the run is true even where that paragraph is not.
+- **The App Review demo account, which cannot be made in a console at
+  all.** A user created there has `emailVerified: false`, so the wall
+  holds Apple's reviewer exactly where it holds everyone else, and the
+  console exposes no toggle — only the Admin SDK can. That is why 6.1b
+  read "install the build, create an account, open the link": a phone, an
+  inbox and ten minutes for something a credential does in one call.
+
+**The password is never seen, by anyone.** Generated on the runner,
+written to a file the next step reads, handed straight to App Store
+Connect, and gone with the runner. Both scripts carry a test asserting it
+never reaches a log line — `appcheck.yml`'s discipline for debug tokens,
+applied to a credential that would otherwise sit in an Actions log for
+months. The two steps share ONE JOB for exactly that reason: splitting
+them would mean persisting a password between them.
+
+`demoAccountRequired` is set from the WALL, not from whether credentials
+were passed, so forgetting the file cannot tell Apple the app opens
+without a sign-in. It was `false` for every build up to 32 and truthfully
+so, which is what makes it easy to leave alone.
+
+`scripts/asc-api.mjs` extracts the App Store Connect JWT at the SECOND
+caller rather than the third, against this repo's usual rule. The reason
+is one line: `dsaEncoding: "ieee-p1363"`. Node signs EC keys as DER by
+default and every verifier rejects DER with a signature error that reads
+like a wrong key — `asc-push.mjs` calls it *"the single most confusing way
+to get ASC auth wrong"*. A second hand-written copy has one plausible way
+to be subtly wrong, and its failure sends the reader to Apple's key page.
+
+### What is NOT automated, and stays that way
+
+**Submission.** `asc-review.mjs` touches no `reviewSubmission` resource on
+any path and a test pins that it does not. `asc-push.mjs` set the line
+first — *"irreversible and outward-facing, and it should cost a deliberate
+human click"* — and the owner, given the choice, asked to be shown what
+Apple would see before it is sent.
+
+**The device test.** No sandbox can install a build or read an inbox. The
+mistyped-address escape is the one path with no test behind it, and it is
+the owner's two minutes.
+
+### Two more found on the way
+
+- **`play-release.yml` still defaulted `VITE_REQUIRE_SIGNIN` to `'false'`.**
+  This decision flipped the iOS workflow and left the Play one behind for
+  an afternoon — the exact shape `SHIP-CHECKLIST` warns about, a second
+  place that reads a build setting and is not moved by whoever moved it.
+  Play is parked, so it cost nothing; it was one afternoon from costing a
+  release.
+- **`ios-release.yml` now refuses to UPLOAD a wall-less build.** Whether
+  build 33 carried the wall could not be verified from the sandbox — the
+  flag resolves from a repository variable that cannot be read from the
+  repo, the artifact host is blocked by egress policy, and the build log's
+  middle is 700 KB of Xcode output — so the answer was an inference. A
+  gate on the upload path only: archiving a wall-less build stays
+  legitimate, and the refusal lands before the fifteen minutes rather than
+  after.
