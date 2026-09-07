@@ -713,14 +713,52 @@ export function engagementFromDays(days) {
     ? (() => {
         const p = peopleRow.people;
         const sessions = p.sessions ?? 0;
+        const rollups = p.rollups ?? 0;
         return {
           day: peopleRow.day,
-          rollups: p.rollups ?? 0,
+          rollups,
           sessions,
           quiet: p.quiet ?? 0,
           quietShare: sessions > 0 ? round2((p.quiet ?? 0) / sessions) : null,
           fading: p.fading ?? 0,
           reachedEnd: p.depthEnd ?? 0,
+          // THE MIRROR-READING THREE (D407). ENGAGEMENT-PLAN.md's rung-0
+          // table lists "the entire Mirror — does anyone open it, which
+          // stops, which lenses" as something rung 0 cannot see, because
+          // "reading is the point and reading writes nothing". These
+          // three are what the client started writing to close that, and
+          // until now nothing folded or drew them.
+          //
+          // Shares against `rollups`, because the question is what
+          // fraction of the people who used the app that day READ it —
+          // a count alone moves with the population and answers nothing.
+          //
+          // NULL ON TWO DIFFERENT FACTS, and this read had only the first.
+          // No denominator is the quietShare rule one line up: no people
+          // is not "nobody read". The second is ABSENCE: every day folded
+          // before this shipped carries a real `rollups` and none of these
+          // three keys, so `?? 0` put an invented numerator over a genuine
+          // denominator and the console printed 0% — stating "nobody
+          // opened the Mirror" across the whole back-catalogue, which is
+          // the one claim this data cannot make. A key's absence has to
+          // reach the renderer, so it is tested BEFORE the denominator.
+          //
+          // A folded day that really saw no readers is a different row and
+          // still prints 0%: the keys are there, holding zero.
+          mirrorRead: p.mirrorRead ?? null,
+          lensOpen: p.lensOpen ?? null,
+          readShare: p.mirrorRead == null || rollups === 0
+            ? null : round2(p.mirrorRead / rollups),
+          lensShare: p.lensOpen == null || rollups === 0
+            ? null : round2(p.lensOpen / rollups),
+          // The feed-depth bracket histogram, low to high. A map on the
+          // wire (FieldValue.increment needs a field path), a list here —
+          // and null, not five zeros, when the day predates the fold. Five
+          // zeros is a shape a reader can take a distribution off; the
+          // absence of the map is not.
+          feedBuckets: p.feedBuckets == null
+            ? null
+            : Array.from({ length: 5 }, (_, i) => p.feedBuckets[`f${i}`] ?? 0),
         };
       })()
     : null;
