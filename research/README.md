@@ -105,9 +105,12 @@ Read in this order. Each file opens with its own status line.
 | 11 | `research/axiom-theory/paper-11-learned-representation.md` | One geometry, learned: the representation trained to predict each person's next observation from their whole record across every axis, where the axes actually meet — so cross-axis transfer conditional on a person's history, which covariance cannot express, is its native product, and its map's entry is the fraction of a target axis's own code length a source saves at a stated grain. It is the instrument G4's value ledger runs on: the code-length saving per unit of attention, marginal to the portfolio, on one shared held-out target so the rows compare, with the coupling column priced in posterior information because code length is flat where structure lives. Every prediction's anchor share is an interval, not a guarantee, since the anchors are recoverable from proxies; the loop is two hazards, selection and performativity, corrected by importance weighting, the five-clause admission test, and randomized withholding; the representation is a release that memorizes, trained under paper 12's custody with its version sequence differenced and budgeted; and whether the volume has been reached at all is the measurement before every reading. Two releases are the owner's decision |
 | 12 | `research/axiom-theory/paper-12-where-the-join-runs.md` | Where the join runs: the genome crossings as computations under a column that must not move — and a custody constraint does not forbid the joins the genome enters, it re-sorts them by cost, counter-intuitively. The per-person join runs on the device, because the device holds both the genome and the person's own copy of their public answers, so it is single-custodian and the learned representation ingests the genome as a budgeted federated gradient, not a fixed summary. What runs nowhere cheap is the cross-person structure a per-variant association needs — ancestry components over everyone's immovable genomes, linkage, cryptic relatedness — so the population GWAS that looks like the plain baseline is the expensive, budget-bound, confounded computation, which inverts the biobank's cost ordering. Attestation is integrity not authenticity, so authenticity routes to paper 7's supervised sample; the budget is a finite lifetime cap at family-scope unit, and small ancestry strata starve as a certainty; the join itself is a re-identification act. Ends with the releases the owner must ration, as forks |
 
-Planned, in the order the ranked crossings suggest: custody-preserving
-computation for the genome crossings; causal patterns from within-unit
-events. Every one of the four unbuilt axes now has a paper.
+The planned list is spent: every one of the four unbuilt axes and all
+four of the planned crossings — the logic test against the bank, the
+learned representation, custody-preserving computation for the genome,
+and causal patterns from within-unit events — now has a paper. What
+comes next is whatever the reviews have surfaced as the largest gap,
+and the owner names it.
 
 ## The general track
 
