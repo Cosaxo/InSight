@@ -40837,8 +40837,7 @@ the merged tree — D382 had just taken the question content out of first
 paint and re-based the ceiling; the matcher's rule 4 and the explain
 copy are in the eager graph, about 3 KB of it), and `test:e2e:all` on
 one emulator boot.
-
-## D389 · Three behaviour signals get a reader: whether the Mirror is READ, not only answered into
+## D407 · Three behaviour signals get a reader: whether the Mirror is READ, not only answered into
 
 **Decided:** 2026-09-06 · **Status:** binding. **Requested** by the
 owner, off `OWNER-LIST.md`'s own top row — *"three real behaviour

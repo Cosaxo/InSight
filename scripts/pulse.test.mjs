@@ -1174,7 +1174,7 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(html).toContain("Per-question attention");
   });
 
-  it("draws whether the Mirror was READ, as shares of people (D389)", () => {
+  it("draws whether the Mirror was READ, as shares of people (D407)", () => {
     // ENGAGEMENT-PLAN.md's rung-0 table calls this the one thing rung 0
     // cannot see — "does anyone open it, which stops, which lenses",
     // because "reading is the point and reading writes nothing". The
@@ -1203,7 +1203,7 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(html).toContain("75%");
   });
 
-  it("a fold written before D389 draws dashes, not invented zeros", () => {
+  it("a fold written before D407 draws dashes, not invented zeros", () => {
     // Every day already folded lacks these keys entirely WHILE CARRYING A
     // REAL `rollups`, and that combination is the whole case: a 0% here
     // would read as "nobody opened the Mirror", which is a claim this data
@@ -1241,7 +1241,7 @@ describe("the person channel in the console (R3/D272)", () => {
         returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
         streaksBroken: 0,
         people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0,
-          // The Mirror three PRESENT and holding zero (D389) — a fold that
+          // The Mirror three PRESENT and holding zero (D407) — a fold that
           // ran and saw nothing, which is the other half of the case above
           // and must not be told apart from it by accident.
           mirrorRead: 0, lensOpen: 0, feedBuckets: {} } },
