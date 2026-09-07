@@ -3261,6 +3261,10 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   const PULSEQ = "pulse-b01";
   const CALLQ = "call-b01";
   const RANKQ = "feed-b01";
+  // A rank question the BANK does not put on the feed. Its answer will
+  // claim "feed" like any other rank answer — that claim is what the
+  // bank-side clause exists to disagree with.
+  const RANKQ_OFF = "feed-b02";
   const GID = "gbind";
   const DAY = dayOffset(-1);
 
@@ -3324,6 +3328,11 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
         surface: "feed", seq: 1, type: "rank",
         prompt: "?", options: ["A", "B", "C"], active: true,
       });
+      // Same shape, same option count, one field different.
+      await setDoc(doc(db, "v2_questions", RANKQ_OFF), {
+        surface: "daily", seq: 2, type: "rank",
+        prompt: "?", options: ["A", "B", "C"], active: true,
+      });
     });
 
   const worldAnswer = () => ({
@@ -3350,6 +3359,10 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   });
   const rankAnswerB = () => ({
     qid: RANKQ, surface: "feed", order: [2, 0, 1],
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const rankAnswerOff = () => ({
+    qid: RANKQ_OFF, surface: "feed", order: [2, 0, 1],
     answeredAt: serverTimestamp(), anchors: {},
   });
   const duelAid = `g_${GID}_${DAY}`;
@@ -3381,6 +3394,38 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     // feed member-only reveals, never aggregates, and membership already
     // required a human's invite code (D29).
     await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
+  });
+
+  it("a rank answer is refused when the BANK does not put its question on the feed", async () => {
+    // `isRankAnswer` ends with a clause reading the question document's
+    // own surface, and until this case it never evaluated FALSE anywhere
+    // in the suite — three trues, no false. Read rather than assumed
+    // before writing it: the clause is NOT redundant with the two beside
+    // it. `type == "rank"` says what the question IS, and the answer's own
+    // `surface == "feed"` is the ANSWER's claim, which a client writes. A
+    // question typed rank but filed on another surface satisfies both and
+    // only this clause disagrees.
+    //
+    // What it protects: the rank aggregate is a published, world-readable
+    // fold, and a rank answer is the shape that feeds it. A bank edit that
+    // moved a rank question off the feed without this clause would leave
+    // its answers writable and folding into a board no surface serves.
+    //
+    // The positive control is the line above it in the same rule — the
+    // identical answer against a question the bank DOES put on the feed —
+    // so this pins the clause rather than the rule.
+    // FRESH STATE and a bound device, exactly as the case below it does.
+    // The first attempt at this reused the block's accumulated state and
+    // the positive control came back "maximum of 1000 expressions to
+    // evaluate has been reached" — the rules expression budget, which is
+    // already on OWNER-LIST as a hidden ceiling and which spends itself
+    // before rendering a verdict. A case that cannot tell a refusal from
+    // an exhausted budget is not a case.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", RANKQ), rankAnswerB()));
+    await assertFails(setDoc(doc(bound, "v2_users", FRIEND, "answers", RANKQ_OFF), rankAnswerOff()));
   });
 
   it("enforced text: pulse, call and rank demand the claim too", async () => {
