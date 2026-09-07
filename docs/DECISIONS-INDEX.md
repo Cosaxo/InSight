@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 415 lines instead of
-41,627. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 416 lines instead of
+41,673. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -429,3 +429,4 @@ detect it.
 |  | ↳ *amendment 2026-09-07* — [Paper 10: the key in the relation, and why it has to be earned](DECISIONS.md#d389-amendment-2026-09-07--paper-10-the-key-in-the-relation-and-why-it-has-to-be-earned) | — | 41449 |
 |  | ↳ *amendment 2026-09-07, later* — [G4, paper 11 and paper 12 — the method as a general paper, the learned representation, and where the join runs](DECISIONS.md#d389-amendment-2026-09-07-later--g4-paper-11-and-paper-12--the-method-as-a-general-paper-the-learned-representation-and-where-the-join-runs) | — | 41511 |
 |  | ↳ *amendment 2026-09-07, third* — [Paper 13 revised, paper 14 drafted, and the planned list is spent](DECISIONS.md#d389-amendment-2026-09-07-third--paper-13-revised-paper-14-drafted-and-the-planned-list-is-spent) | — | 41586 |
+|  | ↳ *amendment 2026-09-07, fourth* — [Paper 14 revised: interest as the content of a propensity the series already models](DECISIONS.md#d389-amendment-2026-09-07-fourth--paper-14-revised-interest-as-the-content-of-a-propensity-the-series-already-models) | — | 41628 |

@@ -41624,3 +41624,49 @@ runs beside it, because several rewrites reversed theses earlier papers
 had already cited. Both revisions follow. The planned list is spent:
 every unbuilt axis and every planned crossing has a paper. Nothing in
 the app moves.
+
+## D389 amendment (2026-09-07, fourth) · Paper 14 revised: interest as the content of a propensity the series already models
+
+Paper 14's twenty-five-finding review failed the draft's headline on
+the series' own papers. The draft claimed the person's selection had
+been treated as response and not as selection, and that the person's
+propensity was estimable beside the policy's; paper 5 models the
+response propensity per occasion, paper 6 repeats it for wear, paper
+0a's survival term is where interest enters the design, and paper 8
+repairs entry to an intention-to-treat. So the contribution is
+restated as consolidation: interest is the *content* of that
+propensity, split into a part recorded pre-response state identifies —
+the declared and revealed channels as covariates, entered into
+between-person couplings — and a part that depends on the latent the
+item measures, which is missing-not-at-random through the trait and
+stays paper 5's band, since entering it conditions on the outcome. The
+draft's mechanism, selection on trait strength, is between-person and
+biases no within-person reading, and the draft's uniform-stream
+contrast measured the policy's selection rather than the person's, so
+the bias of omission is a bound unless response cost is varied
+exogenously.
+
+The paper's cross-axis reading is now interest with ties — homophily
+against influence under a randomized offer, stated as the instrument
+paper 8 already states, with exclusion and monotonicity per family, the
+offered-and-declined channel named as the exclusion violation, two-sided
+randomization for any directional claim, and an exposure mapping on
+the graph. Declared and revealed interest are no longer assumed one
+construct: a discriminant condition decides, and where it fails the
+channels are routed apart as paper 5 routes sleep. The serving
+mechanism is named per sub-channel, because a follow is not served by
+an item policy and the uniform stream carries no follow opportunities.
+Drift is a prodrome, separated from paper 13's anticipation, on
+unpredictable-onset families with a denominator ascertained
+independently of reporting and paper 6's three numbers in full.
+Avoidance's "cannot be idle" and "denser per act" are withdrawn to a
+timestamped act and a defined hypothesis. The custody split is a design
+assumption with its conclusions marked contingent, and where the
+attention record lives is the fork. Every count is derived — picks from
+a factor-score reliability, offers rather than accepted offers with the
+complier inflation, attention acts on the uniform stream as a fraction
+of a fraction.
+
+Sixteen axiom papers and four general ones now carry the form, every
+one reviewed and revised. The cross-paper coherence review of the
+earlier papers runs, and its sweep follows. Nothing in the app moves.
