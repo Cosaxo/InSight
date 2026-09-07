@@ -36,7 +36,7 @@ import LIVE from "../data/live";
 // Direct, not through LIVE: these are the paths that ABANDON the current
 // session rather than upgrading it, and they are deliberately not on the
 // store surface for spec-layer JSX to find by name.
-import { googleSignIn, type EmailFailure } from "../../lib/firebase";
+import { appleSignIn, googleSignIn, type EmailFailure } from "../../lib/firebase";
 
 const GATE_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -213,7 +213,9 @@ function LiveSignInGate() {
   const [flight, setFlight] = React.useState<null | "apple" | "google" | "email">(null);
   const [failure, setFailure] = React.useState<EmailFailure | null>(null);
   const [err, setErr] = React.useState<string | null>(null);
-  const [inUse, setInUse] = React.useState(false);
+  // WHICH door hit it, not just that one did. This was a boolean and the
+  // recovery below always signed in with Google — see there.
+  const [inUse, setInUse] = React.useState<null | "apple" | "google" | "email">(null);
   const [address, setAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
   // A proxy for the keyboard, and the honest one available to a WebView:
@@ -237,7 +239,7 @@ function LiveSignInGate() {
     } catch (e) {
       const f = (e as { failure?: EmailFailure }).failure;
       if (f) setFailure(f);
-      else if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse(true);
+      else if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse(which);
       // The store's auth observer is what flips `linked`, and it will not
       // fire for a failed attempt — so the error has to land on screen or
       // the gate just sits there.
@@ -291,12 +293,20 @@ function LiveSignInGate() {
   });
 
   const signInToExisting = async () => {
-    setFlight("google"); setErr(null);
+    // THE DOOR THE USER ACTUALLY CHOSE. This signed in with Google whatever
+    // was tapped, and the wall only exists on iOS, where Apple is the lead
+    // door — so reinstall → Apple → already-in-use was the PRIMARY recovery
+    // path, and it handed the user Google's sheet. Landing in a different
+    // account, or minting a third, after a screen that said "sign in to it".
+    // The email door cannot reach here: emailSignIn/emailCreate throw an
+    // EmailAuthError carrying `failure`, which the catch above takes first.
+    const door = inUse === "apple" ? "apple" : "google";
+    setFlight(door); setErr(null);
     try {
       // live.ts's auth observer sees the uid change and runs
       // resetForNewUid, which is what clears this session's local state —
       // so nothing here has to know how to do that.
-      await googleSignIn();
+      await (door === "apple" ? appleSignIn() : googleSignIn());
     } catch (e) { setErr(clean(e)); }
     setFlight(null);
   };
@@ -389,7 +399,7 @@ function LiveSignInGate() {
         <GateButton label={"Sign in and leave this phone\u2019s answers"}
           onClick={() => void signInToExisting()} busy={inFlight} />
         <GateQuiet label="Use a different account" disabled={inFlight}
-          onClick={() => { setInUse(false); setErr(null); }} />
+          onClick={() => { setInUse(null); setErr(null); }} />
         {err && (
           <div role="alert" style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600,
             color: "oklch(0.5 0.19 25)", marginTop: 14, lineHeight: 1.5 }}>{err}</div>

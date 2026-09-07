@@ -20,12 +20,14 @@ const emailSignIn = vi.fn(async () => {});
 const emailCreate = vi.fn(async () => {});
 const emailReset = vi.fn(async () => {});
 const googleSignIn = vi.fn(async () => {});
+const appleSignIn = vi.fn(async () => {});
 const refreshVerification = vi.fn(async () => true);
 const sendVerification = vi.fn(async () => {});
 const abandonSignIn = vi.fn(async () => {});
 
 vi.mock("../../lib/firebase", () => ({
   googleSignIn: (...a: unknown[]) => googleSignIn(...(a as [])),
+  appleSignIn: (...a: unknown[]) => appleSignIn(...(a as [])),
 }));
 
 import LIVE from "../data/live";
@@ -196,6 +198,21 @@ describe("with the flag on", () => {
     expect(screen.getByText("Use a different account")).toBeTruthy();
     fireEvent.click(btn);
     expect(googleSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers through the door the user chose, not always through Google", async () => {
+    // The wall ships on iOS, where Apple is the LEAD door and reinstall is
+    // the ordinary way to get here (D6 took Android backup away, so an
+    // anonymous session dies with the handset) — which made
+    // Apple → already-in-use the primary recovery path. It signed in with
+    // GOOGLE: a different account, or a third one, after a screen that had
+    // just said "sign in to it".
+    linkApple.mockRejectedValueOnce(new Error("auth/credential-already-in-use"));
+    await gateReady();
+    fireEvent.click(screen.getByText("Sign in with Apple"));
+    fireEvent.click(await screen.findByText(/Sign in and leave this phone\u2019s answers/));
+    expect(appleSignIn, "the Apple door's recovery did not use Apple").toHaveBeenCalledTimes(1);
+    expect(googleSignIn, "the Apple door's recovery reached for Google").not.toHaveBeenCalled();
   });
 
   it("shows any other failure rather than sitting there", async () => {
