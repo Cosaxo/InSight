@@ -153,6 +153,42 @@ const patternsEligibleCount = (() => {
 // the array were renamed. Listed, a change there fails this and someone
 // reads both.
 const COLD_BOOT_SURFACES = ["test", "group", "duo", "pulse", "call"];
+
+// …AND THE LIST IS HELD EQUAL TO live.ts's, which is what makes listing it
+// safe. The comment above says "a change there fails this and someone reads
+// both", and until this block that was not true: nothing here read live.ts,
+// so dropping a surface from BANK_SURFACES left the gate GREEN while the
+// boot fetched less and the row's number went quietly wrong. Measured, not
+// supposed — the probe was exactly that edit.
+//
+// This is the shape the argument above actually wants: the list stays
+// written out, so a reader sees it and a change cannot silently agree with
+// itself, and the equality check makes a divergence fail LOUDLY instead of
+// never. Not parsed-and-trusted, and not copied-and-hoped: copied, and
+// proved still equal.
+(() => {
+  const live = read("src/v2/data/live.ts");
+  const m = live.match(/const BANK_SURFACES = \[([^\]]+)\]/);
+  if (!m) {
+    throw new Error(
+      "check-figures: could not find BANK_SURFACES in src/v2/data/live.ts. "
+      + "COLD_BOOT_SURFACES here is a deliberate second copy of it, and the "
+      + "only thing keeping that honest is this equality check — so a rename "
+      + "must be followed here rather than left to pass by default.",
+    );
+  }
+  const actual = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+  if ([...actual].sort().join(",") !== [...COLD_BOOT_SURFACES].sort().join(",")) {
+    throw new Error(
+      `check-figures: COLD_BOOT_SURFACES [${COLD_BOOT_SURFACES.join(", ")}] no `
+      + `longer matches BANK_SURFACES in live.ts [${actual.join(", ")}]. The `
+      + "boot fetches what live.ts says; this list only decides what the "
+      + "cold-boot row is checked against. Reconcile both, and check whether "
+      + "docs/COSTS.md's row still describes the surfaces by name.",
+    );
+  }
+})();
+
 const coldBootBankDocs = (() => {
   const arr = bankArray(v2content);
   const whole = arr.filter((q) => COLD_BOOT_SURFACES.includes(q.surface)).length;
@@ -1289,6 +1325,12 @@ const FIGURES = [
   // exists to prevent. These two are the INPUTS: they come from the tree
   // rather than from the model, they move on their own every promotion
   // cycle, and they are what the cold-boot row is computed from.
+  // The cold-boot row was ONE row quoting the bank twice — a read count and
+  // a `V2_QUESTIONS`, N docs half — and both said the boot fetched all of
+  // it. It is two rows now: what the boot fetches, and what the bank holds.
+  // The second half's entry went with the sentence rather than being
+  // retargeted, per this script's own advice when a figure stops being
+  // quoted; the bank's count is still held, by the bank row below.
   {
     file: "docs/COSTS.md",
     what: "the documents a cold boot reads from the bank (the cold-boot row)",
