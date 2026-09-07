@@ -43635,3 +43635,103 @@ get.
 **The hazard now written into the test:** any poll placed after an
 `expectDenied()` inherits this. The world-aggregate polls above are safe
 only because they happen to run before their deny block, not by design.
+
+## D412 · Ad-network tracking is deferred with a trigger, not refused — and counting was never the thing being deferred
+
+**Date:** 2026-09-07 · **Status:** Adopted (a deliberate hold, the
+owner's, with the number to revisit at). Refuses nothing and reverses
+nothing; `MONETIZATION.md`'s "ruled out by standing posture" section is
+unchanged and still describes today.
+
+**What opened it.** Working through how the app earns from its first
+users, the owner asked the direct question — *"why dont we just build
+the tracking?"* — and, given the arithmetic below, reached their own
+position: *"my current take is that this is to be added but we dont
+have to add that now."* This record is that position with its numbers,
+so the hold is a decision with a trigger rather than a thing that
+quietly stops being asked.
+
+### 1 · Two different things are called tracking, and only one is deferred
+
+**Counting is not deferred, because it is not tracking and the app
+already does it.** `v2_attention` takes one anonymous shard per finished
+day, written under a fresh random id, unlinkable to a person or to that
+same device yesterday (D270/D271, declared as Product Interaction on the
+App Privacy filing). Counting that an ad was shown or tapped rides that
+existing machinery. It needs no consent prompt, no advertising
+identifier, no third party, and no change to a promise. Nothing here
+holds it back; it is a day of work whenever a sponsor needs a number.
+
+**What is deferred is following people**: an ad network SDK (AdMob or
+equivalent) carrying an advertising identifier, or a server-side
+per-user behavioural profile used to select what a given person sees.
+Either is a reversal of standing records rather than an edit —
+`QUESTION-FARM.md` draws the structural line at server-side per-user
+content selection, and `MONETIZATION.md` names the apparatus.
+
+### 2 · Why deferring costs almost nothing
+
+An ad network is a **multiplier** on what an ad already earns, not a new
+source. A multiplier is worth the same proportion whenever it is
+applied, so postponing one loses a percentage of a small number today
+and forfeits nothing later. The things that get *harder* with time —
+a promise made loudly, a schema that has to migrate, a habit users form
+— are the ones that should not be deferred, and this is not one of
+them.
+
+The order-of-magnitude, stated as an estimate rather than a measurement
+because the app has no ad revenue to measure: display advertising pays
+roughly €2–6 per thousand impressions, and materially less where the
+consent prompt is declined. At one paid card per person per day, five
+hundred euros a month needs on the order of 150 000 impressions, which
+is on the order of **five thousand daily users**. Below a couple of
+thousand the whole line item is a rounding error, and it is being
+weighed against a store-label change and a consent box on first launch.
+
+### 3 · One door is already open, and one is not
+
+Read off `web/privacy.html` rather than recalled:
+
+- **Open.** *"Today the app ships no advertising identifiers and no
+  third-party analytics SDK, and we do not sell or share personal data
+  with advertisers. If any of that changes, this page changes first."*
+  Present tense with an explicit change clause. Adding a network later
+  costs a page update and a label update, in that order (D183), and
+  breaks no promise. Nothing needs to change now to keep this option.
+- **Not open.** The interest profile — the nightly per-account count of
+  which topics you answer — is described as *"never public, never shown
+  to any other user, and **never used for advertising**"*. That is a
+  forever-promise about the one derived artefact an in-house ad targeter
+  would most want. A third-party network does not touch it, because it
+  targets with its own data; using OUR profile for OUR targeting is what
+  would require reversing that sentence in public. **The two are
+  different purchases and should not be conflated when the time comes.**
+
+### 4 · The trigger
+
+Revisit when **daily actives pass a couple of thousand**, and decide it
+then against a measured number rather than this estimate. Before that
+threshold the answer is no on arithmetic alone and needs no further
+deliberation.
+
+### 5 · What may make it moot, and why that argues for holding rather than settling
+
+At the scale where a network becomes worth its costs, the sponsored
+question (path 2) and flat local sponsorship are also earning, and both
+pay considerably more per user than network inventory does — they sell
+a declared, anchored audience, which the app has because people typed it
+in, rather than an inferred one. It is a live possibility that the
+threshold arrives and the answer is still no. That is a reason to keep
+the question open with a number attached, not a reason to settle it
+early in either direction.
+
+### 6 · What this does not decide
+
+- Whether the ad card gets its D378-shaped link, or a reaction row. Both
+  are live proposals, neither depends on this, and neither needs a
+  network.
+- `MONETIZATION.md`'s closing "users never pay with money". That sentence
+  is a separate posture, it is in tension with wanting revenue before
+  there is an audience, and it is the owner's to rule on separately.
+- Anything about the current release. No build, label or store form
+  moves on this record.

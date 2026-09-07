@@ -2246,9 +2246,22 @@ That is a tester-count problem, not a workflow problem.
       Recorded here because its absence reads like an omission. An ad is a
       CARD that takes no answer and produces no data; a sponsored question
       is a QUESTION that folds into the same public aggregate everyone
-      reads (D196 keeps the two apart on purpose). Since D315 a self-serve
-      ad is written by the payment webhook straight into `v2_ads` at
-      `paidad-*` ids — so **turning on ads is 5.14 and nothing else**.
+      reads (D196 keeps the two apart on purpose).
+
+      **The self-serve half of this row is gone, and this sentence said
+      otherwise for two days (D375, 2026-09-05).** It read *"since D315 a
+      self-serve ad is written by the payment webhook straight into
+      `v2_ads` at `paidad-*` ids — so turning on ads is 5.14 and nothing
+      else"*, which stopped being true when the sponsored question became
+      the one paid product: `validatePaidBooking` now refuses `kind: "ad"`
+      by name. **The ad CARD is untouched** and ships in every build —
+      `ui/AdCard.tsx`, `runSeedAds`, `v2_ads`, its rules, and
+      `check:content`'s five authoring rules. What an ad needs is a
+      CONTRACT and a row in `content/ads.json`, which is 5.14-independent:
+      no Stripe key is involved in a hand-sold card, and turning on ads is
+      therefore not 5.14 at all. D412 holds ad-network tracking deferred
+      with a trigger, and names what is not deferred (aggregate counting,
+      which `v2_attention` already does).
 
       `content/ads.json` is the committed pen for hand contracts and is
       **empty deliberately**: writing a row there without a contract would
