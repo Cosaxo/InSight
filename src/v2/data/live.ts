@@ -4005,7 +4005,22 @@ const SOCIAL = {
     // The read breaker (D332): takes are the fourth D98 surface. Absent,
     // not empty, for the reason the cache comment above gives.
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO — the fourth loader, and the one whose bad frame is an
+    // INVITATION. The panel mounts this from an effect, so it has already
+    // painted by the time the read starts: without this notify the first
+    // frame — no data, no flag — stood for the whole of the query, and it
+    // reads "No takes yet. Say the first thing." That is a definite claim
+    // about a room that may be full, and it invites the reader to be first
+    // in it. Its three siblings carry the same two lines and the same
+    // reasoning (loadVoters, loadFollows, loadKindred's recorded
+    // exemption); this one was in neither the fix nor the block that pins
+    // them.
+    //
+    // Not visible from the mount tests: live-fixture stubs `takesLoading`
+    // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
+    // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    notify();
     try {
       const db = await getDb();
       const snap = await getDocs(

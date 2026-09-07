@@ -768,6 +768,16 @@ describe("a loader that starts tells its subscribers it started", () => {
     await flush();
   });
 
+  it("loadTakes — the one whose bad frame invites you to write", async () => {
+    // "No takes yet. Say the first thing." is what the panel says with no
+    // data and no flag, and it stood for the whole read. The flag was
+    // always armed; nobody was told.
+    const { LIVE, calls } = await armed((l) => void l.social.loadTakes("world", "q_1"));
+    expect(LIVE.social.takesLoading("world", "q_1"), "the flag was not even armed").toBe(true);
+    expect(calls, "the takes panel was not told the read started").toBeGreaterThan(0);
+    await flush();
+  });
+
   it("loadKindred inherits it from loadVoters, which is the only reason it needs none", () => {
     // Recorded rather than left implicit: loadKindred's only suspension
     // point is the loadVoters call in its loop, so the People lens's
