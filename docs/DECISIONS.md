@@ -41554,18 +41554,29 @@ teacher's outputs moving the phenomena it predicts, identified by
 randomized withholding and absent from the draft entirely. Two per-person
 releases are put to the owner.
 
-**Paper 12** completes the crossing paper 11 could not: the genome is
-the column that must not move, so its crossings are computations where
-only a summary leaves the device. A coupling whose sufficient statistic
-is a sum runs by each attested device contributing its term against a
-phenotype public on the other side; an unattested summary is a rumour;
-every release spends an output-privacy budget and an unbounded bank
-makes the budget the binding resource, allocated by a policy. Kinship is
-pairwise and needs paper 7's separate primitive. And the join paper 11's
-teacher needs — a per-person cross-axis sequence including the genome —
-is the one summation cannot make, so the teacher consumes a device-side
-attested summary whose adequacy against the file is measured once in an
-enclave, which is the honest limit paper 11 left open.
+**Paper 12** is where paper 11's genome join lands, and its
+twenty-two-finding review overturned the draft's own thesis. The draft
+said the learned representation cannot join a genome that never leaves
+the device, because the server cannot assemble the per-person row. That
+is the wrong conclusion: the device holds both the genome and the
+person's own copy of their public answers, so the per-person join is
+single-custodian and runs on the device, and the teacher ingests the
+genome as a budgeted federated gradient. The paper is the correction,
+and its finding is an inversion — a custody constraint does not tax the
+genome's crossings uniformly, it re-sorts them, so per-person on-device
+modelling is the affordable channel while the per-variant population
+association that looks like the plain baseline is the expensive one,
+because it needs ancestry components over everyone's immovable genomes,
+linkage, and cryptic relatedness, none of which is a per-person sum.
+Attestation was corrected to integrity and not authenticity, with
+authenticity routed to paper 7's supervised sample; the budget to a
+finite lifetime cap at family-scope unit, with small-stratum starvation
+a certainty; and the paper gained the owner-fork section it uniquely
+lacked — which couplings win the finite prefix, whether a per-person
+genome embedding may be released, whether within-family genetics is a
+population product or a pilot, whether an enclave may hold raw genomes
+at all, the small-stratum reserve, and a minor's built parental consent
+rather than an absolute refusal.
 
 Every one of the four unbuilt axes and the first two planned crossings
 now have a paper; fourteen axiom papers and four general ones carry the
