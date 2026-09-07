@@ -226,3 +226,96 @@ describe("continue-on-error steps are reported somewhere", () => {
       .toBeGreaterThan(1);
   });
 });
+
+/**
+ * The dispatch/call inputs a caller can type ANYTHING into.
+ *
+ * GitHub constrains `type: choice` to its declared options and
+ * `type: boolean`/`number` to their shapes; everything else — `type:
+ * string`, or an input with no `type:` at all — is free text. This walks
+ * the `inputs:` map textually, like the rest of this file, rather than
+ * pulling a YAML parser in: `yaml` and `js-yaml` are only transitively
+ * present here, and a gate that stops working when a transitive dep moves
+ * is not a gate.
+ */
+function freeTextInputs(src) {
+  const lines = src.split("\n");
+  const out = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    const head = /^(\s*)inputs:\s*$/.exec(lines[i]);
+    if (!head) continue;
+    const outer = head[1].length;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim() === "") continue;
+      const lead = lines[j].length - lines[j].trimStart().length;
+      if (lead <= outer) break;
+      const entry = /^(\s*)([A-Za-z_][\w-]*):\s*$/.exec(lines[j]);
+      if (!entry || entry[1].length <= outer) continue;
+      const at = entry[1].length;
+      let type = "";
+      for (let k = j + 1; k < lines.length; k++) {
+        if (lines[k].trim() === "") continue;
+        const kl = lines[k].length - lines[k].trimStart().length;
+        if (kl <= at) break;
+        const t = /^\s*type:\s*(\S+)/.exec(lines[k]);
+        if (t) { type = t[1]; break; }
+      }
+      if (type === "" || type === "string") out.add(entry[2]);
+    }
+  }
+  return out;
+}
+
+/**
+ * WHY THIS RULE EXISTS. `${{ }}` is a TEXTUAL substitution GitHub performs
+ * on the run body before bash is handed the script, so a free-text input
+ * pasted into a `run:` is not an argument — it is code, running with that
+ * step's secrets in its environment. `auth-config.yml`'s App Store Connect
+ * step held `ASC_PRIVATE_KEY` and pasted two of them; measured with the
+ * step's own body and a stand-in key, a `set_version` of
+ * `2.0.0$(printf %s "$ASC_PRIVATE_KEY" > /tmp/exfil.txt)` wrote the key to
+ * the file, exited 0, and left the step log reading `--set-version 2.0.0`.
+ * An honest operator was bitten by the same hole more quietly: a value
+ * with a space in it split into two arguments.
+ *
+ * The fix at every site is the same — bind the input in the step's `env:`
+ * and read `"$NAME"` in the shell, which is the pattern these files
+ * already use for their secrets.
+ *
+ * WHERE THIS RULE STOPS. It holds free-text inputs only, not every
+ * `${{ }}`: `github.sha`, `runner.temp` and a `type: choice` cannot carry
+ * a payload, and a rule that cried about them would be turned off. The
+ * other classic carrier — an issue title or PR body through
+ * `pull_request_target` / `issue_comment` — has no instance here because
+ * no workflow uses those triggers at all; if one ever does, this is the
+ * function to widen.
+ */
+describe("free-text inputs never reach a run body", () => {
+  it("finds the free-text inputs this rule is about", () => {
+    const all = new Set();
+    for (const f of files) for (const n of freeTextInputs(readWorkflow(join(dir, f)))) all.add(n);
+    // Vacuity guard: if this ever hits zero the parser has broken and
+    // every case below would pass by finding nothing.
+    expect(all.size, "no free-text workflow inputs found at all — freeTextInputs() has stopped parsing").toBeGreaterThan(0);
+  });
+
+  it("no run block interpolates one", () => {
+    const bad = [];
+    for (const f of files) {
+      const src = readWorkflow(join(dir, f));
+      const free = freeTextInputs(src);
+      if (!free.size) continue;
+      for (const { body } of runBlocks(src)) {
+        for (const name of free) {
+          // Both spellings GitHub accepts for the same value.
+          const re = new RegExp(String.raw`\$\{\{\s*(?:inputs|github\.event\.inputs)\.` + name + String.raw`\s*\}\}`);
+          if (re.test(body)) bad.push(`${f}: \${{ inputs.${name} }}`);
+        }
+      }
+    }
+    expect(
+      bad,
+      "a free-text workflow input is interpolated into a run body, where it is code rather than an argument — bind it in the step's env: and read \"$NAME\" instead",
+    ).toEqual([]);
+  });
+});
