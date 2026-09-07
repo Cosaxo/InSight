@@ -21,6 +21,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAds, buildEntries, generate, loadContent, CATALOG_FILES, CONTENT_SOURCES, LENS_SCALE, LIKERT, PICK_SEQ_BASE, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -133,7 +134,20 @@ const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 // an ERROR rather than a skip: a gate that goes quiet when its input moves
 // is the same defect one level up.
 const scaleFrom = (file, name) => {
-  const src = readFileSync(resolve(root, file), "utf8");
+  // COMMENTS BLANKED FIRST, because this takes the FIRST match and a
+  // retune's natural shape is to leave the old line above the new one:
+  //
+  //   // was: const SCALE = ['Strongly agree', …, 'Neutral', …];
+  //   const SCALE = ['Strongly agree', …, 'Neither', …];
+  //
+  // Measured on both halves — `SCALE` in spec/lens-defs.js and `SCALE5` in
+  // spec/daily-questions.js — the commented copy is what this read, so the
+  // drift the gate exists to catch passed. Three comments in the tree point
+  // readers at this gate as the drift gate ("drift-gated by
+  // check:content"). It is the one file the 2026-09-05 comment-stripping
+  // sweep missed; check-anchors, account-level-lib, check-figures,
+  // check-fn-runtime and check-monitoring all carry the identical fix.
+  const src = stripComments(readFileSync(resolve(root, file), "utf8"));
   const m = src.match(new RegExp(`const\\s+${name}\\s*=\\s*\\[([^\\]]*)\\]`));
   if (!m) {
     errors.push(`${file}: could not read \`${name}\` — the scale gate has nothing to compare against`);
