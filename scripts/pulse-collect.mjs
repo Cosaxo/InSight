@@ -732,15 +732,33 @@ export function engagementFromDays(days) {
           // Shares against `rollups`, because the question is what
           // fraction of the people who used the app that day READ it —
           // a count alone moves with the population and answers nothing.
-          // Null rather than 0 when there is no denominator, the
-          // quietShare rule one line up: no people is not "nobody read".
-          mirrorRead: p.mirrorRead ?? 0,
-          lensOpen: p.lensOpen ?? 0,
-          readShare: rollups > 0 ? round2((p.mirrorRead ?? 0) / rollups) : null,
-          lensShare: rollups > 0 ? round2((p.lensOpen ?? 0) / rollups) : null,
+          //
+          // NULL ON TWO DIFFERENT FACTS, and this read had only the first.
+          // No denominator is the quietShare rule one line up: no people
+          // is not "nobody read". The second is ABSENCE: every day folded
+          // before this shipped carries a real `rollups` and none of these
+          // three keys, so `?? 0` put an invented numerator over a genuine
+          // denominator and the console printed 0% — stating "nobody
+          // opened the Mirror" across the whole back-catalogue, which is
+          // the one claim this data cannot make. A key's absence has to
+          // reach the renderer, so it is tested BEFORE the denominator.
+          //
+          // A folded day that really saw no readers is a different row and
+          // still prints 0%: the keys are there, holding zero.
+          mirrorRead: p.mirrorRead ?? null,
+          lensOpen: p.lensOpen ?? null,
+          readShare: p.mirrorRead == null || rollups === 0
+            ? null : round2(p.mirrorRead / rollups),
+          lensShare: p.lensOpen == null || rollups === 0
+            ? null : round2(p.lensOpen / rollups),
           // The feed-depth bracket histogram, low to high. A map on the
-          // wire (FieldValue.increment needs a field path), a list here.
-          feedBuckets: Array.from({ length: 5 }, (_, i) => (p.feedBuckets || {})[`f${i}`] ?? 0),
+          // wire (FieldValue.increment needs a field path), a list here —
+          // and null, not five zeros, when the day predates the fold. Five
+          // zeros is a shape a reader can take a distribution off; the
+          // absence of the map is not.
+          feedBuckets: p.feedBuckets == null
+            ? null
+            : Array.from({ length: 5 }, (_, i) => p.feedBuckets[`f${i}`] ?? 0),
         };
       })()
     : null;

@@ -832,7 +832,7 @@ function panelEngagement(p) {
       { k: "hit the feed's end", v: int(e.people.reachedEnd) },
       { k: "read the Mirror", v: e.people.readShare == null ? "—" : Math.round(e.people.readShare * 100) + "%" },
       { k: "opened a lens", v: e.people.lensShare == null ? "—" : Math.round(e.people.lensShare * 100) + "%" },
-      { k: "feed depth", v: (e.people.feedBuckets || []).join(" · ") },
+      { k: "feed depth", v: e.people.feedBuckets == null ? "—" : e.people.feedBuckets.join(" · ") },
     ]) + `
     <p class="note">The person channel (R3/D272): uid-keyed day rollups readable by nobody,
       folded here into counts — <b>fading</b> is a trailing foreground window sinking two
