@@ -233,4 +233,34 @@ describe("the demo account's credentials", () => {
     // …and the flag that makes the whole account worth having.
     expect(src).toMatch(/emailVerified: true/);
   });
+
+  it("proves the sink BEFORE it rotates the password", () => {
+    // Also on the source, and for the same reason the case above gives:
+    // the Admin SDK is not stubbed here, so this path cannot be run. What
+    // it holds is an ORDER, which is the whole defect — the rotation is
+    // irreversible (the new password exists only in that process, the old
+    // one is gone the moment Firebase accepts the write), so a sink check
+    // that happens afterwards has two ways to leave App Review holding a
+    // credential nobody has. Unset: the script printed "set it and re-run"
+    // and exited 0, having already locked the account. Unwritable:
+    // writeFileSync threw AFTER the rotation, and asc-review.mjs has by
+    // then pushed the PREVIOUS password to App Store Connect, so guideline
+    // 2.1 rejects the submission on a credential nobody can recover.
+    //
+    // The check has to be a real WRITE, not a directory test: a read-only
+    // directory, a bad mount and a path that is itself a directory all
+    // pass a directory test and fail the write.
+    const src = readFileSync(SCRIPT, "utf8");
+    const body = /async function demoAccount\(\)[\s\S]*?\n}\n/.exec(src);
+    expect(body, "demoAccount() is no longer a top-level async function — this case cannot see it").toBeTruthy();
+    const fn = body[0];
+    const refuses = fn.search(/if \(!out\) \{\s*\n\s*die\(/);
+    const trial = fn.search(/try \{\s*\n\s*writeFileSync\(out,/);
+    const rotates = fn.search(/auth\.(updateUser|createUser)\(/);
+    expect(refuses, "demoAccount() no longer refuses outright when DEMO_ACCOUNT_OUT is unset").toBeGreaterThan(-1);
+    expect(trial, "demoAccount() no longer proves the sink is writable before it rotates").toBeGreaterThan(-1);
+    expect(rotates, "demoAccount() no longer writes the password at all — this case cannot see the order").toBeGreaterThan(-1);
+    expect(refuses, "the DEMO_ACCOUNT_OUT refusal now happens AFTER the password is rotated").toBeLessThan(rotates);
+    expect(trial, "the trial write now happens AFTER the password is rotated").toBeLessThan(rotates);
+  });
 });
