@@ -235,6 +235,30 @@ export const CLAIMS = [
     /never\s+contains a question[\s\S]{0,120}?no user can read\s+it, you included/i],
   ["D272 · each note deletes itself 90 days on, and the account's erasure takes it all",
     /deletes itself 90 days after its day/i],
+  // D413/D414/D419 · THE ACCOUNT WALL. Sixty-six lines of new disclosure
+  // landed on this page on 2026-09-07 and not one claim row came with
+  // them, so the whole section could be deleted — measured, 2023 bytes,
+  // gate still exit 0 — or inverted sentence by sentence. That is exactly
+  // the drift this file exists to catch, and it is the third time: D174,
+  // D175 and D177 each updated the app and not the policy, which is what
+  // D183 opened the page to fix.
+  //
+  // Two of these rows are here because the sentence they hold was FALSE
+  // when it was written. The page said a mistyped address "does not end
+  // up with an InSight account behind it" while `emailCreate` makes the
+  // account before anything looks at the address (live.ts's own
+  // `abandonSignIn` note: "Nothing is deleted — the abandoned account
+  // still exists"), and it said the app warns before signing in to an
+  // existing account, which Apple and Google do and the email door does
+  // not.
+  ["D414 · the three doors are named, so the wall cannot quietly grow a fourth",
+    /Sign in with Apple[\s\S]{0,400}?Continue with Google[\s\S]{0,400}?Email and password/i],
+  ["D414 · the password is hashed by Firebase and this app never sees it",
+    /stores\s+it hashed; this app never sees it and never stores it/i],
+  ["D414 · a password account exists BEFORE the address is confirmed, and is abandoned rather than deleted",
+    /exists from the moment the password is accepted, before[\s\S]{0,200}?signing out abandons that account rather\s+than deleting it/i],
+  ["D414 · signing in to an existing account leaves this session's answers, and only two doors warn first",
+    /two histories are not\s+merged[\s\S]{0,200}?With an\s+email address it does not/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */
