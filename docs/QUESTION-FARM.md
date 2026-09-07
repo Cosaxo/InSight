@@ -1214,7 +1214,12 @@ keys — and until now it was also the least instructed: the bullet above
 named its FIELDS and nothing named its craft, so the first two stories
 came out as one story written twice. Both are `dilemma`; both hand a lone
 adult a moral test by accident; and both turn the same axis at every fork,
-which is the defect underneath the other two.
+which is the defect underneath the other two. **Both are retired since
+D413** (`active: false` — the owner's call, on reading them: *"completely
+uninteresting"*); the rows stay in the bank, still count as the genre
+ratchet's predecessors, and still carry their waiver, because a retired
+row still walks the gate. The four stories that replaced them (pt4–pt7)
+are the corpus a new story is now written beside.
 
 **Three forks, three axes.** An axis is what a fork TRADES — the thing the
 two choices are actually weighing. Every node declares one from the closed

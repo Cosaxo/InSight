@@ -321,8 +321,13 @@ describe("the lists on this tree", () => {
     // day: built on the owner's direct ask without the drafted step, and
     // recorded there rather than skipped silently. Requested is 8 since
     // D402 filed the logic test's worked example (item 8): a screen, so a
-    // request under D352 rather than a build.
-    expect(v.requested.length).toBe(8);
+    // request under D352 rather than a build. 9 since 2026-09-07 added the
+    // front door (item 9) — the sign-in screen the account wall needs, on
+    // the owner's decision to require an account (SIGNIN-PLAN.md). It is
+    // numbered 9 and not 7 because 7 is the first-launch walkthrough under
+    // Built: the numbers here are unique across SECTIONS, not within one,
+    // and a request filed as 7 collided silently until this test caught it.
+    expect(v.requested.length).toBe(9);
     expect(v.designed).toEqual([]);
     expect(v.built.length).toBe(2);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
