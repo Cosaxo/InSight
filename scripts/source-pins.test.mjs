@@ -291,3 +291,81 @@ describe("the two source walks the general rule cannot reach", () => {
     }
   });
 });
+
+// ── the first class, counted instead of listed ──────────────────────
+//
+// The rule at the top of this file catches ONE spelling of a gate reading
+// past a comment: `readFileSync(...).match(` on a single line with no
+// nested parenthesis. It misses `readFileSync(join(root, "a.ts"),
+// "utf8").match(…)`, because `[^)]*` cannot cross the inner `)`, and it
+// misses the two-line `const src = readFileSync(...); … src.match(…)`
+// form — which is the form several gates actually use.
+//
+// Measured 2026-09-07: **24 sites across 17 files** read a file and match
+// against it with nothing stripping comments. Every one is a place where a
+// superseded value parked in a comment above the live declaration is what
+// the gate compares against, which is the defect this file was opened for
+// and which has now been found in nine gates by two different shifts.
+//
+// A CEILING, not a strict ratchet, and the reason is this specific night.
+// A shrink-only baseline fails when the count DROPS, which is right for a
+// single lane and wrong here: the other night shift is fixing gates in
+// this same class on its own branch, so a strict baseline would turn every
+// one of their fixes into a red composed tree. A ceiling stops new ones
+// from being added and never punishes somebody else's repair. Lowering the
+// number as the sites are fixed is the follow-up, not this rule's job.
+//
+// Fixing all 24 is real work: each needs reading before it is wrapped,
+// because stripping is the WRONG direction for a gate hunting FORBIDDEN
+// text — `check-store-copy` proved that earlier this week, where a
+// commented-out placeholder must still fail.
+const UNSTRIPPED_CEILING = 24;
+
+describe("gates that read a file and match against it without stripping comments", () => {
+  /** Every read-then-match site with no stripper in view. Covers the
+   *  chained form, the nested-call form and the separated-variable form —
+   *  the file's first rule sees only the first of those. */
+  function unstrippedSites(src) {
+    const lines = src.split("\n");
+    const out = [];
+    for (const [i, line] of lines.entries()) {
+      if (!line.includes("readFileSync")) continue;
+      const win = lines.slice(i, i + 3).join("\n");
+      const chained = /readFileSync\([\s\S]*?\)\s*\n?\s*\.(match|matchAll)\s*\(/.test(win);
+      const decl = line.match(/(?:const|let|var)\s+(\w+)\s*=\s*.*readFileSync/);
+      let varHit = 0;
+      if (decl) {
+        const re = new RegExp(`\\b${decl[1]}\\s*\\.\\s*(match|matchAll)\\s*\\(`);
+        for (let j = i + 1; j < Math.min(lines.length, i + 26); j++) {
+          if (re.test(lines[j])) { varHit = j + 1; break; }
+        }
+      }
+      if (!chained && !varHit) continue;
+      const ctx = lines.slice(Math.max(0, i - 2), varHit ? varHit + 1 : i + 4).join("\n");
+      if (!/strip(Comments|XmlComments)/.test(ctx)) out.push(i + 1);
+    }
+    return out;
+  }
+
+  it("finds them — vacuous otherwise", () => {
+    const total = gates.reduce((n, g) => n + unstrippedSites(g.src).length, 0);
+    // The floor. A detector that stopped matching would make the ceiling
+    // below pass at zero, which is this file's own subject again.
+    expect(total, "the read-then-match detector stopped matching").toBeGreaterThan(10);
+  });
+
+  it("no new one is added", () => {
+    const found = gates
+      .map((g) => ({ f: g.f, lines: unstrippedSites(g.src) }))
+      .filter((x) => x.lines.length);
+    const total = found.reduce((n, x) => n + x.lines.length, 0);
+    expect(
+      total,
+      `${total} sites read a file and match against it with nothing stripping comments `
+        + `(ceiling ${UNSTRIPPED_CEILING}). A superseded value parked in a comment above the live `
+        + "declaration is what the gate then compares against. Wrap the read in stripComments() — "
+        + "but read the gate first: for one hunting FORBIDDEN text, stripping is the lenient "
+        + `direction. Sites: ${found.map((x) => `${x.f}:${x.lines.join(",")}`).join(" ")}`,
+    ).toBeLessThanOrEqual(UNSTRIPPED_CEILING);
+  });
+});
