@@ -107,7 +107,7 @@ describe("learnBudget", () => {
     ];
     const { allocation } = learnBudget({ fields });
     // The two under the floor lead, in thinness order; at a cap of 30 the
-    // remaining chunks level fields at the floor behind them (D427 — the
+    // remaining chunks level fields at the floor behind them (D428 — the
     // list was exactly these two when the cap was 10).
     expect(allocation.slice(0, 2).map((a) => a.field)).toEqual(["room", "almost"]);
     for (const a of allocation) expect(a.write).toBeGreaterThanOrEqual(MIN_CHUNK);
@@ -149,7 +149,7 @@ describe("learnBudget", () => {
     const fields = level(3, FIELD_FLOOR);
     const { allocation, split } = learnBudget({ fields, demand: { f00: 0.1, f01: 0.7, f02: 0.2 } });
     // The leaders come first; with seven chunks over three fields the third
-    // gets its turn too (D427 raised the cap from 10, where only two fit).
+    // gets its turn too (D428 raised the cap from 10, where only two fit).
     expect(allocation.slice(0, 2).map((a) => a.field)).toEqual(["f01", "f02"]);
     expect(split.demand).toBe(RUN_CAP);
   });
@@ -237,7 +237,7 @@ describe("learnRunway", () => {
   });
 });
 
-describe("the breadth reserve (D427)", () => {
+describe("the breadth reserve (D428)", () => {
   const level = (n, cards) => Array.from({ length: n }, (_, i) => ({ id: `f${i}`, cards }));
   it("comes off the top of the grant, never below zero", () => {
     expect(learnBudget({ fields: level(12, 8), reserve: 12 }).budget).toBe(RUN_CAP - 12);

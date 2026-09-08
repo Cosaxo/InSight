@@ -59,7 +59,7 @@ nothing, loudly, if no topic is thin.
    in `content/topic-proposals.json` and, when `npm run topic:budget` says
    to create, writes the category at every site that regulator names —
    which for the feed is two files and for the daily is `CAT_META` plus
-   the archive entries that stock it. Fourth (D426): when that regulator
+   the archive entries that stock it. Fourth (D427): when that regulator
    says RETIRE, the run FOLDS the room — rewriting `cat`, `sub`, `alts`
    or `f` on existing rows so their questions are met elsewhere, and
    nothing else about them — and removes every site the verdict names.
@@ -781,13 +781,13 @@ grantable budget of 10. Rules for a learn run:
 - **Start every run with `npm run learn:budget -- --open <cards on the
   open lane PR>`** (D115, reshaped at D350). The budget is computed, not
   flat, and since D350 it has **no ceiling**: every run is granted up
-  to **30 cards per run** (10 until D427 — raised on the owner's
+  to **30 cards per run** (10 until D428 — raised on the owner's
   direction that learn's coverage grows fastest of all the surfaces;
   half the feed's 60, a learn card costing more at the writing bar),
   less whatever already sits unreviewed on the lane's open PR, and the
   only zero is **30** unreviewed cards on that PR (a gate refused a
   batch — fix it, do not stack). **A third of the grant opens new
-  fields first** (D427 — `npm run topic:budget` names which subjects,
+  fields first** (D428 — `npm run topic:budget` names which subjects,
   and `npm run learn:budget -- --reserve <n>` takes those cards off the
   top); what the rest is spent on is printed as the ALLOCATION, in the
   three tiers every lane shares (`scripts/lane-tiers.mjs`), a chunk per
@@ -1460,7 +1460,7 @@ exists (Football under Sport) — a preference of fit, not a cap: a subject
 that is nobody's part is a topic, and the lane may create it.
 
 So the caution moved into `scripts/topic-budget.mjs`, where it fires on a
-schedule — and since D427 its posture is **breadth-first**, on the
+schedule — and since D428 its posture is **breadth-first**, on the
 owner's direction: *"the new topic generation should be higher than
 that, especially in learn … aim to almost become like reddit in the end
 where popular niches are almost all covered."* Reddit's posture is the
@@ -1499,7 +1499,7 @@ people want it, and popularity fills it afterwards.
 **For a feed topic or a daily top — what costs the chip row, a Map
 branch, or every install — the evidence and settling rules D424 wrote,
 plus one: it is PLACED.** (Breadth debt is no longer a blocker anywhere
-since D427: the fill share pays it, and a thin room somewhere is not a
+since D428: the fill share pays it, and a thin room somewhere is not a
 reason a popular niche has no room.) The proposal names the hub it lands in — `group`: for the
 daily a hub id in `map-groups.js` (the new top's `catId` goes into that
 hub's `cats`; the file's "unplaced lands in World" default is never how
@@ -1530,7 +1530,7 @@ written on the question and never created.
    Biology's ecology, neuroscience, microbes — write its handful (or
    retag the existing questions that are already it), and say in the PR
    which and why this one before the others. This is the lane's call,
-   in one run (D427); the room folds itself if the crowd never comes.
+   in one run (D428); the room folds itself if the crowd never comes.
    Then **scout** for the rest: a *part* of a parent this lane keeps
    writing into that has no leaf, a subject the `now` lane has carried
    for months and is no longer *now*, a subject no hub of Knowledge
@@ -1578,7 +1578,7 @@ numbers are in `topic-budget.mjs`'s header so nobody derives it twice.
 Distinctness is the run's argument in the PR body; the gate is on the
 consequences.
 
-## Retiring a room — fold, never delete (D426)
+## Retiring a room — fold, never delete (D427)
 
 Creation without removal compounds: every room opened under the
 evidence rule would be a room that could never be wrong. The path out
@@ -1595,7 +1595,7 @@ question is *met* — its `cat`, `sub` or `f` — and nothing else about it.
 **What licenses a fold, per level — the levels differ on purpose:**
 
 - **A leaf that lost its handful** (under what it was born with: 4 for
-  a feed subtopic, 6 for a learn field — D427 re-based this from the
+  a feed subtopic, 6 for a learn field — D428 re-based this from the
   floor, since every leaf is under the floor at birth now and the lane
   fills it), **or that the crowd is silent on** once the demand signal is
   readable. The fold is free: dropping `sub` leaves every question

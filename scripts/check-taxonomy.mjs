@@ -48,7 +48,7 @@
 //      caption row that resolves to a branch or a hub, except the one
 //      stated exception; and a top-level proposal names a hub that exists.
 //
-//   7. RETIREMENT is complete (D426 — fold, never delete): a retired id is
+//   7. RETIREMENT is complete (D427 — fold, never delete): a retired id is
 //      at NO site — no row on any list, no question met through it (feed
 //      `cat`/`sub`/`also`, learn `f`/subject, daily `cat[0]`/`alts`), no
 //      hub entry, no caption, no anchor fallback, no ledger row pointing at
@@ -405,7 +405,7 @@ export function checkTaxonomy(sources = loadSources()) {
     for (const x of ledger.retirements ?? []) {
       if (x.surface === r.surface && (x.id === id || x.into === id)) sites.push(`retirement row ${x.id}`);
     }
-    if (sites.length) err(`${where}: retired, and still at ${sites.join(", ")} — a fold removes every site (D426); this one stopped part way`);
+    if (sites.length) err(`${where}: retired, and still at ${sites.join(", ")} — a fold removes every site (D427); this one stopped part way`);
     if (!r.into) err(`${where}: no \`into\` — where did its questions go?`);
   }
   for (const r of ledger.retirements ?? []) {

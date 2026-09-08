@@ -48,7 +48,7 @@
 // layer up: that regulator answers "how many questions may this run
 // write", this one "may this run open a new room to write them into".
 //
-// THE POSTURE IS BREADTH-FIRST (D427). The first cut was depth-first —
+// THE POSTURE IS BREADTH-FIRST (D428). The first cut was depth-first —
 // every room full before another opens, three days of evidence, one leaf
 // per parent at a time — and the owner's reading of it was the correction:
 // "the new topic generation should be higher than that, especially in
@@ -62,7 +62,7 @@
 //     24) is what the lane fills TOWARD afterwards, thinnest first.
 //   · A leaf is the LANE'S CALL, in one run. No day rule, no parent-levelled
 //     rule, no settling: a leaf is cheap (no chip, no branch, no install
-//     page) and it folds itself if it stays empty (D426, re-based below on
+//     page) and it folds itself if it stays empty (D427, re-based below on
 //     the handful rather than the floor). What the run owes is the reason in
 //     the PR: which popular niche, and why this one before the others.
 //   · COVERAGE is a number, and it steers. Every parent has a coverage
@@ -151,11 +151,11 @@ export const RUNS_MIN = 3;
 // (bankPager.ts FEED_PAGE): a leaf that fills one page is a whole shelf.
 // Held equal to the pager's constant by the test (feedPageCost below reads
 // it off the source), so the two cannot drift the way D197's copies did.
-// Since D427 this is what the lane fills TOWARD, not what a leaf is born
+// Since D428 this is what the lane fills TOWARD, not what a leaf is born
 // with — birth is the handful below.
 export const LEAF_FLOOR = 12;
 
-// D427 — Reddit's posture as numbers. A room exists with a handful; the
+// D428 — Reddit's posture as numbers. A room exists with a handful; the
 // lane fills it afterwards; coverage steers where the next room opens.
 //   LEAF_BIRTH    4  a subtopic exists once four questions carry its tag —
 //                    a reader who filters to it meets a shelf with something
@@ -205,7 +205,7 @@ export const TOPS = {
   learn: {
     // A subject is a branch inside Knowledge by prefix — no chip, no hub
     // change — so it is CHEAP: born like a leaf, one run, with FIELD_BIRTH
-    // cards in its first field (D427).
+    // cards in its first field (D428).
     floor: FIELD_FLOOR, cap: LEARN_CAP, noun: "subject", cheap: true, birth: FIELD_BIRTH,
     sites: ["content/learn-questions.json (subjects — Knowledge by the lrn- prefix, automatic; plus its first field and that field's cards)"],
   },
@@ -280,7 +280,7 @@ export function leafVerdict({ surface, parked, retag = 0, budget, parentOk = tru
     create: blockers.length === 0,
     owed, write, blockers,
     reason: blockers.length === 0
-      ? `create it — the lane's call, one run (D427): write ${plural(write, "question")} into it in the same PR (${parked} parked + ${retag} retagged + ${write} = ${stock + write}, born at the handful of ${s.birth}; the lane fills it toward ${s.floor} afterwards), say in the PR which popular niche this is and why it before the others, and write every site: ${s.sites.join(" · ")}`
+      ? `create it — the lane's call, one run (D428): write ${plural(write, "question")} into it in the same PR (${parked} parked + ${retag} retagged + ${write} = ${stock + write}, born at the handful of ${s.birth}; the lane fills it toward ${s.floor} afterwards), say in the PR which popular niche this is and why it before the others, and write every site: ${s.sites.join(" · ")}`
       : blockers[0],
   };
 }
@@ -313,7 +313,7 @@ export function topVerdict({ surface, placed = true, parked, days, budget, settl
     return {
       create: blockers.length === 0, owed, write, blockers,
       reason: blockers.length === 0
-        ? `create it — the lane's call, one run (D427): the subject row, its first field, and ${plural(write, "card")} into that field in the same PR (${parked} parked + ${write} = ${parked + write} of the handful ${s.birth}); Knowledge takes it by prefix; say in the PR which subject and why. Sites: ${s.sites.join(" · ")}`
+        ? `create it — the lane's call, one run (D428): the subject row, its first field, and ${plural(write, "card")} into that field in the same PR (${parked} parked + ${write} = ${parked + write} of the handful ${s.birth}); Knowledge takes it by prefix; say in the PR which subject and why. Sites: ${s.sites.join(" · ")}`
         : blockers[0],
     };
   }
@@ -337,7 +337,7 @@ export function topVerdict({ surface, placed = true, parked, days, budget, settl
   };
 }
 
-/** Where the breadth share opens rooms this run (D427). `parents` is
+/** Where the breadth share opens rooms this run (D428). `parents` is
  * [{ id, rooms }] — every parent on the surface with how many leaves it
  * holds; the least covered (rooms ÷ target) get a room each, round-robin,
  * until the share is spent at `birth` per room. Parents at or over the
@@ -498,7 +498,7 @@ export function parentDeficitOf(surface, parent, tops, leaves) {
   return null;
 }
 
-// ── retirement (D426): fold, never delete ──
+// ── retirement (D427): fold, never delete ──
 //
 // WHY A PATH OUT EXISTS. D424 and D425 made creation cheap and left removal
 // impossible — a room that stopped earning its place had nowhere to go, and
@@ -572,7 +572,7 @@ export function retireVerdict({ level, surface, id, into, intoExists, stock, flo
         : `\`into\` is not a ${surface} ${s.noun} that exists`);
   }
   if (leaves > 0) blockers.push(`${plural(leaves, "leaf")} still under it — fold the leaves first, each with its own row`);
-  // D427 re-based the leaf's thin licence on the HANDFUL it was born with,
+  // D428 re-based the leaf's thin licence on the HANDFUL it was born with,
   // not the floor: every leaf is under the floor at birth now, and the lane
   // fills it — so "thin" means it fell below its handful (questions retired
   // from under it), or the crowd is readable and silent on it.
@@ -638,7 +638,7 @@ if (invokedDirectly) {
       : `${plural(leafRows.length, LEAVES[name].noun)}, floor ${LEAVES[name].floor}, ${leafRows.filter((l) => l.stock < LEAVES[name].floor).length} under it`;
     console.log(`    ${name}: ${plural(t.count, s.noun)}, lane owes ${t.deficit}${t.deficit === 0 ? " (levelled)" : ""} · ${leafLine}`);
   }
-  // D427 — where the breadth share opens rooms this run, per surface, and
+  // D428 — where the breadth share opens rooms this run, per surface, and
   // which existing leaves the fill should tag first.
   const learnJson = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
   const coverage = {
@@ -651,7 +651,7 @@ if (invokedDirectly) {
       target: FIELD_TARGET, birth: FIELD_BIRTH, budget: LEARN_CAP,
     }),
   };
-  console.log("  coverage (D427 — a room exists with a handful; the breadth share opens rooms least-covered first):");
+  console.log("  coverage (D428 — a room exists with a handful; the breadth share opens rooms least-covered first):");
   for (const [name, c] of Object.entries(coverage)) {
     const parents = name === "feed" ? tops.feed.rows.map((r) => r.id) : learnJson.subjects.map((sj) => sj.id);
     const target = name === "feed" ? LEAF_TARGET : FIELD_TARGET;
@@ -707,7 +707,7 @@ if (invokedDirectly) {
   if (retirements.length) {
     let scorecard = null;
     try { scorecard = JSON.parse(readFileSync(join(root, "content", "scorecard.json"), "utf8")); } catch { /* absent is a state the signal names */ }
-    console.log(`\n  ${plural(retirements.length, "retirement")} proposed — fold, never delete (D426):`);
+    console.log(`\n  ${plural(retirements.length, "retirement")} proposed — fold, never delete (D427):`);
     for (const r of retirements) {
       const level = levelOf(r);
       const t = tops[r.surface], l = leaves[r.surface];

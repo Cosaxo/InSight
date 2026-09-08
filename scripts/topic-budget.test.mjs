@@ -18,10 +18,10 @@ import { TOP_FLOOR, RUN_CAP as DAILY_CAP } from "./farm-budget.mjs";
 import { TOPIC_FLOOR, RUN_CAP as FEED_CAP } from "./feed-budget.mjs";
 import { FIELD_FLOOR, RUN_CAP as LEARN_CAP } from "./learn-budget.mjs";
 
-// D427: a leaf is the lane's call, born with a handful, one run.
+// D428: a leaf is the lane's call, born with a handful, one run.
 const leaf = { surface: "feed", parked: 1, retag: 0, budget: FEED_CAP, parentOk: true };
 
-describe("leafVerdict — breadth-first, the lane's call in one run (D427)", () => {
+describe("leafVerdict — breadth-first, the lane's call in one run (D428)", () => {
   it("creates with one parked question and writes the rest of the handful", () => {
     const v = leafVerdict(leaf);
     expect(v.create).toBe(true);
@@ -126,7 +126,7 @@ describe("topVerdict — a new topic lands in a hub that exists", () => {
     expect(TOPS.feed.max).toBeUndefined();
     expect(topVerdict(top).create).toBe(true);
     expect(topVerdict({ ...top, parked: 50, days: 1 }).blockers[0]).toMatch(/anecdote/);
-    // Breadth debt was a blocker in D424's cut; D427 retired it — the fill
+    // Breadth debt was a blocker in D424's cut; D428 retired it — the fill
     // share pays the debt, and a thin room somewhere is not a reason a
     // popular niche has no room.
     expect(JSON.stringify(topVerdict({ ...top }).blockers)).not.toMatch(/breadth debt/);
@@ -247,7 +247,7 @@ describe("the tree it actually runs on", () => {
   });
 });
 
-describe("retireVerdict — fold, never delete (D426)", () => {
+describe("retireVerdict — fold, never delete (D427)", () => {
   const leaf = { level: "leaf", surface: "feed", id: "sub_tennis", into: "sport", intoExists: true, stock: LEAF_BIRTH - 1, floor: LEAF_FLOOR, birth: LEAF_BIRTH };
   const top = { level: "top", surface: "feed", id: "culture", into: "people", intoExists: true, stock: 30, floor: TOPIC_FLOOR };
   const readable = { mode: "demand", weights: { culture: 0.001, people: 0.5, sport: 0.499 }, note: "" };
@@ -260,7 +260,7 @@ describe("retireVerdict — fold, never delete (D426)", () => {
     expect(v.reason).toMatch(/world-subtopics\.js/);
   });
 
-  it("keeps a leaf that holds its handful — under the floor is the lane's to fill, not a licence (D427)", () => {
+  it("keeps a leaf that holds its handful — under the floor is the lane's to fill, not a licence (D428)", () => {
     const v = retireVerdict({ ...leaf, stock: LEAF_BIRTH });
     expect(v.retire).toBe(false);
     expect(v.blockers[0]).toMatch(/holds its handful/);

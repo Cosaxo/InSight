@@ -45897,7 +45897,7 @@ carries `sub` in the bank, so the generator's output is byte-identical
 with or without the emission, the ledger is empty, and the ring's
 ratchet reads the count that is there.
 
-## D426 · The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way
+## D427 · The path out: a room is retired by folding, never by deleting, and the gate fails a fold stopped part way
 
 **2026-09-08.** **Status:** binding, built. The owner, the day the path
 in merged: *"build the removal path too"*.
@@ -45998,9 +45998,9 @@ else about them; the verdict states the rewrite and the gate bounds it.
 Revert the commit. The ledger's two lists are empty, the gate's rule 7
 walks nothing, and the orphan rules read the tree that is there.
 
-## D427 · Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples
+## D428 · Breadth-first: a room is born with a handful, coverage steers where the next one opens, and learn's cap triples
 
-**2026-09-08.** **Status:** binding, built. The owner, reading D424–D426
+**2026-09-08.** **Status:** binding, built. The owner, reading D424–D427
 as one system: *"i think the new topic generation should be higher then
 that espasialy in learn but also other things should aim to almost
 become like reddit in the end where popular niches are almost all
@@ -46037,7 +46037,7 @@ the feed levels topics and a leaf's questions *are* its parent's.
 **2 · A leaf is the lane's call, in one run.** No day rule, no
 parent-levelled rule, no settling — all three were D424's, and each
 priced a leaf as if it cost what a topic costs. It does not: no chip,
-no Map branch, no install page, and since D426 it folds itself. What
+no Map branch, no install page, and since D427 it folds itself. What
 the run owes is the argument in the PR: which popular niche, and why
 this one before the others. `leafVerdict` has one blocker left,
 capacity — a room exists with its handful or not at all.
@@ -46078,7 +46078,7 @@ popular niche has no room. What still waits is what costs the chip
 row, a Map branch, or every install: a feed topic and a daily top keep
 the three-day evidence rule, placement and settling.
 
-**7 · D426's leaf licence is re-based on the handful.** Every leaf is
+**7 · D427's leaf licence is re-based on the handful.** Every leaf is
 under the floor at birth now and the lane fills it, so "under the floor
 → fold" would have retired every new room the run after it opened.
 *Thin* means below the handful it was born with — questions retired

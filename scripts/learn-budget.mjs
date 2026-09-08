@@ -30,7 +30,7 @@
 //                      bar (each card's trap argued, its fact sourced, its
 //                      difficulty placed), not a stock one. It was 10 with
 //                      the rule "raise it when runs finish with the bar met
-//                      and time to spare"; raised at D427 on the owner's
+//                      and time to spare"; raised at D428 on the owner's
 //                      direction that learn's coverage should grow fastest
 //                      of all the surfaces ("especially in learn … almost
 //                      become like reddit"), to half the feed's 60 — a
@@ -65,7 +65,7 @@
 //
 // The budget:
 //   budget = 0 if open ≥ OPEN_MAX, else min(RUN_CAP, OPEN_MAX − open) − reserve
-//            — never zero for stock. `reserve` (--reserve, D427) is what
+//            — never zero for stock. `reserve` (--reserve, D428) is what
 //            topic-budget.mjs takes off the top to OPEN new fields this run
 //            (the breadth share); what is left levels the fields that exist.
 // allocated through lane-tiers' CHUNK mode: a run touches at most
@@ -118,7 +118,7 @@ export function learnBudget({ fields, open = 0, demand = null, reserve = 0 }) {
   // `OPEN_MAX - open` is what makes "one unreviewed batch at a time" true
   // rather than aspirational. Never zero for stock (D316/D350).
   // The reserve is the breadth share topic-budget opens NEW fields with
-  // (D427); a field that does not exist yet is not a row here, so its cards
+  // (D428); a field that does not exist yet is not a row here, so its cards
   // come off the top rather than out of the levelling below.
   const budget = Math.max(0, Math.min(RUN_CAP, OPEN_MAX - open) - Math.max(0, Math.floor(reserve)));
   const tiers = allocateTiers({
