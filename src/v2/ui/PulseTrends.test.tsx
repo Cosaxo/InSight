@@ -84,6 +84,87 @@ const mount = async () => {
   return render(<PulseTrends />);
 };
 
+// ── which thing is short (D146) ─────────────────────────────────────
+//
+// The "not a trend yet" branch is decided on COMPARABLE days — ones you
+// answered where the crowd also cleared PULSE.THIN — while the sentence
+// counts days YOU answered, and the line under it said "Answer again
+// tomorrow and the line starts" whatever the reason.
+//
+// When the crowd is what is short, answering again does nothing: the scope
+// defaults to your city and needs THIN answers PER DAY. So somebody who
+// answered ten days running, every one of them read, was told "10 days in
+// — not a trend yet. Answer again tomorrow."
+describe("PulseTrends · not a trend yet, and whose fault that is", () => {
+  const answerDays = (n: number, over: Record<string, unknown>) => {
+    for (let i = DAYS - n; i < DAYS; i++) {
+      setDay(i, { v: 3 });
+      setScope(i, over);
+    }
+  };
+
+  it("does not tell you to answer again when the CROWD is what is thin", async () => {
+    // Ten days answered, every one of them read, every one under THIN.
+    answerDays(10, { mean: 3.2, n: 6, placed: false, thin: true });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text, "the count is still yours, which is right — you did answer ten days")
+      .toMatch(/10 days in — not a trend yet/);
+    expect(
+      text,
+      "told to answer again on a day the crowd is what is missing",
+    ).not.toMatch(/Answer again tomorrow/);
+    expect(text).toMatch(/the line starts when the crowd fills in/);
+  });
+
+  it("counts the days that ARE read, rather than saying none are", async () => {
+    // THE THIRD ARM, which the two cases above could not reach: both land
+    // on `comparable.length === 0` ("No day has N answers behind it yet"),
+    // so the pluralised branch beside it was rendered by nothing and could
+    // be replaced with any string at all with this file green.
+    //
+    // It is the ordinary shape once a city starts filling in — some days
+    // read, not yet three — and it is the one that has to get the number
+    // right, because "Only 2 of them" is a claim about the reader's own
+    // history rather than a general statement about the crowd.
+    answerDays(8, { mean: 3.2, n: 6, placed: false, thin: true });
+    // …two of the eight with a real crowd behind them.
+    setScope(DAYS - 1, { mean: 3.2, n: 44, placed: true, thin: false });
+    setScope(DAYS - 2, { mean: 3.1, n: 41, placed: true, thin: false });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/8 days in — not a trend yet/);
+    expect(
+      text,
+      "said no day was read while two of them were",
+    ).toMatch(/Only 2 of them have \d+ answers behind them/);
+    expect(text).not.toMatch(/No day has/);
+    expect(text).not.toMatch(/Answer again tomorrow/);
+  });
+
+  it("…and says it in the singular when exactly one day is read", async () => {
+    // THE CONTROL on the arm above: "Only 1 of them have … behind them"
+    // is the sentence a fixture-shaped assertion would happily accept.
+    answerDays(8, { mean: 3.2, n: 6, placed: false, thin: true });
+    setScope(DAYS - 1, { mean: 3.2, n: 44, placed: true, thin: false });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/Only 1 of them has \d+ answers behind it/);
+    expect(text).not.toMatch(/behind them/);
+  });
+
+  it("…and DOES tell you to answer again when YOU are what is thin", async () => {
+    // THE CONTROL. Two days answered, both with a full crowd behind them:
+    // the blocker really is you, and the instruction really is the answer.
+    answerDays(2, { mean: 3.2, n: 44, placed: true, thin: false });
+    await mount();
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/2 days in — not a trend yet/);
+    expect(text, "the one case where answering again is the actual advice")
+      .toMatch(/Answer again tomorrow/);
+  });
+});
+
 describe("PulseTrends · absent is not zero", () => {
   it("says a crowd day has no answers rather than reading it as a score", () => {
     // THE rule. `n: 0, mean: null` must reach the reader as "no answers",

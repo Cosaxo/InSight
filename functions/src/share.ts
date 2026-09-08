@@ -212,7 +212,19 @@ export function renderResultsPage(input: ResultsInput): { status: number; html: 
   const audLine = Object.entries(audience).map(([d, b]) => `${DIM_LABEL[d] ?? d}: ${String(b)}`);
   const from = dayLabel(q.from);
   const until = dayLabel(q.until);
-  const live = typeof q.until === "string" && q.until >= input.today;
+  // `active !== false` and not the date alone. The window clause used to be
+  // date-only, which cannot see a campaign the ERASURE sweep stopped: phase
+  // 4e writes `active: false` on a running bought question, and this page
+  // then said "runs 6 Sep 2026 → 4 Oct 2026" — a future date, on a campaign
+  // nothing will ever restart — one line under "Asked by a buyer who has
+  // since deleted their account". The two clauses beside it were fixed when
+  // the marker was added; this was the one left making a false statement,
+  // on the page whose foot text is about exactly that.
+  //
+  // It changes nothing for an ordinary close. A campaign that ran its
+  // window out already has `until < today` and already said "ran"; one the
+  // closer stopped early now says "ran" too, which it should.
+  const live = q.active !== false && typeof q.until === "string" && q.until >= input.today;
   const domain = linkDomain(sponsor.link);
 
   const split = options.length

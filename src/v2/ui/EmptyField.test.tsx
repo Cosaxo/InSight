@@ -158,11 +158,11 @@ describe("the words are the readable half", () => {
     // turns the field's own name into the sentence explaining it.
     const { container } = render(
       <EmptyField caption="your circle" action={{ label: "Start a group →", nav: "track:group" }}>
-        One question a day, revealed with names the morning after.
+        Everyone answers, then it opens with names.
       </EmptyField>,
     );
     expect(container.textContent).toBe(
-      "you" + "your circle" + "One question a day, revealed with names the morning after." + "Start a group →",
+      "you" + "your circle" + "Everyone answers, then it opens with names." + "Start a group →",
     );
   });
 });
@@ -184,7 +184,7 @@ describe("the one action a field cannot take for itself", () => {
     installNav({ goNav, goTab });
     render(
       <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
-        One question a day, revealed with names the morning after.
+        Everyone answers, then it opens with names.
       </EmptyField>,
     );
     fireEvent.click(screen.getByRole("button", { name: /Start a group/ }));
@@ -201,7 +201,7 @@ describe("the one action a field cannot take for itself", () => {
     installNav({ goTab });
     render(
       <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
-        One question a day, revealed with names the morning after.
+        Everyone answers, then it opens with names.
       </EmptyField>,
     );
     fireEvent.click(screen.getByRole("button", { name: /Start a group/ }));

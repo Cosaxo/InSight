@@ -53,7 +53,7 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { bankArray } from "./v2content-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -167,7 +167,18 @@ const COLD_BOOT_SURFACES = ["test", "group", "duo", "pulse", "call"];
 // never. Not parsed-and-trusted, and not copied-and-hoped: copied, and
 // proved still equal.
 (() => {
-  const live = read("src/v2/data/live.ts");
+  // STRIPPED, and that is not decoration. `.match` returns the FIRST hit, so
+  // a superseded spelling parked in a comment above the live one is what
+  // this reads — and then the equality check compares the copy below
+  // against the comment and agrees with itself. Measured: dropping "test"
+  // from the real list while leaving the old list in a `// was:` line above
+  // it prints `check-figures OK` at exit 0, while the cold-boot row in
+  // docs/COSTS.md stays certified at a number 2.8x the truth. That is the
+  // D179/D197/D275 class — a script that CHECKS something breaking with
+  // nothing else going red — in the one gate whose whole job is to notice
+  // a figure that stopped being true. The same file already strips for its
+  // OTHER read of this same module, one screen down.
+  const live = stripComments(read("src/v2/data/live.ts"));
   const m = live.match(/const BANK_SURFACES = \[([^\]]+)\]/);
   if (!m) {
     throw new Error(
@@ -792,14 +803,14 @@ const FIGURES = [
     // breaks after "in", and a re-wrap must not silently stop matching.
     re: /(\d+) of the (?:\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
     actual: String(feedCoreCount),
-    fix: (n) => `"${n} of the ${feedCount} ... carry \`core: true\`"`,
+    fix: (n) => `"${n} of the ${feedCount} in \`content/feed-questions.json\` carry \`core: true\`"`,
   },
   {
     file: "docs/SCALE-PLAN.md",
     what: "feed questions in the bank",
     re: /(?:\d+) of the (\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
     actual: String(feedCount),
-    fix: (n) => `"... of the ${n} in content/feed-questions.json"`,
+    fix: (n) => `"${feedCoreCount} of the ${n} in \`content/feed-questions.json\` carry \`core: true\`"`,
   },
   {
     file: "docs/SCALE-PLAN.md",
@@ -814,7 +825,10 @@ const FIGURES = [
     what: "answerable questions across the six surfaces CIRCLE_ANSWER_CAP argues about",
     // `\s+` across the wrap, as elsewhere in this table: the sentence
     // breaks after "surfaces —" and a re-wrap must not stop matching.
-    re: /six surfaces — (\d+) answerable\s+\* questions across the committed banks/,
+    // The `*` is this JSDoc block's continuation marker and only appears
+    // when the clause wraps, which a one-line remedy cannot reproduce —
+    // so the pattern tolerates its absence rather than the hint faking it.
+    re: /six surfaces — (\d+) answerable\s+\*? ?questions across the committed banks/,
     actual: String(answerableTotal),
     fix: (n) => `"six surfaces — ${n} answerable questions across the committed banks"`,
   },
@@ -858,7 +872,7 @@ const FIGURES = [
     what: "the two duo banks together",
     re: /share the `duo` surface, (\d+) together/,
     actual: String(contentCounts.duoTotal),
-    fix: (n) => `"share the duo surface, ${n} together"`,
+    fix: (n) => `"share the \`duo\` surface, ${n} together"`,
   },
   {
     file: "content/README.md",
@@ -872,7 +886,7 @@ const FIGURES = [
     what: "feed questions in the bank",
     re: /\| Feed questions \((\d+)\)/,
     actual: String(feedCount),
-    fix: (n) => `"Feed questions (${n})"`,
+    fix: (n) => `"| Feed questions (${n})"`,
   },
   {
     file: "docs/CATALOG-QUESTIONS.md",
@@ -918,7 +932,7 @@ const FIGURES = [
     what: "mount smoke files (§2)",
     re: /five of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
-    fix: (n) => `"five of the **${n}** smoke-*.test.jsx"`,
+    fix: (n) => `"five of the **${n}** \`smoke-*.test.jsx\`"`,
   },
   {
     file: "CLAUDE.md",
@@ -965,7 +979,7 @@ const FIGURES = [
     what: "suites that mount the whole App through the harness (§2)",
     re: /harness, and \*\*(\w+)\*\* suites mount\s+the whole `App`/,
     actual: word(harnessFiles),
-    fix: (n) => `"and **${n}** suites mount the whole App"`,
+    fix: (n) => `"harness, and **${n}** suites mount the whole \`App\`"`,
   },
   {
     file: "CLAUDE.md",
@@ -977,7 +991,10 @@ const FIGURES = [
   {
     file: "CLAUDE.md",
     what: "how far that figure had drifted (§1)",
-    re: /understate the migration by (\d+)\n?modules/m,
+    // `\s+`, not `\n?`: the prose wraps today, so the pattern demanded a
+    // line break where the hint prints a space — following the remedy
+    // verbatim un-quoted the figure. Either shape is the same sentence.
+    re: /understate the migration by (\d+)\s+modules/m,
     // A CONSTANT, not `convertedSpecModules - 7`. That subtraction read as
     // the same recomputation as the entry above it and is not: the drift is
     // history — the prose said seven while the tree held 32 — so it is 25
@@ -1037,14 +1054,14 @@ const FIGURES = [
     // the prose to the lists.
     re: /## Alerting \((\w+) policies, \w+ log-based metrics\)/,
     actual: word(monitoringPolicies),
-    fix: (n) => `"## Alerting (${n} policies, ...)"`,
+    fix: (n) => `"## Alerting (${n} policies, ${word(monitoringMetrics)} log-based metrics)"`,
   },
   {
     file: "docs/DEPLOYMENT.md",
     what: "log-based metrics the section documents",
     re: /## Alerting \(\w+ policies, (\w+) log-based metrics\)/,
     actual: word(monitoringMetrics),
-    fix: (n) => `"## Alerting (..., ${n} log-based metrics)"`,
+    fix: (n) => `"## Alerting (${word(monitoringPolicies)} policies, ${n} log-based metrics)"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",
@@ -1337,7 +1354,17 @@ const FIGURES = [
     what: "the documents a cold boot reads from the bank (the cold-boot row)",
     re: /\*\*\+(\d+) reads\*\* — five whole surfaces plus the feed's core/,
     actual: coldBootBankDocs,
-    fix: (n) => `"**+${n} reads** — the whole question bank"`,
+    // The hint has to quote the sentence the PATTERN matches. It quoted
+    // "the whole question bank" — the wording D383 retired and this very
+    // entry was retargeted away from — so a maintainer who followed the
+    // printed remedy verbatim restored a claim the block above calls false,
+    // and the next run then told them the figure was no longer quoted and
+    // to DELETE this entry. Measured: bump the row to 493, run, apply the
+    // printed sentence, run again, and the second message is
+    // "could not find the sentence … delete its entry from FIGURES in this
+    // script rather than restoring the sentence". A remedy that walks a
+    // reader from a caught drift to a deleted gate in two steps.
+    fix: (n) => `"**+${n} reads** — five whole surfaces plus the feed's core questions"`,
   },
   {
     file: "docs/COSTS.md",
@@ -1375,6 +1402,20 @@ const FIGURES = [
     re: /you copy it across: \*\*(\d+) data types\*\*/,
     actual: String(appPrivacyRows),
     fix: (n) => `"you copy it across: **${n} data types**"`,
+  },
+  {
+    // The SAME number one file over, and it drifted the same way for the
+    // same reason: the heading over the table said "declare these eight"
+    // while the table under it had eleven rows and check:store-forms
+    // printed "11 collected type(s)" beside it. It went stale at D200 and
+    // has since missed D203's Health row and D272's Product Interaction
+    // row — the two drifts the runbook's own entry above was added for.
+    // A word, not a digit, because that is how the heading reads.
+    file: "docs/STORE-FORMS.md",
+    what: "the collected-row count in the section heading",
+    re: /### Collected — declare these (\w+)/,
+    actual: word(appPrivacyRows),
+    fix: (n) => `"### Collected — declare these ${n}"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
@@ -1550,7 +1591,7 @@ const FIGURES = [
     what: "the feed lane's per-run cap, as § Continuum questions states it",
     re: /continuum candidates count inside the lane's ≤(\d+)\/run/,
     actual: feedConst("RUN_CAP"),
-    fix: (n) => `"count inside the lane's ≤${n}/run"`,
+    fix: (n) => `"continuum candidates count inside the lane's ≤${n}/run"`,
   },
   {
     file: "docs/QUESTION-FARM.md",
@@ -1712,7 +1753,20 @@ if (runnerRows !== testRunners) {
   );
 }
 
-if (errors.length) {
+// IMPORTABLE ABOVE, RUNNABLE BELOW — the shape scripts/spec-globals.mjs and
+// check-policy-claims.mjs already use, and for the same reason: a test that
+// imports FIGURES to hold a property of the entries must not also print a
+// report and call process.exit, which inside a test runner takes the whole
+// run with it. The COMPUTATION above is left unguarded on purpose — it is
+// pure, and the one thing that can throw at import (the BANK_SURFACES
+// equality check) throwing means the tree really is inconsistent, which a
+// test should see rather than skip.
+const isEntry = process.argv[1]
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+export { FIGURES };
+
+if (isEntry && errors.length) {
   console.error("\ncheck-figures: documented figures no longer match the tree:\n");
   for (const e of errors) console.error(`  ${e}\n`);
   console.error(
@@ -1723,7 +1777,7 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(
+if (isEntry) console.log(
   `check-figures OK — ${FIGURES.length} documented figures across `
   + `${sources.size} files match the tree `
   + `(rules tests: ${rulesTests}; questions: ${seededQuestions}, `

@@ -470,7 +470,7 @@ const EXPORTS = {};
           <Sheet onClose={closeAdd} closing={closing} label="New group">
               <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flexShrink: 0 }}>New group</span>
-                <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>one question a day, revealed with names</span>
+                <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>answered blind, revealed with names</span>
                 <button className="tap44" onClick={closeAdd} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none' }}>{'\u2715'}</button>
               </div>
               <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
