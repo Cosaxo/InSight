@@ -44902,3 +44902,46 @@ amendment reasoning production's duel-answer set to provably empty).
 **Re-check both before step 2.** If real groups are playing by then, the
 rules need a transition window accepting both id shapes, and that is a
 materially bigger change than what is planned.
+
+### D420 amendment (2026-09-08) — the model is approved, and notifications are the volley's other half
+
+Read the plan back in plain words — a round is a number; a 1v1 reveals
+the moment the other person answers; a group reveals when the last
+member does or at the deadline for those who did; up to five rounds
+ahead; a late answer shown and marked and not counted; the card saying
+*waiting on Leo*; world questions in a 1v1 with the world's split as a
+third column — the owner said *"yeah lets do that"*, and asked: *"should
+we have notification connectod to this as well?"*
+
+**The four owner rows are answered by that sentence** and annotated so
+in `OWNER-LIST.md`; the ticks stay the owner's (D352).
+
+**Notifications: yes, and rounds are where they start earning their
+place.** A volley with no nudge is a game where nobody knows it is their
+move. `ROUNDS-PLAN.md` §7.4 is the design; what it commits to:
+
+- **One send site, two messages.** When an answer lands, each *other*
+  member gets *your turn* if they have not answered this round, or the
+  reveal if they have — in a 1v1 those are exclusive, so it is always
+  one push to one person. A group is nudged once per round per member,
+  never once per answer, and the reveal of round *n* carries the opening
+  of round *n+1* because they are one commit.
+- **Debounced per recipient**, on a `pushAt` map the reveal transaction
+  already holds — one push per person per window, the body naming the
+  count. Per recipient rather than per group, or one active partner
+  silences the other's nudge.
+- **A third Android channel, `turns`, at importance 3.** A nudge is not
+  a result; a person who mutes nudges keeps reveals. `push.ts` already
+  makes this argument for the second channel.
+- **The privacy page moves first (D183).** It names *"the four
+  notifications this app sends"*, and `check:policy-claims` holds the
+  list while `check:figures` holds the count against the send sites — so
+  the fifth send cannot ship until the page says it. That is the build
+  order, and the gates enforce it rather than this record.
+- **The foreground case** — a push about the card you are looking at —
+  is unhandled today for the reveal too, and the client's to suppress.
+  It matters at eight a day in a way it did not at one.
+
+Nothing here is a D334 ask: a nudge says *someone played*, which
+`roundPlayers` already discloses to the same people, and a reveal push
+says what today's says.

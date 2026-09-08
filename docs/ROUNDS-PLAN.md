@@ -1,12 +1,16 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — nothing of it is built.** The follow-through on
+**Status: plan notes — nothing of it is built; the model is APPROVED.** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
 questions per day."* Directed by the owner on 2026-09-08 (*"lets go with
 this path"*), with the group's reveal condition ruled in the same
-message and the lead cap asked for as a reflection (§5). Every item is
+message and the lead cap asked for as a reflection (§5). **On the same
+day, to the model explained in plain words — five rounds ahead, a late
+answer marked and not counted, *waiting on Leo*, world questions with
+the world's split on the reveal — the owner said *"yeah lets do that"*,
+and asked whether notifications connect to it (§7.4).** Every item is
 measured against the tree with the constraint that shapes it and its
 backend half named (D167); §11 is the build order and the gate per step.
 
@@ -30,6 +34,7 @@ and the calendar has nothing left to do.
 | **The bank** (§6) | build — a lane burst; and an owner row for world questions | the duel lane's cap and target; a rules widening for world-surface duel answers | 32 · 26 questions is one evening at rounds pace. `check:neighbors`, the voice and every farm hard rule are unchanged |
 | **Reveal history by query** (§7.1) | build — a strict cost win, ships alone | one `orderBy("revealedAt","desc")` query replaces up to 14 day-key `getDoc`s | Round ids are not guessable, so the day-key fan-out cannot survive anyway. Reads both id shapes |
 | **The ledger** (§7.2) | **already an owner row — rounds make it a dependency** | `ROLES-PLAN.md` §3.3, unchanged | A fortnight of reveals is the roles fold's substrate; rounds put hundreds of reveals in a fortnight |
+| **Notifications: *your turn*, and the reveal, debounced** (§7.4) | build — the owner's ask, 2026-09-08 | one send site in the answer trigger, a per-recipient `pushAt` map on the group document, a third Android channel | **`web/privacy.html` moves first (D183)**: it names four notifications and this is a fifth; `check:policy-claims` holds the list and `check:figures` holds the count against the send sites, so the gates refuse the send until the page says it |
 | **The screens** (§7.5) | visual request 11, then build | none | D352: the first-day screen's three beats are drawn against a clock that a 1v1 no longer has |
 
 **Cost, measured** (`scripts/cost-arith.mjs`, 2026-09-08): at **8 rounds a
@@ -361,12 +366,78 @@ strictly newer day, so the second reveal of a day does not move it.
 on. A streak is about coming back, and days are what measure that; rounds
 measure something else and should not be spent on it.
 
-### 7.4 · Push needs a debounce
+### 7.4 · Notifications — the volley's other half
 
-One reveal, one notification, is right at one a day and spam at eight. A
-partner clearing five rounds would fire five. The fix rides a document
-the reveal transaction already holds: a `lastPushAt` on the group, one
-push per group per window, the body naming the count.
+> *"should we have notification connectod to this as well?"* — the owner,
+> 2026-09-08. Yes, and rounds are where a notification starts earning
+> its place: a volley with no nudge is a game where nobody knows it is
+> their move.
+
+**What exists.** One class about play, sent once a day by the reveal scan
+— *"Yesterday's answers are out — see if you called it"* — on the Android
+channel `reveals`, plus three about membership on `invites` (D236, D240).
+The tap lands on the room (`data/push.ts` stashes the gid). The privacy
+page names all four by kind, and `check:policy-claims` holds that list.
+
+**What rounds add: one send site, two messages.** When a member's answer
+lands, the trigger already knows who else is in the room and who has
+played (`roundPlayers`). For each *other* member it sends one of:
+
+| They have… | Message | Channel |
+| --- | --- | --- |
+| not answered this round | *Leo answered — your turn.* | `turns` (new) |
+| answered, so the round just revealed | *Leo answered — see if you called it.* | `reveals` |
+
+In a 1v1 the two are exclusive per person per round, so it is always
+exactly one push to exactly one person. In a group the reveal fires once
+per round to everyone, and *your turn* fires **once per round per
+member**, not once per answer — a room of thirty-one is not told
+thirty-one times that Ada played. The cleanest carrier is the reveal
+itself: *"Round 6 is out — and round 7 is waiting for you"* is one push
+doing both jobs, because opening the next round is the same commit.
+
+**Debounced per recipient, not per group.** A partner who plays five
+rounds ahead would send five *your turn*s. One `pushAt: { uid: ts }` map
+on the group document — already inside the reveal transaction, at most
+32 entries — holds it to one push per recipient per window, the body
+naming the count: *Leo played 4 rounds — your turn.* Per recipient
+rather than per group, because a single group-wide stamp would let one
+active partner silence the other's legitimate nudge.
+
+**A third channel, with its reason.** *Your turn* is a nudge; *revealed*
+is a result. A person who mutes nudges should keep results, and Android's
+channel is the only control the OS gives them (`push.ts`'s own argument
+for the second channel, one channel over). So `turns` — *"When it's your
+turn in a 1v1 or group"* — at importance 3, default rather than heads-up:
+a nudge should not pop over what you are doing, while the reveal keeps
+its 4. iOS has no channels, only the one permission, which is asked at
+the moment a reveal first becomes possible and does not move.
+
+**The foreground case is unhandled today and matters more at eight a
+day.** Nothing in `push.ts` registers `pushNotificationReceived`, and
+`capacitor.config` sets iOS `presentationOptions` to badge, sound and
+alert — so a reveal push arriving while the app is open is shown as an
+alert over the app, today, on iOS (checked, not assumed). At one a day
+that is a curiosity; at eight it is the app buzzing about a card you are
+looking at. The client suppresses
+presentation when the room is on screen — a listener, not a server
+change, and it is the same fix for the reveal push that exists.
+
+**The privacy page moves first (D183), and the gates make sure of it.**
+`web/privacy.html` says the token is used for *"the four notifications
+this app sends"* and names them, with the reveal as *"your group's day
+has been revealed"*. This is a fifth, and *day* becomes *round*.
+`check:policy-claims` holds the named list and `check:figures` holds the
+count against `v2social.ts`'s send sites — so a new `sendPushToUids`
+call with the page unchanged fails two gates. That is the order the
+build takes: page, then send.
+
+**Cost.** `sendPushToUids` reads one push document per recipient per
+send, and FCM is free. Debounced, that is at most one read per active
+recipient per window — a rounding error beside §8's table. The monitoring
+heartbeat on the scan (`monitoring/scheduledDuelReveals-silent.json`)
+survives: the scan still runs for group deadlines and still logs
+`mode: "indexed"`, so the absence alert keeps meaning what it means.
 
 ### 7.5 · The screens
 
@@ -439,7 +510,10 @@ this document says **group** and **1v1** throughout.
 
 Each is also a row in `OWNER-LIST.md`. None of them is a privacy ask
 under D334 — the same people see the same votes, one round later instead
-of one day later — so they are product calls.
+of one day later — so they are product calls. **The owner answered all
+four on 2026-09-08** — *"yeah lets do that"*, to the model explained in
+plain words, which named each of them — and the ticks stay the owner's
+to make (D352).
 
 1. **The lead cap `K`** — §5. The recommendation is 5. A number is enough.
 2. **Late answers do not score** — §4. Your rule says the remainder see
@@ -469,7 +543,9 @@ Each step is shippable and green on its own.
    the instant reveal. This is the step the whole idea is for.
 4. **The late answer** (§4) — the flag, the rules requirement, the
    append, the score exclusions.
-5. **Push debounce** (§7.4) — small, and step 3 makes it necessary.
+5. **Notifications** (§7.4) — `web/privacy.html` first (a fifth kind,
+   and *day* → *round*), then the `turns` channel, the send in the
+   trigger, the per-recipient debounce, the foreground suppression.
 6. **The bank burst** (§6.1) — a lane change, runs in parallel with
    everything above.
 7. **World questions in duels** (§6.2) — owner row first, then the rules
@@ -496,7 +572,7 @@ rules accept both id shapes, and that is a materially bigger change.
 | 2 | `npm run test:rules`, `npm run test --prefix functions`, `npm run test:e2e:all`, `npm run check:globals` | the lead bound refuses `open + K`; the id is pinned to the round; a non-member is still refused; the deadline scan finds only due groups |
 | 3 | `npm run test --prefix functions`, `npm run test:e2e:all` | a 1v1 reveals on the second answer; two simultaneous answers reveal exactly once; a group of *m* reveals on the *m*th |
 | 4 | `npm run test:rules`, `npm run test --prefix functions` | an unflagged answer after the reveal is REFUSED; a late answer with `guessIdx` is refused; a late answer moves no dim, no ledger figure and no `duel-{qid}` count |
-| 5 | `npm run test --prefix functions` | five reveals in a window send one push naming five |
+| 5 | `npm run check:policy-claims`, `npm run check:figures`, `npm run test --prefix functions`, `npm run test:unit` | the page names five kinds before the fifth send exists; five rounds in a window send one push naming five; the partner who has answered gets the reveal and the one who has not gets *your turn*, never both; a group member is nudged once per round |
 | 6 | `npm run check:content`, `check:neighbors`, `check:figures` | the dedup floor holds across a burst; the budget script's numbers match its prose |
 | 7 | `npm run test:rules`, `npm run test:unit` | a catalog question is still refused on a duel surface; the world split on the reveal costs no extra read |
 | 8 | `npm run test:unit`, `check:a11y`, `check:tap-targets`, `check:public-copy` | the 1v1 draws no clock; the group's clock is the deadline; no cadence word in copy (D419 §3) |
