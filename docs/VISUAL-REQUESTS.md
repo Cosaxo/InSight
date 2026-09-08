@@ -123,6 +123,60 @@ draft it as long as it first makes the plan, then uses Claude Design.*
   lens: a surface that collects without joining is unfinished.
 - **status** — `requested`.
 
+### 11 · The 1v1 and group card, when a round is the unit
+
+- **title · asked by** — *Your turn · their turn* · the owner, 2026-09-08,
+  directing `ROUNDS-PLAN.md` (*"lets go with this path"*), and answering
+  the screen question in the same message with *"yes"*.
+- **surface** — the daily tab's 1v1 and group modes:
+  `ui/LiveDuelPanel.tsx`'s `LdCard` and the rail above it, plus the
+  first-run branch that `VISION-2026-09-07.md` §3 redraws as *the first
+  day*. The card fills the view and snaps, one room per screen (D156).
+- **what changes, and why the existing drawing cannot be patched** — the
+  card's whole grammar is a clock. Today it draws *answered · reveals in
+  04:12* and the first-day screen draws three beats: *Today · sealed*,
+  *Tonight* (the reveal clock), *Tomorrow · revealed*. Under rounds a
+  **1v1 has no clock at all** — it reveals the moment the other person
+  answers — and a group's clock stops being midnight and becomes its
+  round deadline. A countdown to a moment that is not what the reveal
+  waits on is worse than no countdown.
+- **the states to draw** — `your turn` (the round is open and you have
+  not answered) · `their turn` (you have answered, they have not; the
+  1v1 says *waiting on Ada*, drawn from `roundPlayers`, which is who has
+  answered and never what) · `revealed, and the next round is open`
+  (the reveal and a fresh question on one card, because that IS the
+  loop) · `N rounds waiting for you` (a partner ran ahead; up to the lead
+  cap) · `at the lead` (you have run as far ahead as you may — say what
+  is waiting, not what is forbidden) · `closed at the deadline` (a group
+  round that revealed without everyone) · `late` (you answer a round
+  whose table is already published — the answer shows, marked, and
+  scores nothing; the screen must say that plainly and without scolding).
+- **data and basis** — all of it is on documents the card already holds:
+  `round` · `roundPlayers` · `roundDeadlineAt` on the group document the
+  client subscribes to, and the reveal. No new read. Nothing on this
+  screen may invent a person (D1): an empty seat is a seat, not a name.
+- **interaction** — the reveal and the next round on one card means the
+  run of rounds is what the day dots used to browse; the dots become a
+  run of rounds rather than days. One handler behind the rail's `New`
+  tile and any *start another* row (D392 §3.1's finding).
+- **vocabulary** — the standalone family in `design/`,
+  `src/v2/styles.css`, D302's two palettes, the 12px floor (D391),
+  `check:tap-targets`' 44px. **And the word:** these are **groups** and
+  **1v1s**. `ROUNDS-PLAN.md` §9 has the collision — Circle is the
+  Mirror's follow-graph stop (D101) and the duel panel has been calling a
+  group a circle — and this design should not add to it.
+- **copy** — D182, and D419 §3: no sentence may name a cadence. *"Until
+  the reveal"* is true at any pace; *"until tomorrow"* goes false the day
+  this ships. The two halves of the promise stay — unreadable until the
+  reveal, then named.
+- **constraints** — the panel is lazy behind `daily-split.jsx`'s
+  `React.lazy` (D156 §5), so it costs no first paint; `check:bundle`,
+  `check:a11y`'s ratchet, and no new window global.
+- **why** — the ties axiom (`AXIOMS.md`, operational): rounds are what
+  give `tie-2`'s second-person measurement enough shared items per pair
+  to decompose at all. The screen is what makes the pace legible.
+- **status** — `requested`.
+
 ### 0b · The interest profile, shown and editable
 
 - **title · asked by** — *Your interests* · a session, 2026-09-04 (D367),

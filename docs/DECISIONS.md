@@ -44760,3 +44760,145 @@ install or a different Google account is what would confirm it.
   the file makes against it (*"a required demographic form is how you
   teach people to lie to one"*) so the canvas answers it rather than
   discovers it.
+
+## D420 · Rounds replace the day on 1v1 and group — the plan, and the finding that the day was never the seal
+
+**Date:** 2026-09-08 · **Status:** binding as a PLAN and as a
+measurement; nothing is built. Directed by the owner (*"lets go with this
+path"*), who also ruled the group's reveal condition and asked for the
+lead cap as a reflection. The plan is
+[`ROUNDS-PLAN.md`](ROUNDS-PLAN.md); this record is what it found and what
+it commits the tree to.
+
+D419 §5 recorded the owner's intention — *"i actualy hope to make the 1v1
+and group less lineted to move to unlimeted questions per day"* — as
+explicitly unbuilt, and stopped the copy from hard-coding a cadence it
+was meant to outlive. This is the follow-through.
+
+### The finding, and it is why this is cheap
+
+**The day is not the seal.** What keeps a duel answer blind is two
+clauses in `firestore.rules`: the sealed answer is excluded from D98's
+public read by a `surface` value test, and a create is refused once that
+round's reveal exists. Neither reads a clock. Both are statements about
+*this round*, not about *today*.
+
+The day is doing exactly one job, and it is a scheduling job: **it is
+what advances the game when somebody does not play.** Today the calendar
+rolls over regardless, so a partner who never answers costs you a reveal
+and hands you a fresh question anyway. That is the whole function to
+replace — and replacing it is what makes the round safe, because a round
+with nothing to close it freezes a stalled pair forever, which is
+*worse* than the limit being lifted.
+
+So: a **round** is the unit. A 1v1 reveals on the second answer. A group
+reveals when every member has played, or at a deadline for those who did.
+The next round opens in the same commit as the reveal.
+
+### What it costs, measured
+
+`scripts/cost-arith.mjs` with `B.duelAnswers` varied and
+`TRIGGER_READS.duel` set to 1 for the completeness read the trigger
+gains:
+
+| Duel answers per user per day | 50 k DAU | multiple |
+| --- | --- | --- |
+| 1 — today | $180 | 1.00× |
+| 4 | $208 | 1.15× |
+| 8 | $244 | **1.35×** |
+| 16 | $319 | 1.77× |
+
+**Eight rounds a day costs 1.35× the whole bill, not 8×** — a duel answer
+is cheap beside the world answers and the D98 social reads that dominate
+every column. Three savings are not in the table and all point the same
+way: reveal history goes from up to 14 day-key `getDoc`s to one ordered
+query, the scan stops paying for groups that played nothing, and a 1v1's
+reveal stops waiting on a scan at all.
+
+The create rule also gets **cheaper**: the day regex and both
+`timestamp.date()` comparisons go, and the round bound reads a group
+document `isDuelAnswer` already fetches, so it is deduped and free. That
+is the right direction on the path D409 measured.
+
+### The one place the owner's rule needed the rules, not the UI
+
+The owner's group condition — *"it gets reveld for the once that played
+at the deadline the remainders after they have answard"* — has a half
+that cannot be built as drawn. **A reveal is world-readable (D98)**, so a
+member who has not played can read the table before answering, and hiding
+it in the client would be a claim the rules do not make.
+
+What the plan builds instead keeps the rule and stays honest: a late
+answer carries `late: true`, **required by the rules whenever the reveal
+exists**, so the flag is true because the rule made it true rather than
+because a client said so; it may not carry a guess at all, which removes
+the gaming class instead of filtering it downstream; the server appends
+it so the group sees it, marked; and it moves no dim, no ledger figure
+and no `duel-{qid}` count. Shown, not scored — D386's `asides` pattern
+one surface over.
+
+The alternative was priced and rejected: gating the reveal read on having
+answered retreats from D98 and puts a billed `get()` on a read path that
+has none.
+
+### What this does NOT change, checked rather than assumed
+
+No rule in the plan changes an audience. The same people see the same
+votes, one round later instead of one day later. D5's seal is enforced by
+the same two clauses; D98 is untouched; the three denies stand at their
+paths; D45's erasure sweep walks `reveals.members` and is id-independent;
+D8's anchor snapshot, D86's frozen duel answers, D70's plurality question,
+D71's per-vote question and D224's pick snapshot all hold verbatim. **So
+this is not a D334 ask** — the open items are product calls, and they are
+rows on `OWNER-LIST.md`: the lead cap (recommended 5), the late-answer
+scoring rule, world questions as duel content, and `roundPlayers`
+disclosing who has played.
+
+### Two things the plan found on the way
+
+- **The bank is the real constraint, not the mechanism.** Counted
+  2026-09-08: 32 1v1 questions, 26 group, 24 romantic and dark. A pair at
+  rounds pace burns the 1v1 pool in one evening, and the duel lane's
+  regulator grants 4 a run, weekly, toward 48 a pool — an arithmetic
+  built for one question a day. The plan's §6 carries both answers: a
+  lane burst (a scheduling change, every quality gate unchanged), and
+  world questions as duel content, where the tree already holds 134 daily
+  and 333 feed questions, 245 of them two-or-more-option. The second is
+  also the strongest form of the app's thesis, because a 1v1 round over a
+  world question reveals three columns — your answer, their answer, and
+  the world's split — and the third costs zero extra reads.
+
+- **`roundPlayers` closes a gap D156 called unclosable.** The array the
+  reveal condition needs anyway is who has answered, never what they
+  answered, on a document members already read. D156 §2 recorded that
+  nobody can say who has played today because the answer is sealed; this
+  says it honestly, and the dimmed avatars the prototype draws become
+  drawable. Named as a deliberate new disclosure rather than slipped in.
+
+### And a vocabulary collision, recorded rather than fixed
+
+The owner flagged it in the same message: *"i notice you use circle
+insted of group and thats wrong… circle is something else in the app."*
+Correct, and the tree has it too. **Circle** is the Mirror's stop over
+the follow graph (D101, `data/circle.ts`); **Groups** is the Mirror's
+stop over the named duel rooms — but `ui/LiveDuelPanel.tsx` calls a duel
+room a *circle* throughout its copy, and so does the 2026-09-07 design.
+Two different things called Circle on two tabs, and the Mirror is the one
+that is right.
+
+Deliberately out of scope here: a rename across the duel panel, the
+design vocabulary and `check:public-copy`'s expectations is its own
+change with its own gate, and burying it inside the round model would
+make both harder to review. `ROUNDS-PLAN.md` §9 holds it so it is a known
+collision rather than a recurring surprise.
+
+### The assumption the build must re-check first
+
+The plan sequences a **clean cutover with no dual-write period** — rounds
+replace days, old day-keyed reveals stay readable as history, no client
+ever writes both shapes. That is available only because the app is
+pre-launch (D386 on the role cards: *"few exist, pre-launch builds"*; D5's
+amendment reasoning production's duel-answer set to provably empty).
+**Re-check both before step 2.** If real groups are playing by then, the
+rules need a transition window accepting both id shapes, and that is a
+materially bigger change than what is planned.
