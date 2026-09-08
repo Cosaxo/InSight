@@ -6,11 +6,16 @@
 // is a screen, and the one place that must be able to read the fact without
 // pulling in the screen is a test.
 //
-// A build flag, not a runtime setting. `ios-release.yml` sets it and
-// nothing else does, so every other build — the dev server, the demo
-// bundle, the whole test suite — compiles the gate to a pass-through.
-// That is what keeps D3 (anonymous-first, "never a wall") true everywhere
-// this one decision does not reach.
+// A build flag, not a runtime setting. BOTH release workflows set it —
+// `ios-release.yml` and `play-release.yml`, each defaulting it to `true`
+// since D414 put the wall back up, and the iOS one refusing to upload
+// without it. Every other build — the dev server, the demo bundle, the
+// whole test suite — compiles the gate to a pass-through.
+//
+// D3's MECHANISM is what stays true everywhere: the session is still
+// signed in anonymously at boot and every door but one links it rather
+// than replacing it, so a uid and its history survive the wall. What D414
+// reversed is D3's posture for a shipping build, not its plumbing.
 export function signInRequired(): boolean {
   // Exactly "true". Vite substitutes the literal string it was given, so an
   // exported-but-empty shell variable, or a `1`, must not read as consent —

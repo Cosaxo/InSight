@@ -107,9 +107,16 @@ enforces is the opposite of what it used to (decision **D98**):
   logic answer key (anti-cheat), who flagged a comment
   (anti-retaliation), and the ~200 m presence cell (physical safety: the
   app publishes what you answered, not where you are standing).
-- **Anonymous-first.** The app works instantly with no sign-in; Google is
-  an *upgrade* via account linking that keeps your uid and history
-  (decision D3). Deletion wipes everything, cross-references included.
+- **Anonymous underneath, an account at the door.** The app signs a
+  session in anonymously at boot and every door but one LINKS that
+  session rather than replacing it, so your uid and history survive
+  signing in (D3's mechanism, untouched). What changed is the posture:
+  D414 put the wall back up on 2026-09-07, so a shipping build asks for
+  an account before the app — both release workflows default
+  `VITE_REQUIRE_SIGNIN` to `true` and the iOS one refuses to upload
+  without it. Three doors, not one: Google, Sign in with Apple, and
+  email + password with address verification. Deletion wipes everything,
+  cross-references included.
 
 ## Running it
 
