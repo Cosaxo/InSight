@@ -810,7 +810,22 @@ export async function revealRound(
 
   const pageDeadline = tsMs(group.get("roundDeadlineAt"));
   const pageDue = pageDeadline != null && pageDeadline <= nowMs;
-  if (!roundReveals(playedIn(group.get("played"), key).length, members.length, pageDue, force)) {
+  // A DUE ROUND ALWAYS OPENS THE TRANSACTION, even when the page snapshot
+  // shows nobody in it. `roundReveals` is `played >= 1 && …`, so a round
+  // whose only player left or was erased is false here whatever `force`
+  // says — and the branch that clears a stuck clock lives INSIDE the
+  // transaction this gate was returning before. So the group kept its
+  // `roundDeadlineAt`, the deadline scan orders by that field ascending,
+  // and a never-moving deadline sorts permanently at the head: at
+  // GROUP_SCAN_CAP the run breaks with an error before reaching any live
+  // due round, and reveals stop for everybody. Not even
+  // revealDuelsNowV2 {force:true} could unstick it.
+  //
+  // Letting a due round through costs one transaction (and one profile
+  // fetch) per stuck group, ONCE — the clock is cleared inside it and the
+  // group leaves the scan. A page snapshot that is merely stale is better
+  // off in there too: the transaction re-reads.
+  if (!pageDue && !roundReveals(playedIn(group.get("played"), key).length, members.length, pageDue, force)) {
     return false;
   }
 
