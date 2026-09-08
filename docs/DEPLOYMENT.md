@@ -835,11 +835,19 @@ the channel, and at zero users most signals are noise. These are the
 conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that
 arrives as latency rather than as an error, and a cron whose silence is
-indistinguishable from health. The scheduled aggregators
-(`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
-next — they are 24h jobs whose failure delays a surface by a day and
-self-heals on the next run, so they can wait until someone is actually
-reading the alerts. That "self-heals" is doing real work in this paragraph:
+indistinguishable from health. The nightly jobs are the obvious next
+— `digestEngagementV2`, `rankBankV2`, `sweepPaidReviewsV2`,
+`closePaidCampaignsV2` and `resolveCallsV2`, whose failure delays a
+surface by a day and self-heals on the next run, so they can wait until
+someone is actually reading the alerts.
+
+(This named `scheduledWorldAggregates` and `scheduledCityAggregates` as
+those 24h jobs until 2026-09-08. Neither exists — they are in this same
+document's `functions:delete` list seven hundred lines up, under "PAID
+2026-08-27 (D333) … `us-central1` now holds zero functions and zero
+scheduler jobs" — and the architecture the sentence assumed went with
+them: aggregates are folded by `onV2AnswerCreated` on every answer, exact
+and with no cadence, so there is no 24h aggregate job left to alert on.) That "self-heals" is doing real work in this paragraph:
 it is exactly what is NOT true of the reveal scan, which is why that one
 did not wait.
 
