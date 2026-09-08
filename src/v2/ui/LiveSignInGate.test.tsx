@@ -218,10 +218,45 @@ describe("with the flag on", () => {
   it("shows any other failure rather than sitting there", async () => {
     // The store's auth observer never fires for a failed link, so an error
     // swallowed here is a permanently dead button.
-    linkGoogle.mockRejectedValueOnce(new Error("FirebaseError: popup blocked"));
+    //
+    // THE FIXTURE IS THE REAL SHAPE NOW, and that is the whole case. It
+    // used to be `new Error("FirebaseError: popup blocked")`, which the SDK
+    // does not produce and which the old one-colon strip happened to
+    // reduce to "popup blocked" — so this passed while a person on the wall
+    // read `Error (auth/popup-blocked).` Firebase's message is
+    // `Firebase: Error (auth/<code>).`, and it is what these mocks reject
+    // with from here on.
+    linkGoogle.mockRejectedValueOnce(new Error("Firebase: Error (auth/popup-blocked)."));
     await gateReady();
     fireEvent.click(screen.getByText("Continue with Google"));
-    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "popup blocked");
+    const said = (await screen.findByRole("alert")).textContent ?? "";
+    expect(said, "a raw Firebase code reached the screen").not.toMatch(/auth\//);
+    expect(said, "the popup failure does not say what to do about it").toMatch(/pop-ups/i);
+  });
+
+  it("says the same thing about being offline that the email door does", async () => {
+    // The condition both doors can meet, and the one that made the split
+    // visible: the email door renders "You're offline. Check your
+    // connection, then try again." while Apple and Google rendered
+    // `Error (auth/network-request-failed).` for the same failure.
+    linkApple.mockRejectedValueOnce(new Error("Firebase: Error (auth/network-request-failed)."));
+    await gateReady();
+    fireEvent.click(screen.getByText("Sign in with Apple"));
+    const said = (await screen.findByRole("alert")).textContent ?? "";
+    expect(said, "a raw Firebase code reached the screen").not.toMatch(/auth\//);
+    expect(said).toMatch(/You\u2019re offline/);
+  });
+
+  it("says NOTHING when the person closed the sheet themselves", async () => {
+    // Not an error to report. Before this it put
+    // `Error (auth/popup-closed-by-user).` on screen for a deliberate tap.
+    linkGoogle.mockRejectedValueOnce(new Error("Firebase: Error (auth/popup-closed-by-user)."));
+    await gateReady();
+    fireEvent.click(screen.getByText("Continue with Google"));
+    // The door has to come back — a cancelled sheet that leaves the button
+    // spinning is the dead button this describe block is about.
+    expect(await screen.findByText("Continue with Google")).toBeTruthy();
+    expect(screen.queryByRole("alert"), "a cancelled sign-in reported an error").toBeNull();
   });
 });
 

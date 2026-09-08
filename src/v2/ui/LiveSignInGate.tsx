@@ -198,6 +198,50 @@ const FAILURES: Record<EmailFailure, { say: string; action: null | "create" | "s
   other: { say: "That didn\u2019t work. Try again in a moment.", action: null },
 };
 
+// WHAT THIS SCREEN SAYS WHEN FIREBASE FAILS.
+//
+// The email door goes through `emailFailure` and lands in the table above;
+// Apple and Google fell through to `clean(e)`, which strips a message only
+// up to its FIRST colon. Firebase's real message is
+// `Firebase: Error (auth/<code>).`, so what a person read on the wall was
+// `Error (auth/network-request-failed).` — for the same condition the email
+// door renders as "You're offline." Measured with the SDK's own shape. The
+// case that claimed these doors were readable fed
+// `new Error("FirebaseError: popup blocked")`, which Firebase does not
+// produce and which `clean` happens to reduce to something legible; the
+// fixture was the reason nobody saw it.
+//
+// A code is never something a person can act on, so nothing here returns
+// one. Three of the four rows are the codes these paths actually produce;
+// the last is the catch-all, and it is deliberately the same sentence the
+// email door's `other` uses rather than a fifth wording of "try again".
+//
+// FIVE call sites, not the two the audit named. `clean` was also the
+// verify screen's confirm, resend and start-over handlers and the
+// already-in-use recovery — every one of them a Firebase call that can
+// answer `network-request-failed`, and every one of them printing the code
+// for it. Fixing the two that were reported and leaving three siblings in
+// the same file is the failure this branch already committed a fix for
+// tonight, so `clean` is gone rather than narrowed.
+//
+// The empty string is not an oversight: a popup the USER closed is not a
+// failure to report, and the alert below renders nothing for it. Before
+// this, cancelling the sheet put `Error (auth/popup-closed-by-user).` on
+// the screen.
+const SAY_FOR: Array<[RegExp, string]> = [
+  [/network-request-failed/, FAILURES.offline.say],
+  [/popup-closed-by-user|cancelled-popup-request|user-cancell?ed/, ""],
+  [/popup-blocked/, "Your browser blocked the sign-in window. Allow pop-ups, then try again."],
+  [/./, FAILURES.other.say],
+];
+
+/** The sentence for any failure the email door's own mapper did not name. */
+function readable(e: unknown): string {
+  const m = String((e as { code?: string })?.code || (e instanceof Error && e.message) || e);
+  const hit = SAY_FOR.find(([re]) => re.test(m));
+  return hit ? hit[1] : FAILURES.other.say;
+}
+
 // Rendered ONLY when SignInGate has already established that this build
 // requires an account and the session is not linked yet. It therefore has
 // no pass-through arm and takes no children: a screen that could also
@@ -226,7 +270,6 @@ function LiveSignInGate() {
 
   const signin = mode === "signin";
   const inFlight = flight !== null;
-  const clean = (e: unknown) => String((e instanceof Error && e.message) || e).replace(/^.*?: */, "");
 
   // One wrapper for every door: it owns the flight flag, clears the last
   // failure, and routes the already-in-use case to the destructive arm.
@@ -242,8 +285,11 @@ function LiveSignInGate() {
       else if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse(which);
       // The store's auth observer is what flips `linked`, and it will not
       // fire for a failed attempt — so the error has to land on screen or
-      // the gate just sits there.
-      else setErr(clean(e));
+      // the gate just sits there. A SENTENCE, not a code: see SAY_FOR.
+      // The email door cannot reach this arm — emailSignIn and emailCreate
+      // throw an EmailAuthError carrying `failure`, which the first branch
+      // takes — so this is Apple or Google.
+      else setErr(readable(e));
     }
     setFlight(null);
   };
@@ -265,7 +311,7 @@ function LiveSignInGate() {
       // unmounts with the wall.
       const ok = await LIVE.refreshVerification();
       if (!ok) setVerifyWord("Not confirmed yet. Open the link, then tap again.");
-    } catch (e) { setVerifyWord(clean(e)); }
+    } catch (e) { setVerifyWord(readable(e)); }
     setFlight(null);
   };
   const resend = async () => {
@@ -276,14 +322,14 @@ function LiveSignInGate() {
       // says why), so this sentence is about what was ATTEMPTED. Claiming
       // delivery would be the one thing it cannot know.
       setVerifyWord("Sent again. It can take a minute to arrive.");
-    } catch (e) { setVerifyWord(clean(e)); }
+    } catch (e) { setVerifyWord(readable(e)); }
     setFlight(null);
   };
   const startOver = async () => {
     setFlight("email"); setVerifyWord(null);
     try {
       await LIVE.abandonSignIn();
-    } catch (e) { setVerifyWord(clean(e)); }
+    } catch (e) { setVerifyWord(readable(e)); }
     setFlight(null);
   };
 
@@ -307,7 +353,7 @@ function LiveSignInGate() {
       // resetForNewUid, which is what clears this session's local state —
       // so nothing here has to know how to do that.
       await (door === "apple" ? appleSignIn() : googleSignIn());
-    } catch (e) { setErr(clean(e)); }
+    } catch (e) { setErr(readable(e)); }
     setFlight(null);
   };
 
