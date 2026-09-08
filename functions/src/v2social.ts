@@ -71,6 +71,8 @@ import {
   type RoomMix,
   type RoomCounts,
   type DuelVoteLike,
+  isStamped,
+  type TurnRecipient,
 } from "./pure";
 
 const REGION = FUNCTIONS_REGION;
@@ -485,6 +487,7 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
       // `played` is what the reveal counts against the roster, and a
       // uid left behind here is the shape D55 §8 records ownerUid having.
       ...playedRemovals(snap.get("played"), uid),
+      ...stampRemoval(snap.get("pushAt"), uid),
     });
     return "left" as const;
   });
@@ -643,6 +646,39 @@ async function sendPushToUids(
   }
 }
 
+// ── "your turn" (ROUNDS-PLAN §7.4) ─────────────────────────────
+//
+// The volley's other half: the answer trigger decides WHO is told inside
+// its transaction (turnRecipients, pure.ts — stamped in the same commit
+// as the mark) and hands the list here after the commit. One body per
+// count, so a partner who ran ahead is told how far: *Leo answered — your
+// turn* / *Leo played 4 rounds — your turn*. Channel `turns`, importance
+// 3 on the client: a nudge, not a result, and the one control Android
+// gives a person is the channel.
+//
+// Best-effort like every send: never throws, and never before the commit
+// it reports on.
+export async function notifyTurn(
+  db: FirebaseFirestore.Firestore,
+  gid: string,
+  room: { name: string; mode: "duo" | "group"; who: string },
+  recipients: readonly TurnRecipient[],
+): Promise<void> {
+  if (!recipients.length) return;
+  const who = room.who || "Someone";
+  const title = room.name || (room.mode === "duo" ? "Your 1v1" : "Your group");
+  const byBody = new Map<string, string[]>();
+  for (const r of recipients) {
+    const body = r.waiting > 1
+      ? `${who} played ${r.waiting} rounds — your turn.`
+      : `${who} answered — your turn.`;
+    byBody.set(body, [...(byBody.get(body) || []), r.uid]);
+  }
+  for (const [body, uids] of byBody) {
+    await sendPushToUids(db, uids, { title, body }, { kind: "turn", gid }, "turns", "turn");
+  }
+}
+
 // ── the reveal pipeline ─────────────────────────────────────────
 
 export interface RevealVote {
@@ -701,6 +737,15 @@ export function playedRemovals(played: unknown, uid: string): Record<string, unk
     if (playedIn(played, key).includes(uid)) out[`played.${key}`] = FieldValue.arrayRemove(uid);
   }
   return out;
+}
+
+/**
+ * The turn stamp of a member who is leaving or being erased (ROUNDS-PLAN
+ * §7.4) — playedRemovals' shape, for its reason: a uid left behind on the
+ * group document is the shape D55 §8 records ownerUid having.
+ */
+export function stampRemoval(pushAt: unknown, uid: string): Record<string, FieldValue> {
+  return isStamped(pushAt, uid) ? { [`pushAt.${uid}`]: FieldValue.delete() } : {};
 }
 
 export interface RevealOpts {
@@ -796,6 +841,9 @@ export async function revealRound(
   // captured here because the transaction's own locals die with it.
   let aggQid: string | null = null;
   let aggVotes: DuelVoteLike[] = [];
+  // Who the NEXT round waits for once this one is out — the push below
+  // says so to them, and nobody else (ROUNDS-PLAN §7.4).
+  let waitingNext: string[] = [];
   await db.runTransaction(async (tx) => {
     // Reset per attempt: a transaction callback can run more than once,
     // and a retry that bails early must not inherit the previous try's
@@ -804,6 +852,7 @@ export async function revealRound(
     streak = 0;
     aggQid = null;
     aggVotes = [];
+    waitingNext = [];
     const [existing, gsnap, ...fresh] = await tx.getAll(
       revealRef,
       group.ref,
@@ -901,6 +950,15 @@ export async function revealRound(
     const next = round + 1;
     const nextPlayed = prunePlayed(gsnap.get("played"), next);
     const settle: Record<string, unknown> = { round: next, played: nextPlayed };
+    // THE REVEAL IS THE CARRIER (ROUNDS-PLAN §7.4): opening the next round
+    // is this same commit, so the push that says the round is out can say
+    // "and round 8 is waiting for you" to whoever has not sealed it — and
+    // STAMPS them, so the first answer to round 8 is not followed by "Bo
+    // answered — your turn" about the same round. Their own answer clears
+    // the stamp (v2.ts). Members who ran ahead are told the result alone.
+    const sealedNext = playedIn(nextPlayed, roundKey(next));
+    waitingNext = members.filter((u) => !sealedNext.includes(u));
+    for (const u of waitingNext) settle[`pushAt.${u}`] = FieldValue.serverTimestamp();
     if (playedIn(nextPlayed, roundKey(next)).length) {
       // Somebody ran ahead: the next round already has an answer, so its
       // clock starts now rather than waiting for one.
@@ -941,21 +999,30 @@ export async function revealRound(
     logger.error(`[duel-signal] fold failed for ${gid}/${key} (${aggQid}):`, err);
   }
 
-  // The reveal is out — one of the product's four notifications: this,
-  // the circle invitation, the join request and the join approval.
-  // Best-effort by construction: sendPushToUids never throws, so FCM
-  // being down can never roll back a reveal that already committed.
-  // (Rounds' own notifications — *your turn*, the per-recipient debounce —
-  // are ROUNDS-PLAN §7.4, and wait on web/privacy.html moving first.)
+  // The reveal is out — one of the product's five notifications: this,
+  // *your turn* (notifyTurn, above), the group invitation, the join
+  // request and the join approval. Two bodies, one send each: whoever
+  // the next round waits for is told so here rather than nudged again
+  // by its first answer (the stamp above), and whoever ran ahead is told
+  // the result alone. Best-effort by construction: sendPushToUids never
+  // throws, so FCM being down can never roll back a reveal that already
+  // committed.
+  const title = group.get("name") || (mode === "duo" ? "Your 1v1" : "Your group");
+  const out = mode === "duo" ? "Your answers are out" : `Round ${round} is out`;
+  const waiting = new Set(waitingNext);
+  const told = members.filter((u) => !waiting.has(u));
   await sendPushToUids(
     db,
-    members,
-    {
-      title: group.get("name") || "Your duel",
-      body: mode === "duo"
-        ? "Your answers are out — see if you called it."
-        : "The round is revealed — see who said what.",
-    },
+    waitingNext,
+    { title, body: `${out} — and round ${round + 1} is waiting for you.` },
+    { kind: "reveal", gid, round: String(round) },
+    "reveals",
+    "reveal",
+  );
+  await sendPushToUids(
+    db,
+    told,
+    { title, body: mode === "duo" ? `${out} — see if you called it.` : `${out} — see who said what.` },
     { kind: "reveal", gid, round: String(round) },
     "reveals",
     "reveal",

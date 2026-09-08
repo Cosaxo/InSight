@@ -26,7 +26,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
-import { playedRemovals } from "./v2social";
+import { playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -594,6 +594,7 @@ export const deleteAccount = onCall(
             // the roster, and an erased uid must not stand in a document
             // every remaining member reads.
             ...playedRemovals(g.get("played"), uid),
+            ...stampRemoval(g.get("pushAt"), uid),
             // …and `ownerUid`, when it names the departing user. It is
             // stamped by createGroupV2 and read by NOTHING — a repo-wide
             // grep finds the one write and no reader — so dropping it is

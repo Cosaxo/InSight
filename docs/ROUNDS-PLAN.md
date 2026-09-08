@@ -1,6 +1,6 @@
 # Rounds — 1v1 and group play without the calendar
 
-**Status: plan notes — steps 0–4, 7 and the regulator half of 6 are BUILT (2026-09-08, D420's second amendment); the lane's cadence is an owner row; steps 5 and 8 are open.** The follow-through on
+**Status: plan notes — steps 0–5, 7 and the regulator half of 6 are BUILT (2026-09-08, D420's second amendment); the lane's cadence is an owner row; step 8 is open.** The follow-through on
 [D419](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product)
 §5, which recorded the owner's intention and left it unbuilt: *"i actualy
 hope to make the 1v1 and group less lineted to move to unlimeted
@@ -109,6 +109,40 @@ the tree does not do.
   once per question per session when the cache has no published counts
   (`ensureWorldSplit`), and the world's own count does not move (the
   e2e's 8a leg pins the total).
+- **The nudge is one push per TURN, and the stamp is on the group
+  document** (§7.4, built 2026-09-08 on the owner's word — *"yes on the
+  notification"*). §7.4 said one push per recipient per window, naming
+  the count. As built there is no window: `pushAt[uid]` is set when a
+  push tells a member a round waits for them — the answer trigger's
+  *your turn*, or the reveal's own *and round 8 is waiting for you* —
+  and cleared by that member's next answer. So a partner who plays five
+  rounds ahead sends one nudge, the count grows silently and the next
+  nudge names it (*Leo played 4 rounds — your turn*); a room is told
+  once per member per round; and a reveal that already said the next
+  round waits is not followed by a nudge about it. Decided inside the
+  trigger's transaction and stamped in the same commit as the mark, so
+  two answers landing together cannot both nudge one member; sent after
+  the commit, never before it. Dropped on leave and erasure with
+  `played`.
+- **The foreground presents nothing, by config.** §7.4 said the client
+  suppresses presentation when the room is on screen, through a
+  listener. The plugin cannot do that selectively (read in its source,
+  8.1.2): iOS returns the static `presentationOptions` from
+  `willPresent` for every remote push, and Android posts a foreground
+  notification whenever that list holds an alert — which it did, so both
+  platforms were presenting over the app. The list is now the badge
+  alone; groups and reveals are subscribed, so the card moves on its
+  own, and the `pushNotificationReceived` listener hands the arrival to
+  the store (`insight-push-received`), which re-fetches invitations —
+  fetched, not subscribed. The cost of the honesty, recorded: an
+  invitation arriving while you are on another tab shows no banner
+  until you return to the daily tab.
+- **The page moved first, and the gates made sure of it.**
+  `web/privacy.html` says five and names the fifth between the reveal
+  and the invitation; `check:figures` derives the word from the sender's
+  kinds and `check:policy-claims` holds the named list, its pattern now
+  naming *it is your turn*. The channel descriptions say *round* and
+  *group*, not *day* and *circle* (§9's collision).
 
 ## 0 · The short version
 
@@ -630,9 +664,12 @@ Each step is shippable and green on its own.
    by the rules on a revealed round inside the lead, no guess with it, the
    trigger's append to the reveal (member and name added with it), every
    fold skipping it, the card's own row and door.
-5. **Notifications** (§7.4) — `web/privacy.html` first (a fifth kind,
-   and *day* → *round*), then the `turns` channel, the send in the
-   trigger, the per-recipient debounce, the foreground suppression.
+5. **Notifications** (§7.4) — **built 2026-09-08**: the page first
+   (five kinds, *round* for *day*), the `turns` channel at importance 3,
+   the nudge decided in the answer trigger's transaction and sent after
+   it, the reveal as the carrier for the next round, a stamp in place of
+   the window and the foreground silent by config (§0a has both
+   departures).
 6. **The bank burst** (§6.1) — **the regulator is built 2026-09-08**:
    `RUN_CAP` 4 → 25, `POOL_TARGET` 48 → 400 for the live pools with the
    dark romantic pool kept at 48 until it is lit (read off the bank's
@@ -667,7 +704,7 @@ rules accept both id shapes, and that is a materially bigger change.
 | 2 | `npm run test:rules`, `npm run test --prefix functions`, `npm run test:e2e:all`, `npm run check:globals` | the lead bound refuses `open + K`; the id is pinned to the round; a non-member is still refused; the deadline scan finds only due groups |
 | 3 | `npm run test --prefix functions`, `npm run test:e2e:all` | a 1v1 reveals on the second answer; two simultaneous answers reveal exactly once; a group of *m* reveals on the *m*th |
 | 4 | `npm run test:rules`, `npm run test --prefix functions` | an unflagged answer after the reveal is REFUSED; a late answer with `guessIdx` is refused; a late answer moves no dim, no ledger figure and no `duel-{qid}` count |
-| 5 | `npm run check:policy-claims`, `npm run check:figures`, `npm run test --prefix functions`, `npm run test:unit` | the page names five kinds before the fifth send exists; five rounds in a window send one push naming five; the partner who has answered gets the reveal and the one who has not gets *your turn*, never both; a group member is nudged once per round |
+| 5 | `npm run check:policy-claims`, `npm run check:figures`, `npm run test --prefix functions`, `npm run test:unit` | the page names five kinds before the fifth send exists; five rounds in a window send one push naming five (as built: one push per TURN — the stamp, §0a — and the count is named when it clears); the partner who has answered gets the reveal and the one who has not gets *your turn*, never both; a group member is nudged once per round |
 | 6 | `npm run check:content`, `check:neighbors`, `check:figures` | the dedup floor holds across a burst; the budget script's numbers match its prose |
 | 7 | `npm run test:rules`, `npm run test:unit` | a catalog question is still refused on a duel surface; the world split on the reveal costs no extra read (as built: ONE read per question per session, on the reveal — §0a says why the zero was wrong) |
 | 8 | `npm run test:unit`, `check:a11y`, `check:tap-targets`, `check:public-copy` | the 1v1 draws no clock; the group's clock is the deadline; no cadence word in copy (D419 §3) |

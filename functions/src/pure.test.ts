@@ -20,6 +20,10 @@ import {
   openRound,
   playedIn,
   prunePlayed,
+  mergePlayed,
+  roundsWaitingFor,
+  turnRecipients,
+  isStamped,
   roundComplete,
   roundReveals,
   breakdownBucket,
@@ -2346,5 +2350,48 @@ describe("honestAnchors (D410): you may withhold, you may not invent", () => {
     expect(honestAnchors(null, PROFILE)).toEqual({});
     expect(honestAnchors("nope", PROFILE)).toEqual({});
     expect(honestAnchors({ city: "Oslo" }, "nope")).toEqual({});
+  });
+});
+
+describe("turns — who is told 'your turn' (ROUNDS-PLAN §7.4)", () => {
+  it("mergePlayed seals the answer being written into the map the trigger read", () => {
+    expect(mergePlayed({ r2: ["b"] }, "r2", "a")).toEqual({ r2: ["b", "a"] });
+    expect(mergePlayed({ r2: ["a"] }, "r2", "a")).toEqual({ r2: ["a"] });
+    expect(mergePlayed(undefined, "r3", "a")).toEqual({ r3: ["a"] });
+    expect(mergePlayed({ r2: "junk" }, "r2", "a")).toEqual({ r2: ["a"] });
+  });
+
+  it("roundsWaitingFor counts the rounds somebody else sealed and you did not, inside the lead", () => {
+    const played = { r2: ["leo"], r3: ["leo"], r4: ["leo", "me"], r5: ["leo"], r9: ["leo"] };
+    expect(roundsWaitingFor(played, 2, "me")).toBe(3);   // r2, r3, r5 — r4 is mine, r9 past the lead
+    expect(roundsWaitingFor(played, 2, "leo")).toBe(0);
+    expect(roundsWaitingFor({}, 2, "me")).toBe(0);
+  });
+
+  it("a first answer tells the partner once, naming one round", () => {
+    expect(turnRecipients({ r2: ["leo"] }, 2, ["leo", "me"], undefined, "leo"))
+      .toEqual([{ uid: "me", waiting: 1 }]);
+  });
+
+  it("a partner who runs ahead sends ONE nudge — the stamp holds the rest, and the count grows silently", () => {
+    // Told at round 2; Leo has since sealed 3, 4 and 5.
+    const played = { r2: ["leo"], r3: ["leo"], r4: ["leo"], r5: ["leo"] };
+    expect(turnRecipients(played, 2, ["leo", "me"], { me: 1 }, "leo")).toEqual([]);
+    // …and once their own answer cleared the stamp, the next nudge names them all.
+    expect(turnRecipients(played, 2, ["leo", "me"], {}, "leo")).toEqual([{ uid: "me", waiting: 4 }]);
+  });
+
+  it("a room is nudged once per member per round: whoever has played the open round, or was told, is skipped", () => {
+    const played = { r7: ["ada", "bo"] };
+    expect(turnRecipients(played, 7, ["ada", "bo", "cy", "di"], { di: 1 }, "bo"))
+      .toEqual([{ uid: "cy", waiting: 1 }]);
+  });
+
+  it("never nudges the sender, and nobody when nothing waits", () => {
+    expect(turnRecipients({ r2: ["me"] }, 2, ["me"], undefined, "me")).toEqual([]);
+    expect(turnRecipients({}, 2, ["leo", "me"], undefined, "leo")).toEqual([]);
+    expect(isStamped({ me: 1 }, "me")).toBe(true);
+    expect(isStamped({ me: 1 }, "leo")).toBe(false);
+    expect(isStamped(null, "me")).toBe(false);
   });
 });

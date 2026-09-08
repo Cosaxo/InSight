@@ -65,8 +65,12 @@ export const CLAIMS = [
   // three more — the exact shape this file's header names: not a promise
   // thinned on purpose, a promise left behind by a change three commits
   // away.
-  ["D236 · the token is used for the reveal AND the three circle notices",
-    /revealed,\s*someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
+  // D420 (ROUNDS-PLAN §7.4) added the fifth — "your turn" — between the
+  // reveal and the invitation, and the pattern names it: a page that
+  // dropped it would still count five kinds somewhere and match nothing
+  // here.
+  ["D236 · the token is used for the reveal, the turn (D420), AND the three group notices",
+    /revealed,\s*it is your\s+turn[\s\S]{0,160}?someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
   // One pattern, not an alternation. It shipped as
   // `/…from the first answer|no minimum, no delay/` and the gate's own
   // test caught it inside an hour: with two spellings of one claim, either

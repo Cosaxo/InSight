@@ -198,6 +198,20 @@ describe("a reveal that lost the race", () => {
     expect(typeof (g.roundDeadlineAt as { toMillis?: unknown }).toMillis).toBe("function");
     // A gap of years resets the streak to 1 — nextStreak's rule, unchanged.
     expect(g.streak).toBe(1);
+    // ROUNDS-PLAN §7.4: the push says "round 4 is waiting for you" to u2
+    // alone, and stamps u2 so round 4's first answer does not nudge again;
+    // u1 sealed it ahead, so nothing waits for u1 and nothing is stamped.
+    expect(g["pushAt.u2"], "the member the next round waits for was not stamped").toBeTruthy();
+    expect(g["pushAt.u1"], "a member who ran ahead was stamped").toBeUndefined();
+  });
+
+  it("stamps every member the next round waits for, so its first answer nudges nobody twice (ROUNDS-PLAN §7.4)", async () => {
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+    expect(await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot)).toBe(true);
+    const g = store.get(`v2_groups/${GID}`)!;
+    expect(g["pushAt.u1"]).toBeTruthy();
+    expect(g["pushAt.u2"]).toBeTruthy();
   });
 
   it("does not reveal a round that is neither complete nor due", async () => {

@@ -66,10 +66,14 @@ import {
   openRound,
   playedIn,
   roundComplete,
+  mergePlayed,
+  turnRecipients,
+  isStamped,
+  type TurnRecipient,
   roundKey,
   ROUND_DEADLINE_MS,
 } from "./pure";
-import { revealDueRounds } from "./v2social";
+import { notifyTurn, revealDueRounds } from "./v2social";
 import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, VIDEOGAME_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
@@ -837,8 +841,14 @@ export const onV2AnswerCreated = onDocumentCreated(
         const gref = firestore().collection("v2_groups").doc(gid);
         const key = roundKey(round);
         let completed = false;
+        // Who this answer tells "your turn" (ROUNDS-PLAN §7.4), and the
+        // words the push needs — decided inside the transaction, sent
+        // after it. Reset per attempt, like the reveal's own locals.
+        let nudge: TurnRecipient[] = [];
+        let room: { name: string; mode: "duo" | "group"; who: string } = { name: "", mode: "group", who: "" };
         try {
           completed = await firestore().runTransaction(async (tx) => {
+            nudge = [];
             const g = await tx.get(gref);
             // A group deleted between the answer and this trigger must stay
             // deleted: update() on a missing document throws, and set()
@@ -886,11 +896,27 @@ export const onV2AnswerCreated = onDocumentCreated(
               upd.roundOpenedAt = FieldValue.serverTimestamp();
               upd.roundDeadlineAt = Timestamp.fromMillis(Date.now() + ROUND_DEADLINE_MS);
             }
-            tx.update(gref, upd);
             const members: unknown = g.get("memberUids");
+            const roster = Array.isArray(members) ? (members as string[]) : [];
+            // WHO IS TOLD "your turn" (ROUNDS-PLAN §7.4), decided here and
+            // STAMPED in the same commit as the mark, so two answers landing
+            // together cannot both nudge one member; the send waits for the
+            // commit. The answerer's own stamp is cleared — they have
+            // played, so the next round waiting for them is a new fact —
+            // and a late answer (above) nudges nobody: it is nobody's turn.
+            const stamps = g.get("pushAt");
+            nudge = turnRecipients(mergePlayed(g.get("played"), key, uid), open, roster, stamps, uid);
+            for (const r of nudge) upd[`pushAt.${r.uid}`] = FieldValue.serverTimestamp();
+            if (isStamped(stamps, uid)) upd[`pushAt.${uid}`] = FieldValue.delete();
+            room = {
+              name: String(g.get("name") || ""),
+              mode: g.get("mode") === "duo" ? "duo" : "group",
+              who: String(((g.get("memberNames") || {}) as Record<string, unknown>)[uid] || ""),
+            };
+            tx.update(gref, upd);
             const already = playedIn(g.get("played"), key);
             return round === open
-              && roundComplete(new Set([...already, uid]).size, Array.isArray(members) ? members.length : 0);
+              && roundComplete(new Set([...already, uid]).size, roster.length);
           });
         } catch (err) {
           // RETHROWN, so `retry: true` above means something on this
@@ -902,6 +928,9 @@ export const onV2AnswerCreated = onDocumentCreated(
           logger.error(`[v2] round mark failed for ${gid}/${key}:`, err);
           throw err;
         }
+        // After the commit, never before it: a nudge about a mark that did
+        // not land would be a lie. notifyTurn never throws.
+        if (nudge.length) await notifyTurn(firestore(), gid, room, nudge);
         if (completed) {
           try {
             await revealDueRounds(gref);

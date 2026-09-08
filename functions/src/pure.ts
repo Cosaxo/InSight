@@ -2568,3 +2568,81 @@ export function fcmBatches(tokens: readonly string[], size: number = FCM_BATCH):
   for (let i = 0; i < tokens.length; i += size) out.push(tokens.slice(i, i + size));
   return out;
 }
+
+// ── turns: who is told "your turn" (ROUNDS-PLAN §7.4, D420) ─────────────
+//
+// A round is a volley, and a volley with no nudge is a game where nobody
+// knows it is their move. The answer trigger tells the OTHER members a
+// round waits for them; the reveal tells everyone the round is out and,
+// to whoever has not sealed the next one, that it is waiting. Both mark
+// the person told with a stamp on the group document (`pushAt[uid]`),
+// and the person's own answer clears it — so it is ONE push per TURN:
+// a partner who plays five rounds ahead sends one nudge, not five; a room
+// of thirty-one is not told thirty-one times that Ada played; and a
+// reveal that already said "round 8 is waiting for you" is not followed by
+// "Bo answered — your turn" about the same round.
+
+export interface TurnRecipient {
+  uid: string;
+  /** Rounds waiting for them, which the body names. */
+  waiting: number;
+}
+
+/** `played` with `uid` sealed into `key` — the trigger's own answer, which
+ *  the group document does not show until its update commits. */
+export function mergePlayed(played: unknown, key: string, uid: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (played && typeof played === "object") {
+    for (const k of Object.keys(played as Record<string, unknown>)) out[k] = playedIn(played, k);
+  }
+  const here = out[key] || [];
+  out[key] = here.includes(uid) ? here : [...here, uid];
+  return out;
+}
+
+/**
+ * Rounds waiting for `uid`: from the open round to the lead's edge, the
+ * ones somebody else has sealed and `uid` has not. What a nudge's body
+ * names — *Leo played 4 rounds — your turn.*
+ */
+export function roundsWaitingFor(played: unknown, open: number, uid: string): number {
+  let n = 0;
+  for (let r = open; r < open + ROUND_LEAD; r++) {
+    const who = playedIn(played, roundKey(r));
+    if (who.length && !who.includes(uid)) n++;
+  }
+  return n;
+}
+
+function hasStamp(pushAt: unknown, uid: string): boolean {
+  return !!pushAt && typeof pushAt === "object"
+    && Object.prototype.hasOwnProperty.call(pushAt, uid);
+}
+
+/**
+ * Who an answer should tell "your turn": every other member who has not
+ * sealed the OPEN round, has a round waiting for them, and carries no
+ * stamp — i.e. has not been told since their own last answer. `played`
+ * must already include the answer being written (mergePlayed).
+ */
+export function turnRecipients(
+  played: unknown,
+  open: number,
+  members: readonly string[],
+  pushAt: unknown,
+  sender: string,
+): TurnRecipient[] {
+  const openPlayers = playedIn(played, roundKey(open));
+  const out: TurnRecipient[] = [];
+  for (const uid of members) {
+    if (uid === sender || openPlayers.includes(uid) || hasStamp(pushAt, uid)) continue;
+    const waiting = roundsWaitingFor(played, open, uid);
+    if (waiting > 0) out.push({ uid, waiting });
+  }
+  return out;
+}
+
+/** Whether `uid` carries a turn stamp — the trigger clears it on their answer. */
+export function isStamped(pushAt: unknown, uid: string): boolean {
+  return hasStamp(pushAt, uid);
+}

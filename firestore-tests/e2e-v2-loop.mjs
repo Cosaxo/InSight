@@ -870,6 +870,15 @@ await expectDenied("sealed answer unreadable to partner pre-reveal", () =>
   }
   if (!marked) fail("onV2AnswerCreated never marked played.r1 / started the round's clock");
   ok("the first answer marked the player and started the round's clock");
+  // …and told the partner it is their turn — the stamp is written in the
+  // same commit as the mark (ROUNDS-PLAN §7.4), so it is already here; the
+  // answerer carries none. The push itself is FCM's and not observable
+  // in the emulator; the stamp is what decides it.
+  const g = await getDoc(doc(db, "v2_groups", gid));
+  const stamps = g.get("pushAt") || {};
+  if (!stamps[partner.user.uid]) fail("the partner was not stamped as told: " + JSON.stringify(stamps));
+  if (stamps[uid]) fail("the answerer was stamped: " + JSON.stringify(stamps));
+  ok("the first answer stamped the partner as told 'your turn', and not the answerer");
 }
 // A round SIX ahead is past the lead; five ahead (r5, with r1 open) is the
 // last one inside it. Both as the same member, both real client shapes.
@@ -900,6 +909,15 @@ if ((gsnap.get("played") || {}).r1) fail("the revealed round is still in played:
 if (!((gsnap.get("played") || {}).r5 || []).includes(uid)) fail("the round sealed ahead was pruned: " + JSON.stringify(gsnap.get("played")));
 if (gsnap.get("streak") !== 1) fail("streak != 1: " + gsnap.get("streak"));
 ok("round 2 opened in the same commit; the round sealed ahead survived; duo streak = 1");
+// The reveal is the carrier (ROUNDS-PLAN §7.4): round 2 has no answer
+// from either member (r5 was sealed ahead, not r2), so the reveal told
+// BOTH that round 2 waits for them, and stamped both — the partner's own
+// answer had cleared theirs a moment earlier.
+{
+  const stamps = gsnap.get("pushAt") || {};
+  if (!stamps[uid] || !stamps[partner.user.uid]) fail("the reveal did not stamp whoever round 2 waits for: " + JSON.stringify(stamps));
+  ok("the reveal stamped both members as told round 2 is waiting");
+}
 // …and round 1 is closed to a late-comer now that it has revealed.
 await expectDenied("the revealed round is refused", () =>
   setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", `g_${gid}_r1`), duel(0, 0)));

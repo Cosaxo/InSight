@@ -591,6 +591,15 @@ v2_groups/{gid}                    groups AND duos (mode: group|duo)
                                    a round nobody plays never closes and
                                    never burns its question. pendingDays,
                                    the day's marker, is gone)
+  pushAt{ uid: ts }?               (ROUNDS-PLAN §7.4 — who has been TOLD a
+                                   round waits for them since their own
+                                   last answer: set by the answer
+                                   trigger's *your turn* and by the
+                                   reveal's carrier, in the same commit as
+                                   the mark or the advance; cleared by the
+                                   member's next answer. One push per turn,
+                                   not per answer. Server-written; dropped
+                                   on leave and erasure with `played`)
   duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
   serves the pair; absent = friends. D40 part 4)
   (memberNames rides on the group doc as a denormalization: it used to be

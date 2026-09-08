@@ -45041,6 +45041,39 @@ the pool and the card are pinned in `deck.test.ts` and
 `LiveDuelPanel.test.tsx`, the arm in `rules.test.ts`, and the round —
 with the world's count not moving — in the e2e's 8a leg.
 
+**Notifications are built** (§7.4, the same day, on the owner's word —
+*"yes on the notification"*), and the page moved first: `web/privacy.html`
+says five and names the fifth, *it is your turn in a group or 1v1*,
+between the reveal and the invitation, with `check:figures` deriving
+the word from the sender's kinds and `check:policy-claims` holding the
+named list. One send site, two messages: the answer trigger tells the
+other members a round waits for them (*Leo answered — your turn*, or
+*Leo played 4 rounds — your turn* when more wait), and the reveal tells
+everyone the round is out and, to whoever has not sealed the next one,
+that it is waiting. The plan's per-recipient window became a STAMP:
+`pushAt[uid]` on the group document, set by either push and cleared by
+the member's own answer, so it is one push per turn — a partner five
+rounds ahead sends one nudge, a room of thirty-one is told once per
+member per round, and a reveal that said the next round waits is not
+followed by a nudge about it. The recipients are decided inside the
+trigger's transaction and stamped in the same commit as the mark, so
+two answers landing together cannot both nudge one member; the send
+waits for the commit. A third Android channel, `turns`, at default
+importance rather than heads-up — a nudge should not pop over what you
+are doing, and the channel is the one control the OS gives a person
+who wants results without nudges. The foreground presents nothing, by
+config rather than by the listener the plan described: the plugin
+cannot present selectively (read in its source — iOS returns the
+static list from `willPresent`, Android posts a foreground notification
+whenever it holds an alert, which it did), so `presentationOptions` is
+the badge alone, the subscribed room moves on its own, and the arrival
+is handed to the store, which re-fetches invitations. The cost of that
+honesty is recorded in §0a: an invitation arriving while you are on
+another tab shows no banner until you return. Pinned in `pure.test.ts`
+(who is told), `late-answer.test.ts` (the stamp in the mark's commit,
+the sender after it, a late answer nudging nobody), `reveal-day.test.ts`
+(the reveal's stamps), `push.test.ts` (the channel, the tap, the
+foreground hand-off) and the e2e (the stamps on the real trigger).
+
 **What is NOT built**, so nothing here reads as more than it is: the
-notifications (§7.4, behind `web/privacy.html`) and the screens
-(request 11). The card is truthful, not redesigned.
+screens (request 11). The card is truthful, not redesigned.

@@ -8429,6 +8429,14 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // Guarded for the node-environment unit tests, which run without a DOM.
   if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
     window.addEventListener("online", wake);
+    // A push that arrived while the app was OPEN (data/push.ts, ROUNDS-PLAN
+    // §7.4): presented by nothing, handed here. A room's round and reveal
+    // are subscribed and need no help; an invitation is fetched, not
+    // subscribed, so the arrival is what refreshes it.
+    window.addEventListener("insight-push-received", (e) => {
+      const kind = String((e as CustomEvent<{ kind?: string }>).detail?.kind || "");
+      if (kind === "invite" || kind === "join-request" || kind === "join-approved") void SOCIAL.loadInvites();
+    });
   }
   if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
     document.addEventListener("visibilitychange", () => {

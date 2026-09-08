@@ -52,8 +52,18 @@ const config: CapacitorConfig = {
       resizeOnFullScreen: true,
     },
     PushNotifications: {
-      // Show the reveal notification even when the app is foregrounded.
-      presentationOptions: ["badge", "sound", "alert"],
+      // The badge ALONE in the foreground (ROUNDS-PLAN §7.4). This said
+      // badge, sound and alert — "show the reveal even when the app is
+      // foregrounded" — which at one reveal a day was a curiosity and at
+      // eight rounds a day is a banner and a sound over the card you are
+      // answering. The plugin cannot present selectively (iOS returns
+      // this list from willPresent for every remote push; Android posts
+      // a foreground notification whenever it holds an alert), so the
+      // foreground is the app's own surface: the room's card moves on its
+      // subscription, and src/v2/data/push.ts hands the arrival to the
+      // store. Backgrounded, every kind still arrives as a notification
+      // on its channel.
+      presentationOptions: ["badge"],
     },
     FirebaseAuthentication: {
       // The plugin loads no providers by default, so the native Google

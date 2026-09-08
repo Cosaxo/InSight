@@ -2,10 +2,12 @@
 // is a no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
 //
-// TWO CLASSES since D236, each on its own Android channel, both sent by
-// functions/src/v2social.ts through one fan-out (sendPushToUids):
+// THREE CLASSES since ROUNDS-PLAN §7.4 (D420), each on its own Android
+// channel, all sent by functions/src/v2social.ts through one fan-out
+// (sendPushToUids):
 //
 //   · "the round is revealed" — revealRound,      channel "reveals"
+//   · "your turn"              — notifyTurn,       channel "turns"    (§7.4)
 //   · "someone invited you"    — inviteToGroupV2,  channel "invites"
 //   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D240)
 //   · "you're in"              — approveJoinV2,    channel "invites"  (D240)
@@ -13,7 +15,20 @@
 // It was one class for a long time and this comment said so. The second is
 // what turned D122's invitation — consent, an inbox, a handle registry —
 // from a note left in an empty room into something that reaches the person
-// it is addressed to.
+// it is addressed to. The third is the volley's other half: a round is a
+// game where somebody has to know it is their move.
+//
+// THE FOREGROUND PRESENTS NOTHING, by config rather than by listener —
+// capacitor.config.ts sets `presentationOptions` to the badge alone. The
+// plan said "suppress when the room is on screen", and the plugin cannot:
+// iOS returns the static config from willPresent for every remote push,
+// and Android posts a foreground notification whenever that config holds
+// an alert (both read in the plugin's source, 8.1.2). At eight rounds a
+// day a banner and a sound over the card you are answering is the app
+// buzzing about what you are looking at, so the foreground is the app's
+// own surface: groups and reveals are subscribed (data/live.ts), the card
+// moves on its own, and the listener below hands the arrival to the store
+// so an invitation — fetched, not subscribed — refreshes too.
 import { Capacitor } from "@capacitor/core";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDb } from "../../lib/firebase";
@@ -77,7 +92,7 @@ export async function registerPush(
         {
           id: "reveals",
           name: "Reveals",
-          description: "When a group or duo day is revealed.",
+          description: "When a round in a group or 1v1 is revealed.",
           // `as const` on both: an inline object infers the literal, but
           // these live in an array now and would widen to `number`,
           // which is not the plugin's Importance/Visibility union.
@@ -92,7 +107,7 @@ export async function registerPush(
           // and somebody asking to join a circle you are in. One
           // channel because they are one concern — who is joining
           // what — and a person muting one would mean to mute both.
-          description: "When someone invites you, or asks to join your circle.",
+          description: "When someone invites you, or asks to join your group.",
           // 4, same as reveals: an invitation is a person waiting on an
           // answer from you, and one that arrives silently is the thing
           // D236 exists to fix.
@@ -101,6 +116,19 @@ export async function registerPush(
           // display name and a circle's name, both of which D98 already
           // publishes to any signed-in account.
           visibility: 1 as const,
+          vibration: true,
+        },
+        {
+          // ROUNDS-PLAN §7.4: a nudge, not a result. A person who mutes
+          // nudges should keep results, and the channel is the one
+          // control Android gives them — so it is its own, at DEFAULT
+          // importance rather than heads-up: "your turn" should not pop
+          // over what you are doing, while the reveal keeps its 4.
+          id: "turns",
+          name: "Your turn",
+          description: "When it's your turn in a 1v1 or group.",
+          importance: 3 as const,
+          visibility: 1 as const, // names a person and a room, both public (D98)
           vibration: true,
         },
       ]) {
@@ -163,7 +191,10 @@ export async function registerPush(
         NAV.goTab("track");
         window.dispatchEvent(new Event("insight-live-update"));
       };
-      if (data.kind === "reveal" && data.gid) {
+      // A reveal, or "your turn" (ROUNDS-PLAN §7.4): both land on a room
+      // this account is in, so the same stash routes both — DailySplit
+      // resolves the gid to the room's mode and opens it.
+      if ((data.kind === "reveal" || data.kind === "turn") && data.gid) {
         try {
           sessionStorage.setItem("insight.pendingReveal", String(data.gid));
         } catch {
@@ -200,6 +231,18 @@ export async function registerPush(
         }
         land();
       }
+    });
+    // A push arriving while the app is OPEN. Presented by nothing (see the
+    // header); handed to the store as an event so what it announces is on
+    // screen: a room's round moves on its own subscription, an invitation
+    // is re-fetched (live.ts listens). Not a `live.ts` import — that file
+    // imports this one.
+    await PushNotifications.addListener("pushNotificationReceived", (n) => {
+      const data = (n && n.data) || {};
+      window.dispatchEvent(new CustomEvent("insight-push-received", {
+        detail: { kind: String(data.kind || ""), gid: data.gid ? String(data.gid) : null },
+      }));
+      window.dispatchEvent(new Event("insight-live-update"));
     });
     await PushNotifications.register();
   } catch (err) {
